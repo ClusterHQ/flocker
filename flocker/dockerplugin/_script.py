@@ -69,7 +69,6 @@ class DockerPluginScript(object):
         # some information we need:
         agent_config = get_configuration(options)
         control_host = agent_config['control-service']['hostname']
-        node_id = agent_config['node-credential'].uuid
 
         certificates_path = options["agent-config"].parent()
         control_port = options["rest-api-port"]
@@ -79,11 +78,18 @@ class DockerPluginScript(object):
                                        certificates_path.child(b"plugin.key"))
 
         self._create_listening_directory(PLUGIN_PATH.parent())
-        endpoint = serverFromString(
-            reactor, "unix:{}:mode=600".format(PLUGIN_PATH.path))
-        service = StreamServerEndpointService(endpoint, Site(
-            VolumePlugin(reactor, flocker_client, node_id).app.resource()))
-        return main_for_service(reactor, service)
+
+        # Get the node UUID, and then start up:
+        getting_id = flocker_client.this_node_uuid()
+
+        def run_service(node_id):
+            endpoint = serverFromString(
+                reactor, "unix:{}:mode=600".format(PLUGIN_PATH.path))
+            service = StreamServerEndpointService(endpoint, Site(
+                VolumePlugin(reactor, flocker_client, node_id).app.resource()))
+            return main_for_service(reactor, service)
+        getting_id.addCallback(run_service)
+        return getting_id
 
 
 def docker_plugin_main():

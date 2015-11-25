@@ -13,27 +13,35 @@ The following sections describe how to install the Flocker client on your platfo
 
 .. _installing-flocker-cli-ubuntu-15.04:
 
-Ubuntu 15.04
-============
+Ubuntu 15.04 (64-bit)
+=====================
 
-.. note:: These instructions require that you have ``sudo`` access.
+.. note:: 
+   These instructions require that you have ``sudo`` access.
 
-On Ubuntu 15.04, the Flocker CLI can be installed from the ClusterHQ repository:
+   If you are using a 32-bit Ubuntu platform, see the instructions for  :ref:`installing-flocker-cli-linux`.
+
+On Ubuntu 15.04 (64-bit), the Flocker CLI can be installed from the ClusterHQ repository:
 
 .. task:: cli_pkg_install ubuntu-15.04
    :prompt: alice@mercury:~$
 
 .. _installing-flocker-cli-ubuntu-14.04:
 
-Ubuntu 14.04
-============
+Ubuntu 14.04 (64-bit)
+=====================
 
-.. note:: These instructions require that you have ``sudo`` access.
+.. note:: 
+   These instructions require that you have ``sudo`` access.
 
-On Ubuntu 14.04, the Flocker CLI can be installed from the ClusterHQ repository:
+   If you are using a 32-bit Ubuntu platform, see the instructions for  :ref:`installing-flocker-cli-linux`.
+
+On Ubuntu 14.04 (64-bit), the Flocker CLI can be installed from the ClusterHQ repository:
 
 .. task:: cli_pkg_install ubuntu-14.04
    :prompt: alice@mercury:~$
+
+.. _installing-flocker-cli-linux:
 
 Other Linux Distributions
 =========================
@@ -47,13 +55,13 @@ Other Linux Distributions
 
 Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
 
-To install these pre-requisites with the ``yum`` package manager, run:
+To install these prerequisites with the ``yum`` package manager, run:
 
 .. task:: cli_pip_prereqs yum
    :prompt: alice@mercury:~$
 
 
-To install these pre-requisites with the ``apt`` package manager, run:
+To install these prerequisites with the ``apt`` package manager, run:
 
 .. task:: cli_pip_prereqs apt
    :prompt: alice@mercury:~$

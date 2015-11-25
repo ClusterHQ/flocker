@@ -5,7 +5,7 @@ A dummy backend plugin for flocker-dataset-agent.
 from twisted.python.filepath import FilePath
 
 from flocker.node import BackendDescription, DeployerType
-from flocker.node.agents.blockdevice import LoopbackBlockDeviceAPI
+from flocker.node.agents.loopback import LoopbackBlockDeviceAPI
 
 DUMMY_API = LoopbackBlockDeviceAPI(FilePath(b"/tmp/foo"), u"")
 

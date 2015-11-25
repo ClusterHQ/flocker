@@ -16,7 +16,7 @@ flake8==2.4.1
 gitdb==0.6.4
 GitPython==1.0.1
 humanfriendly==1.33
-hypothesis==1.10.3
+hypothesis==1.14.0
 Jinja2==2.7.3
 jmespath==0.9.0
 MarkupSafe==0.23
@@ -44,6 +44,7 @@ sphinx-prompt==1.0.0
 sphinx-rtd-theme==0.1.8
 sphinxcontrib-httpdomain==1.3.0
 sphinxcontrib-spelling==2.1.2
+testtools==1.8.1
 tox==2.1.1
 versioneer==0.15
 virtualenv==13.1.0

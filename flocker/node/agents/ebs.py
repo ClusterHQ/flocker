@@ -5,6 +5,7 @@
 An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
+from types import NoneType
 from subprocess import check_output
 import threading
 import time
@@ -13,7 +14,8 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from pyrsistent import PRecord, field, pset, pmap, thaw
+from characteristic import with_cmp
+from pyrsistent import PClass, PRecord, field, pset, pmap, thaw
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -28,15 +30,17 @@ from twisted.python.filepath import FilePath
 from eliot import Message
 
 from .blockdevice import (
-    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume,
+    IBlockDeviceAPI, IProfiledBlockDeviceAPI, BlockDeviceVolume, UnknownVolume,
+    AlreadyAttachedVolume, UnattachedVolume, UnknownInstanceID,
+    MandatoryProfiles
 )
 from ...control import pmap_field
 
 from ._logging import (
     AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
-    BOTO_LOG_HEADER, IN_USE_DEVICES,
+    BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE,
+    BOTO_LOG_RESULT
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -49,6 +53,108 @@ MAX_ATTACH_RETRIES = 3
 # http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
 # for error details:
 NOT_FOUND = u'InvalidVolume.NotFound'
+INVALID_PARAMETER_VALUE = u'InvalidParameterValue'
+
+
+class EBSVolumeTypes(Values):
+    """
+    Constants for the different types of volumes that can be created on EBS.
+    These are taken from the documentation at:
+    http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html
+
+    :ivar STANDARD: Magnetic
+
+    :ivar IO1: Provisioned IOPS (SSD)
+
+    :ivar GP2: General Purpose (SSD)
+    """
+    STANDARD = ValueConstant(u"standard")
+    IO1 = ValueConstant(u"io1")
+    GP2 = ValueConstant(u"gp2")
+
+
+class EBSProfileAttributes(PClass):
+    """
+    Sets of profile attributes for the mandatory EBS volume profiles.
+
+    :ivar volume_type: The volume_type for the boto create_volume call.
+        Valid values are EBSVolumeTypes.
+
+    :ivar iops_per_size_gib: The desired IOs per second per GiB of disk size.
+
+    :ivar max_iops: The maximum number of IOs per second that EBS will accept
+        for this type of volume.
+    """
+    volume_type = field(mandatory=False, type=ValueConstant,
+                        initial=EBSVolumeTypes.STANDARD)
+    iops_per_size_gib = field(mandatory=False,
+                              type=(int, type(None)), initial=None)
+    max_iops = field(mandatory=False, type=(int, type(None)), initial=None)
+
+    def requested_iops(self, size_gib):
+        """
+        Returns the requested IOs per second for this profile or None if you
+        cannot request a rate of IOs per second for this volume type. This will
+        be iops_per_size_gib * size_gib unless this value exceeds max_iops.
+
+        :param int size_gib: The size in GiB of the volume being created.
+
+        :returns: The requested IOs per second for this profile for a disk of
+            the given size.
+        """
+        if self.iops_per_size_gib is not None:
+            if self.max_iops is not None:
+                return min(size_gib * self.iops_per_size_gib,
+                           self.max_iops)
+            return size_gib * self.iops_per_size_gib
+        return None
+
+
+class EBSMandatoryProfileAttributes(Values):
+    """
+    These constants are the ``EBSProfileAttributes`` for the mandatory
+    profiles. Many of the values for these were gotten from the documentation
+    at:
+    http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html
+
+    :ivar GOLD: The high performing Provisioned IOPS disks.
+    :ivar SILVER: The medium performing SSD disks.
+    :ivar BRONZE: The cheap magnetic disks.
+    """
+    GOLD = ValueConstant(EBSProfileAttributes(volume_type=EBSVolumeTypes.IO1,
+                                              iops_per_size_gib=30,
+                                              max_iops=20000))
+    # ``gp2`` volume type cannot take IOPS request since it defaults to
+    # baseline performance of 3 IOPS/GiB (up to 10,000 IOPS)
+    SILVER = ValueConstant(EBSProfileAttributes(
+        volume_type=EBSVolumeTypes.GP2))
+    BRONZE = ValueConstant(EBSProfileAttributes(
+        volume_type=EBSVolumeTypes.STANDARD))
+
+
+def _volume_type_and_iops_for_profile_name(profile_name, size):
+    """
+    Determines and returns the volume_type and iops for a boto create_volume
+    call for a given profile_name.
+
+    :param profile_name: The name of the profile.
+
+    :param size: The size of the volume to create in GiB.
+
+    :returns: A tuple of (volume_type, iops) to be passed to a create_volume
+        call.
+    """
+    volume_type = None
+    iops = None
+    try:
+        A = EBSMandatoryProfileAttributes.lookupByName(
+            MandatoryProfiles.lookupByValue(profile_name).name).value
+    except ValueError:
+        pass
+    else:
+        volume_type = A.volume_type.value
+        iops = A.requested_iops(size)
+    return volume_type, iops
 
 
 class VolumeOperations(Names):
@@ -132,6 +238,12 @@ class VolumeStateTable(PRecord):
 VOLUME_STATE_TABLE = VolumeStateTable()
 
 
+class AttachFailed(Exception):
+    """
+    AWS EBS refused to allow a volume to be attached to an instance.
+    """
+
+
 class TimeoutException(Exception):
     """
     A timeout on waiting for volume to reach destination end state.
@@ -205,6 +317,7 @@ def _enable_boto_logging():
 _enable_boto_logging()
 
 
+@with_cmp(["requested", "discovered"])
 class AttachedUnexpectedDevice(Exception):
     """
     A volume was attached to a device other than the one we expected.
@@ -217,15 +330,33 @@ class AttachedUnexpectedDevice(Exception):
     def __init__(self, requested, discovered):
         """
         :param FilePath requested: The requested device name.
-        :param FilePath discovered: The device which was discovered on the
-            system.
+        :param discovered: A ``FilePath`` giving the path of the device which
+            was discovered on the system or ``None`` if no new device was
+            discovered at all.
         """
+        # It would be cool to replace this logic with pyrsistent typed fields
+        # but Exception and PClass have incompatible layouts (you can't have an
+        # exception that's a PClass).
+        if not isinstance(requested, FilePath):
+            raise TypeError(
+                "requested must be FilePath, not {}".format(type(requested))
+            )
+        if not isinstance(discovered, (FilePath, NoneType)):
+            raise TypeError(
+                "discovered must be None or FilePath, not {}".format(
+                    type(discovered)
+                )
+            )
+
         self.requested = requested
         self.discovered = discovered
 
     def __str__(self):
+        discovered = self.discovered
+        if discovered is not None:
+            discovered = discovered.path
         return self._template.format(
-            self.requested.path, self.discovered.path,
+            self.requested.path, discovered,
         )
 
     __repr__ = __str__
@@ -579,7 +710,80 @@ def _is_cluster_volume(cluster_id, ebs_volume):
     return False
 
 
+def _attach_volume_and_wait_for_device(
+    volume, attach_to, attach_volume, detach_volume, device, blockdevices,
+):
+    """
+    Attempt to attach an EBS volume to an EC2 instance and wait for the
+    corresponding OS device to become available.
+
+    :param BlockDeviceVolume volume: The Flocker representation of the volume
+        to attach.
+    :param unicode attach_to: The EC2 instance id to which to attach it.
+    :param attach_volume: A function like ``EC2Connection.attach_volume``.
+    :param detach_volume: A function like ``EC2Connection.detach_volume``.
+    :param unicode device: The OS device path to which to attach the device.
+    :param list blockdevices: The OS device paths (as ``FilePath``) which are
+        already present on the system before this operation is attempted
+        (primarily useful to make testing easier).
+
+    :raise: Anything ``attach_volume`` can raise.  Or
+        ``AttachedUnexpectedDevice`` if the volume appears to become attached
+        to the wrong OS device file.
+
+    :return: ``True`` if the volume is attached and accessible via the expected
+        OS device file.  ``False`` if the attempt times out without succeeding.
+    """
+    try:
+        attach_volume(volume.blockdevice_id, attach_to, device)
+    except EC2ResponseError as e:
+        # If attach failed that is often because of eventual
+        # consistency in AWS, so let's ignore this one if it
+        # fails:
+        if e.code == u'InvalidParameterValue':
+            return False
+        raise
+    else:
+        # Wait for new device to manifest in the OS. Since there
+        # is currently no standardized protocol across Linux guests
+        # in EC2 for mapping `device` to the name device driver
+        # picked (http://docs.aws.amazon.com/AWSEC2/latest/
+        # UserGuide/device_naming.html), wait for new block device
+        # to be available to the OS, and interpret it as ours.
+        # Wait under lock scope to reduce false positives.
+        device_path = _wait_for_new_device(
+            blockdevices, volume.size
+        )
+        # We do, however, expect the attached device name to follow
+        # a certain simple pattern.  Verify that now and signal an
+        # error immediately if the assumption is violated.  If we
+        # let it go by, a later call to ``get_device_path`` will
+        # quietly produce the wrong results.
+        #
+        # To make this explicit, we *expect* that the device will
+        # *always* be what we *expect* the device to be (sorry).
+        # This check is only here in case we're wrong to make the
+        # system fail in a less damaging way.
+        if _expected_device(device) != device_path:
+            # We also don't want anything to re-discover the volume
+            # in an attached state since that might also result in
+            # use of ``get_device_path`` (producing an incorrect
+            # result).  This is a best-effort.  It's possible the
+            # agent will crash after attaching the volume and
+            # before detaching it here, leaving the system in a bad
+            # state.  This is one reason we need a better solution
+            # in the long term.
+            detach_volume(volume.blockdevice_id)
+            raise AttachedUnexpectedDevice(FilePath(device), device_path)
+        return True
+
+
+def _get_blockdevices():
+    return FilePath(b"/sys/block").children()
+
+
 @implementer(IBlockDeviceAPI)
+@implementer(IProfiledBlockDeviceAPI)
 class EBSBlockDeviceAPI(object):
     """
     An EBS implementation of ``IBlockDeviceAPI`` which creates
@@ -609,7 +813,10 @@ class EBSBlockDeviceAPI(object):
         """
         Look up the EC2 instance ID for this node.
         """
-        return get_instance_metadata()['instance-id'].decode("ascii")
+        instance_id = get_instance_metadata().get('instance-id', None)
+        if instance_id is None:
+            raise UnknownInstanceID(self)
+        return instance_id.decode("ascii")
 
     def _get_ebs_volume(self, blockdevice_id):
         """
@@ -679,22 +886,70 @@ class EBSBlockDeviceAPI(object):
 
     def create_volume(self, dataset_id, size):
         """
+        Create a volume on EBS backend.
+        """
+        return self.create_volume_with_profile(
+            dataset_id, size, MandatoryProfiles.DEFAULT.value)
+
+    def create_volume_with_profile(self, dataset_id, size, profile_name):
+        """
         Create a volume on EBS. Store Flocker-specific
         {metadata version, cluster id, dataset id} for the volume
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
-        requested_volume = self.connection.create_volume(
-            size=int(Byte(size).to_GiB().value), zone=self.zone)
+        requested_size = int(Byte(size).to_GiB().value)
+        try:
+            volume_type, iops = _volume_type_and_iops_for_profile_name(
+                profile_name, requested_size)
+            requested_volume = self.connection.create_volume(
+                size=requested_size,
+                zone=self.zone,
+                volume_type=volume_type,
+                iops=iops)
+        except EC2ResponseError as e:
+            # If we failed to create a volume with attributes complying
+            # with requested profile, make a second attempt at volume
+            # creation with default profile.
+            # Compliance violation of the volume's requested profile
+            # will be detected and remediated in a future release (FLOC-3275).
+            if e.code != INVALID_PARAMETER_VALUE:
+                raise e
+            CREATE_VOLUME_FAILURE(dataset_id=dataset_id,
+                                  aws_code=e.code,
+                                  aws_message=e.message).write()
+            volume_type, iops = _volume_type_and_iops_for_profile_name(
+                MandatoryProfiles.DEFAULT.value, requested_size)
+            requested_volume = self.connection.create_volume(
+                size=requested_size,
+                zone=self.zone,
+                volume_type=volume_type,
+                iops=iops)
+
+        message_type = BOTO_LOG_RESULT + u':created_volume'
+        Message.new(
+            message_type=message_type, volume_id=unicode(requested_volume.id),
+            dataset_id=unicode(dataset_id), size=unicode(size)
+        ).write()
 
         # Stamp created volume with Flocker-specific tags.
         metadata = {
             METADATA_VERSION_LABEL: '1',
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
+            # EC2 convention for naming objects, e.g. as used in EC2 web
+            # console (http://stackoverflow.com/a/12798180).
+            "Name": u"flocker-{}".format(dataset_id),
         }
         self.connection.create_tags([requested_volume.id],
                                     metadata)
+
+        message_type = BOTO_LOG_RESULT + u':created_tags'
+        Message.new(
+            message_type=message_type,
+            requested_volume=requested_volume.id,
+            tags=metadata
+        ).write()
 
         # Wait for created volume to reach 'available' state.
         _wait_for_volume_state_change(VolumeOperations.CREATE,
@@ -709,6 +964,11 @@ class EBSBlockDeviceAPI(object):
         """
         try:
             ebs_volumes = self.connection.get_all_volumes()
+            message_type = BOTO_LOG_RESULT + u':listed_volumes'
+            Message.new(
+                message_type=message_type,
+                volume_ids=list(volume.id for volume in ebs_volumes),
+            ).write()
         except EC2ResponseError as e:
             # Work around some internal race-condition in EBS by retrying,
             # since this error makes no sense:
@@ -723,6 +983,11 @@ class EBSBlockDeviceAPI(object):
                 volumes.append(
                     _blockdevicevolume_from_ebs_volume(ebs_volume)
                 )
+        message_type = BOTO_LOG_RESULT + u':listed_cluster_volumes'
+        Message.new(
+            message_type=message_type,
+            volume_ids=list(volume.blockdevice_id for volume in volumes),
+        ).write()
         return volumes
 
     def attach_volume(self, blockdevice_id, attach_to):
@@ -737,6 +1002,7 @@ class EBSBlockDeviceAPI(object):
             corresponding to the input blockdevice_id.
         :raises AlreadyAttachedVolume: If the input volume is already attached
             to a device.
+        :raises AttachFailed: If the volume could not be attached.
         :raises AttachedUnexpectedDevice: If the attach operation fails to
             associate the volume with the expected OS device file.  This
             indicates use on an unsupported OS, a misunderstanding of the EBS
@@ -748,76 +1014,34 @@ class EBSBlockDeviceAPI(object):
                 ebs_volume.status != VolumeStates.AVAILABLE.value):
             raise AlreadyAttachedVolume(blockdevice_id)
 
+        attached = False
         ignore_devices = pset([])
-        attach_attempts = 0
-        while True:
+        for attach_attempt in range(3):
             with self.lock:
-                # begin lock scope
-
-                blockdevices = FilePath(b"/sys/block").children()
                 volumes = self.connection.get_all_volumes()
                 device = self._next_device(attach_to, volumes, ignore_devices)
-
                 if device is None:
                     # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
                     # (https://clusterhq.atlassian.net/browse/FLOC-1887).
                     # No point in attempting an ``attach_volume``, return.
                     return
-
-                try:
-                    self.connection.attach_volume(blockdevice_id,
-                                                  attach_to,
-                                                  device)
-                except EC2ResponseError as e:
-                    # If attach failed that is often because of eventual
-                    # consistency in AWS, so let's ignore this one if it
-                    # fails:
-                    if e.code == u'InvalidParameterValue':
-                        attach_attempts += 1
-                        if attach_attempts == MAX_ATTACH_RETRIES:
-                            raise
-                        ignore_devices = ignore_devices.add(device)
-                    else:
-                        raise
-                else:
-                    # Wait for new device to manifest in the OS. Since there
-                    # is currently no standardized protocol across Linux guests
-                    # in EC2 for mapping `device` to the name device driver
-                    # picked (http://docs.aws.amazon.com/AWSEC2/latest/
-                    # UserGuide/device_naming.html), wait for new block device
-                    # to be available to the OS, and interpret it as ours.
-                    # Wait under lock scope to reduce false positives.
-                    device_path = _wait_for_new_device(
-                        blockdevices, volume.size
+                blockdevices = _get_blockdevices()
+                attached = _attach_volume_and_wait_for_device(
+                    volume, attach_to,
+                    self.connection.attach_volume,
+                    self.connection.detach_volume,
+                    device, blockdevices,
+                )
+                if attached:
+                    _wait_for_volume_state_change(
+                        VolumeOperations.ATTACH, ebs_volume,
                     )
-                    # We do, however, expect the attached device name to follow
-                    # a certain simple pattern.  Verify that now and signal an
-                    # error immediately if the assumption is violated.  If we
-                    # let it go by, a later call to ``get_device_path`` will
-                    # quietly produce the wrong results.
-                    #
-                    # To make this explicit, we *expect* that the device will
-                    # *always* be what we *expect* the device to be (sorry).
-                    # This check is only here in case we're wrong to make the
-                    # system fail in a less damaging way.
-                    if _expected_device(device) != device_path:
-                        # We also don't want anything to re-discover the volume
-                        # in an attached state since that might also result in
-                        # use of ``get_device_path`` (producing an incorrect
-                        # result).  This is a best-effort.  It's possible the
-                        # agent will crash after attaching the volume and
-                        # before detaching it here, leaving the system in a bad
-                        # state.  This is one reason we need a better solution
-                        # in the long term.
-                        self.detach_volume(blockdevice_id)
-                        raise AttachedUnexpectedDevice(device, device_path)
-                    break
-                # end lock scope
+                    attached_volume = volume.set('attached_to', attach_to)
+                    return attached_volume
+                else:
+                    ignore_devices = ignore_devices.add(device)
 
-        _wait_for_volume_state_change(VolumeOperations.ATTACH, ebs_volume)
-
-        attached_volume = volume.set('attached_to', attach_to)
-        return attached_volume
+        raise AttachFailed(volume.blockdevice_id, attach_to, device)
 
     def detach_volume(self, blockdevice_id):
         """

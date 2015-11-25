@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.control._protocol``.
@@ -34,14 +34,15 @@ from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
-from ...testtools.amp import DelayedAMPClient
+from ...testtools.amp import DelayedAMPClient, connected_amp_protocol
 
 from .._protocol import (
     PING_INTERVAL, Big, SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
-    AGENT_CONNECTED, CachingEncoder, _caching_encoder
+    AGENT_CONNECTED, caching_wire_encode, SetNodeEraCommand,
+    timeout_for_protocol,
 )
 from .._clusterstate import ClusterStateService
 from .. import (
@@ -79,7 +80,7 @@ class LoopbackAMPClient(object):
             will handle commands sent using ``callRemote``.
         """
         self._locator = command_locator
-        self.transport = StringTransport()
+        self.transport = StringTransportWithAbort()
 
     def callRemote(self, command, **kwargs):
         """
@@ -414,13 +415,16 @@ class SerializationTests(SynchronousTestCase):
 
     def test_caches(self):
         """
-        Encoding results are cached when in the context of the caching
-        encoder's ``cache()`` call.
+        Encoding results are cached.
         """
         argument = SerializableArgument(Deployment)
-        with _caching_encoder.cache():
-            self.assertIs(argument.toString(TEST_DEPLOYMENT),
-                          argument.toString(TEST_DEPLOYMENT))
+        # This is a fragile assertion since it assumes a particular
+        # implementation of strings in Python... Some implementations may
+        # choose to reuse string objects separately from our use of a
+        # cache. On CPython 2.7 it fails when caching is disabled, at
+        # least.
+        self.assertIs(argument.toString(TEST_DEPLOYMENT),
+                      argument.toString(TEST_DEPLOYMENT))
 
 
 def build_control_amp_service(test, reactor=None):
@@ -480,6 +484,19 @@ class ControlTestCase(SynchronousTestCase):
         )
 
 
+class StringTransportWithAbort(StringTransport):
+    """
+    A ``StringTransport`` that implements ``abortConnection``.
+    """
+    def __init__(self, *args, **kwargs):
+        self.aborted = False
+        StringTransport.__init__(self, *args, **kwargs)
+
+    def abortConnection(self):
+        self.aborted = True
+        self.connected = False
+
+
 class ControlAMPTests(ControlTestCase):
     """
     Tests for ``ControlAMP`` and ``ControlServiceLocator``.
@@ -492,6 +509,37 @@ class ControlAMPTests(ControlTestCase):
         self.protocol = ControlAMP(self.reactor, self.control_amp_service)
         self.client = LoopbackAMPClient(self.protocol.locator)
 
+    def test_connection_stays_open_on_activity(self):
+        """
+        The AMP connection remains open when communication is received at
+        any time up to the timeout limit.
+        """
+        self.protocol.makeConnection(StringTransportWithAbort())
+        initially_aborted = self.protocol.transport.aborted
+        advance_some(self.reactor)
+        self.client.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        # This NoOp will reset the timeout.
+        self.client.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        later_aborted = self.protocol.transport.aborted
+        self.assertEqual(
+            dict(initially=initially_aborted, later=later_aborted),
+            dict(initially=False, later=False)
+        )
+
+    def test_connection_closed_on_no_activity(self):
+        """
+        If no communication has been received for long enough that we expire
+        cluster state, the silent connection is forcefully closed.
+        """
+        self.protocol.makeConnection(StringTransportWithAbort())
+        advance_some(self.reactor)
+        self.client.callRemote(NoOp)
+        self.assertFalse(self.protocol.transport.aborted)
+        self.reactor.advance(PING_INTERVAL.seconds * 2)
+        self.assertEqual(self.protocol.transport.aborted, True)
+
     def test_connection_made(self):
         """
         When a connection is made the ``ControlAMP`` is added to the services
@@ -500,7 +548,7 @@ class ControlAMPTests(ControlTestCase):
         marker = object()
         self.control_amp_service.connections.add(marker)
         current = self.control_amp_service.connections.copy()
-        self.protocol.makeConnection(StringTransport())
+        self.protocol.makeConnection(StringTransportWithAbort())
         self.assertEqual((current, self.control_amp_service.connections),
                          ({marker}, {marker, self.protocol}))
 
@@ -514,7 +562,7 @@ class ControlAMPTests(ControlTestCase):
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.control_amp_service.cluster_state.apply_changes([NODE_STATE])
 
-        self.protocol.makeConnection(StringTransport())
+        self.protocol.makeConnection(StringTransportWithAbort())
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertEqual(
             sent[0],
@@ -533,7 +581,7 @@ class ControlAMPTests(ControlTestCase):
         # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(self.protocol, "callRemote",
                    lambda *args, **kwargs: succeed(None))
-        self.protocol.makeConnection(StringTransport())
+        self.protocol.makeConnection(StringTransportWithAbort())
         self.protocol.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.control_amp_service.connections, {marker})
 
@@ -569,6 +617,7 @@ class ControlAMPTests(ControlTestCase):
         timestamp is refreshed to prevent previously applied state from
         expiring.
         """
+        self.protocol.makeConnection(StringTransportWithAbort())
         cluster_state = self.control_amp_service.cluster_state
 
         # Deliver some initial state (T1) which can be expected to be
@@ -650,6 +699,22 @@ class ControlAMPTests(ControlTestCase):
             self.control_amp_service.cluster_state.as_deployment(),
         )
 
+    def test_set_node_era(self):
+        """
+        A ``SetNodeEraCommand`` results in the node's era being
+        updated.
+        """
+        node_uuid = uuid4()
+        era = uuid4()
+        d = self.client.callRemote(SetNodeEraCommand,
+                                   node_uuid=unicode(node_uuid),
+                                   era=unicode(era))
+        self.successResultOf(d)
+        self.assertEqual(
+            DeploymentState(node_uuid_to_era={node_uuid: era}),
+            self.control_amp_service.cluster_state.as_deployment(),
+        )
+
 
 class ControlAMPServiceTests(ControlTestCase):
     """
@@ -689,7 +754,7 @@ class ControlAMPServiceTests(ControlTestCase):
         connections = [ControlAMP(Clock(), service) for i in range(3)]
         initial_disconnecting = []
         for c in connections:
-            c.makeConnection(StringTransport())
+            c.makeConnection(StringTransportWithAbort())
             initial_disconnecting.append(c.transport.disconnecting)
         service.stopService()
         self.assertEqual(
@@ -775,6 +840,67 @@ class ControlAMPServiceTests(ControlTestCase):
                 first=first_agent_desired,
                 second=second_agent_desired,
                 third=third_agent_desired,
+            ),
+        )
+
+    def test_second_configuration_change_suceeds_when_first_fails(self):
+        """
+        If the first update fails, we want to ensure that following updates
+        won't get stuck waiting, and will get updated.
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service = build_control_amp_service(self)
+        service.startService()
+
+        # Add a second agent, to ensure that the delayed logic interacts with
+        # the correct connection.
+        confounding_agent = FakeAgent()
+        confounding_client = AgentAMP(Clock(), confounding_agent)
+
+        # Setup of the the server that will fail to update
+        failing_server = LoopbackAMPClient(confounding_client.locator)
+
+        def raise_unexpected_exception(self,
+                                       commandType=None,
+                                       *a, **kw):
+            raise Exception("I'm an unexpected exception")
+
+        # We want the update to fail in one of the connections
+        self.patch(failing_server,
+                   "callRemote",
+                   raise_unexpected_exception
+                   )
+        # The connection will fail, but it shouldn't prevent following
+        # commnads (from ``delayed_server``) to be properly executed
+        service.connected(failing_server)
+
+        configuration = service.configuration_service.get()
+        modified_configuration = arbitrary_transformation(configuration)
+
+        server = LoopbackAMPClient(client.locator)
+        delayed_server = DelayedAMPClient(server)
+        # Send first update
+        service.connected(delayed_server)
+
+        # Send second update
+        service.configuration_service.save(modified_configuration)
+        second_agent_desired = agent.desired
+
+        delayed_server.respond()
+        third_agent_desired = agent.desired
+
+        # Now we verify that the updates following the failure
+        # actually worked as we expect
+        self.assertEqual(
+            dict(
+                first=configuration,
+                second=modified_configuration,
+            ),
+            dict(
+                # The update will fail, so we don't expect the config to change
+                first=second_agent_desired,
+                second=third_agent_desired,
             ),
         )
 
@@ -864,17 +990,45 @@ class AgentClientTests(SynchronousTestCase):
     """
     def setUp(self):
         self.agent = FakeAgent()
-        self.client = AgentAMP(Clock(), self.agent)
+        self.reactor = Clock()
+        self.client = AgentAMP(self.reactor, self.agent)
+        self.client.makeConnection(StringTransportWithAbort())
         # The server needs to send commands to the client, so it acts as
         # an AMP client in that regard. Due to https://tm.tl/7761 we need
         # to access the passed in locator directly.
         self.server = LoopbackAMPClient(self.client.locator)
+
+    def test_connection_stays_open_on_activity(self):
+        """
+        The AMP connection remains open when communication is received at
+        any time up to the timeout limit.
+        """
+        advance_some(self.reactor)
+        self.server.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        # This NoOp will reset the timeout.
+        self.server.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
+        self.assertEqual(self.client.transport.aborted, False)
+
+    def test_connection_closed_on_no_activity(self):
+        """
+        If no communication has been received for long enough that we expire
+        cluster state, the silent connection is forcefully closed.
+        """
+        advance_some(self.reactor)
+        self.server.callRemote(NoOp)
+        self.reactor.advance(PING_INTERVAL.seconds * 2)
+        self.assertEqual(self.client.transport.aborted, True)
 
     def test_initially_not_connected(self):
         """
         The agent does not get told a connection was made or lost before it's
         actually happened.
         """
+        self.agent = FakeAgent()
+        self.reactor = Clock()
+        self.client = AgentAMP(self.reactor, self.agent)
         self.assertEqual(self.agent, FakeAgent(is_connected=False,
                                                is_disconnected=False))
 
@@ -882,7 +1036,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         Connection made events are passed on to the agent.
         """
-        self.client.makeConnection(StringTransport())
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client))
 
@@ -890,7 +1043,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         Connection lost events are passed on to the agent.
         """
-        self.client.makeConnection(StringTransport())
         self.client.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
@@ -899,7 +1051,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         AMP protocol can transmit configurations with 800 applications.
         """
-        self.client.makeConnection(StringTransport())
         actual = DeploymentState(nodes=[])
         configuration = huge_deployment()
         d = self.server.callRemote(
@@ -916,7 +1067,6 @@ class AgentClientTests(SynchronousTestCase):
         """
         AMP protocol can transmit states with 800 applications.
         """
-        self.client.makeConnection(StringTransport())
         state = huge_state()
         d = self.server.callRemote(
             ClusterStatusCommand,
@@ -932,7 +1082,6 @@ class AgentClientTests(SynchronousTestCase):
         ``ClusterStatusCommand`` sent to the ``AgentClient`` result in agent
         having cluster state updated.
         """
-        self.client.makeConnection(StringTransport())
         actual = DeploymentState(nodes=[])
         d = self.server.callRemote(
             ClusterStatusCommand,
@@ -966,7 +1115,7 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.connected()`` takes an AMP instance.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
 
         def test_disconnected(self):
             """
@@ -974,7 +1123,7 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.connected()``.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
             agent.disconnected()
 
         def test_reconnected(self):
@@ -983,9 +1132,9 @@ def iconvergence_agent_tests_factory(fixture):
             ``IConvergenceAgent.disconnected()``.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
             agent.disconnected()
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
 
         def test_cluster_updated(self):
             """
@@ -993,9 +1142,9 @@ def iconvergence_agent_tests_factory(fixture):
             instances.
             """
             agent = fixture(self)
-            agent.connected(AMP())
+            agent.connected(connected_amp_protocol())
             agent.cluster_updated(
-                Deployment(nodes=frozenset()), Deployment(nodes=frozenset()))
+                Deployment(nodes=frozenset()), DeploymentState(nodes=[]))
 
         def test_interface(self):
             """
@@ -1053,7 +1202,10 @@ class AgentLocatorTests(SynchronousTestCase):
         """
         fake_agent = FakeAgent()
         self.patch(fake_agent, 'logger', logger)
-        locator = _AgentLocator(agent=fake_agent)
+        reactor = Clock()
+        protocol = AgentAMP(reactor, fake_agent)
+        locator = _AgentLocator(
+            agent=fake_agent, timeout=timeout_for_protocol(reactor, protocol))
         self.assertIs(logger, locator.logger)
 
 
@@ -1070,9 +1222,12 @@ class ControlServiceLocatorTests(SynchronousTestCase):
         """
         fake_control_amp_service = build_control_amp_service(self)
         self.patch(fake_control_amp_service, 'logger', logger)
+        reactor = Clock()
+        protocol = ControlAMP(reactor, fake_control_amp_service)
         locator = ControlServiceLocator(
-            reactor=Clock(),
-            control_amp_service=fake_control_amp_service
+            reactor=reactor,
+            control_amp_service=fake_control_amp_service,
+            timeout=timeout_for_protocol(reactor, protocol)
         )
         self.assertIs(logger, locator.logger)
 
@@ -1146,6 +1301,7 @@ class PingTestsMixin(object):
         pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
         for i in range(expected_pings):
             reactor.advance(PING_INTERVAL.total_seconds())
+            peer.callRemote(NoOp)  # Keep the other side alive past its timeout
             pump.flush()
         self.assertEqual(locator.noops, expected_pings)
 
@@ -1156,7 +1312,7 @@ class PingTestsMixin(object):
         """
         reactor = Clock()
         protocol = self.build_protocol(reactor)
-        transport = StringTransport()
+        transport = StringTransportWithAbort()
         protocol.makeConnection(transport)
         transport.clear()
         protocol.connectionLost(Failure(ConnectionDone("test, simulated")))
@@ -1183,62 +1339,33 @@ class AgentAMPPingTests(SynchronousTestCase, PingTestsMixin):
         return AgentAMP(reactor, FakeAgent())
 
 
-class CachingEncoderTests(SynchronousTestCase):
+class CachingWireEncodeTests(SynchronousTestCase):
     """
-    Tests for ``CachingEncoder``.
+    Tests for ``caching_wire_encode``.
     """
     def test_encodes(self):
         """
         ``CachingEncoder.encode`` returns result of ``wire_encode`` for given
         object.
         """
-        cache = CachingEncoder()
         self.assertEqual(
-            [loads(cache.encode(TEST_DEPLOYMENT)),
-             loads(cache.encode(NODE_STATE))],
+            [loads(caching_wire_encode(TEST_DEPLOYMENT)),
+             loads(caching_wire_encode(NODE_STATE))],
             [loads(wire_encode(TEST_DEPLOYMENT)),
              loads(wire_encode(NODE_STATE))])
-
-    def test_no_caching(self):
-        """
-        ``CachingEncoder.encode`` does not cache results by default.
-        """
-        cache = CachingEncoder()
-        result1 = cache.encode(TEST_DEPLOYMENT)
-        result2 = cache.encode(NODE_STATE)
-
-        self.assertEqual(
-            [cache.encode(TEST_DEPLOYMENT) is not result1,
-             cache.encode(NODE_STATE) is not result2],
-            [True, True])
 
     def test_caches(self):
         """
         ``CachingEncoder.encode`` caches the result of ``wire_encode`` for a
         particular object if used in context of ``cache()``.
         """
-        cache = CachingEncoder()
-        with cache.cache():
-            # Warm up cache:
-            result1 = cache.encode(TEST_DEPLOYMENT)
-            result2 = cache.encode(NODE_STATE)
+        # Warm up cache:
+        result1 = caching_wire_encode(TEST_DEPLOYMENT)
+        result2 = caching_wire_encode(NODE_STATE)
 
-            self.assertEqual(
-                [loads(result1) == loads(wire_encode(TEST_DEPLOYMENT)),
-                 loads(result2) == loads(wire_encode(NODE_STATE)),
-                 cache.encode(TEST_DEPLOYMENT) is result1,
-                 cache.encode(NODE_STATE) is result2],
-                [True, True, True, True])
-
-    def test_after_caching(self):
-        """
-        Once ``cache`` context is exited the caching no longer applies.
-        """
-        cache = CachingEncoder()
-        with cache.cache():
-            result1 = cache.encode(TEST_DEPLOYMENT)
-            result2 = cache.encode(NODE_STATE)
         self.assertEqual(
-            [cache.encode(TEST_DEPLOYMENT) is not result1,
-             cache.encode(NODE_STATE) is not result2],
-            [True, True])
+            [loads(result1) == loads(wire_encode(TEST_DEPLOYMENT)),
+             loads(result2) == loads(wire_encode(NODE_STATE)),
+             caching_wire_encode(TEST_DEPLOYMENT) is result1,
+             caching_wire_encode(NODE_STATE) is result2],
+            [True, True, True, True])

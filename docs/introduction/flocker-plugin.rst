@@ -34,7 +34,7 @@ The Flocker plugin for Docker depends on Docker 1.8 or later.
 .. _`Docker documentation on volume plugins`: `Docker volumes plugin`_
 
 How It Works
-------------
+============
 
 The Flocker plugin for Docker enables you to run containers with named volumes without worrying which server your data is on.
 
@@ -51,7 +51,7 @@ There are three main cases which the plugin handles:
 Multiple containers can use the same Flocker volume (by referencing the same volume name, or by using Docker's ``--volumes-from``) so long as they are running on the same host.
 
 Demo
-----
+====
 
 This demo shows both the Flocker plugin for Docker in conjunction with the :ref:`Volumes CLI <labs-volumes-cli>` and :ref:`Volumes GUI <labs-volumes-gui>`.
 
@@ -64,3 +64,11 @@ This is the "ultimate integration demo", a pre-built demo environment that inclu
 
 Flocker also has planned integrations with major orchestration tools such as Docker Swarm, Kubernetes and Apache Mesos.
 More information on these integrations is :ref:`available in the Labs section <labs-projects>`.
+
+Get Started with the Flocker Plugin for Docker
+==============================================
+
+The plugin is installed on each node in your cluster, and can be installed at the same time as the Flocker node services.
+For more information, see :ref:`installing-flocker-node`.
+
+When the plugin has been installed, you will need to :ref:`create API user certificates for access to the Flocker REST API <generate-api-docker-plugin>`, and then :ref:`enable the plugin <enabling-agent-service>` before you can use it to :ref:`control Flocker <using-docker-plugin>`.

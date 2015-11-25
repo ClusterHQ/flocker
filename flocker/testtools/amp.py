@@ -117,3 +117,12 @@ class DelayedAMPClient(object):
         """
         d, response = self._calls.pop(0)
         response.chainDeferred(d)
+
+
+def connected_amp_protocol():
+    """
+    :return: ``AMP`` hooked up to transport.
+    """
+    p = AMP()
+    p.makeConnection(StringTransport())
+    return p

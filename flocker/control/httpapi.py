@@ -44,11 +44,8 @@ from ._config import (
 from ._persistence import update_leases
 from ._model import LeaseError
 
-from .. import __version__
-
-
-# Default port for REST API:
-REST_API_PORT = 4523
+from .. import __version__, REST_API_PORT as _port
+REST_API_PORT = _port  # Some modules expect this constant to be here
 
 
 SCHEMA_BASE = FilePath(__file__).parent().child(b'schema')
@@ -91,7 +88,8 @@ LEASE_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"Lease not found.")
 LEASE_HELD = make_bad_request(
     code=CONFLICT, description=u"Lease already held.")
-
+NODE_BY_ERA_NOT_FOUND = make_bad_request(
+    code=NOT_FOUND, description=u"No node found with given era.")
 _UNDEFINED_MAXIMUM_SIZE = object()
 
 
@@ -835,6 +833,45 @@ class ConfigurationAPIUserV1(object):
         return [{u"host": node.hostname, u"uuid": unicode(node.uuid)}
                 for node in
                 self.cluster_state_service.as_deployment().nodes]
+
+    @app.route("/state/nodes/by_era/<era>", methods=['GET'])
+    @user_documentation(
+        u"""
+        If you are talking to the API from a process on a node then this
+        is the recommended way of figuring out the node UUID. Since eras
+        are reset on reboot, looking up by era means you will never get
+        stale pre-reboot state.
+
+        You can discover a node's era by running the ``flocker-node-era``
+        command-line tool on the relevant node. Make sure you don't cache
+        this information across reboots!
+
+        If the era is unknown you will get a 404 HTTP response. In this
+        case retry until the node UUID is returned.
+        """,
+        header=u"Lookup a node by its era",
+        examples=[
+            u"get node by era",
+        ],
+        section=u"common",
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={"$ref":
+                      '/v1/endpoints.json#/definitions/node'},
+        schema_store=SCHEMAS
+    )
+    def get_node_by_era(self, era):
+        era = UUID(era)
+        cluster_state = self.cluster_state_service.as_deployment()
+        era_to_node_uuid = dict(
+            (era, node_uuid) for (node_uuid, era) in
+            cluster_state.node_uuid_to_era.items())
+        try:
+            node_uuid = era_to_node_uuid[era]
+        except KeyError:
+            raise NODE_BY_ERA_NOT_FOUND
+        return {u"uuid": unicode(node_uuid)}
 
     @app.route("/configuration/_compose", methods=['POST'])
     @private_api

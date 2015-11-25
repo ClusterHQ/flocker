@@ -989,6 +989,8 @@ class OmnibusPackageBuilderTests(TestCase):
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-benchmark'),
                          flocker_node_path),
+                        (FilePath('/opt/flocker/bin/flocker-node-era'),
+                         flocker_node_path),
                     ]
                 ),
                 BuildPackage(

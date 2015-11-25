@@ -1,5 +1,3 @@
-Want to get your hands dirty? Skip ahead to the `tutorial`_.
-
 Flocker
 =======
 
@@ -30,14 +28,14 @@ We're looking forward to working on this project with you.
 Documentation
 -------------
 
-You can read more about `installing Flocker`_, follow a `tutorial`_ and learn about the `features of Flocker and its architecture`_ in the docs.
+You can read more about installing Flocker, follow a tutorial and learn about the features of Flocker and its architecture in the `Flocker docs`_.
 
 
 Feature Requests
 ----------------
 
 If you have any feature requests or suggestions, we would love to hear about them.
-Please add your ideas to our `UserVoice`_ forum, or file a `GitHub issue`_.
+Please send us your ideas by filing a `GitHub issue`_.
 
 
 Tests
@@ -53,14 +51,11 @@ Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
 .. _Twisted: https://twistedmatrix.com/trac/
-.. _installing Flocker: https://docs.clusterhq.com/en/latest/install/index.html
-.. _tutorial: https://docs.clusterhq.com/en/latest/using/tutorial/index.html
-.. _features of Flocker and its architecture: https://docs.clusterhq.com/en/latest/introduction/index.html
+.. _Flocker docs: https://docs.clusterhq.com/
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
 .. _continuous integration: http://build.clusterhq.com/
 .. _talk to us: http://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
 .. _flake8: https://pypi.python.org/pypi/flake8
-.. _UserVoice: https://feedback.clusterhq.com/
 .. _GitHub issue: https://github.com/clusterhq/flocker/issues

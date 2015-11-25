@@ -10,6 +10,4 @@ Flocker Concepts
 
    security
    architecture
-   volume
-   clustering
-   routing
+   storage-profiles

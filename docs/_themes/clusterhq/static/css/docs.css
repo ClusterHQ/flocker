@@ -19,7 +19,7 @@ nav li {
     width: 100%;
     height: 40px;
     padding: 0 16px 0 0;
-    font-size: 0.85em;
+    font-size: 17px;
 }
 
 nav a {
@@ -190,7 +190,7 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
     line-height: 47px;
 }
 
-a.button {
+a.button, input.button {
     font-family: "Soho Gothic W01 Medium";
     border-radius: 8px;
     text-decoration: none;
@@ -199,9 +199,10 @@ a.button {
     padding: 10px;
     cursor: pointer;
     width: 150px;
+    border: 0;
 }
 
-a.button:hover {
+a.button:hover, input.button:hover {
     background-color: #343a3d;
 }
 
@@ -304,6 +305,11 @@ a.download:before {
 .page ul, ol {
     color: #646570;
     font-family: lato;
+    margin-bottom: 10px;
+}
+
+.toctree-l1 ul, .toctree-l1 ol {
+    margin-bottom: 0;
 }
 
 .page>.section {
@@ -319,6 +325,16 @@ a.download:before {
     height:97px;
     padding: 25px;
 }
+
+/* Feedback form */
+.feedback-form form>textarea,input {
+    margin-top:10px;
+}
+
+.feedback-form {
+    font-family: lato;
+}
+
 
 @media all and (min-width: 768px) {
     /* sm */
@@ -354,6 +370,7 @@ a.download:before {
     nav li {
         display: inline;
         height: auto;
+        font-size: 14.45px;
     }
     
     nav ul {
@@ -407,7 +424,7 @@ a.download:before {
     }
 
     .menu ul.menu {
-        padding-left: 5%;
+        padding-left: 0%;
     }
 
     ul.menu li:last-of-type a {
@@ -429,7 +446,7 @@ a.download:before {
     }
 
     .menu ul.menu {
-        padding-left: 15%;
+        padding-left: 8%;
     }
 }
 
@@ -445,6 +462,6 @@ a.download:before {
     }
 
     ul.menu li {
-        padding: 0 20px;
+        padding: 0 15px;
     }
 }

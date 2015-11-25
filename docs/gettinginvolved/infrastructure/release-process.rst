@@ -1,5 +1,6 @@
 .. _release-process:
 
+===============
 Release Process
 ===============
 
@@ -8,7 +9,7 @@ Release Process
    Make sure to follow the `latest documentation <http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html>`_ when doing a release.
 
 Outcomes
---------
+========
 
 By the end of the release process we will have:
 
@@ -28,63 +29,57 @@ For a maintenance or documentation release, we will have:
 
 
 Prerequisites
--------------
+=============
 
 Software
-~~~~~~~~
+--------
 
-All Platforms
-*************
+**All Platforms**
 
-`Docker <https://docs.docker.com/installation/>`_
+* `Docker <https://docs.docker.com/installation/>`_
+* `virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
 
-`virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
+**OS X**
 
-OS X
-*****
-
-`Homebrew <http://brew.sh>`_
+* `Homebrew <http://brew.sh>`_
 
 .. prompt:: bash $
 
    brew tap stepanstipl/noop
    brew install createrepo dpkg libffi openssl
 
-Ubuntu
-******
+**Ubuntu**
 
 .. prompt:: bash $
 
    sudo apt-get update
    sudo apt-get install -y dpkg-dev createrepo
 
-Fedora
-******
+**Fedora**
 
 .. prompt:: bash $
 
    sudo yum install -y dpkg-dev createrepo
 
-
 Access
-~~~~~~
+------
 
-- Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
+* Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
-- SSH access to ClusterHQ's GitHub repositories.
+* SSH access to ClusterHQ's GitHub repositories.
 
-- The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
+* The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
 
-- The ability to force builds on ClusterHQ's BuildBot.
+* The ability to force builds on ClusterHQ's BuildBot.
   This requires an administrator password which can be found in ClusterHQ's LastPass.
 
-- Access to ClusterHQ's Google Drive for access to ClusterHQ versioning policy documents.
+* Access to ClusterHQ's Google Drive for access to ClusterHQ versioning policy documents.
 
 .. _preparing-for-a-release:
 
 Preparing For a Release
------------------------
+=======================
 
 #. Confirm that the release and the proposed version number have been approved.
 
@@ -94,55 +89,33 @@ Preparing For a Release
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
 
-#. Set the version number of the release being created as an environment variable for later use:
+#. Create an issue in JIRA:
+
+   This should be a "Feature" with "Release Flocker [VERSION]" as the title, and it should be assigned to yourself.
+   The issue does not need a design, so move the issue to the "Coding" state.
+
+#. Create the release repository, environment and branch from within an existing Flocker development environment:
 
    .. prompt:: bash $
 
-      VERSION=0.1.2
-
-#. Create an issue in JIRA:
-
-   This should be a "Feature" with "Release Flocker ${VERSION}" as the title, and it should be assigned to yourself.
-   The issue does not need a design, so move the issue to the "Coding" state.
-
-#. Create an environment for the release:
-
-   **Linux**
-
-   .. prompt:: bash $,(flocker-0.1.2)$ auto
-
-      $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      # Make system site packages available for import of non-pip dependencies (e.g. "rpm").
-      $ mkvirtualenv -a "flocker-${VERSION}" --system-site-packages "flocker-${VERSION}"
-      (flocker-0.1.2)$ pip install --ignore-installed --editable .[dev]
-
-   **OS X**
-
-   .. prompt:: bash $,(flocker-0.1.2)$ auto
-
-      $ git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      # Make system site packages available for import of non-pip dependencies (e.g. "rpm").
-      # Use system Python with Homebrew's OpenSSL libraries - see FLOC-3044.
-      $ mkvirtualenv --python=/usr/bin/python -a "flocker-${VERSION}" --system-site-packages "flocker-${VERSION}"
-      (flocker-0.1.2)$ export LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openssl)/include"
-      (flocker-0.1.2)$ pip install --ignore-installed --editable .[dev]
-
-#. Create a release branch, and check that the license is up-to-date:
-
-   .. prompt:: bash (flocker-0.1.2)$
-
-      admin/create-release-branch --flocker-version=${VERSION}
-      admin/update-license
-      git commit -am "Updated copyright in LICENSE file"
+      admin/initialize-release --flocker-version=1.6.2
+      
+   Execute the commands output by the `initialize-release` script:
+   
+   .. prompt:: bash $
+   
+      export VERSION=1.6.2;
+      cd /home/developer/flocker-release-1.6.2;
+      source flocker-1.6.2/bin/activate;
 
 #. Ensure the notes in `docs/releasenotes/index.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/releasenotes/index.rst>`_ are up-to-date:
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
-      .. prompt:: bash (flocker-0.1.2)$
+      .. prompt:: bash (flocker-1.6.2)$
 
           # Choose the tag of the last version with a "Release Notes" entry to compare the latest version to.
-          OLD_VERSION=0.3.0
+          OLD_VERSION=1.6.1
 
           BRANCH=$(git rev-parse --abbrev-ref HEAD)
           git log --first-parent ${OLD_VERSION}..${BRANCH}
@@ -157,13 +130,13 @@ Preparing For a Release
 
    Finally, commit the changes:
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       git commit -am "Updated Release Notes"
 
 #. Push the changes:
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
 
@@ -187,10 +160,12 @@ Preparing For a Release
 .. _pre-tag-review:
 
 Pre-tag Review Process
-----------------------
+======================
 
-A tag must not be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
-So it is important to check that the code in the release branch is working before it is tagged.
+A tag must not be deleted once it has been pushed to GitHub.
+This is a policy and not a technical limitation, as removing tags can cause problems for anyone who has updated a cloned copy of the repository.
+
+It is important to check that the code in the release branch is working before it is tagged.
 
 .. note::
 
@@ -219,7 +194,7 @@ So it is important to check that the code in the release branch is working befor
 .. _release:
 
 Release
--------
+=======
 
 .. note::
 
@@ -227,7 +202,7 @@ Release
 
 #. Tag the version being released:
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       BRANCH=$(git rev-parse --abbrev-ref HEAD)
       RELEASE_BRANCH_PREFIX="release\/flocker-"
@@ -239,14 +214,15 @@ Release
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
-   .. note:: We force a build on the tag as well as the branch because the packages built before pushing the tag won't have the right version.
-             Also, the package upload script currently expects the packages to be built from the tag, rather than the branch.
+   .. note:: 
+   
+      Although there would not have been any changes since the branch was built during the :ref:`preparing-for-a-release` process, we need to build on the tag as the packages that were built before pushing the tag won't have the right version.
 
    Wait for the build to complete successfully.
 
 #. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       aws configure
 
@@ -255,7 +231,7 @@ Release
 
 #. Publish artifacts and documentation:
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       admin/publish-artifacts
       admin/publish-docs --production
@@ -269,7 +245,7 @@ Release
    This helps to identify any problems with the published artifacts that may not be evident in the regular tests (e.g. S3 permissions or packaging problems).
    This test can take about 30 minutes, especially if Docker images need to be pulled.
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       admin/test-artifacts
 
@@ -282,16 +258,16 @@ Release
    It outputs a success message if the documentation does redirect correctly.
    It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
 
-   .. prompt:: bash (flocker-0.1.2)$
+   .. prompt:: bash (flocker-1.6.2)$
 
       admin/test-redirects --production
 
 #. Remove the release virtual environment:
 
-   .. prompt:: bash (flocker-0.1.2)$,$ auto
+   .. prompt:: bash (flocker-1.6.2)$,$ auto
 
-      (flocker-0.1.2)$ VIRTUALENV_NAME=$(basename ${VIRTUAL_ENV})
-      (flocker-0.1.2)$ deactivate
+      (flocker-1.6.2)$ VIRTUALENV_NAME=$(basename ${VIRTUAL_ENV})
+      (flocker-1.6.2)$ deactivate
       $ rmvirtualenv ${VIRTUALENV_NAME}
 
 #. Remove the release Flocker clone:
@@ -302,12 +278,25 @@ Release
 
       rm -rf ${PWD}
 
-#. Merge the release pull request.
-   Do not delete the release branch because it may be used as a base branch for future releases.
+#. Merge the release branch into master:
+
+   If there are no conflicts, merge the pull request.
+   If there are conflicts; create a new branch, merge forward and create a pull-request of that branch against master.
+
+   .. prompt:: bash $
+
+      git checkout -b merge-release-${VERSION}-FLOC-XXX release/flocker-${VERSION}
+      git pull origin master
+
+   Merging this pull-request will also close the release pull request.
+   The ``merge-release-*-FLOC-XXX`` branch should be deleted once the pull-request has been merged.
+
+   Unless this is a development release,
+   do not delete the release branch because it may be used as a base branch for future releases.
 
 
 Improving the Release Process
------------------------------
+=============================
 
 The release engineer should aim to spend up to one day improving the release process in whichever way they find most appropriate.
 If there is no existing issue for the planned improvements then a new one should be made.

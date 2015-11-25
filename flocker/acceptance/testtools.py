@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Ltd.  See LICENSE file for details.
 
 """
 Testing utilities for ``flocker.acceptance``.
@@ -7,11 +7,12 @@ from functools import wraps
 from json import dumps
 from os import environ, close
 from unittest import SkipTest, skipUnless
-from uuid import uuid4
+from uuid import uuid4, UUID
 from socket import socket
 from contextlib import closing
 from tempfile import mkstemp
 
+import yaml
 import json
 import ssl
 
@@ -23,8 +24,9 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
+from twisted.internet.error import ProcessTerminated
 
-from eliot import Logger, start_action, Message, write_failure
+from eliot import start_action, Message, write_failure
 from eliot.twisted import DeferredContext
 
 from treq import json_content, content, get, post
@@ -35,13 +37,16 @@ from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
 
-from ..common import gather_deferreds
-from ..common.runner import download_file
+from ..common import gather_deferreds, loop_until
+from ..common.runner import download_file, run_ssh
 
 from ..control.httpapi import REST_API_PORT
-from ..ca import treq_with_authentication
-from ..testtools import loop_until, random_name
+from ..ca import treq_with_authentication, UserCredential
+from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
+from ..node.agents.ebs import aws_from_configuration
+
+from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
 try:
     from pymongo import MongoClient
@@ -76,6 +81,14 @@ MONGO_IMAGE = u"clusterhq/mongodb"
 DOCKER_PORT = 2376
 
 
+# Sometimes the TCP connection to Docker containers get stuck somewhere.
+# Unless we avoid having to wait the full TCP timeout period the test will
+# definitely fail with a timeout error (after a long delay!).  Anywhere we're
+# polling for a condition, it's better to time out quickly and retry instead of
+# possibly getting stuck in this case.
+SOCKET_TIMEOUT_FOR_POLLING = 2.0
+
+
 def get_docker_client(cluster, address):
     """
     Open a Docker client to the given address.
@@ -98,7 +111,7 @@ def get_docker_client(cluster, address):
         assert_hostname=False,
         verify=get_path(b"cluster.crt"))
     return Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
-                  tls=tls, timeout=100)
+                  tls=tls, timeout=100, version='1.21')
 
 
 def get_mongo_application():
@@ -179,6 +192,43 @@ def get_dataset_backend(test_case):
     return DatasetBackend.lookupByName(backend)
 
 
+def get_backend_api(test_case, cluster_id):
+    """
+    Get an appropriate BackendAPI for the specified dataset backend.
+
+    Note this is a backdoor that is useful to be able to interact with cloud
+    APIs in tests. For many dataset backends this does not make sense, but it
+    provides a convenient means to interact with cloud backends such as EBS or
+    cinder.
+
+    :param test_case: The test case that is being run.
+
+    :param cluster_id: The unique cluster_id, used for backend APIs that
+        require this in order to be constructed.
+    """
+    backend_type = get_dataset_backend(test_case)
+    if backend_type != DatasetBackend.aws:
+        raise SkipTest(
+            'This test is asking for backend type {} but only constructing '
+            'aws backends is currently supported'.format(backend_type.name))
+    backend_name = backend_type.name
+    backend_config_filename = environ.get(
+        "FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG")
+    if backend_config_filename is None:
+        raise SkipTest(
+            'This test requires the ability to construct an IBlockDeviceAPI '
+            'in order to verify construction. Please set '
+            'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG to a yaml filepath '
+            'with the dataset configuration.')
+    backend_config_filepath = FilePath(backend_config_filename)
+    full_backend_config = yaml.safe_load(
+        backend_config_filepath.getContent())
+    backend_config = full_backend_config.get(backend_name)
+    if 'backend' in backend_config:
+        backend_config.pop('backend')
+    return aws_from_configuration(cluster_id=cluster_id, **backend_config)
+
+
 def skip_backend(unsupported, reason):
     """
     Create decorator that skips a test if the volume backend doesn't support
@@ -248,7 +298,7 @@ def get_mongo_client(host, port=27017):
         except PyMongoError:
             return False
 
-    d = loop_until(create_mongo_client)
+    d = loop_until(reactor, create_mongo_client)
     return d
 
 
@@ -273,6 +323,43 @@ class Node(PRecord):
     public_address = field(type=bytes)
     reported_hostname = field(type=bytes)
     uuid = field(type=unicode)
+
+    def run_as_root(self, args, handle_stdout=None, handle_stderr=None):
+        """
+        Run a command on the node as root.
+
+        :param args: Command and arguments to run.
+        :param handle_stdout: Callable that will be called with lines parsed
+            from the command stdout. By default logs an Eliot message.
+        :param handle_stderr: Callable that will be called with lines parsed
+            from the command stderr. By default logs an Eliot message.
+
+        :return Deferred: Deferred that fires when the process is ended.
+        """
+        return run_ssh(reactor, "root", self.public_address, args,
+                       handle_stdout=handle_stdout,
+                       handle_stderr=handle_stderr)
+
+    def reboot(self):
+        """
+        Reboot the node.
+        """
+        result = self.run_as_root([b"shutdown", b"-r", b"now"])
+        # Reboot kills the SSH connection:
+        result.addErrback(lambda f: f.trap(ProcessTerminated))
+        return result
+
+    def run_script(self, python_script, *argv):
+        """
+        Run a Python script as root on the node.
+
+        :param python_script: Name of script in
+            ``flocker.acceptance.node_scripts`` to run.
+        :param argv: Additional arguments for the script.
+        """
+        script = NODE_SCRIPTS.child(python_script + ".py").getContent()
+        return self.run_as_root([b"python", b"-c", script] +
+                                list(argv))
 
 
 class _NodeList(CheckedPVector):
@@ -322,34 +409,45 @@ def log_method(function):
     """
     label = "acceptance:" + function.__name__
 
-    def log_result(result):
-        Message.new(
-            message_type=label + ":result",
-            value=result,
-        ).write()
+    def log_result(result, action):
+        action.add_success_fields(result=_ensure_encodeable(result))
         return result
 
     @wraps(function)
     def wrapper(self, *args, **kwargs):
 
-        serializable_kwargs = kwargs.copy()
+        serializable_args = tuple(_ensure_encodeable(a) for a in args)
+        serializable_kwargs = {}
         for kwarg in kwargs:
-            try:
-                json.dumps(kwargs[kwarg])
-            except TypeError:
-                serializable_kwargs[kwarg] = repr(kwargs[kwarg])
+            serializable_kwargs[kwarg] = _ensure_encodeable(kwargs[kwarg])
 
         context = start_action(
-            Logger(),
             action_type=label,
-            args=args, kwargs=serializable_kwargs,
+            args=serializable_args, kwargs=serializable_kwargs,
         )
         with context.context():
             d = DeferredContext(function(self, *args, **kwargs))
-            d.addCallback(log_result)
+            d.addCallback(log_result, context)
             d.addActionFinish()
             return d.result
     return wrapper
+
+
+def _ensure_encodeable(value):
+    """
+    Return a version of ``value`` that is guaranteed to be able to be logged.
+
+    Catches ``TypeError``, which is raised for intrinsically unserializable
+    values, and ``ValueError``, which catches ValueError, which is raised on
+    circular references and also invalid dates.
+
+    If normal encoding fails, return ``repr(value)``.
+    """
+    try:
+        json.dumps(value)
+    except (ValueError, TypeError):
+        return repr(value)
+    return value
 
 
 class Cluster(PRecord):
@@ -370,6 +468,7 @@ class Cluster(PRecord):
     treq = field(mandatory=True)
     client = field(type=FlockerClient, mandatory=True)
     certificates_path = field(FilePath, mandatory=True)
+    cluster_uuid = field(mandatory=True, type=UUID)
 
     @property
     def base_url(self):
@@ -402,7 +501,7 @@ class Cluster(PRecord):
             request.addCallback(got_results)
             return request
 
-        waiting = loop_until(deleted)
+        waiting = loop_until(reactor, deleted)
         waiting.addCallback(lambda _: deleted_dataset)
         return waiting
 
@@ -438,7 +537,7 @@ class Cluster(PRecord):
             request.addCallback(got_results)
             return request
 
-        waiting = loop_until(created)
+        waiting = loop_until(reactor, created)
         waiting.addCallback(lambda ignored: expected_dataset)
         return waiting
 
@@ -570,7 +669,7 @@ class Cluster(PRecord):
             request.addCallback(got_response)
             return request
 
-        return loop_until(created)
+        return loop_until(reactor, created)
 
     @log_method
     def current_nodes(self):
@@ -588,16 +687,20 @@ class Cluster(PRecord):
         request.addCallback(check_and_decode_json, OK)
         return request
 
+    @log_method
     def clean_nodes(self):
         """
         Clean containers and datasets via the API.
 
         :return: A `Deferred` that fires when the cluster is clean.
         """
-        def api_clean_state(configuration_method, state_method, delete_method):
+        def api_clean_state(
+            name, configuration_method, state_method, delete_method,
+        ):
             """
             Clean entities from the cluster.
 
+            :param unicode name: The name of the entities to clean.
             :param configuration_method: The function to obtain the configured
                 entities.
             :param state_method: The function to get the current entities.
@@ -606,25 +709,30 @@ class Cluster(PRecord):
             :return: A `Deferred` that fires when the entities have been
                 deleted.
             """
-            get_items = configuration_method()
+            context = start_action(
+                action_type=u"acceptance:cleanup_" + name,
+            )
+            with context.context():
+                get_items = DeferredContext(configuration_method())
 
-            def delete_items(items):
-                return gather_deferreds(list(
-                    delete_method(item)
-                    for item in items
-                ))
-            get_items.addCallback(delete_items)
-            get_items.addCallback(
-                lambda ignored: loop_until(
-                    lambda: state_method().addCallback(
-                        lambda result: [] == result
+                def delete_items(items):
+                    return gather_deferreds(list(
+                        delete_method(item)
+                        for item in items
+                    ))
+                get_items.addCallback(delete_items)
+                get_items.addCallback(
+                    lambda ignored: loop_until(
+                        reactor, lambda: state_method().addCallback(
+                            lambda result: [] == result
+                        )
                     )
                 )
-            )
-            return get_items
+                return get_items.addActionFinish()
 
         def cleanup_containers(_):
             return api_clean_state(
+                u"containers",
                 self.configured_containers,
                 self.current_containers,
                 lambda item: self.remove_container(item[u"name"]),
@@ -632,28 +740,31 @@ class Cluster(PRecord):
 
         def cleanup_datasets(_):
             return api_clean_state(
+                u"datasets",
                 self.client.list_datasets_configuration,
                 self.client.list_datasets_state,
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
 
         def cleanup_leases():
-            get_items = self.client.list_leases()
+            context = start_action(action_type="acceptance:cleanup_leases")
+            with context.context():
+                get_items = DeferredContext(self.client.list_leases())
 
-            def release_all(leases):
-                release_list = []
-                for lease in leases:
-                    release_list.append(
-                        self.client.release_lease(lease.dataset_id))
-                return gather_deferreds(release_list)
+                def release_all(leases):
+                    release_list = []
+                    for lease in leases:
+                        release_list.append(
+                            self.client.release_lease(lease.dataset_id))
+                    return gather_deferreds(release_list)
 
-            get_items.addCallback(release_all)
-            return get_items
+                get_items.addCallback(release_all)
+                return get_items.addActionFinish()
 
-        d = cleanup_leases()
+        d = DeferredContext(cleanup_leases())
         d.addCallback(cleanup_containers)
         d.addCallback(cleanup_datasets)
-        return d
+        return d.result
 
     def get_file(self, node, path):
         """
@@ -706,6 +817,7 @@ def _get_test_cluster(reactor, node_count):
     cluster_cert = certificates_path.child(b"cluster.crt")
     user_cert = certificates_path.child(b"user.crt")
     user_key = certificates_path.child(b"user.key")
+    user_credential = UserCredential.from_files(user_cert, user_key)
     cluster = Cluster(
         control_node=ControlService(public_address=control_node),
         nodes=[],
@@ -714,6 +826,7 @@ def _get_test_cluster(reactor, node_count):
         client=FlockerClient(reactor, control_node, REST_API_PORT,
                              cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
+        cluster_uuid=user_credential.cluster_uuid,
     )
 
     hostname_to_public_address_env_var = environ.get(
@@ -741,7 +854,7 @@ def _get_test_cluster(reactor, node_count):
                        # Control service may not be up yet, keep trying:
                        failed_query)
         return d
-    agents_connected = loop_until(nodes_available)
+    agents_connected = loop_until(reactor, nodes_available)
 
     # Extract node hostnames from API that lists nodes. Currently we
     # happen know these in advance, but in FLOC-1631 node identification
@@ -762,12 +875,21 @@ def _get_test_cluster(reactor, node_count):
     return agents_connected
 
 
-def require_cluster(num_nodes):
+def require_cluster(num_nodes, required_backend=None):
     """
     A decorator which will call the supplied test_method when a cluster with
     the required number of nodes is available.
 
     :param int num_nodes: The number of nodes that are required in the cluster.
+
+    :param required_backend: This optional parameter can be set to a
+        ``DatasetBackend`` constant in order to construct the requested backend
+        for use in the test. This is done in a backdoor sort of manner, and is
+        only for use by tests which want to interact with the specified backend
+        in order to verify the acceptance test should pass. If this is set, the
+        backend api will be sent as a keyword argument ``backend`` to the test,
+        and the test will be skipped if the cluster is not set up for the
+        specified backend.
     """
     def decorator(test_method):
         """
@@ -777,6 +899,15 @@ def require_cluster(num_nodes):
         """
         def call_test_method_with_cluster(cluster, test_case, args, kwargs):
             kwargs['cluster'] = cluster
+            if required_backend:
+                backend_type = get_dataset_backend(test_case)
+                if backend_type != required_backend:
+                    raise SkipTest(
+                        'This test requires backend type {} but is being run '
+                        'on {}.'.format(required_backend.name,
+                                        backend_type.name))
+                kwargs['backend'] = get_backend_api(test_case,
+                                                    cluster.cluster_uuid)
             return test_method(test_case, *args, **kwargs)
 
         @wraps(test_method)
@@ -837,7 +968,8 @@ def create_python_container(test_case, cluster, parameters, script,
     return creating
 
 
-def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
+def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
+                   metadata=None, node=None):
     """
     Create a dataset on a cluster (on its first node, specifically).
 
@@ -847,6 +979,9 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
         cluster.
     :param UUID dataset_id: The v4 UUID of the dataset.
         Generated if not specified.
+    :param dict metadata: Metadata to be added to the create_dataset
+        request.
+    :param node: Node to create dataset on. By default first one in cluster.
     :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
     """
@@ -854,10 +989,13 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None):
         maximum_size = get_default_volume_size()
     if dataset_id is None:
         dataset_id = uuid4()
-
+    if metadata is None:
+        metadata = {}
+    if node is None:
+        node = cluster.nodes[0]
     configuring_dataset = cluster.client.create_dataset(
-        cluster.nodes[0].uuid, maximum_size=maximum_size,
-        dataset_id=dataset_id, metadata={u"name": u"my_volume"}
+        node.uuid, maximum_size=maximum_size,
+        dataset_id=dataset_id, metadata=metadata,
     )
 
     # Wait for the dataset to be created
@@ -879,6 +1017,7 @@ def verify_socket(host, port):
     """
     def can_connect():
         with closing(socket()) as s:
+            s.settimeout(SOCKET_TIMEOUT_FOR_POLLING)
             conn = s.connect_ex((host, port))
             Message.new(
                 message_type="acceptance:verify_socket",
@@ -888,7 +1027,7 @@ def verify_socket(host, port):
             ).write()
             return conn == 0
 
-    dl = loop_until(can_connect)
+    dl = loop_until(reactor, can_connect)
     return dl
 
 
@@ -907,7 +1046,8 @@ def post_http_server(test, host, port, data, expected_response=b"ok"):
         request = post(
             "http://{host}:{port}".format(host=host, port=port),
             data=data,
-            persistent=False
+            timeout=SOCKET_TIMEOUT_FOR_POLLING,
+            persistent=False,
         )
 
         def failed(failure):
@@ -917,7 +1057,7 @@ def post_http_server(test, host, port, data, expected_response=b"ok"):
         request.addCallbacks(content, failed)
         return request
     d = verify_socket(host, port)
-    d.addCallback(lambda _: loop_until(lambda: make_post(
+    d.addCallback(lambda _: loop_until(reactor, lambda: make_post(
         host, port, data)))
     d.addCallback(test.assertEqual, expected_response)
     return d
@@ -938,7 +1078,8 @@ def check_http_server(host, port):
     """
     req = get(
         "http://{host}:{port}".format(host=host, port=port),
-        persistent=False
+        timeout=SOCKET_TIMEOUT_FOR_POLLING,
+        persistent=False,
     )
 
     def failed(failure):
@@ -968,7 +1109,8 @@ def query_http_server(host, port, path=b""):
         req = get(
             "http://{host}:{port}{path}".format(
                 host=host, port=port, path=path),
-            persistent=False
+            timeout=SOCKET_TIMEOUT_FOR_POLLING,
+            persistent=False,
         )
 
         def failed(failure):
@@ -979,7 +1121,7 @@ def query_http_server(host, port, path=b""):
         return req
 
     d = verify_socket(host, port)
-    d.addCallback(lambda _: loop_until(query))
+    d.addCallback(lambda _: loop_until(reactor, query))
     return d
 
 

@@ -13,9 +13,49 @@ You can learn more about where we might be going with future releases by:
 Next Release
 ============
 
+* The Docker plugin is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
+* Better error reporting for the Docker plugin.
+* Added a new REST API for looking up node identity by era; eras are reset after every reboot.
+  This allows interacting with Flocker in a robust way across reboots without getting stale data.
+  As a result we were able to remove a delay in startup time that was a temporary workaround for the issue.
+
+v1.7.2
+======
+
+* Moved the installation instructions for the Flocker plugin for Docker, to prevent issues when installing and configuring the plugin.
+* Added documentation for :ref:`Dell SC Series <dell-dataset-backend>`, :ref:`Huawei <huawei-backend>` and :ref:`NexentaEdge <nexenta-backend>` drivers.
+
+v1.7.1
+======
+
+* Prevent disconnect/reconnect cycles causing high CPU load.
+
+v1.7.0
+======
+
+* Added support for :ref:`storage profiles<storage-profiles>`.
+
+v1.6.1
+======
+
+* Updated the Vagrant tutorial box to work with Docker 1.9.
+
+v1.6.0
+======
+
+* The :ref:`Flocker plugin for Docker<docker-plugin>` is now compatible with Docker 1.9.
+* New EBS and OpenStack Cinder volumes created by Flocker will now have ``flocker-<dataset ID>`` as their name, to make it easier to find them in their respective cloud administration UIs.
+  Existing volumes created by older versions of Flocker will continue to have no name.
+
+v1.5.0
+======
+
 * The :ref:`Flocker plugin for Docker<docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
 * Unexpected errors in agent state discovery no longer break the agent convergence loop.
-
+* journald logs are now easier to filter and read.
+  See the :ref:`documentation <flocker-logging>` for more information.
+* The control service uses much less CPU, allowing for larger clusters.
+* Flocker CLI now installs on OS X 10.11.
 
 v1.4.0
 ======
@@ -134,7 +174,7 @@ v0.3
 v0.2
 ====
 
-* Moving volumes between nodes is now done with a :ref:`two-phase push<clustering>` that should dramatically decrease application downtime when moving large amounts of data.
+* Moving volumes between nodes is now done with a two-phase push that should dramatically decrease application downtime when moving large amounts of data.
 * Added support for environment variables in the :ref:`application configuration<configuration>`.
 * Added basic support for links between containers in the :ref:`application configuration<configuration>`.
 

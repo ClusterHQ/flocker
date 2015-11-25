@@ -8,12 +8,15 @@ from twisted.trial.unittest import TestCase
 
 from ..service import VolumeName
 from ..testtools import create_realistic_servicepair
+from ...testtools import flaky
 
 
 class RealisticTests(TestCase):
     """
     Tests for realistic scenarios, used to catch integration issues.
     """
+
+    @flaky(u'FLOC-2767')
     def test_handoff(self):
         """
         Handoff of a previously unpushed volume between two ZFS-based volume
