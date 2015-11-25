@@ -113,9 +113,14 @@ class Node(PClass):
     A node on which a Flocker agent is running.
 
     :attr UUID uuid: The UUID of the node.
+    :attr IPAddress hostname: The cluster IP address of the node.
     :attr IPAddress public_address: The public IP address of the node.
     """
     uuid = field(type=UUID, mandatory=True)
+    hostname = field(
+        type=(IPv4Address, IPv6Address),
+        mandatory=True,
+    )
     public_address = field(
         type=(IPv4Address, IPv6Address),
         mandatory=True,
@@ -421,7 +426,8 @@ class FlockerClient(object):
     A client for the Flocker V1 REST API.
     """
     def __init__(self, reactor, host, port,
-                 ca_cluster_path, cert_path, key_path):
+                 ca_cluster_path, cert_path, key_path,
+                 public_addresses={}):
         """
         :param reactor: Reactor to use for connections.
         :param bytes host: Host to connect to.
@@ -429,11 +435,14 @@ class FlockerClient(object):
         :param FilePath ca_cluster_path: Path to cluster's CA certificate.
         :param FilePath cert_path: Path to user certificate.
         :param FilePath key_path: Path to user private key.
+        :param dict public_addresses: Dictionary mapping cluster IPAddress to
+            public IPAddress.
         """
         self._reactor = reactor
         self._treq = treq_with_authentication(reactor, ca_cluster_path,
                                               cert_path, key_path)
         self._base_url = b"https://%s:%d/v1" % (host, port)
+        self._public_addresses = public_addresses
 
     def _request(self, method, path, body, success_codes, error_codes=None):
         """
@@ -642,6 +651,18 @@ class FlockerClient(object):
         )
         return d
 
+    def _get_public_address(self, hostname):
+        """
+        Convert the cluster's internal hostname to a public address.  This uses
+        the dictionary provided to the constructor.  If the hostname does not
+        exist in the dictionary, just return the hostname, and hope it is
+        public.
+
+        :param IPAddress hostname: Hostname for Flocker node.
+        :return IPAddress: Public IP address for node.
+        """
+        return self._public_addresses.get(hostname, hostname)
+
     def list_nodes(self):
         request = self._request(
             b"GET", b"/state/nodes", None, {OK}
@@ -653,9 +674,11 @@ class FlockerClient(object):
             """
             nodes = []
             for node_dict in result:
+                hostname = IPAddress(node_dict['host'])
                 node = Node(
                     uuid=UUID(hex=node_dict['uuid'], version=4),
-                    public_address=IPAddress(node_dict['host']),
+                    hostname=hostname,
+                    public_address=self._get_public_address(hostname),
                 )
                 nodes.append(node)
             return nodes
