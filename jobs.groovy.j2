@@ -102,28 +102,9 @@ echo 'Job started'
     """)
 {% endif %}
 {% if status == "complete" %}
-    conditionalSteps {
-      condition {
-        status('FAILURE', 'FAILURE')
-      }
-      steps {
-        shell("""
-REMOTE_GIT_COMMIT=`git rev-list --max-count=1 origin/{{branch}}`
-echo \$REMOTE_GIT_COMMIT
-echo 'Job failed'
-        """)
-      }
-    }
-    conditionalSteps {
-      condition {
-        status('SUCCESS', 'SUCCESS')
-      }
-      steps {
-        shell("""
-REMOTE_GIT_COMMIT=`git rev-list --max-count=1 origin/{{branch}}`
-echo \$REMOTE_GIT_COMMIT
-echo 'Job succeeded'
-        """)
+    configure { node ->
+      node / 'builders' / 'org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder' {
+        spec ''
       }
     }
 {% endif %}
