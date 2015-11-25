@@ -100,7 +100,7 @@
         command("""
 #!/bin/bash
 set +x
-. /tmp/github_status.sh
+. /etc/slave_config/github_status.sh
 
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
 BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
@@ -137,7 +137,7 @@ echo "Updating commit \$REMOTE_GIT_COMMIT with pending status."
           command("""
 #!/bin/bash
 set +x
-. /tmp/github_status.sh
+. /etc/slave_config/github_status.sh
 
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
 BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
@@ -173,7 +173,7 @@ echo "Updating commit \$REMOTE_GIT_COMMIT with success status."
           command("""
 #!/bin/bash
 set +x
-. /tmp/github_status.sh
+. /etc/slave_config/github_status.sh
 
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
 BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
