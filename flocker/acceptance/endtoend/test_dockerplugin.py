@@ -184,7 +184,7 @@ class DockerPluginTests(AsyncTestCase):
                 privileged=True),
              "ports": [http_port]},
             SCRIPTS.child(b"lsblkhttp.py"),
-            [u""], client=client)
+            [u"/sizedvoldata"], client=client)
 
         d = assert_http_server(
             self, node.public_address, host_port,
