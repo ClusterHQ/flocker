@@ -107,7 +107,7 @@ echo 'Job started'
 {% endif %}
 {% if status == "complete" %}
     configure {
-      it / 'builders' << 'org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder' {
+      it / 'builders' << 'org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder plugin="conditional-buildstep@1.3.3"
       }
     }
 {% endif %}
