@@ -109,7 +109,7 @@ curl \\
   -H "Content-Type: application/json" \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
   -X POST \\
-  --data "\$PAYLOAD" 
+  --data "\$PAYLOAD" \\
   https://api.github.com/repos/ClusterHQ/flocker/statuses/\$REMOTE_GIT_COMMIT
 echo "Updating commit \$REMOTE_GIT_COMMIT with pending status."
         """)
