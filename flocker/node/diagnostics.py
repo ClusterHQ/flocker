@@ -31,9 +31,9 @@ def gzip_file(source_path, archive_path):
                 copyfileobj(source, archive)
 
 
-def lshw(classes=()):
+def list_hardware(classes=()):
     """
-    Run the ``lshw`` command.
+    List the hardware on the local machine.
 
     :param classes: iterable of hardware classes to include in result.
         Default is to include all classes.
@@ -163,7 +163,7 @@ class FlockerDebugArchive(object):
             )
 
             # Hardware inventory
-            self._open_logfile('lshw').write(lshw())
+            self._open_logfile('lshw').write(list_hardware())
 
             # Create a single archive file
             archive_path = make_archive(

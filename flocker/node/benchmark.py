@@ -9,7 +9,7 @@ from pyrsistent import PRecord
 
 from zope.interface import implementer
 
-from .diagnostics import lshw
+from .diagnostics import list_hardware
 
 from ..common.script import (
     ICommandLineScript,
@@ -50,7 +50,7 @@ def hardware_report(options):
     """
     Print a hardware report to stdout.
     """
-    sys.stdout.write(lshw(['processor', 'memory']))
+    sys.stdout.write(list_hardware(['processor', 'memory']))
     return succeed(None)
 
 
