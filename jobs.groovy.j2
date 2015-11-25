@@ -124,7 +124,7 @@ echo 'Job started'
         }
         buildStep(class: "hudson.tasks.Shell") {
           command("""
-            echo &quot;yay&quot;
+            echo 'yay'
           """)
         }
         runner(class: "org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail", plugin: "run-condition@1.0") {
