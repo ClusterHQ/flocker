@@ -50,9 +50,7 @@ def hardware_report(options):
     """
     Print a hardware report to stdout.
     """
-    # XXX Filter out key hardware information from the lshw blob and print
-    # that.
-    sys.stdout.write(lshw() + '\n')
+    sys.stdout.write(lshw(['processor', 'memory']))
     return succeed(None)
 
 

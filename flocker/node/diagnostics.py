@@ -31,12 +31,20 @@ def gzip_file(source_path, archive_path):
                 copyfileobj(source, archive)
 
 
-def lshw():
+def lshw(classes=()):
     """
+    Run the ``lshw`` command.
+
+    :param classes: iterable of hardware classes to include in result.
+        Default is to include all classes.
     :returns: ``bytes`` JSON encoded hardware inventory of the current host.
     """
+    command = ['lshw', '-quiet', '-json']
+    for hardware_class in classes:
+        command.append('-class')
+        command.append(hardware_class)
     with open(os.devnull, 'w') as devnull:
-        return check_output(['lshw', '-quiet', '-json'], stderr=devnull)
+        return check_output(command, stderr=devnull)
 
 
 class FlockerDebugArchive(object):
