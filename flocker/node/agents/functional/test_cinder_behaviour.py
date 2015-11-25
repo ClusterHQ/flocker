@@ -18,7 +18,7 @@ from ..test.blockdevicefactory import (
 )
 from ....testtools import random_name
 
-from .test_cinder import CINDER_VOLUME
+from .logging import CINDER_VOLUME
 
 
 def cinder_volume_manager():

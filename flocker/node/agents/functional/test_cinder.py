@@ -20,8 +20,6 @@ from bitmath import Byte
 import netifaces
 import psutil
 
-from eliot import Field, MessageType
-
 from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 
 from twisted.python.filepath import FilePath
@@ -50,11 +48,7 @@ from ..cinder import (
     TimeoutException
 )
 
-CINDER_VOLUME = MessageType(
-    u"flocker:functional:cinder:cinder_volume:created",
-    [Field.for_types(u"volume_id", [bytes, unicode])],
-)
-
+from .logging import CINDER_VOLUME
 
 # Tests requiring virtio can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
