@@ -22,6 +22,7 @@ from keystoneclient.auth import get_plugin_class
 from keystoneclient.session import Session
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from cinderclient.client import Client as CinderClient
+from cinderclient.exceptions import NotFound as CinderClientNotFound
 from novaclient.client import Client as NovaClient
 from novaclient.exceptions import NotFound as NovaNotFound
 from novaclient.exceptions import ClientException as NovaClientException
@@ -311,28 +312,25 @@ class VolumeStateMonitor:
         Raise an exception if a non-valid state is reached or if the
         desired state is not reached within the supplied time limit.
         """
-        # Could be more efficient.  FLOC-1831
-        for listed_volume in self.volume_manager.list():
-            if listed_volume.id == self.expected_volume.id:
-                # Could miss the expected status because race conditions.
-                # FLOC-1832
-                current_state = listed_volume.status
-                if current_state == self.desired_state:
-                    return listed_volume
-                elif current_state in self.transient_states:
-                    # Once an intermediate state is reached, the prior
-                    # states become invalid.
-                    idx = self.transient_states.index(current_state)
-                    if idx > 0:
-                        self.transient_states = self.transient_states[idx:]
-                else:
-                    raise UnexpectedStateException(
-                        self.expected_volume, self.desired_state,
-                        current_state)
-        elapsed_time = time.time() - self.start_time
-        if elapsed_time > self.time_limit:
-            raise TimeoutException(
-                self.expected_volume, self.desired_state, elapsed_time)
+        try:
+            existing_volume = self.volume_manager.get(self.expected_volume.id)
+            current_state = existing_volume.status
+            if current_state == self.desired_state:
+                return existing_volume
+            elif current_state in self.transient_states:
+                # Once an intermediate state is reached, the prior
+                # states become invalid.
+                idx = self.transient_states.index(current_state)
+                if idx > 0:
+                    self.transient_states = self.transient_states[idx:]
+            else:
+                raise UnexpectedStateException(
+                    self.expected_volume, self.desired_state, current_state)
+        except CinderClientNotFound:
+            elapsed_time = time.time() - self.start_time
+            if elapsed_time > self.time_limit:
+                raise TimeoutException(
+                    self.expected_volume, self.desired_state, elapsed_time)
 
 
 def wait_for_volume_state(volume_manager, expected_volume, desired_state,
