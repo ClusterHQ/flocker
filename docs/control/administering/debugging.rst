@@ -96,7 +96,7 @@ We can then find the full set of actions leading up to this decision, as well as
 
    [root@centos]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TASK=32e5b4e9-0a8c-4b5c-9895-d2a88315a8d7 | eliot-tree
 
- 
+
 .. _flocker-bug-reporting:
 
 Bug Reporting
@@ -111,6 +111,7 @@ When reporting issues with Flocker please include:
 * Your node IP addresses.
 * Your node hostname.
 * Disk and partition configuration details.
+* Your node hardware specification.
 * All recent syslog content.
 * Any separate Flocker service log files.
 
@@ -176,6 +177,12 @@ Alternatively, the information can be gathered manually using the following comm
 
      fdisk -l
      lsblk --all
+
+* Node hardware specification:
+
+  .. prompt:: bash #
+
+     lshw -quiet -json
 
 * Flocker log files (see :ref:`Flocker logging <flocker-logging>` above)
 
