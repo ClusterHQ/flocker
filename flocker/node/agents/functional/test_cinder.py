@@ -370,6 +370,7 @@ class CinderAttachmentTests(testtools.TestCase):
     Cinder volumes can be attached and return correct device path.
     """
     def setUp(self):
+        super(CinderAttachmentTests, self).setUp()
         try:
             self.openstack = OpenStackFixture(self.addCleanup)
         except InvalidConfig as e:
@@ -420,6 +421,7 @@ class CinderAttachmentTests(testtools.TestCase):
 @require_virtio
 class VirtIOCinderAttachmentTests(testtools.TestCase):
     def setUp(self):
+        super(VirtIOCinderAttachmentTests, self).setUp()
         try:
             self.openstack = OpenStackFixture(self.addCleanup)
         except InvalidConfig as e:
