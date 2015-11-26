@@ -90,6 +90,24 @@
 {# JINJA2 MACROS DEFINED BELOW                                               #}
 {# --------------------------------------------------------------------------#}
 
+{% macro updateGitHubStatusCommand(status)                                  -%}
+"""
+#!/bin/bash
+set +x
+. /etc/slave_config/github_status.sh
+
+REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
+BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
+PAYLOAD="{\\"state\\": \\"{{ status }}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"Multijob build\\", \\"context\\": \\"Jenkins\\" }"
+curl \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
+  -X POST \\
+  --data "\$PAYLOAD" \\
+  https://api.github.com/repos/ClusterHQ/flocker/statuses/\$REMOTE_GIT_COMMIT
+echo "Updating commit \$REMOTE_GIT_COMMIT with {{ status }} status."
+"""
+{%- endmacro -%}
 
 {% macro updateGitHubStatus(status, branch, dashProject, dashBranchName)    -%}
 {# Read the commit and github credentials                                    #}
@@ -97,22 +115,7 @@
 {% if status == "pending"                                                    %}
     configure {
       it / 'builders' << 'hudson.tasks.Shell' {
-        command("""
-#!/bin/bash
-set +x
-. /etc/slave_config/github_status.sh
-
-REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
-BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
-PAYLOAD="{\\"state\\": \\"pending\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"Multijob build\\", \\"context\\": \\"Jenkins\\" }"
-curl \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
-  -X POST \\
-  --data "\$PAYLOAD" \\
-  https://api.github.com/repos/ClusterHQ/flocker/statuses/\$REMOTE_GIT_COMMIT
-echo "Updating commit \$REMOTE_GIT_COMMIT with pending status."
-        """)
+        command({{ updateGitHubStatusCommand('pending')}})
       }
     }
 {% endif %}
@@ -134,22 +137,7 @@ echo "Updating commit \$REMOTE_GIT_COMMIT with pending status."
           }
         }
         buildStep(class: "hudson.tasks.Shell") {
-          command("""
-#!/bin/bash
-set +x
-. /etc/slave_config/github_status.sh
-
-REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
-BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
-PAYLOAD="{\\"state\\": \\"success\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"Multijob build\\", \\"context\\": \\"Jenkins\\" }"
-curl \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
-  -X POST \\
-  --data "\$PAYLOAD" \\
-  https://api.github.com/repos/ClusterHQ/flocker/statuses/\$REMOTE_GIT_COMMIT
-echo "Updating commit \$REMOTE_GIT_COMMIT with success status."
-          """)
+          command({{ updateGitHubStatusCommand('success')}})
         }
         runner(class: "org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail", plugin: "run-condition@1.0") {
         }
@@ -170,22 +158,7 @@ echo "Updating commit \$REMOTE_GIT_COMMIT with success status."
           }
         }
         buildStep(class: "hudson.tasks.Shell") {
-          command("""
-#!/bin/bash
-set +x
-. /etc/slave_config/github_status.sh
-
-REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
-BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
-PAYLOAD="{\\"state\\": \\"failure\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"Multijob build\\", \\"context\\": \\"Jenkins\\" }"
-curl \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
-  -X POST \\
-  --data "\$PAYLOAD" \\
-  https://api.github.com/repos/ClusterHQ/flocker/statuses/\$REMOTE_GIT_COMMIT
-echo "Updating commit \$REMOTE_GIT_COMMIT with failure status."
-          """)
+          command({{ updateGitHubStatusCommand('failure')}})
         }
         runner(class: "org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail", plugin: "run-condition@1.0") {
         }
