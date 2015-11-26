@@ -13,7 +13,6 @@ Ideally, there'd be some in-memory tests too. Some ideas:
 See https://github.com/rackerlabs/mimic/issues/218
 """
 
-import testtools
 from unittest import skipIf
 from uuid import uuid4
 
@@ -360,7 +359,7 @@ class OpenStackFixture(object):
         self.cinder.volumes.delete(volume.id)
 
 
-class CinderAttachmentTests(testtools.TestCase):
+class CinderAttachmentTests(SynchronousTestCase):
     """
     Cinder volumes can be attached and return correct device path.
     """
@@ -412,8 +411,8 @@ class CinderAttachmentTests(testtools.TestCase):
         self.assertEqual(device_path.realpath(), new_device)
 
 
-@require_virtio
-class VirtIOCinderAttachmentTests(testtools.TestCase):
+class VirtIOCinderAttachmentTests(SynchronousTestCase):
+    @require_virtio
     def setUp(self):
         super(VirtIOCinderAttachmentTests, self).setUp()
         try:
