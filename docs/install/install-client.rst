@@ -11,7 +11,7 @@ The following sections describe how to install the Flocker client on your platfo
    :backlinks: none
    :depth: 2
 
-.. _installing-flocker-cli-ubuntu-15.04:
+.. _installing-flocker-cli-ubuntu-15.10:
 
 Ubuntu 15.10 (64-bit)
 =====================
