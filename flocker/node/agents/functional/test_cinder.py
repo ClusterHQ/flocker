@@ -48,6 +48,8 @@ from ..cinder import (
     TimeoutException
 )
 
+from .logging import CINDER_VOLUME
+
 # Tests requiring virtio can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
 #
@@ -130,6 +132,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         requested_volume = cinder_client.volumes.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
+        CINDER_VOLUME(id=requested_volume.id).write()
         self.addCleanup(
             cinder_client.volumes.delete,
             requested_volume.id,
@@ -154,6 +157,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size,
             )
+        CINDER_VOLUME(id=flocker_volume.blockdevice_id).write()
         self.assert_foreign_volume(flocker_volume)
 
     def test_name(self):
@@ -166,6 +170,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             dataset_id=dataset_id,
             size=self.minimum_allocatable_size,
         )
+        CINDER_VOLUME(id=flocker_volume.blockdevice_id).write()
         self.assertEqual(
             cinder_client.volumes.get(
                 flocker_volume.blockdevice_id).display_name,
@@ -369,6 +374,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
+        CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
@@ -414,6 +420,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
+        CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
@@ -459,6 +466,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
+        CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
@@ -490,6 +498,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
+        CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
@@ -536,6 +545,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
+        CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes,
@@ -589,6 +599,7 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
         after waiting some time
         """
         new_volume = self.api.cinder_volume_manager.create(size=100)
+        CINDER_VOLUME(id=new_volume.id).write()
         listed_volume = wait_for_volume_state(
             volume_manager=self.api.cinder_volume_manager,
             expected_volume=new_volume,
