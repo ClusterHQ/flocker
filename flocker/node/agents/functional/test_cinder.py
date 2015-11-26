@@ -473,7 +473,6 @@ class VirtIOCinderAttachmentTests(testtools.TestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
-    @require_virtio
     def test_disk_attachment_fails_with_conflicting_disk(self):
         """
         create_server_volume will raise an exception when Cinder attempts to
@@ -512,7 +511,6 @@ class VirtIOCinderAttachmentTests(testtools.TestCase):
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
 
-    @require_virtio
     def test_get_device_path_virtio_blk_error_without_udev(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver raises
@@ -558,7 +556,6 @@ class VirtIOCinderAttachmentTests(testtools.TestCase):
             volume.id,
         )
 
-    @require_virtio
     def test_get_device_path_virtio_blk_symlink(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver
