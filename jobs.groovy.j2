@@ -680,6 +680,15 @@ branches.each {
                 "${branchName}", "${dashProject}", "${dashBranchName}") }})
             }
           }
+          flexiblePublish {
+            condition {
+              status('FAILURE', 'FAILURE')
+            }
+            step {
+              shell({{ updateGitHubStatusCommand('failure',
+                "${branchName}", "${dashProject}", "${dashBranchName}") }})
+            }
+          }
       }
   }
 }
