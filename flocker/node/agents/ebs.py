@@ -10,6 +10,9 @@ from subprocess import check_output
 import threading
 import time
 import logging
+
+import boto3
+
 from uuid import UUID
 
 from bitmath import Byte, GiB
@@ -376,6 +379,20 @@ def _expected_device(requested_device):
     raise ValueError(
         "Unsupported requested device {!r}".format(requested_device)
     )
+
+
+def boto3_client(region, zone, access_key_id, secret_access_key):
+    """
+    Establish a connection to a boto3 EC2 client.
+
+    :param str region: The name of the EC2 region to connect to.
+    :param str zone: The zone for the EC2 region to connect to.
+    :param str access_key_id: "aws_access_key_id" credential for EC2.
+    :param str secret_access_key: "aws_secret_access_key" EC2 credential.
+
+    :return: An ``_EC2`` giving information about EC2 client connection
+        and EC2 instance zone.
+    """
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
