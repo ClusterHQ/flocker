@@ -660,6 +660,14 @@ IGNORED_WARNINGS = {
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
+
+        # files included by netaddr - we put the whole python we need in the flocker package, and lint complains.
+        # See:
+        # https://lintian.debian.org/tags/package-installs-ieee-data.html
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/iab.idx",
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/iab.txt",
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/oui.idx",
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/oui.txt",
     ),
 }
 
