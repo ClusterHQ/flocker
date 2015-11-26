@@ -18,6 +18,7 @@ Next Release
 * Added a new REST API for looking up node identity by era; eras are reset after every reboot.
   This allows interacting with Flocker in a robust way across reboots without getting stale data.
   As a result we were able to remove a delay in startup time that was a temporary workaround for the issue.
+* Supporting Ubuntu 15.10 for the client, but not the Ubuntu 15.04 any more
 
 v1.7.2
 ======

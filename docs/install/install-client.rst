@@ -13,7 +13,7 @@ The following sections describe how to install the Flocker client on your platfo
 
 .. _installing-flocker-cli-ubuntu-15.04:
 
-Ubuntu 15.04 (64-bit)
+Ubuntu 15.10 (64-bit)
 =====================
 
 .. note:: 
@@ -21,9 +21,9 @@ Ubuntu 15.04 (64-bit)
 
    If you are using a 32-bit Ubuntu platform, see the instructions for  :ref:`installing-flocker-cli-linux`.
 
-On Ubuntu 15.04 (64-bit), the Flocker CLI can be installed from the ClusterHQ repository:
+On Ubuntu 15.10 (64-bit), the Flocker CLI can be installed from the ClusterHQ repository:
 
-.. task:: cli_pkg_install ubuntu-15.04
+.. task:: cli_pkg_install ubuntu-15.10
    :prompt: alice@mercury:~$
 
 .. _installing-flocker-cli-ubuntu-14.04:
