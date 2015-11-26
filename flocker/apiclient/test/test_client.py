@@ -68,11 +68,13 @@ def make_clientv1_tests():
         def setUp(self):
             self.node_1 = Node(
                 uuid=uuid4(),
-                public_address=IPAddress('10.0.0.1')
+                hostname=IPAddress('10.0.0.1'),
+                public_address=IPAddress('10.1.0.1'),
             )
             self.node_2 = Node(
                 uuid=uuid4(),
-                public_address=IPAddress('10.0.0.2')
+                hostname=IPAddress('10.0.0.2'),
+                public_address=IPAddress('10.1.0.2'),
             )
             self.client = self.create_client()
 
@@ -545,7 +547,7 @@ class FlockerClientTests(make_clientv1_tests()):
             source=source,
             changes=[
                 UpdateNodeStateEra(era=self.era, uuid=self.node_1.uuid)] + [
-                NodeState(uuid=node.uuid, hostname=node.public_address)
+                NodeState(uuid=node.uuid, hostname=node.hostname)
                 for node in [self.node_1, self.node_2]
             ],
         )
@@ -568,10 +570,17 @@ class FlockerClientTests(make_clientv1_tests()):
         self.addCleanup(api_service.stopService)
 
         credential_set.copy_to(credentials_path, user=True)
+
+        public_addresses = {
+            self.node_1.hostname: self.node_1.public_address,
+            self.node_2.hostname: self.node_2.public_address,
+        }
+
         return FlockerClient(reactor, b"127.0.0.1", self.port,
                              credentials_path.child(b"cluster.crt"),
                              credentials_path.child(b"user.crt"),
-                             credentials_path.child(b"user.key"))
+                             credentials_path.child(b"user.key"),
+                             public_addresses=public_addresses)
 
     def synchronize_state(self):
         deployment = self.persistence_service.get()
