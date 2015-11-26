@@ -90,7 +90,8 @@
 {# JINJA2 MACROS DEFINED BELOW                                               #}
 {# --------------------------------------------------------------------------#}
 
-{% macro updateGitHubStatusCommand(status, branch, dashProject, dashBranchName) -%}
+{% macro updateGitHubStatus(status, description, branch, dashProject,
+                            dashBranchName)                                 -%}
 """
 #!/bin/bash
 set +x
@@ -100,7 +101,7 @@ set +x
 {# Send a request to Github to update the commit with the build status       #}
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
 BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
-PAYLOAD="{\\"state\\": \\"{{ status }}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"Multijob build\\", \\"context\\": \\"Jenkins\\" }"
+PAYLOAD="{\\"state\\": \\"{{ status }}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"{{ description }}\\", \\"context\\": \\"jenkins-multijob\\" }"
 curl \\
   -H "Content-Type: application/json" \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
@@ -518,8 +519,8 @@ branches.each {
     label("master")
 {# Set the commit status on github to pending                                #}
       steps {
-          shell({{ updateGitHubStatusCommand('pending',
-                "${branchName}", "${dashProject}", "${dashBranchName}") }})
+          shell({{ updateGitHubStatus('pending', 'Build started',
+            "${branchName}", "${dashProject}", "${dashBranchName}") }})
 {# make sure we are starting with a clean workspace                          #}
           shell('rm -rf *')
 {# build 'parallel_tests' phase that will run all our jobs in parallel       #}
@@ -676,7 +677,7 @@ branches.each {
               status('SUCCESS', 'SUCCESS')
             }
             step {
-              shell({{ updateGitHubStatusCommand('success',
+              shell({{ updateGitHubStatus('success', 'Build succeeded',
                 "${branchName}", "${dashProject}", "${dashBranchName}") }})
             }
           }
@@ -685,7 +686,7 @@ branches.each {
               status('FAILURE', 'FAILURE')
             }
             step {
-              shell({{ updateGitHubStatusCommand('failure',
+              shell({{ updateGitHubStatus('failure', 'Build failed',
                 "${branchName}", "${dashProject}", "${dashBranchName}") }})
             }
           }
