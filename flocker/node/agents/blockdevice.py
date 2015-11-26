@@ -42,6 +42,7 @@ from .._deploy import NotInUseDatasets
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 from ...control._model import pvector_field
 from ...common import auto_threaded
+from ...common.algebraic import TaggedUnionInvariant
 
 
 # Eliot is transitioning away from the "Logger instances all over the place"
@@ -101,35 +102,16 @@ class DiscoveredDataset(PClass):
     device_path = field(FilePath)
     mount_point = field(FilePath)
 
-    def __invariant__(self):
-        """
-        Check that the state is valid for a ``DiscoveredDataset`` and
-        that all the attributes required for the state are specified.
-        """
-        expected_attributes = [
-            ((DatasetStates.ATTACHED, DatasetStates.MOUNTED,
-              DatasetStates.ATTACHED_NO_FILESYSTEM), "device_path"),
-            ((DatasetStates.MOUNTED,), "mount_point"),
-        ]
-        for states, attribute in expected_attributes:
-            if (self.state in states) != hasattr(self, attribute):
-                if self.state in states:
-                    message = (
-                        "`{attr}` must be specified in state `{state}`"
-                        .format(attribute=attribute, state=self.state.name)
-                    )
-                else:
-                    message = (
-                        "`{attr}` can only be specified in states {states}"
-                        .format(
-                            attr=attribute,
-                            states=','.join(map("`{0.name}`".format, states)),
-                        )
-                    )
-                return (False, message)
-        if self.state in (DatasetStates.DELETED,):
-            return (False, "DesiredDataset can't be in state DELETED.")
-        return (True, "")
+    __invariant__ = TaggedUnionInvariant(
+        tag_attribute='state',
+        attributes_for_tag={
+            DatasetStates.ATTACHED_ELSEWHERE: set(),
+            DatasetStates.NON_MANIFEST: set(),
+            DatasetStates.ATTACHED_NO_FILESYSTEM: {'device_path'},
+            DatasetStates.ATTACHED: {'device_path'},
+            DatasetStates.MOUNTED: {'device_path', 'mount_point'},
+        },
+    )
 
 
 class VolumeException(Exception):
