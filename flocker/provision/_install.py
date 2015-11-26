@@ -1306,12 +1306,16 @@ def task_install_docker(distribution):
     else:
         update = b""
 
-    return run(command=(
-        b"[[ -e /usr/bin/docker ]] || { " + update +
-        b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
-        b"sh /tmp/install-docker.sh"
-        b"; }"
-    ))
+    return retry_effect_with_timeout(
+        run(command=(
+            b"[[ -e /usr/bin/docker ]] || { " + update +
+            b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
+            b"sh /tmp/install-docker.sh"
+            b"; }"
+        )),
+        # Arbitrarily selected value
+        timeout=5.0 * 60.0,
+    )
 
 
 def task_install_flocker(
