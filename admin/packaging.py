@@ -711,8 +711,9 @@ class LintPackage(object):
             check_output([
                 {
                     PackageTypes.RPM: 'rpmlint',
-                    PackageTypes.DEB: 'lintian -v --debug',
+                    PackageTypes.DEB: b'lintian',
                 }[self.package_type],
+                '--debug',
                 output_file.path,
             ])
         except CalledProcessError as e:
