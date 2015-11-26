@@ -711,7 +711,7 @@ class LintPackage(object):
             check_output([
                 {
                     PackageTypes.RPM: 'rpmlint',
-                    PackageTypes.DEB: 'lintian',
+                    PackageTypes.DEB: 'lintian -v --debug',
                 }[self.package_type],
                 output_file.path,
             ])
