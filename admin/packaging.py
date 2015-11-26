@@ -702,8 +702,12 @@ class LintPackage(object):
             # Ignore certain warning lines
             for ignored in ignored_warnings:
                 if ignored in warning:
+                    print "\n IGNORING:"
+                    print ignored
                     break
             else:
+                print "\n GOT UNACCEPTABLE ISSUE"
+                print warning
                 unacceptable.append(warning)
         return unacceptable
 
