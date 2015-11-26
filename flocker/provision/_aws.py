@@ -90,8 +90,9 @@ def _check_if_running(instance):
     Message.new(
         message_type=u"flocker:provision:aws:check_if_running:update",
         instance_state=instance.state,
+        ip_address=instance.ip_address,
     ).write()
-    return instance.state == 'running'
+    return instance.state == 'running' and instance.ip_address is not None
 
 
 def _wait_until_running(instance):
