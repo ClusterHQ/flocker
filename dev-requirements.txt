@@ -12,7 +12,6 @@ docutils==0.12
 ecdsa==0.13
 executor==4.4
 Fabric==1.10.2
-fixtures==1.4.0
 flake8==2.4.1
 gitdb==0.6.4
 GitPython==1.0.1

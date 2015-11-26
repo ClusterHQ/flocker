@@ -21,8 +21,6 @@ from bitmath import Byte
 import netifaces
 import psutil
 
-from fixtures import Fixture
-
 from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 
 from twisted.python.filepath import FilePath
@@ -338,8 +336,12 @@ class VirtIOClient:
                     host_device])
 
 
-class OpenStackFixture(Fixture):
-    def _setUp(self):
+class OpenStackFixture(object):
+    def __init__(self, addCleanup):
+        self.addCleanup = addCleanup
+        self.setUp()
+
+    def setUp(self):
         config = get_blockdevice_config(ProviderType.openstack)
         region = get_openstack_region_for_test()
         session = get_keystone_session(**config)
@@ -369,7 +371,7 @@ class CinderAttachmentTests(testtools.TestCase):
     """
     def setUp(self):
         try:
-            self.openstack = self.useFixture(OpenStackFixture())
+            self.openstack = OpenStackFixture(self.addCleanup)
         except InvalidConfig as e:
             self.skipTest(str(e))
         self.cinder = self.openstack.cinder
@@ -419,7 +421,7 @@ class CinderAttachmentTests(testtools.TestCase):
 class VirtIOCinderAttachmentTests(testtools.TestCase):
     def setUp(self):
         try:
-            self.openstack = self.useFixture(OpenStackFixture())
+            self.openstack = OpenStackFixture(self.addCleanup)
         except InvalidConfig as e:
             self.skipTest(str(e))
         self.cinder = self.openstack.cinder
