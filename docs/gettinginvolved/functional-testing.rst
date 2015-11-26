@@ -5,7 +5,8 @@ Functional Testing
 The tests for the various cloud block device backends depend on access to credentials supplied from the environment.
 
 The tests look for two environment variables:
-  ..
+
+.. XXX
      # FLOC-2090 This is yet another configuration file.
      # Make it just be the same as the acceptance testing configuration file.
 
