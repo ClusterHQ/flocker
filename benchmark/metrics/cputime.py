@@ -3,6 +3,9 @@
 CPU time metric for the control service benchmarks.
 """
 
+import os
+
+import yaml
 from zope.interface import implementer
 
 from twisted.protocols.basic import LineOnlyReceiver
@@ -81,11 +84,13 @@ class SSHRunner:
     Run a command using ssh.
 
     :ivar reactor: Twisted Reactor.
+    :ivar node_mapping: Dictionary mapping hostname to public IP address.
     :ivar user: Remote user name.
     """
 
-    def __init__(self, reactor, user=b'root'):
+    def __init__(self, reactor, node_mapping, user=b'root'):
         self.reactor = reactor
+        self.node_mapping = node_mapping
         self.user = user
 
     def run(self, node, command_args, handle_stdout):
@@ -97,10 +102,13 @@ class SSHRunner:
         :param callable handle_stdout: Function to handle each line of output.
         :return: Deferred, firing when complete.
         """
+        hostname = node.public_address.exploded
+        # Map hostname to public IP address. If not in mapping, use hostname.
+        public_ip = self.node_mapping.get(hostname, hostname)
         d = run_ssh(
             self.reactor,
             self.user,
-            node.public_address.exploded,
+            public_ip,
             command_args,
             handle_stdout=handle_stdout,
         )
@@ -192,7 +200,14 @@ class CPUTime(object):
         self.clock = clock
         self.control_service = control_service
         if runner is None:
-            self.runner = SSHRunner(clock)
+            # Use the acceptance test environment variable to work out the
+            # public addresses of the cluster nodes.  This is intended to be a
+            # quick fix until a better solution is provided by one of
+            # FLOC-2137, FLOC-3514, or FLOC-3521.
+            node_mapping = yaml.safe_load(
+                os.environ.get(
+                    'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS', '{}'))
+            self.runner = SSHRunner(clock, node_mapping)
         else:
             self.runner = runner
         self.processes = processes
