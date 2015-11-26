@@ -18,6 +18,7 @@ from boto.ec2 import connect_to_region
 from boto.ec2.blockdevicemapping import (
     EBSBlockDeviceType, BlockDeviceMapping,
 )
+from boto.exception import EC2ResponseError
 
 from ._common import INode, IProvisioner
 
@@ -26,7 +27,7 @@ from ._install import (
     task_install_ssh_key,
 )
 
-from eliot import start_action
+from eliot import start_action, Message
 
 from ._ssh import run_remotely, run_from_args
 from ._effect import sequence
@@ -50,6 +51,17 @@ IMAGE_NAMES = {
     'ubuntu-15.04': 'ubuntu/images/hvm-ssd/ubuntu-vivid-15.04-amd64-server-20151015',  # noqa
 }
 
+BOTO_INSTANCE_NOT_FOUND = u'InvalidInstanceID.NotFound'
+
+
+def _check_response_error(e, message_type):
+    if e.error_code != BOTO_INSTANCE_NOT_FOUND:
+        raise e
+    Message.new(
+        message_type=message_type,
+        reason=e.error_code,
+    ).write()
+
 
 def _wait_until_running(instance):
     """
@@ -67,7 +79,13 @@ def _wait_until_running(instance):
                 instance_state=instance.state,
             ):
                 sleep(1)
-            instance.update()
+            try:
+                instance.update()
+            except EC2ResponseError as e:
+                _check_response_error(
+                    e,
+                    u"flocker:provision:aws:wait_until_running:retry"
+                )
 
 
 @implementer(INode)
@@ -242,10 +260,17 @@ class AWSProvisioner(PClass):
                 instance = reservation.instances[0]
                 context.add_success_fields(instance_id=instance.id)
 
-            self._connection.create_tags([instance.id], metadata)
+            while True:
+                try:
+                    self._connection.create_tags([instance.id], metadata)
+                    break
+                except EC2ResponseError as e:
+                    _check_response_error(
+                        e,
+                        u"flocker:provision:aws:create_node:retry"
+                    )
+                    sleep(1)
 
-            # Display state as instance starts up, to keep user informed that
-            # things are happening.
             _wait_until_running(instance)
 
             return AWSNode(
