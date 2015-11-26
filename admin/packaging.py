@@ -235,10 +235,12 @@ DEPENDENCIES = {
         'centos': (
             Dependency(package='/usr/sbin/iptables'),
             Dependency(package='openssh-clients'),
+            Dependency(package='lshw'),
         ),
         'ubuntu': (
             Dependency(package='iptables'),
             Dependency(package='openssh-client'),
+            Dependency(package='lshw'),
         ),
     },
     # For now the plan is to tell users to install Docker themselves,
@@ -949,9 +951,10 @@ def omnibus_package_builder(
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-diagnostics'),
                      flocker_node_path),
+                    (FilePath('/opt/flocker/bin/flocker-benchmark'),
+                     flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-node-era'),
                      flocker_node_path),
-
                 ]
             ),
             BuildPackage(

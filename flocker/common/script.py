@@ -84,6 +84,9 @@ def flocker_standard_options(cls):
         directory is created if it does not already exist.
         """
         self['logfile'] = logfile_path
+    # Split docstring on multiple whitespace and re-join on single whitespace,
+    # to ensure description in script usage message is tidy.
+    opt_logfile.__doc__ = ' '.join(opt_logfile.__doc__.split())
     cls.opt_logfile = opt_logfile
 
     def opt_journald(self):
