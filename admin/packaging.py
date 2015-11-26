@@ -725,7 +725,6 @@ class LintPackage(object):
                     PackageTypes.RPM: 'rpmlint',
                     PackageTypes.DEB: b'lintian',
                 }[self.package_type],
-                '-ddddddd',
                 output_file.path,
             ])
         except CalledProcessError as e:
