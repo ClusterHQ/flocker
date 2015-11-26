@@ -90,7 +90,7 @@
 {# JINJA2 MACROS DEFINED BELOW                                               #}
 {# --------------------------------------------------------------------------#}
 
-{% macro updateGitHubStatusCommand(status)                                  -%}
+{% macro updateGitHubStatusCommand(status, branch, dashProject, dashBranchName) -%}
 """
 #!/bin/bash
 set +x
@@ -110,61 +110,6 @@ curl \\
 echo "Updating commit \$REMOTE_GIT_COMMIT with {{ status }} status."
 """
 {%- endmacro -%}
-
-{% macro updateGitHubStatus(buildCompleted, branch, dashProject, dashBranchName) -%}
-{% if buildCompleted                                                         %}
-    configure {
-      it / 'builders' << 'org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder'(plugin: 'conditional-buildstep@1.3.3') {
-        condition(class: "org.jenkins_ci.plugins.run_condition.core.StatusCondition", plugin: "run-condition@1.0") {
-          worstResult {
-            name 'SUCCESS'
-            ordinal '0'
-            color 'BLUE'
-            completeBuild 'true'
-          }
-          bestResult {
-            name 'SUCCESS'
-            ordinal '0'
-            color 'BLUE'
-            completeBuild 'true'
-          }
-        }
-        buildStep(class: "hudson.tasks.Shell") {
-          command({{ updateGitHubStatusCommand('success') }})
-        }
-        runner(class: "org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail", plugin: "run-condition@1.0") {
-        }
-      }
-      it / 'builders' << 'org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder'(plugin: 'conditional-buildstep@1.3.3') {
-        condition(class: "org.jenkins_ci.plugins.run_condition.core.StatusCondition", plugin: "run-condition@1.0") {
-          worstResult {
-            name 'FAILURE'
-            ordinal '2'
-            color 'RED'
-            completeBuild 'true'
-          }
-          bestResult {
-            name 'FAILURE'
-            ordinal '2'
-            color 'RED'
-            completeBuild 'true'
-          }
-        }
-        buildStep(class: "hudson.tasks.Shell") {
-          command({{ updateGitHubStatusCommand('failure') }})
-        }
-        runner(class: "org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail", plugin: "run-condition@1.0") {
-        }
-      }
-    }
-{% else                                                                      %}
-    configure {
-      it / 'builders' << 'hudson.tasks.Shell' {
-        command({{ updateGitHubStatusCommand('pending') }})
-      }
-    }
-{% endif                                                                     %}
-{%- endmacro                                                                -%}
 
 {% macro folder(folder, display_name)                                       -%}
 {# creates a folder structure to group jobs, these are the Jenkins folder views
@@ -572,9 +517,9 @@ branches.each {
  {# the multijob runs on the jenkins-master only                             #}
     label("master")
 {# Set the commit status on github to pending                                #}
-{% set buildCompleted = false                                                %}
-      {{ updateGitHubStatus(buildCompleted, "${branchName}", "${dashProject}", "${dashBranchName}") }}
       steps {
+          shell({{ updateGitHubStatusCommand('pending',
+                "${branchName}", "${dashProject}", "${dashBranchName}") }})
 {# make sure we are starting with a clean workspace                          #}
           shell('rm -rf *')
 {# build 'parallel_tests' phase that will run all our jobs in parallel       #}
@@ -704,9 +649,6 @@ branches.each {
 {% endfor                                                                    %}
 {# do an aggregation of all the test results                                 #}
       }
-{# Update the commit status on github to the job result                      #}
-{% set buildCompleted = true                                                 %}
-      {{ updateGitHubStatus(buildCompleted, "${branchName}", "${dashProject}", "${dashBranchName}") }}
       publishers {
           archiveJunit('**/results.xml') {
               retainLongStdout(true)
@@ -728,6 +670,15 @@ branches.each {
             failUnhealthy(true)
             failUnstable(true)
             failNoReports(false)
+          }
+          flexiblePublish {
+            condition {
+              status('SUCCESS', 'SUCCESS')
+            }
+            step {
+              shell({{ updateGitHubStatusCommand('success',
+                "${branchName}", "${dashProject}", "${dashBranchName}") }})
+            }
           }
       }
   }
