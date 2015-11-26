@@ -13,7 +13,6 @@ Ideally, there'd be some in-memory tests too. Some ideas:
 See https://github.com/rackerlabs/mimic/issues/218
 """
 
-import testtools
 from unittest import skipIf
 from uuid import uuid4
 
@@ -336,13 +335,15 @@ class VirtIOClient:
                     host_device])
 
 
-class OpenStackFixture(object):
-    def __init__(self, addCleanup):
-        self.addCleanup = addCleanup
-        self.setUp()
-
+class CinderAttachmentTests(SynchronousTestCase):
+    """
+    Cinder volumes can be attached and return correct device path.
+    """
     def setUp(self):
-        config = get_blockdevice_config(ProviderType.openstack)
+        try:
+            config = get_blockdevice_config(ProviderType.openstack)
+        except InvalidConfig as e:
+            raise SkipTest(str(e))
         region = get_openstack_region_for_test()
         session = get_keystone_session(**config)
         self.cinder = get_cinder_v1_client(session, region)
@@ -358,27 +359,11 @@ class OpenStackFixture(object):
             transient_states=(u'in-use', u'detaching'),
         )
 
-    def cleanup(self, instance_id, volume):
+    def _cleanup(self, instance_id, volume):
         volume.get()
         if volume.attachments:
             self._detach(instance_id, volume)
         self.cinder.volumes.delete(volume.id)
-
-
-class CinderAttachmentTests(testtools.TestCase):
-    """
-    Cinder volumes can be attached and return correct device path.
-    """
-    def setUp(self):
-        super(CinderAttachmentTests, self).setUp()
-        try:
-            self.openstack = OpenStackFixture(self.addCleanup)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-        self.cinder = self.openstack.cinder
-        self.nova = self.openstack.nova
-        self.blockdevice_api = self.openstack.blockdevice_api
-        self._cleanup = self.openstack.cleanup
 
     def test_get_device_path_no_attached_disks(self):
         """
@@ -417,20 +402,7 @@ class CinderAttachmentTests(testtools.TestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
-
-@require_virtio
-class VirtIOCinderAttachmentTests(testtools.TestCase):
-    def setUp(self):
-        super(VirtIOCinderAttachmentTests, self).setUp()
-        try:
-            self.openstack = OpenStackFixture(self.addCleanup)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-        self.cinder = self.openstack.cinder
-        self.nova = self.openstack.nova
-        self.blockdevice_api = self.openstack.blockdevice_api
-        self._cleanup = self.openstack.cleanup
-
+    @require_virtio
     def test_get_device_path_correct_with_attached_disk(self):
         """
         get_device_path returns the correct device name even when a non-Cinder
@@ -476,6 +448,7 @@ class VirtIOCinderAttachmentTests(testtools.TestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
+    @require_virtio
     def test_disk_attachment_fails_with_conflicting_disk(self):
         """
         create_server_volume will raise an exception when Cinder attempts to
@@ -514,6 +487,7 @@ class VirtIOCinderAttachmentTests(testtools.TestCase):
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
 
+    @require_virtio
     def test_get_device_path_virtio_blk_error_without_udev(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver raises
@@ -559,6 +533,7 @@ class VirtIOCinderAttachmentTests(testtools.TestCase):
             volume.id,
         )
 
+    @require_virtio
     def test_get_device_path_virtio_blk_symlink(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver
