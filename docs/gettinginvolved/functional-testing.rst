@@ -10,15 +10,17 @@ The tests look for the following environment variables:
      # FLOC-2090 This is yet another configuration file.
      # Make it just be the same as the acceptance testing configuration file.
 
-- ``FLOCKER_FUNCTIONAL_TEST``: This variable must be set to ``TRUE``.
+- ``FLOCKER_FUNCTIONAL_TEST``: This variable must be set.
 - ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``: This variable points at a YAML file with the credentials.
 - ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER``: This variable must be the name of a top-level key in the configuration file.
+- ``FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE`` (AWS only): The AWS backend also requires that the availability zone that the test is running in to be specified.
+  This is specified separately from the credential file, so that the file can be reused in different regions.
 
-The credentials are read from the stanza specified by the ``CLOUD_PROVIDER`` environment variable.
+The credentials are read from the stanza specified by the ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER`` environment variable.
 The supported block-device backend is specified by a ``provider`` key in the stanza, 
 or the name of the stanza, if the ``provider`` key is missing.
 
-If the environment variables aren't present, the tests will be skipped.
+If the environment variables are not present, the tests will be skipped.
 The tests that do not correspond to the configured provider will also be skipped.
 
 AWS
@@ -32,8 +34,6 @@ The configuration stanza for the EBS backend looks as follows:
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
 
-The AWS backend also requires that the availability zone the test are running in be specified in the  ``FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE`` environment variable.
-This is specified separately from the credential file, so that the file can be reused in different regions.
 
 Rackspace
 =========
@@ -60,3 +60,6 @@ The configuration stanza for an private OpenStack deployment looks as follows:
      plugin_option: value
 
 ``auth_plugin`` refers to an authentication plugin provided by ``python-keystoneclient``.
+
+If required, you may need to add additional fields.
+For more information, see :ref:`openstack-dataset-backend`.
