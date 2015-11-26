@@ -339,7 +339,7 @@ class VirtIOClient:
 
 
 class OpenStackFixture(Fixture):
-    def setUp(self):
+    def _setUp(self):
         config = get_blockdevice_config(ProviderType.openstack)
         region = get_openstack_region_for_test()
         session = get_keystone_session(**config)
