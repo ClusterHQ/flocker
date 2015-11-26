@@ -706,8 +706,6 @@ class LintPackage(object):
                 if ignored in warning:
                     break
             else:
-                print "\n GOT UNACCEPTABLE ISSUE"
-                print warning
                 unacceptable.append(warning)
         return unacceptable
 
@@ -848,8 +846,6 @@ def omnibus_package_builder(
         PackageTypes.RPM: 'Applications/System',
         PackageTypes.DEB: 'admin',
     }[distribution.package_type()]
-    print "\n\n Distribution is:"
-    print distribution._get_current_distribution()
 
     return BuildSequence(
         steps=(
