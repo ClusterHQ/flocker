@@ -668,6 +668,7 @@ IGNORED_WARNINGS = {
         "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/iab.txt",
         "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/oui.idx",
         "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/oui.txt",
+        "package-contains-timestamped-gzip usr/share/doc/clusterhq-python-flocker/changelog.Debian.gz"
     ),
 }
 
@@ -702,8 +703,6 @@ class LintPackage(object):
             # Ignore certain warning lines
             for ignored in ignored_warnings:
                 if ignored in warning:
-                    print "\n IGNORING:"
-                    print ignored
                     break
             else:
                 print "\n GOT UNACCEPTABLE ISSUE"
