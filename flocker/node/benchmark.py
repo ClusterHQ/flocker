@@ -50,7 +50,9 @@ def hardware_report(options):
     """
     Print a hardware report to stdout.
     """
-    sys.stdout.write(list_hardware(['processor', 'memory']))
+    sys.stdout.write(
+        list_hardware(['processor', 'memory', 'network', 'disk', 'volume'])
+    )
     return succeed(None)
 
 
