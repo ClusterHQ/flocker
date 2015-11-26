@@ -21,6 +21,8 @@ from bitmath import Byte
 import netifaces
 import psutil
 
+from fixtures import Fixture
+
 from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 
 from twisted.python.filepath import FilePath
@@ -336,7 +338,7 @@ class VirtIOClient:
                     host_device])
 
 
-class OpenStackFixture(object):
+class OpenStackFixture(Fixture):
     def setUp(self):
         config = get_blockdevice_config(ProviderType.openstack)
         region = get_openstack_region_for_test()
@@ -344,9 +346,6 @@ class OpenStackFixture(object):
         self.cinder = get_cinder_v1_client(session, region)
         self.nova = get_nova_v2_client(session, region)
         self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
-
-    def getDetails(self):
-        return {}
 
     def _detach(self, instance_id, volume):
         self.nova.volumes.delete_server_volume(instance_id, volume.id)
