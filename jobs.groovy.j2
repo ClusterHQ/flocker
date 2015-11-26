@@ -517,8 +517,8 @@ branches.each {
 
  {# the multijob runs on the jenkins-master only                             #}
     label("master")
-{# Set the commit status on github to pending                                #}
       steps {
+{# Set the commit status on GitHub to pending                                #}
           shell({{ updateGitHubStatus('pending', 'Build started',
             "${branchName}", "${dashProject}", "${dashBranchName}") }})
 {# make sure we are starting with a clean workspace                          #}
@@ -672,6 +672,7 @@ branches.each {
             failUnstable(true)
             failNoReports(false)
           }
+{# Update the commit status on GitHub with the build result                  #}
           flexiblePublish {
             condition {
               status('SUCCESS', 'SUCCESS')
