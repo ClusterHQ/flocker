@@ -151,7 +151,7 @@ class ComputeChangesTests(SynchronousTestCase):
         before = [{'foo': 500}]
         after = [{'foo': 555, 'bar': 5}]
         result = compute_change(labels, before, after)
-        self.assertEqual(result, {'node1': {'foo': 55}})
+        self.assertNotIn('bar', result['node1'])
 
     def test_compute_change_lost_proc(self):
         """
@@ -161,7 +161,7 @@ class ComputeChangesTests(SynchronousTestCase):
         before = [{'foo': 555, 'bar': 5}]
         after = [{'foo': 600}]
         result = compute_change(labels, before, after)
-        self.assertEqual(result, {'node1': {'foo': 45}})
+        self.assertNotIn('bar', result['node1'])
 
     def test_compute_change_error_before(self):
         """
