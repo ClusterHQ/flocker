@@ -668,7 +668,8 @@ IGNORED_WARNINGS = {
         "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/iab.txt",
         "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/oui.idx",
         "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/oui.txt",
-        "package-contains-timestamped-gzip usr/share/doc/clusterhq-python-flocker/changelog.Debian.gz"
+        "package-contains-timestamped-gzip usr/share/doc/clusterhq-python-flocker/changelog.Debian.gz",
+        "package-contains-timestamped-gzip usr/share/doc/clusterhq-flocker-cli/changelog.Debian.gz",
     ),
 }
 
