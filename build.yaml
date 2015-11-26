@@ -495,7 +495,7 @@ common_cli:
     if [ "\${DISTRIBUTION_NAME}" == "ubuntu-14.04" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
-    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-15.04" ]; then
+    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-15.10" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
     if [ "\${DISTRIBUTION_NAME}" == "centos-7" ]; then
