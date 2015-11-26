@@ -25,6 +25,8 @@ Full Installation
 
 To get the full Flocker functionality, the following installation steps will take you through installing the Flocker client, the Flocker node services, and the Flocker plugin for Docker:
 
+.. XXX this introduction could be improved with an image. See FLOC-2077
+
 .. toctree::
    :maxdepth: 3
 
