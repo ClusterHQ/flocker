@@ -163,26 +163,6 @@ class ComputeChangesTests(SynchronousTestCase):
         result = compute_change(labels, before, after)
         self.assertNotIn('bar', result['node1'])
 
-    def test_compute_change_error_before(self):
-        """
-        Error in ``before`` measurement provides ``None`` result.
-        """
-        labels = ['node1']
-        before = [None]
-        after = [{'foo': 555, 'bar': 5}]
-        result = compute_change(labels, before, after)
-        self.assertEqual(result, {'node1': None})
-
-    def test_compute_change_error_after(self):
-        """
-        Error in ``after`` measurement provides ``None`` result.
-        """
-        labels = ['node1']
-        before = [{'foo': 555, 'bar': 5}]
-        after = [None]
-        result = compute_change(labels, before, after)
-        self.assertEqual(result, {'node1': None})
-
 
 class CPUTimeTests(TestCase):
     """

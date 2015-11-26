@@ -178,11 +178,8 @@ def compute_change(labels, before, after):
     """
     result = {}
     for (label, before, after) in zip(labels, before, after):
-        if before is None or after is None:
-            value = None
-        else:
-            matched_keys = set(before) & set(after)
-            value = {key: after[key] - before[key] for key in matched_keys}
+        matched_keys = set(before) & set(after)
+        value = {key: after[key] - before[key] for key in matched_keys}
         result[label] = value
     return result
 
