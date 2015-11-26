@@ -17,7 +17,7 @@ The tests look for the following environment variables:
   This is specified separately from the credential file, so that the file can be reused in different regions.
 
 The credentials are read from the stanza specified by the ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER`` environment variable.
-The supported block-device backend is specified by a ``provider`` key in the stanza, 
+The supported block-device backend is specified by a ``provider`` key in the stanza,
 or the name of the stanza, if the ``provider`` key is missing.
 
 If the environment variables are not present, the tests will be skipped.
