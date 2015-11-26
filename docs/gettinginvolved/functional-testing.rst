@@ -34,6 +34,11 @@ The configuration stanza for the EBS backend looks as follows:
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
 
+To run the functional tests, run the following command:
+
+.. prompt:: bash #
+
+   trial --testmodule flocker/node/agents/ebs.py
 
 Rackspace
 =========
@@ -46,6 +51,12 @@ The configuration stanza for the OpenStack backend running on Rackspace looks as
      region: <rackspace region, e.g. "iad">
      username: <rackspace username>
      key: <access key>
+
+To run the functional tests, run the following command:
+
+.. prompt:: bash #
+
+   trial --testmodule flocker/node/agents/cinder.py
 
 OpenStack
 =========
@@ -63,3 +74,9 @@ The configuration stanza for an private OpenStack deployment looks as follows:
 
 If required, you may need to add additional fields.
 For more information, see :ref:`openstack-dataset-backend`.
+
+To run the functional tests, run the following command:
+
+.. prompt:: bash #
+
+   trial --testmodule flocker/node/agents/cinder.py
