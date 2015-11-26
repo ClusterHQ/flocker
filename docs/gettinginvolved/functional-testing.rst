@@ -4,15 +4,15 @@ Functional Testing
 
 The tests for the various cloud block device backends depend on access to credentials supplied from the environment.
 
-The tests look for two environment variables:
+The tests look for the following environment variables:
 
 .. XXX
      # FLOC-2090 This is yet another configuration file.
      # Make it just be the same as the acceptance testing configuration file.
 
 - ``FLOCKER_FUNCTIONAL_TEST``: This variable must be set to ``TRUE``.
-- ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``: This points at a YAML file with the credentials.
-- ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER``: This is the name of a top-level key in the configuration file.
+- ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``: This variable points at a YAML file with the credentials.
+- ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER``: This variable must be the name of a top-level key in the configuration file.
 
 The credentials are read from the stanza specified by the ``CLOUD_PROVIDER`` environment variable.
 The supported block-device backend is specified by a ``provider`` key in the stanza, 
