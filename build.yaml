@@ -495,7 +495,7 @@ common_cli:
     if [ "\${DISTRIBUTION_NAME}" == "ubuntu-14.04" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
-    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-15.04" ]; then
+    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-15.10" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
     if [ "\${DISTRIBUTION_NAME}" == "centos-7" ]; then
@@ -573,13 +573,13 @@ common_cli:
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
 
-  build_dockerfile_ubuntu_vivid: &build_dockerfile_ubuntu_vivid |
+  build_dockerfile_ubuntu_wily: &build_dockerfile_ubuntu_wily |
     # Download the latest pip requirements file from master branch of flocker
     wget -c \
     https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
-    echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
+    echo "FROM alanfranz/fwd-ubuntu-wily:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y \
@@ -1074,7 +1074,7 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   'export DISTRIBUTION_NAME=ubuntu-15.04',
+                   'export DISTRIBUTION_NAME=ubuntu-15.10',
                    *setup_aws_env_vars, *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
@@ -1164,6 +1164,17 @@ job_type:
             cli: [ *hashbang, *add_shell_functions,
                    'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-vivid',
                    *build_dockerfile_ubuntu_vivid,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
+    run_docker_build_ubuntu_wily_fpm:
+      at: '0 2 * * *'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-wily',
+                   *build_dockerfile_ubuntu_wily,
                    *build_docker_image,
                    *push_image_to_dockerhub ]
           }
