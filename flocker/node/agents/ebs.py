@@ -12,6 +12,9 @@ import time
 import logging
 
 import boto3
+import botocore
+
+from botocore.exceptions import ClientError
 
 from uuid import UUID
 
@@ -381,20 +384,6 @@ def _expected_device(requested_device):
     )
 
 
-def boto3_client(region, zone, access_key_id, secret_access_key):
-    """
-    Establish a connection to a boto3 EC2 client.
-
-    :param str region: The name of the EC2 region to connect to.
-    :param str zone: The zone for the EC2 region to connect to.
-    :param str access_key_id: "aws_access_key_id" credential for EC2.
-    :param str secret_access_key: "aws_secret_access_key" EC2 credential.
-
-    :return: An ``_EC2`` giving information about EC2 client connection
-        and EC2 instance zone.
-    """
-
-
 def ec2_client(region, zone, access_key_id, secret_access_key):
     """
     Establish connection to EC2 client.
@@ -456,11 +445,11 @@ def _boto_logged_method(method_name, original_name):
         with AWS_ACTION(operation=[method_name, args, kwargs]):
             try:
                 return method(*args, **kwargs)
-            except EC2ResponseError as e:
+            except ClientError as e:
                 BOTO_EC2RESPONSE_ERROR(
-                    aws_code=e.code,
-                    aws_message=e.message,
-                    aws_request_id=e.request_id,
+                    aws_code=e.response['Error']['Code'],
+                    aws_message=e.response['Error']['Message'],
+                    aws_request_id=e.response['ResponseMetadata']['RequestId'],
                 ).write()
                 raise
     return _run_with_logging
