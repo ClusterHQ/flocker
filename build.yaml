@@ -760,6 +760,7 @@ common_cli:
 # through trial.
 run_trial_modules: &run_trial_modules
   - admin
+  - benchmark
   - flocker.acceptance
   - flocker.apiclient
   - flocker.ca.functional
