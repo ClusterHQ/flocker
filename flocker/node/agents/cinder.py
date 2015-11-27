@@ -314,23 +314,26 @@ class VolumeStateMonitor:
         """
         try:
             existing_volume = self.volume_manager.get(self.expected_volume.id)
-            current_state = existing_volume.status
-            if current_state == self.desired_state:
-                return existing_volume
-            elif current_state in self.transient_states:
-                # Once an intermediate state is reached, the prior
-                # states become invalid.
-                idx = self.transient_states.index(current_state)
-                if idx > 0:
-                    self.transient_states = self.transient_states[idx:]
-            else:
-                raise UnexpectedStateException(
-                    self.expected_volume, self.desired_state, current_state)
         except CinderClientNotFound:
             elapsed_time = time.time() - self.start_time
             if elapsed_time > self.time_limit:
                 raise TimeoutException(
                     self.expected_volume, self.desired_state, elapsed_time)
+            return None
+        # Could miss the expected status because race conditions.
+        # FLOC-1832
+        current_state = existing_volume.status
+        if current_state == self.desired_state:
+            return existing_volume
+        elif current_state in self.transient_states:
+            # Once an intermediate state is reached, the prior
+            # states become invalid.
+            idx = self.transient_states.index(current_state)
+            if idx > 0:
+                self.transient_states = self.transient_states[idx:]
+        else:
+            raise UnexpectedStateException(
+                self.expected_volume, self.desired_state, current_state)
 
 
 def wait_for_volume_state(volume_manager, expected_volume, desired_state,
