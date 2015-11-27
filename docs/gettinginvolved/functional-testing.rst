@@ -10,10 +10,17 @@ The tests look for the following environment variables:
      # FLOC-2090 This is yet another configuration file.
      # Make it just be the same as the acceptance testing configuration file.
 
-- ``FLOCKER_FUNCTIONAL_TEST``: This variable must be set.
-- ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``: This variable points at a YAML file with the credentials.
-- ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER``: This variable must be the name of a top-level key in the configuration file.
-- ``FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE`` (AWS only): The AWS backend also requires that the availability zone that the test is running in to be specified.
+- ``FLOCKER_FUNCTIONAL_TEST``:
+  This variable must be set.
+- ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``:
+  This variable points at a YAML file with the credentials.
+- ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER``:
+  This variable must be the name of a top-level key in the configuration file.
+- ``FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE`` (AWS only):
+  The AWS backend requires that the availability zone that the test is running in to be specified.
+  This is specified separately from the credential file, so that the file can be reused in different regions.
+- ``FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION`` (Rackspace and OpenStack only):
+  The Rackspace and OpenStack backends require that the region that the test is running in to be specified.
   This is specified separately from the credential file, so that the file can be reused in different regions.
 
 The credentials are read from the stanza specified by the ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER`` environment variable.
