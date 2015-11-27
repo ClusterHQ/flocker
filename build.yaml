@@ -588,6 +588,21 @@ common_cli:
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
 
+  build_dockerfile_ubuntu_vivid: &build_dockerfile_ubuntu_vivid |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c \
+    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use an image containing fpm
+    # https://github.com/alanfranz/fpm-within-docker
+    echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "RUN apt-get update" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y \
+          git ruby-dev libffi-dev libssl-dev build-essential python-pip \
+          python2.7-dev lintian" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
   build_vagrant_tutorial_basebox: &build_vagrant_tutorial_basebox |
     vagrant destroy -f
     parse_logs \$venv/bin/python admin/build-vagrant-box --box tutorial \
@@ -1168,7 +1183,7 @@ job_type:
                    *push_image_to_dockerhub ]
           }
     run_docker_build_ubuntu_wily_fpm:
-      at: '0 2 * * *'
+      at: '0 3 * * *'
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_steps:
         - { type: 'shell',
@@ -1180,7 +1195,7 @@ job_type:
           }
       timeout: 30
     build_vagrant_basebox_for_flocker_tutorial:
-      at: '0 2 * * *'
+      at: '0 4 * * *'
       on_nodes_with_labels: 'mesos-512MB'
       with_steps:
         - { type: 'shell',
@@ -1197,7 +1212,7 @@ job_type:
           }
       timeout: 60
     build_vagrant_basebox_for_osx_yosemite:
-      at: '0 3 * * *'
+      at: '0 5 * * *'
       on_nodes_with_labels: 'mesos-1GB'
       with_steps:
         - { type: 'shell',
