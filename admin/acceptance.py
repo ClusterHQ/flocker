@@ -7,6 +7,7 @@ import sys
 import os
 import yaml
 import json
+import re
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -960,12 +961,10 @@ def capture_upstart(reactor, host, output_file):
     :param file output_file: File to write to.
     """
     # TODO: check the format we need to use here (if we need it at all)
-    output_file.write("[[HOST]]"+host+"[[/HOST]]\n\n")
-    # Using tail instead of cat becase it will also print the name of the file so we
     # can use it later. Using the whole filename instead of smtg like flocker*
     # because I can't make it work inside the command. It has a funny way of
     # parsing the commands. Suggestions are welcome :D
-    formatter = dummy_formatter(output_file)
+    formatter = tail_formatter(output_file, host)
     ran = run_ssh(
         reactor=reactor,
         host=host,
@@ -977,11 +976,11 @@ def capture_upstart(reactor, host, output_file):
             b'/var/log/flocker/flocker-container-agent.log',
             b'/var/log/flocker/flocker-docker-plugin.log',
         ],
-        handle_stdout=formatter,
+        handle_stdout=formatter.handle_output_line,
     )
     ran.addErrback(write_failure, logger=None)
     # Deliver a final empty line to process the last message
-    ran.addCallback(lambda ignored: formatter(b""))
+    ran.addCallback(lambda ignored: formatter.handle_output_line(b""))
 
 
 def capture_journal(reactor, host, output_file):
@@ -1017,15 +1016,38 @@ def capture_journal(reactor, host, output_file):
     ran.addCallback(lambda ignored: formatter(b""))
 
 
-def dummy_formatter(output_file):
-    """
-    Create an output handler which turns journald's export format back into
-    Eliot JSON with extra fields to identify the log origin.
-    """
-    # TODO format it properly and rename the function
-    def handle_output_line(line):
-         output_file.write(line + b"\n")
-    return handle_output_line
+class tail_formatter(object):
+    def __init__(self, output_file, host, service = "unknown"):
+        self._output_file = output_file
+        self._host = host
+        self._service = service
+        self.service_regexp = re.compile(r"/var/log/flocker/(.*)\.log")
+        self._current_line = ""
+
+    def handle_output_line(self, line):
+        print "\n Evaluating line:"
+        print line
+        my_match = self.service_regexp.search(line)
+        print my_match
+
+        if my_match is not None:
+            print "\mREGEX MATCHES"
+            self._service = my_match.groups()[0]
+            print self._service
+            print "\n"
+
+        else:
+            self._current_line = line
+            self.format_line()
+            self.write_line()
+        print "\n"
+
+    def format_line(self):
+        self._current_line = self._service + self._current_line
+
+    def write_line(self):
+        self._output_file.write(self._current_line + b"\n")
+
 
 def journald_json_formatter(output_file):
     """
