@@ -55,7 +55,6 @@ The configuration stanza for the OpenStack backend running on Rackspace looks as
 .. code:: yaml
 
    rackspace:
-     region: <rackspace region, e.g. "iad">
      username: <rackspace username>
      key: <access key>
 
