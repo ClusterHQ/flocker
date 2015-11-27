@@ -663,7 +663,7 @@ branches.each {
 {# apply config related to 'cronly_jobs' jobs                                #}
 {%    if job_type == 'cronly_jobs'                                          -%}
 {%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${branchName}/_{{ _job_name }}") {
+  job("${dashProject}/${dashBranchName}/_{{ _job_name }}") {
     parameters {
         textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
     }
