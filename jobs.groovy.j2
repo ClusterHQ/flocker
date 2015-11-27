@@ -101,6 +101,31 @@ println("creating {{folder}}...")
 folder("{{folder}}") { displayName("{{display_name}}") }
 {%- endmacro                                                                -%}
 
+{% macro view(name, regex, description)                                     -%}
+{# creates a tab view structure to group jobs inside a branch folder         %}
+
+   param name:  '/clusterhq-flocker/branchname/myView1'
+   param regex: '.*ubuntu.*r'                                                #}
+
+println("creating tab {{name}}...")
+listView("${dashProject}/${dashBranchName}/{{name}}") {
+  description("{{description}}")
+  filterBuildQueue()
+  filterExecutors()
+  jobs {
+    regex("{{regex}}")
+  }
+  columns {
+    status()
+    weather()
+    name()
+    lastSuccess()
+    lastFailure()
+    lastDuration()
+    buildButton()
+  }
+}
+{%- endmacro                                                                -%}
 
 {% macro wrappers(v, directory_to_delete)                                   -%}
 {# adds a list of common wrappers to the build jobs.
@@ -324,6 +349,10 @@ branches.each {
 {# create a folder for every branch: /git-username/git-repo/branch           #}
   {{ folder("${dashProject}/${dashBranchName}","${branchName}") }}
 
+{# create tabs inside the branch folder                                      #}
+{% for name, v  in cfg.views.iteritems()                                    -%}
+  {{ view(name, v.regex, v.description) }}
+{% endfor                                                                    %}
 
 {# ------------------------------------------------------------------------- #}
 {# JOB DEFINITIONS BELOW - THESE WILL BE ADDED TO A MULTIJOB PHASE           #}
