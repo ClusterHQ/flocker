@@ -654,6 +654,13 @@ class AttachVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=discovered_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
+
     @property
     def eliot_action(self):
         return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id,
@@ -1535,7 +1542,8 @@ class BlockDeviceDeployer(PRecord):
             local_node_state.devices,
             configured_manifestations,
             cluster_state.nonmanifest_datasets,
-            local_state.volumes
+            local_state.volumes,
+            discovered_datasets=local_state.datasets,
         ))
         mounts = list(self._calculate_mounts(
             local_node_state.devices, local_node_state.paths,
@@ -1687,7 +1695,8 @@ class BlockDeviceDeployer(PRecord):
             yield DetachVolume(dataset_id=attached_dataset_id,
                                blockdevice_id=volume.blockdevice_id)
 
-    def _calculate_attaches(self, devices, configured, nonmanifest, volumes):
+    def _calculate_attaches(self, devices, configured, nonmanifest, volumes,
+                            discovered_datasets):
         """
         :param PMap devices: The datasets with volumes attached to this node
             and the device files at which they are available.  This is the same
@@ -1720,9 +1729,10 @@ class BlockDeviceDeployer(PRecord):
                     continue
 
                 # It exists and doesn't belong to anyone else.
-                yield AttachVolume(
-                    dataset_id=dataset_id,
-                    blockdevice_id=volume.blockdevice_id,
+                yield AttachVolume.from_state_and_config(
+                    discovered_dataset=discovered_datasets[dataset_id],
+                    desired_dataset=self._calculate_desired_for_manifestation(
+                        manifestation),
                 )
 
     def _calculate_deletes(self, local_node_state, configured_manifestations,
