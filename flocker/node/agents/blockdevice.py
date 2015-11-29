@@ -114,6 +114,21 @@ class DiscoveredDataset(PClass):
     )
 
 
+class DesiredDataset(PClass):
+    """
+    Dataset as requested by configuration (and applications).
+    """
+    dataset_id = field(type=UUID, mandatory=True)
+    maximum_size = field(type=int, mandatory=True)
+    metadata = pmap_field(
+        key_type=unicode,
+        value_type=unicode,
+    )
+    mount_point = field(FilePath, mandatory=True)
+    filesystem = field(unicode, initial=u"ext4", mandatory=True,
+                       invariant=lambda v: v == "ext4")
+
+
 class VolumeException(Exception):
     """
     A base class for exceptions raised by  ``IBlockDeviceAPI`` operations.
@@ -1452,6 +1467,22 @@ class BlockDeviceDeployer(PRecord):
         :returns: A ``FilePath`` of the mount point.
         """
         return self.mountroot.child(dataset_id.encode("ascii"))
+
+    def _calculate_desired_for_manifestation(self, manifestation):
+        dataset_id = UUID(manifestation.dataset.dataset_id)
+        # XXX: Make this configurable. FLOC-2679
+        maximum_size = manifestation.dataset.maximum_size
+        if maximum_size is None:
+            maximum_size = DEFAULT_DATASET_SIZE
+
+        return DesiredDataset(
+            dataset_id=dataset_id,
+            metadata=manifestation.dataset.metadata,
+            maximum_size=maximum_size,
+            mount_point=self._mountpath_for_dataset_id(
+                unicode(dataset_id)
+            ),
+        )
 
     def calculate_changes(self, configuration, cluster_state, local_state):
         this_node_config = configuration.get_node(
