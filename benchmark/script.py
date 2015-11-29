@@ -41,6 +41,7 @@ _OPERATIONS = {
 _DEFAULT_OPERATION = 'read-request'
 
 _METRICS = {
+    'cputime': metrics.CPUTime,
     'wallclock': metrics.WallClock,
 }
 

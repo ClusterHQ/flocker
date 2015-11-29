@@ -1,6 +1,6 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Metrics for the control service benchmarks.
+Wallclock time metric for the control service benchmarks.
 """
 
 from pyrsistent import PClass, field

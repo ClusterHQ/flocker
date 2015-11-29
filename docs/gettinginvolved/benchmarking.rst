@@ -3,6 +3,12 @@
 Benchmarking
 ============
 
+.. note::
+
+   For the ``benchmark`` command described on this page, if the cluster uses private addresses for communication (e.g. AWS nodes), set the environment variable ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` to a serialized JSON object mapping cluster internal IP addresses to public IP addresses.
+   This environment variable is provided if the cluster is started using the ``run-acceptance-tests`` command.
+   This is intended to be a temporary requirement, until other mechanisms are available [:issue:`2137`, :issue:`3514`, :issue:`3521`].
+
 Flocker includes a tool for benchmarking operations.
 It is called like this:
 
@@ -54,6 +60,9 @@ The :program:`benchmark` script has several options:
 
    Specifies the quantity to measure while the operation is performed.
    Supported values include:
+
+      ``cputime``
+         CPU time elapsed.
 
       ``wallclock``
          Actual clock time elapsed.
