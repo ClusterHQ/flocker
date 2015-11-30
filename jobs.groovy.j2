@@ -94,6 +94,8 @@
                             dashBranchName)                                 -%}
 """
 #!/bin/bash
+{# Jenkins jobs are usually run using 'set -x' however we use 'set +x' here  #}
+{# to avoid leaking credentials into the build logs.                         #}
 set +x
 {# Read the GitHub credentials                                               #}
 . /etc/slave_config/github_status.sh
