@@ -6,7 +6,6 @@ aws:
   secret_access_token: "YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"
   keyname: your.ec2.ssh.key.identifier
   region: us-east-1
-  zone: us-east-1d
   security_groups: ['acceptance']
 
 rackspace:
