@@ -47,7 +47,7 @@ Dataset API Endpoints
     :examples_path: api_examples.yml
     :section: dataset
 
-.. XXX: As part of FLOC 3518 the Container API Endpoints below have been supressed, as Flocker is not a container framework:
+.. XXX: As part of FLOC 3518 the Container API Endpoints below have been suppressed, as Flocker is not a container framework:
    .. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
        :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
        :prefix: /v1
