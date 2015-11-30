@@ -765,7 +765,6 @@ common_cli:
     # flake8 is used by lint tests on Flocker source code
     \${PARSE_LOGS} pip install flake8 \${PIP_ADDITIONAL_OPTIONS}
 
-
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
 #-----------------------------------------------------------------------------#
@@ -1253,3 +1252,69 @@ job_type:
                    *package_jenkins_osx_yosemite_box ]
           }
       timeout: 120
+
+#-----------------------------------------------------------------------------#
+# View definitions below this point
+#-----------------------------------------------------------------------------#
+
+# Use the section below to define multiple 'views/tabs' that appear at the top
+# of the jenkins build page for every branch.
+# These views allow for filtering of particular jobs according to its type,
+# cloud, operating system, ...
+#
+#
+# The views are built from :
+# * the dictionary 'key', which is the view name.
+# * description, containing a description of the jobs in this view
+# * regex, containing a regular expression that is applied to build the view.
+#
+# the site below can help with regular expressions:
+# http://pythex.org/
+
+views:
+  trial:
+    description: 'All jobs that are executed directly using trial'
+    regex: 'run_(?i)trial_.*.*'
+  acceptance:
+    description: 'All Acceptance jobs'
+    regex: 'run_(?i)acceptance_.*.*'
+  client:
+    description: 'All client installation jobs'
+    regex: 'run_(?i)client_.*.*'
+  code_quality:
+    description: 'All code quality jobs'
+    regex: 'run_(?i)lint.*.*'
+  docs:
+    description: 'Documentation jobs'
+    regex: 'run_(?i)sphinx.*.*'
+  cinder:
+    description: 'cinder jobs'
+    regex: '.*_(?i)cinder_.*.*'
+  ebs:
+    description: 'ebs jobs'
+    regex: '.*_(?i)ebs_.*.*'
+  storage_drivers:
+    description: 'All Storage Driver Jobs'
+    regex: '.*_(?i)storage_(?i)driver_.*.*'
+  on_AWS:
+    description: 'All AWS Jobs'
+    regex: '(.*_(?i)ebs_.*.*|.*_(?i)aws_.*.*)'
+  on_Rackspace:
+    description: 'All Rackspace Jobs'
+    regex: '(.*_(?i)cinder_.*.*|.*_(?i)rackspace_.*.*)'
+  CentOS_7:
+    description: 'All CentOS jobs'
+    regex: '.*_(?i)centos_.*.*'
+  Ubuntu_Trusty_14_04_LTS:
+    description: 'All Ubuntu Trusty LTS (14.04) jobs'
+    regex: '.*_(?i)trusty_.*.*'
+  Ubuntu_Vivid_15_04:
+    description: 'All Ubuntu Vivid (15.04) jobs'
+    regex: '.*_(?i)vivid_.*.*'
+  Ubuntu_Wily_15_10:
+    description: 'All Ubuntu Wily (15.10) jobs'
+    regex: '.*_(?i)wily_.*.*'
+  cron:
+    description: 'All Nightly Cron jobs'
+    regex: '^_[^_](?i)[a-z]*.*'
+
