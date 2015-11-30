@@ -43,13 +43,13 @@ To ensure uniqueness when creating a dataset called "my-db" we could do the foll
 Unfortunately this suffers from a race condition: someone else may create a dataset with name "my-db" in between steps 1 and 2.
 
 The solution is a conditional request mechanism allowing you to say "only do this change if the configuration hasn't changed since the last time I used it."
-The :http:get:`/v1/configuration/datasets` end point returns an HTTP header ``ETag`` whose contents identify a particular version of the configuration::
+The :http:get:`/v1/configuration/datasets` end point returns an HTTP header ``X-Configuration-Tag`` whose contents identify a particular version of the configuration::
 
-  ETag: "abcdef1234"
+  X-Configuration-Tag: abcdef1234
 
-Operations that modify the configuration can then include a ``If-Match`` header with that tag as its contents::
+Operations that modify the configuration can then include a ``X-If-Configuration-Matches`` header with that tag as its contents::
 
-  If-Match: "abcdef1234"
+  X-If-Configuration-Matches: abcdef1234
 
 * If the configuration hasn't changed in the interim then the operation will succeed.
 * If the configuration has changed then the operation will fail with a 412 (Precondition Failed) response code.
