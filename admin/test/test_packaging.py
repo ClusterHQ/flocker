@@ -794,9 +794,11 @@ class LintPackageTests(TestCase):
         # - E: zero-length
         self.assert_lint(PackageTypes.RPM, b"""\
 Package errors (package-name):
+package-name.noarch: W: non-standard-group default
 package-name.noarch: W: invalid-license Example
+package-name.noarch: W: invalid-url URL: https://package.example/ \
+<urlopen error [Errno -2] Name or service not known>
 package-name.noarch: W: cross-directory-hard-link /foo/bar/Foo /opt/file
-package-name.noarch: E: no-signature
 """)
 
     @require_lintian

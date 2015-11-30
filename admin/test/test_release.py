@@ -1338,7 +1338,6 @@ class UploadPackagesTests(SynchronousTestCase):
 
         files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
 
-       # print "\n FILES HERE:"
         self.assertEqual(set(), {f for f in files_on_s3 if '-testing' in f})
 
 
