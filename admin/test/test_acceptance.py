@@ -12,7 +12,7 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from ..acceptance import (
     IClusterRunner, ManagedRunner, generate_certificates,
-    journald_json_formatter, DISTRIBUTIONS,
+    journald_json_formatter, DISTRIBUTIONS, TailFormatter
 )
 
 from flocker.ca import RootCredential
@@ -191,3 +191,41 @@ class JournaldJSONFormatter(SynchronousTestCase):
             )],
             self._convert(NON_JSON_JOURNAL_EXPORT),
         )
+
+
+class TailFormatterRegex(SynchronousTestCase):
+    """
+    Tests for ``TailFormatter``
+    """
+    def setUp(self):
+        self._valid_match_flocker = "/var/log/flocker/valid_service.log"
+        self._valid_match_upstart = "/var/log/upstart/valid_service.log"
+        self._invalid_match1 = "/var/log/upstartS/invalid.log"
+        self._invalid_match2 = ""
+        self._invalid_match3 = "log/flocker/invalid.log"
+        self._formatter = TailFormatter("0.0.0.0", "my_host")
+
+    def test_matching_regex(self):
+        my_match = self._formatter._service_regexp.search(self._valid_match_flocker)
+        self.assertNotEquals(my_match, None, "Expected to match")
+        self.assertEquals(my_match.groups()[0],
+                          "valid_service",
+                          "expected string valid_service")
+
+        my_match = self._formatter._service_regexp.search(self._valid_match_upstart)
+        self.assertNotEqual(my_match, None, "Expected to match")
+        self.assertEquals(my_match.groups()[0],
+                          "valid_service",
+                          "expected string valid_service")
+
+    def test_not_matching_regex(self):
+        my_match = self._formatter._service_regexp.search(
+            self._invalid_match1)
+        self.assertEquals(my_match, None, "Expected not to match")
+        my_match = self._formatter._service_regexp.search(
+            self._invalid_match2)
+        self.assertEquals(my_match, None, "Expected not to match")
+        my_match = self._formatter._service_regexp.search(
+            self._invalid_match3)
+        self.assertEquals(my_match, None, "Expected not to match")
+
