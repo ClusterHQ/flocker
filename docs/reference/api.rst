@@ -1,8 +1,8 @@
 .. _api:
 
-========================
-Flocker REST API Details
-========================
+================
+Flocker REST API
+================
 
 .. contents::
         :local:
