@@ -253,6 +253,9 @@ folder("{{folder}}") { displayName("{{display_name}}") }
    'results.xml', 'coverage.xml', '_trial_temp/trial.log'                    #}
       archiveArtifacts("{{artifact}}")
 {%        endfor                                                             %}
+{%      endif                                                               -%}
+
+{% if v.publish_test_results                                                -%}
 {# archives the junit results and publish the test results                   #}
       archiveJunit('results.xml') {
         retainLongStdout(true)
