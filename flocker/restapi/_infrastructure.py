@@ -9,23 +9,19 @@ from functools import wraps
 
 from json import loads, dumps
 
-from pyrsistent import PRecord, field, pvector, pmap
+from pyrsistent import PRecord, field, pvector
 
 from twisted.internet.defer import maybeDeferred
-from twisted.web.http import (
-    OK, INTERNAL_SERVER_ERROR, BAD_REQUEST, PRECONDITION_FAILED,
-)
+from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 
 from eliot import Logger, writeFailure, Action
 from eliot.twisted import DeferredContext
 
+from pyrsistent import pmap
+
 from ._error import DECODING_ERROR, BadRequest, InvalidRequestJSON
 from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
 from ._schema import getValidator
-
-__all__ = [
-    "EndpointResponse", "structured", "user_documentation",
-    ]
 
 _ASCENDING = b"ascending"
 _DESCENDING = b"descending"
@@ -182,7 +178,7 @@ def _serialize(outputValidator):
 
 
 def structured(inputSchema, outputSchema, schema_store=None,
-               ignore_body=False, get_etag=None):
+               ignore_body=False):
     """
     Decorate a Klein-style endpoint method so that the request body is
     automatically decoded and the response body is automatically encoded.
@@ -208,8 +204,6 @@ def structured(inputSchema, outputSchema, schema_store=None,
     :param ignore_body: If true, the body is not passed to the endpoint
         regardless of HTTP method, in particular including ``POST``. By
         default the body is only ignored for ``GET`` and ``HEAD``.
-    :param get_etag: If not ``None``, a callable that takes ``self`` and
-        returns an Etag. This will be used for ``If-Matches`` validation.
     """
     if schema_store is None:
         schema_store = {}
@@ -222,22 +216,6 @@ def structured(inputSchema, outputSchema, schema_store=None,
         @_logging
         @_serialize(outputValidator)
         def loadAndDispatch(self, request, **routeArguments):
-            # If-Matches support:
-            if request.requestHeaders.hasHeader(b"if-matches"):
-                if get_etag is None:
-                    raise BadRequest(
-                        BAD_REQUEST,
-                        {u"description":
-                         u"If-Matches not supported by this method."})
-                etag = get_etag(self)
-                if_matches = request.requestHeaders.getRawHeaders(
-                    b"if-matches")
-                # XXX we don't support "*":
-                if etag not in if_matches:
-                    raise BadRequest(
-                        PRECONDITION_FAILED,
-                        {u"description": u"Etag did not match."})
-
             if request.method in (b"GET", b"DELETE") or ignore_body:
                 objects = {}
             else:

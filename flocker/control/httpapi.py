@@ -5,6 +5,8 @@ A HTTP REST API for controlling the Dataset Manager.
 
 from uuid import uuid4, UUID
 from datetime import datetime
+from functools import wraps
+from json import dumps
 
 from pytz import UTC
 
@@ -17,7 +19,7 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
 from twisted.web.http import (
     CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
-    BAD_REQUEST
+    BAD_REQUEST, PRECONDITION_FAILED,
 )
 from twisted.web.server import Site
 from twisted.web.resource import Resource
@@ -90,17 +92,42 @@ LEASE_HELD = make_bad_request(
     code=CONFLICT, description=u"Lease already held.")
 NODE_BY_ERA_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"No node found with given era.")
+
 _UNDEFINED_MAXIMUM_SIZE = object()
 
 
-def get_configuration_etag(api):
+def get_configuration_tag(api):
     """
-    Return etag value for the configuration.
+    Return tag value for the configuration.
 
     :param ConfigurationAPIUserV1 api: API instance.
-    :return: Etag as ``bytes``.
+    :return: Tag as ``bytes``.
     """
     return api.persistence_service.configuration_hash()
+
+
+def _if_configuration_matches(original):
+    """
+    Decorator that compares X-If-Configuration-Matches header to result of
+    ``get_configuration_tag``.
+
+    :param original: Original function.
+    :return: Wrapped function.
+    """
+    @wraps(original)
+    def render_if_matches(self, request, **route_arguments):
+        if request.requestHeaders.hasHeader(b"X-If-Configuration-Matches"):
+            tag = get_configuration_tag(self)
+            if_matches = request.requestHeaders.getRawHeaders(
+                b"X-If-Configuration-Matches")
+            if tag not in if_matches:
+                request.setResponseCode(PRECONDITION_FAILED)
+                request.responseHeaders.setRawHeaders(
+                    b"content-type", [b"application/json"])
+                return dumps({"description": "Tag doesn't match."})
+        return original(self, request, **route_arguments)
+
+    return render_if_matches
 
 
 class ConfigurationAPIUserV1(object):
@@ -153,8 +180,8 @@ class ConfigurationAPIUserV1(object):
         u"""
         Get the cluster's dataset configuration.
 
-        Includes an ``Etag`` header in the response for use with operations
-        that support ``If-Matches``.
+        Includes a ``X-Configuration-Tag`` header in the response for use
+        with operations that support ``X-If-Configuration-Matches``.
         """,
         header=u"Get the cluster's dataset configuration",
         examples=[u"get configured datasets"],
@@ -175,21 +202,18 @@ class ConfigurationAPIUserV1(object):
         :return: A ``list`` of ``dict`` representing each of dataset
             that is configured to exist anywhere on the cluster.
         """
-        # Perhaps exposing etag should be done in @structured
-        # implementation, if we end up doing it in more than one
-        # place. For now this is simpler:
-        etag = get_configuration_etag(self)
+        tag = get_configuration_tag(self)
         return EndpointResponse(
             OK, list(datasets_from_deployment(self.persistence_service.get())),
-            headers={b"etag": etag})
+            headers={b"X-Configuration-Tag": tag})
 
     @app.route("/configuration/datasets", methods=['POST'])
     @user_documentation(
         u"""
         Create a new dataset.
 
-        Supports ``If-Matches`` header in the request to ensure creation
-        only happens if the configuration hasn't changed.
+        Supports ``X-If-Configuration-Matches`` header in the request to
+        ensure creation only happens if the configuration hasn't changed.
         """,
         header=u"Create new dataset",
         examples=[
@@ -201,6 +225,7 @@ class ConfigurationAPIUserV1(object):
         ],
         section=u"dataset",
     )
+    @_if_configuration_matches
     @structured(
         inputSchema={
             '$ref':
@@ -210,7 +235,6 @@ class ConfigurationAPIUserV1(object):
             '$ref':
             '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS,
-        get_etag=get_configuration_etag,
     )
     def create_dataset_configuration(self, primary, dataset_id=None,
                                      maximum_size=None, metadata=None):
@@ -288,8 +312,8 @@ class ConfigurationAPIUserV1(object):
         Deletion is idempotent: deleting a dataset multiple times will
         result in the same response.
 
-        Supports ``If-Matches`` header in the request to ensure deletion
-        only happens if the configuration hasn't changed.
+        Supports ``X-If-Configuration-Matches`` header in the request to
+        ensure deletion only happens if the configuration hasn't changed.
         """,
         header=u"Delete an existing dataset",
         examples=[
@@ -298,13 +322,13 @@ class ConfigurationAPIUserV1(object):
         ],
         section=u"dataset",
     )
+    @_if_configuration_matches
     @structured(
         inputSchema={},
         outputSchema={
             '$ref':
             '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS,
-        get_etag=get_configuration_etag,
     )
     def delete_dataset(self, dataset_id):
         """
@@ -349,8 +373,9 @@ class ConfigurationAPIUserV1(object):
         * In the future this may be used to update metadata, but that is not
           currently supported.
 
-        Supports ``If-Matches`` header in the request to ensure the update
-        only happens if the configuration hasn't changed.
+        Supports ``X-If-Configuration-Matches`` header in the request to
+        ensure the update only happens if the configuration hasn't
+        changed.
         """,
         header=u"Update an existing dataset",
         examples=[
@@ -359,6 +384,7 @@ class ConfigurationAPIUserV1(object):
         ],
         section=u"dataset",
     )
+    @_if_configuration_matches
     @structured(
         inputSchema={
             '$ref':
@@ -367,7 +393,6 @@ class ConfigurationAPIUserV1(object):
             '$ref':
             '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS,
-        get_etag=get_configuration_etag,
     )
     def update_dataset(self, dataset_id, primary=None):
         """

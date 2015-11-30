@@ -19,7 +19,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.web.http_headers import Headers
 from twisted.web.http import (
     BAD_REQUEST, INTERNAL_SERVER_ERROR, PAYMENT_REQUIRED, GONE,
-    NOT_ALLOWED, NOT_FOUND, OK, PRECONDITION_FAILED)
+    NOT_ALLOWED, NOT_FOUND, OK)
 
 from twisted.trial.unittest import SynchronousTestCase
 
@@ -149,20 +149,6 @@ class ResultHandlingApplication(object):
     def badResponse(self, **kwargs):
         self.kwargs = kwargs
         return self._constructSuccess({})
-
-    def etag(self):
-        return b"123"
-
-    @app.route(b"/foo/ifmatches")
-    @structured({}, {}, get_etag=lambda self: self.etag())
-    def ifmatches(self, **kwargs):
-        self.kwargs = kwargs
-        return self._constructSuccess({})
-
-# XXX tests:
-# 2. If-Matches header means succeeds normally if matches
-# 3. If-Matches header means PRECONDITION_FAILED if doesn't match
-# 4. Lacking get_etag, If-Matches always fails with BAD_REQUEST or something
 
 
 def assertJSONLogged(test, logger, method, path, request, response,
@@ -618,53 +604,6 @@ class StructuredJSONTests(SynchronousTestCase):
         render(app.app.resource(), request)
         self.assertEqual(
             {"jsonValue": True, "routingValue": "quux"}, app.kwargs)
-
-    @validateLogging(_assertRequestLogged(b"/baz/quux", b"POST"))
-    def test_if_matches_no_get_etag(self, logger):
-        """
-        If an ``If-Matches`` header is sent to an endpoint without a
-        ``get_etag`` function then an error is returned.
-        """
-        request = dummyRequest(
-            b"POST", b"/baz/quux",
-            Headers({b"content-type": [b"application/json"],
-                     b"If-matches": [b"456"]}),
-            dumps({"jsonValue": True}))
-        app = self.Application(logger, {})
-        render(app.app.resource(), request)
-        self.assertEqual(request._code, BAD_REQUEST)
-
-    @validateLogging(_assertRequestLogged(b"/foo/ifmatches", b"POST"))
-    def test_if_matches_no_match(self, logger):
-        """
-        If an ``If-Matches`` header is sent to an endpoint with a ``get_etag``
-        function and the value doesn't match then then a
-        PRECONDITION_FAILED error is returned.
-        """
-        request = dummyRequest(
-            b"POST", b"/foo/ifmatches",
-            Headers({b"content-type": [b"application/json"],
-                     b"If-matches": [b"456"]}),
-            dumps({}))
-        app = self.Application(logger, {})
-        render(app.app.resource(), request)
-        self.assertEqual(request._code, PRECONDITION_FAILED)
-
-    @validateLogging(_assertRequestLogged(b"/foo/ifmatches", b"POST"))
-    def test_if_matches_matches(self, logger):
-        """
-        If an ``If-Matches`` header is sent to an endpoint with a ``get_etag``
-        function and one of the values matches then then a normal response
-        is returned.
-        """
-        app = self.Application(logger, {})
-        request = dummyRequest(
-            b"POST", b"/foo/ifmatches",
-            Headers({b"content-type": [b"application/json"],
-                     b"If-matches": [b"456", app.etag()]}),
-            dumps({}))
-        render(app.app.resource(), request)
-        self.assertEqual(request._code, OK)
 
 
 class UserDocumentationTests(SynchronousTestCase):
