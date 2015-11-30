@@ -1083,7 +1083,7 @@ job_type:
           }
       clean_repo: true
       timeout: 30
-    run_client_installation_on_Ubuntu_Vivid:
+    run_client_installation_on_Ubuntu_Wily:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
