@@ -673,6 +673,13 @@ branches.each {
             failNoReports(false)
           }
 {# Update the commit status on GitHub with the build result                  #}
+{# We use the flexible-publish plugin combined with the the any-buildstep    #}
+{# plugin to allow us to run shell commands as part of a post-build step.    #}
+{# We also use the run-condition plugin to inspect the status of the build   #}
+{# and update the commit with either a 'success' or 'failed' status.         #}
+{# https://wiki.jenkins-ci.org/display/JENKINS/Flexible+Publish+Plugin       #}
+{# https://wiki.jenkins-ci.org/display/JENKINS/Any+Build+Step+Plugin         #}
+{# https://wiki.jenkins-ci.org/display/JENKINS/Run+Condition+Plugin          #}
           flexiblePublish {
             condition {
               status('SUCCESS', 'SUCCESS')
