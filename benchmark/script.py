@@ -9,6 +9,7 @@ import json
 import os
 from platform import node, platform
 import sys
+import yaml
 
 from eliot import to_file
 
@@ -18,34 +19,8 @@ from twisted.python.usage import Options, UsageError
 from flocker import __version__ as flocker_client_version
 
 from benchmark._driver import driver
-from benchmark import metrics, operations, scenarios
 
 to_file(sys.stderr)
-
-
-# If modifying scenarios, operations, or metrics, please update
-# docs/gettinginvolved/benchmarking.rst
-
-_SCENARIOS = {
-    'no-load': scenarios.NoLoadScenario,
-}
-
-_DEFAULT_SCENARIO = 'no-load'
-
-_OPERATIONS = {
-    'no-op': operations.NoOperation,
-    'read-request': operations.ReadRequest,
-    'wait-10': operations.Wait,
-}
-
-_DEFAULT_OPERATION = 'read-request'
-
-_METRICS = {
-    'cputime': metrics.CPUTime,
-    'wallclock': metrics.WallClock,
-}
-
-_DEFAULT_METRIC = 'wallclock'
 
 
 class BenchmarkOptions(Options):
@@ -56,33 +31,48 @@ class BenchmarkOptions(Options):
          'IP address for a Flocker cluster control server.'],
         ['certs', None, 'certs',
          'Directory containing client certificates'],
-        ['scenario', None, _DEFAULT_SCENARIO,
-         'Environmental scenario under which to perform test. '
-         'Supported values: {}.'.format(', '.join(_SCENARIOS))],
-        ['operation', None, _DEFAULT_OPERATION,
-         'Operation to measure. '
-         'Supported values: {}.'.format(', '.join(_OPERATIONS))],
-        ['metric', None, _DEFAULT_METRIC,
-         'Quantity to benchmark. '
-         'Supported values: {}.'.format(', '.join(_METRICS))],
+        ['config', None, 'benchmark.yml',
+         'YAML file describing benchmark options.'],
+        ['scenario', None, 'default',
+         'Environmental scenario under which to perform test.'],
+        ['operation', None, 'default', 'Operation to measure.'],
+        ['metric', None, 'default', 'Quantity to benchmark.'],
     ]
 
 
-config = BenchmarkOptions()
+options = BenchmarkOptions()
+
+
+def usage(message=None):
+    sys.stderr.write(options.getUsage())
+    sys.stderr.write('\n')
+    sys.exit(message)
+
 try:
-    config.parseOptions()
-    if not config['control'] and config['operation'] != 'no-op':
-        # No-op is OK with no control service
-        raise UsageError('Control service required')
+    options.parseOptions()
 except UsageError as e:
-    sys.stderr.write(config.getUsage())
-    sys.stderr.write('\n{}\n'.format(str(e)))
-    sys.exit(1)
+    usage(e.args[0])
 
+if not options['control'] and options['operation'] != 'no-op':
+    # No-op is OK with no control service
+    usage('Control service required')
 
-scenario = _SCENARIOS[config['scenario']]
-operation = _OPERATIONS[config['operation']]
-metric = _METRICS[config['metric']]
+with open(options['config'], 'rt') as f:
+    config = yaml.safe_load(f)
+    scenarios = config['scenarios']
+    operations = config['operations']
+    metrics = config['metrics']
+
+scenario_name = options['scenario']
+operation_name = options['operation']
+metric_name = options['metric']
+
+scenario_config = scenarios.get(scenario_name) or usage(
+    'No such scenario: {!r}'.format(scenario_name))
+operation_config = operations.get(operation_name) or usage(
+    'No such operations: {!r}'.format(operation_name))
+metric_config = metrics.get(metric_name) or usage(
+    'No such metric: {!r}'.format(metric_name))
 
 timestamp = datetime.now().isoformat()
 
@@ -95,14 +85,14 @@ result = dict(
         nodename=node(),
         platform=platform(),
     ),
-    scenario=config['scenario'],
-    operation=config['operation'],
-    metric=config['metric'],
+    scenario=scenario_config.copy(),
+    operation=operation_config.copy(),
+    metric=metric_config.copy(),
 )
 
 react(
     driver, (
-        config, scenario, operation, metric, result,
+        options, scenario_config, operation_config, metric_config, result,
         partial(json.dump, fp=sys.stdout, indent=2)
     )
 )

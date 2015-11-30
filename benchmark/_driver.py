@@ -12,6 +12,8 @@ from twisted.internet.defer import Deferred, logError, maybeDeferred, succeed
 
 from flocker.apiclient import FlockerClient
 
+from benchmark import metrics, operations, scenarios
+
 
 def bypass(result, func, *args, **kw):
     """
@@ -106,13 +108,35 @@ def benchmark(scenario, operation, metric, num_samples=3):
     return benchmarking
 
 
-def driver(reactor, config, scenario, operation, metric, result, output):
+# If modifying scenarios, operations, or metrics, please update
+# docs/gettinginvolved/benchmarking.rst
+
+_SCENARIOS = {
+    'no-load': scenarios.NoLoadScenario,
+}
+
+_OPERATIONS = {
+    'no-op': operations.NoOperation,
+    'read-request': operations.ReadRequest,
+    'wait': operations.Wait,
+}
+
+_METRICS = {
+    'cputime': metrics.CPUTime,
+    'wallclock': metrics.WallClock,
+}
+
+
+def driver(
+    reactor, config, scenario_config, operation_config, metric_config, result,
+    output
+):
     """
     :param reactor: Reactor to use.
     :param config: Configuration read from options.
-    :param IScenario scenario: A load scenario.
-    :param IOperation operation: An operation to perform.
-    :param IMetric metric: A quantity to measure.
+    :param IScenario scenario: A load scenario configuration.
+    :param IOperation operation: An operation configuration.
+    :param IMetric metric: A metric configuration.
     :param result: A dictionary which will be updated with values to
         create a JSON result.
     :param output: A callable to receive the JSON structure, for
@@ -145,11 +169,17 @@ def driver(reactor, config, scenario, operation, metric, result, output):
 
     d.addCallback(add_control_service, result)
 
+    scenario_type = scenario_config.pop('type')
+    operation_type = operation_config.pop('type')
+    metric_type = metric_config.pop('type')
+
     def run_benchmark(ignored):
         return benchmark(
-            scenario(reactor, control_service),
-            operation(clock=reactor, control_service=control_service),
-            metric(clock=reactor, control_service=control_service),
+            _SCENARIOS[scenario_type](
+                reactor, control_service, **scenario_config),
+            _OPERATIONS[operation_type](
+                reactor, control_service, **operation_config),
+            _METRICS[metric_type](reactor, control_service, **metric_config),
         )
 
     d.addCallback(run_benchmark)
