@@ -37,7 +37,7 @@ from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
-from ._diagnostics import (
+from .diagnostics import (
     current_distribution, FlockerDebugArchive, DISTRIBUTION_BY_LABEL,
     lookup_distribution,
 )

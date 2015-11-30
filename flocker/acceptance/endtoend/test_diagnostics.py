@@ -81,6 +81,7 @@ class DiagnosticsTests(AsyncTestCase):
                 'hostname',
                 'lsblk',
                 'fdisk',
+                'lshw',
             ])
             self.assertEqual(expected_basenames, actual_basenames)
 

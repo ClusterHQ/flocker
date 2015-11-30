@@ -1,6 +1,7 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 from ._model import (
+    run_network_interacting_from_args, sudo_network_interacting_from_args,
     Run, run, run_from_args,
     Sudo, sudo, sudo_from_args,
     Put, put,
@@ -10,6 +11,7 @@ from ._model import (
 )
 
 __all__ = [
+    "run_network_interacting_from_args", "sudo_network_interacting_from_args",
     "Run", "run", "run_from_args",
     "Sudo", "sudo", "sudo_from_args",
     "Put", "put",

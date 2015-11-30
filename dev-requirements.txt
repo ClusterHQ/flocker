@@ -16,7 +16,6 @@ flake8==2.4.1
 gitdb==0.6.4
 GitPython==1.0.1
 humanfriendly==1.33
-hypothesis==1.14.0
 Jinja2==2.7.3
 jmespath==0.9.0
 MarkupSafe==0.23

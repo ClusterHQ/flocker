@@ -112,6 +112,30 @@ def loop_until(reactor, predicate, steps=None):
     return d.addActionFinish()
 
 
+def timeout(reactor, deferred, timeout_sec):
+    """Adds a timeout to an existing deferred. If the timeout expires before
+    the deferred expires, then the deferred is cancelled.
+
+    :param IReactorTime reactor: The reactor implementation to schedule the
+        timeout.
+
+    :param Deferred deferred: The deferred to cancel at a later point in time.
+
+    :param float timeout_sec: The number of seconds to wait before the deferred
+        should time out.
+    """
+    def _timeout():
+        deferred.cancel()
+
+    delayed_timeout = reactor.callLater(timeout_sec, _timeout)
+
+    def abort_timeout(passthrough):
+        if delayed_timeout.active():
+            delayed_timeout.cancel()
+        return passthrough
+    deferred.addBoth(abort_timeout)
+
+
 def retry_failure(reactor, function, expected=None, steps=None):
     """
     Retry ``function`` until it returns successfully.
