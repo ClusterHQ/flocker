@@ -418,7 +418,7 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
                 connection=_LoggedBotoConnection(connection=connection))
 
 
-def _boto_logged_method(method_name, original_name):
+def _boto3_logged_method(method_name, original_name):
     """
     Run a boto.ec2.connection.EC2Connection method and
     log additional information about any exceptions that are raised.
@@ -450,6 +450,43 @@ def _boto_logged_method(method_name, original_name):
                     aws_code=e.response['Error']['Code'],
                     aws_message=e.response['Error']['Message'],
                     aws_request_id=e.response['ResponseMetadata']['RequestId'],
+                ).write()
+                raise
+    return _run_with_logging
+
+
+def _boto_logged_method(method_name, original_name):
+    """
+    Run a boto.ec2.connection.EC2Connection method and
+    log additional information about any exceptions that are raised.
+
+    :param str method_name: The name of the method of the wrapped object to
+        call.
+    :param str original_name: The name of the attribute of self where the
+        wrapped object can be found.
+
+    :return: A function which will call the method of the wrapped object and do
+        the extra exception logging.
+    """
+    def _run_with_logging(self, *args, **kwargs):
+        """
+        Run given boto.ec2.connection.EC2Connection method with exception
+        logging for ``EC2ResponseError``.
+        """
+        original = getattr(self, original_name)
+        method = getattr(original, method_name)
+
+        # Trace IBlockDeviceAPI ``method`` as Eliot Action.
+        # See https://clusterhq.atlassian.net/browse/FLOC-2054
+        # for ensuring all method arguments are serializable.
+        with AWS_ACTION(operation=[method_name, args, kwargs]):
+            try:
+                return method(*args, **kwargs)
+            except EC2ResponseError as e:
+                BOTO_EC2RESPONSE_ERROR(
+                    aws_code=e.code,
+                    aws_message=e.message,
+                    aws_request_id=e.request_id,
                 ).write()
                 raise
     return _run_with_logging
