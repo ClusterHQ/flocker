@@ -960,11 +960,7 @@ def capture_upstart(reactor, host, output_file):
     :param bytes host: Machine to SSH into.
     :param file output_file: File to write to.
     """
-    # TODO: check the format we need to use here (if we need it at all)
-    # can use it later. Using the whole filename instead of smtg like flocker*
-    # because I can't make it work inside the command. It has a funny way of
-    # parsing the commands. Suggestions are welcome :D
-    formatter = tail_formatter(output_file, host)
+    formatter = TailFormatter(output_file, host)
     ran = run_ssh(
         reactor=reactor,
         host=host,
@@ -982,9 +978,10 @@ def capture_upstart(reactor, host, output_file):
     ran.addErrback(write_failure, logger=None)
     # Deliver a final empty line to process the last message
     ran.addCallback(lambda ignored: formatter.handle_output_line(b""))
+    return ran
 
 
-class tail_formatter(object):
+class TailFormatter(object):
     """
     Formatter for the output of the ``tail`` commands that will produce logs
     with Eliot messages with the same format as the ones produced when
@@ -992,27 +989,27 @@ class tail_formatter(object):
 
     :ivar file output_file: log file where we want to write our log
     :ivar bytes _host: ip address or identifier of our host to be
-        added to the Elliot messages
+        added to the Eliot messages
     :ivar bytes service: optional initial name of the service. This initial
         name shouldn't appear anywhere unless there is an error, as the first
         line of the output of trial will be a file name, that will be used
         to set the name of the service we are currently parsing
     """
-    def __init__(self, output_file, host, service = "unknown"):
+    def __init__(self, output_file, host, service="unknown"):
         self._output_file = output_file
         self._host = host
         self._service = service
-        self.service_regexp = re.compile(r"[/var/log/flocker/]|[/log/upstart/](.*)\.log")
+        self._service_regexp = re.compile(r"(?:/var/log/flocker/|/log/upstart/)(.*)\.log")
 
     def handle_output_line(self, line):
         """
         Handles a line of the trial output, and checks if it is the name
-        of the service or an actual Elliot message
+        of the service or an actual Eliot message
 
         :param line: The line read from the trial output.
         """
         if line:
-            service_match = self.service_regexp.search(line)
+            service_match = self._service_regexp.search(line)
 
             if service_match is not None:
                 self._service = service_match.groups()[0]
@@ -1022,11 +1019,11 @@ class tail_formatter(object):
 
     def parse_line(self, line):
         """
-        Given a line with an Elliot message, it inserts the hostname
+        Given a line with an Eliot message, it inserts the hostname
         and the system name into the message
 
         :param line: The line read from the trial output that was identified
-            as an Elliot message
+            as an Eliot message
         """
         try:
             message = json.loads(line)
@@ -1154,7 +1151,7 @@ def main(reactor, args, base_path, top_level):
         elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.04'):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
-                capture_upstart(reactor,node.address,remote_logs_file)
+                capture_upstart(reactor, node.address, remote_logs_file)
 
         if not options["no-pull"]:
             yield perform(
