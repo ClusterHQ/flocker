@@ -975,12 +975,76 @@ def capture_upstart(reactor, host, output_file):
             b'/var/log/flocker/flocker-dataset-agent.log',
             b'/var/log/flocker/flocker-container-agent.log',
             b'/var/log/flocker/flocker-docker-plugin.log',
+            b'/var/log/upstart/docker.log',
         ],
         handle_stdout=formatter.handle_output_line,
     )
     ran.addErrback(write_failure, logger=None)
     # Deliver a final empty line to process the last message
     ran.addCallback(lambda ignored: formatter.handle_output_line(b""))
+
+
+class tail_formatter(object):
+    """
+    Formatter for the output of the ``tail`` commands that will produce logs
+    with Eliot messages with the same format as the ones produced when
+    parsing journalctl output
+
+    :ivar file output_file: log file where we want to write our log
+    :ivar bytes _host: ip address or identifier of our host to be
+        added to the Elliot messages
+    :ivar bytes service: optional initial name of the service. This initial
+        name shouldn't appear anywhere unless there is an error, as the first
+        line of the output of trial will be a file name, that will be used
+        to set the name of the service we are currently parsing
+    """
+    def __init__(self, output_file, host, service = "unknown"):
+        self._output_file = output_file
+        self._host = host
+        self._service = service
+        self.service_regexp = re.compile(r"/var/log/flocker/(.*)\.log")
+
+    def handle_output_line(self, line):
+        """
+        Handles a line of the trial output, and checks if it is the name
+        of the service or an actual Elliot message
+
+        :param line: The line read from the trial output.
+        """
+        if line:
+            service_match = self.service_regexp.search(line)
+
+            if service_match is not None:
+                self._service = service_match.groups()[0]
+
+            else:
+                self.print_line(self.parse_line(line))
+
+    def parse_line(self, line):
+        """
+        Given a line with an Elliot message, it inserts the hostname
+        and the system name into the message
+
+        :param line: The line read from the trial output that was identified
+            as an Elliot message
+        """
+        try:
+            message = json.loads(line)
+        except ValueError:
+            # Docker log messages are not JSON
+            message = dict(message=line)
+
+        message[u"_HOSTNAME"] = self._host
+        message[u"_SYSTEMD_UNIT"] = self._service
+        return message
+
+    def print_line(self, message):
+        """
+        Appends the given message to the output file in json format
+
+        :param message: we want to append to the ''output_file''
+        """
+        self._output_file.write(json.dumps(message) + b"\n")
 
 
 def capture_journal(reactor, host, output_file):
@@ -1014,39 +1078,6 @@ def capture_journal(reactor, host, output_file):
     ran.addErrback(write_failure, logger=None)
     # Deliver a final empty line to process the last message
     ran.addCallback(lambda ignored: formatter(b""))
-
-
-class tail_formatter(object):
-    def __init__(self, output_file, host, service = "unknown"):
-        self._output_file = output_file
-        self._host = host
-        self._service = service
-        self.service_regexp = re.compile(r"/var/log/flocker/(.*)\.log")
-        self._current_line = ""
-
-    def handle_output_line(self, line):
-        print "\n Evaluating line:"
-        print line
-        my_match = self.service_regexp.search(line)
-        print my_match
-
-        if my_match is not None:
-            print "\mREGEX MATCHES"
-            self._service = my_match.groups()[0]
-            print self._service
-            print "\n"
-
-        else:
-            self._current_line = line
-            self.format_line()
-            self.write_line()
-        print "\n"
-
-    def format_line(self):
-        self._current_line = self._service + self._current_line
-
-    def write_line(self):
-        self._output_file.write(self._current_line + b"\n")
 
 
 def journald_json_formatter(output_file):
