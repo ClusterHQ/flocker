@@ -7,6 +7,8 @@ Docker API client.
 
 from __future__ import absolute_import
 
+from errno import ECONNREFUSED
+from socket import error as socket_error
 from functools import partial
 from itertools import repeat
 from time import sleep
@@ -20,8 +22,11 @@ from eliot import Message, MessageType, Field, start_action
 
 from repoze.lru import LRUCache
 
-from pyrsistent import field, PRecord, pset
 from requests import Response
+from requests.exceptions import ConnectionError
+from requests.packages.urllib3.exceptions import ProtocolError
+
+from pyrsistent import field, PRecord, pset
 from characteristic import with_cmp
 
 from twisted.python.components import proxyForInterface
@@ -393,26 +398,45 @@ class TimeoutClient(Client):
         return kwargs
 
 
-def _is_known_retryable(error_text):
+def _is_known_retryable(exception):
     """
     Determine if the text of a Docker 500 error represents a case which
     warrants an automatic retry.
 
-    :param unicode error_text: The Docker error message.
+    :param Exception exception: The exception from a ``docker.Client`` method
+        call.
 
-    :return bool: ``True`` if the message reflects a case to retry, ``False``
-        otherwise.
+    :return bool: ``True`` if the exception represents a failure that is likely
+        transient and a retry makes sense, ``False`` otherwise.
     """
-    return any(
-        known in error_text
-        for known
-        in [
-            # https://github.com/docker/docker/issues/18194
-            u"Unknown device",
-            # https://github.com/docker/docker/issues/17653
-            u"no such device",
-        ]
-    )
+    # A problem coming out of Docker itself
+    if isinstance(exception, APIError):
+        if exception.response.status_code == INTERNAL_SERVER_ERROR:
+            error_text = exception.response.text
+            return any(
+                known in error_text
+                for known
+                in [
+                    # https://github.com/docker/docker/issues/18194
+                    u"Unknown device",
+                    # https://github.com/docker/docker/issues/17653
+                    u"no such device",
+                ]
+            )
+
+    # A connection problem coming from the requests library used by docker-py
+    if isinstance(exception, ConnectionError):
+        if (
+            len(exception.args) > 0
+            and isinstance(exception.args[0], ProtocolError)
+        ):
+            if (
+                len(exception.args[0].args) > 1
+                and isinstance(exception.args[0].args[1], socket_error)
+            ):
+                return exception.args[0].args[1].errno in {ECONNREFUSED}
+
+    return False
 
 
 def dockerpy_client(**kwargs):
@@ -429,13 +453,7 @@ def dockerpy_client(**kwargs):
     return wrap_methods_with_failure_retry(
         TimeoutClient(**kwargs),
         compose_retry([
-            retry_if(
-                lambda exc: (
-                    isinstance(exc, APIError) and
-                    exc.response.status_code == INTERNAL_SERVER_ERROR and
-                    _is_known_retryable(exc.response.text)
-                )
-            ),
+            retry_if(_is_known_retryable),
             retry_some_times(),
         ]),
     )
