@@ -1002,7 +1002,7 @@ class tail_formatter(object):
         self._output_file = output_file
         self._host = host
         self._service = service
-        self.service_regexp = re.compile(r"/var/log/flocker/(.*)\.log")
+        self.service_regexp = re.compile(r"[/var/log/flocker/]|[/log/upstart/](.*)\.log")
 
     def handle_output_line(self, line):
         """
