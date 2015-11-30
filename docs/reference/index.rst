@@ -54,7 +54,6 @@ Dataset API Endpoints
        :examples_path: api_examples.yml
        :section: container
 
-
 .. XXX: Improvements to the API (create collapse directive) requires Engineering effort:
 .. https://clusterhq.atlassian.net/browse/FLOC-2094
 
