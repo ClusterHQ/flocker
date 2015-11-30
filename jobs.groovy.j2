@@ -179,9 +179,9 @@ listView("${dashProject}/${dashBranchName}/{{name}}") {
       the priviledges to remove the root owned files created by the sudo tests.
       To fix this issue, we use a preSCM plugin which allows us to execute a
       step before cloning/checking the git reposity.
-      if the build.yaml contains a 'clean_repo' flag, then we will clean up
-      old root files from the repo.                                          #}
-{% if v.clean_repo %}
+      if the build.yaml contains a 'dont_clean_repo' flag, then we won't clean
+      up old root files from the repo                                         #}
+{% if v.dont_clean_repo is not defined or not v.dont_clean_repo %}
       preScmSteps {
           steps {
           shell("sudo rm -rf {{ directory_to_delete }}")

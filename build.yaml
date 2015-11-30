@@ -764,7 +764,7 @@ common_cli:
 # Toggles:
 #   * archive_artifacts: ( define if there are files to be archived)
 #   * coverage_report: ( enable if this job produces a coverage report file)
-#   * clean_repo: (enable if we need to clean old files owned by root)
+#   * dont_clean_repo: (enable if we don't want to delete old files owned by root)
 #
 
 # run_trial_modules contains a list of all the modules we want to execute
@@ -852,7 +852,6 @@ job_type:
       archive_artifacts: *flocker_artifacts
       publish_test_results: true
       coverage_report: true
-      clean_repo: true
       timeout: 30
 
     run_trial_on_AWS_CentOS_7_as_root:
@@ -864,7 +863,6 @@ job_type:
       archive_artifacts: *flocker_artifacts
       publish_test_results: true
       coverage_report: true
-      clean_repo: true
       timeout: 30
 
     # http://build.clusterhq.com/builders/flocker-admin
@@ -877,7 +875,6 @@ job_type:
       archive_artifacts: *flocker_artifacts
       publish_test_results: true
       coverage_report: true
-      clean_repo: true
       timeout: 30
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
@@ -889,7 +886,6 @@ job_type:
       archive_artifacts: *flocker_artifacts
       publish_test_results: true
       coverage_report: true
-      clean_repo: true
       timeout: 30
 
 
@@ -909,7 +905,6 @@ job_type:
           }
       archive_artifacts: *flocker_artifacts
       coverage_report: true
-      clean_repo: true
       timeout: 45
 
     run_trial_for_ebs_storage_driver_on_Ubuntu_trusty:
@@ -928,7 +923,6 @@ job_type:
       archive_artifacts: *flocker_artifacts
       publish_test_results: true
       coverage_report: true
-      clean_repo: true
       timeout: 45
 
 
@@ -948,7 +942,6 @@ job_type:
       archive_artifacts: *flocker_artifacts
       publish_test_results: true
       coverage_report: true
-      clean_repo: true
       timeout: 45
 
     run_trial_for_cinder_storage_driver_on_Ubuntu_trusty:
@@ -967,7 +960,6 @@ job_type:
       archive_artifacts: *flocker_artifacts
       publish_test_results: true
       coverage_report: true
-      clean_repo: true
       timeout: 45
 
 
@@ -1005,7 +997,6 @@ job_type:
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
-      clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
       timeout: 45
     run_acceptance_on_AWS_Ubuntu_Trusty_for:
@@ -1025,7 +1016,6 @@ job_type:
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
-      clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
       timeout: 45
     run_acceptance_on_Rackspace_CentOS_7_for:
@@ -1047,7 +1037,6 @@ job_type:
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
-      clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
       timeout: 45
     run_acceptance_on_Rackspace_Ubuntu_Trusty_for:
@@ -1069,7 +1058,6 @@ job_type:
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
-      clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
       timeout: 45
 
@@ -1089,7 +1077,6 @@ job_type:
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
-      clean_repo: true
       timeout: 30
     run_client_installation_on_Ubuntu_Vivid:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
@@ -1105,7 +1092,6 @@ job_type:
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
-      clean_repo: true
       timeout: 30
     run_client_installation_on_OSX:
       on_nodes_with_labels: 'mesos-1GB'
@@ -1138,7 +1124,7 @@ job_type:
                    *run_build_sh_script_on_vagrant_box,
                    *destroy_vagrant_box]
           }
-      clean_repo: false
+      dont_clean_repo: true
       timeout: 30
 
 
