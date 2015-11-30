@@ -11,7 +11,7 @@ from gzip import GzipFile
 from StringIO import StringIO
 import tempfile
 from textwrap import dedent
-from unittest import skipUnless
+from unittest import skipUnless, skipIf
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import GitCommandError, Repo
@@ -1246,6 +1246,8 @@ class UploadPackagesTests(SynchronousTestCase):
         )
         self.build_server = 'http://test-build-server.example'
 
+    # XXX: FLOC-3540 remove skip once the support for Ubuntu 15.10 is released
+    @skipIf(True, "Skipping until the changes to support Ubuntu 15.10 are released - FLOC-3540")
     def test_repositories_created(self):
         """
         Calling :func:`upload_packages` creates repositories for supported
@@ -1301,6 +1303,8 @@ class UploadPackagesTests(SynchronousTestCase):
         files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(expected_files, set(files_on_s3))
 
+    # XXX: FLOC-3540 remove skip once the support for Ubuntu 15.10 is released
+    @skipIf(True, "Skipping until the changes to support Ubuntu 15.10 are released - FLOC-3540")
     def test_key_suffixes(self):
         """
         The OS part of the keys for created repositories have suffixes (or not)
@@ -1333,6 +1337,8 @@ class UploadPackagesTests(SynchronousTestCase):
         )
 
         files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
+
+       # print "\n FILES HERE:"
         self.assertEqual(set(), {f for f in files_on_s3 if '-testing' in f})
 
 
