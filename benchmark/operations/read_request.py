@@ -2,7 +2,6 @@ from pyrsistent import PClass, field
 from zope.interface import implementer
 
 from twisted.internet.defer import succeed
-from twisted.web.client import ResponseFailed
 
 from .._interfaces import IProbe, IOperation
 
