@@ -90,6 +90,30 @@
 {# JINJA2 MACROS DEFINED BELOW                                               #}
 {# --------------------------------------------------------------------------#}
 
+{% macro updateGitHubStatus(status, description, branch, dashProject,
+                            dashBranchName)                                 -%}
+"""
+#!/bin/bash
+{# Jenkins jobs are usually run using 'set -x' however we use 'set +x' here  #}
+{# to avoid leaking credentials into the build logs.                         #}
+set +x
+{# Read the GitHub credentials                                               #}
+. /etc/slave_config/github_status.sh
+
+{# Send a request to Github to update the commit with the build status       #}
+REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
+BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
+PAYLOAD="{\\"state\\": \\"{{ status }}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"{{ description }}\\", \\"context\\": \\"jenkins-multijob\\" }"
+curl \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
+  -X POST \\
+  --data "\$PAYLOAD" \\
+  https://api.github.com/repos/{{ cfg.project }}/statuses/\$REMOTE_GIT_COMMIT
+echo "Updating commit \$REMOTE_GIT_COMMIT with {{ status }} status."
+"""
+{%- endmacro -%}
+
 {% macro folder(folder, display_name)                                       -%}
 {# creates a folder structure to group jobs, these are the Jenkins folder views
    in the Jenkins UI.
@@ -229,6 +253,9 @@ folder("{{folder}}") { displayName("{{display_name}}") }
    'results.xml', 'coverage.xml', '_trial_temp/trial.log'                    #}
       archiveArtifacts("{{artifact}}")
 {%        endfor                                                             %}
+{%      endif                                                               -%}
+
+{% if v.publish_test_results                                                -%}
 {# archives the junit results and publish the test results                   #}
       archiveJunit('results.xml') {
         retainLongStdout(true)
@@ -492,7 +519,13 @@ branches.each {
           absolute(60)
           }
     }
+
+ {# the multijob runs on the jenkins-master only                             #}
+    label("master")
       steps {
+{# Set the commit status on GitHub to pending                                #}
+          shell({{ updateGitHubStatus('pending', 'Build started',
+            "${branchName}", "${dashProject}", "${dashBranchName}") }})
 {# make sure we are starting with a clean workspace                          #}
           shell('rm -rf *')
 {# build 'parallel_tests' phase that will run all our jobs in parallel       #}
@@ -643,6 +676,32 @@ branches.each {
             failUnhealthy(true)
             failUnstable(true)
             failNoReports(false)
+          }
+{# Update the commit status on GitHub with the build result                  #}
+{# We use the flexible-publish plugin combined with the the any-buildstep    #}
+{# plugin to allow us to run shell commands as part of a post-build step.    #}
+{# We also use the run-condition plugin to inspect the status of the build   #}
+{# and update the commit with either a 'success' or 'failed' status.         #}
+{# https://wiki.jenkins-ci.org/display/JENKINS/Flexible+Publish+Plugin       #}
+{# https://wiki.jenkins-ci.org/display/JENKINS/Any+Build+Step+Plugin         #}
+{# https://wiki.jenkins-ci.org/display/JENKINS/Run+Condition+Plugin          #}
+          flexiblePublish {
+            condition {
+              status('SUCCESS', 'SUCCESS')
+            }
+            step {
+              shell({{ updateGitHubStatus('success', 'Build succeeded',
+                "${branchName}", "${dashProject}", "${dashBranchName}") }})
+            }
+          }
+          flexiblePublish {
+            condition {
+              status('FAILURE', 'FAILURE')
+            }
+            step {
+              shell({{ updateGitHubStatus('failure', 'Build failed',
+                "${branchName}", "${dashProject}", "${dashBranchName}") }})
+            }
           }
       }
   }
