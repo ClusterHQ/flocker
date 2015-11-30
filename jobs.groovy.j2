@@ -109,7 +109,7 @@ curl \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
   -X POST \\
   --data "\$PAYLOAD" \\
-  https://api.github.com/repos/{{ cfg.project }}/\$REMOTE_GIT_COMMIT
+  https://api.github.com/repos/{{ cfg.project }}/statuses/\$REMOTE_GIT_COMMIT
 echo "Updating commit \$REMOTE_GIT_COMMIT with {{ status }} status."
 """
 {%- endmacro -%}
