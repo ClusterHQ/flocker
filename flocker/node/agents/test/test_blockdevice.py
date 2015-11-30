@@ -1200,7 +1200,7 @@ def local_state_from_shared_state(
     to be replaced by the real thing.
     """
     datasets = {}
-    for dataset_id, dataset in nonmanifest_datasets.datasets.items():
+    for dataset_id, dataset in nonmanifest_datasets.items():
         dataset_id = UUID(dataset_id)
         if dataset_id in node_state.devices:
             datasets[dataset_id] = DiscoveredDataset(
@@ -1295,7 +1295,7 @@ class LocalStateFromSharedStateTests(SynchronousTestCase):
         node_state, nonmanifest_datasets = local_state.shared_state_changes()
         fake_local_state = local_state_from_shared_state(
             node_state=node_state,
-            nonmanifest_datasets=nonmanifest_datasets,
+            nonmanifest_datasets=nonmanifest_datasets.datasets,
             volumes=local_state.volumes,
         )
         self.assertEqual(local_state.shared_state_changes(),
@@ -1347,9 +1347,7 @@ def _create_block_device_deployer_local_state(
 
     return local_state_from_shared_state(
         node_state=node_state,
-        nonmanifest_datasets=NonManifestDatasets(
-            datasets=nonmanifest_datasets
-        ),
+        nonmanifest_datasets=nonmanifest_datasets,
         volumes=volumes,
     )
 
