@@ -198,9 +198,10 @@ class TailFormatterRegex(SynchronousTestCase):
     Tests for ``TailFormatter``
     """
     def setUp(self):
-        self._valid_match_flocker = "/var/log/flocker/valid_service.log"
-        self._valid_match_upstart = "/var/log/upstart/valid_service.log"
-        self._invalid_match1 = "/var/log/upstartS/invalid.log"
+        self._valid_match_flocker = "random ==> /var/log/"\
+            "flocker/valid_service.log <=="
+        self._valid_match_upstart = "==> /var/log/upstart/valid_service.log <=="
+        self._invalid_match1 = "/var/log/upstart/invalid.log"
         self._invalid_match2 = ""
         self._invalid_match3 = "log/flocker/invalid.log"
         self._formatter = TailFormatter("0.0.0.0", "my_host")

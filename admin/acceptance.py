@@ -992,21 +992,27 @@ class TailFormatter(object):
         added to the Eliot messages
     :ivar bytes service: optional initial name of the service. This initial
         name shouldn't appear anywhere unless there is an error, as the first
-        line of the output of trial will be a file name, that will be used
+        line of the output of tail will be a file name, that will be used
         to set the name of the service we are currently parsing
     """
     def __init__(self, output_file, host, service="unknown"):
         self._output_file = output_file
         self._host = host
         self._service = service
-        self._service_regexp = re.compile(r"(?:/var/log/flocker/|/log/upstart/)(.*)\.log")
+        # Note that the tail output will always be
+        # ==> name_of_the_service.log <==
+        # followed by a one or more lines of this log.
+        # The following regex will match the output to find out
+        # the name of the log we are currently reading
+        self._service_regexp = re.compile(
+            r"==> (?:/var/log/flocker/|/var/log/upstart/)(.*)\.log <==")
 
     def handle_output_line(self, line):
         """
-        Handles a line of the trial output, and checks if it is the name
+        Handles a line of the tail output, and checks if it is the name
         of the service or an actual Eliot message
 
-        :param line: The line read from the trial output.
+        :param line: The line read from the tail output.
         """
         if line:
             service_match = self._service_regexp.search(line)
@@ -1022,7 +1028,7 @@ class TailFormatter(object):
         Given a line with an Eliot message, it inserts the hostname
         and the system name into the message
 
-        :param line: The line read from the trial output that was identified
+        :param line: The line read from the tail output that was identified
             as an Eliot message
         """
         try:
