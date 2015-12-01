@@ -1124,7 +1124,6 @@ job_type:
                    *run_build_sh_script_on_vagrant_box,
                    *destroy_vagrant_box]
           }
-      dont_clean_repo: true
       timeout: 30
 
 
