@@ -6,6 +6,7 @@ An HTTP API implementing the Docker Volumes Plugin API.
 See https://github.com/docker/docker/tree/master/docs/extend for details.
 """
 
+from itertools import repeat
 from functools import wraps
 from uuid import UUID
 
@@ -16,7 +17,7 @@ from bitmath import GiB
 from eliot import writeFailure
 
 from twisted.python.filepath import FilePath
-from twisted.internet.task import deferLater
+from twisted.internet.defer import CancelledError
 from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK
 
@@ -28,6 +29,7 @@ from ..restapi import (
 from ..control._config import dataset_id_from_name
 from ..apiclient import DatasetAlreadyExists
 from ..node.agents.blockdevice import PROFILE_METADATA_KEY
+from ..common import loop_until, timeout
 
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
@@ -107,7 +109,8 @@ class VolumePlugin(object):
     can't be sure they won't change things in minor ways. We do validate
     outputs to ensure we output the documented requirements.
     """
-    _POLL_INTERVAL = 0.05
+    _POLL_INTERVAL = 1.0
+    _MOUNT_TIMEOUT = 120.0
 
     app = Klein()
 
@@ -280,20 +283,20 @@ class VolumePlugin(object):
                                                         dataset_id))
         d.addCallback(lambda dataset: dataset.dataset_id)
 
-        def get_state(dataset_id):
-            getting_path = self._get_path_from_dataset_id(dataset_id)
+        d.addCallback(lambda dataset_id: loop_until(
+            self._reactor,
+            lambda: self._get_path_from_dataset_id(dataset_id),
+            repeat(self._POLL_INTERVAL)))
+        d.addCallback(lambda p: {u"Err": None, u"Mountpoint": p.path})
 
-            def got_path(path):
-                if path is None:
-                    return deferLater(
-                        self._reactor, self._POLL_INTERVAL, get_state,
-                        dataset_id)
-                else:
-                    return {u"Err": None,
-                            u"Mountpoint": path.path}
-            getting_path.addCallback(got_path)
-            return getting_path
-        d.addCallback(get_state)
+        timeout(self._reactor, d, self._MOUNT_TIMEOUT)
+
+        def handleCancel(failure):
+            failure.trap(CancelledError)
+            return {u"Err": u"Timed out waiting for dataset to mount.",
+                    u"Mountpoint": u""}
+        d.addErrback(handleCancel)
+
         return d
 
     @app.route("/VolumeDriver.Path", methods=["POST"])
