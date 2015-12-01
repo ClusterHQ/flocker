@@ -185,6 +185,7 @@ listView("${dashProject}/${dashBranchName}/{{name}}") {
       preScmSteps {
           steps {
           shell("sudo rm -rf {{ directory_to_delete }}")
+          println("Deleted directory {{ directory_to_delete }}")
           }
       }
 {% endif %}
