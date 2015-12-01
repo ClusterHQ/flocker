@@ -29,7 +29,7 @@ class BlockDeviceManagerTests(SynchronousTestCase):
     """Tests for flocker.node.agents.blockdevice_manager.BlockDeviceManager."""
 
     def setUp(self):
-        """Creates a loopback BlockDeviceAPI for creating blockdevices."""
+        """Establishes testing infrastructure for test cases."""
         self.loopback_api = loopbackblockdeviceapi_for_test(self)
         self.manager_under_test = BlockDeviceManager()
         self.mountroot = mountroot_for_test(self)
