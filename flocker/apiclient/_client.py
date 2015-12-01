@@ -161,6 +161,12 @@ class DatasetsConfiguration(PClass):
     tag = field(mandatory=True)
     datasets = pmap_field(UUID, Dataset)
 
+    def __iter__(self):
+        """
+        :return: Iterator over ``Dataset`` instances.
+        """
+        return self.datasets.itervalues()
+
 
 class IFlockerAPIV1Client(Interface):
     """
@@ -330,7 +336,7 @@ class FakeFlockerClient(object):
         self.synchronize_state()
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
-                       metadata=pmap()):
+                       metadata=pmap(), configuration_tag=None):
         # In real implementation the server will generate the new ID, but
         # we have to do it ourselves:
         if dataset_id is None:
@@ -343,19 +349,23 @@ class FakeFlockerClient(object):
             dataset_id, result)
         return succeed(result)
 
-    def delete_dataset(self, dataset_id):
+    def delete_dataset(self, dataset_id, configuration_tag=None):
         dataset = self._configured_datasets[dataset_id]
         self._configured_datasets = self._configured_datasets.remove(
             dataset_id)
         return succeed(dataset)
 
-    def move_dataset(self, primary, dataset_id):
+    def move_dataset(self, primary, dataset_id, configuration_tag=None):
         self._configured_datasets = self._configured_datasets.transform(
             [dataset_id, "primary"], primary)
         return succeed(self._configured_datasets[dataset_id])
 
     def list_datasets_configuration(self):
-        return succeed(self._configured_datasets.values())
+        return succeed(DatasetsConfiguration(
+            # Since the tag is opaque object, using the actual configuration
+            # is a fine way to have a matching tag.
+            tag=self._configured_datasets,
+            datasets=self._configured_datasets))
 
     def list_datasets_state(self):
         return succeed(self._state_datasets)
@@ -467,7 +477,8 @@ class FlockerClient(object):
                                               cert_path, key_path)
         self._base_url = b"https://%s:%d/v1" % (host, port)
 
-    def _request(self, method, path, body, success_codes, error_codes=None):
+    def _request(self, method, path, body, success_codes, error_codes=None,
+                 with_headers=False):
         """
         Send a HTTP request to the Flocker API, return decoded JSON body.
 
@@ -478,8 +489,11 @@ class FlockerClient(object):
         :param set success_codes: Expected success response codes.
         :param error_codes: Mapping from HTTP response code to exception to be
             raised if it is present, or ``None`` to set no errors.
+        :param with_headers: Boolean indicating whether headers are required.
 
-        :return: ``Deferred`` firing with decoded JSON.
+        :return: ``Deferred`` firing with decoded JSON, or if
+            ``with_headers`` is true then with a tuple of (decoded JSON,
+            response headers).
         """
         url = self._base_url + path
         action = _LOG_HTTP_REQUEST(url=url, method=method, request_body=body)
@@ -492,13 +506,17 @@ class FlockerClient(object):
                 raise error_codes[code](body)
             raise ResponseError(code, body)
 
-        def got_result(result):
-            if result.code in success_codes:
-                action.addSuccessFields(response_code=result.code)
-                return json_content(result)
+        def got_response(response):
+            if response.code in success_codes:
+                action.addSuccessFields(response_code=response.code)
+                d = json_content(response)
+                if with_headers:
+                    d.addCallback(lambda decoded_body:
+                                  (decoded_body, response.headers))
+                return d
             else:
-                d = content(result)
-                d.addCallback(error, result.code)
+                d = content(response)
+                d.addCallback(error, response.code)
                 return d
 
         # Serialize the current task ID so we can trace logging across
@@ -516,7 +534,7 @@ class FlockerClient(object):
                 # Keep tests from having dirty reactor problems:
                 persistent=False
                 ))
-        request.addCallback(got_result)
+        request.addCallback(got_response)
 
         def got_body(json_body):
             action.addSuccessFields(response_body=json_body)
@@ -537,7 +555,7 @@ class FlockerClient(object):
                        dataset_id=UUID(dataset_dict[u"dataset_id"]),
                        metadata=dataset_dict[u"metadata"])
 
-    def delete_dataset(self, dataset_id):
+    def delete_dataset(self, dataset_id, configuration_tag=None):
         request = self._request(
             b"DELETE", b"/configuration/datasets/%s" % (dataset_id,),
             None, {OK})
@@ -545,7 +563,7 @@ class FlockerClient(object):
         return request
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
-                       metadata=pmap()):
+                       metadata=pmap(), configuration_tag=None):
         dataset = {u"primary": unicode(primary),
                    u"metadata": dict(metadata)}
         if dataset_id is not None:
@@ -558,7 +576,7 @@ class FlockerClient(object):
         request.addCallback(self._parse_configuration_dataset)
         return request
 
-    def move_dataset(self, primary, dataset_id):
+    def move_dataset(self, primary, dataset_id, configuration_tag=None):
         request = self._request(
             b"POST", b"/configuration/datasets/%s" % (dataset_id,),
             {u"primary": unicode(primary)}, {OK})
@@ -566,13 +584,16 @@ class FlockerClient(object):
         return request
 
     def list_datasets_configuration(self):
-        request = self._request(b"GET", b"/configuration/datasets", None, {OK})
+        request = self._request(b"GET", b"/configuration/datasets", None, {OK},
+                                with_headers=True)
         request.addCallback(
-            lambda results:
-            [
-                self._parse_configuration_dataset(d)
-                for d in results if not d['deleted']
-            ]
+            lambda (results, headers):
+            DatasetsConfiguration(
+                tag=headers.getRawHeaders('X-Configuration-Tag')[0],
+                datasets={
+                    UUID(d['dataset_id']): self._parse_configuration_dataset(d)
+                    for d in results if not d['deleted']
+                })
         )
         return request
 

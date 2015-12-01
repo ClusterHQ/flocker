@@ -33,6 +33,7 @@ from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
     Lease, LeaseAlreadyHeld, Node, Container, ContainerAlreadyExists,
+    DatasetsConfiguration,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -59,10 +60,11 @@ def make_clientv1_tests():
     control of this process. So when testing a real client it will be
     talking to a in-process server.
 
-    The ``TestCase`` should have two 0-argument methods:
+    The ``TestCase`` should have three 0-argument methods:
 
     create_client: Returns a ``IFlockerAPIV1Client`` provider.
     synchronize_state: Make state match the configuration.
+    get_configuration_tag: Return the configuration hash.
     """
     class InterfaceTests(TestCase):
         def setUp(self):
@@ -81,6 +83,23 @@ def make_clientv1_tests():
             The created client provides ``IFlockerAPIV1Client``.
             """
             self.assertTrue(verifyObject(IFlockerAPIV1Client, self.client))
+
+        def test_list_dataset_configuration(self):
+            """
+            The listed configuration includes the hashed tag of the
+            configuration and a mapping of configured datasets.
+            """
+            creating = self.client.create_dataset(primary=self.node_1.uuid)
+
+            def created(dataset):
+                d = self.client.list_datasets_configuration()
+                d.addCallback(self.assertEqual,
+                              DatasetsConfiguration(
+                                  tag=self.get_configuration_tag(),
+                                  datasets={dataset.dataset_id: dataset}))
+                return d
+            creating.addCallback(created)
+            return creating
 
         def assert_creates(self, client, dataset_id=None, maximum_size=None,
                            **create_kwargs):
@@ -514,6 +533,9 @@ class FakeFlockerClientTests(make_clientv1_tests()):
     def synchronize_state(self):
         return self.client.synchronize_state()
 
+    def get_configuration_tag(self):
+        return self.client._configured_datasets
+
 
 class FlockerClientTests(make_clientv1_tests()):
     """
@@ -585,6 +607,9 @@ class FlockerClientTests(make_clientv1_tests()):
                                  devices={})
                        for node in deployment.nodes]
         self.cluster_state_service.apply_changes(node_states)
+
+    def get_configuration_tag(self):
+        return self.persistence_service.configuration_hash()
 
     @capture_logging(None)
     def test_logging(self, logger):
