@@ -23,37 +23,6 @@ For more information, see the :ref:`API authentication guide <generate-api>`.
 
 For more information read the :ref:`cluster architecture<architecture>` documentation.
 
-REST API Endpoints
-==================
-
-.. contents::
-        :local:
-
-Common API Endpoints
---------------------
-
-.. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
-    :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
-    :prefix: /v1
-    :examples_path: api_examples.yml
-    :section: common
-
-Dataset API Endpoints
----------------------
-
-.. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
-    :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
-    :prefix: /v1
-    :examples_path: api_examples.yml
-    :section: dataset
-
-.. XXX: As part of FLOC 3518 the Container API Endpoints below have been suppressed, as Flocker is not a container framework:
-   .. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
-       :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
-       :prefix: /v1
-       :examples_path: api_examples.yml
-       :section: container
-
 .. XXX: Improvements to the API (create collapse directive) requires Engineering effort:
 .. https://clusterhq.atlassian.net/browse/FLOC-2094
 
