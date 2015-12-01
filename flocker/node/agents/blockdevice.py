@@ -454,7 +454,8 @@ class CreateFilesystem(PRecord):
     def run(self, deployer):
         try:
             _ensure_no_filesystem(self.device, deployer.block_device_manager)
-            deployer.block_device_manager.mkfs(self.device, self.filesystem)
+            deployer.block_device_manager.make_filesystem(self.device,
+                                                          self.filesystem)
         except:
             return fail()
         return succeed(None)

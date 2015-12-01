@@ -46,7 +46,7 @@ class BlockDeviceManagerTests(SynchronousTestCase):
         """Mounted blockdevices should appear in get_mounts."""
         blockdevice = self._get_free_blockdevice()
         mountpoint = self._get_directory_for_mount()
-        self.manager_under_test.mkfs(blockdevice, 'ext4')
+        self.manager_under_test.make_filesystem(blockdevice, 'ext4')
         self.manager_under_test.mount(blockdevice, mountpoint)
         mount_info = MountInfo(blockdevice=blockdevice, mountpoint=mountpoint)
         self.assertIn(mount_info, self.manager_under_test.get_mounts())

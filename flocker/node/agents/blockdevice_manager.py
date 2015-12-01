@@ -32,7 +32,7 @@ class IBlockDeviceManager(Interface):
     An interface for interactions with the OS pertaining to block devices.
     """
 
-    def mkfs(self, blockdevice, filesystem):
+    def make_filesystem(blockdevice, filesystem):
         """
         Format the blockdevice at blockdevice.path with the given filesystem.
 
@@ -40,7 +40,7 @@ class IBlockDeviceManager(Interface):
         :param unicode filesystem: The filesystem type to use.
         """
 
-    def has_filesystem(self, blockdevice):
+    def has_filesystem(blockdevice):
         """
         Returns whether the blockdevice at blockdevice.path has a filesystem.
 
@@ -48,7 +48,7 @@ class IBlockDeviceManager(Interface):
         :returns: True if the blockdevice has a filesystem.
         """
 
-    def mount(self, blockdevice, mountpoint):
+    def mount(blockdevice, mountpoint):
         """
         Mounts the blockdevice at blockdevice.path at mountpoint.path.
 
@@ -56,14 +56,14 @@ class IBlockDeviceManager(Interface):
         :param FilePath mountpoint: The path to mount the block device at.
         """
 
-    def unmount(self, blockdevice):
+    def unmount(blockdevice):
         """
         Unmounts the blockdevice at blockdevice.path
 
         :param FilePath blockdevice: The path to the block device to unmount.
         """
 
-    def get_mounts(self):
+    def get_mounts():
         """
         Returns all known mounts on the system.
 
@@ -77,7 +77,7 @@ class BlockDeviceManager(PClass):
     Real implementation of IBlockDeviceManager.
     """
 
-    def mkfs(self, blockdevice, filesystem):
+    def make_filesystem(self, blockdevice, filesystem):
         check_output([
             b"mkfs", b"-t", filesystem.encode("ascii"),
             # This is ext4 specific, and ensures mke2fs doesn't ask
@@ -122,5 +122,3 @@ class BlockDeviceManager(PClass):
         return (MountInfo(blockdevice=FilePath(mount.device),
                           mountpoint=FilePath(mount.mountpoint))
                 for mount in mounts)
-
-
