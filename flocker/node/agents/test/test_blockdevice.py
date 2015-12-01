@@ -70,7 +70,6 @@ from ..blockdevice import (
     UnknownInstanceID,
     get_blockdevice_volume,
 )
-from ..blockdevice_manager import BlockDeviceManager
 
 from ..loopback import (
     check_allocatable_size,
@@ -1403,11 +1402,8 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
-                DestroyBlockDeviceDataset(
-                    dataset_id=self.DATASET_ID,
-                    blockdevice_id=self.BLOCKDEVICE_ID,
-                    block_device_manager=BlockDeviceManager(),
-                )
+                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
+                                          blockdevice_id=self.BLOCKDEVICE_ID)
             ]),
             # Another node which is ignorant about its state:
             set([NodeState(hostname=u"1.2.3.4", uuid=uuid4())])
@@ -1436,11 +1432,8 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
-                DestroyBlockDeviceDataset(
-                    dataset_id=self.DATASET_ID,
-                    blockdevice_id=self.BLOCKDEVICE_ID,
-                    block_device_manager=BlockDeviceManager(),
-                )
+                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
+                                          blockdevice_id=self.BLOCKDEVICE_ID)
             ]),
             discovered_datasets=[
                 DiscoveredDataset(
@@ -1578,8 +1571,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                             unicode(self.DATASET_ID)
                         ),
                         blockdevice_id=self.BLOCKDEVICE_ID,
-                        dataset_id=self.DATASET_ID,
-                        block_device_manager=BlockDeviceManager(),
+                        dataset_id=self.DATASET_ID
                     )
                 ]
             ),
@@ -1640,7 +1632,6 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     CreateFilesystem(
                         device=device,
                         filesystem=u"ext4",
-                        block_device_manager=BlockDeviceManager(),
                     )
                 ]
             ),
@@ -1798,8 +1789,7 @@ class BlockDeviceDeployerMountCalculateChangesTests(
                     blockdevice_id=self.BLOCKDEVICE_ID,
                     mountpoint=FilePath(b"/flocker/").child(
                         bytes(self.DATASET_ID)
-                    ),
-                    block_device_manager=BlockDeviceManager(),
+                    )
                 ),
             ]),
             discovered_datasets=[
@@ -1846,8 +1836,7 @@ class BlockDeviceDeployerCreateFilesystemCalculateChangesTests(
             self, node_state, node_config,
             {Dataset(dataset_id=unicode(self.DATASET_ID))},
             in_parallel(changes=[
-                CreateFilesystem(device=device, filesystem=u"ext4",
-                                 block_device_manager=BlockDeviceManager())
+                CreateFilesystem(device=device, filesystem=u"ext4")
             ]),
             discovered_datasets=[
                 DiscoveredDataset(
@@ -1889,8 +1878,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
             self, node_state, node_config, set(),
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID,
-                                   blockdevice_id=self.BLOCKDEVICE_ID,
-                                   block_device_manager=BlockDeviceManager())
+                                   blockdevice_id=self.BLOCKDEVICE_ID)
             ])
         )
 
@@ -1957,8 +1945,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
             self, node_state, node_config, set(),
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID,
-                                   blockdevice_id=self.BLOCKDEVICE_ID,
-                                   block_device_manager=BlockDeviceManager())
+                                   blockdevice_id=self.BLOCKDEVICE_ID)
             ]), leases=leases,
         )
 
@@ -3471,8 +3458,7 @@ def _make_destroy_dataset():
     """
     return DestroyBlockDeviceDataset(
         dataset_id=_ARBITRARY_VOLUME.dataset_id,
-        blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id,
-        block_device_manager=BlockDeviceManager(),
+        blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id
     )
 
 
@@ -3502,8 +3488,7 @@ def multistep_change_log(parent, children):
 class DestroyBlockDeviceDatasetInitTests(
     make_with_init_tests(
         DestroyBlockDeviceDataset,
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
-             block_device_manager=BlockDeviceManager()),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
         dict(),
     )
 ):
@@ -3517,11 +3502,9 @@ class DestroyBlockDeviceDatasetTests(
         DestroyBlockDeviceDataset,
         # Avoid using the same instance, just provide the same value.
         lambda _uuid=uuid4(): dict(dataset_id=_uuid,
-                                   blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
-                                   block_device_manager=BlockDeviceManager()),
+                                   blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
         lambda _uuid=uuid4(): dict(dataset_id=_uuid,
-                                   blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2,
-                                   block_device_manager=BlockDeviceManager()),
+                                   blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2),
     )
 ):
     """
@@ -3567,8 +3550,7 @@ class DestroyBlockDeviceDatasetTests(
         mount(device, mountpoint)
 
         change = DestroyBlockDeviceDataset(
-            dataset_id=dataset_id, blockdevice_id=volume.blockdevice_id,
-            block_device_manager=BlockDeviceManager())
+            dataset_id=dataset_id, blockdevice_id=volume.blockdevice_id)
         self.successResultOf(run_state_change(change, deployer))
 
         # It's only possible to destroy a volume that's been detached.  It's
@@ -3581,8 +3563,7 @@ class DestroyBlockDeviceDatasetTests(
 class CreateFilesystemInitTests(
     make_with_init_tests(
         CreateFilesystem,
-        dict(device=FilePath(b"/dev/null"), filesystem=u"ext4",
-             block_device_manager=BlockDeviceManager()),
+        dict(device=FilePath(b"/dev/null"), filesystem=u"ext4"),
         dict(),
     )
 ):
@@ -3594,10 +3575,8 @@ class CreateFilesystemInitTests(
 class CreateFilesystemTests(
     make_istatechange_tests(
         CreateFilesystem,
-        dict(device=FilePath(b"/dev/null"), filesystem=u"ext4",
-             block_device_manager=BlockDeviceManager()),
-        dict(device=FilePath(b"/dev/null"), filesystem=u"btrfs",
-             block_device_manager=BlockDeviceManager())
+        dict(device=FilePath(b"/dev/null"), filesystem=u"ext4"),
+        dict(device=FilePath(b"/dev/null"), filesystem=u"btrfs"),
     )
 ):
     """
@@ -3611,8 +3590,7 @@ class MountBlockDeviceInitTests(
     make_with_init_tests(
         MountBlockDevice,
         dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
-             mountpoint=FilePath(b"/foo"),
-             block_device_manager=BlockDeviceManager()),
+             mountpoint=FilePath(b"/foo")),
         dict(),
     )
 ):
@@ -3703,8 +3681,7 @@ class _MountScenario(PRecord):
         return run_state_change(
             CreateFilesystem(
                 device=self.api.get_device_path(self.volume.blockdevice_id),
-                filesystem=self.filesystem_type,
-                block_device_manager=BlockDeviceManager(),
+                filesystem=self.filesystem_type
             ),
             self.deployer,
         )
@@ -3714,11 +3691,9 @@ class MountBlockDeviceTests(
     make_istatechange_tests(
         MountBlockDevice,
         dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
-             mountpoint=FilePath(b"/foo"),
-             block_device_manager=BlockDeviceManager()),
+             mountpoint=FilePath(b"/foo")),
         dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2,
-             mountpoint=FilePath(b"/bar"),
-             block_device_manager=BlockDeviceManager()),
+             mountpoint=FilePath(b"/bar")),
     )
 ):
     """
@@ -3736,8 +3711,7 @@ class MountBlockDeviceTests(
         change = MountBlockDevice(
             dataset_id=scenario.dataset_id,
             blockdevice_id=scenario.volume.blockdevice_id,
-            mountpoint=scenario.mountpoint,
-            block_device_manager=BlockDeviceManager(),
+            mountpoint=scenario.mountpoint
         )
         return scenario, run_state_change(change, scenario.deployer)
 
@@ -3766,8 +3740,7 @@ class MountBlockDeviceTests(
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=mountpoint,
-                             block_device_manager=BlockDeviceManager()),
+                             mountpoint=mountpoint),
             scenario.deployer))
 
     def test_run(self):
@@ -3877,8 +3850,7 @@ class MountBlockDeviceTests(
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint,
-                             block_device_manager=BlockDeviceManager()),
+                             mountpoint=scenario.mountpoint),
             scenario.deployer))
 
     def test_lost_found_deleted_remount(self):
@@ -3892,8 +3864,7 @@ class MountBlockDeviceTests(
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint,
-                             block_device_manager=BlockDeviceManager()),
+                             mountpoint=scenario.mountpoint),
             scenario.deployer))
         self.assertEqual(mountpoint.children(), [])
 
@@ -3910,8 +3881,7 @@ class MountBlockDeviceTests(
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint,
-                             block_device_manager=BlockDeviceManager()),
+                             mountpoint=scenario.mountpoint),
             scenario.deployer))
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
@@ -3931,8 +3901,7 @@ class MountBlockDeviceTests(
         self.successResultOf(run_state_change(
             MountBlockDevice(dataset_id=scenario.dataset_id,
                              blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint,
-                             block_device_manager=BlockDeviceManager()),
+                             mountpoint=scenario.mountpoint),
             scenario.deployer))
         self.assertEqual(mountpoint.getPermissions().shorthand(),
                          'rwx------')
@@ -3942,8 +3911,7 @@ class UnmountBlockDeviceInitTests(
     make_with_init_tests(
         record_type=UnmountBlockDevice,
         kwargs=dict(dataset_id=uuid4(),
-                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
-                    block_device_manager=BlockDeviceManager()),
+                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
         expected_defaults=dict(),
     )
 ):
@@ -3955,10 +3923,8 @@ class UnmountBlockDeviceInitTests(
 class UnmountBlockDeviceTests(
     make_istatechange_tests(
         UnmountBlockDevice,
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
-             block_device_manager=BlockDeviceManager()),
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2,
-             block_device_manager=BlockDeviceManager()),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
+        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2),
     )
 ):
     """
@@ -3997,8 +3963,7 @@ class UnmountBlockDeviceTests(
         check_output([b"mount", device.path, mountpoint.path])
 
         change = UnmountBlockDevice(dataset_id=dataset_id,
-                                    blockdevice_id=volume.blockdevice_id,
-                                    block_device_manager=BlockDeviceManager())
+                                    blockdevice_id=volume.blockdevice_id)
         self.successResultOf(run_state_change(change, deployer))
         self.assertNotIn(
             device,

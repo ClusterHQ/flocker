@@ -405,12 +405,9 @@ class DestroyBlockDeviceDataset(PRecord):
         volume to be destroyed belongs.
     :ivar unicode blockdevice_id: The unique identifier of the
         ``IBlockDeviceAPI``-managed volume to be destroyed.
-    :ivar block_device_manager: The ``IBlockDeviceManager`` implementer to use
-        for managing blockdevices on this machine.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
-    block_device_manager = field(mandatory=True)
 
     # This can be replaced with a regular attribute when the `_logger` argument
     # is no longer required by Eliot.
@@ -424,10 +421,8 @@ class DestroyBlockDeviceDataset(PRecord):
         return run_state_change(
             sequentially(
                 changes=[
-                    UnmountBlockDevice(
-                        dataset_id=self.dataset_id,
-                        blockdevice_id=self.blockdevice_id,
-                        block_device_manager=self.block_device_manager),
+                    UnmountBlockDevice(dataset_id=self.dataset_id,
+                                       blockdevice_id=self.blockdevice_id),
                     DetachVolume(dataset_id=self.dataset_id,
                                  blockdevice_id=self.blockdevice_id),
                     DestroyVolume(blockdevice_id=self.blockdevice_id),
@@ -445,12 +440,9 @@ class CreateFilesystem(PRecord):
     :ivar FilePath device: The device on which to create the filesystem.
     :ivar unicode filesystem: The name of the filesystem type to create.  For
         example, ``u"ext4"``.
-    :ivar block_device_manager: The ``IBlockDeviceManager`` implementer to use
-        for managing blockdevices on this machine.
     """
     device = field(type=FilePath, mandatory=True)
     filesystem = field(type=unicode, mandatory=True)
-    block_device_manager = field(mandatory=True)
 
     @property
     def eliot_action(self):
@@ -461,8 +453,8 @@ class CreateFilesystem(PRecord):
 
     def run(self, deployer):
         try:
-            _ensure_no_filesystem(self.device, self.block_device_manager)
-            self.block_device_manager.mkfs(self.device, self.filesystem)
+            _ensure_no_filesystem(self.device, deployer.block_device_manager)
+            deployer.block_device_manager.mkfs(self.device, self.filesystem)
         except:
             return fail()
         return succeed(None)
@@ -507,13 +499,10 @@ class MountBlockDevice(PRecord):
         ``IBlockDeviceAPI``-managed volume to be mounted.
     :ivar FilePath mountpoint: The filesystem location at which to mount the
         volume's filesystem.  If this does not exist, it is created.
-    :ivar block_device_manager: The ``IBlockDeviceManager`` implementer to use
-        for managing blockdevices on this machine.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
     mountpoint = field(type=FilePath, mandatory=True)
-    block_device_manager = field(mandatory=True)
 
     @property
     def eliot_action(self):
@@ -540,7 +529,7 @@ class MountBlockDevice(PRecord):
         self.mountpoint.parent().chmod(S_IRWXU)
 
         # This should be asynchronous.  FLOC-1797
-        self.block_device_manager.mount(device, self.mountpoint)
+        deployer.block_device_manager.mount(device, self.mountpoint)
 
         # Remove lost+found to ensure filesystems always start out empty.
         # Mounted filesystem is also made world
@@ -574,12 +563,9 @@ class UnmountBlockDevice(PRecord):
         the filesystem to unmount.
     :ivar unicode blockdevice_id: The unique identifier of the mounted
         ``IBlockDeviceAPI``-managed volume to be unmounted.
-    :ivar block_device_manager: A IBlockDeviceManager implementer for actually
-        performing the unmount.
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
-    block_device_manager = field(mandatory=True)
 
     @property
     def eliot_action(self):
@@ -600,7 +586,7 @@ class UnmountBlockDevice(PRecord):
                 block_device_path=device
             ).write(_logger)
             # This should be asynchronous. FLOC-1797
-            self.block_device_manager.unmount(device)
+            deployer.block_device_manager.unmount(device)
         deferred_device_path.addCallback(got_device)
         return deferred_device_path
 
@@ -1553,7 +1539,6 @@ class BlockDeviceDeployer(PRecord):
                     dataset_id=dataset_id,
                     blockdevice_id=volume.blockdevice_id,
                     mountpoint=path,
-                    block_device_manager=self.block_device_manager
                 )
 
     def _calculate_filesystem_creates(self, configured, discovered_datasets):
@@ -1576,7 +1561,6 @@ class BlockDeviceDeployer(PRecord):
                 yield CreateFilesystem(
                     device=discovered.device_path,
                     filesystem=u"ext4",
-                    block_device_manager=self.block_device_manager
                 )
 
     def _calculate_unmounts(self, paths, configured, volumes):
@@ -1597,10 +1581,8 @@ class BlockDeviceDeployer(PRecord):
                 dataset_id = UUID(mounted_dataset_id)
                 volume = _blockdevice_volume_from_datasetid(volumes,
                                                             dataset_id)
-                yield UnmountBlockDevice(
-                    dataset_id=dataset_id,
-                    blockdevice_id=volume.blockdevice_id,
-                    block_device_manager=self.block_device_manager)
+                yield UnmountBlockDevice(dataset_id=dataset_id,
+                                         blockdevice_id=volume.blockdevice_id)
 
     def _calculate_detaches(self, devices, paths, configured, volumes):
         """
@@ -1697,8 +1679,7 @@ class BlockDeviceDeployer(PRecord):
                     dataset_id_unicode in local_node_state.manifestations):
                 yield DestroyBlockDeviceDataset(
                     dataset_id=dataset_id,
-                    blockdevice_id=volume.blockdevice_id,
-                    block_device_manager=self.block_device_manager)
+                    blockdevice_id=volume.blockdevice_id)
 
 
 class ProcessLifetimeCache(proxyForInterface(IBlockDeviceAPI, "_api")):
