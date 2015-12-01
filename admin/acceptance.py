@@ -960,6 +960,8 @@ def capture_upstart(reactor, host, output_file):
     :param bytes host: Machine to SSH into.
     :param file output_file: File to write to.
     """
+    # note that we are using tail -F to keep retrying and not to exit when we reach the end
+    # of the file, as we expect the logs to keep being generated
     formatter = TailFormatter(output_file, host)
     ran = run_ssh(
         reactor=reactor,
@@ -967,6 +969,7 @@ def capture_upstart(reactor, host, output_file):
         username='root',
         command=[
             b'tail',
+            b'-F'
             b'/var/log/flocker/flocker-control.log',
             b'/var/log/flocker/flocker-dataset-agent.log',
             b'/var/log/flocker/flocker-container-agent.log',
@@ -1038,7 +1041,7 @@ class TailFormatter(object):
             message = dict(message=line)
 
         message[u"_HOSTNAME"] = self._host
-        message[u"_SYSTEMD_UNIT"] = self._service
+        message[u"_PROCESS_NAME"] = self._service
         return message
 
     def print_line(self, message):
@@ -1081,6 +1084,7 @@ def capture_journal(reactor, host, output_file):
     ran.addErrback(write_failure, logger=None)
     # Deliver a final empty line to process the last message
     ran.addCallback(lambda ignored: formatter(b""))
+    return ran
 
 
 def journald_json_formatter(output_file):
@@ -1108,7 +1112,7 @@ def journald_json_formatter(output_file):
                 message[u"_HOSTNAME"] = accumulated.get(
                     b"_HOSTNAME", b"<no hostname>"
                 )
-                message[u"_SYSTEMD_UNIT"] = accumulated.get(
+                message[u"_PROCESS_NAME"] = accumulated.get(
                     b"_SYSTEMD_UNIT", b"<no unit>"
                 )
                 output_file.write(json.dumps(message) + b"\n")
@@ -1147,17 +1151,24 @@ def main(reactor, args, base_path, top_level):
         'before', 'shutdown', log_writer.stopService)
 
     cluster = None
+    results = []
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
         if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
-                capture_journal(reactor, node.address, remote_logs_file)
+                results.append(capture_journal(reactor,
+                                               node.address,
+                                               remote_logs_file)
+                               )
         elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.04'):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
-                capture_upstart(reactor, node.address, remote_logs_file)
+                results.append(capture_upstart(reactor,
+                                               node.address,
+                                               remote_logs_file)
+                               )
 
         if not options["no-pull"]:
             yield perform(

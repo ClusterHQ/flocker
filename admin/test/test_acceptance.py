@@ -164,12 +164,12 @@ class JournaldJSONFormatter(SynchronousTestCase):
             [dict(
                 some="json",
                 _HOSTNAME="some-host-2",
-                _SYSTEMD_UNIT="flocker-dataset-agent.service",
+                _PROCESS_NAME="flocker-dataset-agent.service",
             ),
              dict(
                  other="values",
                  _HOSTNAME="some-host-1",
-                 _SYSTEMD_UNIT="flocker-container-agent.service",
+                 _PROCESS_NAME="flocker-container-agent.service",
              ),
          ],
             self._convert(JOURNAL_EXPORT),
@@ -187,7 +187,7 @@ class JournaldJSONFormatter(SynchronousTestCase):
                     'level=info msg="GET /v1.20/containers/json"'
                 ),
                 _HOSTNAME="some-host-x",
-                _SYSTEMD_UNIT="docker.service",
+                _PROCESS_NAME="docker.service",
             )],
             self._convert(NON_JSON_JOURNAL_EXPORT),
         )
