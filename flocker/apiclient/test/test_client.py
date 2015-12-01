@@ -266,6 +266,28 @@ def make_clientv1_tests():
             d.addCallback(not_listed)
             return d
 
+        def test_delete_matching_tag(self):
+            """
+            If a matching tag is given the delete succeeds.
+            """
+            d = self.assert_creates(self.client, primary=self.node_1.uuid)
+            d.addCallback(
+                lambda dataset: self.client.delete_dataset(
+                    dataset.dataset_id,
+                    configuration_tag=self.get_configuration_tag()))
+            d.addCallback(lambda _: self.client.list_datasets_configuration())
+            d.addCallback(lambda result: self.assertFalse(result.datasets))
+            return d
+
+        def test_delete_conflicting_tag(self):
+            """
+            If a conflicting tag is given then an appropriate exception is
+            raised.
+            """
+            d = self.client.delete_dataset(dataset_id=uuid4(),
+                                           configuration_tag=u"willnotmatch")
+            return self.assertFailure(d, ConfigurationChanged)
+
         def test_move(self):
             """
             ``move_dataset`` changes the dataset's primary.
@@ -296,6 +318,31 @@ def make_clientv1_tests():
                                  (moved_result, True))
             d.addCallback(got_listing)
             return d
+
+        def test_move_matching_tag(self):
+            """
+            If a matching tag is given the move succeeds.
+            """
+            d = self.assert_creates(self.client, primary=self.node_1.uuid)
+            d.addCallback(
+                lambda dataset: self.client.move_dataset(
+                    dataset_id=dataset.dataset_id,
+                    primary=self.node_2.uuid,
+                    configuration_tag=self.get_configuration_tag()))
+            d.addCallback(lambda _: self.client.list_datasets_configuration())
+            d.addCallback(lambda result: self.assertEqual(
+                set(d.primary for d in result), {self.node_2.uuid}))
+            return d
+
+        def test_move_conflicting_tag(self):
+            """
+            If a conflicting tag is given then an appropriate exception is
+            raised.
+            """
+            d = self.client.move_dataset(primary=self.node_1.uuid,
+                                         dataset_id=uuid4(),
+                                         configuration_tag=u"willnotmatch")
+            return self.assertFailure(d, ConfigurationChanged)
 
         def test_list_state(self):
             """

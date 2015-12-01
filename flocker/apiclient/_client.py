@@ -366,12 +366,22 @@ class FakeFlockerClient(object):
         return succeed(result)
 
     def delete_dataset(self, dataset_id, configuration_tag=None):
+        try:
+            self._ensure_matching_tag(configuration_tag)
+        except:
+            return fail()
+
         dataset = self._configured_datasets[dataset_id]
         self._configured_datasets = self._configured_datasets.remove(
             dataset_id)
         return succeed(dataset)
 
     def move_dataset(self, primary, dataset_id, configuration_tag=None):
+        try:
+            self._ensure_matching_tag(configuration_tag)
+        except:
+            return fail()
+
         self._configured_datasets = self._configured_datasets.transform(
             [dataset_id, "primary"], primary)
         return succeed(self._configured_datasets[dataset_id])
@@ -579,7 +589,8 @@ class FlockerClient(object):
     def delete_dataset(self, dataset_id, configuration_tag=None):
         request = self._request(
             b"DELETE", b"/configuration/datasets/%s" % (dataset_id,),
-            None, {OK})
+            None, {OK}, {PRECONDITION_FAILED: ConfigurationChanged},
+            configuration_tag=configuration_tag)
         request.addCallback(self._parse_configuration_dataset)
         return request
 
@@ -602,7 +613,9 @@ class FlockerClient(object):
     def move_dataset(self, primary, dataset_id, configuration_tag=None):
         request = self._request(
             b"POST", b"/configuration/datasets/%s" % (dataset_id,),
-            {u"primary": unicode(primary)}, {OK})
+            {u"primary": unicode(primary)}, {OK},
+            {PRECONDITION_FAILED: ConfigurationChanged},
+            configuration_tag=configuration_tag)
         request.addCallback(self._parse_configuration_dataset)
         return request
 
