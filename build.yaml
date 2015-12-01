@@ -791,7 +791,6 @@ run_acceptance_modules: &run_acceptance_modules
   - flocker.acceptance.integration.test_postgres
   - flocker.acceptance.obsolete.test_cli
   - flocker.acceptance.obsolete.test_containers
-  - flocker.acceptance.test.test_testtools
 
 # flocker.node.functional is hanging, so we don't run it
 job_type:
