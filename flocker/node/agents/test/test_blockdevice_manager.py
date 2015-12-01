@@ -7,8 +7,10 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 from uuid import uuid4
 
 from twisted.trial.unittest import SynchronousTestCase
+from zope.interface.verify import verifyObject
 
 from ..blockdevice_manager import (
+    IBlockDeviceManager,
     BlockDeviceManager,
     MountInfo,
     MakeFilesystemError,
@@ -45,6 +47,11 @@ class BlockDeviceManagerTests(SynchronousTestCase):
         self.loopback_api.attach_volume(
             volume.blockdevice_id, self.loopback_api.compute_instance_id())
         return self.loopback_api.get_device_path(volume.blockdevice_id)
+
+    def test_implements_interface(self):
+        """``BlockDeviceManager`` implementes ``IBlockDeviceManager``."""
+        self.assertTrue(verifyObject(IBlockDeviceManager,
+                                     self.manager_under_test))
 
     def test_get_mounts_shows_only_mounted(self):
         """Only mounted blockdevices should appear in get_mounts."""
