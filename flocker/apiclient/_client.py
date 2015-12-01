@@ -777,33 +777,40 @@ class FlockerClient(object):
         return request
 
 
-# def conditional_create(client, condition, *args, **kwargs):
-#     """
-#     Create a dataset only if a certain condition is true for the
-#     configuration.
+def conditional_create(client, reactor, condition, *args, **kwargs):
+    """
+    Create a dataset only if a certain condition is true for the
+    configuration.
 
-#     This is useful for ensuring e.g. uniqueness of metadata across
-#     datasets. Conditional creation will be used to ensure that if the
-#     configuration changes the create won't happen; in this case the whole
-#     check-and-create will be retried, up to 20 times.
+    This is useful for ensuring e.g. uniqueness of metadata across
+    datasets. Conditional creation will be used to ensure that if the
+    configuration changes the create won't happen; in this case the whole
+    check-and-create will be retried, up to 20 times.
 
-#     All parameters are the same as
-#     ``IFlockerAPIV1Client.create_dataset_configuration`` except the
-#     following:
+    All parameters are the same as
+    ``IFlockerAPIV1Client.create_dataset_configuration`` except the
+    following:
 
-#     :param client: ``IFlockerAPIV1Client`` provider.
-#     :param condition: Callable which will be called with the current set
-#         of ``Dataset`` on the server. If this raises an exception then the
-#         create will be aborted.
-#     """
-#     def create():
-#         d = client.list_datasets_configuration()
+    :param client: ``IFlockerAPIV1Client`` provider.
+    :param reactor: ``IReactorTime`` provider.
+    :param condition: Callable which will be called with the current set
+        of ``Dataset`` on the server. If this raises an exception then the
+        create will be aborted.
 
-#         def got_config(config):
-#             condition(config.datasets)
-#             return client.create_dataset_configuration(
-#                 *args, configuration_tag=config.tag, **kwargs)
-#         d.addCallback(got_config)
-#         return d
+    :return: ``Deferred`` firing with resulting ``Dataset`` if creation
+        succeeded, or the relevant exception if creation failed.
+    """
+    return client.create_dataset(
+        *args, configuration_tag=config.tag, **kwargs)
 
-#     return retry_failure(reactor, create, ConfigurationChanged, repeat(0.001))
+    def create():
+        d = client.list_datasets_configuration()
+
+        def got_config(config):
+            condition(config.datasets)
+            return client.create_dataset(
+                *args, configuration_tag=config.tag, **kwargs)
+        d.addCallback(got_config)
+        return d
+
+    return retry_failure(reactor, create, ConfigurationChanged, repeat(0.001))

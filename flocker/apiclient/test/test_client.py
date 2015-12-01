@@ -787,3 +787,40 @@ class FlockerClientTests(make_clientv1_tests()):
                    lambda: 1/0)
         return self.assertFailure(self.client.this_node_uuid(),
                                   ResponseError)
+
+
+class ConditionalCreateTests(SynchronousTestCase):
+    """
+    Tests for ``conditional_create``.
+    """
+    def setUp(self):
+        ...
+
+    def test_simple_success(self):
+        """
+        If no conflicts or condition violations occur the creation succeeds.
+        """
+
+    def test_immediate_condition_violation(self):
+        """
+        If a condition violation occurs immediately the creation is aborted
+        and the raised exception is returned.
+        """
+
+    def test_eventual_success(self):
+        """
+        If a conflict occurs the operation is retried until it succeeds.
+        """
+
+    def test_eventual_condition_violation(self):
+        """
+        If a conflict occurs and the condition is violated in a later
+        iteration then creation is aborted and the raised exception is
+        returned.
+        """
+
+    def test_too_many_retries(self):
+        """
+        Eventually we give up on retrying if the precondition fails too many
+        times.
+        """
