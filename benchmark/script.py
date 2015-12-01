@@ -40,60 +40,64 @@ class BenchmarkOptions(Options):
     ]
 
 
-options = BenchmarkOptions()
-
-
-def usage(message=None):
+def usage(options, message=None):
     sys.stderr.write(options.getUsage())
     sys.stderr.write('\n')
     sys.exit(message)
 
-try:
-    options.parseOptions()
-except UsageError as e:
-    usage(e.args[0])
 
-if not options['control'] and options['operation'] != 'no-op':
-    # No-op is OK with no control service
-    usage('Control service required')
+def main():
+    options = BenchmarkOptions()
 
-with open(options['config'], 'rt') as f:
-    config = yaml.safe_load(f)
-    scenarios = config['scenarios']
-    operations = config['operations']
-    metrics = config['metrics']
+    try:
+        options.parseOptions()
+    except UsageError as e:
+        usage(options, e.args[0])
 
-scenario_name = options['scenario']
-operation_name = options['operation']
-metric_name = options['metric']
+    if not options['control'] and options['operation'] != 'no-op':
+        # No-op is OK with no control service
+        usage(options, 'Control service required')
 
-scenario_config = scenarios.get(scenario_name) or usage(
-    'No such scenario: {!r}'.format(scenario_name))
-operation_config = operations.get(operation_name) or usage(
-    'No such operation: {!r}'.format(operation_name))
-metric_config = metrics.get(metric_name) or usage(
-    'No such metric: {!r}'.format(metric_name))
+    with open(options['config'], 'rt') as f:
+        config = yaml.safe_load(f)
+        scenarios = config['scenarios']
+        operations = config['operations']
+        metrics = config['metrics']
 
-timestamp = datetime.now().isoformat()
+    scenario_name = options['scenario']
+    operation_name = options['operation']
+    metric_name = options['metric']
 
-result = dict(
-    timestamp=timestamp,
-    client=dict(
-        flocker_version=flocker_client_version,
-        working_directory=os.getcwd(),
-        username=os.environ[b"USER"],
-        nodename=node(),
-        platform=platform(),
-    ),
-    scenario=scenario_config,
-    operation=operation_config,
-    metric=metric_config,
-)
+    scenario_config = scenarios.get(scenario_name) or usage(
+        options, 'No such scenario: {!r}'.format(scenario_name))
+    operation_config = operations.get(operation_name) or usage(
+        options, 'No such operation: {!r}'.format(operation_name))
+    metric_config = metrics.get(metric_name) or usage(
+        options, 'No such metric: {!r}'.format(metric_name))
 
-react(
-    driver, (
-        options, scenario_config.copy(), operation_config.copy(),
-        metric_config.copy(), result,
-        partial(json.dump, fp=sys.stdout, indent=2)
+    timestamp = datetime.now().isoformat()
+
+    result = dict(
+        timestamp=timestamp,
+        client=dict(
+            flocker_version=flocker_client_version,
+            working_directory=os.getcwd(),
+            username=os.environ[b"USER"],
+            nodename=node(),
+            platform=platform(),
+        ),
+        scenario=scenario_config,
+        operation=operation_config,
+        metric=metric_config,
     )
-)
+
+    react(
+        driver, (
+            options, scenario_config.copy(), operation_config.copy(),
+            metric_config.copy(), result,
+            partial(json.dump, fp=sys.stdout, indent=2)
+        )
+    )
+
+if __name__ == '__main__':
+    main()
