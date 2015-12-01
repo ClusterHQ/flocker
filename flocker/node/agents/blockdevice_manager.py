@@ -54,6 +54,8 @@ class IBlockDeviceManager(Interface):
 
         :param FilePath blockdevice: The path to the block device to mount.
         :param FilePath mountpoint: The path to mount the block device at.
+
+        :raises: ``UnformattedException`` if the block device is not formatted.
         """
 
     def unmount(blockdevice):

@@ -3421,13 +3421,32 @@ def umount_all(root_path):
 
     :param FilePath root_path: A directory in which to search for mount points.
     """
-    for partition in psutil.disk_partitions():
+    def is_under_root(path):
         try:
-            FilePath(partition.mountpoint).segmentsFrom(root_path)
+            FilePath(path).segmentsFrom(root_path)
         except ValueError:
-            pass
+            return False
         else:
-            umount(FilePath(partition.device))
+            return True
+
+    partitions = list(p for p in psutil.disk_partitions()
+                      if is_under_root(p.mountpoint))
+    retry = 0
+    while retry < CLEANUP_RETRY_LIMIT and len(partitions) > 0:
+        for partition in partitions:
+            try:
+                # Attempt to unmount, it might fail because sometimes you have
+                # to unmount devices in a specific order.
+                # So long as we have fewer than CLEANUP_RETRY_LIMIT devices we
+                # should eventually successfully unmount all devices just by
+                # trying to unmount all of them in order CLEANUP_RETRY_LIMIT
+                # number of times.
+                umount(FilePath(partition.device))
+            except:
+                pass
+        partitions = list(p for p in psutil.disk_partitions()
+                          if is_under_root(p.mountpoint))
+        retry += 1
 
 
 def mountroot_for_test(test_case):

@@ -8,7 +8,11 @@ from uuid import uuid4
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from ..blockdevice_manager import BlockDeviceManager, MountInfo
+from ..blockdevice_manager import (
+    BlockDeviceManager,
+    MountInfo,
+)
+
 from .test_blockdevice import (
     loopbackblockdeviceapi_for_test,
     LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
@@ -17,10 +21,7 @@ from .test_blockdevice import (
 
 
 class BlockDeviceManagerTests(SynchronousTestCase):
-    """Tests for flocker.node.agents.blockdevice_manager.BlockDeviceManager
-
-    XXX: Turn this into a test generator once we have a verified fake.
-    """
+    """Tests for flocker.node.agents.blockdevice_manager.BlockDeviceManager."""
 
     def setUp(self):
         """Creates a loopback BlockDeviceAPI for creating blockdevices."""
@@ -29,21 +30,21 @@ class BlockDeviceManagerTests(SynchronousTestCase):
         self.mountroot = mountroot_for_test(self)
 
     def _get_directory_for_mount(self):
+        """Constructs a temporary directory to be used as a mountpoint."""
         directory = self.mountroot.child(str(uuid4()))
-        # This is unneeded for testing fakes.
         directory.makedirs()
         return directory
 
     def _get_free_blockdevice(self):
-        # This is unneeded for testing fakes.
+        """Constructs a new blockdevice for testing purposes."""
         volume = self.loopback_api.create_volume(
             dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
         self.loopback_api.attach_volume(
             volume.blockdevice_id, self.loopback_api.compute_instance_id())
         return self.loopback_api.get_device_path(volume.blockdevice_id)
 
-    def test_happy_case(self):
-        """Mounted blockdevices should appear in get_mounts."""
+    def test_get_mounts_shows_only_mounted(self):
+        """Only mounted blockdevices should appear in get_mounts."""
         blockdevice = self._get_free_blockdevice()
         mountpoint = self._get_directory_for_mount()
         self.manager_under_test.make_filesystem(blockdevice, 'ext4')
@@ -53,3 +54,56 @@ class BlockDeviceManagerTests(SynchronousTestCase):
         self.manager_under_test.unmount(blockdevice)
         self.assertNotIn(mount_info, self.manager_under_test.get_mounts())
 
+    def test_mount_multiple_times(self):
+        """Mounting a device to n different locations requires n unmounts.
+
+        Also verify they are unmounted in FIFO order.
+        """
+        blockdevice = self._get_free_blockdevice()
+        self.manager_under_test.make_filesystem(blockdevice, 'ext4')
+        mountpoints = list(self._get_directory_for_mount() for _ in xrange(4))
+        for mountpoint in mountpoints:
+            self.manager_under_test.mount(blockdevice, mountpoint)
+
+        mount_infos = list(MountInfo(blockdevice=blockdevice,
+                                     mountpoint=mountpoint)
+                           for mountpoint in mountpoints)
+        while mount_infos:
+            self.assertSetEqual(
+                set(mount_infos),
+                set(m for m in self.manager_under_test.get_mounts()
+                    if m.blockdevice == blockdevice))
+            self.manager_under_test.unmount(blockdevice)
+            mount_infos.pop()
+        self.assertFalse(any(m.blockdevice == blockdevice
+                             for m in self.manager_under_test.get_mounts()))
+
+    def test_mount_multiple_blockdevices(self):
+        """Mounting multiple devices to the same mountpoint.
+
+        Note that the blockdevices must be unmounted in reverse order,
+        otherwise the unmount operations will fail.
+        """
+        blockdevices = list(self._get_free_blockdevice() for _ in xrange(4))
+        mountpoint = self._get_directory_for_mount()
+        for blockdevice in blockdevices:
+            self.manager_under_test.make_filesystem(blockdevice, 'ext4')
+            self.manager_under_test.mount(blockdevice, mountpoint)
+
+        mount_infos = list(MountInfo(blockdevice=blockdevice,
+                                     mountpoint=mountpoint)
+                           for blockdevice in blockdevices)
+
+        blockdevices.reverse()
+        for blockdevice in blockdevices:
+            self.assertSetEqual(
+                set(mount_infos),
+                set(m for m in self.manager_under_test.get_mounts()
+                    if m.mountpoint == mountpoint))
+            self.manager_under_test.unmount(blockdevice)
+            mount_infos = list(m for m in mount_infos
+                               if m.blockdevice != blockdevice)
+
+        self.assertSetEqual(
+            set(), set(m for m in self.manager_under_test.get_mounts()
+                       if m.mountpoint == mountpoint))
