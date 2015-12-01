@@ -33,7 +33,7 @@ from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
     Lease, LeaseAlreadyHeld, Node, Container, ContainerAlreadyExists,
-    DatasetsConfiguration,
+    DatasetsConfiguration, ConfigurationChanged,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -102,7 +102,7 @@ def make_clientv1_tests():
             return creating
 
         def assert_creates(self, client, dataset_id=None, maximum_size=None,
-                           **create_kwargs):
+                           configuration_tag=None, **create_kwargs):
             """
             Create a dataset and ensure it shows up in the configuration and
             return result of the ``create_dataset`` call.
@@ -119,6 +119,7 @@ def make_clientv1_tests():
             """
             created = client.create_dataset(
                 dataset_id=dataset_id, maximum_size=maximum_size,
+                configuration_tag=configuration_tag,
                 **create_kwargs)
 
             def got_result(dataset):
@@ -196,6 +197,23 @@ def make_clientv1_tests():
                 return self.assertFailure(d, DatasetAlreadyExists)
             d.addCallback(got_result)
             return d
+
+        def test_create_matching_tag(self):
+            """
+            If a matching tag is given the create succeeds.
+            """
+            return self.assert_creates(
+                self.client, primary=self.node_1.uuid,
+                configuration_tag=self.get_configuration_tag())
+
+        def test_create_conflicting_tag(self):
+            """
+            If a conflicting tag is given then an appropriate exception is
+            raised.
+            """
+            d = self.client.create_dataset(primary=self.node_1.uuid,
+                                           configuration_tag=u"willnotmatch")
+            return self.assertFailure(d, ConfigurationChanged)
 
         def test_delete_returns_dataset(self):
             """

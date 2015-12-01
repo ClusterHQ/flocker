@@ -23,7 +23,9 @@ from eliot.twisted import DeferredContext
 
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
-from twisted.web.http import CREATED, OK, CONFLICT, NOT_FOUND
+from twisted.web.http import (
+    CREATED, OK, CONFLICT, NOT_FOUND, PRECONDITION_FAILED,
+)
 from twisted.internet.utils import getProcessOutput
 from twisted.internet import reactor
 
@@ -335,8 +337,22 @@ class FakeFlockerClient(object):
         self._this_node_uuid = this_node_uuid
         self.synchronize_state()
 
+    def _ensure_matching_tag(self, configuration_tag):
+        """
+        If the configuration tag doesn't match current config, raise
+        ``ConfigurationChanged``.
+        """
+        if configuration_tag is not None:
+            if configuration_tag != self._configured_datasets:
+                raise ConfigurationChanged()
+
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
                        metadata=pmap(), configuration_tag=None):
+        try:
+            self._ensure_matching_tag(configuration_tag)
+        except:
+            return fail()
+
         # In real implementation the server will generate the new ID, but
         # we have to do it ourselves:
         if dataset_id is None:
@@ -478,7 +494,7 @@ class FlockerClient(object):
         self._base_url = b"https://%s:%d/v1" % (host, port)
 
     def _request(self, method, path, body, success_codes, error_codes=None,
-                 with_headers=False):
+                 with_headers=False, configuration_tag=None):
         """
         Send a HTTP request to the Flocker API, return decoded JSON body.
 
@@ -490,6 +506,8 @@ class FlockerClient(object):
         :param error_codes: Mapping from HTTP response code to exception to be
             raised if it is present, or ``None`` to set no errors.
         :param with_headers: Boolean indicating whether headers are required.
+        :param configuration_tag: If not ``None``, include value as
+            ``X-If-Configuration-Matches`` header.
 
         :return: ``Deferred`` firing with decoded JSON, or if
             ``with_headers`` is true then with a tuple of (decoded JSON,
@@ -526,6 +544,9 @@ class FlockerClient(object):
         if body is not None:
             headers["content-type"] = b"application/json"
             data = dumps(body)
+        if configuration_tag is not None:
+            headers["X-If-Configuration-Matches"] = [
+                configuration_tag.encode("utf-8")]
 
         with action.context():
             request = DeferredContext(self._treq.request(
@@ -572,7 +593,9 @@ class FlockerClient(object):
             dataset[u"maximum_size"] = maximum_size
         request = self._request(b"POST", b"/configuration/datasets",
                                 dataset, {CREATED},
-                                {CONFLICT: DatasetAlreadyExists})
+                                {CONFLICT: DatasetAlreadyExists,
+                                 PRECONDITION_FAILED: ConfigurationChanged},
+                                configuration_tag=configuration_tag)
         request.addCallback(self._parse_configuration_dataset)
         return request
 
