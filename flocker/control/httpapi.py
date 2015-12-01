@@ -108,7 +108,7 @@ def get_configuration_tag(api):
 
 def _if_configuration_matches(original):
     """
-    Decorator that compares X-If-Configuration-Matches header to result of
+    Decorator that compares ``X-If-Configuration-Matches`` header to result of
     ``get_configuration_tag``.
 
     :param original: Original function.
