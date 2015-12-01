@@ -23,6 +23,12 @@ For more information, see the :ref:`API authentication guide <generate-api>`.
 
 For more information read the :ref:`cluster architecture<architecture>` documentation.
 
+.. toctree::
+   :maxdepth: 2
+   
+   api
+   deprecated_api
+
 .. XXX: Improvements to the API (create collapse directive) requires Engineering effort:
 .. https://clusterhq.atlassian.net/browse/FLOC-2094
 
