@@ -259,7 +259,10 @@ class StructuredResultHandlingMixin(object):
             application.EXPLICIT_RESPONSE_RESULT)
         return expected.verify(asResponse(request))
 
-    @validateLogging(_assertRequestLogged(b"/foo/badrequest"))
+    @validateLogging(assertHasAction, JSON_REQUEST, False,
+                     {},
+                     {"code":
+                      ResultHandlingApplication.BAD_REQUEST_CODE})
     def test_badRequestRaised(self, logger):
         """
         If the decorated function raises L{BadRequest} then the generated
