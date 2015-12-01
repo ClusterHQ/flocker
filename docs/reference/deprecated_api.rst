@@ -5,12 +5,12 @@ Deprecated Endpoints
 .. XXX: As part of FLOC 3518 the Container API Endpoints below have been deprecated, as Flocker is not a container framework:
 
 .. warning:: 
-   The endpoints listed in this document are deprecated, and will be removed in a future version of Flocker.
+   The endpoints listed in this document are deprecated, and they will not be available in future versions of the Flocker API.
 
 The Flocker Container API enables you to manage containers in your cluster.
 However, ClusterHQ is no longer developing any future features in this area, as you can now use Flocker with 3rd party orchestration tools.
 
-The deprecated endpoints listed below are still available for use, but please be aware that they will be removed in a future version of Flocker:
+The deprecated endpoints listed below are still available for use, but please be aware that they will not be available in future versions of the Flocker API:
 
 .. contents::
         :local:
