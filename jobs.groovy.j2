@@ -184,8 +184,10 @@ listView("${dashProject}/${dashBranchName}/{{name}}") {
 {% if v.dont_clean_repo is not defined or not v.dont_clean_repo %}
       preScmSteps {
           steps {
-          shell("sudo rm -rf {{ directory_to_delete }}")
-          println("Deleted directory {{ directory_to_delete }}")
+          shell("""
+sudo rm -rf {{ directory_to_delete }}
+echo 'Deleted directory {{ directory_to_delete }}'
+""")
           }
       }
 {% endif %}
