@@ -52,7 +52,7 @@ from ._logging import (
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
-BOTO_NUM_RETRIES = u'20'
+BOTO_NUM_RETRIES = 20
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 MAX_ATTACH_RETRIES = 3
 
@@ -312,7 +312,7 @@ def _enable_boto_logging():
     """
     Make boto log activity using Eliot.
     """
-    logger = logging.getLogger("boto")
+    logger = logging.getLogger("boto3")
     logger.addHandler(EliotLogHandler())
 
     # It seems as though basically all boto log messages are at the same
@@ -396,31 +396,19 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     :return: An ``_EC2`` giving information about EC2 client connection
         and EC2 instance zone.
     """
-    # Set 2 retry knobs in Boto to BOTO_NUM_RETRIES:
-    # 1. ``num_retries``:
-    # Request automatic exponential backoff and retry
-    # attempts by Boto if an EC2 API call fails with
-    # ``RequestLimitExceeded`` due to system load.
-    # 2. ``metadata_service_num_attempts``:
-    # Request for retry attempts by Boto to
-    # retrieve data from Metadata Service used to retrieve
-    # credentials for IAM roles on EC2 instances.
-    if not config.has_section('Boto'):
-        config.add_section('Boto')
-    config.set('Boto', 'num_retries', BOTO_NUM_RETRIES)
-    config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
-
-    # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
-    connection = ec2.connect_to_region(region,
-                                       aws_access_key_id=access_key_id,
-                                       aws_secret_access_key=secret_access_key)
-    return _EC2(zone=zone,
-                connection=_LoggedBotoConnection(connection=connection))
+    connection = boto3.session.Session(
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key
+    )
+    connection._session.set_config_variable(
+        'metadata_service_num_attempts', BOTO_NUM_RETRIES)
+    ec2_resource = connection.resource("ec2", region_name=region)
+    return _EC2(zone=zone, connection=ec2_resource)
 
 
-def _boto3_logged_method(method_name, original_name):
+def boto3_logged_method(method_name, original_name):
     """
-    Run a boto.ec2.connection.EC2Connection method and
+    Run a boto3.ec2.ServiceResource method and
     log additional information about any exceptions that are raised.
 
     :param str method_name: The name of the method of the wrapped object to
@@ -433,8 +421,8 @@ def _boto3_logged_method(method_name, original_name):
     """
     def _run_with_logging(self, *args, **kwargs):
         """
-        Run given boto.ec2.connection.EC2Connection method with exception
-        logging for ``EC2ResponseError``.
+        Run given boto3.ec2.ServiceResource method with exception
+        logging for ``ClientError``.
         """
         original = getattr(self, original_name)
         method = getattr(original, method_name)
@@ -528,8 +516,8 @@ class _LoggedBotoConnection(PRecord):
 class _EC2(PRecord):
     """
     :ivar str zone: The name of the zone for the connection.
-    :ivar boto.ec2.connection.EC2Connection connection: Object
-        representing connection to an EC2 instance.
+    :ivar boto3.resources.factory.ec2.ServiceResource: Object
+        representing an EC2 resource.
     """
     zone = field(mandatory=True)
     connection = field(mandatory=True)
@@ -547,7 +535,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GiB(ebs_volume.size).to_Byte().value),
-        attached_to=ebs_volume.attach_data.instance_id,
+        attached_to=unicode(ebs_volume.attachments[0]['InstanceId']),
         dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
     )
 
@@ -556,13 +544,14 @@ def _get_ebs_volume_state(volume):
     """
     Fetch input EBS volume's latest state from backend.
 
-    :param boto.ec2.volume volume: Volume that needs state update.
+    :param boto3.resources.factory.ec2.Volume: Volume that needs state update.
 
     :returns: EBS volume with latest state known to backend.
-    :rtype: boto.ec2.volume
+    :rtype: boto3.resources.factory.ec2.Volume
 
     """
-    return volume.update()
+    volume.reload()
+    return volume
 
 
 def _should_finish(operation, volume, update, start_time,
@@ -658,7 +647,7 @@ def _wait_for_volume_state_change(operation,
     while not _should_finish(operation, volume, update, start_time, timeout):
         time.sleep(1.0)
         WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
-                                         status=volume.status,
+                                         status=volume.state,
                                          wait_time=(time.time() - start_time))
 
 
@@ -739,15 +728,18 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 
     :param UUID cluster_id: UUID of Flocker cluster to check for
         membership.
-    :param boto.ec2.volume ebs_volume: EBS volume to check for
-        input cluster membership.
+    :param boto3.resources.factory.ec2.Volume ebs_volume: EBS volume to check
+        for input cluster membership.
 
     :return bool: True if input volume belongs to input
         Flocker cluster. False otherwise.
     """
-    actual_cluster_id = ebs_volume.tags.get(CLUSTER_ID_LABEL)
-    if actual_cluster_id is not None:
-        actual_cluster_id = UUID(actual_cluster_id)
+    actual_cluster_id = [
+        tag['Value'] for tag in ebs_volume.tags
+        if tag['Key'] == CLUSTER_ID_LABEL
+    ]
+    if actual_cluster_id:
+        actual_cluster_id = UUID(actual_cluster_id.pop())
         if actual_cluster_id == cluster_id:
             return True
     return False
