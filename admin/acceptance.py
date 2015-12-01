@@ -30,6 +30,7 @@ from effect import parallel
 from txeffect import perform
 
 from admin.vagrant import vagrant_version
+from flocker.common import gather_deferreds
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
