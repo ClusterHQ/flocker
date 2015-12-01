@@ -307,12 +307,14 @@ common_cli:
   # These are the remote logs from the acceptance tests.
   acceptance_tests_artifacts: &acceptance_tests_artifacts
     - run-acceptance-tests.log
+    - _trial_temp/test.log
     - remote_logs.log
 
   # Ubuntu acceptance tests do not collect the logs from the remote nodes
   # https://clusterhq.atlassian.net/browse/FLOC-2560
   acceptance_tests_artifacts_ubuntu_special_case: &acceptance_tests_artifacts_ubuntu_special_case
     - run-acceptance-tests.log
+    - _trial_temp/test.log
 
   run_trial_with_coverage: &run_trial_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
