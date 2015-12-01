@@ -18,7 +18,18 @@ from benchmark.metrics.cputime import (
 )
 
 
+# A process name that is expected to always be present on a distribution
+_always_present = {
+    'centos': 'systemd',
+    'ubuntu': 'init',
+}
+_distribution = platform.linux_distribution(full_distribution_name=False)[0]
+_standard_process = _always_present.get(_distribution)
+
 on_linux = skipIf(platform.system() != 'Linux', 'Requires Linux')
+
+supported_linux = skipIf(
+    _standard_process is None, 'Requires supported version of Linux')
 
 
 class CPUParseTests(SynchronousTestCase):
@@ -91,7 +102,7 @@ class GetNodeCPUTimeTests(TestCase):
     Test ``get_node_cpu_times`` command.
     """
 
-    @on_linux
+    @supported_linux
     def test_get_node_cpu_times(self):
         """
         Success results in output of dictionary containing process names.
@@ -99,11 +110,11 @@ class GetNodeCPUTimeTests(TestCase):
         d = get_node_cpu_times(
             _LocalRunner(),
             Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
-            ['init'],
+            [_standard_process],
         )
 
         def check(result):
-            self.assertEqual(result.keys(), ['init'])
+            self.assertEqual(result.keys(), [_standard_process])
 
         d.addCallback(check)
 
@@ -175,7 +186,7 @@ class CPUTimeTests(TestCase):
         """
         verifyClass(IMetric, CPUTime)
 
-    @on_linux
+    @supported_linux
     def test_cpu_time(self):
         """
         Fake Flocker cluster gives expected results.
@@ -184,7 +195,7 @@ class CPUTimeTests(TestCase):
         node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
         metric = CPUTime(
             Clock(), FakeFlockerClient([node1, node2]),
-            _LocalRunner(), processes=['init'])
+            _LocalRunner(), processes=[_standard_process])
         d = metric.measure(lambda: None)  # measure a fast no-op command
 
         # Although it is unlikely, it's possible that we could get a CPU
@@ -199,6 +210,11 @@ class CPUTimeTests(TestCase):
 
         def check(result):
             self.assertEqual(
-                result, {'10.0.0.1': {'init': 0}, '10.0.0.2': {'init': 0}})
+                result,
+                {
+                    '10.0.0.1': {_standard_process: 0},
+                    '10.0.0.2': {_standard_process: 0}
+                }
+            )
         d.addCallback(check)
         return d
