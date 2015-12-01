@@ -143,7 +143,7 @@ v1.0
   See :ref:`api`.
 * Removed support for installing ``flocker-node`` on Fedora 20.
 * Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
-  See :ref:`installing-flocker-cli-ubuntu-14.04` and :ref:`installing-flocker-cli-ubuntu-15.04`.
+  See :ref:`installing-flocker-cli-ubuntu-14.04` and installing-flocker-cli-ubuntu-15.04.
 * Bug fixes and improvements focused on security and stability across platforms.
 
 v0.4
