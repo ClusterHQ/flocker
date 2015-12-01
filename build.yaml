@@ -131,61 +131,14 @@ common_cli:
       fi
     }
 
-    # add a function that we can consume to colorise output
-    # This could be better, for now it is a simple parser based on keywords
-    # which will highlight 'errors, warnings' or other type of messages we
-    # choose to configured.
-    # The list of ASCII codes it uses can be found here.
-    # https://wiki.archlinux.org/index.php/Color_Bash_Prompt
+    # This is a function that we can use to transform log output before it is
+    # sent to the Jenkins console view.  It could be used to color-code certain
+    # results, for example.
     function parse_logs {
-      # ubuntu defaults to mawk, which causes some things to break
-      # it seems to be related to buffering, -W interactive seems to fix it.
-      if is_ubuntu; then
-        alias awk='mawk -W interactive'
-      fi
-
-      # The 'awk' parse_logs function consumes the standard output from a piped
-      # command, and returns PIPESTATUS of that command (return code).
-      #
-      # we configure 4 groups for parsing our logs.
-      # Exceptions at the top, which are always printed black.
-      # Errors, which are printed in Red
-      # Warnings, which are printed in Yellow
-      # Successes or other messages that we print in Green
-      # Everything else that doesn't match is printed in Black.
-      #
-      "\$@" | awk '
-        # exceptions to rules below, these are always printed black
-        /.*reading.sources.*error_pages.404.*/ {print "\\033[0;30m" \$0 "\\033[0;30m";  next }
-        /.*writing.output.*error_pages.404.*/ {print "\\033[0;30m" \$0 "\\033[0;30m";  next }
-        /.*errors.py.*/ {print "\\033[0;30m" \$0 "\\033[0;30m";  next }
-
-        # red lines
-        /.*exception.*/ {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /.*Exception.*/ {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /.*fail.*/      {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /.* ERROR.*/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /.* error.*/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /build finished with problems./     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /return 1/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /Could not find valid repo at/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-
-        # yellow lines
-        /.*Warning.*/   {print "\\033[0;33m" \$0 "\\033[0;30m";  next }
-        /.*warning.*/   {print "\\033[0;33m" \$0 "\\033[0;30m";  next }
-        /.*skip.*/      {print "\\033[0;33m" \$0 "\\033[0;30m";  next }
-
-        # green lines
-        /.*succeeded.*/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
-        /.*Succeeded.*/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
-        /PASSED.*/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
-        /.*[OK]/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
-
-        # everything else, print in black
-        /.*/            {print "\\033[0;30m" \$0 "\\033[0;30m" ; }
-      '
+      "\$@"
       return \${PIPESTATUS[0]}
     }
+
     # fix the docker permission issue, the base image doesn't have the correct
     # permissions/owners.
     # This is to be tackled as part of:
