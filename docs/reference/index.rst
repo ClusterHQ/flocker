@@ -22,7 +22,7 @@ For more information read the :ref:`cluster architecture<architecture>` document
 
 .. toctree::
    :maxdepth: 2
-   
+
    api
    deprecated_api
 
