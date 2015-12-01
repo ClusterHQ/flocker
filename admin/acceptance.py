@@ -1169,6 +1169,7 @@ def main(reactor, args, base_path, top_level):
                                                node.address,
                                                remote_logs_file)
                                )
+        gather_deferreds(results)
 
         if not options["no-pull"]:
             yield perform(
