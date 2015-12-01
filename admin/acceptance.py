@@ -959,6 +959,7 @@ def capture_upstart(reactor, host, output_file):
     :param reactor: The reactor.
     :param bytes host: Machine to SSH into.
     :param file output_file: File to write to.
+    :return deferred: that will run the tail command
     """
     # note that we are using tail -F to keep retrying and not to exit when we reach the end
     # of the file, as we expect the logs to keep being generated
@@ -1061,6 +1062,7 @@ def capture_journal(reactor, host, output_file):
     :param reactor: The reactor.
     :param bytes host: Machine to SSH into.
     :param file output_file: File to write to.
+    :return deferred: that will run the journalctl command
     """
     formatter = journald_json_formatter(output_file)
     ran = run_ssh(
