@@ -70,7 +70,7 @@ metric_name = options['metric']
 scenario_config = scenarios.get(scenario_name) or usage(
     'No such scenario: {!r}'.format(scenario_name))
 operation_config = operations.get(operation_name) or usage(
-    'No such operations: {!r}'.format(operation_name))
+    'No such operation: {!r}'.format(operation_name))
 metric_config = metrics.get(metric_name) or usage(
     'No such metric: {!r}'.format(metric_name))
 
