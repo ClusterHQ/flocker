@@ -28,7 +28,6 @@ class ReadRequest(object):
     An operation to perform a read request on the control service.
     """
 
-    # `clock` unused, but required for __init__ signature
     def __init__(self, clock, control_service):
         self.clock = clock
         self.control_service = control_service

@@ -21,10 +21,9 @@ class NoOpProbe(object):
 @implementer(IOperation)
 class NoOperation(object):
     """
-    An nop operation.
+    A no-op operation.
     """
 
-    # attributes unused, but required for __init__ signature
     def __init__(self, clock, control_service):
         self.clock = clock
         self.control_service = control_service
