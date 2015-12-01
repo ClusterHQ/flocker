@@ -9,6 +9,8 @@ import json
 import os
 from platform import node, platform
 import sys
+
+from jsonschema import FormatChecker, Draft4Validator
 import yaml
 
 from eliot import to_file
@@ -46,6 +48,67 @@ def usage(options, message=None):
     sys.exit(message)
 
 
+def validate_configuration(configuration):
+    """
+    Validate a provided configuration.
+
+    :param dict configuration: A desired configuration.
+    :raises: jsonschema.ValidationError if the configuration is invalid.
+    """
+    schema = {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "required": ["scenarios", "operations", "metrics"],
+        "properties": {
+            "scenarios": {
+                "type": "object",
+                "patternProperties": {
+                    ".*": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string"
+                            },
+                        },
+                        "additionalProperties": "true",
+                    },
+                },
+            },
+            "operations": {
+                "type": "object",
+                "patternProperties": {
+                    ".*": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string"
+                            },
+                        },
+                        "additionalProperties": "true",
+                    },
+                },
+            },
+            "metrics": {
+                "type": "object",
+                "patternProperties": {
+                    ".*": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string"
+                            },
+                        },
+                        "additionalProperties": "true",
+                    },
+                },
+            }
+        }
+    }
+
+    v = Draft4Validator(schema, format_checker=FormatChecker())
+    v.validate(configuration)
+
+
 def main():
     options = BenchmarkOptions()
 
@@ -60,6 +123,7 @@ def main():
 
     with open(options['config'], 'rt') as f:
         config = yaml.safe_load(f)
+        validate_configuration(config)
         scenarios = config['scenarios']
         operations = config['operations']
         metrics = config['metrics']
