@@ -45,6 +45,10 @@ To run the functional tests, run the following command:
 
 .. prompt:: bash #
 
+   FLOCKER_FUNCTIONAL_TEST=TRUE \
+   FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$HOME/acceptance.yml \
+   FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws \
+   FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=<aws region> \
    trial --testmodule flocker/node/agents/ebs.py
 
 Rackspace
@@ -54,14 +58,20 @@ The configuration stanza for the OpenStack backend running on Rackspace looks as
 
 .. code:: yaml
 
-   rackspace:
-     username: <rackspace username>
-     key: <access key>
+   openstack:
+     username: "<rackspace username>"
+     api_key: "<access key>"
+     auth_plugin: "rackspace"
+     auth_url: "https://identity.api.rackspacecloud.com/v2.0"
 
 To run the functional tests, run the following command:
 
 .. prompt:: bash #
 
+   FLOCKER_FUNCTIONAL_TEST=TRUE \
+   FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$HOME/acceptance.yml \
+   FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=openstack \
+   FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=<rackspace region> \
    trial --testmodule flocker/node/agents/cinder.py
 
 OpenStack
