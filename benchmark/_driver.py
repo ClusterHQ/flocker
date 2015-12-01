@@ -134,9 +134,12 @@ def driver(
     """
     :param reactor: Reactor to use.
     :param config: Configuration read from options.
-    :param IScenario scenario: A load scenario configuration.
-    :param IOperation operation: An operation configuration.
-    :param IMetric metric: A metric configuration.
+    :param dict scenario_config: A load scenario configuration.  This
+        dictionary may be modified by this function.
+    :param dict operation_config: An operation configuration.  This
+        dictionary may be modified by this function.
+    :param dict metric_config: A metric configuration.  This dictionary
+        may be modified by this function.
     :param result: A dictionary which will be updated with values to
         create a JSON result.
     :param output: A callable to receive the JSON structure, for

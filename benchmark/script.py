@@ -85,14 +85,15 @@ result = dict(
         nodename=node(),
         platform=platform(),
     ),
-    scenario=scenario_config.copy(),
-    operation=operation_config.copy(),
-    metric=metric_config.copy(),
+    scenario=scenario_config,
+    operation=operation_config,
+    metric=metric_config,
 )
 
 react(
     driver, (
-        options, scenario_config, operation_config, metric_config, result,
+        options, scenario_config.copy(), operation_config.copy(),
+        metric_config.copy(), result,
         partial(json.dump, fp=sys.stdout, indent=2)
     )
 )
