@@ -6,10 +6,7 @@ Installing Flocker
 
 There are several installation options with which you can get up and running with Flocker.
 
-.. XXX The following sentence has been suppressed (FLOC 3577). TrueAbility has temporarily been taken offline to be updated.
-
-.. You can also try Flocker without installation, either in our live hosted environment or on virtual machines using our Vagrant image.
-.. For more information, see :ref:`get-started`.
+.. XXX The content relating to our live hosted environment or virtual machines using our Vagrant image has been removed (See FLOC 3577 and https://github.com/ClusterHQ/flocker/pull/2260).
 
 .. _quick-start-installer:
 
