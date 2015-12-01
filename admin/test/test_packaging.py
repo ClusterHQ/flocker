@@ -5,6 +5,7 @@ Tests for ``admin.packaging``.
 """
 
 from glob import glob
+import platform
 from subprocess import check_output
 from textwrap import dedent
 from unittest import skipIf
@@ -41,6 +42,9 @@ require_rpmlint = skipIf(not which('rpmlint'),
 require_dpkg = skipIf(not which('dpkg'), "Tests require the ``dpkg`` command.")
 require_lintian = skipIf(not which('lintian'),
                          "Tests require the ``lintian`` command.")
+require_not_ubuntu = skipIf(
+    platform.linux_distribution()[0] == 'Ubuntu',
+    "rpmlint returns spurious results on Ubuntu: FLOC-3564.")
 
 DOCKER_SOCK = '/var/run/docker.sock'
 
@@ -783,6 +787,7 @@ class LintPackageTests(TestCase):
         self.assertRaises(SystemExit, step.run)
         self.assertEqual(step.output.getvalue(), expected_output)
 
+    @require_not_ubuntu
     @require_rpmlint
     def test_rpm(self):
         """
@@ -987,9 +992,10 @@ class OmnibusPackageBuilderTests(TestCase):
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-diagnostics'),
                          flocker_node_path),
+                        (FilePath('/opt/flocker/bin/flocker-benchmark'),
+                         flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-node-era'),
                          flocker_node_path),
-
                     ]
                 ),
                 BuildPackage(
