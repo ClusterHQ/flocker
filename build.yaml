@@ -325,7 +325,8 @@ common_cli:
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
     coverage run \${venv}/bin/trial \
-      --reporter=subunit \${MODULE} 2>&1 | parse_logs tee trial.log
+      --debug-stacktraces --reporter=subunit \
+      \${MODULE} 2>&1 | parse_logs tee trial.log
 
   run_trial_with_coverage_as_root: &run_trial_with_coverage_as_root |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -336,7 +337,8 @@ common_cli:
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
     sudo \${venv}/bin/coverage run \${venv}/bin/trial \
-      --reporter=subunit \${MODULE} 2>&1 | parse_logs tee trial.log
+      --debug-stacktraces --reporter=subunit \
+      \${MODULE} 2>&1 | parse_logs tee trial.log
 
   run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -346,7 +348,8 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # Consume the MODULE parameter set in the job configuration
     sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
-      --reporter=subunit --testmodule \${MODULE} 2>&1 | parse_logs tee trial.log
+      --debug-stacktraces --reporter=subunit \
+      --testmodule \${MODULE} 2>&1 | parse_logs tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
