@@ -19,7 +19,7 @@ from pyrsistent import pmap
 from eliot import ActionType
 from eliot.testing import capture_logging, assertHasAction, LoggedAction
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 from twisted.internet import reactor
@@ -33,11 +33,11 @@ from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
     Lease, LeaseAlreadyHeld, Node, Container, ContainerAlreadyExists,
-    DatasetsConfiguration, ConfigurationChanged,
+    DatasetsConfiguration, ConfigurationChanged, conditional_create,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
-from ...testtools import find_free_port, random_name
+from ...testtools import find_free_port, random_name, CustomException
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
@@ -794,23 +794,75 @@ class ConditionalCreateTests(SynchronousTestCase):
     Tests for ``conditional_create``.
     """
     def setUp(self):
-        ...
+        self.client = FakeFlockerClient()
+        self.reactor = Clock()
+        self.node_id = uuid4()
+
+    def advance(self):
+        """
+        Advance the clock such that next step of process happens.
+        """
+        self.reactor.advance(0.001)
+
+    def unique_key(self, key):
+        """
+        :return: Condition function that require that the given value for
+            ``"key"`` not be present in any dataset's metadata.
+        """
+        def condition(datasets_config):
+            for dataset in datasets_config:
+                if dataset.metadata.get("key") == key:
+                    raise CustomException()
+        return condition
 
     def test_simple_success(self):
         """
-        If no conflicts or condition violations occur the creation succeeds.
+        If no configuration changes or condition violations occur the creation
+        succeeds.
         """
+        dataset_id = uuid4()
+        d = conditional_create(self.client, self.reactor, lambda config: None,
+                               primary=self.node_id, dataset_id=dataset_id)
+        self.advance()
+        [current_dataset] = self.successResultOf(
+            self.client.list_datasets_configuration())
+        self.assertEqual([self.successResultOf(d),
+                          Dataset(dataset_id=dataset_id,
+                                  primary=self.node_id,
+                                  maximum_size=None)],
+                         [current_dataset, current_dataset])
 
     def test_immediate_condition_violation(self):
         """
         If a condition violation occurs immediately the creation is aborted
         and the raised exception is returned.
         """
+        self.successResultOf(self.client.create_dataset(
+            primary=self.node_id, metadata={u"key": u"llave"}))
+        self.failureResultOf(
+            conditional_create(self.client, self.reactor,
+                               self.unique_key(u"llave"),
+                               primary=self.node_id),
+            CustomException)
 
     def test_eventual_success(self):
         """
-        If a conflict occurs the operation is retried until it succeeds.
+        If the configuration changes between when listing and creation occurs
+        the operation is retried until it succeeds.
         """
+        d = conditional_create(self.client, self.reactor, lambda config: None,
+                               primary=self.node_id)
+        # Change configuration in between listing and condition check:
+        self.successResultOf(self.client.create_dataset(primary=self.node_id))
+        # Creation, which should fail with ConfigurationChanged:
+        self.advance()
+        # List again:
+        self.advance()
+        # Create again:
+        self.advance()
+        self.assertIn(self.successResultOf(d),
+                      self.successResultOf(
+                          self.client.list_datasets_configuration()))
 
     def test_eventual_condition_violation(self):
         """
@@ -818,9 +870,38 @@ class ConditionalCreateTests(SynchronousTestCase):
         iteration then creation is aborted and the raised exception is
         returned.
         """
+        d = conditional_create(self.client, self.reactor,
+                               self.unique_key(u"llave"),
+                               primary=self.node_id)
+        # Change configuration in between listing and condition check:
+        self.successResultOf(self.client.create_dataset(primary=self.node_id))
+        # Creation, which should fail with ConfigurationChanged:
+        self.advance()
+        # List again:
+        self.advance()
+        # Create dataset which will violate the condition:
+        self.successResultOf(self.client.create_dataset(
+            primary=self.node_id, metadata={u"key": u"llave"}))
+        # Create again, which should fail with ConfigurationChanged:
+        self.advance()
+        # List again, which should fail condition:
+        self.advance()
+        self.failureResultOf(d, CustomException)
 
     def test_too_many_retries(self):
         """
         Eventually we give up on retrying if the precondition fails too many
         times.
         """
+        d = conditional_create(self.client, self.reactor,
+                               lambda config: None,
+                               primary=self.node_id)
+        # Every time we advance we change the config, invalidating
+        # previous result. 2 queries (list+create) for 20 tries, 40th
+        # query fails:
+        for i in range(39):
+            self.assertNoResult(d)
+            self.successResultOf(self.client.create_dataset(
+                primary=self.node_id))
+            self.advance()
+        self.failureResultOf(d, ConfigurationChanged)

@@ -8,7 +8,6 @@ from uuid import UUID, uuid4
 from json import dumps
 from datetime import datetime
 from os import environ
-from itertools import repeat
 
 from ipaddr import IPv4Address, IPv6Address, IPAddress
 
@@ -27,7 +26,7 @@ from twisted.web.http import (
     CREATED, OK, CONFLICT, NOT_FOUND, PRECONDITION_FAILED,
 )
 from twisted.internet.utils import getProcessOutput
-from twisted.internet import reactor
+from twisted.internet.task import deferLater
 
 from treq import json_content, content
 
@@ -793,24 +792,22 @@ def conditional_create(client, reactor, condition, *args, **kwargs):
 
     :param client: ``IFlockerAPIV1Client`` provider.
     :param reactor: ``IReactorTime`` provider.
-    :param condition: Callable which will be called with the current set
-        of ``Dataset`` on the server. If this raises an exception then the
-        create will be aborted.
+    :param condition: Callable which will be called with the current
+        ``DatasetsConfiguration`` retrieved from the server. If this
+        raises an exception then the create will be aborted.
 
     :return: ``Deferred`` firing with resulting ``Dataset`` if creation
         succeeded, or the relevant exception if creation failed.
     """
-    return client.create_dataset(
-        *args, configuration_tag=config.tag, **kwargs)
-
     def create():
         d = client.list_datasets_configuration()
 
         def got_config(config):
-            condition(config.datasets)
-            return client.create_dataset(
-                *args, configuration_tag=config.tag, **kwargs)
+            condition(config)
+            return deferLater(reactor, 0.001, client.create_dataset,
+                              *args, configuration_tag=config.tag,
+                              **kwargs)
         d.addCallback(got_config)
         return d
-
-    return retry_failure(reactor, create, ConfigurationChanged, repeat(0.001))
+    return retry_failure(reactor, create, [ConfigurationChanged],
+                         [0.001] * 19)
