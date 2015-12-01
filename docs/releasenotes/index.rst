@@ -10,7 +10,7 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 * Now supporting Ubuntu 15.10 instead of Ubuntu 15.04 for the flocker client.
-  See :ref:`installing-flocker-cli-ubuntu-15.10`.
+  See installing-flocker-cli-ubuntu-15.10.
 * Test being skipped (2 of them) in admin/test/test_release.py - once we have released the changes for 15.10, they
   don't need to be skipped anymore.
 
