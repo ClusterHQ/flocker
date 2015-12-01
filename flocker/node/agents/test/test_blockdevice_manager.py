@@ -11,6 +11,9 @@ from twisted.trial.unittest import SynchronousTestCase
 from ..blockdevice_manager import (
     BlockDeviceManager,
     MountInfo,
+    MakeFilesystemError,
+    MountError,
+    UnmountError,
 )
 
 from .test_blockdevice import (
@@ -107,3 +110,22 @@ class BlockDeviceManagerTests(SynchronousTestCase):
         self.assertSetEqual(
             set(), set(m for m in self.manager_under_test.get_mounts()
                        if m.mountpoint == mountpoint))
+
+    def test_unmount_unmounted(self):
+        """Errors in unmounting raise an ``UnmountError``"""
+        blockdevice = self._get_free_blockdevice()
+        with self.assertRaisesRegexp(UnmountError, blockdevice.path):
+            self.manager_under_test.unmount(blockdevice)
+
+    def test_mount_unformatted(self):
+        """Errors in mounting raise a ``MountError``."""
+        blockdevice = self._get_free_blockdevice()
+        mountpoint = self._get_directory_for_mount()
+        with self.assertRaisesRegexp(MountError, blockdevice.path):
+            self.manager_under_test.mount(blockdevice, mountpoint)
+
+    def test_formatted_bad_type(self):
+        """Errors in formatting raise a ``MakeFilesystemError``."""
+        blockdevice = self._get_free_blockdevice()
+        with self.assertRaisesRegexp(MakeFilesystemError, blockdevice.path):
+            self.manager_under_test.make_filesystem(blockdevice, 'myfakeyfs')

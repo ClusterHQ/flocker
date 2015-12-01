@@ -15,6 +15,32 @@ from pyrsistent import PClass, field
 
 from twisted.python.filepath import FilePath
 
+from characteristic import attributes
+
+
+@attributes(["blockdevice", "mountpoint", "source_message"])
+class MountError(Exception):
+    """Exception class for errors in attempts to mount."""
+
+    def __str__(self):
+        return self.__repr__()
+
+
+@attributes(["blockdevice", "source_message"])
+class MakeFilesystemError(Exception):
+    """Exception class for errors in attempts to make a filesystem."""
+
+    def __str__(self):
+        return self.__repr__()
+
+
+@attributes(["blockdevice", "source_message"])
+class UnmountError(Exception):
+    """Exception class for errors in attempts to unmount."""
+
+    def __str__(self):
+        return self.__repr__()
+
 
 class MountInfo(PClass):
     """
@@ -38,6 +64,10 @@ class IBlockDeviceManager(Interface):
 
         :param FilePath blockdevice: The blockdevice to make the filesystem on.
         :param unicode filesystem: The filesystem type to use.
+
+        :raises: ``MakeFilesystemError`` on any failure from the system. This
+            includes user kill signals, so this may even be raised on
+            successful runs of mkfs.
         """
 
     def has_filesystem(blockdevice):
@@ -55,7 +85,8 @@ class IBlockDeviceManager(Interface):
         :param FilePath blockdevice: The path to the block device to mount.
         :param FilePath mountpoint: The path to mount the block device at.
 
-        :raises: ``UnformattedException`` if the block device is not formatted.
+        :raises: ``MountError`` on any failure from the system. This includes
+            user kill signals, so this may even be raised on successful mounts.
         """
 
     def unmount(blockdevice):
@@ -63,6 +94,10 @@ class IBlockDeviceManager(Interface):
         Unmounts the blockdevice at blockdevice.path
 
         :param FilePath blockdevice: The path to the block device to unmount.
+
+        :raises: ``UnmountError`` on any failure from the system. This includes
+            user kill signals, so this may even be raised on successful runs of
+            umount.
         """
 
     def get_mounts():
@@ -80,15 +115,20 @@ class BlockDeviceManager(PClass):
     """
 
     def make_filesystem(self, blockdevice, filesystem):
-        check_output([
-            b"mkfs", b"-t", filesystem.encode("ascii"),
-            # This is ext4 specific, and ensures mke2fs doesn't ask
-            # user interactively about whether they really meant to
-            # format whole device rather than partition. It will be
-            # removed once upstream bug is fixed. See FLOC-2085.
-            b"-F",
-            blockdevice.path
-        ])
+        try:
+            check_output([
+                b"mkfs", b"-t", filesystem.encode("ascii"),
+                # This is ext4 specific, and ensures mke2fs doesn't ask
+                # user interactively about whether they really meant to
+                # format whole device rather than partition. It will be
+                # removed once upstream bug is fixed. See FLOC-2085.
+                b"-F",
+                blockdevice.path
+            ], stderr=STDOUT)
+        except CalledProcessError as e:
+            raise MakeFilesystemError(blockdevice=blockdevice,
+                                      source_message="\n".join(
+                                          [str(e), e.output]))
 
     def has_filesystem(self, blockdevice):
         try:
@@ -114,10 +154,19 @@ class BlockDeviceManager(PClass):
         return True
 
     def mount(self, blockdevice, mountpoint):
-        check_output([b"mount", blockdevice.path, mountpoint.path])
+        try:
+            check_output([b"mount", blockdevice.path, mountpoint.path],
+                         stderr=STDOUT)
+        except CalledProcessError as e:
+            raise MountError(blockdevice=blockdevice, mountpoint=mountpoint,
+                             source_message="\n".join([str(e), e.output]))
 
     def unmount(self, blockdevice):
-        check_output([b"umount", blockdevice.path])
+        try:
+            check_output([b"umount", blockdevice.path], stderr=STDOUT)
+        except CalledProcessError as e:
+            raise UnmountError(blockdevice=blockdevice,
+                               source_message="\n".join([str(e), e.output]))
 
     def get_mounts(self):
         mounts = psutil.disk_partitions()
