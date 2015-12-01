@@ -95,6 +95,8 @@ NODE_BY_ERA_NOT_FOUND = make_bad_request(
 
 _UNDEFINED_MAXIMUM_SIZE = object()
 
+IF_MATCHES_HEADER = b"X-If-Configuration-Matches"
+
 
 def get_configuration_tag(api):
     """
@@ -116,15 +118,17 @@ def _if_configuration_matches(original):
     """
     @wraps(original)
     def render_if_matches(self, request, **route_arguments):
-        if request.requestHeaders.hasHeader(b"X-If-Configuration-Matches"):
+        if request.requestHeaders.hasHeader(IF_MATCHES_HEADER):
             tag = get_configuration_tag(self)
             if_matches = request.requestHeaders.getRawHeaders(
-                b"X-If-Configuration-Matches")
+                IF_MATCHES_HEADER)
             if tag not in if_matches:
                 request.setResponseCode(PRECONDITION_FAILED)
                 request.responseHeaders.setRawHeaders(
                     b"content-type", [b"application/json"])
-                return dumps({"description": "Tag doesn't match."})
+                return dumps({"description":
+                              "Tag doesn't match. Required: %s, current: %s"
+                              % (if_matches[0], tag)})
         return original(self, request, **route_arguments)
 
     return render_if_matches

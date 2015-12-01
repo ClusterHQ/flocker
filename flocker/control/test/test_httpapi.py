@@ -39,7 +39,8 @@ from .. import (
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
-    api_dataset_from_dataset_and_node, container_configuration_response
+    api_dataset_from_dataset_and_node, container_configuration_response,
+    IF_MATCHES_HEADER,
 )
 from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
@@ -1934,7 +1935,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
             CREATED,
             additional_headers={
-                b"X-If-Configuration-Matches":
+                IF_MATCHES_HEADER:
                 [self.persistence_service.configuration_hash()]})
 
     def test_if_matches_failure(self):
@@ -1945,7 +1946,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         return self.assertResponseCode(
             b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
             PRECONDITION_FAILED,
-            additional_headers={b"X-If-Configuration-Matches":
+            additional_headers={IF_MATCHES_HEADER:
                                 [b"willnotmatch"]})
 
 
@@ -2016,7 +2017,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         headers = {}
         if if_matches:
-            headers[b"X-If-Configuration-Matches"] = [
+            headers[IF_MATCHES_HEADER] = [
                 self.persistence_service.configuration_hash()]
 
         def saved(ignored):
@@ -2250,7 +2251,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             b"POST", b"/configuration/datasets/%s" % (uuid4(),),
             {u"primary": self.NODE_A},
             PRECONDITION_FAILED,
-            additional_headers={b"X-If-Configuration-Matches":
+            additional_headers={IF_MATCHES_HEADER:
                                 [b"willnotmatch"]})
 
 
@@ -2306,7 +2307,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
 
         headers = {}
         if if_matches is not None:
-            headers[b"X-If-Configuration-Matches"] = [if_matches]
+            headers[IF_MATCHES_HEADER] = [if_matches]
 
         deleting = self.assertResult(
             b"DELETE",
@@ -2421,7 +2422,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
             b"/configuration/datasets/%s" % (uuid4(),),
             None,
             PRECONDITION_FAILED,
-            additional_headers={b"X-If-Configuration-Matches":
+            additional_headers={IF_MATCHES_HEADER:
                                 [b"willnotmatch"]})
 
     def test_multiple_manifestations(self):
