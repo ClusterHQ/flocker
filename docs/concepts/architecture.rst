@@ -6,7 +6,7 @@ Flocker Cluster Architecture
 
 This document describes the Flocker cluster's architecture.
 
-The Flocker cluster is composed of the following sets of services:
+The Flocker cluster is comprised of the following sets of services:
 
 * :ref:`The control service <control-service>` exposes the :ref:`api`, with which you can manage and modify the configuration of your cluster.
 * :ref:`Flocker agents <flocker-agents>` are installed on each node in the cluster, and are used to modify the node to match the desired configuration of your cluster.
