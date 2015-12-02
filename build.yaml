@@ -466,7 +466,7 @@ common_cli:
     if [ "\${DISTRIBUTION_NAME}" == "ubuntu-14.04" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
-    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-15.04" ]; then
+    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-15.10" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
     if [ "\${DISTRIBUTION_NAME}" == "centos-7" ]; then
@@ -540,6 +540,21 @@ common_cli:
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y git ruby-dev \
           libffi-dev libssl-dev build-essential python-pip \
+          python2.7-dev lintian" >> Dockerfile
+    echo "COPY requirements.txt /tmp/" >> Dockerfile
+    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+
+  build_dockerfile_ubuntu_wily: &build_dockerfile_ubuntu_wily |
+    # Download the latest pip requirements file from master branch of flocker
+    wget -c \
+    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
+    # don't waste time installing ruby or fpm, use an image containing fpm
+    # https://github.com/alanfranz/fpm-within-docker
+    echo "FROM alanfranz/fwd-ubuntu-wily:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "RUN apt-get update" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y \
+          git ruby-dev libffi-dev libssl-dev build-essential python-pip \
           python2.7-dev lintian" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
@@ -1049,13 +1064,13 @@ job_type:
           }
       clean_repo: true
       timeout: 30
-    run_client_installation_on_Ubuntu_Vivid:
+    run_client_installation_on_Ubuntu_Wily:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   'export DISTRIBUTION_NAME=ubuntu-15.04',
+                   'export DISTRIBUTION_NAME=ubuntu-15.10',
                    *setup_aws_env_vars, *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
@@ -1148,9 +1163,20 @@ job_type:
                    *build_docker_image,
                    *push_image_to_dockerhub ]
           }
+    run_docker_build_ubuntu_wily_fpm:
+      at: '0 3 * * *'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-wily',
+                   *build_dockerfile_ubuntu_wily,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
       timeout: 30
     build_vagrant_basebox_for_flocker_tutorial:
-      at: '0 2 * * *'
+      at: '0 4 * * *'
       on_nodes_with_labels: 'mesos-512MB'
       with_steps:
         - { type: 'shell',
@@ -1167,7 +1193,7 @@ job_type:
           }
       timeout: 60
     build_vagrant_basebox_for_osx_yosemite:
-      at: '0 3 * * *'
+      at: '0 5 * * *'
       on_nodes_with_labels: 'mesos-1GB'
       with_steps:
         - { type: 'shell',
