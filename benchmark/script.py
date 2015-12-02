@@ -61,45 +61,54 @@ def validate_configuration(configuration):
         "required": ["scenarios", "operations", "metrics"],
         "properties": {
             "scenarios": {
-                "type": "object",
-                "patternProperties": {
-                    ".*": {
-                        "type": "object",
-                        "properties": {
-                            "type": {
-                                "type": "string"
-                            },
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "required": ["name", "type"],
+                    "properties": {
+                        "name": {
+                            "type": "string"
                         },
-                        "additionalProperties": "true",
+                        "type": {
+                            "type": "string"
+                        },
                     },
+                    "additionalProperties": "true",
                 },
             },
             "operations": {
-                "type": "object",
-                "patternProperties": {
-                    ".*": {
-                        "type": "object",
-                        "properties": {
-                            "type": {
-                                "type": "string"
-                            },
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "required": ["name", "type"],
+                    "properties": {
+                        "name": {
+                            "type": "string"
                         },
-                        "additionalProperties": "true",
+                        "type": {
+                            "type": "string"
+                        },
                     },
+                    "additionalProperties": "true",
                 },
             },
             "metrics": {
-                "type": "object",
-                "patternProperties": {
-                    ".*": {
-                        "type": "object",
-                        "properties": {
-                            "type": {
-                                "type": "string"
-                            },
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "required": ["name", "type"],
+                    "properties": {
+                        "name": {
+                            "type": "string"
                         },
-                        "additionalProperties": "true",
+                        "type": {
+                            "type": "string"
+                        },
                     },
+                    "additionalProperties": "true",
                 },
             }
         }

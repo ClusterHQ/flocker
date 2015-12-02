@@ -1,24 +1,24 @@
 scenarios:
-  default:
+  - name: default
     type: no-load
 
 operations:
-  default:
+  - name: default
     type: read-request
 
-  no-op:
+  - name: no-op
     type: no-op
 
-  wait-10:
+  - name: wait-10
     type: wait
     wait_seconds: 10
 
 metrics:
-  default:
+  - name: default
     type: wallclock
 
-  cputime:
+  - name: cputime
     type: cputime
 
-  wallclock:
+  - name: wallclock
     type: wallclock
