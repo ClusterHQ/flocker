@@ -1476,9 +1476,11 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     state=DatasetStates.MOUNTED,
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=self.BLOCKDEVICE_ID,
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=FilePath(b"/dev/whatever"),
-                    mount_point=FilePath(b"/flocker/wherever"),
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    device_path=FilePath(b"/dev/sda"),
+                    mount_point=FilePath(b"/flocker").child(
+                        bytes(self.DATASET_ID),
+                    ),
                 ),
             ],
         )
@@ -1617,8 +1619,8 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=FilePath(b"/dev/whatever"),
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    device_path=FilePath(b"/dev/sda"),
                 ),
             ],
 
@@ -1649,7 +1651,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             ['paths', unicode(self.DATASET_ID)],
             discard
         )
-        device = FilePath(b"/dev/whatever")
+        device = FilePath(b"/dev/sda")
 
         # Local state shows that there is a device for the (now) non-manifest
         # dataset. i.e it is attached.
@@ -1677,7 +1679,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
                     device_path=device,
                 ),
             ],
@@ -1822,7 +1824,8 @@ class BlockDeviceDeployerMountCalculateChangesTests(
 
         assert_calculated_changes(
             self, node_state, node_config,
-            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            {Dataset(dataset_id=unicode(self.DATASET_ID),
+                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)},
             in_parallel(changes=[
                 MountBlockDevice(
                     dataset_id=self.DATASET_ID,
@@ -1874,7 +1877,8 @@ class BlockDeviceDeployerCreateFilesystemCalculateChangesTests(
 
         assert_calculated_changes(
             self, node_state, node_config,
-            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            {Dataset(dataset_id=unicode(self.DATASET_ID),
+                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)},
             in_parallel(changes=[
                 CreateFilesystem(device=device, filesystem=u"ext4")
             ]),
