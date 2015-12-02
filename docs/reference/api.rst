@@ -2,6 +2,8 @@
 REST API Endpoints
 ==================
 
+.. _conditional requests:
+
 Conditional requests
 ====================
 When using the API to create, delete or otherwise modify datasets you may wish to do so only if certain conditions apply.
