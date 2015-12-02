@@ -33,7 +33,6 @@ from hypothesis.strategies import (
 )
 
 from twisted.python.components import proxyForInterface
-from twisted.python.constants import Names, NamedConstant
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
@@ -1137,18 +1136,15 @@ def _infer_volumes_for_test(
     If you are using the ``IBlockDeviceAPI`` to set up the cluster_state, just
     use api.list_volumes() instead of calling this function.
 
-    :param UUID node_uuid: The uuid of the local node.
-
-    :param unicode node_hostname: The hostname of the local node.
+    :param NodeState node_state: The state of the local node.
+    :param nonmanifest_datasets: The state of non-manifest datasets.
+    :type nonmanifest_datasets: Mapping of ``UUID`` to ``Dataset``
+    :param additional_node_states: States of other nodes.
+    :type additional_node_states: ``set`` of ``NodeState``
 
     :param unicode compute_instance_id: The value for the attached_to field of
         the ``BlockDeviceVolume`` instances that are created for manifestions
         on the local node.
-
-    :param DeploymentState cluster_state: The rest of the cluster_state. This
-        is inspected to determine the volumes that are not attached to any node
-        (nonmanifest_datasets) and the volumes that are attached to remote
-        nodes.
 
     :returns: A list of ``BlockDeviceVolume`` instances for all the volumes in
         cluster_state that is only suitable for use in tests that do not use
@@ -1186,16 +1182,6 @@ def _infer_volumes_for_test(
 
         volumes.extend(remote_volumes)
     return volumes
-
-
-class DiscoverVolumesMethod(Names):
-    """
-    Constants for determining volumes in calculate_changes tests.
-
-    :ivar GET_VOLUMES_FROM_API: Simply call ``list_volumes`` on the passed in
-        API.
-    """
-    GET_VOLUMES_FROM_API = NamedConstant()
 
 
 @implementer(ILocalState)
