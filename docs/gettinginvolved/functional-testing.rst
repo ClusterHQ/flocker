@@ -77,22 +77,7 @@ To run the functional tests, run the following command:
 OpenStack
 =========
 
-The configuration stanza for an private OpenStack deployment looks as follows:
-
-.. code:: yaml
-
-   private-cloud:
-     provider: openstack
-     auth_plugin: plugin_name
-     plugin_option: value
-
-``auth_plugin`` refers to an authentication plugin provided by ``python-keystoneclient``.
+The configuration stanza for an private OpenStack deployment is the same as Rackspace above, but ``auth_plugin`` should be included, which refers to an authentication plugin provided by ``python-keystoneclient``.
 
 If required, you may need to add additional fields.
 For more information, see :ref:`openstack-dataset-backend`.
-
-To run the functional tests, run the following command:
-
-.. prompt:: bash #
-
-   trial --testmodule flocker/node/agents/cinder.py
