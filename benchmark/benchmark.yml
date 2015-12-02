@@ -13,6 +13,10 @@ operations:
     type: wait
     wait_seconds: 10
 
+  - name: wait-100
+    type: wait
+    wait_seconds: 100
+
 metrics:
   - name: default
     type: wallclock
