@@ -119,12 +119,12 @@ class DesiredDataset(PClass):
     Dataset as requested by configuration (and applications).
     """
     dataset_id = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int, mandatory=True)
+    maximum_size = field(type=int)
     metadata = pmap_field(
         key_type=unicode,
         value_type=unicode,
     )
-    mount_point = field(FilePath, mandatory=True)
+    mount_point = field(FilePath)
     filesystem = field(unicode, initial=u"ext4", mandatory=True,
                        invariant=lambda v: v == "ext4")
 
@@ -728,6 +728,13 @@ class DetachVolume(PRecord):
     """
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
+
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=discovered_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
 
     @property
     def eliot_action(self):
@@ -1578,7 +1585,8 @@ class BlockDeviceDeployer(PRecord):
 
         detaches = list(self._calculate_detaches(
             local_node_state.devices, local_node_state.paths,
-            configured_manifestations, local_state.volumes,
+            configured_manifestations,
+            discovered_datasets=local_state.datasets,
         ))
         deletes = self._calculate_deletes(
             local_node_state, configured_manifestations, local_state.volumes,
@@ -1675,7 +1683,8 @@ class BlockDeviceDeployer(PRecord):
                 yield UnmountBlockDevice(dataset_id=dataset_id,
                                          blockdevice_id=volume.blockdevice_id)
 
-    def _calculate_detaches(self, devices, paths, configured, volumes):
+    def _calculate_detaches(self, devices, paths, configured,
+                            discovered_datasets):
         """
         :param PMap devices: The datasets with volumes attached to this node
             and the device files at which they are available.  This is the same
@@ -1684,8 +1693,6 @@ class BlockDeviceDeployer(PRecord):
             on this node.  This is the same as ``NodeState.paths``.
         :param PMap configured: The manifestations which are configured on this
             node.  This is the same as ``NodeState.manifestations``.
-        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
-            known to exist in the cluster.
 
         :return: A generator of ``DetachVolume`` instances, one for each
             dataset which exists, is attached to this node, is not mounted, and
@@ -1699,10 +1706,10 @@ class BlockDeviceDeployer(PRecord):
                 # It is mounted and needs to unmounted before it can be
                 # detached.
                 continue
-            volume = _blockdevice_volume_from_datasetid(volumes,
-                                                        attached_dataset_id)
-            yield DetachVolume(dataset_id=attached_dataset_id,
-                               blockdevice_id=volume.blockdevice_id)
+            yield DetachVolume.from_state_and_config(
+                discovered_dataset=discovered_datasets[attached_dataset_id],
+                desired_dataset=DesiredDataset(dataset_id=attached_dataset_id),
+            )
 
     def _calculate_attaches(self, devices, configured, nonmanifest, volumes,
                             discovered_datasets):
