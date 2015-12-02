@@ -1191,6 +1191,7 @@ job_type:
                    *do_not_abort_on_errors,
                    *start_vanilla_osx_yosemite_vagrant_box,
                    *begin_build_sh_EOF,
+                   *add_shell_functions,
                    *install_pkgs_on_vanilla_osx_yosemite_box,
                    *end_build_sh_EOF,
                    *copy_files_to_osx_yosemite_box,
