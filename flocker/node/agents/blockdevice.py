@@ -1498,17 +1498,6 @@ class BlockDeviceDeployer(PRecord):
 
         return succeed(local_state)
 
-    def _mountpath_for_manifestation(self, manifestation):
-        """
-        Calculate a ``Manifestation`` mount point.
-
-        :param Manifestation manifestation: The manifestation of a dataset that
-            will be mounted.
-
-        :returns: A ``FilePath`` of the mount point.
-        """
-        return self._mountpath_for_dataset_id(manifestation.dataset_id)
-
     def _mountpath_for_dataset_id(self, dataset_id):
         """
         Calculate the mountpoint for a dataset.
