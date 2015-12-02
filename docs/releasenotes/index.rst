@@ -71,7 +71,7 @@ v1.5.0
 v1.4.0
 ======
 
-* The :ref:`dataset API <api>` added support for leases.
+* The :ref:`dataset API <api>` added support for :ref:`leases <leases>`.
   Leases prevent a dataset from being deleted or moved off a node.
 * Fix line splitting when logging to `systemd`'s journal.
 * Various performance and scalability improvements.
