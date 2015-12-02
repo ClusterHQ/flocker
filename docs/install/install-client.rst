@@ -13,8 +13,8 @@ The following sections describe how to install the Flocker client on your platfo
 
 .. _installing-flocker-cli-ubuntu-15.10:
 
-Ubuntu 15.10 (64-bit)
-=====================
+Installing on Ubuntu 15.10 (64-bit)
+===================================
 
 .. note:: 
    These instructions require that you have ``sudo`` access.
@@ -28,8 +28,8 @@ On Ubuntu 15.10 (64-bit), the Flocker CLI can be installed from the ClusterHQ re
 
 .. _installing-flocker-cli-ubuntu-14.04:
 
-Ubuntu 14.04 (64-bit)
-=====================
+Installing on Ubuntu 14.04 (64-bit)
+===================================
 
 .. note:: 
    These instructions require that you have ``sudo`` access.
@@ -43,8 +43,8 @@ On Ubuntu 14.04 (64-bit), the Flocker CLI can be installed from the ClusterHQ re
 
 .. _installing-flocker-cli-linux:
 
-Other Linux Distributions
-=========================
+Installing on Other Linux Distributions
+=======================================
 
 .. warning::
 
@@ -79,8 +79,8 @@ Whenever you need to run Flocker CLI commands, ensure you are in the virtualenv:
    alice@mercury:~$ flocker-deploy --version
    |latest-installable|
 
-OS X
-====
+Installing on OS X
+==================
 
 Install the `Homebrew`_ package manager.
 
