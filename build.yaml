@@ -171,12 +171,12 @@ common_cli:
     # Usage: retry 'command'
     function retry() {
       let delay=2
-      while $(true); do
+      while true; do
         if $1; then
           break
         fi
-        echo Command failed, waiting $delay...
-        sleep $delay
+        echo Command failed, waiting \$delay...
+        sleep \$delay
         let delay=delay*2
       done
     }
