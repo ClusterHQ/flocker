@@ -27,6 +27,7 @@ from pyrsistent import (
     pmap_field,
 )
 
+from twisted.internet import reactor
 from twisted.python.components import proxyForInterface
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.runtime import platform
@@ -96,6 +97,7 @@ from ....control._model import Leases
 
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
+from ....common import retry_failure, gather_deferreds
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
@@ -3426,31 +3428,19 @@ def umount_all(root_path):
             FilePath(path).segmentsFrom(root_path)
         except ValueError:
             return False
-        else:
-            return True
+        return True
 
-    partitions = list(p for p in psutil.disk_partitions()
-                      if is_under_root(p.mountpoint))
-    retry = 0
-    last_error = None
-    while retry < CLEANUP_RETRY_LIMIT and len(partitions) > 0:
-        retry += 1
-        for partition in partitions:
-            try:
-                # Attempt to unmount, it might fail because sometimes you have
-                # to unmount devices in a specific order.
-                # So long as we have fewer than CLEANUP_RETRY_LIMIT devices we
-                # should eventually successfully unmount all devices just by
-                # trying to unmount all of them in order CLEANUP_RETRY_LIMIT
-                # number of times.
-                umount(FilePath(partition.device))
-            except Exception as e:
-                last_error = e
-                write_traceback(_logger)
-        partitions = list(p for p in psutil.disk_partitions()
-                          if is_under_root(p.mountpoint))
-    if last_error:
-        raise last_error
+    def create_umount_callable(partition):
+        return lambda: umount(FilePath(partition.device))
+
+    deferreds = list(
+        retry_failure(reactor,
+                      create_umount_callable(partition),
+                      steps=[0.1] * CLEANUP_RETRY_LIMIT)
+        for partition in psutil.disk_partitions()
+        if is_under_root(partition.mountpoint))
+
+    return gather_deferreds(deferreds)
 
 
 def mountroot_for_test(test_case):

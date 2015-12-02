@@ -6,7 +6,7 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 
 from uuid import uuid4
 
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import TestCase
 from zope.interface.verify import verifyObject
 
 from ..blockdevice_manager import (
@@ -25,7 +25,7 @@ from .test_blockdevice import (
 )
 
 
-class BlockDeviceManagerTests(SynchronousTestCase):
+class BlockDeviceManagerTests(TestCase):
     """Tests for flocker.node.agents.blockdevice_manager.BlockDeviceManager."""
 
     def setUp(self):
