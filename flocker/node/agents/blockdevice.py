@@ -567,6 +567,14 @@ class MountBlockDevice(PRecord):
     blockdevice_id = field(type=unicode, mandatory=True)
     mountpoint = field(type=FilePath, mandatory=True)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=desired_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+            mountpoint=desired_dataset.mount_point,
+        )
+
     @property
     def eliot_action(self):
         return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id,
@@ -1584,7 +1592,7 @@ class BlockDeviceDeployer(PRecord):
         ))
         mounts = list(self._calculate_mounts(
             local_node_state.devices, local_node_state.paths,
-            configured_manifestations, local_state.volumes,
+            configured_manifestations,
             local_state.datasets,
         ))
         unmounts = list(self._calculate_unmounts(
@@ -1627,7 +1635,7 @@ class BlockDeviceDeployer(PRecord):
             creates + not_in_use(deletes) + filesystem_creates
         ))
 
-    def _calculate_mounts(self, devices, paths, configured, volumes,
+    def _calculate_mounts(self, devices, paths, configured,
                           discovered_datasets):
         """
         :param PMap devices: The datasets with volumes attached to this node
@@ -1646,7 +1654,7 @@ class BlockDeviceDeployer(PRecord):
             filesystem mounted, and is configured to have a manifestation on
             this node.
         """
-        for configured_dataset_id in configured:
+        for configured_dataset_id, manifestation in configured.items():
             if configured_dataset_id in paths:
                 # It's mounted already.
                 continue
@@ -1656,13 +1664,10 @@ class BlockDeviceDeployer(PRecord):
                 continue
             if discovered_datasets[dataset_id].state == DatasetStates.ATTACHED:
                 # Attached and filesystem exists
-                path = self._mountpath_for_dataset_id(configured_dataset_id)
-                volume = _blockdevice_volume_from_datasetid(volumes,
-                                                            dataset_id)
-                yield MountBlockDevice(
-                    dataset_id=dataset_id,
-                    blockdevice_id=volume.blockdevice_id,
-                    mountpoint=path,
+                yield MountBlockDevice.from_state_and_config(
+                    discovered_dataset=discovered_datasets[dataset_id],
+                    desired_dataset=self._calculate_desired_for_manifestation(
+                        manifestation),
                 )
 
     def _calculate_filesystem_creates(self, configured, discovered_datasets):
