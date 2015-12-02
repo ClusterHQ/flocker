@@ -1490,17 +1490,17 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         ``calculate_necessary_state_changes`` for that dataset.
         """
         other_node = u"192.0.2.2"
-        local_state = self.ONE_DATASET_STATE
+        node_state = self.ONE_DATASET_STATE
         cluster_state = DeploymentState(
-            nodes={local_state}
+            nodes={node_state}
         )
 
-        local_config = to_node(local_state).transform(
+        node_config = to_node(node_state).transform(
             ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
             True
         )
         cluster_configuration = Deployment(
-            nodes={local_config}
+            nodes={node_config}
         )
 
         api = loopbackblockdeviceapi_for_test(self)
