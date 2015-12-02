@@ -166,6 +166,21 @@ common_cli:
       fi
     }
 
+    # Retries a command if it fails, using the exponential backoff algorithm.
+    # It will retry forever, we rely on Jenkins to kill it if it takes too long
+    # Usage: retry 'command'
+    function retry() {
+      let delay=2
+      while $(true); do
+        if $1; then
+          break
+        fi
+        echo Command failed, waiting $delay...
+        sleep $delay
+        let delay=delay*2
+      done
+    }
+
   # TODO: do we need to clean up old files on ubuntu and centos or
   # does the pre-scm plugin does this correctly for us ?
   # https://clusterhq.atlassian.net/browse/FLOC-3139
@@ -446,9 +461,9 @@ common_cli:
     # make sure we're no longer in our virtualenv
     deactivate
     # install the new freshly baked package
-    brew update
-    brew tap ClusterHQ/tap
-    brew install \${RECIPE_FILE}
+    retry 'brew update'
+    retry 'brew tap ClusterHQ/tap'
+    retry 'brew install \${RECIPE_FILE}'
     brew test \${RECIPE_FILE}
 
   build_repo_metadata: &build_repo_metadata |
