@@ -141,11 +141,17 @@ def main():
     operation_name = options['operation']
     metric_name = options['metric']
 
-    scenario_config = scenarios.get(scenario_name) or usage(
+    def get_config(section, name):
+        for config in section:
+            if config['name'] == name:
+                return config
+        return None
+
+    scenario_config = get_config(scenarios, scenario_name) or usage(
         options, 'No such scenario: {!r}'.format(scenario_name))
-    operation_config = operations.get(operation_name) or usage(
+    operation_config = get_config(operations, operation_name) or usage(
         options, 'No such operation: {!r}'.format(operation_name))
-    metric_config = metrics.get(metric_name) or usage(
+    metric_config = get_config(metrics, metric_name) or usage(
         options, 'No such metric: {!r}'.format(metric_name))
 
     timestamp = datetime.now().isoformat()
