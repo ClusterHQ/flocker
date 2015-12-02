@@ -11,8 +11,8 @@ Requesting Leases
 
 Leases are accessed via the :ref:`api` exposed by the control service, however most users will interact with leases through the :ref:`docker-plugin`, which will handle requesting leases for you.
 
-Acquiring and Releasing
-========================
+Acquiring and Releasing Leases
+==============================
 
 After a dataset has been moved to a node, an application can acquire a lease for that dataset.
 While the lease is active, any other requests for that dataset on a different node will be rejected with an error.
