@@ -37,7 +37,6 @@ class Wait(object):
 
     def __init__(self, clock, control_service, wait_seconds=10):
         self.clock = clock
-        self.control_service = control_service
         self.wait_seconds = wait_seconds
 
     def get_probe(self):

@@ -1,6 +1,6 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Run the control service benchmarks.
+Run the Flocker benchmarks.
 """
 
 from datetime import datetime
@@ -21,6 +21,7 @@ from twisted.python.usage import Options, UsageError
 from flocker import __version__ as flocker_client_version
 
 from benchmark import metrics, operations, scenarios
+from benchmark.cluster import BenchmarkCluster
 from benchmark._driver import driver
 
 
@@ -69,10 +70,9 @@ class BenchmarkOptions(Options):
     description = "Run benchmark tests."
 
     optParameters = [
-        ['control', None, None,
-         'IP address for a Flocker cluster control server.'],
-        ['certs', None, 'certs',
-         'Directory containing client certificates'],
+        ['uft', None, None,
+         'Directory containing UFT installer files.  '
+         'If not set, use acceptance test environment variables.'],
         ['config', None, 'benchmark.yml',
          'YAML file describing benchmark options.'],
         ['scenario', None, 'default',
@@ -176,9 +176,13 @@ def main():
     except UsageError as e:
         usage(options, e.args[0])
 
-    if not options['control'] and options['operation'] != 'no-op':
-        # No-op is OK with no control service
-        usage(options, 'Control service required')
+    if options['uft']:
+        cluster = BenchmarkCluster.from_uft_setup(options['uft'])
+    else:
+        try:
+            cluster = BenchmarkCluster.from_acceptance_test_env(os.environ)
+        except KeyError as e:
+            usage('Environment variable {!r} not set.'.format(e.args[0]))
 
     with open(options['config'], 'rt') as f:
         config = yaml.safe_load(f)
@@ -236,7 +240,7 @@ def main():
 
     react(
         driver, (
-            options, scenario_factory, operation_factory, metric_factory,
+            cluster, scenario_factory, operation_factory, metric_factory,
             result, partial(json.dump, fp=sys.stdout, indent=2)
         )
     )

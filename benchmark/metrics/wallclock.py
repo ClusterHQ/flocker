@@ -14,9 +14,8 @@ class WallClock(object):
     Measure the elapsed wallclock time during an operation.
     """
 
-    def __init__(self, clock, control_service):
+    def __init__(self, clock, cluster):
         self.clock = clock
-        self.control_service = control_service
 
     def measure(self, f, *a, **kw):
         def finished(ignored):

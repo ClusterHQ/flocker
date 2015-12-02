@@ -191,11 +191,10 @@ class CPUTime(object):
     """
 
     def __init__(
-        self, clock, control_service, runner=None,
-        processes=_FLOCKER_PROCESSES
+        self, clock, cluster, runner=None, processes=_FLOCKER_PROCESSES
     ):
         self.clock = clock
-        self.control_service = control_service
+        self.cluster = cluster
         if runner is None:
             # Use the acceptance test environment variable to work out the
             # public addresses of the cluster nodes.  This is intended to be a
@@ -214,8 +213,10 @@ class CPUTime(object):
         before_cpu = []
         after_cpu = []
 
+        control_service = self.cluster.control_service(self.clock)
+
         # Retrieve the cluster nodes
-        d = self.control_service.list_nodes().addCallback(nodes.extend)
+        d = control_service.list_nodes().addCallback(nodes.extend)
 
         # Obtain elapsed CPU time before test
         d.addCallback(

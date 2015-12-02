@@ -28,9 +28,8 @@ class ReadRequest(object):
     An operation to perform a read request on the control service.
     """
 
-    def __init__(self, clock, control_service):
-        self.clock = clock
-        self.control_service = control_service
+    def __init__(self, clock, cluster):
+        self.control_service = cluster.control_service(clock)
 
     def get_probe(self):
         return ReadRequestProbe(control_service=self.control_service)

@@ -24,9 +24,8 @@ class NoOperation(object):
     A no-op operation.
     """
 
-    def __init__(self, clock, control_service):
-        self.clock = clock
-        self.control_service = control_service
+    def __init__(self, clock, cluster):
+        pass
 
     def get_probe(self):
         return NoOpProbe()
