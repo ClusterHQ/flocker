@@ -425,6 +425,13 @@ class DestroyBlockDeviceDataset(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=desired_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
+
     # This can be replaced with a regular attribute when the `_logger` argument
     # is no longer required by Eliot.
     @property
@@ -1574,7 +1581,9 @@ class BlockDeviceDeployer(PRecord):
             configured_manifestations, local_state.volumes,
         ))
         deletes = self._calculate_deletes(
-            local_node_state, configured_manifestations, local_state.volumes)
+            local_node_state, configured_manifestations, local_state.volumes,
+            discovered_datasets=local_state.datasets,
+        )
 
         # FLOC-1484 Support resize for block storage backends. See also
         # FLOC-1875.
@@ -1736,7 +1745,7 @@ class BlockDeviceDeployer(PRecord):
                 )
 
     def _calculate_deletes(self, local_node_state, configured_manifestations,
-                           volumes):
+                           volumes, discovered_datasets):
         """
         :param NodeState: The local state discovered immediately prior to
             calculation.
@@ -1761,9 +1770,11 @@ class BlockDeviceDeployer(PRecord):
             volume = _blockdevice_volume_from_datasetid(volumes, dataset_id)
             if (volume is not None and
                     dataset_id_unicode in local_node_state.manifestations):
-                yield DestroyBlockDeviceDataset(
-                    dataset_id=dataset_id,
-                    blockdevice_id=volume.blockdevice_id)
+                yield DestroyBlockDeviceDataset.from_state_and_config(
+                    discovered_dataset=discovered_datasets[dataset_id],
+                    desired_dataset=self._calculate_desired_for_manifestation(
+                        configured_manifestations[dataset_id_unicode]),
+                )
 
 
 class ProcessLifetimeCache(proxyForInterface(IBlockDeviceAPI, "_api")):
