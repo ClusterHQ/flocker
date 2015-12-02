@@ -1864,12 +1864,6 @@ class BlockDeviceDeployer(PClass):
         local_node_state = cluster_state.get_node(self.node_uuid,
                                                   hostname=self.hostname)
 
-        # We need to know applications (for now) to see if we should delay
-        # deletion or handoffs. Eventually this will rely on leases instead.
-        # https://clusterhq.atlassian.net/browse/FLOC-1425.
-        if local_node_state.applications is None:
-            return NOTHING_TO_DO
-
         desired_datasets = self._calculate_desired_state(
             configuration=configuration,
             local_applications=local_node_state.applications,

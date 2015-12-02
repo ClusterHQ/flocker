@@ -122,12 +122,6 @@ class NotInUseDatasets(object):
     """
     Filter out datasets that are in use by applications on the current
     node.
-
-    For now we delay things like deletion until we know applications
-    aren't using the dataset, and also until there are no leases. Later on
-    we'll switch the container agent to rely solely on leases, at which
-    point we can rip out the logic related to Application objects. See
-    https://clusterhq.atlassian.net/browse/FLOC-2732.
     """
     def __init__(self, node_uuid, local_applications, leases):
         """
@@ -135,6 +129,8 @@ class NotInUseDatasets(object):
         :param applications: Applications running on the node.
         :param Leases leases: The current leases on datasets.
         """
+        if local_applications is None:
+            local_applications = []
         self._node_id = node_uuid
         self._in_use_datasets = {app.volume.manifestation.dataset_id
                                  for app in local_applications

@@ -437,3 +437,16 @@ class ContainerAPITests(AsyncTestCase):
 
         creating_dataset.addCallback(got_initial_result)
         return creating_dataset
+
+    # Unfortunately this test is very very slow.
+    @run_test_with(async_runner(timeout=timedelta(minutes=6)))
+    @require_cluster(2)
+    def test_container_agent_optional(self, cluster):
+        """
+        The container agent is not necessary for the dataset agent to
+        function.
+        """
+        # 1. Disable container agent
+        # 2. Either wait for control service cache to clear (120 seconds) or reboot the node
+        # 3. Create a dataset in config, wait for it to be added to state
+        # 4. Re-enable container agent
