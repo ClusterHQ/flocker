@@ -314,6 +314,7 @@ common_cli:
   # https://clusterhq.atlassian.net/browse/FLOC-2560
   acceptance_tests_artifacts_ubuntu_special_case: &acceptance_tests_artifacts_ubuntu_special_case
     - run-acceptance-tests.log
+    - remote_logs.log
     - _trial_temp/test.log
 
   run_trial_with_coverage: &run_trial_with_coverage |
