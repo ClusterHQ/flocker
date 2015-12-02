@@ -4,18 +4,17 @@
 Tests for the Volumes Plugin API provided by the plugin.
 """
 
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 from twisted.web.http import OK
-from twisted.internet.task import Clock
+from twisted.internet.task import Clock, LoopingCall
 
 from pyrsistent import pmap
 
 from eliot.testing import capture_logging
 
 from .._api import VolumePlugin, DEFAULT_SIZE
-from ...apiclient import FakeFlockerClient, Dataset
-from ...control._config import dataset_id_from_name
+from ...apiclient import FakeFlockerClient, Dataset, DatasetsConfiguration
 from ...testtools import CustomException
 
 from ...restapi import make_bad_request
@@ -68,6 +67,13 @@ class APITestsMixin(APIAssertionsMixin):
         """
         self.volume_plugin_reactor = Clock()
         self.flocker_client = SimpleCountingProxy(FakeFlockerClient())
+        # The conditional_create operation used by the plugin relies on
+        # the passage of time... so make sure time passes! We still use a
+        # fake clock since some tests want to skip ahead.
+        self.looping = LoopingCall(
+            lambda: self.volume_plugin_reactor.advance(0.001))
+        self.looping.start(0.001)
+        self.addCleanup(self.looping.stop)
 
     def test_pluginactivate(self):
         """
@@ -106,11 +112,14 @@ class APITestsMixin(APIAssertionsMixin):
                               OK, {u"Err": None})
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
-        d.addCallback(self.assertItemsEqual, [
-            Dataset(dataset_id=UUID(dataset_id_from_name(name)),
-                    primary=self.NODE_A,
-                    maximum_size=DEFAULT_SIZE,
-                    metadata={u"name": name})])
+        d.addCallback(list)
+        d.addCallback(lambda result:
+                      self.assertItemsEqual(
+                          result, [
+                              Dataset(dataset_id=result[0].dataset_id,
+                                      primary=self.NODE_A,
+                                      maximum_size=DEFAULT_SIZE,
+                                      metadata={u"name": name})]))
         return d
 
     def create(self, name):
@@ -133,11 +142,14 @@ class APITestsMixin(APIAssertionsMixin):
         d = self.create(name)
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
-        d.addCallback(self.assertItemsEqual, [
-            Dataset(dataset_id=UUID(dataset_id_from_name(name)),
-                    primary=self.NODE_A,
-                    maximum_size=DEFAULT_SIZE,
-                    metadata={u"name": name})])
+        d.addCallback(list)
+        d.addCallback(lambda result:
+                      self.assertItemsEqual(
+                          result, [
+                              Dataset(dataset_id=result[0].dataset_id,
+                                      primary=self.NODE_A,
+                                      maximum_size=DEFAULT_SIZE,
+                                      metadata={u"name": name})]))
         return d
 
     def test_create_duplicate_name(self):
@@ -173,9 +185,9 @@ class APITestsMixin(APIAssertionsMixin):
             # its existence:
             d = self.flocker_client.create_dataset(
                 self.NODE_A, DEFAULT_SIZE,
-                metadata={u"name": name},
-                dataset_id=UUID(dataset_id_from_name(name)))
-            d.addCallback(lambda _: [])
+                metadata={u"name": name})
+            d.addCallback(lambda _: DatasetsConfiguration(
+                tag=u"1234", datasets={}))
             return d
         self.flocker_client.list_datasets_configuration = create_after_list
 
@@ -207,7 +219,8 @@ class APITestsMixin(APIAssertionsMixin):
         actually arrive.
         """
         name = u"myvol"
-        dataset_id = UUID(dataset_id_from_name(name))
+        dataset_id = uuid4()
+
         # Create dataset on a different node:
         d = self.flocker_client.create_dataset(
             self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
@@ -248,7 +261,7 @@ class APITestsMixin(APIAssertionsMixin):
         returns an error up to docker.
         """
         name = u"myvol"
-        dataset_id = UUID(dataset_id_from_name(name))
+        dataset_id = uuid4()
         # Create dataset on a different node:
         d = self.flocker_client.create_dataset(
             self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
@@ -315,7 +328,6 @@ class APITestsMixin(APIAssertionsMixin):
         it is currently known.
         """
         name = u"myvol"
-        dataset_id = UUID(dataset_id_from_name(name))
 
         d = self.create(name)
         # The dataset arrives as state:
@@ -323,13 +335,15 @@ class APITestsMixin(APIAssertionsMixin):
 
         d.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/VolumeDriver.Mount", {u"Name": name}, OK))
-
         d.addCallback(lambda _:
+                      self.flocker_client.list_datasets_configuration())
+        d.addCallback(lambda datasets_config:
                       self.assertResult(
                           b"POST", b"/VolumeDriver.Path",
                           {u"Name": name}, OK,
                           {u"Err": None,
-                           u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
+                           u"Mountpoint": u"/flocker/{}".format(
+                               datasets_config.datasets.keys()[0])}))
         return d
 
     def test_path_existing(self):
@@ -376,7 +390,7 @@ class APITestsMixin(APIAssertionsMixin):
         volume to arrive.
         """
         name = u"myvol"
-        dataset_id = UUID(dataset_id_from_name(name))
+        dataset_id = uuid4()
 
         # Create dataset on node B:
         d = self.flocker_client.create_dataset(
