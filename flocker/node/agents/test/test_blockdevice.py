@@ -96,6 +96,7 @@ from ....control._model import Leases
 
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
+from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
@@ -2164,8 +2165,10 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         """
         When supplied with a configuration containing a dataset with a null
         size, ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``CreateBlockDeviceDataset`` for a 100GiB dataset.
-        XXX: Make the default size configurable. FLOC-2679
+        ``CreateBlockDeviceDataset`` for a dataset with a size fixed to the
+        minimum allowed Rackspace volume size.
+
+        XXX: Make the default size configurable.  FLOC-2679
         """
         node_id = uuid4()
         node_address = u"192.0.2.1"
@@ -2208,7 +2211,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
         changes = deployer.calculate_changes(
             configuration, state, local_state)
-        expected_size = int(GiB(100).to_Byte().value)
+        expected_size = int(RACKSPACE_MINIMUM_VOLUME_SIZE.to_Byte())
         self.assertEqual(
             in_parallel(
                 changes=[
