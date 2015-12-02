@@ -9,7 +9,7 @@ Supported Operating Systems
 
 * CentOS 7
 * Ubuntu 14.04
-* Ubuntu 15.04 (Command line only)
+* Ubuntu 15.10 (Command line only)
 * OS X (Command line only)
 
 
