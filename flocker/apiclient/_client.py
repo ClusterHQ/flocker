@@ -502,10 +502,12 @@ class FlockerClient(object):
                                               cert_path, key_path)
         self._base_url = b"https://%s:%d/v1" % (host, port)
 
-    def _request(self, method, path, body, success_codes, error_codes=None,
-                 with_headers=False, configuration_tag=None):
+    def _request_with_headers(
+            self, method, path, body, success_codes, error_codes=None,
+            configuration_tag=None):
         """
-        Send a HTTP request to the Flocker API, return decoded JSON body.
+        Send a HTTP request to the Flocker API, return decoded JSON body and
+        headers.
 
         :param bytes method: HTTP method, e.g. PUT.
         :param bytes path: Path to add to base URL.
@@ -514,12 +516,10 @@ class FlockerClient(object):
         :param set success_codes: Expected success response codes.
         :param error_codes: Mapping from HTTP response code to exception to be
             raised if it is present, or ``None`` to set no errors.
-        :param with_headers: Boolean indicating whether headers are required.
         :param configuration_tag: If not ``None``, include value as
             ``X-If-Configuration-Matches`` header.
 
-        :return: ``Deferred`` firing with decoded JSON, or if
-            ``with_headers`` is true then with a tuple of (decoded JSON,
+        :return: ``Deferred`` firing a tuple of (decoded JSON,
             response headers).
         """
         url = self._base_url + path
@@ -537,9 +537,8 @@ class FlockerClient(object):
             if response.code in success_codes:
                 action.addSuccessFields(response_code=response.code)
                 d = json_content(response)
-                if with_headers:
-                    d.addCallback(lambda decoded_body:
-                                  (decoded_body, response.headers))
+                d.addCallback(lambda decoded_body:
+                              (decoded_body, response.headers))
                 return d
             else:
                 d = content(response)
@@ -566,12 +565,23 @@ class FlockerClient(object):
                 ))
         request.addCallback(got_response)
 
-        def got_body(json_body):
-            action.addSuccessFields(response_body=json_body)
-            return json_body
+        def got_body(result):
+            action.addSuccessFields(response_body=result[0])
+            return result
         request.addCallback(got_body)
         request.addActionFinish()
         return request.result
+
+    def _request(self, *args, **kwargs):
+        """
+        Send a HTTP request to the Flocker API, return decoded JSON body.
+
+        Takes the same arguments as ``_request_with_headers``.
+
+        :return: ``Deferred`` firing with decoded JSON.
+        """
+        return self._request_with_headers(*args, **kwargs).addCallback(
+            lambda t: t[0])
 
     def _parse_configuration_dataset(self, dataset_dict):
         """
@@ -619,8 +629,8 @@ class FlockerClient(object):
         return request
 
     def list_datasets_configuration(self):
-        request = self._request(b"GET", b"/configuration/datasets", None, {OK},
-                                with_headers=True)
+        request = self._request_with_headers(
+            b"GET", b"/configuration/datasets", None, {OK})
         request.addCallback(
             lambda (results, headers):
             DatasetsConfiguration(
