@@ -9,7 +9,7 @@ cryptography==0.9.1
 debtcollector==0.5.0
 docker-py==1.5.0
 effect==0.10
-eliot==0.9.0
+eliot==0.10.1
 eliot-tree==15.3.0
 enum34==1.0.4
 hypothesis==1.14.0
@@ -37,7 +37,7 @@ pyasn1-modules==0.0.5
 pycparser==2.14
 pycrypto==2.6.1
 pyOpenSSL==0.15.1
-pyrsistent==0.11.7
+pyrsistent==0.11.9
 python-cinderclient==1.1.1
 python-keystoneclient==1.4.0
 python-keystoneclient-rackspace==0.1.3
