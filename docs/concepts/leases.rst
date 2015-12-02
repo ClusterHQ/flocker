@@ -4,7 +4,6 @@
 Flocker Leases
 ==============
 
-This document describes a feature in Flocker known as “leases”.
 Leases prevent multiple applications from requesting the same dataset on different nodes at the same time.
 
 Requesting Leases
