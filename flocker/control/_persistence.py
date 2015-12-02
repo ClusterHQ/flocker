@@ -8,6 +8,7 @@ from json import dumps, loads, JSONEncoder
 from uuid import UUID
 from calendar import timegm
 from datetime import datetime
+from hashlib import sha256
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
@@ -297,6 +298,7 @@ class ConfigurationPersistenceService(MultiService):
     Persist configuration to disk, and load it back.
 
     :ivar Deployment _deployment: The current desired deployment configuration.
+    :ivar bytes _hash: A SHA256 hash of the configuration.
     """
     logger = Logger()
 
@@ -346,6 +348,12 @@ class ConfigurationPersistenceService(MultiService):
                 )
                 self._config_path.setContent(updated_json)
                 v1_config_path.moveTo(v1_archived_path)
+
+    def configuration_hash(self):
+        """
+        :return bytes: A hash of the configuration.
+        """
+        return self._hash
 
     def load_configuration(self):
         """
@@ -399,7 +407,9 @@ class ConfigurationPersistenceService(MultiService):
         Save and flush new configuration to disk synchronously.
         """
         config = Configuration(version=_CONFIG_VERSION, deployment=deployment)
-        self._config_path.setContent(wire_encode(config))
+        data = wire_encode(config)
+        self._hash = sha256(data).hexdigest()
+        self._config_path.setContent(data)
 
     def save(self, deployment):
         """
