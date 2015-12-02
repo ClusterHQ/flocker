@@ -131,61 +131,14 @@ common_cli:
       fi
     }
 
-    # add a function that we can consume to colorise output
-    # This could be better, for now it is a simple parser based on keywords
-    # which will highlight 'errors, warnings' or other type of messages we
-    # choose to configured.
-    # The list of ASCII codes it uses can be found here.
-    # https://wiki.archlinux.org/index.php/Color_Bash_Prompt
+    # This is a function that we can use to transform log output before it is
+    # sent to the Jenkins console view.  It could be used to color-code certain
+    # results, for example.
     function parse_logs {
-      # ubuntu defaults to mawk, which causes some things to break
-      # it seems to be related to buffering, -W interactive seems to fix it.
-      if is_ubuntu; then
-        alias awk='mawk -W interactive'
-      fi
-
-      # The 'awk' parse_logs function consumes the standard output from a piped
-      # command, and returns PIPESTATUS of that command (return code).
-      #
-      # we configure 4 groups for parsing our logs.
-      # Exceptions at the top, which are always printed black.
-      # Errors, which are printed in Red
-      # Warnings, which are printed in Yellow
-      # Successes or other messages that we print in Green
-      # Everything else that doesn't match is printed in Black.
-      #
-      "\$@" | awk '
-        # exceptions to rules below, these are always printed black
-        /.*reading.sources.*error_pages.404.*/ {print "\\033[0;30m" \$0 "\\033[0;30m";  next }
-        /.*writing.output.*error_pages.404.*/ {print "\\033[0;30m" \$0 "\\033[0;30m";  next }
-        /.*errors.py.*/ {print "\\033[0;30m" \$0 "\\033[0;30m";  next }
-
-        # red lines
-        /.*exception.*/ {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /.*Exception.*/ {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /.*fail.*/      {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /.* ERROR.*/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /.* error.*/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /build finished with problems./     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /return 1/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-        /Could not find valid repo at/     {print "\\033[0;31m" \$0 "\\033[0;30m";  next }
-
-        # yellow lines
-        /.*Warning.*/   {print "\\033[0;33m" \$0 "\\033[0;30m";  next }
-        /.*warning.*/   {print "\\033[0;33m" \$0 "\\033[0;30m";  next }
-        /.*skip.*/      {print "\\033[0;33m" \$0 "\\033[0;30m";  next }
-
-        # green lines
-        /.*succeeded.*/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
-        /.*Succeeded.*/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
-        /PASSED.*/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
-        /.*[OK]/  {print "\\033[0;32m" \$0 "\\033[0;30m";  next }
-
-        # everything else, print in black
-        /.*/            {print "\\033[0;30m" \$0 "\\033[0;30m" ; }
-      '
+      "\$@"
       return \${PIPESTATUS[0]}
     }
+
     # fix the docker permission issue, the base image doesn't have the correct
     # permissions/owners.
     # This is to be tackled as part of:
@@ -349,6 +302,20 @@ common_cli:
     - _trial_temp/test.log
     - coverage.xml
 
+  # acceptance-test-artifacts contains the list of files we want to collect
+  # from our _main_multijob.
+  # These are the remote logs from the acceptance tests.
+  acceptance_tests_artifacts: &acceptance_tests_artifacts
+    - run-acceptance-tests.log
+    - _trial_temp/test.log
+    - remote_logs.log
+
+  # Ubuntu acceptance tests do not collect the logs from the remote nodes
+  # https://clusterhq.atlassian.net/browse/FLOC-2560
+  acceptance_tests_artifacts_ubuntu_special_case: &acceptance_tests_artifacts_ubuntu_special_case
+    - run-acceptance-tests.log
+    - _trial_temp/test.log
+
   run_trial_with_coverage: &run_trial_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
     # type. These type of jobs always require a parameter to be passed on in
@@ -358,7 +325,8 @@ common_cli:
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
     coverage run \${venv}/bin/trial \
-      --reporter=subunit \${MODULE} 2>&1 | parse_logs tee trial.log
+      --debug-stacktraces --reporter=subunit \
+      \${MODULE} 2>&1 | parse_logs tee trial.log
 
   run_trial_with_coverage_as_root: &run_trial_with_coverage_as_root |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -369,7 +337,8 @@ common_cli:
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
     sudo \${venv}/bin/coverage run \${venv}/bin/trial \
-      --reporter=subunit \${MODULE} 2>&1 | parse_logs tee trial.log
+      --debug-stacktraces --reporter=subunit \
+      \${MODULE} 2>&1 | parse_logs tee trial.log
 
   run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -379,7 +348,8 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # Consume the MODULE parameter set in the job configuration
     sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
-      --reporter=subunit --testmodule \${MODULE} 2>&1 | parse_logs tee trial.log
+      --debug-stacktraces --reporter=subunit \
+      --testmodule \${MODULE} 2>&1 | parse_logs tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
@@ -738,7 +708,6 @@ common_cli:
     # flake8 is used by lint tests on Flocker source code
     \${PARSE_LOGS} pip install flake8 \${PIP_ADDITIONAL_OPTIONS}
 
-
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
 #-----------------------------------------------------------------------------#
@@ -760,6 +729,7 @@ common_cli:
 # through trial.
 run_trial_modules: &run_trial_modules
   - admin
+  - benchmark
   - flocker.acceptance
   - flocker.apiclient
   - flocker.ca.functional
@@ -826,7 +796,6 @@ run_acceptance_modules: &run_acceptance_modules
   - flocker.acceptance.integration.test_postgres
   - flocker.acceptance.obsolete.test_cli
   - flocker.acceptance.obsolete.test_containers
-  - flocker.acceptance.test.test_testtools
 
 # flocker.node.functional is hanging, so we don't run it
 job_type:
@@ -838,6 +807,7 @@ job_type:
       with_steps:
         - { type: 'shell', cli: *run_trial_cli }
       archive_artifacts: *flocker_artifacts
+      publish_test_results: true
       coverage_report: true
       clean_repo: true
       timeout: 30
@@ -849,6 +819,7 @@ job_type:
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
+      publish_test_results: true
       coverage_report: true
       clean_repo: true
       timeout: 30
@@ -861,6 +832,7 @@ job_type:
       with_steps:
         - { type: 'shell', cli: *run_trial_cli }
       archive_artifacts: *flocker_artifacts
+      publish_test_results: true
       coverage_report: true
       clean_repo: true
       timeout: 30
@@ -872,6 +844,7 @@ job_type:
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
+      publish_test_results: true
       coverage_report: true
       clean_repo: true
       timeout: 30
@@ -910,6 +883,7 @@ job_type:
                    *convert_results_to_junit ]
           }
       archive_artifacts: *flocker_artifacts
+      publish_test_results: true
       coverage_report: true
       clean_repo: true
       timeout: 45
@@ -929,6 +903,7 @@ job_type:
                    *convert_results_to_junit ]
           }
       archive_artifacts: *flocker_artifacts
+      publish_test_results: true
       coverage_report: true
       clean_repo: true
       timeout: 45
@@ -947,6 +922,7 @@ job_type:
                    *convert_results_to_junit ]
           }
       archive_artifacts: *flocker_artifacts
+      publish_test_results: true
       coverage_report: true
       clean_repo: true
       timeout: 45
@@ -987,6 +963,7 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts
       timeout: 45
     run_acceptance_on_AWS_Ubuntu_Trusty_for:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
@@ -1006,6 +983,7 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
       timeout: 45
     run_acceptance_on_Rackspace_CentOS_7_for:
       # flocker.provision is responsible for creating the test nodes on
@@ -1027,6 +1005,7 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts
       timeout: 45
     run_acceptance_on_Rackspace_Ubuntu_Trusty_for:
       # flocker.provision is responsible for creating the test nodes on
@@ -1048,6 +1027,7 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
       timeout: 45
 
 
@@ -1203,3 +1183,69 @@ job_type:
                    *package_jenkins_osx_yosemite_box ]
           }
       timeout: 120
+
+#-----------------------------------------------------------------------------#
+# View definitions below this point
+#-----------------------------------------------------------------------------#
+
+# Use the section below to define multiple 'views/tabs' that appear at the top
+# of the jenkins build page for every branch.
+# These views allow for filtering of particular jobs according to its type,
+# cloud, operating system, ...
+#
+#
+# The views are built from :
+# * the dictionary 'key', which is the view name.
+# * description, containing a description of the jobs in this view
+# * regex, containing a regular expression that is applied to build the view.
+#
+# the site below can help with regular expressions:
+# http://pythex.org/
+
+views:
+  trial:
+    description: 'All jobs that are executed directly using trial'
+    regex: 'run_(?i)trial_.*.*'
+  acceptance:
+    description: 'All Acceptance jobs'
+    regex: 'run_(?i)acceptance_.*.*'
+  client:
+    description: 'All client installation jobs'
+    regex: 'run_(?i)client_.*.*'
+  code_quality:
+    description: 'All code quality jobs'
+    regex: 'run_(?i)lint.*.*'
+  docs:
+    description: 'Documentation jobs'
+    regex: 'run_(?i)sphinx.*.*'
+  cinder:
+    description: 'cinder jobs'
+    regex: '.*_(?i)cinder_.*.*'
+  ebs:
+    description: 'ebs jobs'
+    regex: '.*_(?i)ebs_.*.*'
+  storage_drivers:
+    description: 'All Storage Driver Jobs'
+    regex: '.*_(?i)storage_(?i)driver_.*.*'
+  on_AWS:
+    description: 'All AWS Jobs'
+    regex: '(.*_(?i)ebs_.*.*|.*_(?i)aws_.*.*)'
+  on_Rackspace:
+    description: 'All Rackspace Jobs'
+    regex: '(.*_(?i)cinder_.*.*|.*_(?i)rackspace_.*.*)'
+  CentOS_7:
+    description: 'All CentOS jobs'
+    regex: '.*_(?i)centos_.*.*'
+  Ubuntu_Trusty_14_04_LTS:
+    description: 'All Ubuntu Trusty LTS (14.04) jobs'
+    regex: '.*_(?i)trusty_.*.*'
+  Ubuntu_Vivid_15_04:
+    description: 'All Ubuntu Vivid (15.04) jobs'
+    regex: '.*_(?i)vivid_.*.*'
+  Ubuntu_Wily_15_10:
+    description: 'All Ubuntu Wily (15.10) jobs'
+    regex: '.*_(?i)wily_.*.*'
+  cron:
+    description: 'All Nightly Cron jobs'
+    regex: '^_[^_](?i)[a-z]*.*'
+
