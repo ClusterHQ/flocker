@@ -10,6 +10,8 @@ The Flocker cluster is comprised of the following sets of services:
 * :ref:`Flocker agents <flocker-agents>` are installed on each node in the cluster, and are used to modify the node to match the desired configuration of your cluster.
 * :ref:`The Flocker plugin for Docker <plugin>` is also installed on each node in your cluster if you want Flocker to manage your data volumes, while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
 
+.. XXX FLOC-3598 add an architecture image here 
+
 .. _control-service:
 
 The Control Service
