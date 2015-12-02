@@ -996,7 +996,7 @@ class UnusableAPI(object):
 def assert_calculated_changes(
         case, node_state, node_config, nonmanifest_datasets, expected_changes,
         additional_node_states=frozenset(), leases=Leases(),
-        discovered_datasets=(),
+        discovered_datasets=None,
 ):
     """
     Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
@@ -1021,8 +1021,9 @@ def assert_calculated_changes(
         deployer, cluster_state,
         volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE,
         compute_instance_id=u"instance-".format(node_state.uuid))
-    local_state = local_state.set(
-        datasets={d.dataset_id: d for d in discovered_datasets})
+    if discovered_datasets is not None:
+        local_state = local_state.set(
+            datasets={d.dataset_id: d for d in discovered_datasets})
 
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config,
