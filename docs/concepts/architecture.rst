@@ -10,27 +10,21 @@ The Flocker cluster is comprised of the following sets of services:
 
 * :ref:`The control service <control-service>` exposes the :ref:`api`, with which you can manage and modify the configuration of your cluster.
 * :ref:`Flocker agents <flocker-agents>` are installed on each node in the cluster, and are used to modify the node to match the desired configuration of your cluster.
-* :ref:`The Flocker plugin for Docker <plugin>`.
-
+* :ref:`The Flocker plugin for Docker <plugin>` is also installed on each node in your cluster if you want Flocker to manage your data volumes while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
 
 .. _control-service:
 
 The Control Service
 ===================
 
-The control service is the integration point between:
+The control service is the brain of Flocker.
+It enables a user, or an automated orchestration framework, to monitor and modify the cluster state.
 
-* the human administrators or automated orchestration framework which determine the cluster configuration, and
-* the Flocker agents that modify the cluster state accordingly.
+The control service accepts instructions either directly via the :ref:`api`, or via the Flocker CLI (which uses the API under the hood).
 
-The service consists of three components:
+When the control service has an instruction, it sends commands to the :ref:`Flocker agents <flocker-agents>`, and recieves updates back.
 
-* An external API allowing changes to the desired configuration, e.g. "create a new dataset on node A".
-  The external API also allows checking the actual state of the cluster.
-* An internal API used to communicate with the Flocker agents.
-* A data storage system stores the configuration of the system.
-
-All three are encapsulated in a single server, for the moment limited to running on a single machine.
+The control service is installed on a single node in your cluster.
 
 .. _flocker-agents:
 
