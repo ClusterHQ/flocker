@@ -31,5 +31,9 @@ from ._retry import (
     loop_until, timeout, poll_until, retry_failure, retry_effect_with_timeout,
 )
 
+# This is currently set to the minimum size for a SATA based Rackspace Cloud
+# Block Storage volume. See:
+# * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
 RACKSPACE_MINIMUM_VOLUME_SIZE = _GiB(75)
+
 DEVICEMAPPER_LOOPBACK_SIZE = _GiB(100)
