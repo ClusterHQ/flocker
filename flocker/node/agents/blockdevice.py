@@ -803,6 +803,15 @@ class CreateBlockDeviceDataset(PRecord):
     """
     dataset = field(mandatory=True, type=Dataset)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset=Dataset(
+                dataset_id=desired_dataset.dataset_id,
+                maximum_size=desired_dataset.maximum_size,
+            ),
+        )
+
     @property
     def eliot_action(self):
         return CREATE_BLOCK_DEVICE_DATASET(
@@ -1576,8 +1585,10 @@ class BlockDeviceDeployer(PRecord):
         # XXX prevent the configuration of unsized datasets on blockdevice
         # backends; cannot create block devices of unspecified size. FLOC-1579
         creates = list(
-            CreateBlockDeviceDataset(
-                dataset=manifestation.dataset,
+            CreateBlockDeviceDataset.from_state_and_config(
+                discovered_dataset=None,
+                desired_dataset=self._calculate_desired_for_manifestation(
+                    manifestation)
             )
             for manifestation
             in manifestations_to_create
