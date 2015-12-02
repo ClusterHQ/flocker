@@ -22,7 +22,7 @@ It enables a user, or an automated orchestration framework, to monitor and modif
 
 The control service accepts instructions either directly via the :ref:`api`, or via the Flocker CLI (which uses the API under the hood).
 
-When the control service has an instruction, it sends commands to the :ref:`Flocker agents <flocker-agents>`, and receives updates back.
+When the control service receives an instruction, it sends commands to the :ref:`Flocker agents <flocker-agents>`, and receives updates back.
 
 The control service is installed on a single node in your cluster.
 
