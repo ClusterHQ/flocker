@@ -4,8 +4,6 @@
 Flocker Cluster Architecture
 ============================
 
-This document describes the Flocker cluster's architecture.
-
 The Flocker cluster is comprised of the following sets of services:
 
 * :ref:`The control service <control-service>` exposes the :ref:`api`, with which you can manage and modify the configuration of your cluster.
@@ -31,7 +29,7 @@ The control service is installed on a single node in your cluster.
 Flocker Agents
 ==============
 
-Flocker agents ensure that the state of the cluster eventually converges with the configuration.
+Flocker agents ensure that the state of the cluster will converge with the configuration.
 They control the actual system state but cannot modify the configuration.
 
 Each agent is solely responsible for some particular piece of state in the cluster, its local state.
