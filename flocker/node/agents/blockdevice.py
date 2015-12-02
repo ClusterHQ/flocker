@@ -630,6 +630,13 @@ class UnmountBlockDevice(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=discovered_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
+
     @property
     def eliot_action(self):
         return UNMOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id)
@@ -1582,7 +1589,7 @@ class BlockDeviceDeployer(PRecord):
         ))
         unmounts = list(self._calculate_unmounts(
             local_node_state.paths, configured_manifestations,
-            local_state.volumes
+            discovered_datasets=local_state.datasets,
         ))
         filesystem_creates = list(self._calculate_filesystem_creates(
             configured_manifestations,
@@ -1681,7 +1688,7 @@ class BlockDeviceDeployer(PRecord):
                         manifestation),
                 )
 
-    def _calculate_unmounts(self, paths, configured, volumes):
+    def _calculate_unmounts(self, paths, configured, discovered_datasets):
         """
         :param PMap paths: The paths at which datasets' filesystems are mounted
             on this node.  This is the same as ``NodeState.paths``.
@@ -1697,10 +1704,10 @@ class BlockDeviceDeployer(PRecord):
         for mounted_dataset_id in paths:
             if mounted_dataset_id not in configured:
                 dataset_id = UUID(mounted_dataset_id)
-                volume = _blockdevice_volume_from_datasetid(volumes,
-                                                            dataset_id)
-                yield UnmountBlockDevice(dataset_id=dataset_id,
-                                         blockdevice_id=volume.blockdevice_id)
+                yield UnmountBlockDevice.from_state_and_config(
+                    discovered_dataset=discovered_datasets[dataset_id],
+                    desired_dataset=DesiredDataset(dataset_id=dataset_id),
+                )
 
     def _calculate_detaches(self, devices, paths, configured,
                             discovered_datasets):
