@@ -14,6 +14,11 @@ You can learn more about where we might be going with future releases by:
 * Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they
   don't need to be skipped anymore.
 
+Next release
+============
+
+* The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
+
 v1.8.0
 ======
 
