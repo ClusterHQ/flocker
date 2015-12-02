@@ -5,18 +5,17 @@ Flocker Cluster Architecture
 ============================
 
 This document describes the Flocker cluster's architecture.
-More accurately, it describes the architecture Flocker is moving towards, a transition that is still in progress.
 
 The Flocker cluster is composed of two sets of services:
 
 1. **The control service** that you can interact with using a :ref:`HTTP API<api>` to modify the desired configuration of the cluster.
-2. **Convergence agents** in charge of modifying the cluster state to match the desired configuration.
+2. :ref:`**Flocker agents** <flocker-agents>` in charge of modifying the cluster state to match the desired configuration.
    For example, if you're using Flocker's ZFS storage backend you will have ZFS-specific agents running on each node in the cluster.
 
 .. _control-service:
 
-Control service
-===============
+The control service
+===================
 
 The control service is the integration point between:
 
@@ -32,11 +31,12 @@ The service consists of three components:
 
 All three are encapsulated in a single server, for the moment limited to running on a single machine.
 
+.. _flocker-agents:
 
-Convergence agents
-==================
+Flocker agents
+==============
 
-Convergence agents ensure that the state of the cluster eventually converges with the configuration.
+Flocker agents ensure that the state of the cluster eventually converges with the configuration.
 They control the actual system state but cannot modify the configuration.
 
 Each agent is solely responsible for some particular piece of state in the cluster, its local state.
