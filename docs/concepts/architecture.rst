@@ -65,3 +65,5 @@ Flocker Plugin for Docker
 .. include:: ../introduction/flocker-plugin.rst
    :start-after: .. begin-body
    :end-before: .. end-body
+
+The plugin is installed on each node in your cluster, and depends on Docker 1.8 or later.
