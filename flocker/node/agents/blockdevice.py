@@ -467,6 +467,13 @@ class CreateFilesystem(PRecord):
     device = field(type=FilePath, mandatory=True)
     filesystem = field(type=unicode, mandatory=True)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            device=discovered_dataset.device_path,
+            filesystem=desired_dataset.filesystem,
+        )
+
     @property
     def eliot_action(self):
         return CREATE_FILESYSTEM(
@@ -1662,15 +1669,16 @@ class BlockDeviceDeployer(PRecord):
             filesystem, and is configured to have a manifestation on
             this node.
         """
-        for configured_dataset_id in configured:
+        for configured_dataset_id, manifestation in configured.items():
             dataset_id = UUID(configured_dataset_id)
             if dataset_id not in discovered_datasets:
                 continue
             discovered = discovered_datasets[dataset_id]
             if discovered.state == DatasetStates.ATTACHED_NO_FILESYSTEM:
-                yield CreateFilesystem(
-                    device=discovered.device_path,
-                    filesystem=u"ext4",
+                yield CreateFilesystem.from_state_and_config(
+                    discovered_dataset=discovered,
+                    desired_dataset=self._calculate_desired_for_manifestation(
+                        manifestation),
                 )
 
     def _calculate_unmounts(self, paths, configured, volumes):
