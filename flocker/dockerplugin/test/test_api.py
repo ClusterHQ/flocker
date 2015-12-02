@@ -153,7 +153,7 @@ class APITestsMixin(APIAssertionsMixin):
         d.addCallback(lambda _: self.create(name))
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
-        d.addCallback(lambda results: self.assertEqual(len(results), 1))
+        d.addCallback(lambda results: self.assertEqual(len(list(results)), 1))
         return d
 
     def test_create_duplicate_name_race_condition(self):

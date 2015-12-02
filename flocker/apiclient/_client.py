@@ -22,8 +22,11 @@ from eliot.twisted import DeferredContext
 
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
-from twisted.web.http import CREATED, OK, CONFLICT, NOT_FOUND
+from twisted.web.http import (
+    CREATED, OK, CONFLICT, NOT_FOUND, PRECONDITION_FAILED,
+)
 from twisted.internet.utils import getProcessOutput
+from twisted.internet.task import deferLater
 
 from treq import json_content, content
 
@@ -140,12 +143,42 @@ class ContainerAlreadyExists(Exception):
     """
 
 
+class ConfigurationChanged(Exception):
+    """
+    An action that required a specific version of the configuration failed
+    because the configuration has changed on the server.
+    """
+
+
+class DatasetsConfiguration(PClass):
+    """
+    Currently configured datasets.
+
+    :ivar tag: The current version of the configuration, suitable for
+        passing as conditional to operations like creation.
+    :ivar datasets: The current ``Dataset`` on the server; maps ``UUID``
+        to ``Dataset``.
+    """
+    tag = field(mandatory=True)
+    datasets = pmap_field(UUID, Dataset)
+
+    def __iter__(self):
+        """
+        :return: Iterator over ``Dataset`` instances.
+        """
+        return self.datasets.itervalues()
+
+
 class IFlockerAPIV1Client(Interface):
     """
     The Flocker REST API v1 client.
+
+    Operations that take a ``configuration_tag`` parameter will fail with
+    a ``ConfigurationChanged`` if the configuration has changed since the
+    matching ``list_datasets_configuration`` call.
     """
     def create_dataset(primary, maximum_size=None, dataset_id=None,
-                       metadata=pmap()):
+                       metadata=pmap(), configuration_tag=None):
         """
         Create a new dataset in the configuration.
 
@@ -155,28 +188,34 @@ class IFlockerAPIV1Client(Interface):
         :param dataset_id: If given, the UUID to use for the dataset.
         :param metadata: A mapping between unicode keys and values, to be
             stored as dataset metadata.
+        :param configuration_tag: If not ``None``, should be
+            ``DatasetsConfiguration.tag``.
 
         :return: ``Deferred`` that fires after the configuration has been
             updated with resulting ``Dataset``, or errbacking with
             ``DatasetAlreadyExists``.
         """
 
-    def move_dataset(primary, dataset_id):
+    def move_dataset(primary, dataset_id, configuration_tag=None):
         """
         Move the dataset to a new location.
 
         :param UUID primary: The node where the dataset should manifest.
         :param dataset_id: Which dataset to move.
+        :param configuration_tag: If not ``None``, should be
+            ``DatasetsConfiguration.tag``.
 
         :return: ``Deferred`` that fires after the configuration has been
             updated with the resulting ``Dataset``.
         """
 
-    def delete_dataset(dataset_id):
+    def delete_dataset(dataset_id, configuration_tag=None):
         """
         Delete a dataset.
 
         :param dataset_id: The UUID of the dataset to be deleted.
+        :param configuration_tag: If not ``None``, should be
+            ``DatasetsConfiguration.tag``.
 
         :return: ``Deferred`` that fires with the ``Dataset`` that has just
         been deleted, after the configuration has been updated.
@@ -187,7 +226,7 @@ class IFlockerAPIV1Client(Interface):
         Return the configured datasets, excluding any datasets that
         have been deleted.
 
-        :return: ``Deferred`` firing with iterable of ``Dataset``.
+        :return: ``Deferred`` firing with a ``DatasetsConfiguration``.
         """
 
     def list_datasets_state():
@@ -297,8 +336,22 @@ class FakeFlockerClient(object):
         self._this_node_uuid = this_node_uuid
         self.synchronize_state()
 
+    def _ensure_matching_tag(self, configuration_tag):
+        """
+        If the configuration tag doesn't match current config, raise
+        ``ConfigurationChanged``.
+        """
+        if configuration_tag is not None:
+            if configuration_tag != self._configured_datasets:
+                raise ConfigurationChanged()
+
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
-                       metadata=pmap()):
+                       metadata=pmap(), configuration_tag=None):
+        try:
+            self._ensure_matching_tag(configuration_tag)
+        except:
+            return fail()
+
         # In real implementation the server will generate the new ID, but
         # we have to do it ourselves:
         if dataset_id is None:
@@ -311,19 +364,33 @@ class FakeFlockerClient(object):
             dataset_id, result)
         return succeed(result)
 
-    def delete_dataset(self, dataset_id):
+    def delete_dataset(self, dataset_id, configuration_tag=None):
+        try:
+            self._ensure_matching_tag(configuration_tag)
+        except:
+            return fail()
+
         dataset = self._configured_datasets[dataset_id]
         self._configured_datasets = self._configured_datasets.remove(
             dataset_id)
         return succeed(dataset)
 
-    def move_dataset(self, primary, dataset_id):
+    def move_dataset(self, primary, dataset_id, configuration_tag=None):
+        try:
+            self._ensure_matching_tag(configuration_tag)
+        except:
+            return fail()
+
         self._configured_datasets = self._configured_datasets.transform(
             [dataset_id, "primary"], primary)
         return succeed(self._configured_datasets[dataset_id])
 
     def list_datasets_configuration(self):
-        return succeed(self._configured_datasets.values())
+        return succeed(DatasetsConfiguration(
+            # Since the tag is opaque object, using the actual configuration
+            # is a fine way to have a matching tag.
+            tag=self._configured_datasets,
+            datasets=self._configured_datasets))
 
     def list_datasets_state(self):
         return succeed(self._state_datasets)
@@ -435,9 +502,12 @@ class FlockerClient(object):
                                               cert_path, key_path)
         self._base_url = b"https://%s:%d/v1" % (host, port)
 
-    def _request(self, method, path, body, success_codes, error_codes=None):
+    def _request_with_headers(
+            self, method, path, body, success_codes, error_codes=None,
+            configuration_tag=None):
         """
-        Send a HTTP request to the Flocker API, return decoded JSON body.
+        Send a HTTP request to the Flocker API, return decoded JSON body and
+        headers.
 
         :param bytes method: HTTP method, e.g. PUT.
         :param bytes path: Path to add to base URL.
@@ -446,8 +516,11 @@ class FlockerClient(object):
         :param set success_codes: Expected success response codes.
         :param error_codes: Mapping from HTTP response code to exception to be
             raised if it is present, or ``None`` to set no errors.
+        :param configuration_tag: If not ``None``, include value as
+            ``X-If-Configuration-Matches`` header.
 
-        :return: ``Deferred`` firing with decoded JSON.
+        :return: ``Deferred`` firing a tuple of (decoded JSON,
+            response headers).
         """
         url = self._base_url + path
         action = _LOG_HTTP_REQUEST(url=url, method=method, request_body=body)
@@ -460,13 +533,16 @@ class FlockerClient(object):
                 raise error_codes[code](body)
             raise ResponseError(code, body)
 
-        def got_result(result):
-            if result.code in success_codes:
-                action.addSuccessFields(response_code=result.code)
-                return json_content(result)
+        def got_response(response):
+            if response.code in success_codes:
+                action.addSuccessFields(response_code=response.code)
+                d = json_content(response)
+                d.addCallback(lambda decoded_body:
+                              (decoded_body, response.headers))
+                return d
             else:
-                d = content(result)
-                d.addCallback(error, result.code)
+                d = content(response)
+                d.addCallback(error, response.code)
                 return d
 
         # Serialize the current task ID so we can trace logging across
@@ -476,6 +552,9 @@ class FlockerClient(object):
         if body is not None:
             headers["content-type"] = b"application/json"
             data = dumps(body)
+        if configuration_tag is not None:
+            headers["X-If-Configuration-Matches"] = [
+                configuration_tag.encode("utf-8")]
 
         with action.context():
             request = DeferredContext(self._treq.request(
@@ -484,14 +563,25 @@ class FlockerClient(object):
                 # Keep tests from having dirty reactor problems:
                 persistent=False
                 ))
-        request.addCallback(got_result)
+        request.addCallback(got_response)
 
-        def got_body(json_body):
-            action.addSuccessFields(response_body=json_body)
-            return json_body
+        def got_body(result):
+            action.addSuccessFields(response_body=result[0])
+            return result
         request.addCallback(got_body)
         request.addActionFinish()
         return request.result
+
+    def _request(self, *args, **kwargs):
+        """
+        Send a HTTP request to the Flocker API, return decoded JSON body.
+
+        Takes the same arguments as ``_request_with_headers``.
+
+        :return: ``Deferred`` firing with decoded JSON.
+        """
+        return self._request_with_headers(*args, **kwargs).addCallback(
+            lambda t: t[0])
 
     def _parse_configuration_dataset(self, dataset_dict):
         """
@@ -505,15 +595,16 @@ class FlockerClient(object):
                        dataset_id=UUID(dataset_dict[u"dataset_id"]),
                        metadata=dataset_dict[u"metadata"])
 
-    def delete_dataset(self, dataset_id):
+    def delete_dataset(self, dataset_id, configuration_tag=None):
         request = self._request(
             b"DELETE", b"/configuration/datasets/%s" % (dataset_id,),
-            None, {OK})
+            None, {OK}, {PRECONDITION_FAILED: ConfigurationChanged},
+            configuration_tag=configuration_tag)
         request.addCallback(self._parse_configuration_dataset)
         return request
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
-                       metadata=pmap()):
+                       metadata=pmap(), configuration_tag=None):
         dataset = {u"primary": unicode(primary),
                    u"metadata": dict(metadata)}
         if dataset_id is not None:
@@ -522,25 +613,32 @@ class FlockerClient(object):
             dataset[u"maximum_size"] = maximum_size
         request = self._request(b"POST", b"/configuration/datasets",
                                 dataset, {CREATED},
-                                {CONFLICT: DatasetAlreadyExists})
+                                {CONFLICT: DatasetAlreadyExists,
+                                 PRECONDITION_FAILED: ConfigurationChanged},
+                                configuration_tag=configuration_tag)
         request.addCallback(self._parse_configuration_dataset)
         return request
 
-    def move_dataset(self, primary, dataset_id):
+    def move_dataset(self, primary, dataset_id, configuration_tag=None):
         request = self._request(
             b"POST", b"/configuration/datasets/%s" % (dataset_id,),
-            {u"primary": unicode(primary)}, {OK})
+            {u"primary": unicode(primary)}, {OK},
+            {PRECONDITION_FAILED: ConfigurationChanged},
+            configuration_tag=configuration_tag)
         request.addCallback(self._parse_configuration_dataset)
         return request
 
     def list_datasets_configuration(self):
-        request = self._request(b"GET", b"/configuration/datasets", None, {OK})
+        request = self._request_with_headers(
+            b"GET", b"/configuration/datasets", None, {OK})
         request.addCallback(
-            lambda results:
-            [
-                self._parse_configuration_dataset(d)
-                for d in results if not d['deleted']
-            ]
+            lambda (results, headers):
+            DatasetsConfiguration(
+                tag=headers.getRawHeaders('X-Configuration-Tag')[0],
+                datasets={
+                    UUID(d['dataset_id']): self._parse_configuration_dataset(d)
+                    for d in results if not d['deleted']
+                })
         )
         return request
 
@@ -686,3 +784,40 @@ class FlockerClient(object):
         request = getting_era.addCallback(got_era)
         request.addCallback(lambda result: UUID(result["uuid"]))
         return request
+
+
+def conditional_create(client, reactor, condition, *args, **kwargs):
+    """
+    Create a dataset only if a certain condition is true for the
+    configuration.
+
+    This is useful for ensuring e.g. uniqueness of metadata across
+    datasets. Conditional creation will be used to ensure that if the
+    configuration changes the create won't happen; in this case the whole
+    check-and-create will be retried, up to 20 times.
+
+    All parameters are the same as
+    ``IFlockerAPIV1Client.create_dataset_configuration`` except the
+    following:
+
+    :param client: ``IFlockerAPIV1Client`` provider.
+    :param reactor: ``IReactorTime`` provider.
+    :param condition: Callable which will be called with the current
+        ``DatasetsConfiguration`` retrieved from the server. If this
+        raises an exception then the create will be aborted.
+
+    :return: ``Deferred`` firing with resulting ``Dataset`` if creation
+        succeeded, or the relevant exception if creation failed.
+    """
+    def create():
+        d = client.list_datasets_configuration()
+
+        def got_config(config):
+            condition(config)
+            return deferLater(reactor, 0.001, client.create_dataset,
+                              *args, configuration_tag=config.tag,
+                              **kwargs)
+        d.addCallback(got_config)
+        return d
+    return retry_failure(reactor, create, [ConfigurationChanged],
+                         [0.001] * 19)
