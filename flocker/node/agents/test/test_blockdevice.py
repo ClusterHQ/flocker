@@ -3432,7 +3432,9 @@ def umount_all(root_path):
     partitions = list(p for p in psutil.disk_partitions()
                       if is_under_root(p.mountpoint))
     retry = 0
+    last_error = None
     while retry < CLEANUP_RETRY_LIMIT and len(partitions) > 0:
+        retry += 1
         for partition in partitions:
             try:
                 # Attempt to unmount, it might fail because sometimes you have
@@ -3442,11 +3444,13 @@ def umount_all(root_path):
                 # trying to unmount all of them in order CLEANUP_RETRY_LIMIT
                 # number of times.
                 umount(FilePath(partition.device))
-            except:
-                pass
+            except Exception as e:
+                last_error = e
+                write_traceback(_logger)
         partitions = list(p for p in psutil.disk_partitions()
                           if is_under_root(p.mountpoint))
-        retry += 1
+    if last_error:
+        raise last_error
 
 
 def mountroot_for_test(test_case):

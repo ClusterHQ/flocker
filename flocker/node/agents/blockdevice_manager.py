@@ -2,7 +2,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
-This module implements interactions between the OS pertaining to block devices.
+Interactions between the OS pertaining to block devices.
 This controls actions such as formatting and mounting a blockdevice.
 """
 
@@ -20,7 +20,14 @@ from characteristic import attributes
 
 @attributes(["blockdevice", "mountpoint", "source_message"])
 class MountError(Exception):
-    """Exception class for errors in attempts to mount."""
+    """Raised from errors while mounting a blockdevice.
+
+    :ivar FilePath blockdevice: The path to the blockdevice that was
+        being mounted when the error occurred.
+    :ivar FilePath mountpoint: The path that the blockdevice was going to be
+        mounted at when the error occurred.
+    :ivar unicode source_message: The error message describing the error.
+    """
 
     def __str__(self):
         return self.__repr__()
@@ -28,7 +35,12 @@ class MountError(Exception):
 
 @attributes(["blockdevice", "source_message"])
 class MakeFilesystemError(Exception):
-    """Exception class for errors in attempts to make a filesystem."""
+    """Raised from errors while making a filesystem on a blockdevice.
+
+    :ivar FilePath blockdevice: The path to the blockdevice that was
+        being formatted when the error occurred.
+    :ivar unicode source_message: The error message describing the error.
+    """
 
     def __str__(self):
         return self.__repr__()
@@ -36,7 +48,12 @@ class MakeFilesystemError(Exception):
 
 @attributes(["blockdevice", "source_message"])
 class UnmountError(Exception):
-    """Exception class for errors in attempts to unmount."""
+    """Raised from errors while unmounting a blockdevice.
+
+    :ivar FilePath blockdevice: The path to the blockdevice that was
+        being unmounted when the error occurred.
+    :ivar unicode source_message: The error message describing the error.
+    """
 
     def __str__(self):
         return self.__repr__()
