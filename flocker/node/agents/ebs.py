@@ -257,7 +257,7 @@ class TimeoutException(Exception):
     """
     def __init__(self, blockdevice_id, operation,
                  start_state, transient_state, end_state, current_state):
-        Exception.__init__(self, blockdevice_id)
+        Exception.__init__(self, blockdevice_id, operation, current_state)
         self.blockdevice_id = blockdevice_id
         self.operation = operation
         self.start_state = start_state
@@ -279,7 +279,7 @@ class UnexpectedStateException(Exception):
     """
     def __init__(self, blockdevice_id, operation,
                  start_state, transient_state, end_state, current_state):
-        Exception.__init__(self, blockdevice_id)
+        Exception.__init__(self, blockdevice_id, operation, current_state)
         self.blockdevice_id = blockdevice_id
         self.operation = operation
         self.start_state = start_state
