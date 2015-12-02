@@ -26,22 +26,30 @@ from .test_blockdevice import (
 
 
 class BlockDeviceManagerTests(TestCase):
-    """Tests for flocker.node.agents.blockdevice_manager.BlockDeviceManager."""
+    """
+    Tests for flocker.node.agents.blockdevice_manager.BlockDeviceManager.
+    """
 
     def setUp(self):
-        """Establishes testing infrastructure for test cases."""
+        """
+        Establish testing infrastructure for test cases.
+        """
         self.loopback_api = loopbackblockdeviceapi_for_test(self)
         self.manager_under_test = BlockDeviceManager()
         self.mountroot = mountroot_for_test(self)
 
     def _get_directory_for_mount(self):
-        """Constructs a temporary directory to be used as a mountpoint."""
+        """
+        Construct a temporary directory to be used as a mountpoint.
+        """
         directory = self.mountroot.child(str(uuid4()))
         directory.makedirs()
         return directory
 
     def _get_free_blockdevice(self):
-        """Constructs a new blockdevice for testing purposes."""
+        """
+        Construct a new blockdevice for testing purposes.
+        """
         volume = self.loopback_api.create_volume(
             dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
         self.loopback_api.attach_volume(
@@ -49,12 +57,16 @@ class BlockDeviceManagerTests(TestCase):
         return self.loopback_api.get_device_path(volume.blockdevice_id)
 
     def test_implements_interface(self):
-        """``BlockDeviceManager`` implementes ``IBlockDeviceManager``."""
+        """
+        ``BlockDeviceManager`` implements ``IBlockDeviceManager``.
+        """
         self.assertTrue(verifyObject(IBlockDeviceManager,
                                      self.manager_under_test))
 
     def test_get_mounts_shows_only_mounted(self):
-        """Only mounted blockdevices should appear in get_mounts."""
+        """
+        Only mounted blockdevices appear in get_mounts.
+        """
         blockdevice = self._get_free_blockdevice()
         mountpoint = self._get_directory_for_mount()
         self.manager_under_test.make_filesystem(blockdevice, 'ext4')
@@ -65,7 +77,8 @@ class BlockDeviceManagerTests(TestCase):
         self.assertNotIn(mount_info, self.manager_under_test.get_mounts())
 
     def test_mount_multiple_times(self):
-        """Mounting a device to n different locations requires n unmounts.
+        """
+        Mounting a device to n different locations requires n unmounts.
 
         Also verify they are unmounted in FIFO order.
         """
@@ -89,7 +102,8 @@ class BlockDeviceManagerTests(TestCase):
                              for m in self.manager_under_test.get_mounts()))
 
     def test_mount_multiple_blockdevices(self):
-        """Mounting multiple devices to the same mountpoint.
+        """
+        Mounting multiple devices to the same mountpoint.
 
         Note that the blockdevices must be unmounted in reverse order,
         otherwise the unmount operations will fail.
@@ -119,20 +133,26 @@ class BlockDeviceManagerTests(TestCase):
                        if m.mountpoint == mountpoint))
 
     def test_unmount_unmounted(self):
-        """Errors in unmounting raise an ``UnmountError``"""
+        """
+        Errors in unmounting raise an ``UnmountError``.
+        """
         blockdevice = self._get_free_blockdevice()
         with self.assertRaisesRegexp(UnmountError, blockdevice.path):
             self.manager_under_test.unmount(blockdevice)
 
     def test_mount_unformatted(self):
-        """Errors in mounting raise a ``MountError``."""
+        """
+        Errors in mounting raise a ``MountError``.
+        """
         blockdevice = self._get_free_blockdevice()
         mountpoint = self._get_directory_for_mount()
         with self.assertRaisesRegexp(MountError, blockdevice.path):
             self.manager_under_test.mount(blockdevice, mountpoint)
 
     def test_formatted_bad_type(self):
-        """Errors in formatting raise a ``MakeFilesystemError``."""
+        """
+        Errors in formatting raise a ``MakeFilesystemError``.
+        """
         blockdevice = self._get_free_blockdevice()
         with self.assertRaisesRegexp(MakeFilesystemError, blockdevice.path):
             self.manager_under_test.make_filesystem(blockdevice, 'myfakeyfs')
