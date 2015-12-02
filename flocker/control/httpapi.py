@@ -5,6 +5,8 @@ A HTTP REST API for controlling the Dataset Manager.
 
 from uuid import uuid4, UUID
 from datetime import datetime
+from functools import wraps
+from json import dumps
 
 from pytz import UTC
 
@@ -17,7 +19,7 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
 from twisted.web.http import (
     CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
-    BAD_REQUEST
+    BAD_REQUEST, PRECONDITION_FAILED,
 )
 from twisted.web.server import Site
 from twisted.web.resource import Resource
@@ -90,7 +92,46 @@ LEASE_HELD = make_bad_request(
     code=CONFLICT, description=u"Lease already held.")
 NODE_BY_ERA_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"No node found with given era.")
+
 _UNDEFINED_MAXIMUM_SIZE = object()
+
+IF_MATCHES_HEADER = b"X-If-Configuration-Matches"
+
+
+def get_configuration_tag(api):
+    """
+    Return tag value for the configuration.
+
+    :param ConfigurationAPIUserV1 api: API instance.
+    :return: Tag as ``bytes``.
+    """
+    return api.persistence_service.configuration_hash()
+
+
+def _if_configuration_matches(original):
+    """
+    Decorator that compares ``X-If-Configuration-Matches`` header to result of
+    ``get_configuration_tag``.
+
+    :param original: Original function.
+    :return: Wrapped function.
+    """
+    @wraps(original)
+    def render_if_matches(self, request, **route_arguments):
+        if request.requestHeaders.hasHeader(IF_MATCHES_HEADER):
+            tag = get_configuration_tag(self)
+            if_matches = request.requestHeaders.getRawHeaders(
+                IF_MATCHES_HEADER)
+            if tag not in if_matches:
+                request.setResponseCode(PRECONDITION_FAILED)
+                request.responseHeaders.setRawHeaders(
+                    b"content-type", [b"application/json"])
+                return dumps({"description":
+                              "Tag doesn't match. Required: %s, current: %s"
+                              % (if_matches[0], tag)})
+        return original(self, request, **route_arguments)
+
+    return render_if_matches
 
 
 class ConfigurationAPIUserV1(object):
@@ -142,6 +183,9 @@ class ConfigurationAPIUserV1(object):
     @user_documentation(
         u"""
         Get the cluster's dataset configuration.
+
+        Includes a ``X-Configuration-Tag`` header in the response for use
+        with operations that support ``X-If-Configuration-Matches``.
         """,
         header=u"Get the cluster's dataset configuration",
         examples=[u"get configured datasets"],
@@ -162,12 +206,18 @@ class ConfigurationAPIUserV1(object):
         :return: A ``list`` of ``dict`` representing each of dataset
             that is configured to exist anywhere on the cluster.
         """
-        return list(datasets_from_deployment(self.persistence_service.get()))
+        tag = get_configuration_tag(self)
+        return EndpointResponse(
+            OK, list(datasets_from_deployment(self.persistence_service.get())),
+            headers={b"X-Configuration-Tag": tag})
 
     @app.route("/configuration/datasets", methods=['POST'])
     @user_documentation(
         u"""
         Create a new dataset.
+
+        Supports ``X-If-Configuration-Matches`` header in the request to
+        ensure creation only happens if the configuration hasn't changed.
         """,
         header=u"Create new dataset",
         examples=[
@@ -179,6 +229,7 @@ class ConfigurationAPIUserV1(object):
         ],
         section=u"dataset",
     )
+    @_if_configuration_matches
     @structured(
         inputSchema={
             '$ref':
@@ -187,7 +238,7 @@ class ConfigurationAPIUserV1(object):
         outputSchema={
             '$ref':
             '/v1/endpoints.json#/definitions/configuration_datasets'},
-        schema_store=SCHEMAS
+        schema_store=SCHEMAS,
     )
     def create_dataset_configuration(self, primary, dataset_id=None,
                                      maximum_size=None, metadata=None):
@@ -264,6 +315,9 @@ class ConfigurationAPIUserV1(object):
         u"""
         Deletion is idempotent: deleting a dataset multiple times will
         result in the same response.
+
+        Supports ``X-If-Configuration-Matches`` header in the request to
+        ensure deletion only happens if the configuration hasn't changed.
         """,
         header=u"Delete an existing dataset",
         examples=[
@@ -272,12 +326,13 @@ class ConfigurationAPIUserV1(object):
         ],
         section=u"dataset",
     )
+    @_if_configuration_matches
     @structured(
         inputSchema={},
         outputSchema={
             '$ref':
             '/v1/endpoints.json#/definitions/configuration_datasets'},
-        schema_store=SCHEMAS
+        schema_store=SCHEMAS,
     )
     def delete_dataset(self, dataset_id):
         """
@@ -319,8 +374,12 @@ class ConfigurationAPIUserV1(object):
 
         * Move a dataset from one node to another by changing the
           ``primary`` attribute.
-        * In the future update metadata.
+        * In the future this may be used to update metadata, but that is not
+          currently supported.
 
+        Supports ``X-If-Configuration-Matches`` header in the request to
+        ensure the update only happens if the configuration hasn't
+        changed.
         """,
         header=u"Update an existing dataset",
         examples=[
@@ -329,6 +388,7 @@ class ConfigurationAPIUserV1(object):
         ],
         section=u"dataset",
     )
+    @_if_configuration_matches
     @structured(
         inputSchema={
             '$ref':
@@ -336,7 +396,7 @@ class ConfigurationAPIUserV1(object):
         outputSchema={
             '$ref':
             '/v1/endpoints.json#/definitions/configuration_datasets'},
-        schema_store=SCHEMAS
+        schema_store=SCHEMAS,
     )
     def update_dataset(self, dataset_id, primary=None):
         """
