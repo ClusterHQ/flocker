@@ -1018,19 +1018,32 @@ def assert_calculated_changes(
                                           nonmanifest_datasets)
 
     compute_instance_id = u"instance-".format(node_state.uuid)
-    local_state = local_state_from_shared_state(
+    volumes = _infer_volumes_for_test(
         node_state=node_state,
         nonmanifest_datasets=cluster_state.nonmanifest_datasets,
-        volumes=_infer_volumes_for_test(
+        additional_node_states=additional_node_states,
+        compute_instance_id=compute_instance_id,
+    )
+    if discovered_datasets is None:
+        local_state = local_state_from_shared_state(
             node_state=node_state,
             nonmanifest_datasets=cluster_state.nonmanifest_datasets,
-            additional_node_states=additional_node_states,
-            compute_instance_id=compute_instance_id,
-        ),
-    )
-    if discovered_datasets is not None:
-        local_state = local_state.set(
-            datasets={d.dataset_id: d for d in discovered_datasets})
+            volumes=volumes,
+        )
+    else:
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=node_state.uuid,
+            hostname=node_state.hostname,
+            datasets={dataset.dataset_id: dataset
+                      for dataset in discovered_datasets},
+            volumes=volumes,
+        )
+        case.assertEqual(
+            local_state.shared_state_changes(),
+            (node_state.set("applications", None), NonManifestDatasets(
+                datasets=cluster_state.nonmanifest_datasets)),
+            "Inconsistent test data."
+        )
 
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config,
