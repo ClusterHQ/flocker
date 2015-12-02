@@ -29,33 +29,35 @@ The control service is installed on a single node in your cluster.
 Flocker Agents
 ==============
 
-Flocker agents ensure that the state of the cluster will converge with the configuration.
-They control the actual system state but cannot modify the configuration.
+Flocker agents ensure that the state of the cluster matches the configuration.
+They control the actual system state, but cannot modify the configuration.
 
-Each agent is solely responsible for some particular piece of state in the cluster, its local state.
-Some Flocker agents may be in charge of state related to a specific node, e.g. a ZFS agent may be in charge of ZFS datasets on node A.
-Others may be in charge of some cluster-wide state.
-Multiple agents may run on a specific node depending on the cluster setup.
+Flocker agents can:
 
-Each Flocker agent runs a loop to converge the local state it manages with the desired cluster configuration managed by the control service.
-The agent:
+* be responsible for a particular piece of state in the cluster, known as the local state.
+* be in charge of state related to a specific node.
+* be in charge of cluster-wide state.
 
-#. Checks the local state it is in charge of (e.g. by listing local ZFS filesystems).
+Multiple agents can also run on a specific node depending on the cluster setup.
+
+Each Flocker agent runs the following loop to converge the local state it manages with the desired cluster configuration, as managed by the control service:
+
+#. Checks the local state that it is in charge of.
 #. Notifies the control service of the local state.
 #. Calculates the actions necessary to make local state match desired configuration.
 #. Executes these actions.
 #. Starts the loop again.
 
-For example, imagine the control service notifies the agent on node A that node A should have dataset D, and that as far as it knows no dataset D exists in the cluster.
+For example, the following will occur if the control service notifies the agent on node A that it should have dataset D, and that dataset D does not currently exist in the cluster:
 
 #. The agent discovers there are no datasets on the node.
-#. The agent tells the control service that there exist no datasets on the node.
-   The agent always reports its latest local state to the control service to ensure it is up-to-date, even if it may change in near future.
+#. The agent tells the control service that no datasets on the node exist.
+   The agent will always report its latest local state to the control service to ensure it is up-to-date, even if it may change in near future.
 #. The agent decides it needs to create dataset D, and does so.
-#. The loop begins again - the agent discovers that dataset D exists on the node.
+#. The loop begins again - the agent discovers that dataset D now does exist on the node.
 #. The agent tells the control service that dataset D exists on the node.
-#. The agent sees that the node state matches the desired configuration, and realizes it doesn't need to do anything.
-#. Etc.
+#. The agent sees that the node state matches the desired configuration, and knows that no action is required.
+#. Starts the loop again.
 
 .. _plugin:
 
