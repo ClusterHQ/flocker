@@ -4,7 +4,7 @@ from jsonschema.exceptions import ValidationError
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from benchmark.script import validate_configuration, get_config
+from benchmark.script import validate_configuration, get_config_by_name
 
 
 class ValidationTests(SynchronousTestCase):
@@ -178,19 +178,19 @@ class SubConfigurationTests(SynchronousTestCase):
         """
         Extracts default scenario.
         """
-        config = get_config(self.config['scenarios'], 'default')
+        config = get_config_by_name(self.config['scenarios'], 'default')
         self.assertEqual(config['name'], 'default')
 
     def test_default_operation(self):
         """
         Extracts default operation.
         """
-        config = get_config(self.config['operations'], 'default')
+        config = get_config_by_name(self.config['operations'], 'default')
         self.assertEqual(config['name'], 'default')
 
     def test_default_metric(self):
         """
         Extracts default metric.
         """
-        config = get_config(self.config['metrics'], 'default')
+        config = get_config_by_name(self.config['metrics'], 'default')
         self.assertEqual(config['name'], 'default')
