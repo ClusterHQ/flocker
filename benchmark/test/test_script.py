@@ -4,7 +4,7 @@ from jsonschema.exceptions import ValidationError
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from benchmark.script import validate_configuration
+from benchmark.script import validate_configuration, get_config
 
 
 class ValidationTests(SynchronousTestCase):
@@ -145,3 +145,52 @@ class ValidationTests(SynchronousTestCase):
         self.config['metrics'] = {}
         with self.assertRaises(ValidationError):
             validate_configuration(self.config)
+
+
+class SubConfigurationTests(SynchronousTestCase):
+    """
+    Tests for getting sections from the configuration file.
+    """
+
+    def setUp(self):
+        self.config = {
+            'scenarios': [
+                {
+                    'name': 'default',
+                    'type': 'no-load',
+                }
+            ],
+            'operations': [
+                {
+                    'name': 'default',
+                    'type': 'no-op',
+                }
+            ],
+            'metrics': [
+                {
+                    'name': 'default',
+                    'type': 'wallclock',
+                }
+            ]
+        }
+
+    def test_default_scenario(self):
+        """
+        Extracts default scenario.
+        """
+        config = get_config(self.config['scenarios'], 'default')
+        self.assertEqual(config['name'], 'default')
+
+    def test_default_operation(self):
+        """
+        Extracts default operation.
+        """
+        config = get_config(self.config['operations'], 'default')
+        self.assertEqual(config['name'], 'default')
+
+    def test_default_metric(self):
+        """
+        Extracts default metric.
+        """
+        config = get_config(self.config['metrics'], 'default')
+        self.assertEqual(config['name'], 'default')

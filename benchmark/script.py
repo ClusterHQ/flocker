@@ -118,6 +118,16 @@ def validate_configuration(configuration):
     v.validate(configuration)
 
 
+def get_config(section, name):
+    """
+    Extract a named section from the configuration file
+    """
+    for config in section:
+        if config['name'] == name:
+            return config
+    return None
+
+
 def main():
     options = BenchmarkOptions()
 
@@ -140,12 +150,6 @@ def main():
     scenario_name = options['scenario']
     operation_name = options['operation']
     metric_name = options['metric']
-
-    def get_config(section, name):
-        for config in section:
-            if config['name'] == name:
-                return config
-        return None
 
     scenario_config = get_config(scenarios, scenario_name) or usage(
         options, 'No such scenario: {!r}'.format(scenario_name))
