@@ -612,3 +612,21 @@ class VolumeStateTransitionTests(TestCase):
         volume = self._process_volume(self.V.DETACH, self.S.DESTINATION_STATE,
                                       self.A.DETACH_SUCCESS)
         self.assertEqual(volume.status, u'available')
+
+
+class EC2ClientTests(TestCase):
+    """
+    Tests for ``EC2Client``.
+    """
+    def setUp(self):
+        try:
+            config = get_blockdevice_config(ProviderType.aws)
+        except InvalidConfig as e:
+            raise SkipTest(str(e))
+        self.ec2_client = get_ec2_client_for_test(config)
+
+    def test_get_volume(self):
+        """
+
+        """
+        pass
