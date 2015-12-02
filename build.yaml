@@ -461,9 +461,9 @@ common_cli:
     # make sure we're no longer in our virtualenv
     deactivate
     # install the new freshly baked package
-    retry 'brew update'
-    retry 'brew tap ClusterHQ/tap'
-    retry 'brew install \${RECIPE_FILE}'
+    retry "brew update"
+    retry "brew tap ClusterHQ/tap"
+    retry "brew install \${RECIPE_FILE}"
     brew test \${RECIPE_FILE}
 
   build_repo_metadata: &build_repo_metadata |
