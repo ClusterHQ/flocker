@@ -4,62 +4,70 @@
 Flocker Cluster Architecture
 ============================
 
-This document describes the Flocker cluster's architecture.
-More accurately, it describes the architecture Flocker is moving towards, a transition that is still in progress.
+The Flocker cluster is comprised of the following sets of services:
 
-The Flocker cluster is composed of two sets of services:
+* :ref:`The control service <control-service>` exposes the :ref:`api`, with which you can manage and modify the configuration of your cluster.
+* :ref:`Flocker agents <flocker-agents>` are installed on each node in the cluster, and are used to modify the node to match the desired configuration of your cluster.
+* :ref:`The Flocker plugin for Docker <plugin>` is also installed on each node in your cluster if you want Flocker to manage your data volumes, while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
 
-1. **The control service** that you can interact with using a :ref:`HTTP API<api>` to modify the desired configuration of the cluster.
-2. **Convergence agents** in charge of modifying the cluster state to match the desired configuration.
-   For example, if you're using Flocker's ZFS storage backend you will have ZFS-specific agents running on each node in the cluster.
+.. XXX FLOC-3598 add an architecture image here 
 
 .. _control-service:
 
-Control service
-===============
+The Control Service
+===================
 
-The control service is the integration point between:
+The control service is the brain of Flocker.
+It enables a user, or an automated orchestration framework, to monitor and modify the cluster state.
 
-* the human administrators or automated orchestration framework which determine the cluster configuration, and
-* the convergence agents that modify the cluster state accordingly.
+The control service accepts instructions either directly via the :ref:`api`, or via the Flocker CLI (which uses the API under the hood).
 
-The service consists of three components:
+When the control service receives an instruction, it sends commands to the :ref:`Flocker agents <flocker-agents>`, and receives updates back.
 
-* An external API allowing changes to the desired configuration, e.g. "create a new dataset on node A".
-  The external API also allows checking the actual state of the cluster.
-* An internal API used to communicate with the convergence agents.
-* A data storage system stores the configuration of the system.
+The control service is installed on a single node in your cluster.
 
-All three are encapsulated in a single server, for the moment limited to running on a single machine.
+.. _flocker-agents:
 
+Flocker Agents
+==============
 
-Convergence agents
-==================
+Flocker agents ensure that the state of the cluster matches the configuration.
+They control the actual system state, but cannot modify the configuration.
 
-Convergence agents ensure that the state of the cluster eventually converges with the configuration.
-They control the actual system state but cannot modify the configuration.
+Flocker agents can:
 
-Each agent is solely responsible for some particular piece of state in the cluster, its local state.
-Some convergence agents may be in charge of state related to a specific node, e.g. a ZFS agent may be in charge of ZFS datasets on node A.
-Others may be in charge of some cluster-wide state.
-Multiple agents may run on a specific node depending on the cluster setup.
+* be responsible for a particular piece of state in the cluster, known as the local state.
+* be in charge of state related to a specific node.
+* be in charge of cluster-wide state.
 
-Each convergence agent runs a loop to converge the local state it manages with the desired cluster configuration managed by the control service.
-The agent:
+Multiple agents can also run on a specific node depending on the cluster setup.
 
-#. Checks the local state it is in charge of (e.g. by listing local ZFS filesystems).
+Each Flocker agent runs the following loop to converge the local state it manages with the desired cluster configuration, as managed by the control service:
+
+#. Checks the local state that it is in charge of.
 #. Notifies the control service of the local state.
 #. Calculates the actions necessary to make local state match desired configuration.
 #. Executes these actions.
 #. Starts the loop again.
 
-For example, imagine the control service notifies the agent on node A that node A should have dataset D, and that as far as it knows no dataset D exists in the cluster.
+For example, the following will occur if the control service notifies the agent on node A that it should have dataset D, and that dataset D does not currently exist in the cluster:
 
 #. The agent discovers there are no datasets on the node.
-#. The agent tells the control service that there exist no datasets on the node.
-   The agent always reports its latest local state to the control service to ensure it is up-to-date, even if it may change in near future.
+#. The agent tells the control service that no datasets on the node exist.
+   The agent will always report its latest local state to the control service to ensure it is up-to-date, even if it may change in near future.
 #. The agent decides it needs to create dataset D, and does so.
-#. The loop begins again - the agent discovers that dataset D exists on the node.
+#. The loop begins again - the agent discovers that dataset D now does exist on the node.
 #. The agent tells the control service that dataset D exists on the node.
-#. The agent sees that the node state matches the desired configuration, and realizes it doesn't need to do anything.
-#. Etc.
+#. The agent sees that the node state matches the desired configuration, and knows that no action is required.
+#. Starts the loop again.
+
+.. _plugin:
+
+Flocker Plugin for Docker
+=========================
+
+.. include:: ../introduction/flocker-plugin.rst
+   :start-after: .. begin-body
+   :end-before: .. end-body
+
+The plugin is installed on each node in your cluster, and depends on Docker 1.8 or later.

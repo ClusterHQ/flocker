@@ -9,13 +9,27 @@ You can learn more about where we might be going with future releases by:
 
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
+* Now supporting Ubuntu-15.10 instead of Ubuntu-15.04 for the flocker client.
+  See :ref:`installing-flocker-cli-ubuntu-15.10`.
+* Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they
+  don't need to be skipped anymore.
 
-Next Release
+Next release
 ============
 
-* Added a new REST API for looking up node identity by era; eras are reset after every reboot.
-  This allows interacting with Flocker in a robust way across reboots without getting stale data.
+* The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
+* The :ref:`Flocker Plugin for Docker<docker-plugin>` now solely relies on the metadata key ``"name"`` to find datasets.
+
+v1.8.0
+======
+
+* The :ref:`Flocker Plugin for Docker<docker-plugin>` is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
+* Better error reporting for the Flocker Plugin for Docker.
+* Added a new REST API for :http:get:`looking up node identity by era</v1/state/nodes/by_era/(era)>`; eras are reset after every reboot.
+  This allows robust interaction with Flocker across reboots without getting stale data.
   As a result we were able to remove a delay in startup time that was a temporary workaround for the issue.
+* Fixed a bug where datasets that hadn't had a filesystem created on them could never be mounted;
+  existing flocker datasets without filesystems now have a filesystem created on them.
 
 v1.7.2
 ======
@@ -58,7 +72,7 @@ v1.5.0
 v1.4.0
 ======
 
-* The :ref:`dataset API <api>` added support for leases.
+* The :ref:`dataset API <api>` added support for :ref:`leases <leases>`.
   Leases prevent a dataset from being deleted or moved off a node.
 * Fix line splitting when logging to `systemd`'s journal.
 * Various performance and scalability improvements.
@@ -135,7 +149,7 @@ v1.0
   See :ref:`api`.
 * Removed support for installing ``flocker-node`` on Fedora 20.
 * Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
-  See :ref:`installing-flocker-cli-ubuntu-14.04` and :ref:`installing-flocker-cli-ubuntu-15.04`.
+  See :ref:`installing-flocker-cli-ubuntu-14.04` and ``installing-flocker-cli-ubuntu-15.04``.
 * Bug fixes and improvements focused on security and stability across platforms.
 
 v0.4

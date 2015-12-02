@@ -1464,8 +1464,11 @@ class BlockDeviceDeployer(PRecord):
         # https://clusterhq.atlassian.net/browse/FLOC-1425.
         if local_node_state.applications is None:
             return in_parallel(changes=[])
-
-        not_in_use = NotInUseDatasets(local_node_state, configuration.leases)
+        not_in_use = NotInUseDatasets(
+            node_uuid=self.node_uuid,
+            local_applications=local_node_state.applications,
+            leases=configuration.leases,
+        )
 
         configured_manifestations = this_node_config.manifestations
 
@@ -1480,9 +1483,9 @@ class BlockDeviceDeployer(PRecord):
 
         manifestations_to_create = set()
         all_dataset_ids = list(
-            dataset.dataset_id
-            for dataset, node
-            in cluster_state.all_datasets()
+            unicode(volume.dataset_id)
+            for volume
+            in local_state.volumes
         )
         for dataset_id in configured_dataset_ids.difference(local_dataset_ids):
             if dataset_id in all_dataset_ids:

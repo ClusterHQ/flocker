@@ -2,7 +2,6 @@ from pyrsistent import PClass, field
 from zope.interface import implementer
 
 from twisted.internet.defer import succeed
-from twisted.web.client import ResponseFailed
 
 from .._interfaces import IProbe, IOperation
 
@@ -29,6 +28,8 @@ class ReadRequest(PClass):
     An operation to perform a read request on the control service.
     """
 
+    # `clock` unused, but required for __init__ signature
+    clock = field(mandatory=True)
     control_service = field(mandatory=True)
 
     def get_probe(self):

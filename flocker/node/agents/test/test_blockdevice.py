@@ -884,8 +884,9 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
 
     def test_only_remote_device(self):
         """
-        ``BlockDeviceDeployer.discover_state`` does not report remotely
-        attached volumes as datasets.
+        If a volume is attached to a remote node, the dataset returned by
+        ``BlockDeviceDeployer.discover_state`` is marked as
+        ``ATTACHED_ELSEWHERE``.
         """
         dataset_id = uuid4()
         volume = self.api.create_volume(
@@ -1116,6 +1117,25 @@ def add_application_with_volume(node_state):
                                   mountpoint=FilePath(b"/data")))})
 
 
+def create_test_blockdevice_volume_for_dataset_id(dataset_id,
+                                                  attached_to=None):
+    """
+    Create a fake ``BlockDeviceVolume`` for the given ``dataset_id``,
+    attached to the given node.
+
+    :param dataset_id: A unicode or uuid dataset_id to generate the
+        blockdevice_id for.
+    :param unicode attached_to: The compute_instance_id this volume should be
+        attached to.
+    """
+
+    return BlockDeviceVolume(
+        blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
+        size=REALISTIC_BLOCKDEVICE_SIZE,
+        attached_to=attached_to,
+        dataset_id=UUID(dataset_id))
+
+
 def _infer_volumes_for_test(
     node_state,
     nonmanifest_datasets,
@@ -1150,13 +1170,6 @@ def _infer_volumes_for_test(
         cluster_state that is only suitable for use in tests that do not use
         the ``IBlockDeviceAPI`` to set up the cluster_state.
     """
-    def create_test_blockdevice_volume_for_dataset_id(dataset_id,
-                                                      attached_to=None):
-        return BlockDeviceVolume(
-            blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-            attached_to=attached_to,
-            dataset_id=UUID(dataset_id))
     local_volumes = [
         create_test_blockdevice_volume_for_dataset_id(
             dataset_id, attached_to=compute_instance_id)
@@ -1714,8 +1727,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         whether to wake up or not. That is, we're using out-of-date cached
         volume information.
 
-        In this case ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``ActionNeeded`` in order to wake up the convergence loop.
+        In this case ``BlockDeviceDeployer.calculate_changes`` returns some
+        change that isn't ``NoOp`` in order to wake up the convergence loop.
         """
         deployer = create_blockdevicedeployer(
             self, hostname=self.NODE, node_uuid=self.NODE_UUID
@@ -1749,12 +1762,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             volumes=[])  # Out of date info, lacking an expected volume
         changes = deployer.calculate_changes(
             cluster_config, cluster_state, local_state)
-        self.assertEqual(
-            in_parallel(changes=[
-                ActionNeeded(
-                    dataset_id=UUID(dataset.dataset_id),
-                ),
-            ]),
+        self.assertNotEqual(
+            NoOp(),
             changes
         )
 
@@ -2051,6 +2060,52 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                         dataset=dataset,
                     )
                 ]),
+            changes
+        )
+
+    def test_dataset_elsewhere(self):
+        """
+        If block device is attached elsewhere but is part of the configuration
+        for the deployer's node, no state changes are calculated.
+        """
+        uuid = uuid4()
+        dataset_id = unicode(uuid4())
+        dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=int(GiB(1).to_Byte().value)
+        )
+        manifestation = Manifestation(
+            dataset=dataset, primary=True
+        )
+        node = u"192.0.2.1"
+        configuration = Deployment(
+            nodes={
+                Node(
+                    uuid=uuid,
+                    manifestations={dataset_id: manifestation},
+                )
+            }
+        )
+        node_state = NodeState(
+            uuid=uuid, hostname=node, applications=[], manifestations={},
+            devices={}, paths={})
+        state = DeploymentState(nodes={node_state})
+        deployer = create_blockdevicedeployer(
+            self, hostname=node, node_uuid=uuid,
+        )
+        local_state = local_state_from_shared_state(
+            node_state=node_state,
+            nonmanifest_datasets={},
+            volumes=[
+                create_test_blockdevice_volume_for_dataset_id(
+                    dataset_id=dataset_id,
+                    attached_to=u"remote_node",
+                ),
+            ],
+        )
+        changes = deployer.calculate_changes(configuration, state, local_state)
+        self.assertEqual(
+            in_parallel(changes=[]),
             changes
         )
 
