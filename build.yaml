@@ -667,11 +667,11 @@ common_cli:
     softwareupdate -i "\${PROD}" -v
 
     # the basebox we use for OSX is missing quite a number of software pieces.
-    brew update
-    brew install rsync
-    brew install python
-    pip install virtualenv
-    brew install libffi
+    retry "brew update"
+    retry "brew install rsync"
+    retry "brew install python"
+    retry "pip install virtualenv"
+    retry "brew install libffi"
     export PKG_CONFIG_PATH=/usr/local/Cellar/libffi/3.0.13/lib/pkgconfig/; pip install bcrypt
 
   package_jenkins_osx_yosemite_box: &package_jenkins_osx_yosemite_box |
