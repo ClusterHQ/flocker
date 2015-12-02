@@ -15,6 +15,11 @@ import itertools
 import boto3
 
 from botocore.exceptions import ClientError
+
+# There is no boto3 equivalent of this yet.
+# See https://github.com/boto/boto3/issues/313
+from boto.utils import get_instance_metadata
+
 from OpenSSL.SSL import Error as SSLError
 
 from uuid import UUID
@@ -633,7 +638,8 @@ def _should_finish(operation, volume, update, start_time,
     reach expected end state.
 
     :param NamedConstant operation: Operation performed on given volume.
-    :param boto.ec2.volume volume: Target volume of given operation.
+    :param boto3.resources.factory.ec2.Volume: Target volume of given
+        operation.
     :param method update: Method to use to check volume state.
     :param float start_time: Time when operation was executed on volume.
     :param int timeout: Time, in seconds, to wait for volume to reach expected
@@ -675,14 +681,18 @@ def _should_finish(operation, volume, update, start_time,
 
     # If end state for the volume comes with attach data,
     # declare success only upon discovering attach data.
+    if volume.attachments:
+        volume_attach_data = volume.attachments[0]
+    else:
+        volume_attach_data = None
     if sets_attach:
-        return (volume.attach_data is not None and
-                (volume.attach_data.device != '' and
-                 volume.attach_data.instance_id != ''))
+        return (volume_attach_data is not None and
+                (volume_attach_data['Device'] != '' and
+                 volume_attach_data['InstanceId'] != ''))
     elif unsets_attach:
-        return (volume.attach_data is None or
-                (volume.attach_data.device is None and
-                 volume.attach_data.instance_id is None))
+        return (volume_attach_data is None or
+                (volume_attach_data['Device'] == '' and
+                 volume_attach_data['InstanceId'] == ''))
     else:
         return True
 
@@ -1010,17 +1020,19 @@ class EBSBlockDeviceAPI(object):
                 zone=self.zone,
                 volume_type=volume_type,
                 iops=iops)
-        except EC2ResponseError as e:
+        except ClientError as e:
             # If we failed to create a volume with attributes complying
             # with requested profile, make a second attempt at volume
             # creation with default profile.
             # Compliance violation of the volume's requested profile
             # will be detected and remediated in a future release (FLOC-3275).
-            if e.code != INVALID_PARAMETER_VALUE:
+            if e.response['Error']['Code'] != INVALID_PARAMETER_VALUE:
                 raise e
-            CREATE_VOLUME_FAILURE(dataset_id=dataset_id,
-                                  aws_code=e.code,
-                                  aws_message=e.message).write()
+            CREATE_VOLUME_FAILURE(
+                dataset_id=dataset_id,
+                aws_code=e.response['Error']['Code'],
+                aws_message=e.response['Error']['Message']
+            ).write()
             volume_type, iops = _volume_type_and_iops_for_profile_name(
                 MandatoryProfiles.DEFAULT.value, requested_size)
             requested_volume = self.connection.create_volume(
@@ -1044,8 +1056,10 @@ class EBSBlockDeviceAPI(object):
             # console (http://stackoverflow.com/a/12798180).
             "Name": u"flocker-{}".format(dataset_id),
         }
-        self.connection.create_tags([requested_volume.id],
-                                    metadata)
+        tags_list = []
+        for key, value in metadata.items():
+            tags_list.append(dict(Key=key, Value=value))
+        requested_volume.create_tags(tags_list)
 
         message_type = BOTO_LOG_RESULT + u':created_tags'
         Message.new(
@@ -1121,7 +1135,7 @@ class EBSBlockDeviceAPI(object):
         ignore_devices = pset([])
         for attach_attempt in range(3):
             with self.lock:
-                volumes = self.connection.get_all_volumes()
+                volumes = self.connection.list_volumes()
                 device = self._next_device(attach_to, volumes, ignore_devices)
                 if device is None:
                     # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
@@ -1130,6 +1144,7 @@ class EBSBlockDeviceAPI(object):
                     return
                 blockdevices = _get_blockdevices()
                 attached = _attach_volume_and_wait_for_device(
+                    self.connection,
                     volume, attach_to,
                     self.connection.attach_volume,
                     self.connection.detach_volume,
