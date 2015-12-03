@@ -169,10 +169,10 @@ common_cli:
     # Retries a command if it fails, using the exponential backoff algorithm.
     # It will retry forever, we rely on Jenkins to kill it if it takes too long
     # Usage: retry 'command'
-    function retry() {
+    function retry {
       let delay=2
       while true; do
-        if \$1; then
+        if \$(\$1); then
           break
         fi
         echo Command failed, waiting \$delay...
