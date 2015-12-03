@@ -438,7 +438,7 @@ class SetProxies(PClass):
     def eliot_action(self):
         return start_action(
             _logger, _eliot_system("setproxies"),
-            addresses=list(dict(port) for port in self.ports),
+            addresses=list(port.serialize() for port in self.ports),
         )
 
     def run(self, deployer):
