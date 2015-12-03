@@ -13,8 +13,6 @@ from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 from datetime import timedelta
 
-from bitmath import GiB
-
 from eliot import MessageType, ActionType, Field, Logger
 from eliot.serializers import identity
 
@@ -41,7 +39,7 @@ from .._deploy import NotInUseDatasets
 
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 from ...control._model import pvector_field
-from ...common import auto_threaded
+from ...common import RACKSPACE_MINIMUM_VOLUME_SIZE, auto_threaded
 from ...common.algebraic import TaggedUnionInvariant
 
 
@@ -53,7 +51,7 @@ _logger = Logger()
 # The size which will be assigned to datasets with an unspecified
 # maximum_size.
 # XXX: Make this configurable. FLOC-2679
-DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
+DEFAULT_DATASET_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
 
 # The metadata key for flocker profiles.
 PROFILE_METADATA_KEY = u"clusterhq:flocker:profile"
@@ -1496,7 +1494,7 @@ class BlockDeviceDeployer(PRecord):
                 if manifestation.dataset.maximum_size is None:
                     manifestation = manifestation.transform(
                         ['dataset', 'maximum_size'],
-                        DEFAULT_DATASET_SIZE
+                        int(DEFAULT_DATASET_SIZE.to_Byte()),
                     )
                 manifestations_to_create.add(manifestation)
 

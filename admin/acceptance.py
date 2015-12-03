@@ -30,7 +30,7 @@ from effect import parallel
 from txeffect import perform
 
 from admin.vagrant import vagrant_version
-from flocker.common import gather_deferreds
+from flocker.common import RACKSPACE_MINIMUM_VOLUME_SIZE, gather_deferreds
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
@@ -411,7 +411,7 @@ def configured_cluster_for_nodes(
     # FLOC-2584 also discusses this.
     default_volume_size = GiB(1)
     if dataset_backend_configuration.get('auth_plugin') == 'rackspace':
-        default_volume_size = GiB(100)
+        default_volume_size = RACKSPACE_MINIMUM_VOLUME_SIZE
 
     cluster = Cluster(
         all_nodes=pvector(nodes),

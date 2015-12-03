@@ -100,6 +100,7 @@ from ....control._model import Leases
 
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
+from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
@@ -1075,7 +1076,7 @@ class ScenarioMixin(object):
     MANIFESTATION = Manifestation(
         dataset=Dataset(
             dataset_id=unicode(DATASET_ID),
-            maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+            maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
         ),
         primary=True,
     )
@@ -1131,7 +1132,7 @@ def create_test_blockdevice_volume_for_dataset_id(dataset_id,
 
     return BlockDeviceVolume(
         blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
-        size=REALISTIC_BLOCKDEVICE_SIZE,
+        size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
         attached_to=attached_to,
         dataset_id=UUID(dataset_id))
 
@@ -1440,7 +1441,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     state=DatasetStates.MOUNTED,
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=self.BLOCKDEVICE_ID,
-                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                     device_path=FilePath(b"/dev/sda"),
                     mount_point=FilePath(b"/flocker").child(
                         bytes(self.DATASET_ID),
@@ -1586,7 +1587,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
-                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                     device_path=FilePath(b"/dev/sda"),
                 ),
             ],
@@ -1646,7 +1647,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
-                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                     device_path=device,
                 ),
             ],
@@ -2171,7 +2172,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                     primary=True,
                     dataset=Dataset(
                         dataset_id=expected_dataset_id,
-                        maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                        maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                         # Dataset state will always have empty metadata and
                         # deleted will always be False.
                         metadata={},
@@ -2205,8 +2206,10 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         """
         When supplied with a configuration containing a dataset with a null
         size, ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``CreateBlockDeviceDataset`` for a 100GiB dataset.
-        XXX: Make the default size configurable. FLOC-2679
+        ``CreateBlockDeviceDataset`` for a dataset with a size fixed to the
+        minimum allowed Rackspace volume size.
+
+        XXX: Make the default size configurable.  FLOC-2679
         """
         node_id = uuid4()
         node_address = u"192.0.2.1"
@@ -2255,7 +2258,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         )
         changes = deployer.calculate_changes(
             configuration, state, local_state)
-        expected_size = int(GiB(100).to_Byte().value)
+        expected_size = int(RACKSPACE_MINIMUM_VOLUME_SIZE.to_Byte())
         self.assertEqual(
             in_parallel(
                 changes=[
@@ -3501,7 +3504,7 @@ def mountroot_for_test(test_case):
 
 _ARBITRARY_VOLUME = BlockDeviceVolume(
     blockdevice_id=u"abcd",
-    size=REALISTIC_BLOCKDEVICE_SIZE,
+    size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
     dataset_id=uuid4(),
 )
 
