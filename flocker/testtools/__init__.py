@@ -51,7 +51,7 @@ from unittest import skipIf, skipUnless
 from StringIO import StringIO
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
-from bitmath import GiB, MiB
+from bitmath import MiB
 
 from pyrsistent import PRecord, field
 

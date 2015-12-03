@@ -13,8 +13,6 @@ from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 from datetime import timedelta
 
-from bitmath import GiB
-
 from eliot import MessageType, ActionType, Field, Logger
 from eliot.serializers import identity
 
