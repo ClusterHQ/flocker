@@ -16,8 +16,7 @@ It is called like this:
 
    benchmark/benchmark <options>
 
-
-The :program:`benchmark` script has several options:
+The :program:`benchmark` script has the following command line options:
 
 .. program:: benchmark
 
@@ -31,45 +30,95 @@ The :program:`benchmark` script has several options:
    Specifies the directory containing the user certificates.
    Defaults to the directory ``./certs``.
 
+.. option:: --config <config-file>
+
+   Specifies a file containing configurations for scenarios, operations, and metrics.
+   See below for the format of this file.
+   Defaults to the file ``./benchmark.yml``.
+
 .. option:: --scenario <scenario>
 
    Specifies the scenario to run the benchmark under.
-   Supported values include:
-
-      ``no-load``
-         No additional load on system.
-         This is the default.
+   This is the ``name`` of a scenario in the configuration file.
+   Defaults to the name ``default``.
 
 .. option:: --operation <operation>
 
    Specifies the operation to be benchmarked.
-   This operation is sampled 3 times.
-   Supported values include:
-
-      ``no-op``
-         A no-op operation that performs no action.
-
-      ``read-request``
-         Read from the control service.
-         This is the default.
-
-      ``wait-10``
-         Wait 10 seconds between measurements.
+   This is the ``name`` of an operation in the configuration file.
+   Defaults to the name ``default``.
+   The operation is sampled 3 times.
 
 .. option:: --metric <metric>
 
    Specifies the quantity to measure while the operation is performed.
-   Supported values include:
+   This is the ``name`` of a metric in the configuration file.
+   Defaults to the name ``default``.
 
-      ``cputime``
-         CPU time elapsed.
 
-      ``wallclock``
-         Actual clock time elapsed.
-         This is the default.
+Configuration File
+------------------
 
-To see the supported values for each option, run:
+The :program:`benchmark` script requires a configuration file describing the possible scenarios, operations, and metrics.
+Each of these has a name, a type, and possibly other parameters.
 
-.. prompt:: bash $
+An example file:
 
-   benchmark/benchmark --help
+.. code-block:: yaml
+
+   scenarios:
+     - name: default
+       type: no-load
+
+   operations:
+     - name: default
+       type: read-request
+
+     - name: wait-10
+       type: wait
+       wait_seconds: 10
+
+     - name: wait-100
+       type: wait
+       wait_seconds: 100
+
+   metrics:
+     - name: default
+       type: wallclock
+
+     - name: cputime
+       type: cputime
+
+Scenario Types
+~~~~~~~~~~~~~~
+
+.. option:: no-load
+
+   No additional load on system.
+
+Operation Types
+~~~~~~~~~~~~~~~
+
+.. option:: no-op
+
+   A no-op operation that performs no action.
+
+.. option:: read-request
+
+   Read the current cluster state from the control service.
+
+.. option:: wait
+
+   Wait for a number of seconds between measurements.
+   The number of seconds to wait must be provided as an additional ``wait_seconds`` property.
+
+Metric Types
+~~~~~~~~~~~~
+
+.. option:: cputime
+
+   CPU time elapsed.
+
+.. option:: wallclock
+
+   Actual clock time elapsed.
