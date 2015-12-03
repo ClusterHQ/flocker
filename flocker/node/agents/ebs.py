@@ -475,6 +475,21 @@ class EC2Client(PRecord):
     zone = field(mandatory=True)
     connection = field(mandatory=True)
 
+    def get_volume_tag(self, volume, name):
+        """
+        Retreive the tag from the specified volume with the specified name.
+
+        :param Volume volume: The volume.
+        :param unicode name: The tag name.
+
+        :return: A ``str`` representing the value of the tag, or ``None`` if
+            no tag with this name can be found in the volume.
+        """
+        for tag in volume.tags:
+            if tag['Key'] == name:
+                return tag['Key']
+        return None
+
     @boto3_log
     def get_volume(self, volume_id):
         """

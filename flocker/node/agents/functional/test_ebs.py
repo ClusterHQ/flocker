@@ -12,7 +12,7 @@ from bitmath import Byte, GiB
 from boto.ec2.volume import (
     Volume as EbsVolume, AttachmentSet
 )
-from boto.exception import EC2ResponseError
+from botocore.exceptions import ClientError
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.trial.unittest import SkipTest, TestCase
@@ -78,9 +78,9 @@ class EBSBlockDeviceAPIInterfaceTests(
         except InvalidConfig as e:
             raise SkipTest(str(e))
         ec2_client = get_ec2_client_for_test(config)
-        requested_volume = ec2_client.connection.create_volume(
-            int(Byte(self.minimum_allocatable_size).to_GiB().value),
-            ec2_client.zone)
+        requested_volume = ec2_client.create_volume(
+            size=int(Byte(self.minimum_allocatable_size).to_GiB().value),
+            zone=ec2_client.zone)
         self.addCleanup(ec2_client.connection.delete_volume,
                         requested_volume.id)
 
@@ -118,8 +118,9 @@ class EBSBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
         )
         ec2_client = get_ec2_client_for_test(config)
-        name = ec2_client.connection.get_all_volumes(
-            volume_ids=[flocker_volume.blockdevice_id])[0].tags[u"Name"]
+        volume = ec2_client.get_volume(
+            volume_id=flocker_volume.blockdevice_id)
+        name = ec2_client.get_volume_tag(volume, u"Name")
         self.assertEqual(name, u"flocker-{}".format(dataset_id))
 
     @capture_logging(lambda self, logger: None)
@@ -132,15 +133,15 @@ class EBSBlockDeviceAPIInterfaceTests(
         originating from boto.ec2.connection.EC2Connection.
         """
         # Test 1: Create volume with size 0.
-        # Raises: EC2ResponseError
-        self.assertRaises(EC2ResponseError, self.api.create_volume,
+        # Raises: ClientError
+        self.assertRaises(ClientError, self.api.create_volume,
                           dataset_id=uuid4(), size=0,)
 
         # Test 2: Set EC2 connection zone to an invalid string.
-        # Raises: EC2ResponseError
+        # Raises: ClientError
         self.api.zone = u'invalid_zone'
         self.assertRaises(
-            EC2ResponseError,
+            ClientError,
             self.api.create_volume,
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size,
@@ -226,7 +227,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         Create a volume so large that none of the ``MandatoryProfiles``
         can be assigned to it.
         """
-        self.assertRaises(EC2ResponseError,
+        self.assertRaises(ClientError,
                           self._assert_create_volume_with_mandatory_profile,
                           MandatoryProfiles.GOLD,
                           size_GiB=1024*1024)
@@ -243,7 +244,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         """
         Too large volume (> 16TiB) for ``silver`` profile.
         """
-        self.assertRaises(EC2ResponseError,
+        self.assertRaises(ClientError,
                           self._assert_create_volume_with_mandatory_profile,
                           MandatoryProfiles.SILVER,
                           size_GiB=1024*1024)
@@ -630,4 +631,3 @@ class EC2ClientTests(TestCase):
 
         """
         pass
-        
