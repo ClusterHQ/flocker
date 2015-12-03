@@ -1074,7 +1074,7 @@ class EBSBlockDeviceAPI(object):
         tags_list = []
         for key, value in metadata.items():
             tags_list.append(dict(Key=key, Value=value))
-        requested_volume.create_tags(tags_list)
+        requested_volume.create_tags(Tags=tags_list)
 
         message_type = BOTO_LOG_RESULT + u':created_tags'
         Message.new(
