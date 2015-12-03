@@ -1494,7 +1494,7 @@ class BlockDeviceDeployer(PRecord):
                 if manifestation.dataset.maximum_size is None:
                     manifestation = manifestation.transform(
                         ['dataset', 'maximum_size'],
-                        DEFAULT_DATASET_SIZE
+                        int(DEFAULT_DATASET_SIZE.to_Byte()),
                     )
                 manifestations_to_create.add(manifestation)
 
