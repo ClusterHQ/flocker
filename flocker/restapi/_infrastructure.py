@@ -9,7 +9,7 @@ from functools import wraps
 
 from json import loads, dumps
 
-from pyrsistent import PRecord, field, pvector
+from pyrsistent import PClass, field, pvector
 
 from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK, INTERNAL_SERVER_ERROR
@@ -260,7 +260,7 @@ def structured(inputSchema, outputSchema, schema_store=None,
     return deco
 
 
-class UserDocumentation(PRecord):
+class UserDocumentation(PClass):
     """
     """
     text = field(type=unicode, mandatory=True)

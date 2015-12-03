@@ -9,7 +9,7 @@ requests==2.4.3
 requests-file==1.0
 ipaddr==2.1.11
 eliot==0.6.0
-pyrsistent==0.9.2
+pyrsistent==0.11.9
 python-cinderclient==1.1.1
 python-novaclient==2.24.1
 python-keystoneclient-rackspace==0.1.3
