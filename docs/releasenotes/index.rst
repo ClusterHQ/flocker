@@ -9,16 +9,16 @@ You can learn more about where we might be going with future releases by:
 
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
-* Now supporting Ubuntu-15.10 instead of Ubuntu-15.04 for the flocker client.
-  See :ref:`installing-flocker-cli-ubuntu-15.10`.
-* Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they
-  don't need to be skipped anymore.
 
 Next release
 ============
 
 * The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
 * The :ref:`Flocker Plugin for Docker<docker-plugin>` now solely relies on the metadata key ``"name"`` to find datasets.
+* Now supporting Ubuntu-15.10 instead of Ubuntu-15.04 for the flocker client.
+  See :ref:`installing-flocker-cli-ubuntu-15.10`.
+* Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they
+  don't need to be skipped anymore.
 
 v1.8.0
 ======
