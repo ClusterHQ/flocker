@@ -575,8 +575,19 @@ class LibcloudRunner(object):
         }
         metadata.update(self.metadata)
 
+        # Try to make names unique even if the same creator is starting
+        # multiple clusters at the same time.  This lets other code use the
+        # name as a way to identify nodes.  This is only necessary in one
+        # place, the node creation code, to perform cleanup when the create
+        # operation fails in a way such that it isn't clear if the instance has
+        # been created or not.
+        random_tag = os.urandom(8).encode("base64").strip("\n=")
+        print "Assigning random tag:", random_tag
+
         for index in range(self.num_nodes):
-            name = "acceptance-test-%s-%d" % (self.creator, index)
+            name = "acceptance-test-%s-%s-%d" % (
+                self.creator, random_tag, index,
+            )
             try:
                 print "Creating node %d: %s" % (index, name)
                 node = self.provisioner.create_node(
