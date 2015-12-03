@@ -630,3 +630,4 @@ class EC2ClientTests(TestCase):
 
         """
         pass
+        

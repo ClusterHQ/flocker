@@ -707,7 +707,7 @@ def _wait_for_volume_state_change(operation,
 
     :param NamedConstant operation: Operation triggering volume state change.
         A value from ``VolumeOperations``.
-    :param boto.ec2.volume volume: Volume to check status for.
+    :param boto3.resources.factory.ec2.Volume: Volume to check status for.
     :param update: Method to use to fetch EBS volume's latest state.
     :param int timeout: Seconds to wait for volume operation to succeed.
 
@@ -915,7 +915,7 @@ class EBSBlockDeviceAPI(object):
         :param UUID cluster_id: UUID of cluster for this
             API instance.
         """
-        self.connection = ec2_client.connection
+        self.connection = ec2_client
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
