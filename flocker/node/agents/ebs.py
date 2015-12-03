@@ -867,8 +867,7 @@ def _attach_volume_and_wait_for_device(
         OS device file.  ``False`` if the attempt times out without succeeding.
     """
     try:
-        ec2_volume = connection.Volume(volume.blockdevice_id)
-        ec2_volume.attach_to_instance(InstanceId=attach_to, Device=device)
+        attach_volume(volume.blockdevice_id, attach_to, device)
     except ClientError as e:
         # If attach failed that is often because of eventual
         # consistency in AWS, so let's ignore this one if it
@@ -1159,7 +1158,6 @@ class EBSBlockDeviceAPI(object):
                     return
                 blockdevices = _get_blockdevices()
                 attached = _attach_volume_and_wait_for_device(
-                    self.connection,
                     volume, attach_to,
                     self.connection.attach_volume,
                     self.connection.detach_volume,
