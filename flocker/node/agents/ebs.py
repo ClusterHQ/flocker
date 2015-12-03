@@ -1243,11 +1243,11 @@ class EBSBlockDeviceAPI(object):
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
-        if not volume.attachments:
+        if not volume.attached_to:
             raise UnattachedVolume(blockdevice_id)
 
         compute_instance_id = self.compute_instance_id()
-        if volume.attachments[0]['InstanceId'] != compute_instance_id:
+        if volume.attached_to != compute_instance_id:
             # This is untested.  See FLOC-2453.
             raise Exception(
                 "Volume is attached to {}, not to {}".format(
