@@ -6,8 +6,8 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 
 from uuid import uuid4
 
-from twisted.trial.unittest import TestCase
 from zope.interface.verify import verifyObject
+from ....testtools import AsyncTestCase
 
 from ..blockdevice_manager import (
     IBlockDeviceManager,
@@ -25,7 +25,7 @@ from .test_blockdevice import (
 )
 
 
-class BlockDeviceManagerTests(TestCase):
+class BlockDeviceManagerTests(AsyncTestCase):
     """
     Tests for flocker.node.agents.blockdevice_manager.BlockDeviceManager.
     """
@@ -80,7 +80,7 @@ class BlockDeviceManagerTests(TestCase):
         """
         Mounting a device to n different locations requires n unmounts.
 
-        Also verify they are unmounted in FIFO order.
+        Also verify they are unmounted in LIFO order.
         """
         blockdevice = self._get_free_blockdevice()
         self.manager_under_test.make_filesystem(blockdevice, 'ext4')
