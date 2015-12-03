@@ -1001,8 +1001,12 @@ class EBSBlockDeviceAPI(object):
         :returns ``None`` if suitable EBS device names on this EC2
             instance are currently occupied.
         """
-        devices = pset({v.attach_data.device for v in volumes
-                       if v.attach_data.instance_id == instance_id})
+        volume_devices = []
+        for v in volumes:
+            volume_attachments = v.attachments
+            if volume_attachments['InstanceId'] == instance_id:
+                volume_devices.append(volume_attachments['Device'])
+        devices = pset(volume_devices)
         devices = devices | devices_in_use
         sorted_devices = sorted(list(thaw(devices)))
         IN_USE_DEVICES(devices=sorted_devices).write()
@@ -1192,7 +1196,7 @@ class EBSBlockDeviceAPI(object):
             blockdevice_id is not currently 'in-use'.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
-        if ebs_volume.status != VolumeStates.IN_USE.value:
+        if ebs_volume.state != VolumeStates.IN_USE.value:
             raise UnattachedVolume(blockdevice_id)
 
         self.connection.detach_volume(blockdevice_id)

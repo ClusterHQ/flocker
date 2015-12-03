@@ -78,8 +78,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         requested_volume = ec2_client.create_volume(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value),
             zone=ec2_client.zone)
-        self.addCleanup(ec2_client.connection.delete_volume,
-                        requested_volume.id)
+        self.addCleanup(ec2_client.delete_volume, requested_volume.id)
 
         _wait_for_volume_state_change(VolumeOperations.CREATE,
                                       requested_volume)
@@ -278,7 +277,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         A = EBSMandatoryProfileAttributes.lookupByName(
             cannonical_profile.name).value
         ebs_volume = self.api._get_ebs_volume(volume1.blockdevice_id)
-        self.assertEqual(ebs_volume.type, A.volume_type.value)
+        self.assertEqual(ebs_volume.volume_type, A.volume_type.value)
         requested_iops = A.requested_iops(ebs_volume.size)
         self.assertEqual(ebs_volume.iops if requested_iops is not None
                          else None, requested_iops)
