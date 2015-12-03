@@ -487,7 +487,7 @@ class EC2Client(PRecord):
         """
         for tag in volume.tags:
             if tag['Key'] == name:
-                return tag['Key']
+                return tag['Value']
         return None
 
     @boto3_log
@@ -548,7 +548,8 @@ class EC2Client(PRecord):
 
     @boto3_log
     def create_volume(
-        self, size=1, volume_type=EBSVolumeTypes.STANDARD, zone=None, iops=None
+        self, size=1, volume_type=EBSVolumeTypes.STANDARD.value,
+        zone=None, iops=None
     ):
         """
         Create a new EC2 volume with the specified parameters.
@@ -621,11 +622,17 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
         attached_to = unicode(ebs_volume.attachments[0]['InstanceId'])
     else:
         attached_to = None
+
+    volume_dataset_id = None
+    for tag in ebs_volume.tags:
+        if tag['Key'] == DATASET_ID_LABEL:
+            volume_dataset_id = tag['Value']
+
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GiB(ebs_volume.size).to_Byte().value),
         attached_to=attached_to,
-        dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
+        dataset_id=UUID(volume_dataset_id)
     )
 
 
@@ -903,7 +910,7 @@ def _attach_volume_and_wait_for_device(
             # before detaching it here, leaving the system in a bad
             # state.  This is one reason we need a better solution
             # in the long term.
-            ec2_volume.detach_from_instance()
+            detach_volume(volume.blockdevice_id)
             raise AttachedUnexpectedDevice(FilePath(device), device_path)
         return True
 

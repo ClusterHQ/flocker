@@ -591,21 +591,21 @@ class VolumeStateTransitionTests(TestCase):
         Assert that successful volume creation leads to valid volume end state.
         """
         volume = self._process_volume(self.V.CREATE, self.S.DESTINATION_STATE)
-        self.assertEqual(volume.status, u'available')
+        self.assertEqual(volume.state, u'available')
 
     def test_destroy_success(self):
         """
         Assert that successful volume destruction leads to valid end state.
         """
         volume = self._process_volume(self.V.DESTROY, self.S.DESTINATION_STATE)
-        self.assertEquals(volume.status, u'')
+        self.assertEquals(volume.state, u'')
 
     def test_attach_sucess(self):
         """
         Test if successful attach volume operation leads to expected state.
         """
         volume = self._process_volume(self.V.ATTACH, self.S.DESTINATION_STATE)
-        self.assertEqual([volume.status, volume.attachments[0]['Device'],
+        self.assertEqual([volume.state, volume.attachments[0]['Device'],
                           volume.attachments[0]['InstanceId']],
                          [u'in-use', u'/dev/sdf', u'i-xyz'])
 
@@ -615,7 +615,7 @@ class VolumeStateTransitionTests(TestCase):
         """
         volume = self._process_volume(self.V.DETACH, self.S.DESTINATION_STATE,
                                       self.A.DETACH_SUCCESS)
-        self.assertEqual(volume.status, u'available')
+        self.assertEqual(volume.state, u'available')
 
 
 class EC2ClientTests(TestCase):
