@@ -835,14 +835,15 @@ def _is_cluster_volume(cluster_id, ebs_volume):
     :return bool: True if input volume belongs to input
         Flocker cluster. False otherwise.
     """
-    actual_cluster_id = [
-        tag['Value'] for tag in ebs_volume.tags
-        if tag['Key'] == CLUSTER_ID_LABEL
-    ]
-    if actual_cluster_id:
-        actual_cluster_id = UUID(actual_cluster_id.pop())
-        if actual_cluster_id == cluster_id:
-            return True
+    if ebs_volume.tags is not None:
+        actual_cluster_id = [
+            tag['Value'] for tag in ebs_volume.tags
+            if tag['Key'] == CLUSTER_ID_LABEL
+        ]
+        if actual_cluster_id:
+            actual_cluster_id = UUID(actual_cluster_id.pop())
+            if actual_cluster_id == cluster_id:
+                return True
     return False
 
 
@@ -1147,7 +1148,7 @@ class EBSBlockDeviceAPI(object):
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is not None or
-                ebs_volume.status != VolumeStates.AVAILABLE.value):
+                ebs_volume.state != VolumeStates.AVAILABLE.value):
             raise AlreadyAttachedVolume(blockdevice_id)
 
         attached = False
