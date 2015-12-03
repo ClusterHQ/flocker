@@ -602,10 +602,10 @@ class EC2Client(PRecord):
 
         :return: A ``list`` of ``Volume`` objects.
         """
-        all_volumes = []
-        for volumes in self.connection.volumes.page_size(page_size).pages():
-            all_volumes.append(volumes)
-        return list(itertools.chain.from_iterable(all_volumes))
+        return list(itertools.chain.from_iterable(list(
+            volumes for volumes in
+            self.connection.volumes.page_size(page_size).pages()
+        )))
 
 
 def _blockdevicevolume_from_ebs_volume(ebs_volume):
@@ -1243,11 +1243,11 @@ class EBSBlockDeviceAPI(object):
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
-        if volume.attached_to is None:
+        if not volume.attachments:
             raise UnattachedVolume(blockdevice_id)
 
         compute_instance_id = self.compute_instance_id()
-        if volume.attached_to != compute_instance_id:
+        if volume.attachments[0]['InstanceId'] != compute_instance_id:
             # This is untested.  See FLOC-2453.
             raise Exception(
                 "Volume is attached to {}, not to {}".format(
@@ -1255,7 +1255,7 @@ class EBSBlockDeviceAPI(object):
                 )
             )
 
-        return _expected_device(ebs_volume.attach_data.device)
+        return _expected_device(ebs_volume.attachments[0]['Device'])
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
