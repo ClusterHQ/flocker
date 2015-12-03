@@ -10,11 +10,14 @@ from uuid import uuid4, UUID
 
 from pyrsistent import (
     InvariantException, pset, PClass, PSet, pmap, PMap, thaw, PVector,
-    pvector
+    pvector, PRecord
 )
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
+
+from hypothesis import given, assume
+from hypothesis.strategies import sampled_from
 
 from zope.interface.verify import verifyObject
 
@@ -797,6 +800,9 @@ class AttachedVolumeTests(SynchronousTestCase):
         self.assertIs(volume.dataset, volume.manifestation.dataset)
 
 
+PYRSISTENT_STRUCT = sampled_from({PClass, PRecord})
+
+
 class PSetFieldTests(SynchronousTestCase):
     """
     Tests for ``pset_field``.
@@ -804,94 +810,108 @@ class PSetFieldTests(SynchronousTestCase):
     This will hopefully be contributed upstream to pyrsistent, thus the
     slightly different testing style.
     """
-    def test_initial_value(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_initial_value(self, klass):
         """
         ``pset_field`` results in initial value that is empty.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pset_field(int)
         assert Record() == Record(value=[])
 
-    def test_custom_initial(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_custom_initial(self, klass):
         """
         A custom initial value can be passed in.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pset_field(int, initial=(1, 2))
         assert Record() == Record(value=[1, 2])
 
-    def test_factory(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_factory(self, klass):
         """
         ``pset_field`` has a factory that creates a ``PSet``.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pset_field(int)
         record = Record(value=[1, 2])
         assert isinstance(record.value, PSet)
 
-    def test_checked_set(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_checked_set(self, klass):
         """
         ``pset_field`` results in a set that enforces its type.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pset_field(int)
         record = Record(value=[1, 2])
         self.assertRaises(TypeError, record.value.add, "hello")
 
-    def test_type(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_type(self, klass):
         """
         ``pset_field`` enforces its type.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pset_field(int)
         record = Record()
         self.assertRaises(TypeError, record.set, "value", None)
 
-    def test_mandatory(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_mandatory(self, klass):
         """
         ``pset_field`` is a mandatory field.
         """
-        class Record(PClass):
+        # PClass sets attributes to the initial value when you try to remove
+        # them.
+        assume(klass is PRecord)
+
+        class Record(klass):
             value = pset_field(int)
         record = Record(value=[1])
         self.assertRaises(InvariantException, record.remove, "value")
 
-    def test_default_non_optional(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_default_non_optional(self, klass):
         """
         By default ``pset_field`` is non-optional, i.e. does not allow
         ``None``.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pset_field(int)
         self.assertRaises(TypeError, Record, value=None)
 
-    def test_explicit_non_optional(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_explicit_non_optional(self, klass):
         """
         If ``optional`` argument is ``False`` then ``pset_field`` is
         non-optional, i.e. does not allow ``None``.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pset_field(int, optional=False)
         self.assertRaises(TypeError, Record, value=None)
 
-    def test_optional(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_optional(self, klass):
         """
         If ``optional`` argument is true, ``None`` is acceptable alternative
         to a set.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pset_field(int, optional=True)
         assert ((Record(value=[1, 2]).value, Record(value=None).value) ==
                 (pset([1, 2]), None))
 
-    def test_name(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_name(self, klass):
         """
         The created set class name is based on the type of items in the set.
         """
         class Something(object):
             pass
 
-        class Record(PClass):
+        class Record(klass):
             value = pset_field(Something)
             value2 = pset_field(int)
         assert ((Record().value.__class__.__name__,
@@ -906,94 +926,108 @@ class PVectorFieldTests(SynchronousTestCase):
     This will hopefully be contributed upstream to pyrsistent, thus the
     slightly different testing style.
     """
-    def test_initial_value(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_initial_value(self, klass):
         """
         ``pvector_field`` results in initial value that is empty.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pvector_field(int)
         assert Record() == Record(value=[])
 
-    def test_custom_initial(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_custom_initial(self, klass):
         """
         A custom initial value can be passed in.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pvector_field(int, initial=(1, 2))
         assert Record() == Record(value=[1, 2])
 
-    def test_factory(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_factory(self, klass):
         """
         ``pvector_field`` has a factory that creates a ``PVector``.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pvector_field(int)
         record = Record(value=[1, 2])
         assert isinstance(record.value, PVector)
 
-    def test_checked_vector(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_checked_vector(self, klass):
         """
         ``pvector_field`` results in a vector that enforces its type.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pvector_field(int)
         record = Record(value=[1, 2])
         self.assertRaises(TypeError, record.value.append, "hello")
 
-    def test_type(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_type(self, klass):
         """
         ``pvector_field`` enforces its type.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pvector_field(int)
         record = Record()
         self.assertRaises(TypeError, record.set, "value", None)
 
-    def test_mandatory(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_mandatory(self, klass):
         """
         ``pvector_field`` is a mandatory field.
         """
-        class Record(PClass):
+        # PClass sets attributes to the initial value when you try to remove
+        # them.
+        assume(klass is PRecord)
+
+        class Record(klass):
             value = pvector_field(int)
         record = Record(value=[1])
         self.assertRaises(InvariantException, record.remove, "value")
 
-    def test_default_non_optional(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_default_non_optional(self, klass):
         """
         By default ``pvector_field`` is non-optional, i.e. does not allow
         ``None``.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pvector_field(int)
         self.assertRaises(TypeError, Record, value=None)
 
-    def test_explicit_non_optional(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_explicit_non_optional(self, klass):
         """
         If ``optional`` argument is ``False`` then ``pvector_field`` is
         non-optional, i.e. does not allow ``None``.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pvector_field(int, optional=False)
         self.assertRaises(TypeError, Record, value=None)
 
-    def test_optional(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_optional(self, klass):
         """
         If ``optional`` argument is true, ``None`` is acceptable alternative
         to a sequence.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pvector_field(int, optional=True)
         assert ((Record(value=[1, 2]).value, Record(value=None).value) ==
                 (pvector([1, 2]), None))
 
-    def test_name(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_name(self, klass):
         """
         The created set class name is based on the type of items in the set.
         """
         class Something(object):
             pass
 
-        class Record(PClass):
+        class Record(klass):
             value = pvector_field(Something)
             value2 = pvector_field(int)
         assert ((Record().value.__class__.__name__,
@@ -1008,104 +1042,119 @@ class PMapFieldTests(SynchronousTestCase):
     This will hopefully be contributed upstream to pyrsistent, thus the
     slightly different testing style.
     """
-    def test_initial_value(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_initial_value(self, klass):
         """
         ``pmap_field`` results in initial value that is empty.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(int, int)
         assert Record() == Record(value={})
 
-    def test_override_initial_value(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_override_initial_value(self, klass):
         """
         The initial value can be set to a non-empty map by passing the desired
         value to the ``initial`` parameter.
         """
         initial = {1: 2, 3: 4}
 
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(int, int, initial=initial)
         assert Record() == Record(value=initial)
 
-    def test_none_initial_value(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_none_initial_value(self, klass):
         """
         The initial value for an optional field can be set to ``None`` by
         passing ``None`` to the ``initial`` parameter.
         """
         initial = None
 
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(int, int, optional=True, initial=initial)
         assert Record() == Record(value=initial)
 
-    def test_factory(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_factory(self, klass):
         """
         ``pmap_field`` has a factory that creates a ``PMap``.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(int, int)
         record = Record(value={1:  1234})
         assert isinstance(record.value, PMap)
 
-    def test_checked_map_key(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_checked_map_key(self, klass):
         """
         ``pmap_field`` results in a map that enforces its key type.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(int, type(None))
         record = Record(value={1: None})
         self.assertRaises(TypeError, record.value.set, "hello", None)
 
-    def test_checked_map_value(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_checked_map_value(self, klass):
         """
         ``pmap_field`` results in a map that enforces its value type.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(int, type(None))
         record = Record(value={1: None})
         self.assertRaises(TypeError, record.value.set, 2, 4)
 
-    def test_mandatory(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_mandatory(self, klass):
         """
         ``pmap_field`` is a mandatory field.
         """
-        class Record(PClass):
+        # PClass sets attributes to the initial value when you try to remove
+        # them.
+        assume(klass is PRecord)
+
+        class Record(klass):
             value = pmap_field(int, int)
         record = Record()
         self.assertRaises(InvariantException, record.remove, "value")
 
-    def test_default_non_optional(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_default_non_optional(self, klass):
         """
         By default ``pmap_field`` is non-optional, i.e. does not allow
         ``None``.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(int, int)
         # Ought to be TypeError, but pyrsistent doesn't quite allow that:
         self.assertRaises(AttributeError, Record, value=None)
 
-    def test_explicit_non_optional(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_explicit_non_optional(self, klass):
         """
         If ``optional`` argument is ``False`` then ``pmap_field`` is
         non-optional, i.e. does not allow ``None``.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(int, int, optional=False)
         # Ought to be TypeError, but pyrsistent doesn't quite allow that:
         self.assertRaises(AttributeError, Record, value=None)
 
-    def test_optional(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_optional(self, klass):
         """
         If ``optional`` argument is true, ``None`` is acceptable alternative
         to a set.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(int, int, optional=True)
         self.assertEqual(
             (Record(value={1: 2}).value, Record(value=None).value),
             (pmap({1: 2}), None))
 
-    def test_name(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_name(self, klass):
         """
         The created map class name is based on the types of items in the map.
         """
@@ -1115,18 +1164,19 @@ class PMapFieldTests(SynchronousTestCase):
         class Another(object):
             pass
 
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(Something, Another)
             value2 = pmap_field(int, float)
         assert ((Record().value.__class__.__name__,
                  Record().value2.__class__.__name__) ==
                 ("SomethingAnotherPMap", "IntFloatPMap"))
 
-    def test_invariant(self):
+    @given(PYRSISTENT_STRUCT)
+    def test_invariant(self, klass):
         """
         The ``invariant`` parameter is passed through to ``field``.
         """
-        class Record(PClass):
+        class Record(klass):
             value = pmap_field(
                 int, int,
                 invariant=(
