@@ -571,7 +571,7 @@ class EC2Client(PRecord):
         if zone is None:
             zone = self.zone
         client = self.connection.meta.client
-        if volume_type == EBSVolumeTypes.IO1:
+        if volume_type == EBSVolumeTypes.IO1.value:
             if iops is None:
                 iops = IOPS_MIN_IOPS
             if size < IOPS_MIN_SIZE:
@@ -1004,8 +1004,9 @@ class EBSBlockDeviceAPI(object):
         volume_devices = []
         for v in volumes:
             volume_attachments = v.attachments
-            if volume_attachments['InstanceId'] == instance_id:
-                volume_devices.append(volume_attachments['Device'])
+            for attachment in volume_attachments:
+                if attachment['InstanceId'] == instance_id:
+                    volume_devices.append(attachment['Device'])
         devices = pset(volume_devices)
         devices = devices | devices_in_use
         sorted_devices = sorted(list(thaw(devices)))
