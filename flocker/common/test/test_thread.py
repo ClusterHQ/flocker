@@ -6,6 +6,9 @@ Tests for ``flocker.common._thread``.
 
 from zope.interface import Attribute, Interface, implementer
 
+from eliot import ActionType
+from eliot.testing import capture_logging, assertHasAction
+
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.failure import Failure
 from twisted.python.threadpool import ThreadPool
@@ -40,6 +43,10 @@ class CannotAdd(object):
         raise self.EXCEPTION
 
 
+LOG_IN_CALLER = ActionType("in_caller", [], [])
+LOG_IN_SPY = ActionType("in_spy", [], [])
+
+
 @implementer(IStub)
 class Spy(object):
     """
@@ -57,8 +64,9 @@ class Spy(object):
         Record this method call and return the concatenation of all the
         arguments.
         """
-        self.calls.append((a, b, c))
-        return a + b + c
+        with LOG_IN_SPY():
+            self.calls.append((a, b, c))
+            return a + b + c
 
 
 @auto_threaded(IStub, "reactor", "provider", "threadpool")
@@ -183,7 +191,18 @@ class AutoThreadedIntegrationTests(TestCase):
     Tests for ``auto_threaded`` in combination with a real reactor and a real
     thread pool, ``twisted.python.threads.ThreadPool``.
     """
-    def test_integration(self):
+    def assert_context_preserved(self, logger):
+        """
+        Logging in the method running in the thread pool is child of caller's
+        Eliot context.
+        """
+        grandchild = assertHasAction(self, logger, LOG_IN_SPY, True, {})
+        # in-between we expect a eliot:remote_task...
+        parent = assertHasAction(self, logger, LOG_IN_CALLER, True, {})
+        self.assertEqual(parent.children[0].children[0], grandchild)
+
+    @capture_logging(assert_context_preserved)
+    def test_integration(self, logger):
         """
         ``auto_threaded`` works with ``twisted.python.threads.ThreadPool``.
         """
@@ -201,6 +220,7 @@ class AutoThreadedIntegrationTests(TestCase):
         a = [object()]
         b = [object()]
         c = [object()]
-        result = async_spy.method(a, b, c)
+        with LOG_IN_CALLER():
+            result = async_spy.method(a, b, c)
         result.addCallback(self.assertEqual, spy.method(a, b, c))
         return result

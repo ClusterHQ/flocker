@@ -6,7 +6,41 @@ Some thread-related tools.
 
 from twisted.internet.threads import deferToThreadPool
 
+from eliot import Action
+
 from ._interface import interface_decorator
+
+
+# This will be moved into Eliot:
+# https://github.com/ClusterHQ/eliot/issues/225
+def preserve_context(f, *args, **kwargs):
+    """
+    Package up the given function and arguments with the current Eliot
+    context, and then restore context and call given function when the
+    resulting callable is run.
+
+    The result should only be used once, presumably in a thread.
+
+    :param action_context: Current Eliot context.
+    :param f: A callable.
+    :param args: Positional arguments.
+    :param kwargs: Keyword arguments.
+
+    :return: One-time use callable that calls given function and arguments
+        in context of child of current Eliot action.
+    """
+    # XXX uses private API, but we'll be moving this implementation into
+    # Eliot so it's reasonable short-term expedient.
+    from eliot._action import currentAction
+    action = currentAction()
+    if action is None:
+        return lambda: f(*args, **kwargs)
+    task_id = action.serialize_task_id()
+
+    def restore_eliot_context():
+        with Action.continue_task(task_id=task_id):
+            return f(*args, **kwargs)
+    return restore_eliot_context
 
 
 def _threaded_method(method_name, sync_name, reactor_name, threadpool_name):
@@ -33,7 +67,7 @@ def _threaded_method(method_name, sync_name, reactor_name, threadpool_name):
         threadpool = getattr(self, threadpool_name)
         original = getattr(sync, method_name)
         return deferToThreadPool(
-            reactor, threadpool, original, *args, **kwargs
+            reactor, threadpool, preserve_context(original, *args, **kwargs)
         )
     return _run_in_thread
 
