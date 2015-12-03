@@ -1441,7 +1441,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     state=DatasetStates.MOUNTED,
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=self.BLOCKDEVICE_ID,
-                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                     device_path=FilePath(b"/dev/sda"),
                     mount_point=FilePath(b"/flocker").child(
                         bytes(self.DATASET_ID),
@@ -1587,7 +1587,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
-                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                     device_path=FilePath(b"/dev/sda"),
                 ),
             ],
@@ -1647,7 +1647,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
-                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                     device_path=device,
                 ),
             ],
