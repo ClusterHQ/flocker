@@ -10,7 +10,7 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.failure import Failure
 from twisted.python.threadpool import ThreadPool
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from .. import auto_threaded
 
@@ -62,7 +62,7 @@ class Spy(object):
 
 
 @auto_threaded(IStub, "reactor", "provider", "threadpool")
-class AsyncSpy(PRecord):
+class AsyncSpy(PClass):
     """
     An automatically asynchronous version of ``Spy``.
     """

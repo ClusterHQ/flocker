@@ -53,7 +53,7 @@ from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
 from bitmath import GiB, MiB
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from docker import Client as DockerClient
 from eliot import ActionType, Message, MessageType, start_action, fields
@@ -594,7 +594,7 @@ class ProtocolPoppingFactory(Factory):
         return self.protocols.pop()
 
 
-class DockerImageBuilder(PRecord):
+class DockerImageBuilder(PClass):
     """
     Build a docker image, tag it, and remove the image later.
 
@@ -845,7 +845,7 @@ PROCESS_ENDED = MessageType(
     u'The process terminated')
 
 
-class _ProcessResult(PRecord):
+class _ProcessResult(PClass):
     """
     The return type for ``run_process`` representing the outcome of the process
     that was run.

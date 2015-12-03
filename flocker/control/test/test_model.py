@@ -9,7 +9,7 @@ import datetime
 from uuid import uuid4, UUID
 
 from pyrsistent import (
-    InvariantException, pset, PRecord, PSet, pmap, PMap, thaw, PVector,
+    InvariantException, pset, PClass, PSet, pmap, PMap, thaw, PVector,
     pvector
 )
 
@@ -808,7 +808,7 @@ class PSetFieldTests(SynchronousTestCase):
         """
         ``pset_field`` results in initial value that is empty.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pset_field(int)
         assert Record() == Record(value=[])
 
@@ -816,7 +816,7 @@ class PSetFieldTests(SynchronousTestCase):
         """
         A custom initial value can be passed in.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pset_field(int, initial=(1, 2))
         assert Record() == Record(value=[1, 2])
 
@@ -824,7 +824,7 @@ class PSetFieldTests(SynchronousTestCase):
         """
         ``pset_field`` has a factory that creates a ``PSet``.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pset_field(int)
         record = Record(value=[1, 2])
         assert isinstance(record.value, PSet)
@@ -833,7 +833,7 @@ class PSetFieldTests(SynchronousTestCase):
         """
         ``pset_field`` results in a set that enforces its type.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pset_field(int)
         record = Record(value=[1, 2])
         self.assertRaises(TypeError, record.value.add, "hello")
@@ -842,7 +842,7 @@ class PSetFieldTests(SynchronousTestCase):
         """
         ``pset_field`` enforces its type.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pset_field(int)
         record = Record()
         self.assertRaises(TypeError, record.set, "value", None)
@@ -851,7 +851,7 @@ class PSetFieldTests(SynchronousTestCase):
         """
         ``pset_field`` is a mandatory field.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pset_field(int)
         record = Record(value=[1])
         self.assertRaises(InvariantException, record.remove, "value")
@@ -861,7 +861,7 @@ class PSetFieldTests(SynchronousTestCase):
         By default ``pset_field`` is non-optional, i.e. does not allow
         ``None``.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pset_field(int)
         self.assertRaises(TypeError, Record, value=None)
 
@@ -870,7 +870,7 @@ class PSetFieldTests(SynchronousTestCase):
         If ``optional`` argument is ``False`` then ``pset_field`` is
         non-optional, i.e. does not allow ``None``.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pset_field(int, optional=False)
         self.assertRaises(TypeError, Record, value=None)
 
@@ -879,7 +879,7 @@ class PSetFieldTests(SynchronousTestCase):
         If ``optional`` argument is true, ``None`` is acceptable alternative
         to a set.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pset_field(int, optional=True)
         assert ((Record(value=[1, 2]).value, Record(value=None).value) ==
                 (pset([1, 2]), None))
@@ -891,7 +891,7 @@ class PSetFieldTests(SynchronousTestCase):
         class Something(object):
             pass
 
-        class Record(PRecord):
+        class Record(PClass):
             value = pset_field(Something)
             value2 = pset_field(int)
         assert ((Record().value.__class__.__name__,
@@ -910,7 +910,7 @@ class PVectorFieldTests(SynchronousTestCase):
         """
         ``pvector_field`` results in initial value that is empty.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pvector_field(int)
         assert Record() == Record(value=[])
 
@@ -918,7 +918,7 @@ class PVectorFieldTests(SynchronousTestCase):
         """
         A custom initial value can be passed in.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pvector_field(int, initial=(1, 2))
         assert Record() == Record(value=[1, 2])
 
@@ -926,7 +926,7 @@ class PVectorFieldTests(SynchronousTestCase):
         """
         ``pvector_field`` has a factory that creates a ``PVector``.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pvector_field(int)
         record = Record(value=[1, 2])
         assert isinstance(record.value, PVector)
@@ -935,7 +935,7 @@ class PVectorFieldTests(SynchronousTestCase):
         """
         ``pvector_field`` results in a vector that enforces its type.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pvector_field(int)
         record = Record(value=[1, 2])
         self.assertRaises(TypeError, record.value.append, "hello")
@@ -944,7 +944,7 @@ class PVectorFieldTests(SynchronousTestCase):
         """
         ``pvector_field`` enforces its type.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pvector_field(int)
         record = Record()
         self.assertRaises(TypeError, record.set, "value", None)
@@ -953,7 +953,7 @@ class PVectorFieldTests(SynchronousTestCase):
         """
         ``pvector_field`` is a mandatory field.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pvector_field(int)
         record = Record(value=[1])
         self.assertRaises(InvariantException, record.remove, "value")
@@ -963,7 +963,7 @@ class PVectorFieldTests(SynchronousTestCase):
         By default ``pvector_field`` is non-optional, i.e. does not allow
         ``None``.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pvector_field(int)
         self.assertRaises(TypeError, Record, value=None)
 
@@ -972,7 +972,7 @@ class PVectorFieldTests(SynchronousTestCase):
         If ``optional`` argument is ``False`` then ``pvector_field`` is
         non-optional, i.e. does not allow ``None``.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pvector_field(int, optional=False)
         self.assertRaises(TypeError, Record, value=None)
 
@@ -981,7 +981,7 @@ class PVectorFieldTests(SynchronousTestCase):
         If ``optional`` argument is true, ``None`` is acceptable alternative
         to a sequence.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pvector_field(int, optional=True)
         assert ((Record(value=[1, 2]).value, Record(value=None).value) ==
                 (pvector([1, 2]), None))
@@ -993,7 +993,7 @@ class PVectorFieldTests(SynchronousTestCase):
         class Something(object):
             pass
 
-        class Record(PRecord):
+        class Record(PClass):
             value = pvector_field(Something)
             value2 = pvector_field(int)
         assert ((Record().value.__class__.__name__,
@@ -1012,7 +1012,7 @@ class PMapFieldTests(SynchronousTestCase):
         """
         ``pmap_field`` results in initial value that is empty.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(int, int)
         assert Record() == Record(value={})
 
@@ -1023,7 +1023,7 @@ class PMapFieldTests(SynchronousTestCase):
         """
         initial = {1: 2, 3: 4}
 
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(int, int, initial=initial)
         assert Record() == Record(value=initial)
 
@@ -1034,7 +1034,7 @@ class PMapFieldTests(SynchronousTestCase):
         """
         initial = None
 
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(int, int, optional=True, initial=initial)
         assert Record() == Record(value=initial)
 
@@ -1042,7 +1042,7 @@ class PMapFieldTests(SynchronousTestCase):
         """
         ``pmap_field`` has a factory that creates a ``PMap``.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(int, int)
         record = Record(value={1:  1234})
         assert isinstance(record.value, PMap)
@@ -1051,7 +1051,7 @@ class PMapFieldTests(SynchronousTestCase):
         """
         ``pmap_field`` results in a map that enforces its key type.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(int, type(None))
         record = Record(value={1: None})
         self.assertRaises(TypeError, record.value.set, "hello", None)
@@ -1060,7 +1060,7 @@ class PMapFieldTests(SynchronousTestCase):
         """
         ``pmap_field`` results in a map that enforces its value type.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(int, type(None))
         record = Record(value={1: None})
         self.assertRaises(TypeError, record.value.set, 2, 4)
@@ -1069,7 +1069,7 @@ class PMapFieldTests(SynchronousTestCase):
         """
         ``pmap_field`` is a mandatory field.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(int, int)
         record = Record()
         self.assertRaises(InvariantException, record.remove, "value")
@@ -1079,7 +1079,7 @@ class PMapFieldTests(SynchronousTestCase):
         By default ``pmap_field`` is non-optional, i.e. does not allow
         ``None``.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(int, int)
         # Ought to be TypeError, but pyrsistent doesn't quite allow that:
         self.assertRaises(AttributeError, Record, value=None)
@@ -1089,7 +1089,7 @@ class PMapFieldTests(SynchronousTestCase):
         If ``optional`` argument is ``False`` then ``pmap_field`` is
         non-optional, i.e. does not allow ``None``.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(int, int, optional=False)
         # Ought to be TypeError, but pyrsistent doesn't quite allow that:
         self.assertRaises(AttributeError, Record, value=None)
@@ -1099,7 +1099,7 @@ class PMapFieldTests(SynchronousTestCase):
         If ``optional`` argument is true, ``None`` is acceptable alternative
         to a set.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(int, int, optional=True)
         self.assertEqual(
             (Record(value={1: 2}).value, Record(value=None).value),
@@ -1115,7 +1115,7 @@ class PMapFieldTests(SynchronousTestCase):
         class Another(object):
             pass
 
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(Something, Another)
             value2 = pmap_field(int, float)
         assert ((Record().value.__class__.__name__,
@@ -1126,7 +1126,7 @@ class PMapFieldTests(SynchronousTestCase):
         """
         The ``invariant`` parameter is passed through to ``field``.
         """
-        class Record(PRecord):
+        class Record(PClass):
             value = pmap_field(
                 int, int,
                 invariant=(

@@ -15,7 +15,7 @@ import yaml
 from zope.interface import implementer
 
 from characteristic import attributes
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from twisted.internet.error import ProcessTerminated
 
@@ -212,7 +212,7 @@ class DistributionNotSupported(NotImplementedError):
 
 
 @implementer(INode)
-class ManagedNode(PRecord):
+class ManagedNode(PClass):
     """
     A node managed by some other system (eg by hand or by another piece of
     orchestration software).

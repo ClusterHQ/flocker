@@ -23,7 +23,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    PRecord, field, discard, pmap, pvector,
+    PClass, field, discard, pmap, pvector,
 )
 
 from hypothesis import given
@@ -123,7 +123,7 @@ if not platform.isLinux():
     skip = "flocker.node.agents.blockdevice is only supported on Linux"
 
 
-class _SizeInfo(PRecord):
+class _SizeInfo(PClass):
     """
     :ivar int actual: The number of bytes allocated in the filesystem to a
         file, as computed by counting block size.  A sparse file may have less
@@ -3654,7 +3654,7 @@ class MountBlockDeviceInitTests(
     """
 
 
-class _MountScenario(PRecord):
+class _MountScenario(PClass):
     """
     Setup tools for the tests defined on ``MountBlockDeviceTests``.
 
