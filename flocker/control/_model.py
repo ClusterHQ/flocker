@@ -19,7 +19,7 @@ from characteristic import attributes
 from twisted.python.filepath import FilePath
 
 from pyrsistent import (
-    pmap, PClass, field, PMap, CheckedPSet, CheckedPMap, discard,
+    pmap, PClass, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
     optional as optional_type, CheckedPVector
     )
 
@@ -868,7 +868,7 @@ def ip_to_uuid(ip):
 
 
 @implementer(IClusterStateChange)
-class NodeState(PClass):
+class NodeState(PRecord):
     """
     The current state of a node.
 
@@ -905,13 +905,16 @@ class NodeState(PClass):
         return (True, "")
 
     def __new__(cls, **kwargs):
-        if "uuid" not in kwargs:
-            # See https://clusterhq.atlassian.net/browse/FLOC-1795
-            warn("UUID is required, this is for backwards compat with "
-                 "existing tests. If you see this in production code "
-                 "that's a bug.", DeprecationWarning, stacklevel=2)
-            kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
-        return PClass.__new__(cls, **kwargs)
+        # PRecord does some crazy stuff, thus _precord_buckets; see
+        # PRecord.__new__.
+        if "_precord_buckets" not in kwargs:
+            if "uuid" not in kwargs:
+                # See https://clusterhq.atlassian.net/browse/FLOC-1795
+                warn("UUID is required, this is for backwards compat with "
+                     "existing tests. If you see this in production code "
+                     "that's a bug.", DeprecationWarning, stacklevel=2)
+                kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
+        return PRecord.__new__(cls, **kwargs)
 
     uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
