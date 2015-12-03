@@ -619,8 +619,8 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
 
     def test_destroy_timesout(self):
         """
-        If the cinder cannot delete the volume, we should timeout
-        after waiting some time
+        If Cinder does not delete the volume within a specified amount of time,
+        the destroy attempt fails by raising ``TimeoutException``.
         """
         new_volume = self.api.create_volume(
             dataset_id=uuid4(),
