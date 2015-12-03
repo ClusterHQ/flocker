@@ -690,6 +690,7 @@ common_cli:
     # gather the vanilla Vagrantfile from upstream and do a vagrant up
     rm -f Vagrantfile
     wget https://raw.githubusercontent.com/AndrewDryga/vagrant-box-osx/master/Vagrantfile
+    VAGRANT_LOG=debug
     vagrant up
 
   install_aws_cli: &install_aws_cli |
