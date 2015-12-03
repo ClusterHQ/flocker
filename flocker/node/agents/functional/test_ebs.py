@@ -9,9 +9,6 @@ import time
 from uuid import uuid4
 from bitmath import Byte, GiB
 
-from boto.ec2.volume import (
-    Volume as EbsVolume, AttachmentSet
-)
 from botocore.exceptions import ClientError
 
 from twisted.python.constants import Names, NamedConstant
@@ -320,7 +317,6 @@ class VolumeStateTransitionTests(TestCase):
     """
     Tests for volume state operations and resulting volume state changes.
     """
-
     class VolumeEndStateTypes(Names):
         """
         Types of volume states to simulate.
@@ -353,7 +349,14 @@ class VolumeStateTransitionTests(TestCase):
         :returns: Suitable volume in the right start state for input operation.
         :rtype: boto.ec2.volume.Volume
         """
-        volume = EbsVolume()
+        class VolumeStub(object):
+            """
+            Blank object to represent properties found on the immutable
+            `boto3.resources.factory.ec2.Volume`.
+            """
+            pass
+
+        volume = VolumeStub()
 
         # Irrelevant volume attributes.
         volume.id = u'vol-9c48a689'
@@ -368,7 +371,7 @@ class VolumeStateTransitionTests(TestCase):
         start_state = state_flow.start_state.value
 
         # Interesting volume attribute.
-        volume.status = start_state
+        volume.state = start_state
 
         return volume
 
@@ -408,24 +411,24 @@ class VolumeStateTransitionTests(TestCase):
         :param NamedConstant attach_type: Type of attach data to create.
 
         :returns: Volume attachment set that conforms to requested attach type.
-        :rtype: AttachmentSet
+        :rtype: `dict`
         """
         if attach_type == self.A.MISSING_ATTACH_DATA:
             return None
         elif attach_type == self.A.MISSING_INSTANCE_ID:
-            attach_data = AttachmentSet()
-            attach_data.device = u'/dev/sdf'
-            attach_data.instance_id = ''
+            attach_data = dict()
+            attach_data['Device'] = u'/dev/sdf'
+            attach_data['InstanceId'] = ''
             return attach_data
         elif attach_type == self.A.MISSING_DEVICE:
-            attach_data = AttachmentSet()
-            attach_data.device = ''
-            attach_data.instance_id = u'i-xyz'
+            attach_data = dict()
+            attach_data['Device'] = ''
+            attach_data['InstanceId'] = u'i-xyz'
             return attach_data
         elif attach_type == self.A.ATTACH_SUCCESS:
-            attach_data = AttachmentSet()
-            attach_data.device = u'/dev/sdf'
-            attach_data.instance_id = u'i-xyz'
+            attach_data = dict()
+            attach_data['Device'] = u'/dev/sdf'
+            attach_data['InstanceId'] = u'i-xyz'
             return attach_data
         elif attach_type == self.A.DETACH_SUCCESS:
             return None
@@ -442,8 +445,8 @@ class VolumeStateTransitionTests(TestCase):
             :param boto.ec2.volume.Volume volume: Volume to move to
                 invalid state.
             """
-            volume.status = self._pick_end_state(operation, state_type)
-            volume.attach_data = self._pick_attach_data(attach_data)
+            volume.state = self._pick_end_state(operation, state_type)
+            volume.attachments = [self._pick_attach_data(attach_data)]
         return update
 
     def _assert_unexpected_state_exception(self, operation,
@@ -602,8 +605,8 @@ class VolumeStateTransitionTests(TestCase):
         Test if successful attach volume operation leads to expected state.
         """
         volume = self._process_volume(self.V.ATTACH, self.S.DESTINATION_STATE)
-        self.assertEqual([volume.status, volume.attach_data.device,
-                          volume.attach_data.instance_id],
+        self.assertEqual([volume.status, volume.attachments[0]['Device'],
+                          volume.attachments[0]['InstanceId']],
                          [u'in-use', u'/dev/sdf', u'i-xyz'])
 
     def test_detach_success(self):
