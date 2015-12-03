@@ -1051,7 +1051,7 @@ class ScenarioMixin(object):
     MANIFESTATION = Manifestation(
         dataset=Dataset(
             dataset_id=unicode(DATASET_ID),
-            maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+            maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
         ),
         primary=True,
     )
@@ -1107,7 +1107,7 @@ def create_test_blockdevice_volume_for_dataset_id(dataset_id,
 
     return BlockDeviceVolume(
         blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
-        size=REALISTIC_BLOCKDEVICE_SIZE,
+        size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
         attached_to=attached_to,
         dataset_id=UUID(dataset_id))
 
@@ -2131,7 +2131,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                     primary=True,
                     dataset=Dataset(
                         dataset_id=expected_dataset_id,
-                        maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                        maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                         # Dataset state will always have empty metadata and
                         # deleted will always be False.
                         metadata={},
@@ -3449,7 +3449,7 @@ def mountroot_for_test(test_case):
 
 _ARBITRARY_VOLUME = BlockDeviceVolume(
     blockdevice_id=u"abcd",
-    size=REALISTIC_BLOCKDEVICE_SIZE,
+    size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
     dataset_id=uuid4(),
 )
 
