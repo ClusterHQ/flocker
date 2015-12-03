@@ -334,13 +334,9 @@ def _enable_boto_logging():
     """
     Make boto log activity using Eliot.
     """
+    boto3.set_stream_logger()
     logger = logging.getLogger("boto3")
     logger.addHandler(EliotLogHandler())
-
-    # It seems as though basically all boto log messages are at the same
-    # level.  Either we can see all of them or we can see none of them.
-    # We'll do some extra filtering in the handler.
-    logger.setLevel(logging.DEBUG)
 
 _enable_boto_logging()
 
