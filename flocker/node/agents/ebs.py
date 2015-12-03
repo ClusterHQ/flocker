@@ -840,15 +840,13 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 
 
 def _attach_volume_and_wait_for_device(
-    connection, volume, attach_to, attach_volume,
+    volume, attach_to, attach_volume,
     detach_volume, device, blockdevices,
 ):
     """
     Attempt to attach an EBS volume to an EC2 instance and wait for the
     corresponding OS device to become available.
 
-    :param boto3.resources.factory.ec2.ServiceResource: The EC2 service
-        connection.
     :param BlockDeviceVolume volume: The Flocker representation of the volume
         to attach.
     :param unicode attach_to: The EC2 instance id to which to attach it.
