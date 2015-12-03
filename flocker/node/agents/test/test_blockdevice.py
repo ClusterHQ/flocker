@@ -23,12 +23,16 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    PClass, PRecord, field, discard, pmap, pvector, pvector_field,
-    pmap_field,
+    PRecord, field, discard, pmap, pvector,
+)
+
+from hypothesis import given
+from hypothesis.strategies import (
+    uuids, text, lists, just, integers, builds, sampled_from,
+    one_of,
 )
 
 from twisted.python.components import proxyForInterface
-from twisted.python.constants import Names, NamedConstant
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
@@ -78,7 +82,7 @@ from ..loopback import (
     _losetup_list, _blockdevicevolume_from_dataset_id,
     _backing_file_name,
 )
-
+from ....common.algebraic import tagged_union_strategy
 
 from ... import run_state_change, in_parallel, ILocalState, NoOp
 from ...testtools import (
@@ -993,7 +997,7 @@ class UnusableAPI(object):
 def assert_calculated_changes(
         case, node_state, node_config, nonmanifest_datasets, expected_changes,
         additional_node_states=frozenset(), leases=Leases(),
-        discovered_datasets=(),
+        discovered_datasets=None,
 ):
     """
     Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
@@ -1014,12 +1018,33 @@ def assert_calculated_changes(
     cluster_state = compute_cluster_state(node_state, additional_node_states,
                                           nonmanifest_datasets)
 
-    local_state = _create_block_device_deployer_local_state(
-        deployer, cluster_state,
-        volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE,
-        compute_instance_id=u"instance-".format(node_state.uuid))
-    local_state = local_state.set(
-        datasets={d.dataset_id: d for d in discovered_datasets})
+    compute_instance_id = u"instance-".format(node_state.uuid)
+    volumes = _infer_volumes_for_test(
+        node_state=node_state,
+        nonmanifest_datasets=cluster_state.nonmanifest_datasets,
+        additional_node_states=additional_node_states,
+        compute_instance_id=compute_instance_id,
+    )
+    if discovered_datasets is None:
+        local_state = local_state_from_shared_state(
+            node_state=node_state,
+            nonmanifest_datasets=cluster_state.nonmanifest_datasets,
+            volumes=volumes,
+        )
+    else:
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=node_state.uuid,
+            hostname=node_state.hostname,
+            datasets={dataset.dataset_id: dataset
+                      for dataset in discovered_datasets},
+            volumes=volumes,
+        )
+        case.assertEqual(
+            local_state.shared_state_changes(),
+            (node_state.set("applications", None), NonManifestDatasets(
+                datasets=cluster_state.nonmanifest_datasets)),
+            "Inconsistent test data."
+        )
 
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config,
@@ -1112,8 +1137,12 @@ def create_test_blockdevice_volume_for_dataset_id(dataset_id,
         dataset_id=UUID(dataset_id))
 
 
-def _infer_volumes_for_test(node_uuid, node_hostname, compute_instance_id,
-                            cluster_state):
+def _infer_volumes_for_test(
+    node_state,
+    nonmanifest_datasets,
+    compute_instance_id,
+    additional_node_states=frozenset(),
+):
     """
     Infer the current ``BlockDeviceVolume`` instances in the cluster. This is
     for use by tests that create cluster_state by hand instead of using the API
@@ -1128,41 +1157,32 @@ def _infer_volumes_for_test(node_uuid, node_hostname, compute_instance_id,
     If you are using the ``IBlockDeviceAPI`` to set up the cluster_state, just
     use api.list_volumes() instead of calling this function.
 
-    :param UUID node_uuid: The uuid of the local node.
-
-    :param unicode node_hostname: The hostname of the local node.
+    :param NodeState node_state: The state of the local node.
+    :param nonmanifest_datasets: The state of non-manifest datasets.
+    :type nonmanifest_datasets: Mapping of ``UUID`` to ``Dataset``
+    :param additional_node_states: States of other nodes.
+    :type additional_node_states: ``set`` of ``NodeState``
 
     :param unicode compute_instance_id: The value for the attached_to field of
         the ``BlockDeviceVolume`` instances that are created for manifestions
         on the local node.
 
-    :param DeploymentState cluster_state: The rest of the cluster_state. This
-        is inspected to determine the volumes that are not attached to any node
-        (nonmanifest_datasets) and the volumes that are attached to remote
-        nodes.
-
     :returns: A list of ``BlockDeviceVolume`` instances for all the volumes in
         cluster_state that is only suitable for use in tests that do not use
         the ``IBlockDeviceAPI`` to set up the cluster_state.
     """
-    node_state = cluster_state.get_node(node_uuid,
-                                        hostname=node_hostname)
     local_volumes = [
         create_test_blockdevice_volume_for_dataset_id(
             dataset_id, attached_to=compute_instance_id)
         for dataset_id in (node_state.manifestations or {})]
 
-    nonmanifest_datasets = cluster_state.nonmanifest_datasets
     unattached_volumes = [
         create_test_blockdevice_volume_for_dataset_id(dataset_id)
         for dataset_id in (nonmanifest_datasets or {})]
 
     volumes = local_volumes + unattached_volumes
 
-    for remote_node_state in cluster_state.nodes:
-        if remote_node_state == node_state:
-            # Skip this node for remote processing if it is the local node.
-            continue
+    for remote_node_state in additional_node_states:
         # Construct a fake instance id for the attached_to field of the
         # ``BlockDeviceVolume`` instances that are connected to remote nodes.
         # This is an opaque identifier, and just needs to be different than
@@ -1178,144 +1198,124 @@ def _infer_volumes_for_test(node_uuid, node_hostname, compute_instance_id,
     return volumes
 
 
-class DiscoverVolumesMethod(Names):
-    """
-    Constants for determining volumes in calculate_changes tests.
-
-    :ivar GET_VOLUMES_FROM_API: Simply call ``list_volumes`` on the passed in
-        API.
-    :ivar INFER_VOLUMES_FROM_STATE: Call ``_infer_volumes_for_test`` to create
-        a list of volumes from the manually constructed cluster_state.
-    """
-    GET_VOLUMES_FROM_API = NamedConstant()
-    INFER_VOLUMES_FROM_STATE = NamedConstant()
-
-
 @implementer(ILocalState)
-class FakeBlockDeviceDeployerLocalState(PClass):
+def local_state_from_shared_state(
+    node_state,
+    nonmanifest_datasets,
+    volumes,
+):
     """
-    This class is a terrible idea and should be thrown out ASAP to be
-    replaced by the real thing.
+    Convert the state as reported by
+    ``BlockDeviceDeployerLocalState.shared_state_changes`` to a
+    ``BlockDeviceDeployerLocalState`` instance.
+
+    This exists so that tests that provide the former can be used
+    with an implementation that expects the former.
+
+    .. warning:: This function is a terrible idea and should be thrown out ASAP
+    to be replaced by the real thing.
     """
-    node_state = field(type=NodeState, mandatory=True)
-    nonmanifest_datasets = field(type=NonManifestDatasets, mandatory=True)
-    volumes = pvector_field(BlockDeviceVolume)
-    datasets = pmap_field(UUID, DiscoveredDataset)
-
-    def shared_state_changes(self):
-        return self.node_state, self.nonmanifest_datasets
-
-
-class FakeBlockDeviceDeployerLocalStateTests(SynchronousTestCase):
-    """
-    Tests for ``BlockDeviceDeployerLocalState``.
-    """
-    def setUp(self):
-        self.node_uuid = uuid4()
-        self.hostname = u"192.0.2.1"
-
-    def test_provides_ilocalstate(self):
-        """
-        Verify that ``BlockDeviceDeployerLocalState`` instances provide the
-        ILocalState interface.
-        """
-        local_state = FakeBlockDeviceDeployerLocalState(
-            node_state=EMPTY_NODE_STATE,
-            nonmanifest_datasets=NonManifestDatasets(datasets={}),
-            volumes=[],
-        )
-        self.assertTrue(
-            verifyObject(ILocalState, local_state)
-        )
-
-    def test_shared_changes(self):
-        """
-        ``shared_state_changes`` returns a ``NodeState`` with
-        the ``node_uuid`` and ``hostname`` from the
-        BlockDeviceDeployerLocalState`` and a
-        ``NonManifestDatasets``.
-        """
-        local_state = FakeBlockDeviceDeployerLocalState(
-            node_state=NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                manifestations={},
-                paths={},
-                devices={},
-                applications=None
-            ),
-            nonmanifest_datasets=NonManifestDatasets(datasets={}),
-            volumes=[],
-        )
-        expected_changes = (
-            NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                manifestations={},
-                paths={},
-                devices={},
-                applications=None
-            ),
-            NonManifestDatasets(
-                datasets={},
+    datasets = {}
+    for dataset_id, dataset in nonmanifest_datasets.items():
+        dataset_id = UUID(dataset_id)
+        if dataset_id in node_state.devices:
+            datasets[dataset_id] = DiscoveredDataset(
+                state=DatasetStates.ATTACHED,
+                dataset_id=dataset_id,
+                maximum_size=dataset.maximum_size or 0,
+                device_path=node_state.devices[dataset_id],
+                blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
             )
-        )
-        self.assertEqual(
-            local_state.shared_state_changes(),
-            expected_changes,
-        )
+        else:
+            datasets[dataset_id] = DiscoveredDataset(
+                state=DatasetStates.NON_MANIFEST,
+                dataset_id=dataset_id,
+                maximum_size=dataset.maximum_size or 0,
+                blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
+            )
 
+    if node_state.manifestations is not None:
+        for dataset_id, manifestation in node_state.manifestations.items():
+            dataset_id = UUID(dataset_id)
+            datasets[dataset_id] = DiscoveredDataset(
+                state=DatasetStates.MOUNTED,
+                dataset_id=dataset_id,
+                maximum_size=manifestation.dataset.maximum_size or 0,
+                device_path=node_state.devices[dataset_id],
+                blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
+                mount_point=node_state.paths[unicode(dataset_id)],
+            )
 
-def _create_block_device_deployer_local_state(
-        block_device_deployer, cluster_state,
-        volumes=DiscoverVolumesMethod.GET_VOLUMES_FROM_API,
-        compute_instance_id=None):
-    """
-    Creates a BlockDeviceDeployerLocalState from the given cluster_state and
-    optional volumes.
-
-    :param BlockDeviceDeployer block_device_deployer: The
-        ``BlockDeviceDeployer`` instance to get the local state for.
-
-    :param DeploymentState cluster_state: The current state of the cluster.
-
-    :param volumes: A sequence of ``BlockDeviceVolume`` instances representing
-        all volumes in the cluster, INFER_VOLUMES_FROM_STATE, or
-        GET_VOLUMES_FROM_API. GET_VOLUMES_FROM_API is the default, and gets
-        the volumes from the ``IBlockDeviceAPI`` that the block_device_deployer
-        is configured to use. INFER_VOLUMES_FROM_STATE assumes that the
-        cluster_state was not set up using the API, and thus inspects
-        cluster_state to determine which volumes exist in the cluster. Note
-        that the blockdevice_ids of the volumes that are constructed in this
-        manner are not compatible with the ``IBlockDeviceAPI``.
-
-    :param unicode compute_instance_id: The instance id for the current node.
-        This is only used in inferring volumes from the cluster_state. This
-        value will be in the attached_to field of the generated
-        ``BlockDeviceVolume`` instances.
-    """
-    node_state = cluster_state.get_node(
-        block_device_deployer.node_uuid,
-        hostname=block_device_deployer.hostname
-    )
-    nonmanifest_datasets = cluster_state.nonmanifest_datasets
-    api = block_device_deployer.block_device_api
-    if volumes is DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE:
-        if compute_instance_id is None:
-            compute_instance_id = api.compute_instance_id()
-        volumes = _infer_volumes_for_test(
-            block_device_deployer.node_uuid, block_device_deployer.hostname,
-            compute_instance_id, cluster_state)
-    elif volumes is DiscoverVolumesMethod.GET_VOLUMES_FROM_API:
-        volumes = api.list_volumes()
-
-    return FakeBlockDeviceDeployerLocalState(
-        node_state=node_state,
-        nonmanifest_datasets=NonManifestDatasets(
-            datasets=nonmanifest_datasets
-        ),
+    return BlockDeviceDeployerLocalState(
+        hostname=node_state.hostname,
+        node_uuid=node_state.uuid,
+        datasets=datasets,
         volumes=volumes,
     )
+
+
+DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
+    DiscoveredDataset,
+    {
+        'dataset_id': uuids(),
+        'maximum_size': integers(min_value=1),
+        'mount_point': builds(FilePath, sampled_from([
+            '/flocker/abc', '/flocker/xyz',
+        ])),
+        'blockdevice_id': text(),
+        'device_path': builds(FilePath, sampled_from([
+            '/dev/xvdf', '/dev/xvdg',
+        ])),
+    }
+).map(lambda dataset: dataset.set(
+    blockdevice_id=_create_blockdevice_id_for_test(dataset.dataset_id),
+))
+
+
+class LocalStateFromSharedStateTests(SynchronousTestCase):
+    """
+    Tests for ``local_state_from_shared_state``.
+    """
+    @given(
+        local_state=builds(
+            BlockDeviceDeployerLocalState,
+            node_uuid=uuids(),
+            hostname=text(),
+            datasets=lists(
+                DISCOVERED_DATASET_STRATEGY,
+            ).map(
+                lambda datasets: {dataset.dataset_id: dataset
+                                  for dataset in datasets}
+            ),
+            volumes=lists(
+                builds(
+                    BlockDeviceVolume,
+                    blockdevice_id=text(),
+                    size=integers(min_value=0),
+                    attached_to=one_of(
+                        just(None),
+                        text(),
+                    ),
+                    dataset_id=uuids(),
+                )
+            )
+        )
+    )
+    def test_round_trip(self, local_state):
+        """
+        Calling ``local_state_from_shared_state`` followed by ``
+        ``BlockDeviceDeployerLocalState.shared_state_changes`` on
+        the state changes of a ``BlockDeviceDeployerLocalState`` is
+        idempotent.
+        """
+        node_state, nonmanifest_datasets = local_state.shared_state_changes()
+        fake_local_state = local_state_from_shared_state(
+            node_state=node_state,
+            nonmanifest_datasets=nonmanifest_datasets.datasets,
+            volumes=local_state.volumes,
+        )
+        self.assertEqual(local_state.shared_state_changes(),
+                         fake_local_state.shared_state_changes())
 
 
 class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
@@ -1441,9 +1441,11 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     state=DatasetStates.MOUNTED,
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=self.BLOCKDEVICE_ID,
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=FilePath(b"/dev/whatever"),
-                    mount_point=FilePath(b"/flocker/wherever"),
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    device_path=FilePath(b"/dev/sda"),
+                    mount_point=FilePath(b"/flocker").child(
+                        bytes(self.DATASET_ID),
+                    ),
                 ),
             ],
         )
@@ -1456,17 +1458,17 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         ``calculate_necessary_state_changes`` for that dataset.
         """
         other_node = u"192.0.2.2"
-        local_state = self.ONE_DATASET_STATE
+        node_state = self.ONE_DATASET_STATE
         cluster_state = DeploymentState(
-            nodes={local_state}
+            nodes={node_state}
         )
 
-        local_config = to_node(local_state).transform(
+        node_config = to_node(node_state).transform(
             ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
             True
         )
         cluster_configuration = Deployment(
-            nodes={local_config}
+            nodes={node_config}
         )
 
         api = loopbackblockdeviceapi_for_test(self)
@@ -1482,8 +1484,11 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             block_device_api=api,
         )
 
-        local_state = _create_block_device_deployer_local_state(
-            deployer, cluster_state)
+        local_state = local_state_from_shared_state(
+            node_state=node_state,
+            nonmanifest_datasets={},
+            volumes=api.list_volumes(),
+        )
         changes = deployer.calculate_changes(
             cluster_configuration, cluster_state, local_state)
 
@@ -1582,8 +1587,8 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=FilePath(b"/dev/whatever"),
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    device_path=FilePath(b"/dev/sda"),
                 ),
             ],
 
@@ -1614,7 +1619,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             ['paths', unicode(self.DATASET_ID)],
             discard
         )
-        device = FilePath(b"/dev/whatever")
+        device = FilePath(b"/dev/sda")
 
         # Local state shows that there is a device for the (now) non-manifest
         # dataset. i.e it is attached.
@@ -1642,7 +1647,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
                     device_path=device,
                 ),
             ],
@@ -1683,16 +1688,24 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         # cluster's non-manifest datasets state.
         manifestation = node_config.manifestations[unicode(self.DATASET_ID)]
         dataset = manifestation.dataset
+        nonmanifest_datasets = {
+            unicode(dataset.dataset_id): dataset,
+        }
         cluster_state = DeploymentState(
             nodes={node_state},
-            nonmanifest_datasets={
-                unicode(dataset.dataset_id): dataset,
-            }
+            nonmanifest_datasets=nonmanifest_datasets,
         )
 
-        local_state = _create_block_device_deployer_local_state(
-            deployer, cluster_state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
+        api = deployer.block_device_api
+        local_state = local_state_from_shared_state(
+            node_state=node_state,
+            nonmanifest_datasets=cluster_state.nonmanifest_datasets,
+            volumes=_infer_volumes_for_test(
+                node_state=node_state,
+                nonmanifest_datasets=nonmanifest_datasets,
+                compute_instance_id=api.compute_instance_id(),
+            )
+        )
         changes = deployer.calculate_changes(
             cluster_config, cluster_state, local_state)
         self.assertEqual(
@@ -1744,8 +1757,9 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             }
         )
 
-        local_state = _create_block_device_deployer_local_state(
-            deployer, cluster_state,
+        local_state = local_state_from_shared_state(
+            node_state=node_state,
+            nonmanifest_datasets=cluster_state.nonmanifest_datasets,
             volumes=[])  # Out of date info, lacking an expected volume
         changes = deployer.calculate_changes(
             cluster_config, cluster_state, local_state)
@@ -1783,7 +1797,8 @@ class BlockDeviceDeployerMountCalculateChangesTests(
 
         assert_calculated_changes(
             self, node_state, node_config,
-            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            {Dataset(dataset_id=unicode(self.DATASET_ID),
+                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)},
             in_parallel(changes=[
                 MountBlockDevice(
                     dataset_id=self.DATASET_ID,
@@ -1835,7 +1850,8 @@ class BlockDeviceDeployerCreateFilesystemCalculateChangesTests(
 
         assert_calculated_changes(
             self, node_state, node_config,
-            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            {Dataset(dataset_id=unicode(self.DATASET_ID),
+                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)},
             in_parallel(changes=[
                 CreateFilesystem(device=device, filesystem=u"ext4")
             ]),
@@ -1985,9 +2001,16 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=node_uuid
         )
-        local_state = _create_block_device_deployer_local_state(
-            deployer, state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
+        api = deployer.block_device_api
+        local_state = local_state_from_shared_state(
+            node_state=state.get_node(node_uuid, hostname=node),
+            nonmanifest_datasets={},
+            volumes=_infer_volumes_for_test(
+                node_state=state.get_node(node_uuid, hostname=node),
+                nonmanifest_datasets={},
+                compute_instance_id=api.compute_instance_id(),
+            )
+        )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(in_parallel(changes=[]), changes)
 
@@ -2020,9 +2043,16 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
-        local_state = _create_block_device_deployer_local_state(
-            deployer, state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
+        api = deployer.block_device_api
+        local_state = local_state_from_shared_state(
+            node_state=state.get_node(uuid),
+            nonmanifest_datasets={},
+            volumes=_infer_volumes_for_test(
+                node_state=state.get_node(uuid),
+                nonmanifest_datasets={},
+                compute_instance_id=api.compute_instance_id(),
+            )
+        )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(
             in_parallel(
@@ -2057,14 +2087,16 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                 )
             }
         )
-        state = DeploymentState(nodes=[NodeState(
+        node_state = NodeState(
             uuid=uuid, hostname=node, applications=[], manifestations={},
-            devices={}, paths={})])
+            devices={}, paths={})
+        state = DeploymentState(nodes={node_state})
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
-        local_state = _create_block_device_deployer_local_state(
-            deployer, state,
+        local_state = local_state_from_shared_state(
+            node_state=node_state,
+            nonmanifest_datasets={},
             volumes=[
                 create_test_blockdevice_volume_for_dataset_id(
                     dataset_id=dataset_id,
@@ -2101,10 +2133,17 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, node_uuid=local_uuid, hostname=local_hostname,
         )
+        api = deployer.block_device_api
 
-        local_state = _create_block_device_deployer_local_state(
-            deployer, current_cluster_state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
+        local_state = local_state_from_shared_state(
+            node_state=local_state,
+            nonmanifest_datasets={},
+            volumes=_infer_volumes_for_test(
+                node_state=local_state,
+                nonmanifest_datasets={},
+                compute_instance_id=api.compute_instance_id(),
+            ),
+        )
         return deployer.calculate_changes(
             desired_configuration, current_cluster_state, local_state)
 
@@ -2124,7 +2163,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                 expected_dataset_id: FilePath(b"/flocker").child(
                     expected_dataset_id.encode("ascii")),
             },
-            devices={},
+            devices={
+                UUID(expected_dataset_id): FilePath(b"/dev/loop0"),
+            },
             manifestations={
                 expected_dataset_id:
                 Manifestation(
@@ -2189,26 +2230,32 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                 )
             }
         )
+        node_state = NodeState(
+            uuid=node_id,
+            hostname=node_address,
+            applications=[],
+            manifestations={},
+            devices={},
+            paths={},
+        )
         state = DeploymentState(
-            nodes=[
-                NodeState(
-                    uuid=node_id,
-                    hostname=node_address,
-                    applications=[],
-                    manifestations={},
-                    devices={},
-                    paths={},
-                )
-            ]
+            nodes={node_state},
         )
         deployer = create_blockdevicedeployer(
             self,
             hostname=node_address,
             node_uuid=node_id,
         )
-        local_state = _create_block_device_deployer_local_state(
-            deployer, state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
+        api = deployer.block_device_api
+        local_state = local_state_from_shared_state(
+            node_state=node_state,
+            nonmanifest_datasets={},
+            volumes=_infer_volumes_for_test(
+                node_state=node_state,
+                nonmanifest_datasets={},
+                compute_instance_id=api.compute_instance_id,
+            ),
+        )
         changes = deployer.calculate_changes(
             configuration, state, local_state)
         expected_size = int(RACKSPACE_MINIMUM_VOLUME_SIZE.to_Byte())
@@ -2280,9 +2327,17 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             hostname=local_node_address,
             node_uuid=local_node_id,
         )
-        local_state = _create_block_device_deployer_local_state(
-            deployer, state,
-            volumes=DiscoverVolumesMethod.INFER_VOLUMES_FROM_STATE)
+        api = deployer.block_device_api
+        local_state = local_state_from_shared_state(
+            node_state=local_state,
+            nonmanifest_datasets={},
+            volumes=_infer_volumes_for_test(
+                node_state=local_state,
+                nonmanifest_datasets={},
+                additional_node_states={remote_state},
+                compute_instance_id=api.compute_instance_id(),
+            ),
+        )
         changes = deployer.calculate_changes(configuration, state, local_state)
 
         self.assertEqual(in_parallel(changes=[]), changes)

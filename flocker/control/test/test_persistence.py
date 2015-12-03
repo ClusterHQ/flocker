@@ -30,7 +30,7 @@ from .._persistence import (
     _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
     _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE,
-    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED,
+    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED, to_unserialized_json,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -651,7 +651,7 @@ SUPPORTED_VERSIONS = st.integers(1, _CONFIG_VERSION)
 
 class WireEncodeDecodeTests(SynchronousTestCase):
     """
-    Tests for ``wire_encode`` and ``wire_decode``.
+    Tests for ``to_unserialized_json``, ``wire_encode`` and ``wire_decode``.
     """
     def test_encode_to_bytes(self):
         """
@@ -668,6 +668,15 @@ class WireEncodeDecodeTests(SynchronousTestCase):
         source_json = wire_encode(deployment)
         decoded_deployment = wire_decode(source_json)
         self.assertEqual(decoded_deployment, deployment)
+
+    @given(DEPLOYMENTS)
+    def test_to_unserialized_json(self, deployment):
+        """
+        ``to_unserialized_json`` is same output as ``wire_encode`` except
+        without doing JSON byte encoding.
+        """
+        unserialized = to_unserialized_json(deployment)
+        self.assertEquals(wire_decode(json.dumps(unserialized)), deployment)
 
     def test_no_arbitrary_decoding(self):
         """

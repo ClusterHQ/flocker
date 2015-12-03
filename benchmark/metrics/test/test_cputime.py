@@ -21,7 +21,7 @@ from benchmark.metrics.cputime import (
 # A process name that is expected to always be present on a distribution
 _always_present = {
     'centos': 'systemd',
-    'ubuntu': 'init',
+    'Ubuntu': 'init',
 }
 _distribution = platform.linux_distribution(full_distribution_name=False)[0]
 _standard_process = _always_present.get(_distribution)
