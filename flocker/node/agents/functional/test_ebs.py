@@ -16,6 +16,7 @@ from boto.exception import EC2ResponseError
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.trial.unittest import SkipTest, TestCase
+from twisted.python.filepath import FilePath
 from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
 
 from ..blockdevice import MandatoryProfiles
@@ -32,7 +33,7 @@ from .._logging import (
     CREATE_VOLUME_FAILURE
 )
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests
+    make_iblockdeviceapi_tests, make_filesystem, mount
 )
 
 from ..test.blockdevicefactory import (
@@ -40,6 +41,8 @@ from ..test.blockdevicefactory import (
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
     get_minimum_allocatable_size, get_ec2_client_for_test,
 )
+
+from ....testtools import run_process
 
 TIMEOUT = 5
 
@@ -67,6 +70,44 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    def test_floc_3578(self):
+        """
+        """
+        v1 = self.api.create_volume(dataset_id=uuid4(),
+                                    size=self.minimum_allocatable_size)
+        self.api.attach_volume(v1.blockdevice_id, attach_to=self.this_node)
+
+        run_process([b"rm", b"-rf", b"/flocker"])
+        run_process([b"rm", b"-rf", b"/tmp/uuid1"])
+
+        device = self.api.get_device_path(v1.blockdevice_id)
+        make_filesystem(device, block_device=True)
+        mountpoint1 = FilePath(b'/flocker').child(b'uuid1')
+        mountpoint1.makedirs()
+        mount(device, mountpoint1)
+
+        mountpoint2 = FilePath(u'/tmp').child(b'uuid1')
+        mountpoint2.makedirs()
+        run_process([b"mount", b"--rbind", mountpoint1.path, mountpoint2.path])
+
+        ebs_volume = self.api._get_ebs_volume(v1.blockdevice_id)
+        volume_state = ebs_volume.attach_data.status
+        self.assertEqual(volume_state, u'')
+
+        run_process([b"umount", mountpoint1.path])
+        ebs_volume.update()
+        self.assertEqual(ebs_volume.attach_data.status, u'')
+
+        self.api.detach_volume(v1.blockdevice_id)
+        ebs_volume.update()
+        self.assertEqual(ebs_volume.attach_data.status, u'busy')
+
+        run_process([b"umount", mountpoint2.path])
+        ebs_volume.update()
+        self.assertEqual(ebs_volume.attach_data.status, u'')
+
+        self.api.destroy_volume(v1.blockdevice_id)
+
     def test_foreign_volume(self):
         """
         ``list_volumes`` lists only those volumes
@@ -270,21 +311,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         requested_iops = A.requested_iops(ebs_volume.size)
         self.assertEqual(ebs_volume.iops if requested_iops is not None
                          else None, requested_iops)
-
-
-class EBSProfiledBlockDeviceAPIInterfaceTests(
-        make_iprofiledblockdeviceapi_tests(
-            profiled_blockdevice_api_factory=(
-                lambda test_case: ebsblockdeviceapi_for_test(
-                    test_case=test_case,
-                )
-            ),
-        )
-):
-    """
-    Interface adherence tests for ``IProfiledBlockDeviceAPI``.
-    """
-    pass
 
 
 class VolumeStateTransitionTests(TestCase):
