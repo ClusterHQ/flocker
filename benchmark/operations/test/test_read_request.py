@@ -13,7 +13,7 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient import IFlockerAPIV1Client, FakeFlockerClient
 
-from benchmark.cluster import FakeBenchmarkCluster
+from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IOperation
 from benchmark.operations import ReadRequest
 
@@ -74,8 +74,8 @@ class ReadRequestTests(SynchronousTestCase):
 
         # Get the probe to read the state of the cluster
         def start_read_request(result):
-            cluster = FakeBenchmarkCluster(
-                IPAddress('10.0.0.1'), control_service
+            cluster = BenchmarkCluster(
+                IPAddress('10.0.0.1'), lambda reactor: control_service, {}
             )
             request = ReadRequest(Clock(), cluster)
             return request.get_probe()

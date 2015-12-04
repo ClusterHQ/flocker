@@ -12,7 +12,7 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from flocker.apiclient._client import FakeFlockerClient, Node
 
-from benchmark.cluster import FakeBenchmarkCluster
+from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IMetric
 from benchmark.metrics.cputime import (
     CPUTime, CPUParser, get_node_cpu_times, compute_change,
@@ -195,8 +195,9 @@ class CPUTimeTests(TestCase):
         node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
         node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
         metric = CPUTime(
-            Clock(), FakeBenchmarkCluster(
-                IPAddress('10.0.0.1'), FakeFlockerClient([node1, node2])
+            Clock(), BenchmarkCluster(
+                IPAddress('10.0.0.1'),
+                lambda reactor: FakeFlockerClient([node1, node2]), {}
             ),
             _LocalRunner(), processes=[_standard_process])
         d = metric.measure(lambda: None)  # measure a fast no-op command

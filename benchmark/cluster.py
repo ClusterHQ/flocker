@@ -1,3 +1,4 @@
+from functools import partial
 from ipaddr import IPAddress
 import json
 
@@ -50,13 +51,10 @@ def validate_cluster_configuration(cluster_config):
 class BenchmarkCluster:
 
     def __init__(
-        self, control_node_address, ca_cert_path, cert_path,
-        key_path, public_addresses
+        self, control_node_address, control_service_factory, public_addresses
     ):
         self._control_node_address = control_node_address
-        self.ca_cert_path = ca_cert_path
-        self.cert_path = cert_path
-        self.key_path = key_path
+        self._control_service_factory = control_service_factory
         self._public_addresses = public_addresses
 
         self._control_service = None
@@ -70,20 +68,23 @@ class BenchmarkCluster:
             to values.
         :return: A ``BenchmarkCluster`` instance.
         """
+        control_node_address = env['FLOCKER_ACCEPTANCE_CONTROL_NODE']
         certs = FilePath(env['FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH'])
-        ca_cluster_path = certs.child(b"cluster.crt")
-        cert_path = certs.child(b"user.crt")
-        key_path = certs.child(b"user.key")
         host_to_public = json.loads(
             env['FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS']
         )
         public_addresses = {
             IPAddress(k): IPAddress(v) for k, v in host_to_public.items()
         }
-        return cls(
-            env['FLOCKER_ACCEPTANCE_CONTROL_NODE'], ca_cluster_path, cert_path,
-            key_path, public_addresses
+        control_service = partial(
+            FlockerClient,
+            host=control_node_address,
+            port=4523,
+            ca_cluster_path=certs.child(b"cluster.crt"),
+            cert_path=certs.child(b"user.crt"),
+            key_path=certs.child(b"user.key")
         )
+        return cls(control_node_address, control_service, public_addresses)
 
     @classmethod
     def from_uft_setup(cls, uft):
@@ -94,22 +95,23 @@ class BenchmarkCluster:
             certificate files.
         :return: A ``BenchmarkCluster`` instance.
         """
-        ca_cluster_path = uft.child(b"cluster.crt")
-        cert_path = uft.child(b"user.crt")
-        key_path = uft.child(b"user.key")
         with uft.child('cluster.yml').open() as f:
             cluster = yaml.safe_load(f)
         validate_cluster_configuration(cluster)
-        host_to_public = {
-            node['private']: node['public'] for node in cluster['agent_nodes']
-        }
+        control_node_address = cluster['control_node']
         public_addresses = {
-            IPAddress(k): IPAddress(v) for k, v in host_to_public.items()
+            IPAddress(node['private']): IPAddress(node['public'])
+            for node in cluster['agent_nodes']
         }
-        return cls(
-            cluster['control_node'], ca_cluster_path, cert_path,
-            key_path, public_addresses
+        control_service = partial(
+            FlockerClient,
+            host=control_node_address,
+            port=4523,
+            ca_cluster_path=uft.child(b"cluster.crt"),
+            cert_path=uft.child(b"user.crt"),
+            key_path=uft.child(b"user.key")
         )
+        return cls(control_node_address, control_service, public_addresses)
 
     def control_node_address(self):
         return self._control_node_address
@@ -117,42 +119,9 @@ class BenchmarkCluster:
     def control_service(self, reactor):
         control_service = self._control_service
         if control_service is None:
-            control_service = self._control_service = FlockerClient(
-                reactor,
-                host=self._control_node_address,
-                port=4523,
-                ca_cluster_path=self.ca_cert_path,
-                cert_path=self.cert_path,
-                key_path=self.key_path,
-            )
+            control_service = self._control_service_factory(reactor)
+            self._control_service = control_service
         return control_service
-
-    def public_address(self, hostname):
-        """
-        Convert a node's internal hostname to a public address.  If the
-        hostname does not exist in ``_public_addresses``, just return the
-        hostname, and hope it is public.
-
-        :param IPAddress hostname: Hostname for Flocker node.
-        :return IPAddress: Public IP address for node.
-        """
-        return self._public_addresses.get(hostname, hostname)
-
-
-class FakeBenchmarkCluster:
-
-    def __init__(
-        self, control_node_address, control_service, public_addresses={}
-    ):
-        self._control_node_address = control_node_address
-        self._control_service = control_service
-        self._public_addresses = public_addresses
-
-    def control_node_address(self):
-        return self._control_node_address
-
-    def control_service(self, reactor):
-        return self._control_service
 
     def public_address(self, hostname):
         """
