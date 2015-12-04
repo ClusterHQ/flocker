@@ -13,14 +13,12 @@ from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 from datetime import timedelta
 
-from bitmath import GiB
-
 from eliot import MessageType, ActionType, Field, Logger
 from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
-from pyrsistent import PRecord, PClass, field, pmap_field, pset_field
+from pyrsistent import PClass, field, pmap_field, pset_field
 
 import psutil
 
@@ -41,19 +39,19 @@ from .._deploy import NotInUseDatasets
 
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 from ...control._model import pvector_field
-from ...common import auto_threaded
+from ...common import RACKSPACE_MINIMUM_VOLUME_SIZE, auto_threaded
 from ...common.algebraic import TaggedUnionInvariant
 
 
 # Eliot is transitioning away from the "Logger instances all over the place"
-# approach.  And it's hard to put Logger instances on PRecord subclasses which
+# approach.  And it's hard to put Logger instances on PClass subclasses which
 # we have a lot of.  So just use this global logger for now.
 _logger = Logger()
 
 # The size which will be assigned to datasets with an unspecified
 # maximum_size.
 # XXX: Make this configurable. FLOC-2679
-DEFAULT_DATASET_SIZE = int(GiB(100).to_Byte().value)
+DEFAULT_DATASET_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
 
 # The metadata key for flocker profiles.
 PROFILE_METADATA_KEY = u"clusterhq:flocker:profile"
@@ -342,11 +340,11 @@ DISCOVERED_RAW_STATE = MessageType(
 
 def _volume_field():
     """
-    Create and return a ``PRecord`` ``field`` to hold a ``BlockDeviceVolume``.
+    Create and return a ``PClass`` ``field`` to hold a ``BlockDeviceVolume``.
     """
     return field(
         type=BlockDeviceVolume, mandatory=True,
-        # Disable the automatic PRecord.create factory.  Callers can just
+        # Disable the automatic PClass.create factory.  Callers can just
         # supply the right type, we don't need the magic coercion behavior
         # supplied by default.
         factory=lambda x: x
@@ -397,7 +395,7 @@ def _blockdevice_volume_from_datasetid(volumes, dataset_id):
 # Get rid of this in favor of calculating each individual operation in
 # BlockDeviceDeployer.calculate_changes.  FLOC-1772
 @implementer(IStateChange)
-class DestroyBlockDeviceDataset(PRecord):
+class DestroyBlockDeviceDataset(PClass):
     """
     Destroy the volume for a dataset with a primary manifestation on the node
     where this state change runs.
@@ -434,7 +432,7 @@ class DestroyBlockDeviceDataset(PRecord):
 
 
 @implementer(IStateChange)
-class CreateFilesystem(PRecord):
+class CreateFilesystem(PClass):
     """
     Create a filesystem on a block device.
 
@@ -522,7 +520,7 @@ def _valid_size(size):
 
 
 @implementer(IStateChange)
-class MountBlockDevice(PRecord):
+class MountBlockDevice(PClass):
     """
     Mount the filesystem mounted from the block device backed by a particular
     volume.
@@ -588,7 +586,7 @@ class MountBlockDevice(PRecord):
 
 
 @implementer(IStateChange)
-class UnmountBlockDevice(PRecord):
+class UnmountBlockDevice(PClass):
     """
     Unmount the filesystem mounted from the block device backed by a particular
     volume.
@@ -626,7 +624,7 @@ class UnmountBlockDevice(PRecord):
 
 
 @implementer(IStateChange)
-class AttachVolume(PRecord):
+class AttachVolume(PClass):
     """
     Attach an unattached volume to this node (the node of the deployer it is
     run with).
@@ -688,7 +686,7 @@ class ActionNeeded(PClass):
 
 
 @implementer(IStateChange)
-class DetachVolume(PRecord):
+class DetachVolume(PClass):
     """
     Detach a volume from the node it is currently attached to.
 
@@ -714,7 +712,7 @@ class DetachVolume(PRecord):
 
 
 @implementer(IStateChange)
-class DestroyVolume(PRecord):
+class DestroyVolume(PClass):
     """
     Destroy the storage (and therefore contents) of a volume.
 
@@ -758,7 +756,7 @@ def allocated_size(allocation_unit, requested_size):
 
 
 @implementer(IStateChange)
-class CreateBlockDeviceDataset(PRecord):
+class CreateBlockDeviceDataset(PClass):
     """
     An operation to create a new dataset on a newly created volume with a newly
     initialized filesystem.
@@ -1084,7 +1082,7 @@ class ProfiledBlockDeviceAPIAdapter(PClass):
 
 @implementer(IBlockDeviceAsyncAPI)
 @auto_threaded(IBlockDeviceAPI, "_reactor", "_sync", "_threadpool")
-class _SyncToThreadedAsyncAPIAdapter(PRecord):
+class _SyncToThreadedAsyncAPIAdapter(PClass):
     """
     Adapt any ``IBlockDeviceAPI`` to ``IBlockDeviceAsyncAPI`` by running its
     methods in threads of a thread pool.
@@ -1252,7 +1250,7 @@ class BlockDeviceDeployerLocalState(PClass):
 
 
 @implementer(IDeployer)
-class BlockDeviceDeployer(PRecord):
+class BlockDeviceDeployer(PClass):
     """
     An ``IDeployer`` that operates on ``IBlockDeviceAPI`` providers.
 
@@ -1303,7 +1301,7 @@ class BlockDeviceDeployer(PRecord):
         During real operation, this is a threadpool-based wrapper around the
         ``IBlockDeviceAPI`` provider.  For testing purposes it can be
         overridden with a different object entirely (and this large amount of
-        support code for this is necessary because this class is a ``PRecord``
+        support code for this is necessary because this class is a ``PClass``
         subclass).
         """
         if self._async_block_device_api is None:
@@ -1496,7 +1494,7 @@ class BlockDeviceDeployer(PRecord):
                 if manifestation.dataset.maximum_size is None:
                     manifestation = manifestation.transform(
                         ['dataset', 'maximum_size'],
-                        DEFAULT_DATASET_SIZE
+                        int(DEFAULT_DATASET_SIZE.to_Byte()),
                     )
                 manifestations_to_create.add(manifestation)
 

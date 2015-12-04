@@ -19,7 +19,7 @@ from pyrsistent import pmap
 from eliot import ActionType
 from eliot.testing import capture_logging, assertHasAction, LoggedAction
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 from twisted.internet import reactor
@@ -33,10 +33,11 @@ from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
     Lease, LeaseAlreadyHeld, Node, Container, ContainerAlreadyExists,
+    DatasetsConfiguration, ConfigurationChanged, conditional_create,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
-from ...testtools import find_free_port, random_name
+from ...testtools import find_free_port, random_name, CustomException
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
@@ -59,10 +60,11 @@ def make_clientv1_tests():
     control of this process. So when testing a real client it will be
     talking to a in-process server.
 
-    The ``TestCase`` should have two 0-argument methods:
+    The ``TestCase`` should have three 0-argument methods:
 
     create_client: Returns a ``IFlockerAPIV1Client`` provider.
     synchronize_state: Make state match the configuration.
+    get_configuration_tag: Return the configuration hash.
     """
     class InterfaceTests(TestCase):
         def setUp(self):
@@ -82,8 +84,25 @@ def make_clientv1_tests():
             """
             self.assertTrue(verifyObject(IFlockerAPIV1Client, self.client))
 
+        def test_list_dataset_configuration(self):
+            """
+            The listed configuration includes the hashed tag of the
+            configuration and a mapping of configured datasets.
+            """
+            creating = self.client.create_dataset(primary=self.node_1.uuid)
+
+            def created(dataset):
+                d = self.client.list_datasets_configuration()
+                d.addCallback(self.assertEqual,
+                              DatasetsConfiguration(
+                                  tag=self.get_configuration_tag(),
+                                  datasets={dataset.dataset_id: dataset}))
+                return d
+            creating.addCallback(created)
+            return creating
+
         def assert_creates(self, client, dataset_id=None, maximum_size=None,
-                           **create_kwargs):
+                           configuration_tag=None, **create_kwargs):
             """
             Create a dataset and ensure it shows up in the configuration and
             return result of the ``create_dataset`` call.
@@ -100,6 +119,7 @@ def make_clientv1_tests():
             """
             created = client.create_dataset(
                 dataset_id=dataset_id, maximum_size=maximum_size,
+                configuration_tag=configuration_tag,
                 **create_kwargs)
 
             def got_result(dataset):
@@ -178,6 +198,23 @@ def make_clientv1_tests():
             d.addCallback(got_result)
             return d
 
+        def test_create_matching_tag(self):
+            """
+            If a matching tag is given the create succeeds.
+            """
+            return self.assert_creates(
+                self.client, primary=self.node_1.uuid,
+                configuration_tag=self.get_configuration_tag())
+
+        def test_create_conflicting_tag(self):
+            """
+            If a conflicting tag is given then an appropriate exception is
+            raised.
+            """
+            d = self.client.create_dataset(primary=self.node_1.uuid,
+                                           configuration_tag=u"willnotmatch")
+            return self.assertFailure(d, ConfigurationChanged)
+
         def test_delete_returns_dataset(self):
             """
             ``delete_dataset`` returns a deferred that fires with the
@@ -229,6 +266,28 @@ def make_clientv1_tests():
             d.addCallback(not_listed)
             return d
 
+        def test_delete_matching_tag(self):
+            """
+            If a matching tag is given the delete succeeds.
+            """
+            d = self.assert_creates(self.client, primary=self.node_1.uuid)
+            d.addCallback(
+                lambda dataset: self.client.delete_dataset(
+                    dataset.dataset_id,
+                    configuration_tag=self.get_configuration_tag()))
+            d.addCallback(lambda _: self.client.list_datasets_configuration())
+            d.addCallback(lambda result: self.assertFalse(result.datasets))
+            return d
+
+        def test_delete_conflicting_tag(self):
+            """
+            If a conflicting tag is given then an appropriate exception is
+            raised.
+            """
+            d = self.client.delete_dataset(dataset_id=uuid4(),
+                                           configuration_tag=u"willnotmatch")
+            return self.assertFailure(d, ConfigurationChanged)
+
         def test_move(self):
             """
             ``move_dataset`` changes the dataset's primary.
@@ -259,6 +318,31 @@ def make_clientv1_tests():
                                  (moved_result, True))
             d.addCallback(got_listing)
             return d
+
+        def test_move_matching_tag(self):
+            """
+            If a matching tag is given the move succeeds.
+            """
+            d = self.assert_creates(self.client, primary=self.node_1.uuid)
+            d.addCallback(
+                lambda dataset: self.client.move_dataset(
+                    dataset_id=dataset.dataset_id,
+                    primary=self.node_2.uuid,
+                    configuration_tag=self.get_configuration_tag()))
+            d.addCallback(lambda _: self.client.list_datasets_configuration())
+            d.addCallback(lambda result: self.assertEqual(
+                set(d.primary for d in result), {self.node_2.uuid}))
+            return d
+
+        def test_move_conflicting_tag(self):
+            """
+            If a conflicting tag is given then an appropriate exception is
+            raised.
+            """
+            d = self.client.move_dataset(primary=self.node_1.uuid,
+                                         dataset_id=uuid4(),
+                                         configuration_tag=u"willnotmatch")
+            return self.assertFailure(d, ConfigurationChanged)
 
         def test_list_state(self):
             """
@@ -514,6 +598,9 @@ class FakeFlockerClientTests(make_clientv1_tests()):
     def synchronize_state(self):
         return self.client.synchronize_state()
 
+    def get_configuration_tag(self):
+        return self.client._configured_datasets
+
 
 class FlockerClientTests(make_clientv1_tests()):
     """
@@ -585,6 +672,9 @@ class FlockerClientTests(make_clientv1_tests()):
                                  devices={})
                        for node in deployment.nodes]
         self.cluster_state_service.apply_changes(node_states)
+
+    def get_configuration_tag(self):
+        return self.persistence_service.configuration_hash()
 
     @capture_logging(None)
     def test_logging(self, logger):
@@ -697,3 +787,121 @@ class FlockerClientTests(make_clientv1_tests()):
                    lambda: 1/0)
         return self.assertFailure(self.client.this_node_uuid(),
                                   ResponseError)
+
+
+class ConditionalCreateTests(SynchronousTestCase):
+    """
+    Tests for ``conditional_create``.
+    """
+    def setUp(self):
+        self.client = FakeFlockerClient()
+        self.reactor = Clock()
+        self.node_id = uuid4()
+
+    def advance(self):
+        """
+        Advance the clock such that next step of process happens.
+        """
+        self.reactor.advance(0.001)
+
+    def unique_key(self, key):
+        """
+        :return: Condition function that require that the given value for
+            ``"key"`` not be present in any dataset's metadata.
+        """
+        def condition(datasets_config):
+            for dataset in datasets_config:
+                if dataset.metadata.get("key") == key:
+                    raise CustomException()
+        return condition
+
+    def test_simple_success(self):
+        """
+        If no configuration changes or condition violations occur the creation
+        succeeds.
+        """
+        dataset_id = uuid4()
+        d = conditional_create(self.client, self.reactor, lambda config: None,
+                               primary=self.node_id, dataset_id=dataset_id)
+        self.advance()
+        [current_dataset] = self.successResultOf(
+            self.client.list_datasets_configuration())
+        self.assertEqual([self.successResultOf(d),
+                          Dataset(dataset_id=dataset_id,
+                                  primary=self.node_id,
+                                  maximum_size=None)],
+                         [current_dataset, current_dataset])
+
+    def test_immediate_condition_violation(self):
+        """
+        If a condition violation occurs immediately the creation is aborted
+        and the raised exception is returned.
+        """
+        self.successResultOf(self.client.create_dataset(
+            primary=self.node_id, metadata={u"key": u"llave"}))
+        self.failureResultOf(
+            conditional_create(self.client, self.reactor,
+                               self.unique_key(u"llave"),
+                               primary=self.node_id),
+            CustomException)
+
+    def test_eventual_success(self):
+        """
+        If the configuration changes between when listing and creation occurs
+        the operation is retried until it succeeds.
+        """
+        d = conditional_create(self.client, self.reactor, lambda config: None,
+                               primary=self.node_id)
+        # Change configuration in between listing and condition check:
+        self.successResultOf(self.client.create_dataset(primary=self.node_id))
+        # Creation, which should fail with ConfigurationChanged:
+        self.advance()
+        # List again:
+        self.advance()
+        # Create again:
+        self.advance()
+        self.assertIn(self.successResultOf(d),
+                      self.successResultOf(
+                          self.client.list_datasets_configuration()))
+
+    def test_eventual_condition_violation(self):
+        """
+        If a conflict occurs and the condition is violated in a later
+        iteration then creation is aborted and the raised exception is
+        returned.
+        """
+        d = conditional_create(self.client, self.reactor,
+                               self.unique_key(u"llave"),
+                               primary=self.node_id)
+        # Change configuration in between listing and condition check:
+        self.successResultOf(self.client.create_dataset(primary=self.node_id))
+        # Creation, which should fail with ConfigurationChanged:
+        self.advance()
+        # List again:
+        self.advance()
+        # Create dataset which will violate the condition:
+        self.successResultOf(self.client.create_dataset(
+            primary=self.node_id, metadata={u"key": u"llave"}))
+        # Create again, which should fail with ConfigurationChanged:
+        self.advance()
+        # List again, which should fail condition:
+        self.advance()
+        self.failureResultOf(d, CustomException)
+
+    def test_too_many_retries(self):
+        """
+        Eventually we give up on retrying if the precondition fails too many
+        times.
+        """
+        d = conditional_create(self.client, self.reactor,
+                               lambda config: None,
+                               primary=self.node_id)
+        # Every time we advance we change the config, invalidating
+        # previous result. 2 queries (list+create) for 20 tries, 40th
+        # query fails:
+        for i in range(39):
+            self.assertNoResult(d)
+            self.successResultOf(self.client.create_dataset(
+                primary=self.node_id))
+            self.advance()
+        self.failureResultOf(d, ConfigurationChanged)

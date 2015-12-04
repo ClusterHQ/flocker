@@ -7,6 +7,7 @@ import sys
 import os
 import yaml
 import json
+import re
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -29,6 +30,7 @@ from effect import parallel
 from txeffect import perform
 
 from admin.vagrant import vagrant_version
+from flocker.common import RACKSPACE_MINIMUM_VOLUME_SIZE, gather_deferreds
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
@@ -409,7 +411,7 @@ def configured_cluster_for_nodes(
     # FLOC-2584 also discusses this.
     default_volume_size = GiB(1)
     if dataset_backend_configuration.get('auth_plugin') == 'rackspace':
-        default_volume_size = GiB(100)
+        default_volume_size = RACKSPACE_MINIMUM_VOLUME_SIZE
 
     cluster = Cluster(
         all_nodes=pvector(nodes),
@@ -950,6 +952,108 @@ def eliot_output(message):
     sys.stdout.write(format % message)
     sys.stdout.flush()
 
+def capture_upstart(reactor, host, output_file):
+    """
+    SSH into given machine and capture relevant logs, writing them to
+    output file.
+
+    :param reactor: The reactor.
+    :param bytes host: Machine to SSH into.
+    :param file output_file: File to write to.
+    :return deferred: that will run the tail command
+    """
+    # note that we are using tail -F to keep retrying and not to exit when we reach the end
+    # of the file, as we expect the logs to keep being generated
+    formatter = TailFormatter(output_file, host)
+    ran = run_ssh(
+        reactor=reactor,
+        host=host,
+        username='root',
+        command=[
+            b'tail',
+            b'-F'
+            b'/var/log/flocker/flocker-control.log',
+            b'/var/log/flocker/flocker-dataset-agent.log',
+            b'/var/log/flocker/flocker-container-agent.log',
+            b'/var/log/flocker/flocker-docker-plugin.log',
+            b'/var/log/upstart/docker.log',
+        ],
+        handle_stdout=formatter.handle_output_line,
+    )
+    ran.addErrback(write_failure, logger=None)
+    # Deliver a final empty line to process the last message
+    ran.addCallback(lambda ignored: formatter.handle_output_line(b""))
+    return ran
+
+
+class TailFormatter(object):
+    """
+    Formatter for the output of the ``tail`` commands that will produce logs
+    with Eliot messages with the same format as the ones produced when
+    parsing journalctl output
+
+    :ivar file output_file: log file where we want to write our log
+    :ivar bytes _host: ip address or identifier of our host to be
+        added to the Eliot messages
+    :ivar bytes service: optional initial name of the service. This initial
+        name shouldn't appear anywhere unless there is an error, as the first
+        line of the output of tail will be a file name, that will be used
+        to set the name of the service we are currently parsing
+    """
+    def __init__(self, output_file, host, service="unknown"):
+        self._output_file = output_file
+        self._host = host
+        self._service = service
+        # Note that the tail output will always be
+        # ==> name_of_the_service.log <==
+        # followed by a one or more lines of this log.
+        # The following regex will match the output to find out
+        # the name of the log we are currently reading
+        self._service_regexp = re.compile(
+            r"==> (?:/var/log/flocker/|/var/log/upstart/)(.*)\.log <==")
+
+    def handle_output_line(self, line):
+        """
+        Handles a line of the tail output, and checks if it is the name
+        of the service or an actual Eliot message
+
+        :param line: The line read from the tail output.
+        """
+        if line:
+            service_match = self._service_regexp.search(line)
+
+            if service_match is not None:
+                self._service = service_match.groups()[0]
+
+            else:
+                self.print_line(self.parse_line(line))
+
+    def parse_line(self, line):
+        """
+        Given a line with an Eliot message, it inserts the hostname
+        and the system name into the message
+
+        :param line: The line read from the tail output that was identified
+            as an Eliot message
+        """
+        try:
+            message = json.loads(line)
+        except ValueError:
+            # Docker log messages are not JSON
+            message = dict(message=line)
+
+        message[u"_HOSTNAME"] = self._host
+        message[u"_PROCESS_NAME"] = self._service
+        return message
+
+    def print_line(self, message):
+        """
+        Appends the given message to the output file in json format
+
+        :param message: we want to append to the ''output_file''
+        """
+        self._output_file.write(json.dumps(message) + b"\n")
+
 
 def capture_journal(reactor, host, output_file):
     """
@@ -959,6 +1063,7 @@ def capture_journal(reactor, host, output_file):
     :param reactor: The reactor.
     :param bytes host: Machine to SSH into.
     :param file output_file: File to write to.
+    :return deferred: that will run the journalctl command
     """
     formatter = journald_json_formatter(output_file)
     ran = run_ssh(
@@ -982,6 +1087,7 @@ def capture_journal(reactor, host, output_file):
     ran.addErrback(write_failure, logger=None)
     # Deliver a final empty line to process the last message
     ran.addCallback(lambda ignored: formatter(b""))
+    return ran
 
 
 def journald_json_formatter(output_file):
@@ -1009,7 +1115,7 @@ def journald_json_formatter(output_file):
                 message[u"_HOSTNAME"] = accumulated.get(
                     b"_HOSTNAME", b"<no hostname>"
                 )
-                message[u"_SYSTEMD_UNIT"] = accumulated.get(
+                message[u"_PROCESS_NAME"] = accumulated.get(
                     b"_SYSTEMD_UNIT", b"<no unit>"
                 )
                 output_file.write(json.dumps(message) + b"\n")
@@ -1048,13 +1154,25 @@ def main(reactor, args, base_path, top_level):
         'before', 'shutdown', log_writer.stopService)
 
     cluster = None
+    results = []
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
         if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
-                capture_journal(reactor, node.address, remote_logs_file)
+                results.append(capture_journal(reactor,
+                                               node.address,
+                                               remote_logs_file)
+                               )
+        elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.04'):
+            remote_logs_file = open("remote_logs.log", "a")
+            for node in cluster.all_nodes:
+                results.append(capture_upstart(reactor,
+                                               node.address,
+                                               remote_logs_file)
+                               )
+        gather_deferreds(results)
 
         if not options["no-pull"]:
             yield perform(

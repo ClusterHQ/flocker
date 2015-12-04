@@ -67,7 +67,8 @@ class LeaseAPITests(AsyncTestCase):
         client = get_docker_client(cluster, cluster.nodes[0].public_address)
 
         creating_dataset = create_dataset(
-            self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+            self, cluster,
+            maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
             dataset_id=dataset_id
         )
 

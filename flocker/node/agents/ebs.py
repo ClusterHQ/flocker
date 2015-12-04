@@ -27,7 +27,7 @@ from uuid import UUID
 from bitmath import Byte, GiB
 
 from characteristic import with_cmp
-from pyrsistent import PClass, PRecord, field, pset, pmap, thaw
+from pyrsistent import PClass, field, pset, pmap, thaw
 from zope.interface import implementer
 from twisted.python.constants import (
     Names, NamedConstant, Values, ValueConstant
@@ -192,7 +192,7 @@ class VolumeStates(Values):
     DELETING = ValueConstant(u'deleting')
 
 
-class VolumeStateFlow(PRecord):
+class VolumeStateFlow(PClass):
     """
     Expected EBS volume state flow during ``VolumeOperations``.
     """
@@ -207,7 +207,7 @@ class VolumeStateFlow(PRecord):
     unsets_attach = field(mandatory=True, type=bool)
 
 
-class VolumeStateTable(PRecord):
+class VolumeStateTable(PClass):
     """
     Map of volume operation to expected volume state transitions
     and expected update to volume's ``attach_data``.
@@ -285,7 +285,7 @@ class TimeoutException(Exception):
     """
     def __init__(self, blockdevice_id, operation,
                  start_state, transient_state, end_state, current_state):
-        Exception.__init__(self, blockdevice_id)
+        Exception.__init__(self, blockdevice_id, operation, current_state)
         self.blockdevice_id = blockdevice_id
         self.operation = operation
         self.start_state = start_state
@@ -307,7 +307,7 @@ class UnexpectedStateException(Exception):
     """
     def __init__(self, blockdevice_id, operation,
                  start_state, transient_state, end_state, current_state):
-        Exception.__init__(self, blockdevice_id)
+        Exception.__init__(self, blockdevice_id, operation, current_state)
         self.blockdevice_id = blockdevice_id
         self.operation = operation
         self.start_state = start_state
@@ -462,7 +462,7 @@ def boto3_log(method):
     return _run_with_logging
 
 
-class EC2Client(PRecord):
+class EC2Client(PClass):
     """
     :ivar str zone: The name of the zone for the connection.
     :ivar boto3.resources.factory.ec2.ServiceResource: Object

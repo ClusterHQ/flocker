@@ -5,7 +5,7 @@ import sys
 from twisted.python.usage import Options, UsageError
 from twisted.internet.defer import succeed
 
-from pyrsistent import PRecord
+from pyrsistent import PClass
 
 from zope.interface import implementer
 
@@ -57,7 +57,7 @@ def hardware_report(options):
 
 
 @implementer(ICommandLineScript)
-class BenchmarkScript(PRecord):
+class BenchmarkScript(PClass):
     """
     Implement top-level logic for the ``flocker-benchmark``.
     """
