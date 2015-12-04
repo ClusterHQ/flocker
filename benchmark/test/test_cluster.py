@@ -1,10 +1,16 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 
+from ipaddr import IPAddress
+from uuid import uuid4
+
 from jsonschema.exceptions import ValidationError
 
+from twisted.internet.task import Clock
 from twisted.trial.unittest import SynchronousTestCase
 
-from benchmark.cluster import validate_cluster_configuration
+from flocker.apiclient._client import FakeFlockerClient, Node
+
+from benchmark.cluster import BenchmarkCluster, validate_cluster_configuration
 
 
 class ValidationTests(SynchronousTestCase):
@@ -16,24 +22,24 @@ class ValidationTests(SynchronousTestCase):
         self.config = {
             'cluster_name': 'cluster',
             'agent_nodes': [
-                {'public': '52.26.168.213', 'private': '10.0.36.170'},
-                {'public': '52.34.157.1', 'private': '10.0.84.25'}
+                {'public': '52.26.168.0', 'private': '10.0.36.0'},
+                {'public': '52.34.157.0', 'private': '10.0.84.0'}
             ],
-            'control_node': 'ec.us-west-2.compute.amazonaws.com',
+            'control_node': 'ec.region1.compute.amazonaws.com',
             'users': ['user'],
             'os': 'ubuntu',
-            'private_key_path': '/home/osboxes/devel/flocker/hybrid-master',
+            'private_key_path': '/home/XXX/private_key',
             'agent_config': {
                 'version': 1,
                 'control-service': {
-                    'hostname': 'ec.us-west-2.compute.amazonaws.com',
+                    'hostname': 'ec.region1.compute.amazonaws.com',
                     'port': 4524
                 },
                 'dataset': {
-                    'region': 'us-west-2',
+                    'region': 'region1',
                     'backend': 'aws',
                     'secret_access_key': 'XXXXXX',
-                    'zone': 'us-west-2a',
+                    'zone': 'region1a',
                     'access_key_id': 'AKIAXXXX'
                 }
             },
@@ -67,3 +73,46 @@ class ValidationTests(SynchronousTestCase):
         del self.config['agent_nodes']
         with self.assertRaises(ValidationError):
             validate_cluster_configuration(self.config)
+
+
+CONTROL_SERVICE_PUBLIC_IP = '10.0.0.1'
+CONTROL_SERVICE_PRIVATE_IP = '10.1.0.1'
+
+
+class BenchmarkClusterTests(SynchronousTestCase):
+
+    def setUp(self):
+        node = Node(
+            # Node public_address is actually the internal cluster address
+            uuid=uuid4(), public_address=IPAddress(CONTROL_SERVICE_PRIVATE_IP)
+        )
+        self.control_service = FakeFlockerClient([node])
+        self.cluster = BenchmarkCluster(
+            CONTROL_SERVICE_PUBLIC_IP, lambda reactor: self.control_service, {
+                IPAddress(CONTROL_SERVICE_PRIVATE_IP):
+                    IPAddress(CONTROL_SERVICE_PUBLIC_IP),
+            }
+        )
+
+    def test_control_node_address(self):
+        """
+        The ``control_node_address`` method gives expected results.
+        """
+        self.assertEqual(
+            self.cluster.control_node_address(), CONTROL_SERVICE_PUBLIC_IP)
+
+    def test_control_service(self):
+        """
+        The ``control_service`` method gives expected results.
+        """
+        self.assertIs(
+            self.cluster.control_service(Clock()), self.control_service)
+
+    def test_public_address(self):
+        """
+        The ``public_address`` method gives expected results.
+        """
+        self.assertEqual(
+            self.cluster.public_address(IPAddress(CONTROL_SERVICE_PRIVATE_IP)),
+            IPAddress(CONTROL_SERVICE_PUBLIC_IP)
+        )

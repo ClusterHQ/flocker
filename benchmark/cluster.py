@@ -1,3 +1,5 @@
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+
 from functools import partial
 from ipaddr import IPAddress
 import json
@@ -49,6 +51,13 @@ def validate_cluster_configuration(cluster_config):
 
 
 class BenchmarkCluster:
+    """
+    Cluster for benchmark performance.
+
+    :ivar str control_node_address: IP address for control service.
+    :ivar control_service_factory: Callable taking a reactor parameter,
+        and returning a IFlockerAPIV1Client.
+    """
 
     def __init__(
         self, control_node_address, control_service_factory, public_addresses
