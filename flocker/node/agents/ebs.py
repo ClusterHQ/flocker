@@ -875,6 +875,7 @@ class EBSBlockDeviceAPI(object):
         IN_USE_DEVICES(devices=sorted_devices).write()
 
         for suffix in b"fghijklmonp":
+            # check for /dev/xvdX here too.
             file_name = u'/dev/sd' + suffix
             if file_name not in devices:
                 return file_name
