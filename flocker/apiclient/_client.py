@@ -634,7 +634,7 @@ class FlockerClient(object):
         request.addCallback(
             lambda (results, headers):
             DatasetsConfiguration(
-                tag=headers.getRawHeaders('X-Configuration-Tag')[0],
+                tag=(headers.getRawHeaders('X-Configuration-Tag') or [None])[0],
                 datasets={
                     UUID(d['dataset_id']): self._parse_configuration_dataset(d)
                     for d in results if not d['deleted']

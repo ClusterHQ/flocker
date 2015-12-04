@@ -79,13 +79,16 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def get_trial_environment(cluster):
+def get_trial_environment(cluster, package_source):
     """
-    Return a dictionary of environment varibles describing a cluster for
-    accetpance testing.
+    Return a dictionary of environment variables describing a cluster for
+    acceptance testing.
 
     :param Cluster cluster: Description of the cluster to get environment
         variables for.
+
+    :param PackageSource package_source: The source of flocker omnibus package
+        under test.
     """
     return {
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
@@ -102,17 +105,22 @@ def get_trial_environment(cluster):
             cluster.default_volume_size
         ),
         'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
-            cluster.dataset_backend_config_file.path
+            cluster.dataset_backend_config_file.path,
+        'FLOCKER_ACCEPTANCE_PACKAGE_BRANCH': package_source.branch or '',
+        'FLOCKER_ACCEPTANCE_PACKAGE_VERSION': package_source.version or '',
+        'FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER': package_source.build_server,
     }
 
 
-def run_tests(reactor, cluster, trial_args):
+def run_tests(reactor, cluster, trial_args, package_source):
     """
     Run the acceptance tests.
 
     :param Cluster cluster: The cluster to run acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
+    :param PackageSource package_source: The source of flocker omnibus package
+        under test.
 
     :return int: The exit-code of trial.
     """
@@ -130,7 +138,7 @@ def run_tests(reactor, cluster, trial_args):
         reactor,
         ['trial'] + list(trial_args),
         env=extend_environ(
-            **get_trial_environment(cluster)
+            **get_trial_environment(cluster, package_source)
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
@@ -187,6 +195,39 @@ RUNNER_ATTRIBUTES = [
 ]
 
 
+def upgrade_flocker(reactor, nodes, package_source):
+    """
+    Put the version of Flocker indicated by ``package_source`` onto all of
+    the given nodes.
+
+    This takes a primitive approach of uninstalling the software and then
+    installing the new version instead of trying to take advantage of any
+    OS-level package upgrade support.  Because it's easier.  The package
+    removal step is allowed to fail in case the package is not installed
+    yet (other failures are not differentiated).  The only action taken on
+    failure is that the failure is logged.
+
+    :param pvector nodes: The ``ManagedNode``\ s on which to upgrade the
+        software.
+    :param PackageSource package_source: The version of the software to
+        which to upgrade.
+
+    :return: A ``Deferred`` that fires when the software has been upgraded.
+    """
+    dispatcher = make_dispatcher(reactor)
+
+    uninstalling = perform(dispatcher, uninstall_flocker(nodes))
+    uninstalling.addErrback(write_failure, logger=None)
+
+    def install(ignored):
+        return perform(
+            dispatcher,
+            install_flocker(nodes, package_source),
+        )
+    installing = uninstalling.addCallback(install)
+    return installing
+
+
 @implementer(IClusterRunner)
 class ManagedRunner(object):
     """
@@ -236,38 +277,6 @@ class ManagedRunner(object):
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
 
-    def _upgrade_flocker(self, reactor, nodes, package_source):
-        """
-        Put the version of Flocker indicated by ``package_source`` onto all of
-        the given nodes.
-
-        This takes a primitive approach of uninstalling the software and then
-        installing the new version instead of trying to take advantage of any
-        OS-level package upgrade support.  Because it's easier.  The package
-        removal step is allowed to fail in case the package is not installed
-        yet (other failures are not differentiated).  The only action taken on
-        failure is that the failure is logged.
-
-        :param pvector nodes: The ``ManagedNode``\ s on which to upgrade the
-            software.
-        :param PackageSource package_source: The version of the software to
-            which to upgrade.
-
-        :return: A ``Deferred`` that fires when the software has been upgraded.
-        """
-        dispatcher = make_dispatcher(reactor)
-
-        uninstalling = perform(dispatcher, uninstall_flocker(nodes))
-        uninstalling.addErrback(write_failure, logger=None)
-
-        def install(ignored):
-            return perform(
-                dispatcher,
-                install_flocker(nodes, package_source),
-            )
-        installing = uninstalling.addCallback(install)
-        return installing
-
     def ensure_keys(self, reactor):
         """
         Assume we have keys, since there's no way of asking the nodes what keys
@@ -281,7 +290,7 @@ class ManagedRunner(object):
         already-started nodes.
         """
         if self.package_source is not None:
-            upgrading = self._upgrade_flocker(
+            upgrading = upgrade_flocker(
                 reactor, self._nodes, self.package_source
             )
         else:
@@ -741,6 +750,14 @@ class RunOptions(Options):
                 )
             )
 
+    def package_source(self):
+        """Getter for the configured package source."""
+        return PackageSource(
+            version=self['flocker-version'],
+            branch=self['branch'],
+            build_server=self['build-server'],
+        )
+
     def postOptions(self):
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
@@ -754,11 +771,6 @@ class RunOptions(Options):
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
-        package_source = PackageSource(
-            version=self['flocker-version'],
-            branch=self['branch'],
-            build_server=self['build-server'],
-        )
         try:
             get_runner = getattr(self, "_runner_" + provider.upper())
         except AttributeError:
@@ -771,7 +783,7 @@ class RunOptions(Options):
             )
         else:
             self.runner = get_runner(
-                package_source=package_source,
+                package_source=self.package_source(),
                 dataset_backend=self.dataset_backend(),
                 provider_config=provider_config,
             )
@@ -1189,7 +1201,8 @@ def main(reactor, args, base_path, top_level):
         result = yield run_tests(
             reactor=reactor,
             cluster=cluster,
-            trial_args=options['trial-args'])
+            trial_args=options['trial-args'],
+            package_source=options.package_source())
     except:
         result = 1
         raise
@@ -1206,7 +1219,8 @@ def main(reactor, args, base_path, top_level):
                 print ("To run acceptance tests against these nodes, "
                        "set the following environment variables: ")
 
-                environment_variables = get_trial_environment(cluster)
+                environment_variables = get_trial_environment(
+                    cluster, options.package_source())
 
                 for environment_variable in environment_variables:
                     print "export {name}={value};".format(

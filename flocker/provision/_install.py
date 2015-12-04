@@ -423,6 +423,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # repo when a branch is specified, so it wil not interfere with
         # attempts to install a release (when no branch is specified).
         buildbot_host = urlparse(package_source.build_server).hostname
+        print "ASDF", buildbot_host
         commands.append(put(dedent('''\
             Package: *
             Pin: origin {}

@@ -156,6 +156,10 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
 
     def connect():
         connection = connection_helper.secureConnection()
+        def p(x):
+            print x
+            return x
+        connection.addBoth(p)
         connection.addErrback(lambda _: False)
         return connection
 
@@ -171,8 +175,14 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
 
     yield perform(dispatcher, intent.commands)
 
+    print "Made it HERE"
+    print connection
     yield connection_helper.cleanupConnection(
-        connection, False)
+        connection, True)
+    print connection
+    #if connection_helper.agentEndpoint:
+        #print connection_helper.agentEndpoint.disconnect()
+
 
 
 def make_dispatcher(reactor):

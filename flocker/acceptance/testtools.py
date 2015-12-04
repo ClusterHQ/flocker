@@ -532,8 +532,10 @@ class Cluster(PRecord):
             def got_results(results):
                 # State has unpredictable path, so we don't bother
                 # checking for its contents:
-                actual_dataset_states = [d.set(path=None) for d in results]
-                return expected_dataset_state in actual_dataset_states
+                actual_dataset_states = list(
+                    d for d in results
+                    if d.set('path', None) == expected_dataset_state)
+                return (actual_dataset_states or [None])[0]
             request.addCallback(got_results)
             return request
 
@@ -922,7 +924,7 @@ def require_cluster(num_nodes, required_backend=None):
             def clean(cluster):
                 return cluster.clean_nodes().addCallback(lambda _: cluster)
 
-            waiting_for_cluster.addCallback(clean)
+            #waiting_for_cluster.addCallback(clean)
             calling_test_method = waiting_for_cluster.addCallback(
                 call_test_method_with_cluster,
                 test_case, args, kwargs

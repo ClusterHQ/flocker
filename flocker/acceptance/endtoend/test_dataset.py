@@ -3,17 +3,108 @@
 """
 Tests for the datasets REST API.
 """
+import os
 
+from datetime import timedelta
 from uuid import UUID
 
+from eliot import write_failure
+from effect import parallel
+from testtools import run_test_with
 from twisted.internet import reactor
+from twisted.trial.unittest import SkipTest
+from txeffect import perform
 
 from ...common import loop_until
-from ...testtools import AsyncTestCase, flaky
+from ...testtools import AsyncTestCase, async_runner, flaky
+
+from ...provision import PackageSource
+from ...provision._install import (
+    uninstall_flocker,
+    install_flocker,
+    task_enable_flocker_agent,
+    task_enable_docker_plugin,
+    task_enable_flocker_control,
+    ManagedNode
+)
+from ...provision._effect import sequence
+from ...provision._ssh import run_remotely
+from ...provision._ssh._conch import make_dispatcher
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
 )
+
+
+def upgrade_flocker(reactor, nodes, control_node, package_source):
+    """
+    Put the version of Flocker indicated by ``package_source`` onto all of
+    the given nodes.
+
+    This takes a primitive approach of uninstalling the software and then
+    installing the new version instead of trying to take advantage of any
+    OS-level package upgrade support.  Because it's easier.  The package
+    removal step is allowed to fail in case the package is not installed
+    yet (other failures are not differentiated).  The only action taken on
+    failure is that the failure is logged.
+
+    :param pvector nodes: The ``ManagedNode``\ s on which to upgrade the
+        software.
+    :param PackageSource package_source: The version of the software to
+        which to upgrade.
+
+    :return: A ``Deferred`` that fires when the software has been upgraded.
+    """
+    managed_nodes = list(
+        ManagedNode(address=node, distribution='ubuntu-14.04')
+        for node in nodes
+    )
+    print managed_nodes
+    dispatcher = make_dispatcher(reactor)
+
+    uninstalling = perform(dispatcher, uninstall_flocker(managed_nodes))
+
+    uninstalling.addErrback(write_failure, logger=None)
+
+    def install(ignored):
+        return perform(
+            dispatcher,
+            install_flocker(managed_nodes, package_source),
+        )
+    uninstalling.addCallback(install)
+
+    def restart_services(ignored):
+        return perform(
+            dispatcher,
+            parallel([
+                run_remotely(
+                    username='root',
+                    address=node.address,
+                    commands=sequence([
+                        task_enable_docker_plugin(node.distribution),
+                        task_enable_flocker_agent(
+                            distribution=node.distribution,
+                            action='restart',
+                        )
+                    ])
+                )
+                for node in managed_nodes
+            ] + [
+                run_remotely(
+                    username='root',
+                    address=control_node,
+                    commands=sequence([
+                        task_enable_flocker_control(
+                            'ubuntu-14.04',
+                            'restart'),
+                    ])
+                )
+            ])
+        )
+
+    uninstalling.addCallback(restart_services)
+
+    return uninstalling
 
 
 class DatasetAPITests(AsyncTestCase):
@@ -28,6 +119,76 @@ class DatasetAPITests(AsyncTestCase):
         A dataset can be created on a specific node.
         """
         return create_dataset(self, cluster)
+
+    def _get_package_source(self):
+        env_vars = ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH',
+                    'FLOCKER_ACCEPTANCE_PACKAGE_VERSION',
+                    'FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER']
+        missing_vars = list(x for x in env_vars if x not in os.environ)
+        if missing_vars:
+            raise SkipTest(
+                'Missing environment variables for upgrade test: %s.' %
+                ', '.join(missing_vars))
+        return PackageSource(
+            version=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'] or None,
+            branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_VERSION'] or None,
+            build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
+
+    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
+    @require_cluster(1)
+    def test_upgrade(self, cluster):
+        ps = self._get_package_source()
+        node = cluster.nodes[0]
+        SAMPLE_STR = '123456' * 100
+        # install the latest
+
+        def get_flocker_version():
+            d = cluster.client.version()
+            d.addCallback(lambda v: v.get('flocker'))
+            return d
+
+        def printv(x):
+            print "VERSION:", x
+            return x
+
+        d = get_flocker_version()
+        d.addCallback(printv)
+
+        control_node_address = cluster.control_node.public_address
+        d.addCallback(
+            lambda _: upgrade_flocker(
+                reactor,
+                set([x.public_address for x in cluster.nodes] +
+                    [control_node_address]),
+                control_node_address,
+                #PackageSource(branch='ubuntu-logs-FLOC-2560-2',
+                #              build_server='http://build.clusterhq.com/')))
+                PackageSource(version="1.8.0+82.g7e996e7")))
+
+        d.addCallback(lambda _: get_flocker_version())
+
+        d.addCallback(printv)
+
+        return d
+        d.addCallback(lambda _: create_dataset(self, cluster, node=node))
+        first_dataset = [None]
+
+        def write_to_file(dataset):
+            first_dataset[0] = dataset
+            return node.run_as_root(
+                ['bash', '-c', 'echo "%s" > %s"' % (
+                    SAMPLE_STR, os.path.join(dataset.path, 'test.txt'))])
+        d.addCallback(write_to_file)
+        d.addCallback(lambda _: upgrade_flocker(reactor, cluster.node(), ps))
+        d.addCallback(lambda _: create_dataset(self, cluster, node=node))
+        d.addCallback(lambda _: cluster.waiting_for_create(first_dataset[0]))
+
+        def verify_file(dataset):
+            return node.run_as_root(
+                ['bash', '-c', 'cat %s"' % (
+                    SAMPLE_STR, os.path.join(dataset.path, 'test.txt'))])
+        d.addCallback(verify_file)
+        return d
 
     @require_cluster(1, required_backend=DatasetBackend.aws)
     def test_dataset_creation_with_gold_profile(self, cluster, backend):
