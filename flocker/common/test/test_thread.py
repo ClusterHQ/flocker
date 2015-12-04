@@ -7,7 +7,7 @@ Tests for ``flocker.common._thread``.
 from zope.interface import Attribute, Interface, implementer
 
 from eliot import ActionType
-from eliot.testing import capture_logging, assertHasAction
+from eliot.testing import capture_logging, assertHasAction, LoggedAction
 
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.failure import Failure
@@ -196,10 +196,10 @@ class AutoThreadedIntegrationTests(TestCase):
         Logging in the method running in the thread pool is child of caller's
         Eliot context.
         """
-        grandchild = assertHasAction(self, logger, LOG_IN_SPY, True, {})
-        # in-between we expect a eliot:remote_task...
         parent = assertHasAction(self, logger, LOG_IN_CALLER, True, {})
-        self.assertEqual(parent.children[0].children[0], grandchild)
+        # in-between we expect a eliot:remote_task...
+        self.assertIn(parent.children[0].children[0],
+                      LoggedAction.of_type(logger.messages, LOG_IN_SPY))
 
     @capture_logging(assert_context_preserved)
     def test_integration(self, logger):
