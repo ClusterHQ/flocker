@@ -278,16 +278,17 @@ class LibcloudProvisioner(object):
         try:
             poll_until(
                 predicate=lambda: self._node_in_state(node, terminal_states),
-                # Overall retry sleep time (not quite the same as timeout since it
-                # doesn't count time spent in the predicate) is just copied from
-                # the default libcloud timeout for wait_until_running.  Maybe some
-                # other value would be better.
+                # Overall retry sleep time (not quite the same as timeout since
+                # it doesn't count time spent in the predicate) is just copied
+                # from the default libcloud timeout for wait_until_running.
+                # Maybe some other value would be better.
                 steps=iter([15] * (600 / 15)),
             )
 
             if self._node_in_state(node, {NodeState.RUNNING}):
-                # Success!  Now ask libcloud to dig out the details for us.  Use a
-                # low timeout because we just saw that we're running already.
+                # Success!  Now ask libcloud to dig out the details for us.
+                # Use a low timeout because we just saw that we're running
+                # already.
                 #
                 # XXX We want retry on random network errors here.  We don't
                 # want it on the timeout case, though, since that probably
@@ -298,7 +299,8 @@ class LibcloudProvisioner(object):
                     lambda: self._driver.wait_until_running([node], timeout=1)
                 )[0]
             else:
-                # Destroy it and indicate failure to the caller by returning None
+                # Destroy it and indicate failure to the caller by returning
+                # None
                 _retry_exception(node.destroy)
                 return None
         except:
