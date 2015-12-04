@@ -14,6 +14,7 @@ effect==0.10
 eliot==0.10.1
 eliot-tree==15.3.0
 enum34==1.0.4
+futures==2.2.0
 hypothesis==1.14.0
 idna==2.0
 ipaddr==2.1.11
