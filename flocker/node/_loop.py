@@ -332,6 +332,10 @@ LOG_CONVERGE = ActionType(
     [_FIELD_CLUSTERSTATE, _FIELD_CONFIGURATION], [],
     "The convergence action within the loop.")
 
+LOG_DISCOVERY = ActionType(
+    u"flocker:agent:discovery", [], [],
+    "The deployer is doing discovery of local state.")
+
 LOG_CALCULATED_ACTIONS = MessageType(
     u"flocker:agent:converge:actions", [_FIELD_ACTIONS],
     "The actions we're going to attempt.")
@@ -453,8 +457,12 @@ class ConvergenceLoop(object):
 
         with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
                           desired_configuration=self.configuration).context():
-            d = DeferredContext(maybeDeferred(
-                self.deployer.discover_state, known_local_state))
+            d = DeferredContext(succeed(None))
+            with LOG_DISCOVERY(self.fsm.logger).context():
+                discover = DeferredContext(maybeDeferred(
+                    self.deployer.discover_state, known_local_state))
+                discover.addActionFinish()
+            d.addCallback(lambda _: discover.result)
 
         def got_local_state(local_state):
             self._last_discovered_local_state = local_state

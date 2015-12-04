@@ -34,7 +34,7 @@ from .._loop import (
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     LOG_SEND_TO_CONTROL_SERVICE,
-    LOG_CONVERGE, LOG_CALCULATED_ACTIONS,
+    LOG_CONVERGE, LOG_CALCULATED_ACTIONS, LOG_DISCOVERY,
     _UNCONVERGED_DELAY, _Sleep,
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node
@@ -325,7 +325,19 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                 )
         return client
 
-    @validate_logging(assertHasAction, LOG_SEND_TO_CONTROL_SERVICE, True)
+    def assert_discovery_and_send_logged(self, logger):
+        """
+        Discovery action was logged in context of the convergence iteration
+        action.
+        """
+        discovery = assertHasAction(self, logger, LOG_DISCOVERY, True)
+        convergence = assertHasAction(self, logger, LOG_CONVERGE, True)
+        send = assertHasAction(
+            self, logger, LOG_SEND_TO_CONTROL_SERVICE, True)
+        self.assertIn(discovery, convergence.children)
+        self.assertIn(send, convergence.children)
+
+    @capture_logging(assert_discovery_and_send_logged)
     def test_convergence_done_notify(self, logger):
         """
         A FSM doing convergence that gets a discovery result, sends the
@@ -353,6 +365,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         )
         self.assertEqual(client.calls, [(NodeStateCommand,
                                          dict(state_changes=(local_state,)))])
+        action.result.callback(None)
 
     def test_convergence_done_unchanged_notify(self):
         """
