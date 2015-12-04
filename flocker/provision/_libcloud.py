@@ -330,7 +330,8 @@ class LibcloudProvisioner(object):
 
     def _cleanup_node_named(self, name):
         """
-        Destroy a node with the given name, if there is one.
+        Destroy a node with the given name, if there is one.  Otherwise, do
+        nothing.
         """
         nodes = _retry_exception(self._driver.list_nodes)
         for node in nodes:
