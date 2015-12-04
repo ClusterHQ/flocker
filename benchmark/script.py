@@ -71,8 +71,8 @@ class BenchmarkOptions(Options):
     description = "Run benchmark tests."
 
     optParameters = [
-        ['uft', None, None,
-         'Directory containing UFT installer files.  '
+        ['cluster', None, None,
+         'Directory containing cluster configuration files.  '
          'If not set, use acceptance test environment variables.'],
         ['config', None, 'benchmark.yml',
          'YAML file describing benchmark options.'],

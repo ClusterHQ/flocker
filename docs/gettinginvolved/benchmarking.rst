@@ -3,12 +3,6 @@
 Benchmarking
 ============
 
-.. note::
-
-   For the ``benchmark`` command described on this page, if the cluster uses private addresses for communication (e.g. AWS nodes), set the environment variable ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` to a serialized JSON object mapping cluster internal IP addresses to public IP addresses.
-   This environment variable is provided if the cluster is started using the ``run-acceptance-tests`` command.
-   This is intended to be a temporary requirement, until other mechanisms are available [:issue:`2137`, :issue:`3514`, :issue:`3521`].
-
 Flocker includes a tool for benchmarking operations.
 It is called like this:
 
@@ -20,20 +14,24 @@ The :program:`benchmark` script has the following command line options:
 
 .. program:: benchmark
 
-.. option:: --control <control-service-ipaddr>
+.. option:: --cluster <cluster-config>
 
-   Specifies the IP address for the Flocker cluster control node.
-   This must be specified, unless the ``no-op`` operation is requested.
+   Specifies a directory containing:
 
-.. option:: --certs <directory>
+   - ``cluster.yml`` - a cluster description file;
+   - ``cluster.crt`` - a CA certificate file;
+   - ``user.crt`` - a user certificate file; and
+   - ``user.key`` - a user private key file.
 
-   Specifies the directory containing the user certificates.
-   Defaults to the directory ``./certs``.
+   These files are equivalent to those created by the  :ref:`Quick Start Flocker Installer <labs-installer>`.
+   See :ref:`below <benchmarking-cluster-description>` for the format of the ``cluster.yml`` file.
 
-.. option:: --config <config-file>
+   If this option is not specified, then the benchmark script expects environment variables as set by the :ref:`acceptance test runner <acceptance-testing-cluster-config>` using ```run-acceptance-tests --keep``.
+
+.. option:: --config <benchmark-config>
 
    Specifies a file containing configurations for scenarios, operations, and metrics.
-   See below for the format of this file.
+   See :ref:`below <benchmarking-configuration-file>` for the format of this file.
    Defaults to the file ``./benchmark.yml``.
 
 .. option:: --scenario <scenario>
@@ -55,6 +53,24 @@ The :program:`benchmark` script has the following command line options:
    This is the ``name`` of a metric in the configuration file.
    Defaults to the name ``default``.
 
+
+.. _benchmarking-cluster-description:
+
+Cluster Description File
+------------------------
+
+This file must be named ``cluster.yml`` and must be located in the directory named by the ``--cluster`` option.
+
+An example file:
+
+.. code-block:: yaml
+
+   agent_nodes:
+    - {public: 172.31.105.15, private: 10.0.84.25}
+    - {public: 172.31.105.16, private: 10.0.84.22}
+   control_node: 172.31.105.15
+
+.. _benchmarking-configuration-file:
 
 Configuration File
 ------------------
