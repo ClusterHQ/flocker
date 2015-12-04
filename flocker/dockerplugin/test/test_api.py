@@ -442,15 +442,15 @@ class APITestsMixin(APIAssertionsMixin):
 
     def test_unsupported_method(self):
         """
-        If an unsupported method is requested the appropriate response code is
-        returned.
+        If an unsupported method is requested the 405 Not Allowed response
+        code is returned.
         """
         return self.assertResponseCode(
             b"BAD_METHOD", b"/VolumeDriver.Path", None, NOT_ALLOWED)
 
     def test_unknown_uri(self):
         """
-        If an unknown URI path is requested the appropriate response code is
+        If an unknown URI path is requested the 404 Not Found response code is
         returned.
         """
         return self.assertResponseCode(
@@ -459,7 +459,8 @@ class APITestsMixin(APIAssertionsMixin):
     def test_empty_host(self):
         """
         If an empty host header is sent to the Docker plugin it does not blow
-        up.
+        up, instead operating normally. E.g. for ``Plugin.Activate`` call
+        returns the ``Implements`` response.
         """
         return self.assertResult(b"POST", b"/Plugin.Activate", 12345, OK,
                                  {u"Implements": [u"VolumeDriver"]},
