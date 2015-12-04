@@ -513,9 +513,9 @@ class Cluster(PRecord):
         :param Dataset expected_dataset: The configured dataset that
             we're waiting for in state.
 
-        :returns: A ``Deferred`` which fires with ``expected_datasets``
-            when the cluster state matches the configuration for the given
-            dataset.
+        :returns: A ``Deferred`` which fires with the ``DatasetState`` of the
+            cluster when the cluster state matches the configuration for the
+            given dataset.
         """
         expected_dataset_state = DatasetState(
             dataset_id=expected_dataset.dataset_id,
@@ -540,7 +540,6 @@ class Cluster(PRecord):
             return request
 
         waiting = loop_until(reactor, created)
-        waiting.addCallback(lambda ignored: expected_dataset)
         return waiting
 
     @log_method

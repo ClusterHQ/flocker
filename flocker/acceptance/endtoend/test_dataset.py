@@ -136,10 +136,9 @@ class DatasetAPITests(AsyncTestCase):
             branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'] or None,
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
-    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
+    @run_test_with(async_runner(timeout=timedelta(minutes=3)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
-        ps = self._get_package_source()
         node = cluster.nodes[0]
         SAMPLE_STR = '123456' * 100
 
@@ -147,57 +146,69 @@ class DatasetAPITests(AsyncTestCase):
         all_cluster_nodes = set([x.public_address for x in cluster.nodes] +
                                 [control_node_address])
 
-        def upgrade_flocker_to(package_source):
-            return upgrade_flocker(reactor, all_cluster_nodes,
-                                   control_node_address, package_source)
-
         def get_flocker_version():
             d = cluster.client.version()
             d.addCallback(lambda v: str(v.get('flocker')) or None)
             return d
 
+        def upgrade_flocker_to(package_source):
+            d = get_flocker_version()
+
+            def upgrade_if_needed(v):
+                if v and v == package_source.version:
+                    return v
+                return upgrade_flocker(reactor, all_cluster_nodes,
+                                       control_node_address, package_source)
+            d.addCallback(upgrade_if_needed)
+            return d
+
+        # Get the initial flocker version and setup a cleanup call to restore
+        # flocker to that version when the test is done.
         d = get_flocker_version()
 
+        original_package_source = [None]
+
         def setup_restore_default(version):
-            print "Original_version:", version
-            original_package_source = (
+            original_package_source[0] = (
                 self._get_package_source(default_version=version))
             self.addCleanup(
-                lambda: upgrade_flocker_to(original_package_source))
+                lambda: upgrade_flocker_to(original_package_source[0]))
+            return version
 
         d.addCallback(setup_restore_default)
 
+        # Downgrade flocker to the most recent released version.
         d.addCallback(
-            lambda _: upgrade_flocker_to(
-                PackageSource(version="1.8.0+82.g7e996e7")))
-                #PackageSource(version="1.8.0")))
+            lambda v: upgrade_flocker_to(
+                PackageSource(version=v.split('+')[0])))
 
-        d.addCallback(lambda _: get_flocker_version())
-
-        def printv(x):
-            print "VERSION: ", x
-            return x
-
-        d.addCallback(printv)
-
-        return d
+        # Create a dataset with the code from the most recent release.
         d.addCallback(lambda _: create_dataset(self, cluster, node=node))
         first_dataset = [None]
 
+        # Write some data to a file in the dataset.
         def write_to_file(dataset):
             first_dataset[0] = dataset
             return node.run_as_root(
-                ['bash', '-c', 'echo "%s" > %s"' % (
-                    SAMPLE_STR, os.path.join(dataset.path, 'test.txt'))])
+                ['bash', '-c', 'echo "%s" > %s' % (
+                    SAMPLE_STR, os.path.join(dataset.path.path, 'test.txt'))])
         d.addCallback(write_to_file)
-        d.addCallback(lambda _: upgrade_flocker(reactor, cluster.node(), ps))
-        d.addCallback(lambda _: create_dataset(self, cluster, node=node))
-        d.addCallback(lambda _: cluster.waiting_for_create(first_dataset[0]))
 
+        # Upgrade flocker to the code under test.
+        d.addCallback(lambda _: upgrade_flocker_to(original_package_source[0]))
+
+        # Create a new dataset to convince ourselves that the new code is
+        # running.
+        d.addCallback(lambda _: create_dataset(self, cluster, node=node))
+
+        # Wait for the first dataset to be mounted again.
+        d.addCallback(lambda _: cluster.wait_for_dataset(first_dataset[0]))
+
+        # Verify that the file still has its contents.
         def verify_file(dataset):
             return node.run_as_root(
-                ['bash', '-c', 'cat %s"' % (
-                    SAMPLE_STR, os.path.join(dataset.path, 'test.txt'))])
+                ['bash', '-c', 'cat %s' % (
+                    os.path.join(dataset.path.path, 'test.txt'))])
         d.addCallback(verify_file)
         return d
 
