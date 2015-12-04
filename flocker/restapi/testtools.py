@@ -212,22 +212,22 @@ def buildIntegrationTests(mixinClass, name, fixture):
     return RealTests, MemoryTests
 
 
-def buildUNIXIntegrationTests(mixinClass, name, fixture):
+def build_UNIX_integration_tests(mixin_class, name, fixture):
     """
-    Build L{TestCase} class that runs the tests in the mixin class with
+    Build ``TestCase`` class that runs the tests in the mixin class with
     real queries over a UNIX socket.
 
-    @param mixinClass: A mixin class for L{TestCase} that relies on having a
-        C{self.scenario}.
+    :param mixin_class: A mixin class for ``TestCase`` that relies on having a
+        ``self.scenario``.
 
-    @param name: A C{str}, the name of the test category.
+    :param name: A ``str``, the name of the test category.
 
     :param fixture: A callable that takes a ``TestCase`` and returns a
         ``klein.Klein`` object.
 
-    @return: A L{TestCase} class.
+    :return: A L``TestCase`` class.
     """
-    class RealTests(mixinClass, TestCase):
+    class RealTests(mixin_class, TestCase):
         """
         Tests that endpoints are available over the network interfaces that
         real API users will be connecting from.
@@ -243,7 +243,7 @@ def buildUNIXIntegrationTests(mixinClass, name, fixture):
             super(RealTests, self).setUp()
 
     RealTests.__name__ += name
-    RealTests.__module__ = mixinClass.__module__
+    RealTests.__module__ = mixin_class.__module__
     return RealTests
 
 

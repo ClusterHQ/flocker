@@ -19,7 +19,7 @@ from ...testtools import CustomException
 
 from ...restapi import make_bad_request
 from ...restapi.testtools import (
-    buildUNIXIntegrationTests, APIAssertionsMixin,
+    build_UNIX_integration_tests, APIAssertionsMixin,
 )
 
 
@@ -471,4 +471,4 @@ def _build_app(test):
     test.initialize()
     return VolumePlugin(
         test.volume_plugin_reactor, test.flocker_client, test.NODE_A).app
-RealTestsAPI = buildUNIXIntegrationTests(APITestsMixin, "API", _build_app)
+RealTestsAPI = build_UNIX_integration_tests(APITestsMixin, "API", _build_app)
