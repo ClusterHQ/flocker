@@ -59,7 +59,6 @@ def upgrade_flocker(reactor, nodes, control_node, package_source):
         ManagedNode(address=node, distribution='ubuntu-14.04')
         for node in nodes
     )
-    print managed_nodes
     dispatcher = make_dispatcher(reactor)
 
     uninstalling = perform(dispatcher, uninstall_flocker(managed_nodes))
@@ -120,7 +119,7 @@ class DatasetAPITests(AsyncTestCase):
         """
         return create_dataset(self, cluster)
 
-    def _get_package_source(self):
+    def _get_package_source(self, default_version=None):
         env_vars = ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH',
                     'FLOCKER_ACCEPTANCE_PACKAGE_VERSION',
                     'FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER']
@@ -129,9 +128,12 @@ class DatasetAPITests(AsyncTestCase):
             raise SkipTest(
                 'Missing environment variables for upgrade test: %s.' %
                 ', '.join(missing_vars))
+        version = (
+            os.environ['FLOCKER_ACCEPTANCE_PACKAGE_VERSION'] or default_version
+        )
         return PackageSource(
-            version=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'] or None,
-            branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_VERSION'] or None,
+            version=version,
+            branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'] or None,
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
     @run_test_with(async_runner(timeout=timedelta(minutes=4)))
@@ -140,32 +142,41 @@ class DatasetAPITests(AsyncTestCase):
         ps = self._get_package_source()
         node = cluster.nodes[0]
         SAMPLE_STR = '123456' * 100
-        # install the latest
+
+        control_node_address = cluster.control_node.public_address
+        all_cluster_nodes = set([x.public_address for x in cluster.nodes] +
+                                [control_node_address])
+
+        def upgrade_flocker_to(package_source):
+            return upgrade_flocker(reactor, all_cluster_nodes,
+                                   control_node_address, package_source)
 
         def get_flocker_version():
             d = cluster.client.version()
-            d.addCallback(lambda v: v.get('flocker'))
+            d.addCallback(lambda v: str(v.get('flocker')) or None)
             return d
 
-        def printv(x):
-            print "VERSION:", x
-            return x
-
         d = get_flocker_version()
-        d.addCallback(printv)
 
-        control_node_address = cluster.control_node.public_address
+        def setup_restore_default(version):
+            print "Original_version:", version
+            original_package_source = (
+                self._get_package_source(default_version=version))
+            self.addCleanup(
+                lambda: upgrade_flocker_to(original_package_source))
+
+        d.addCallback(setup_restore_default)
+
         d.addCallback(
-            lambda _: upgrade_flocker(
-                reactor,
-                set([x.public_address for x in cluster.nodes] +
-                    [control_node_address]),
-                control_node_address,
-                #PackageSource(branch='ubuntu-logs-FLOC-2560-2',
-                #              build_server='http://build.clusterhq.com/')))
+            lambda _: upgrade_flocker_to(
                 PackageSource(version="1.8.0+82.g7e996e7")))
+                #PackageSource(version="1.8.0")))
 
         d.addCallback(lambda _: get_flocker_version())
+
+        def printv(x):
+            print "VERSION: ", x
+            return x
 
         d.addCallback(printv)
 
