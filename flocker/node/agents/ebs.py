@@ -648,7 +648,7 @@ def _get_device_size(device):
     return device_size
 
 
-def _wait_for_new_device(base, size, time_limit=60):
+def _wait_for_new_device(base, expected_size, time_limit=60):
     """
     Helper function to wait for up to 60s for new
     EBS block device (`/dev/sd*` or `/dev/xvd*`) to
@@ -657,8 +657,8 @@ def _wait_for_new_device(base, size, time_limit=60):
     :param list base: List of baseline block devices
         that existed before execution of operation that expects
         to create a new block device.
-    :param int size: Size of the block device we are expected
-        to manifest in the OS.
+    :param int expected_size: Size of the block device we are expected to
+        manifest in the OS.
     :param int time_limit: Time, in seconds, to wait for
         new device to manifest. Defaults to 60s.
 
@@ -672,7 +672,7 @@ def _wait_for_new_device(base, size, time_limit=60):
                            set(base)):
             device_name = FilePath.basename(device)
             if (device_name.startswith((b"sd", b"xvd")) and
-                    _get_device_size(device_name) == size):
+                    _get_device_size(device_name) == expected_size):
                 return FilePath(b"/dev").child(device_name)
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
@@ -684,7 +684,7 @@ def _wait_for_new_device(base, size, time_limit=60):
     new_devices_size = [_get_device_size(device) for device in new_devices]
     NO_NEW_DEVICE_IN_OS(new_devices=new_devices,
                         new_devices_size=new_devices_size,
-                        expected_size=size,
+                        expected_size=expected_size,
                         time_limit=time_limit).write()
     return None
 
@@ -752,7 +752,8 @@ def _attach_volume_and_wait_for_device(
         # to be available to the OS, and interpret it as ours.
         # Wait under lock scope to reduce false positives.
         device_path = _wait_for_new_device(
-            blockdevices, volume.size
+            base=blockdevices,
+            expected_size=volume.size,
         )
         # We do, however, expect the attached device name to follow
         # a certain simple pattern.  Verify that now and signal an
