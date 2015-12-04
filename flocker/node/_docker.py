@@ -28,7 +28,6 @@ from requests import Response
 from requests.exceptions import ConnectionError
 from requests.packages.urllib3.exceptions import ProtocolError
 
-from pyrsistent import field, PRecord, pset
 from characteristic import with_cmp
 
 from twisted.python.components import proxyForInterface
