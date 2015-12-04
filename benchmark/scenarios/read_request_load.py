@@ -70,6 +70,8 @@ class RequestRateTooLow(Exception):
 @implementer(IScenario)
 class ReadRequestLoadScenario(object):
     """
+    A scenario that places load on the cluster by performing read
+    requests at a specified rate.
     """
 
     def __init__(self, reactor, control_service, request_rate):
