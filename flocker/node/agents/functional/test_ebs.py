@@ -68,6 +68,76 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    def test_attach_when_foreign_device_has_next_device(self):
+        """
+        ``attach_volume`` does not attempt to use device paths that are already
+        assigned to volumes that have been attached outside of Flocker.
+
+        _next_device only attempts to find free /dev/sd? devices.
+        It does not consider the /dev/xvd? devices.
+        Problem is that /dev/sd? gets translated to /dev/xvd? on certain AWS
+        hypervisors.
+        """
+        try:
+            config = get_blockdevice_config(ProviderType.aws)
+        except InvalidConfig as e:
+            raise SkipTest(str(e))
+
+        ec2_client = get_ec2_client_for_test(config)
+        # Create a volume directly using boto.
+        requested_volume = ec2_client.connection.create_volume(
+            int(Byte(self.minimum_allocatable_size).to_GiB().value),
+            ec2_client.zone)
+        self.addCleanup(ec2_client.connection.delete_volume,
+                        requested_volume.id)
+
+        _wait_for_volume_state_change(VolumeOperations.CREATE,
+                                      requested_volume)
+
+        instance_id = self.api.compute_instance_id()
+        # See what device Flocker would try to use when it next attaches a
+        # device.
+        # eg /dev/sdX
+        flocker_next_device1 = self.api._next_device(
+            instance_id,
+            ec2_client.connection.get_all_volumes(),
+            ()
+        )
+        # Assign the equivelent xvdX device to our manually attached volume.
+        foreign_next_device = flocker_next_device1.replace(
+            '/sd', '/xvd'
+        )
+        ec2_client.connection.attach_volume(
+            volume_id=requested_volume.id,
+            instance_id=instance_id,
+            device=foreign_next_device
+        )
+
+        def _detach_afterwards():
+            ec2_client.connection.detach_volume(
+                requested_volume.id
+            )
+
+            _wait_for_volume_state_change(
+                VolumeOperations.DETACH,
+                requested_volume
+            )
+        self.addCleanup(_detach_afterwards)
+
+        _wait_for_volume_state_change(VolumeOperations.ATTACH,
+                                      requested_volume)
+
+        # Flocker should no longer attempt to assign that device sdX since that
+        # would result in a device path of /dev/xvdX in the OS, which is
+        # already occupied.
+        flocker_next_device2 = self.api._next_device(
+            instance_id,
+            ec2_client.connection.get_all_volumes(),
+            ()
+        )
+        # But currently it does.
+        self.assertNotEqual(flocker_next_device1, flocker_next_device2)
+
     def test_foreign_volume(self):
         """
         ``list_volumes`` lists only those volumes
