@@ -456,6 +456,15 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResponseCode(
             b"BAD_METHOD", b"/xxxnotthere", None, NOT_FOUND)
 
+    def test_empty_host(self):
+        """
+        If an empty host header is sent to the Docker plugin it does not blow
+        up.
+        """
+        return self.assertResult(b"POST", b"/Plugin.Activate", 12345, OK,
+                                 {u"Implements": [u"VolumeDriver"]},
+                                 additional_headers={b"Host": [""]})
+
 
 def _build_app(test):
     test.initialize()
