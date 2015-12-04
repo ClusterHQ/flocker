@@ -334,8 +334,8 @@ def _enable_boto_logging():
     """
     Make boto log activity using Eliot.
     """
-    boto3.set_stream_logger()
     logger = logging.getLogger("boto3")
+    logger.setLevel(logging.DEBUG)
     logger.addHandler(EliotLogHandler())
 
 _enable_boto_logging()
