@@ -628,8 +628,92 @@ class EC2ClientTests(TestCase):
             raise SkipTest(str(e))
         self.ec2_client = get_ec2_client_for_test(config)
 
+    def test_create_volume_standard(self):
+        """
+        ``EC2Client.create_volume`` creates a volume and returns the
+        ``Volume`` object representation of the newly created volume.
+        """
+        pass
+
+    def test_create_volume_iops(self):
+        """
+        ``EC2Client.create_volume`` creates a provisioned IOPS volume when
+        the io1 volume type is specified.
+        """
+        pass
+
+    def test_create_volume_error_on_invalid_zone(self):
+        """
+        ``EC2Client.create_volume`` aises a ``ClientError`` if the zone
+        specified is not valid.
+        """
+        pass
+
+    def test_create_volume_error_on_invalid_size(self):
+        """
+        ``EC2Client.create_volume`` raises a ``ClientError`` if the size
+        specified is not valid.
+        """
+        pass
+
+    def test_create_volume_iops_min_iops(self):
+        """
+        ``EC2Client.create_volume`` creates a volume ``IOPS_MIN_IOPS`` if
+        no IOPS value was specified.
+        """
+        pass
+
+    def test_list_volumes(self):
+        """
+        ``EC2Client.list_volumes`` returns a list of volume objecs.
+        """
+        pass
+
+    def test_delete_volume(self):
+        """
+        ``EC2Client.delete_volume`` returns a ``dict`` with the response
+        from AWS indicating a successful delete.
+        """
+        pass
+
+    def test_error_on_delete_nonexistent_volume(self):
+        """
+        ``EC2Client.delete_volume`` raises a ``ClientError`` if the
+        specified volume does not exist.
+        """
+        pass
+
+    def test_attach_volume(self):
+        """
+        ``EC2Client.attach_volume`` returns a ``dict`` with the response
+        from AWS indicating a successful attach.
+        """
+        pass
+
+    def test_detach_volume(self):
+        """
+        ``EC2Client.detach_volume`` returns a ``dict`` with the response
+        from AWS indicating a successful detach.
+        """
+        pass
+
+    def test_get_volume_tag(self):
+        """
+        ``EC2Client.get_volume_tag`` returns the value of a named volume
+        tag.
+        """
+        pass
+
+    def test_get_volume_tag_none(self):
+        """
+        ``EC2Client.get_volume_tag`` returns ``None`` when a tag does
+        not exist.
+        """
+        pass
+
     def test_get_volume(self):
         """
-
+        ``EC2Client.get_volume`` retrieves a Volume object with the
+        expected properties.
         """
         pass
