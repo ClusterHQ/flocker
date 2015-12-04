@@ -29,7 +29,6 @@ class RateMeasurer(object):
             self._counts = self._counts[-self._sample_size:]
             self._last_second = now
             self._count = 0
-            print self._count, self._counts
         self._count += 1
 
     def rate(self):
