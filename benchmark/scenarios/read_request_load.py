@@ -107,6 +107,22 @@ class ReadRequestLoadScenario(object):
             return current_rate >= self.request_rate
 
         waiting_for_target_rate = loop_until(self.reactor, reached_target_rate)
+
+        def scenario_collapsed():
+            return self.rate_measurer.rate() < self.request_rate
+
+        # Start monitoring the scenario as soon as the target rate is reached.
+        def monitor_scenario_status(result):
+            scenario_monitor = loop_until(self.reactor, scenario_collapsed)
+            scenario_monitor.addCallback(
+                lambda ignored: self._maintained.errback(
+                    RequestRateTooLow(self.rate_measurer.rate())
+                )
+            )
+            return result
+
+        waiting_for_target_rate.addCallback(monitor_scenario_status)
+
         return waiting_for_target_rate
 
     def maintained(self):
@@ -115,23 +131,7 @@ class ReadRequestLoadScenario(object):
             scenario fails to hold between being established and being
             stopped.  This Deferred never fires with a callback.
         """
-        print "Checking that the scenario has been maintained"
 
-        scenario_status = Deferred()
-
-        def scenario_collapsed():
-            return self.rate_measurer.rate() < self.request_rate * 0.9
-
-        # Start monitoring the scenario as soon as the target rate is reached.
-        def monitor_scenario_status():
-            scenario_monitor = loop_until(self.reactor, scenario_collapsed)
-            scenario_monitor.addCallback(
-                lambda ignored: scenario_status.errback(
-                    RequestRateTooLow(self.rate_measurer.rate())
-                )
-            )
-
-        # monitor_scenario_status()
         return self._maintained
 
     def stop(self):
