@@ -18,7 +18,9 @@ from ...apiclient import FakeFlockerClient, Dataset, DatasetsConfiguration
 from ...testtools import CustomException
 
 from ...restapi import make_bad_request
-from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
+from ...restapi.testtools import (
+    buildUNIXIntegrationTests, APIAssertionsMixin,
+)
 
 
 class SimpleCountingProxy(object):
@@ -443,5 +445,4 @@ def _build_app(test):
     test.initialize()
     return VolumePlugin(
         test.volume_plugin_reactor, test.flocker_client, test.NODE_A).app
-RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
-    APITestsMixin, "API", _build_app)
+RealTestsAPI = buildUNIXIntegrationTests(APITestsMixin, "API", _build_app)
