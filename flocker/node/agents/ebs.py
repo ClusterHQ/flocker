@@ -317,16 +317,12 @@ class UnexpectedStateException(Exception):
 
 
 class EliotLogHandler(logging.Handler):
-    # Whitelist ``"msg": "Params:`` field for logging.
-    _to_log = {"Params"}
-
     def emit(self, record):
-        fields = vars(record)
         # Only log certain things.  The log is massively too verbose
         # otherwise.
-        if fields.get("msg", ":").split(":")[0] in self._to_log:
+        if record.levelname == 'INFO':
             Message.new(
-                message_type=BOTO_LOG_HEADER, **fields
+                message_type=BOTO_LOG_HEADER, message=record.getMessage()
             ).write()
 
 
@@ -442,12 +438,12 @@ def boto3_log(method):
         def log_boto3_error(e):
             BOTO_EC2RESPONSE_ERROR(
                 aws_code=e.response['Error']['Code'],
-                aws_message=e.response['Error']['Message'],
+                aws_message=unicode(e.response['Error']['Message']),
                 aws_request_id=e.response['ResponseMetadata']['RequestId'],
             ).write()
             raise
 
-        with AWS_ACTION(operation=[method.__name__, args, kwargs]):
+        with AWS_ACTION(operation=[method.__name__, args[1:], kwargs]):
             try:
                 return method(*args, **kwargs)
             except SSLError as e:
@@ -1052,7 +1048,7 @@ class EBSBlockDeviceAPI(object):
             CREATE_VOLUME_FAILURE(
                 dataset_id=dataset_id,
                 aws_code=e.response['Error']['Code'],
-                aws_message=e.response['Error']['Message']
+                aws_message=unicode(e.response['Error']['Message'])
             ).write()
             volume_type, iops = _volume_type_and_iops_for_profile_name(
                 MandatoryProfiles.DEFAULT.value, requested_size)
