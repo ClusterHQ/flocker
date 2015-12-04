@@ -16,6 +16,7 @@ import yaml
 from eliot import to_file
 
 from twisted.internet.task import react
+from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
 from flocker import __version__ as flocker_client_version
@@ -177,7 +178,7 @@ def main():
         usage(options, e.args[0])
 
     if options['uft']:
-        cluster = BenchmarkCluster.from_uft_setup(options['uft'])
+        cluster = BenchmarkCluster.from_uft_setup(FilePath(options['uft']))
     else:
         try:
             cluster = BenchmarkCluster.from_acceptance_test_env(os.environ)
