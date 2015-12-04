@@ -16,6 +16,9 @@ __all__ = [
     'loop_until', 'timeout', 'retry_failure', 'poll_until',
     'retry_effect_with_timeout',
 
+    'compose_retry', 'retry_if', 'retry_some_times',
+    'wrap_methods_with_failure_retry',
+
     'RACKSPACE_MINIMUM_VOLUME_SIZE',
     'DEVICEMAPPER_LOOPBACK_SIZE',
 ]
@@ -29,6 +32,8 @@ from ._interface import interface_decorator
 from ._net import get_all_ips, ipaddress_from_string
 from ._retry import (
     loop_until, timeout, poll_until, retry_failure, retry_effect_with_timeout,
+    compose_retry, retry_if, retry_some_times,
+    wrap_methods_with_failure_retry,
 )
 
 # This is currently set to the minimum size for a SATA based Rackspace Cloud

@@ -7,6 +7,8 @@ Docker API client.
 
 from __future__ import absolute_import
 
+from errno import ECONNREFUSED
+from socket import error as socket_error
 from functools import partial
 from itertools import repeat
 from time import sleep
@@ -21,7 +23,12 @@ from eliot import Message, MessageType, Field, start_action
 from repoze.lru import LRUCache
 
 from pyrsistent import field, PClass, pset
+
 from requests import Response
+from requests.exceptions import ConnectionError
+from requests.packages.urllib3.exceptions import ProtocolError
+
+from pyrsistent import field, PRecord, pset
 from characteristic import with_cmp
 
 from twisted.python.components import proxyForInterface
@@ -30,7 +37,11 @@ from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
-from ..common import poll_until
+from ..common import (
+    poll_until, compose_retry, retry_if,
+    retry_some_times, wrap_methods_with_failure_retry,
+)
+
 from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
 
@@ -389,6 +400,67 @@ class TimeoutClient(Client):
         return kwargs
 
 
+def _is_known_retryable(exception):
+    """
+    Determine if the text of a Docker 500 error represents a case which
+    warrants an automatic retry.
+
+    :param Exception exception: The exception from a ``docker.Client`` method
+        call.
+
+    :return bool: ``True`` if the exception represents a failure that is likely
+        transient and a retry makes sense, ``False`` otherwise.
+    """
+    # A problem coming out of Docker itself
+    if isinstance(exception, APIError):
+        if exception.response.status_code == INTERNAL_SERVER_ERROR:
+            error_text = exception.response.text
+            return any(
+                known in error_text
+                for known
+                in [
+                    # https://github.com/docker/docker/issues/18194
+                    u"Unknown device",
+                    # https://github.com/docker/docker/issues/17653
+                    u"no such device",
+                ]
+            )
+
+    # A connection problem coming from the requests library used by docker-py
+    if isinstance(exception, ConnectionError):
+        if (
+            len(exception.args) > 0
+            and isinstance(exception.args[0], ProtocolError)
+        ):
+            if (
+                len(exception.args[0].args) > 1
+                and isinstance(exception.args[0].args[1], socket_error)
+            ):
+                return exception.args[0].args[1].errno in {ECONNREFUSED}
+
+    return False
+
+
+def dockerpy_client(**kwargs):
+    """
+    Create a ``docker.Client`` configured to be more reliable than the default.
+
+    The client will impose additional timeouts on certain operations that
+    ``docker.Client`` does not impose timeouts on.  It will also retry
+    operations that fail in ways that retrying is known to help fix.
+    """
+    if "version" not in kwargs:
+        kwargs = kwargs.copy()
+        kwargs["version"] = "1.15"
+    return wrap_methods_with_failure_retry(
+        TimeoutClient(**kwargs),
+        compose_retry([
+            retry_if(_is_known_retryable),
+            retry_some_times(),
+        ]),
+    )
+
+
 @implementer(IDockerClient)
 class DockerClient(object):
     """
@@ -409,8 +481,9 @@ class DockerClient(object):
             self, namespace=BASE_NAMESPACE, base_url=None,
             long_timeout=600):
         self.namespace = namespace
-        self._client = TimeoutClient(
-            version="1.15", base_url=base_url, long_timeout=long_timeout)
+        self._client = dockerpy_client(
+            version="1.15", base_url=base_url, long_timeout=long_timeout,
+        )
         self._image_cache = LRUCache(100)
 
     def _to_container_name(self, unit_name):
