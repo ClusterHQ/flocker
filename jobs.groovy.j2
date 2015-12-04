@@ -543,10 +543,10 @@ branches.each {
     wrappers {
       timestamps()
       colorizeOutput()
-      {# lock down the multijob to 60 minutes so that 'stuck' jobs won't
+      {# lock down the multijob to 95 minutes so that 'stuck' jobs won't
           block future runs                                                  #}
       timeout {
-          absolute(60)
+          absolute(95)
           }
     }
 

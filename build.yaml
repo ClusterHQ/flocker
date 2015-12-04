@@ -1,4 +1,4 @@
-# vim: ai ts=4 sts=4 et sw=4 ft=yaml fdm=indent et foldlevel=0
+# vim: ai ts=4 sts=4 et sw=4 ft=yaml fdm=indent et
 #
 # build.yaml
 #
@@ -131,14 +131,6 @@ common_cli:
       fi
     }
 
-    # This is a function that we can use to transform log output before it is
-    # sent to the Jenkins console view.  It could be used to color-code certain
-    # results, for example.
-    function parse_logs {
-      "\$@"
-      return \${PIPESTATUS[0]}
-    }
-
     # fix the docker permission issue, the base image doesn't have the correct
     # permissions/owners.
     # This is to be tackled as part of:
@@ -164,6 +156,27 @@ common_cli:
              echo 1
          fi
       fi
+    }
+
+    # Retries a command if it fails, using the exponential backoff algorithm.
+    # It will retry forever, we rely on Jenkins to kill it if it takes too long
+    # In order to rehap the benefits of over-retrying (green builds), we need
+    # to set a timeout, so that we catch 'hang' commands and retry them within
+    # the test run.
+    # Usage: retry <timeout in seconds> 'command'
+    #
+    function retry_with_timeout {
+      let seconds=\${1}
+      shift 1
+      let delay=2
+      while true; do
+        if (timeout --foreground --kill-after=20 \${seconds} bash -c "\${*}"); then
+        break
+        fi
+        echo Command failed, waiting \${delay}...
+        sleep \${delay}
+        let delay=delay*2
+    done
     }
 
   # TODO: do we need to clean up old files on ubuntu and centos or
@@ -214,20 +227,15 @@ common_cli:
                                 --trusted-host \${TRUSTED_HOST} "
     fi
 
-    # parse_logs() currently only works on Ubuntu or Centos builds
-    # due to a different awk implementation on OSX cloudbees servers
-    if is_ubuntu || is_centos; then
-        PARSE_LOGS="parse_logs "
-    fi
 
     # using the caching-layer, install all the dependencies
-    \${PARSE_LOGS} pip install --upgrade pip
-    \${PARSE_LOGS} pip install . \${PIP_ADDITIONAL_OPTIONS}
+    retry_with_timeout 300 pip install --upgrade pip
+    retry_with_timeout 300 pip install . \${PIP_ADDITIONAL_OPTIONS}
     # Install Flocker. Use --process-dependency-links so we can temporarily use
     # testtools fork. See FLOC-3498.
-    \${PARSE_LOGS} pip install --process-dependency-links  ".[dev]" \${PIP_ADDITIONAL_OPTIONS}
+    retry_with_timeout 300 pip install --process-dependency-links ".[dev]" \${PIP_ADDITIONAL_OPTIONS}
     # install junix for our coverage report
-    \${PARSE_LOGS} pip install python-subunit junitxml \${PIP_ADDITIONAL_OPTIONS}
+    retry_with_timeout 300 pip install python-subunit junitxml \${PIP_ADDITIONAL_OPTIONS}
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
@@ -256,11 +264,11 @@ common_cli:
     # downstream child jobs to the parent job and processing those files
     # one last time through the cobertura plugin.
     # The resulting report wil contain stats from every single job.
-    parse_logs pip install coverage  \${PIP_ADDITIONAL_OPTIONS}
+    retry_with_timeout 300 pip install coverage  \${PIP_ADDITIONAL_OPTIONS}
 
   run_coverage: &run_coverage |
     # run coverage and produce a report
-    parse_logs coverage xml --include=flocker*
+    coverage xml --include=flocker*
 
   convert_results_to_junit: &convert_results_to_junit |
     # pip the trial.log results through subunit and export them as junit in xml
@@ -268,14 +276,14 @@ common_cli:
       --no-passthrough --output-to=results.xml
 
   run_sphinx: &run_sphinx |
-    parse_logs python setup.py --version
+    retry_with_timeout 300 python setup.py --version
     cd docs
     # check spelling
-    parse_logs sphinx-build -d _build/doctree -b spelling . _build/spelling
+    sphinx-build -d _build/doctree -b spelling . _build/spelling
     # check links
-    parse_logs sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
+    sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
     # build html pages
-    parse_logs sphinx-build -d _build/doctree -b html . _build/html
+    sphinx-build -d _build/doctree -b html . _build/html
 
   # flocker artifacts contains the list of files we want to collect from our
   # _main_multijob. These are used to produce the coverage, test reports.
@@ -307,9 +315,9 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
-    coverage run \${venv}/bin/trial \
-      --debug-stacktraces --reporter=subunit \
-      \${MODULE} 2>&1 | parse_logs tee trial.log
+    retry_with_timeout 1800 '\${venv}/bin/coverage run \${venv}/bin/trial \
+      --exitfirst --debug-stacktraces --reporter=subunit \
+      \${MODULE} 2>&1 | tee trial.log'
 
   run_trial_with_coverage_as_root: &run_trial_with_coverage_as_root |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -319,9 +327,9 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
-    sudo \${venv}/bin/coverage run \${venv}/bin/trial \
-      --debug-stacktraces --reporter=subunit \
-      \${MODULE} 2>&1 | parse_logs tee trial.log
+    retry_with_timeout 1200 'sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
+      --exitfirst --debug-stacktraces --reporter=subunit \
+      \${MODULE} 2>&1 | tee trial.log'
 
   run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -330,9 +338,9 @@ common_cli:
     # We grab the value from the 'with_modules:' dictionary in the yaml job
     # defintion, and feed it to the job configuration as the default value for
     # Consume the MODULE parameter set in the job configuration
-    sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
-      --debug-stacktraces --reporter=subunit \
-      --testmodule \${MODULE} 2>&1 | parse_logs tee trial.log
+    retry_with_timeout 1200 'sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
+      --exitfirst --debug-stacktraces --reporter=subunit \
+      --testmodule \${MODULE} 2>&1 | tee trial.log'
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
@@ -358,7 +366,7 @@ common_cli:
     # which are made available through a webserver running on port 80.
     # We pass the URL of our Jenkins Slave to the acceptance test nodes
     # through the --build-server parameter below.
-    parse_logs \${venv}/bin/python admin/run-acceptance-tests \
+    retry_with_timeout 1800 \${venv}/bin/python admin/run-acceptance-tests \
     --distribution \${DISTRIBUTION_NAME} \
     --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} \
     --build-server  \
@@ -397,7 +405,7 @@ common_cli:
     # which are made available through a webserver running on port 80.
     # We pass the URL of our Jenkins Slave to the acceptance test nodes
     # through the --build-server parameter below.
-    parse_logs \${venv}/bin/python admin/run-acceptance-tests \
+    retry_with_timeout 1800 \${venv}/bin/python admin/run-acceptance-tests \
     --distribution \${DISTRIBUTION_NAME} \
     --provider rackspace --dataset-backend rackspace \
     --branch \${TRIGGERED_BRANCH} \
@@ -411,7 +419,7 @@ common_cli:
     # We gather the return code but make sure we come out of these tests with 0
     # we store that code and pass it to the end of the job execution,
     # as part of the JOB_EXIT_STATUS variable.
-    parse_logs \${venv}/bin/python admin/run-client-tests \
+    retry_with_timeout 1200 \${venv}/bin/python admin/run-client-tests \
     --distribution \${DISTRIBUTION_NAME} \
     --branch \${TRIGGERED_BRANCH} \
     --build-server  \
@@ -426,11 +434,11 @@ common_cli:
 
   build_sdist: &build_sdist  |
     # package the goodies
-    parse_logs \${venv}/bin/python setup.py sdist
+    retry_with_timeout 300 \${venv}/bin/python setup.py sdist
 
   build_package: &build_package  |
     # and build a rpm/deb package using docker
-    parse_logs \${venv}/bin/python admin/build-package \
+    retry_with_timeout 600 \${venv}/bin/python admin/build-package \
     --destination-path repo \
     --distribution \${DISTRIBUTION_NAME} \
     /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
@@ -439,16 +447,16 @@ common_cli:
     # and build a homebrew recipe and a package
     SDIST_URL=file://\${PWD}/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
     RECIPE_FILE=\${PWD}/Flocker\${GIT_COMMIT}.rb
-    \${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} \
+    retry_with_timeout 600 \${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} \
       --sdist \${SDIST_URL} --output-file \${RECIPE_FILE}
 
   install_homebrew_package: &install_homebrew_package |
     # make sure we're no longer in our virtualenv
     deactivate
     # install the new freshly baked package
-    brew update
+    retry_with_timeout 300 brew update
     brew tap ClusterHQ/tap
-    brew install \${RECIPE_FILE}
+    retry_with_timeout 300 brew install \${RECIPE_FILE}
     brew test \${RECIPE_FILE}
 
   build_repo_metadata: &build_repo_metadata |
@@ -500,7 +508,7 @@ common_cli:
     # so we build the docker image using --no-cache, this way apt-get updates
     # are actually executed.
     # See: https://github.com/docker/docker/issues/3313
-    docker build --no-cache -t \$DOCKER_IMAGE .
+    retry_with_timeout 600 docker build --no-cache -t \$DOCKER_IMAGE .
 
   # These are the docker images we will be using during our tests.
   # We build them every 24 hours, making sure we have the latest OS updates
@@ -509,7 +517,7 @@ common_cli:
   #
   build_dockerfile_centos7: &build_dockerfile_centos7 |
     # Download the latest pip requirements file from master branch of flocker
-    wget -c \
+    retry_with_timeout 60 wget -c \
     https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
@@ -530,7 +538,7 @@ common_cli:
 
   build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
     # Download the latest pip requirements file from master branch of flocker
-    wget -c \
+    retry_with_timeout 60 wget -c \
     https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
@@ -545,7 +553,7 @@ common_cli:
 
   build_dockerfile_ubuntu_wily: &build_dockerfile_ubuntu_wily |
     # Download the latest pip requirements file from master branch of flocker
-    wget -c \
+    retry_with_timeout 60 wget -c \
     https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
@@ -560,9 +568,10 @@ common_cli:
 
   build_vagrant_tutorial_basebox: &build_vagrant_tutorial_basebox |
     vagrant destroy -f
-    parse_logs \$venv/bin/python admin/build-vagrant-box --box tutorial \
+    retry_with_timeout 1800 \$venv/bin/python admin/build-vagrant-box --box tutorial \
       --branch \${TRIGGERED_BRANCH} --build-server  http://\${eth0_ip}
-    parse_logs vagrant box add --force "clusterhq/flocker-tutorial" \
+
+    retry_with_timeout 1800 vagrant box add --force "clusterhq/flocker-tutorial" \
       vagrant/tutorial/flocker-tutorial-\${FLOCKER_VERSION}.box
 
   do_not_abort_on_errors: &do_not_abort_on_errors |
@@ -624,7 +633,7 @@ common_cli:
     vagrant scp /tmp/pip.sh /tmp/pip.sh
     vagrant scp build.sh build.sh
     vagrant ssh -c 'chmod 755 /tmp/pip.sh'
-    vagrant ssh -c 'chmod 755 build.sh'
+    vagrant ssh -c "chmod 755 build.sh"
 
   run_build_sh_script_on_vagrant_box: &run_build_sh_script_on_vagrant_box |
     # make sure we don't abort on the first error
@@ -664,7 +673,7 @@ common_cli:
     vagrant halt
     vagrant package --output jenkins-osx-yosemite.box
     JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
-    vagrant box add --force 'jenkins-osx-yosemite'   jenkins-osx-yosemite.box
+    vagrant box add --force jenkins-osx-yosemite jenkins-osx-yosemite.box
     JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
     rm -f jenkins-osx-yosemite.box
     vagrant destroy -f
@@ -674,13 +683,14 @@ common_cli:
   start_vanilla_osx_yosemite_vagrant_box: &start_vanilla_osx_yosemite_vagrant_box |
     # gather the vanilla Vagrantfile from upstream and do a vagrant up
     rm -f Vagrantfile
-    wget https://raw.githubusercontent.com/AndrewDryga/vagrant-box-osx/master/Vagrantfile
+    retry_with_timeout 60 wget -c https://raw.githubusercontent.com/AndrewDryga/vagrant-box-osx/master/Vagrantfile
+    VAGRANT_LOG=debug
     vagrant up
 
   install_aws_cli: &install_aws_cli |
     # installs the AWS python based cli
     # we use the aws cli to upload the docs files to S3
-    \${PARSE_LOGS}  pip install awscli \${PIP_ADDITIONAL_OPTIONS}
+    retry_with_timeout 300 pip install awscli \${PIP_ADDITIONAL_OPTIONS}
 
   get_s3_creds_for_bucket_staging_docs: &get_s3_creds_for_bucket_staging_docs |
     # collects the S3 credentials that allows us to upload files to the S3
@@ -692,7 +702,7 @@ common_cli:
   upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
     # uploads the new generated html to a folder on the S3 staging-docs bucket
     cd _build/html
-    aws s3 sync . s3://clusterhq-staging-docs/\$TRIGGERED_BRANCH
+    retry_with_timeout 600 aws s3 sync . s3://clusterhq-staging-docs/\$TRIGGERED_BRANCH
     echo "This branch is available at :"
     echo "http://clusterhq-staging-docs.s3.amazonaws.com/\$TRIGGERED_BRANCH/index.html"
 
@@ -706,7 +716,7 @@ common_cli:
 
   install_flake8: &install_flake8 |
     # flake8 is used by lint tests on Flocker source code
-    \${PARSE_LOGS} pip install flake8 \${PIP_ADDITIONAL_OPTIONS}
+    retry_with_timeout 300 pip install flake8 \${PIP_ADDITIONAL_OPTIONS}
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -812,7 +822,7 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 30
+      timeout: 55
 
     run_trial_on_AWS_CentOS_7_as_root:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
@@ -823,7 +833,7 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 30
+      timeout: 55
 
     # http://build.clusterhq.com/builders/flocker-admin
     # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
@@ -836,7 +846,7 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 30
+      timeout: 55
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
@@ -847,7 +857,7 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 30
+      timeout: 55
 
 
   run_trial_for_storage_driver:
@@ -867,7 +877,7 @@ job_type:
       archive_artifacts: *flocker_artifacts
       coverage_report: true
       clean_repo: true
-      timeout: 45
+      timeout: 60
 
     run_trial_for_ebs_storage_driver_on_Ubuntu_trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
@@ -886,7 +896,7 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 45
+      timeout: 60
 
 
     run_trial_for_cinder_storage_driver_on_CentOS_7:
@@ -906,7 +916,7 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 45
+      timeout: 60
 
     run_trial_for_cinder_storage_driver_on_Ubuntu_trusty:
       on_nodes_with_labels: 'rackspace-jenkins-slave-ubuntu14-standard-4-dfw'
@@ -925,7 +935,7 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 45
+      timeout: 60
 
 
   # http://build.clusterhq.com/builders/flocker-docs
@@ -964,7 +974,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
-      timeout: 45
+      timeout: 80
     run_acceptance_on_AWS_Ubuntu_Trusty_for:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_modules: *run_acceptance_modules
@@ -984,7 +994,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
-      timeout: 45
+      timeout: 80
     run_acceptance_on_Rackspace_CentOS_7_for:
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
@@ -1006,7 +1016,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
-      timeout: 45
+      timeout: 80
     run_acceptance_on_Rackspace_Ubuntu_Trusty_for:
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
@@ -1068,7 +1078,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
-      timeout: 45
+      timeout: 80
 
 
   run_client:
@@ -1087,7 +1097,7 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
-      timeout: 30
+      timeout: 60
     run_client_installation_on_Ubuntu_Wily:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
@@ -1103,7 +1113,7 @@ job_type:
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
-      timeout: 30
+      timeout: 60
     run_client_installation_on_OSX:
       on_nodes_with_labels: 'mesos-1GB'
       with_steps:
@@ -1115,6 +1125,9 @@ job_type:
                    *begin_build_sh_EOF,
                    *hashbang,
                    *add_shell_functions,
+                   'brew install coreutils',
+                   'export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"',
+                   'alias timeout=gtimeout',
                    *setup_pip_cache,
                    *cleanup,
                    *setup_venv,
@@ -1140,7 +1153,7 @@ job_type:
       # sometimes take ~20 minutes, leaving us not quite enough time to
       # actually run the tests. Also has to be less than the timeout for the
       # main multijob, see jobs.groovy.j2:545.
-      timeout: 50
+      timeout: 60
 
 
   run_lint:
@@ -1152,7 +1165,7 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *install_flake8, *run_lint ]
           }
-      timeout: 10
+      timeout: 20
 
 
   cronly_jobs:
@@ -1220,6 +1233,7 @@ job_type:
                    *do_not_abort_on_errors,
                    *start_vanilla_osx_yosemite_vagrant_box,
                    *begin_build_sh_EOF,
+                   *add_shell_functions,
                    *install_pkgs_on_vanilla_osx_yosemite_box,
                    *end_build_sh_EOF,
                    *copy_files_to_osx_yosemite_box,
