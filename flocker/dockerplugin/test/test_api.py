@@ -6,7 +6,7 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4
 
-from twisted.web.http import OK
+from twisted.web.http import OK, NOT_ALLOWED, NOT_FOUND
 from twisted.internet.task import Clock, LoopingCall
 
 from pyrsistent import pmap
@@ -439,6 +439,22 @@ class APITestsMixin(APIAssertionsMixin):
             b"POST", b"/VolumeDriver.Path",
             {u"Name": u"whatever"}, 423,
             {u"Err": "no good"})
+
+    def test_unsupported_method(self):
+        """
+        If an unsupported method is requested the appropriate response code is
+        returned.
+        """
+        return self.assertResponseCode(
+            b"BAD_METHOD", b"/VolumeDriver.Path", None, NOT_ALLOWED)
+
+    def test_unknown_uri(self):
+        """
+        If an unknown URI path is requested the appropriate response code is
+        returned.
+        """
+        return self.assertResponseCode(
+            b"BAD_METHOD", b"/xxxnotthere", None, NOT_FOUND)
 
 
 def _build_app(test):
