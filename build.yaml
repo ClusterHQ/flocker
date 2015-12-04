@@ -166,6 +166,21 @@ common_cli:
       fi
     }
 
+    # Retries a command if it fails, using the exponential backoff algorithm.
+    # It will retry forever, we rely on Jenkins to kill it if it takes too long
+    # Usage: retry 'command'
+    function retry {
+      let delay=2
+      while true; do
+        if (\$1); then
+          break
+        fi
+        echo Command failed, waiting \$delay...
+        sleep \$delay
+        let delay=delay*2
+      done
+    }
+
   # TODO: do we need to clean up old files on ubuntu and centos or
   # does the pre-scm plugin does this correctly for us ?
   # https://clusterhq.atlassian.net/browse/FLOC-3139
@@ -307,12 +322,15 @@ common_cli:
   # These are the remote logs from the acceptance tests.
   acceptance_tests_artifacts: &acceptance_tests_artifacts
     - run-acceptance-tests.log
+    - _trial_temp/test.log
     - remote_logs.log
 
   # Ubuntu acceptance tests do not collect the logs from the remote nodes
   # https://clusterhq.atlassian.net/browse/FLOC-2560
   acceptance_tests_artifacts_ubuntu_special_case: &acceptance_tests_artifacts_ubuntu_special_case
     - run-acceptance-tests.log
+    - remote_logs.log
+    - _trial_temp/test.log
 
   run_trial_with_coverage: &run_trial_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -323,7 +341,8 @@ common_cli:
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
     coverage run \${venv}/bin/trial \
-      --reporter=subunit \${MODULE} 2>&1 | parse_logs tee trial.log
+      --debug-stacktraces --reporter=subunit \
+      \${MODULE} 2>&1 | parse_logs tee trial.log
 
   run_trial_with_coverage_as_root: &run_trial_with_coverage_as_root |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -334,7 +353,8 @@ common_cli:
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
     sudo \${venv}/bin/coverage run \${venv}/bin/trial \
-      --reporter=subunit \${MODULE} 2>&1 | parse_logs tee trial.log
+      --debug-stacktraces --reporter=subunit \
+      \${MODULE} 2>&1 | parse_logs tee trial.log
 
   run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -344,7 +364,8 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # Consume the MODULE parameter set in the job configuration
     sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
-      --reporter=subunit --testmodule \${MODULE} 2>&1 | parse_logs tee trial.log
+      --debug-stacktraces --reporter=subunit \
+      --testmodule \${MODULE} 2>&1 | parse_logs tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
@@ -441,9 +462,9 @@ common_cli:
     # make sure we're no longer in our virtualenv
     deactivate
     # install the new freshly baked package
-    brew update
-    brew tap ClusterHQ/tap
-    brew install \${RECIPE_FILE}
+    retry "brew update"
+    retry "brew tap ClusterHQ/tap"
+    retry "brew install \${RECIPE_FILE}"
     brew test \${RECIPE_FILE}
 
   build_repo_metadata: &build_repo_metadata |
@@ -460,7 +481,7 @@ common_cli:
     if [ "\${DISTRIBUTION_NAME}" == "ubuntu-14.04" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
-    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-15.04" ]; then
+    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-15.10" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
     if [ "\${DISTRIBUTION_NAME}" == "centos-7" ]; then
@@ -538,13 +559,13 @@ common_cli:
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
 
-  build_dockerfile_ubuntu_vivid: &build_dockerfile_ubuntu_vivid |
+  build_dockerfile_ubuntu_wily: &build_dockerfile_ubuntu_wily |
     # Download the latest pip requirements file from master branch of flocker
     wget -c \
     https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
-    echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
+    echo "FROM alanfranz/fwd-ubuntu-wily:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y \
@@ -647,11 +668,11 @@ common_cli:
     softwareupdate -i "\${PROD}" -v
 
     # the basebox we use for OSX is missing quite a number of software pieces.
-    brew update
-    brew install rsync
-    brew install python
-    pip install virtualenv
-    brew install libffi
+    retry "brew update"
+    retry "brew install rsync"
+    retry "brew install python"
+    retry "pip install virtualenv"
+    retry "brew install libffi"
     export PKG_CONFIG_PATH=/usr/local/Cellar/libffi/3.0.13/lib/pkgconfig/; pip install bcrypt
 
   package_jenkins_osx_yosemite_box: &package_jenkins_osx_yosemite_box |
@@ -670,6 +691,7 @@ common_cli:
     # gather the vanilla Vagrantfile from upstream and do a vagrant up
     rm -f Vagrantfile
     wget https://raw.githubusercontent.com/AndrewDryga/vagrant-box-osx/master/Vagrantfile
+    VAGRANT_LOG=debug
     vagrant up
 
   install_aws_cli: &install_aws_cli |
@@ -791,7 +813,6 @@ run_acceptance_modules: &run_acceptance_modules
   - flocker.acceptance.integration.test_postgres
   - flocker.acceptance.obsolete.test_cli
   - flocker.acceptance.obsolete.test_containers
-  - flocker.acceptance.test.test_testtools
 
 # flocker.node.functional is hanging, so we don't run it
 job_type:
@@ -1044,13 +1065,13 @@ job_type:
           }
       clean_repo: true
       timeout: 30
-    run_client_installation_on_Ubuntu_Vivid:
+    run_client_installation_on_Ubuntu_Wily:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   'export DISTRIBUTION_NAME=ubuntu-15.04',
+                   'export DISTRIBUTION_NAME=ubuntu-15.10',
                    *setup_aws_env_vars, *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
@@ -1132,20 +1153,20 @@ job_type:
                    *push_image_to_dockerhub ]
           }
       timeout: 30
-    run_docker_build_ubuntu_vivid_fpm:
-      at: '0 2 * * *'
+    run_docker_build_ubuntu_wily_fpm:
+      at: '0 3 * * *'
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
-                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-vivid',
-                   *build_dockerfile_ubuntu_vivid,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-wily',
+                   *build_dockerfile_ubuntu_wily,
                    *build_docker_image,
                    *push_image_to_dockerhub ]
           }
       timeout: 30
     build_vagrant_basebox_for_flocker_tutorial:
-      at: '0 2 * * *'
+      at: '0 4 * * *'
       on_nodes_with_labels: 'mesos-512MB'
       with_steps:
         - { type: 'shell',
@@ -1162,7 +1183,7 @@ job_type:
           }
       timeout: 60
     build_vagrant_basebox_for_osx_yosemite:
-      at: '0 3 * * *'
+      at: '0 5 * * *'
       on_nodes_with_labels: 'mesos-1GB'
       with_steps:
         - { type: 'shell',
@@ -1172,6 +1193,7 @@ job_type:
                    *do_not_abort_on_errors,
                    *start_vanilla_osx_yosemite_vagrant_box,
                    *begin_build_sh_EOF,
+                   *add_shell_functions,
                    *install_pkgs_on_vanilla_osx_yosemite_box,
                    *end_build_sh_EOF,
                    *copy_files_to_osx_yosemite_box,
@@ -1235,9 +1257,6 @@ views:
   Ubuntu_Trusty_14_04_LTS:
     description: 'All Ubuntu Trusty LTS (14.04) jobs'
     regex: '.*_(?i)trusty_.*.*'
-  Ubuntu_Vivid_15_04:
-    description: 'All Ubuntu Vivid (15.04) jobs'
-    regex: '.*_(?i)vivid_.*.*'
   Ubuntu_Wily_15_10:
     description: 'All Ubuntu Wily (15.10) jobs'
     regex: '.*_(?i)wily_.*.*'

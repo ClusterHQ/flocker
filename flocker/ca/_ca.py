@@ -34,7 +34,7 @@ from uuid import uuid4, UUID
 
 from ipaddr import IPAddress
 from OpenSSL import crypto
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 from twisted.internet.ssl import (
     DistinguishedName, KeyPair, Certificate, CertificateOptions,
     PrivateCertificate,
@@ -278,7 +278,7 @@ def load_certificate_from_path(path, key_filename, cert_filename):
     return (keypair, certificate)
 
 
-class FlockerCredential(PRecord):
+class FlockerCredential(PClass):
     """
     Flocker credentials record, comprising a certificate and
     public/private key pair.
@@ -342,7 +342,7 @@ class FlockerCredential(PRecord):
             self.certificate, self.keypair.keypair)
 
 
-class UserCredential(PRecord):
+class UserCredential(PClass):
     """
     A certificate for an API user, signed by a supplied certificate
     authority.
@@ -451,7 +451,7 @@ class UserCredential(PRecord):
         return UUID(hex=self.credential.certificate.getSubject().OU)
 
 
-class NodeCredential(PRecord):
+class NodeCredential(PClass):
     """
     A certificate for a node agent, signed by a supplied certificate
     authority.
@@ -537,7 +537,7 @@ class NodeCredential(PRecord):
         return UUID(hex=self.credential.certificate.getSubject().OU)
 
 
-class ControlCredential(PRecord):
+class ControlCredential(PClass):
     """
     A certificate and key pair for a control service, signed by a supplied
     certificate authority.
@@ -633,7 +633,7 @@ class ControlCredential(PRecord):
             privateKey=key, certificate=certificate, trustRoot=trust_root)
 
 
-class RootCredential(PRecord):
+class RootCredential(PClass):
     """
     A credential representing a self-signed certificate authority.
     :ivar FlockerCredential credential: The certificate and key pair

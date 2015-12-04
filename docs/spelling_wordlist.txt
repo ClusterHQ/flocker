@@ -42,6 +42,8 @@ handoffs
 hoc
 Homebrew
 hostname
+http
+HTTP
 Huawei
 init
 installable

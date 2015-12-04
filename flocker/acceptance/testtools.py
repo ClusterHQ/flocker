@@ -30,7 +30,7 @@ from eliot.twisted import DeferredContext
 
 from treq import json_content, content, get, post
 
-from pyrsistent import PRecord, field, CheckedPVector, pmap
+from pyrsistent import PClass, field, CheckedPVector, pmap
 
 from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
@@ -305,7 +305,7 @@ def get_mongo_client(host, port=27017):
     return d
 
 
-class ControlService(PRecord):
+class ControlService(PClass):
     """
     A record of the cluster's control service.
 
@@ -314,7 +314,7 @@ class ControlService(PRecord):
     public_address = field(type=bytes)
 
 
-class Node(PRecord):
+class Node(PClass):
     """
     A record of a cluster node.
 
@@ -453,7 +453,7 @@ def _ensure_encodeable(value):
     return value
 
 
-class Cluster(PRecord):
+class Cluster(PClass):
     """
     A record of the control service and the nodes in a cluster for acceptance
     testing.

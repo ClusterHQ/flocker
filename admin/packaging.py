@@ -110,7 +110,7 @@ class Distribution(object):
 DISTRIBUTION_NAME_MAP = {
     'centos-7': Distribution(name="centos", version="7"),
     'ubuntu-14.04': Distribution(name="ubuntu", version="14.04"),
-    'ubuntu-15.04': Distribution(name="ubuntu", version="15.04"),
+    'ubuntu-15.10': Distribution(name="ubuntu", version="15.10"),
 }
 
 CURRENT_DISTRIBUTION = Distribution._get_current_distribution()
@@ -662,6 +662,16 @@ IGNORED_WARNINGS = {
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
+
+        # files included by netaddr - we put the whole python we need in the flocker package, and lint complains.
+        # See:
+        # https://lintian.debian.org/tags/package-installs-ieee-data.html
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/iab.idx",
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/iab.txt",
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/oui.idx",
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/oui.txt",
+        "package-contains-timestamped-gzip",
+        "systemd-service-file-outside-lib",
     ),
 }
 

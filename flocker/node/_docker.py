@@ -22,6 +22,8 @@ from eliot import Message, MessageType, Field, start_action
 
 from repoze.lru import LRUCache
 
+from pyrsistent import field, PClass, pset
+
 from requests import Response
 from requests.exceptions import ConnectionError
 from requests.packages.urllib3.exceptions import ProtocolError
@@ -74,7 +76,7 @@ class AddressInUse(Exception):
         self.apierror = apierror
 
 
-class Environment(PRecord):
+class Environment(PClass):
     """
     A collection of environment variables.
 
@@ -93,7 +95,7 @@ class Environment(PRecord):
         return dict(self.variables)
 
 
-class Volume(PRecord):
+class Volume(PClass):
     """
     A Docker volume.
 
@@ -107,7 +109,7 @@ class Volume(PRecord):
     container_path = field(mandatory=True, type=FilePath)
 
 
-class PortMap(PRecord):
+class PortMap(PClass):
     """
     A record representing the mapping between a port exposed internally by a
     docker container and the corresponding external port on the host.
@@ -119,7 +121,7 @@ class PortMap(PRecord):
     external_port = field(mandatory=True, type=int)
 
 
-class ImageDataCache(PRecord):
+class ImageDataCache(PClass):
     """
     A record representing cached image data. The cache only stores
     the data we care about from an inspected image.
@@ -132,7 +134,7 @@ class ImageDataCache(PRecord):
     environment = field(mandatory=True, type=(list, type(None)))
 
 
-class Unit(PRecord):
+class Unit(PClass):
     """
     Information about a unit managed by Docker.
 
