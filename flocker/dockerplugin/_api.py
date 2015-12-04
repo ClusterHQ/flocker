@@ -8,7 +8,6 @@ See https://github.com/docker/docker/tree/master/docs/extend for details.
 
 from itertools import repeat
 from functools import wraps
-from uuid import UUID
 
 import yaml
 
@@ -26,10 +25,12 @@ from klein import Klein
 from ..restapi import (
     structured, EndpointResponse, BadRequest, make_bad_request,
 )
-from ..control._config import dataset_id_from_name
-from ..apiclient import DatasetAlreadyExists
+from ..apiclient import DatasetAlreadyExists, conditional_create
 from ..node.agents.blockdevice import PROFILE_METADATA_KEY
-from ..common import loop_until, timeout
+from ..common import (
+    RACKSPACE_MINIMUM_VOLUME_SIZE, DEVICEMAPPER_LOOPBACK_SIZE,
+    loop_until, timeout,
+)
 
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
@@ -45,7 +46,9 @@ SCHEMAS = {
 # as devicemapper loopback size (100GiB) so we don't trigger
 # https://clusterhq.atlassian.net/browse/FLOC-2889 and that is large
 # enough to hit Rackspace minimums. This is, obviously, not ideal.
-DEFAULT_SIZE = int(GiB(75).to_Byte().value)
+DEFAULT_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
+if DEFAULT_SIZE == DEVICEMAPPER_LOOPBACK_SIZE:
+    DEFAULT_SIZE = DEFAULT_SIZE + GiB(1)
 
 
 def _endpoint(name, ignore_body=False):
@@ -220,24 +223,20 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        listing = self._flocker_client.list_datasets_configuration()
-
-        def got_configured(configured):
-            for dataset in configured:
-                if dataset.metadata.get(u"name") == Name:
-                    raise DatasetAlreadyExists
-        listing.addCallback(got_configured)
-
         metadata = {u"name": Name}
         opts = Opts or {}
         profile = opts.get(u"profile")
         if profile:
             metadata[PROFILE_METADATA_KEY] = profile
 
-        creating = listing.addCallback(
-            lambda _: self._flocker_client.create_dataset(
-                self._node_id, DEFAULT_SIZE, metadata=metadata,
-                dataset_id=UUID(dataset_id_from_name(Name))))
+        def ensure_unique_name(configured):
+            for dataset in configured:
+                if dataset.metadata.get(u"name") == Name:
+                    raise DatasetAlreadyExists
+
+        creating = conditional_create(
+            self._flocker_client, self._reactor, ensure_unique_name,
+            self._node_id, int(DEFAULT_SIZE.to_Byte()), metadata=metadata)
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})
         return creating

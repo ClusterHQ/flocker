@@ -40,7 +40,7 @@ from ..test.blockdevicefactory import (
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
     get_minimum_allocatable_size, get_openstack_region_for_test,
 )
-from ....testtools import flaky, run_process
+from ....testtools import REALISTIC_BLOCKDEVICE_SIZE, flaky, run_process
 
 from ..cinder import (
     get_keystone_session, get_cinder_v1_client, get_nova_v2_client,
@@ -619,17 +619,14 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
 
     def test_destroy_timesout(self):
         """
-        If the cinder cannot delete the volume, we should timeout
-        after waiting some time
+        If Cinder does not delete the volume within a specified amount of time,
+        the destroy attempt fails by raising ``TimeoutException``.
         """
-        new_volume = self.api.cinder_volume_manager.create(size=100)
-        CINDER_VOLUME(id=new_volume.id).write()
-        listed_volume = wait_for_volume_state(
-            volume_manager=self.api.cinder_volume_manager,
-            expected_volume=new_volume,
-            desired_state=u'available',
-            transient_states=(u'creating',),
+        new_volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
         )
+
         expected_timeout = 8
         # Using a fake no-op delete so it doesn't actually delete anything
         # (we don't need any actual volumes here, as we only need to verify
@@ -639,6 +636,7 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
             "delete",
             lambda *args, **kwargs: None
         )
+
         # Now try to delete it
         time_module = FakeTime(initial_time=0)
         self.patch(self.api, "_time", time_module)
@@ -647,7 +645,7 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
         exception = self.assertRaises(
             TimeoutException,
             self.api.destroy_volume,
-            blockdevice_id=listed_volume.id
+            blockdevice_id=new_volume.blockdevice_id,
         )
 
         self.assertEqual(

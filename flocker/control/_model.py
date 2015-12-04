@@ -137,7 +137,7 @@ def pmap_field(
                  factory=factory, invariant=invariant)
 
 
-class DockerImage(PRecord):
+class DockerImage(PClass):
     """
     An image that can be used to run an application using Docker.
 
@@ -179,7 +179,7 @@ class DockerImage(PRecord):
         return cls(**kwargs)
 
 
-class Port(PRecord):
+class Port(PClass):
     """
     A record representing the mapping between a port exposed internally by an
     application and the corresponding port exposed to the outside world.
@@ -191,7 +191,7 @@ class Port(PRecord):
     external_port = field(mandatory=True, type=int)
 
 
-class Link(PRecord):
+class Link(PClass):
     """
     A record representing the mapping between a port exposed internally to
     an application, and the corresponding external port of a possibly remote
@@ -227,21 +227,21 @@ class IRestartPolicy(Interface):
 
 
 @implementer(IRestartPolicy)
-class RestartNever(PRecord):
+class RestartNever(PClass):
     """
     A restart policy that never restarts an application.
     """
 
 
 @implementer(IRestartPolicy)
-class RestartAlways(PRecord):
+class RestartAlways(PClass):
     """
     A restart policy that always restarts an application.
     """
 
 
 @implementer(IRestartPolicy)
-class RestartOnFailure(PRecord):
+class RestartOnFailure(PClass):
     """
     A restart policy that restarts an application when it fails.
 
@@ -269,7 +269,7 @@ class RestartOnFailure(PRecord):
         return (True, "")
 
 
-class Application(PRecord):
+class Application(PClass):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
@@ -316,7 +316,7 @@ class Application(PRecord):
     command_line = pvector_field(unicode, optional=True, initial=None)
 
 
-class Dataset(PRecord):
+class Dataset(PClass):
     """
     The filesystem data for a particular application.
 
@@ -341,7 +341,7 @@ class Dataset(PRecord):
                      serializer=lambda f, d: dict(d))
 
 
-class Manifestation(PRecord):
+class Manifestation(PClass):
     """
     A dataset that is mounted on a node.
 
@@ -360,7 +360,7 @@ class Manifestation(PRecord):
         return self.dataset.dataset_id
 
 
-class AttachedVolume(PRecord):
+class AttachedVolume(PClass):
     """
     A volume attached to an application to be deployed.
 
@@ -413,7 +413,7 @@ def _keys_match(attribute):
 _keys_match_dataset_id = _keys_match("dataset_id")
 
 
-class Node(PRecord):
+class Node(PClass):
     """
     Configuration for a single node on which applications will be managed
     (deployed, reconfigured, destroyed, etc).
@@ -441,15 +441,13 @@ class Node(PRecord):
         return (True, "")
 
     def __new__(cls, hostname=None, **kwargs):
-        # PRecord does some crazy stuff, thus _precord_buckets; see
-        # PRecord.__new__.
-        if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
+        if "uuid" not in kwargs:
             # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
             warn("UUID is required, this is for backwards compat with existing"
                  " tests only. If you see this in production code that's "
                  "a bug.", DeprecationWarning, stacklevel=2)
             kwargs["uuid"] = ip_to_uuid(hostname)
-        return PRecord.__new__(cls, **kwargs)
+        return PClass.__new__(cls, **kwargs)
 
     uuid = field(type=UUID, mandatory=True)
     applications = pset_field(Application)
@@ -607,7 +605,7 @@ class Leases(CheckedPMap):
         return updated
 
 
-class Deployment(PRecord):
+class Deployment(PClass):
     """
     A ``Deployment`` describes the configuration of a number of applications on
     a number of cooperating nodes.
@@ -692,7 +690,7 @@ class Deployment(PRecord):
         return deployment
 
 
-class Configuration(PRecord):
+class Configuration(PClass):
     """
     A ``Configuration`` represents the persisted configured state of a
     cluster.
@@ -981,7 +979,7 @@ class UpdateNodeStateEra(PClass):
 
 
 @implementer(IClusterStateWipe)
-class _WipeNodeState(PRecord):
+class _WipeNodeState(PClass):
     """
     Wipe information about a specific node from a ``DeploymentState``.
 
@@ -1014,7 +1012,7 @@ class _WipeNodeState(PRecord):
         return (self.node_uuid, self.attributes)
 
 
-class DeploymentState(PRecord):
+class DeploymentState(PClass):
     """
     A ``DeploymentState`` describes the state of the nodes in the cluster.
 
@@ -1099,7 +1097,7 @@ class DeploymentState(PRecord):
 
 
 @implementer(IClusterStateChange)
-class NonManifestDatasets(PRecord):
+class NonManifestDatasets(PClass):
     """
     A ``NonManifestDatasets`` represents datasets which are known to exist but
     which have no manifestations anywhere in the cluster.

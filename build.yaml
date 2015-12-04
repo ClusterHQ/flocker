@@ -559,21 +559,6 @@ common_cli:
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
 
-  build_dockerfile_ubuntu_vivid: &build_dockerfile_ubuntu_vivid |
-    # Download the latest pip requirements file from master branch of flocker
-    wget -c \
-    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
-    # don't waste time installing ruby or fpm, use an image containing fpm
-    # https://github.com/alanfranz/fpm-within-docker
-    echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
-    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
-    echo "RUN apt-get update" >> Dockerfile
-    echo "RUN apt-get install --no-install-recommends -y \
-          git ruby-dev libffi-dev libssl-dev build-essential python-pip \
-          python2.7-dev lintian" >> Dockerfile
-    echo "COPY requirements.txt /tmp/" >> Dockerfile
-    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
-
   build_vagrant_tutorial_basebox: &build_vagrant_tutorial_basebox |
     vagrant destroy -f
     parse_logs \$venv/bin/python admin/build-vagrant-box --box tutorial \
@@ -1152,17 +1137,6 @@ job_type:
                    *push_image_to_dockerhub ]
           }
       timeout: 30
-    run_docker_build_ubuntu_vivid_fpm:
-      at: '0 2 * * *'
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-vivid',
-                   *build_dockerfile_ubuntu_vivid,
-                   *build_docker_image,
-                   *push_image_to_dockerhub ]
-          }
     run_docker_build_ubuntu_wily_fpm:
       at: '0 3 * * *'
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
@@ -1266,9 +1240,6 @@ views:
   Ubuntu_Trusty_14_04_LTS:
     description: 'All Ubuntu Trusty LTS (14.04) jobs'
     regex: '.*_(?i)trusty_.*.*'
-  Ubuntu_Vivid_15_04:
-    description: 'All Ubuntu Vivid (15.04) jobs'
-    regex: '.*_(?i)vivid_.*.*'
   Ubuntu_Wily_15_10:
     description: 'All Ubuntu Wily (15.10) jobs'
     regex: '.*_(?i)wily_.*.*'
