@@ -136,7 +136,7 @@ class DatasetAPITests(AsyncTestCase):
             branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'] or None,
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
-    @run_test_with(async_runner(timeout=timedelta(minutes=3)))
+    @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
         node = cluster.nodes[0]
@@ -181,6 +181,8 @@ class DatasetAPITests(AsyncTestCase):
         d.addCallback(
             lambda v: upgrade_flocker_to(
                 PackageSource(version=v.split('+')[0])))
+
+        return d
 
         # Create a dataset with the code from the most recent release.
         d.addCallback(lambda _: create_dataset(self, cluster, node=node))
