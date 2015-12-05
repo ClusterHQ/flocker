@@ -305,11 +305,16 @@ class DockerPluginTests(AsyncTestCase):
         # start Docker daemon
         d.addCallback(lambda _: self.docker_service(
             node.public_address, b"start"))
+
+        # Discover the new ephemeral port assigned to the restarted container.
+        d.addCallback(lambda _: extract_external_port(
+            client, container_identifier, http_port,
+        ))
+
         # attempt to read the data back again; the container should've
         # restarted automatically, though it may take a few seconds
         # after the Docker daemon has restarted.
-
-        def poll_http_server(_):
+        def poll_http_server(host_port):
             ds = verify_socket(node.public_address, host_port)
             ds.addCallback(lambda _: assert_http_server(
                 self, node.public_address, host_port, expected_response=data)
