@@ -6,8 +6,8 @@ An HTTP API implementing the Docker Volumes Plugin API.
 See https://github.com/docker/docker/tree/master/docs/extend for details.
 """
 
+from itertools import repeat
 from functools import wraps
-from uuid import UUID
 
 import yaml
 
@@ -16,7 +16,7 @@ from bitmath import GiB
 from eliot import writeFailure
 
 from twisted.python.filepath import FilePath
-from twisted.internet.task import deferLater
+from twisted.internet.defer import CancelledError
 from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK
 
@@ -25,9 +25,12 @@ from klein import Klein
 from ..restapi import (
     structured, EndpointResponse, BadRequest, make_bad_request,
 )
-from ..control._config import dataset_id_from_name
-from ..apiclient import DatasetAlreadyExists
+from ..apiclient import DatasetAlreadyExists, conditional_create
 from ..node.agents.blockdevice import PROFILE_METADATA_KEY
+from ..common import (
+    RACKSPACE_MINIMUM_VOLUME_SIZE, DEVICEMAPPER_LOOPBACK_SIZE,
+    loop_until, timeout,
+)
 
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
@@ -43,7 +46,9 @@ SCHEMAS = {
 # as devicemapper loopback size (100GiB) so we don't trigger
 # https://clusterhq.atlassian.net/browse/FLOC-2889 and that is large
 # enough to hit Rackspace minimums. This is, obviously, not ideal.
-DEFAULT_SIZE = int(GiB(75).to_Byte().value)
+DEFAULT_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
+if DEFAULT_SIZE == DEVICEMAPPER_LOOPBACK_SIZE:
+    DEFAULT_SIZE = DEFAULT_SIZE + GiB(1)
 
 
 def _endpoint(name, ignore_body=False):
@@ -107,7 +112,8 @@ class VolumePlugin(object):
     can't be sure they won't change things in minor ways. We do validate
     outputs to ensure we output the documented requirements.
     """
-    _POLL_INTERVAL = 0.05
+    _POLL_INTERVAL = 1.0
+    _MOUNT_TIMEOUT = 120.0
 
     app = Klein()
 
@@ -217,24 +223,20 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        listing = self._flocker_client.list_datasets_configuration()
-
-        def got_configured(configured):
-            for dataset in configured:
-                if dataset.metadata.get(u"name") == Name:
-                    raise DatasetAlreadyExists
-        listing.addCallback(got_configured)
-
         metadata = {u"name": Name}
         opts = Opts or {}
         profile = opts.get(u"profile")
         if profile:
             metadata[PROFILE_METADATA_KEY] = profile
 
-        creating = listing.addCallback(
-            lambda _: self._flocker_client.create_dataset(
-                self._node_id, DEFAULT_SIZE, metadata=metadata,
-                dataset_id=UUID(dataset_id_from_name(Name))))
+        def ensure_unique_name(configured):
+            for dataset in configured:
+                if dataset.metadata.get(u"name") == Name:
+                    raise DatasetAlreadyExists
+
+        creating = conditional_create(
+            self._flocker_client, self._reactor, ensure_unique_name,
+            self._node_id, int(DEFAULT_SIZE.to_Byte()), metadata=metadata)
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})
         return creating
@@ -280,20 +282,20 @@ class VolumePlugin(object):
                                                         dataset_id))
         d.addCallback(lambda dataset: dataset.dataset_id)
 
-        def get_state(dataset_id):
-            getting_path = self._get_path_from_dataset_id(dataset_id)
+        d.addCallback(lambda dataset_id: loop_until(
+            self._reactor,
+            lambda: self._get_path_from_dataset_id(dataset_id),
+            repeat(self._POLL_INTERVAL)))
+        d.addCallback(lambda p: {u"Err": None, u"Mountpoint": p.path})
 
-            def got_path(path):
-                if path is None:
-                    return deferLater(
-                        self._reactor, self._POLL_INTERVAL, get_state,
-                        dataset_id)
-                else:
-                    return {u"Err": None,
-                            u"Mountpoint": path.path}
-            getting_path.addCallback(got_path)
-            return getting_path
-        d.addCallback(get_state)
+        timeout(self._reactor, d, self._MOUNT_TIMEOUT)
+
+        def handleCancel(failure):
+            failure.trap(CancelledError)
+            return {u"Err": u"Timed out waiting for dataset to mount.",
+                    u"Mountpoint": u""}
+        d.addErrback(handleCancel)
+
         return d
 
     @app.route("/VolumeDriver.Path", methods=["POST"])

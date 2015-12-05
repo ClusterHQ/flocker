@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from zope.interface.verify import verifyObject
 
+from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
 from twisted.trial.unittest import SynchronousTestCase
 
@@ -26,7 +27,7 @@ def check_interfaces(factory):
     class OperationTests(SynchronousTestCase):
 
         def test_interfaces(self):
-            operation = factory(control_service=None)
+            operation = factory(clock=Clock(), control_service=None)
             verifyObject(IOperation, operation)
             probe = operation.get_probe()
             verifyObject(IProbe, probe)
@@ -89,7 +90,8 @@ class ReadRequestTests(SynchronousTestCase):
 
         # Get the probe to read the state of the cluster
         def start_read_request(result):
-            request = ReadRequest(control_service=control_service)
+            request = ReadRequest(
+                clock=Clock(), control_service=control_service)
             return request.get_probe()
         d.addCallback(start_read_request)
 

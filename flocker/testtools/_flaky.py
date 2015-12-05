@@ -238,6 +238,8 @@ class _RetryFlaky(testtools.RunTest):
             result was and ``details`` is a dictionary of testtools details.
         """
         tmp_result = testtools.TestResult()
+        # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879
+        _reset_case(case)
         self._run_test(case, tmp_result)
         result_type = _get_result_type(tmp_result)
         details = pmap(case.getDetails())
@@ -248,7 +250,6 @@ class _RetryFlaky(testtools.RunTest):
             [reason] = list(tmp_result.skip_reasons.keys())
             details = details.discard('traceback').set(
                 'reason', text_content(reason))
-        _reset_case(case)
         return (tmp_result.wasSuccessful(), result_type, details)
 
 
@@ -316,10 +317,8 @@ def _reset_case(case):
     """
     Reset ``case`` so it can be run again.
     """
-    # XXX: Alternative approach is to use clone_test_with_new_id, rather than
-    # resetting the same test case.
+    # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879
     # Don't want details from last run.
     case.getDetails().clear()
-    # https://github.com/testing-cabal/testtools/pull/165/ fixes this.
     case._TestCase__setup_called = False
     case._TestCase__teardown_called = False

@@ -1,19 +1,18 @@
-from pyrsistent import PClass, field
 from zope.interface import implementer
 
 from twisted.internet.defer import succeed
-from twisted.web.client import ResponseFailed
 
 from .._interfaces import IProbe, IOperation
 
 
 @implementer(IProbe)
-class ReadRequestProbe(PClass):
+class ReadRequestProbe(object):
     """
     A probe to perform a read request on the control service.
     """
 
-    control_service = field(mandatory=True)
+    def __init__(self, control_service):
+        self.control_service = control_service
 
     def run(self):
         d = self.control_service.list_datasets_state()
@@ -24,12 +23,14 @@ class ReadRequestProbe(PClass):
 
 
 @implementer(IOperation)
-class ReadRequest(PClass):
+class ReadRequest(object):
     """
     An operation to perform a read request on the control service.
     """
 
-    control_service = field(mandatory=True)
+    def __init__(self, clock, control_service):
+        self.clock = clock
+        self.control_service = control_service
 
     def get_probe(self):
         return ReadRequestProbe(control_service=self.control_service)

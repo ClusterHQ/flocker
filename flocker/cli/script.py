@@ -24,7 +24,7 @@ from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-from ..control.httpapi import REST_API_PORT
+from .. import REST_API_PORT
 from ..ca import treq_with_authentication
 
 
