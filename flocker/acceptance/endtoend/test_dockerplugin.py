@@ -355,12 +355,12 @@ class DockerPluginTests(AsyncTestCase):
 
         :return: ``Deferred`` that fires on assertion success, or failure.
         """
-        client = get_docker_client(cluster, origin_node.public_address)
+        origin_client = get_docker_client(cluster, origin_node.public_address)
         data = "hello world"
         http_port = 8080
         volume_name = random_name(self)
         container_args = {
-            "host_config": client.create_host_config(
+            "host_config": origin_client.create_host_config(
                 binds=["{}:/data".format(volume_name)],
                 port_bindings={http_port: 0}),
             "ports": [http_port]}
@@ -370,8 +370,8 @@ class DockerPluginTests(AsyncTestCase):
             SCRIPTS.child(b"datahttp.py"),
             # This tells the script where it should store its data,
             # and we want it to specifically use the volume:
-            [u"/data"], cleanup=False, client=client)
-        host_port = extract_external_port(client, cid, http_port)
+            [u"/data"], cleanup=False, client=origin_client)
+        host_port = extract_external_port(origin_client, cid, http_port)
 
         # Post to container on origin node:
         d = post_http_server(self, origin_node.public_address, host_port,
@@ -379,13 +379,18 @@ class DockerPluginTests(AsyncTestCase):
 
         def posted(_):
             # Shutdown original container:
-            client.remove_container(cid, force=True)
+            origin_client.remove_container(cid, force=True)
             # Start container on destination node with same volume:
             new_cid = self.run_python_container(
                 cluster, destination_node.public_address, container_args,
                 SCRIPTS.child(b"datahttp.py"), [u"/data"],
             )
-            host_port = extract_external_port(client, new_cid, http_port)
+            destination_client = get_docker_client(
+                cluster, destination_node.public_address,
+            )
+            host_port = extract_external_port(
+                destination_client, new_cid, http_port,
+            )
             return host_port
 
         d.addCallback(posted)
