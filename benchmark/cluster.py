@@ -89,22 +89,22 @@ class BenchmarkCluster:
             FlockerClient,
             host=control_node_address,
             port=4523,
-            ca_cluster_path=certs.child(b"cluster.crt"),
-            cert_path=certs.child(b"user.crt"),
-            key_path=certs.child(b"user.key")
+            ca_cluster_path=certs.child('cluster.crt'),
+            cert_path=certs.child('user.crt'),
+            key_path=certs.child('user.key')
         )
         return cls(control_node_address, control_service, public_addresses)
 
     @classmethod
-    def from_uft_setup(cls, uft):
+    def from_cluster_yaml(cls, path):
         """
-        Create a cluster from UFT installer files.
+        Create a cluster from Quick Start Installer files.
 
-        :param FilePath uft: directory containing UFT ``cluster.yml`` and
-            certificate files.
+        :param FilePath path: directory containing Quick Start Installer
+            ``cluster.yml`` and certificate files.
         :return: A ``BenchmarkCluster`` instance.
         """
-        with uft.child('cluster.yml').open() as f:
+        with path.child('cluster.yml').open() as f:
             cluster = yaml.safe_load(f)
         validate_cluster_configuration(cluster)
         control_node_address = cluster['control_node']
@@ -116,9 +116,9 @@ class BenchmarkCluster:
             FlockerClient,
             host=control_node_address,
             port=4523,
-            ca_cluster_path=uft.child(b"cluster.crt"),
-            cert_path=uft.child(b"user.crt"),
-            key_path=uft.child(b"user.key")
+            ca_cluster_path=path.child('cluster.crt'),
+            cert_path=path.child('user.crt'),
+            key_path=path.child('user.key')
         )
         return cls(control_node_address, control_service, public_addresses)
 

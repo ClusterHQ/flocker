@@ -177,8 +177,9 @@ def main():
     except UsageError as e:
         usage(options, e.args[0])
 
-    if options['uft']:
-        cluster = BenchmarkCluster.from_uft_setup(FilePath(options['uft']))
+    if options['cluster']:
+        cluster = BenchmarkCluster.from_cluster_yaml(
+            FilePath(options['cluster']))
     else:
         try:
             cluster = BenchmarkCluster.from_acceptance_test_env(os.environ)
