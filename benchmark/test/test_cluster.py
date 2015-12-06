@@ -75,8 +75,8 @@ class ValidationTests(SynchronousTestCase):
             validate_cluster_configuration(self.config)
 
 
-CONTROL_SERVICE_PUBLIC_IP = '10.0.0.1'
-CONTROL_SERVICE_PRIVATE_IP = '10.1.0.1'
+CONTROL_SERVICE_PUBLIC_IP = IPAddress('10.0.0.1')
+CONTROL_SERVICE_PRIVATE_IP = IPAddress('10.1.0.1')
 
 
 class BenchmarkClusterTests(SynchronousTestCase):
@@ -84,13 +84,12 @@ class BenchmarkClusterTests(SynchronousTestCase):
     def setUp(self):
         node = Node(
             # Node public_address is actually the internal cluster address
-            uuid=uuid4(), public_address=IPAddress(CONTROL_SERVICE_PRIVATE_IP)
+            uuid=uuid4(), public_address=CONTROL_SERVICE_PRIVATE_IP
         )
         self.control_service = FakeFlockerClient([node])
         self.cluster = BenchmarkCluster(
             CONTROL_SERVICE_PUBLIC_IP, lambda reactor: self.control_service, {
-                IPAddress(CONTROL_SERVICE_PRIVATE_IP):
-                    IPAddress(CONTROL_SERVICE_PUBLIC_IP),
+                CONTROL_SERVICE_PRIVATE_IP: CONTROL_SERVICE_PUBLIC_IP,
             }
         )
 
@@ -113,6 +112,6 @@ class BenchmarkClusterTests(SynchronousTestCase):
         The ``public_address`` method gives expected results.
         """
         self.assertEqual(
-            self.cluster.public_address(IPAddress(CONTROL_SERVICE_PRIVATE_IP)),
-            IPAddress(CONTROL_SERVICE_PUBLIC_IP)
+            self.cluster.public_address(CONTROL_SERVICE_PRIVATE_IP),
+            CONTROL_SERVICE_PUBLIC_IP
         )

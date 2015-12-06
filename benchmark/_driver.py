@@ -123,7 +123,7 @@ def driver(
 
     def add_control_service(version, result):
         result['control_service'] = dict(
-            host=cluster.control_node_address(),
+            host=cluster.control_node_address().compressed,
             flocker_version=version[u"flocker"],
         )
 

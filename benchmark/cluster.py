@@ -54,9 +54,11 @@ class BenchmarkCluster:
     """
     Cluster for benchmark performance.
 
-    :ivar str control_node_address: IP address for control service.
+    :ivar IPAddress control_node_address: IP address for control service.
     :ivar control_service_factory: Callable taking a reactor parameter,
         and returning a IFlockerAPIV1Client.
+    :ivar dict[IPAddress: IPAddress] public_addresses: mapping of
+        internal cluster IP addresses to public IP addresses.
     """
 
     def __init__(
@@ -93,7 +95,8 @@ class BenchmarkCluster:
             cert_path=certs.child('user.crt'),
             key_path=certs.child('user.key')
         )
-        return cls(control_node_address, control_service, public_addresses)
+        return cls(
+            IPAddress(control_node_address), control_service, public_addresses)
 
     @classmethod
     def from_cluster_yaml(cls, path):
@@ -120,12 +123,19 @@ class BenchmarkCluster:
             cert_path=path.child('user.crt'),
             key_path=path.child('user.key')
         )
-        return cls(control_node_address, control_service, public_addresses)
+        return cls(
+            IPAddress(control_node_address), control_service, public_addresses)
 
     def control_node_address(self):
+        """
+        Return the control node IP address.
+        """
         return self._control_node_address
 
     def control_service(self, reactor):
+        """
+        Return a provider of the ``IFlockerAPIV1Client`` interface.
+        """
         control_service = self._control_service
         if control_service is None:
             control_service = self._control_service_factory(reactor)
