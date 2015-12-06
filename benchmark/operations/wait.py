@@ -32,10 +32,10 @@ class WaitProbe(object):
 @implementer(IOperation)
 class Wait(object):
     """
-    An operation to wait 10 seconds.
+    An operation to wait for a number of seconds.
     """
 
-    def __init__(self, clock, control_service, wait_seconds=10):
+    def __init__(self, clock, cluster, wait_seconds=10):
         self.clock = clock
         self.wait_seconds = wait_seconds
 
