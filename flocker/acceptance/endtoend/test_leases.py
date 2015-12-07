@@ -224,7 +224,7 @@ class LeaseAPITests(AsyncTestCase):
             operation=cluster.client.move_dataset,
             additional_kwargs={'primary': target_node},
             state_method=lambda dataset: cluster.wait_for_dataset(
-                dataset.set(primary=target_node))
+                dataset.set(primary=UUID(target_node)))
         )
 
     @require_moving_backend
