@@ -18,7 +18,7 @@ from bitmath import GiB
 from eliot import MessageType, ActionType, Field, Logger
 from eliot.serializers import identity
 
-from zope.interface import implementer, Interface
+from zope.interface import implementer, Interface, provider
 
 from pyrsistent import PRecord, PClass, field, pmap_field, pset_field
 
@@ -116,7 +116,7 @@ class DiscoveredDataset(PClass):
 
 class DesiredDataset(PClass):
     """
-    Dataset as requested by configuration (and applications).
+    Dataset as requested by configuration and applications.
     """
     dataset_id = field(type=UUID, mandatory=True)
     maximum_size = field(type=int)
@@ -127,6 +127,22 @@ class DesiredDataset(PClass):
     mount_point = field(FilePath)
     filesystem = field(unicode, initial=u"ext4", mandatory=True,
                        invariant=lambda v: v == "ext4")
+
+
+class IDatasetStateChangeFactory(Interface):
+    def from_state_and_config(discovered_dataset, desired_dataset):
+        """
+        Create a state change that will bring the discovered dataset into the
+        state described by the desired dataset.
+
+        :param DiscoveredDataset discovered_dataset: The discovered state of
+            the dataset.
+        :param DesiredDataset desired_dataset: The desired state of the
+            dataset.
+
+        :return: The desired state change.
+        :rtype: ``IStateChange``.
+        """
 
 
 class VolumeException(Exception):
@@ -412,6 +428,7 @@ def _blockdevice_volume_from_datasetid(volumes, dataset_id):
 # Get rid of this in favor of calculating each individual operation in
 # BlockDeviceDeployer.calculate_changes.  FLOC-1772
 @implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
 class DestroyBlockDeviceDataset(PRecord):
     """
     Destroy the volume for a dataset with a primary manifestation on the node
@@ -456,6 +473,7 @@ class DestroyBlockDeviceDataset(PRecord):
 
 
 @implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
 class CreateFilesystem(PRecord):
     """
     Create a filesystem on a block device.
@@ -551,6 +569,7 @@ def _valid_size(size):
 
 
 @implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
 class MountBlockDevice(PRecord):
     """
     Mount the filesystem mounted from the block device backed by a particular
@@ -625,6 +644,7 @@ class MountBlockDevice(PRecord):
 
 
 @implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
 class UnmountBlockDevice(PRecord):
     """
     Unmount the filesystem mounted from the block device backed by a particular
@@ -670,6 +690,7 @@ class UnmountBlockDevice(PRecord):
 
 
 @implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
 class AttachVolume(PRecord):
     """
     Attach an unattached volume to this node (the node of the deployer it is
@@ -739,6 +760,7 @@ class ActionNeeded(PClass):
 
 
 @implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
 class DetachVolume(PRecord):
     """
     Detach a volume from the node it is currently attached to.
@@ -816,6 +838,7 @@ def allocated_size(allocation_unit, requested_size):
 
 
 @implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
 class CreateBlockDeviceDataset(PRecord):
     """
     An operation to create a new dataset on a newly created volume with a newly
@@ -1511,6 +1534,14 @@ class BlockDeviceDeployer(PRecord):
         return self.mountroot.child(dataset_id.encode("ascii"))
 
     def _calculate_desired_for_manifestation(self, manifestation):
+        """
+        Get the ``DesiredDataset`` corresponding to a given manifestation.
+
+        :param Manifestation manifestation: The
+
+        :return: The ``DesiredDataset`` corresponding to the given
+            manifestation.
+        """
         dataset_id = UUID(manifestation.dataset.dataset_id)
         # XXX: Make this configurable. FLOC-2679
         maximum_size = manifestation.dataset.maximum_size
