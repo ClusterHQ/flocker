@@ -43,7 +43,8 @@ sphinx-prompt==1.0.0
 sphinx-rtd-theme==0.1.8
 sphinxcontrib-httpdomain==1.3.0
 sphinxcontrib-spelling==2.1.2
-testtools==1.8.1
+# Use our fork of testtools until #165, #171, and #172 are merged and released
+-e git://github.com/ClusterHQ/testtools@clusterhq-fork#egg=testtools
 tox==2.1.1
 versioneer==0.15
 virtualenv==13.1.0
