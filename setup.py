@@ -110,8 +110,8 @@ setup(
 
     dependency_links = [
         # Use our fork of testtools until #165, #171, and #172 are merged and
-        # released.
-        "git://github.com/ClusterHQ/testtools@clusterhq-fork#egg=testtools",
+        # released. See FLOC-3498.
+        "git+git://github.com/ClusterHQ/testtools@clusterhq-fork#egg=testtools-1.8.2chq1",  # noqa
     ],
 
     # Some "trove classifiers" which are relevant.

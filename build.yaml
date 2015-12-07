@@ -257,8 +257,9 @@ common_cli:
     # using the caching-layer, install all the dependencies
     \${PARSE_LOGS} pip install --upgrade pip
     \${PARSE_LOGS} pip install . \${PIP_ADDITIONAL_OPTIONS}
-    # install Flocker
-    \${PARSE_LOGS} pip install  "Flocker[dev]" \${PIP_ADDITIONAL_OPTIONS}
+    # Install Flocker. Use --process-dependency-links so we can temporarily use
+    # testtools fork. See FLOC-3498.
+    \${PARSE_LOGS} pip install --process-dependency-links  "Flocker[dev]" \${PIP_ADDITIONAL_OPTIONS}
     # install junix for our coverage report
     \${PARSE_LOGS} pip install python-subunit junitxml \${PIP_ADDITIONAL_OPTIONS}
 
