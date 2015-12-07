@@ -28,6 +28,8 @@ def capture_stderr():
     yield s.getvalue
     sys.stderr = out
 
+# Addresses must be different, to check that environment is not used
+# during YAML tests.
 _ENV_CONTROL_SERVICE_ADDRESS = '10.0.0.1'
 _YAML_CONTROL_SERVICE_ADDRESS = '10.1.0.1'
 
@@ -102,6 +104,9 @@ class ClusterConfigurationTests(SynchronousTestCase):
     def test_missing_yaml_file(self):
         """
         Script fails if cluster directory does not contain cluster.yml
+
+        There is no fallback to environment if an error occurs reading
+        YAML description.
         """
         tmpdir = tempfile.mkdtemp()
         try:
@@ -109,7 +114,7 @@ class ClusterConfigurationTests(SynchronousTestCase):
             options.parseOptions(['--cluster', tmpdir])
             with capture_stderr() as captured_stderr:
                 with self.assertRaises(SystemExit) as e:
-                    get_cluster(options, {})
+                    get_cluster(options, self.environ)
                 self.assertIn('not found', e.exception.args[0])
                 self.assertIn(options.getUsage(), captured_stderr())
         finally:
