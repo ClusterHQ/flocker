@@ -88,7 +88,8 @@ class SampleTest(SynchronousTestCase):
     Test sample function.
     """
 
-    def test_good_probe(self):
+    @capture_logging(None)
+    def test_good_probe(self, logger):
         """
         Sampling returns value when probe succeeds.
         """
@@ -97,7 +98,8 @@ class SampleTest(SynchronousTestCase):
         self.assertEqual(
             self.successResultOf(sampled), {'success': True, 'value': 5})
 
-    def test_bad_probe(self):
+    @capture_logging(None)
+    def test_bad_probe(self, logger):
         """
         Sampling returns reason when probe fails.
         """
@@ -123,7 +125,8 @@ class BenchmarkTest(TestCase):
     # the `benchmark` function uses `twisted.task.cooperate`, which uses
     # the global reactor.
 
-    def test_good_probes(self):
+    @capture_logging(None)
+    def test_good_probes(self, logger):
         """
         Sampling returns results when probes succeed.
         """
