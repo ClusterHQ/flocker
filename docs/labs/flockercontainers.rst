@@ -12,10 +12,10 @@ For some of these environments, such as CoreOS, you can actually install Flocker
 
 You can find the relevant Flocker containers here:
 
-`Dataset Agent <https://hub.docker.com/r/clusterhq/flocker-dataset-agent/>`_.
-`Container Agent <https://hub.docker.com/r/clusterhq/flocker-container-agent/>`_.
-`Control Service <https://hub.docker.com/r/clusterhq/flocker-control-service/>`_.
-`Docker Plugin <https://hub.docker.com/r/clusterhq/flocker-docker-plugin/>`_.
+* `Dataset Agent <https://hub.docker.com/r/clusterhq/flocker-dataset-agent/>`_.
+* `Container Agent <https://hub.docker.com/r/clusterhq/flocker-container-agent/>`_.
+* `Control Service <https://hub.docker.com/r/clusterhq/flocker-control-service/>`_.
+* `Docker Plugin <https://hub.docker.com/r/clusterhq/flocker-docker-plugin/>`_.
 
 Before you install flocker using containers, it assumes all authentication has been setup. This means that you should have the cluster certificate and key, node certificates and keys, and API certificates and keys ready to go before following the below instructions. Please refer to `Configuring Authentication <https://docs.clusterhq.com/en/latest/config/configuring-authentication.html>`_. 
 
@@ -53,7 +53,7 @@ Then on one of the hosts run the Control Service
 Make sure port ``4523`` is available for the control API and ``4524`` is available for agent nodes.
 
 What you should see
-=============================
+===================
 
 Here is an example of a Flocker node running all the Flocker services in containers.
 
@@ -68,7 +68,7 @@ Here is an example of a Flocker node running all the Flocker services in contain
 
 
 Logs
-========================
+====
 
 You can get the logs of the Flocker services by running ``docker logs <container>``
 
@@ -78,6 +78,6 @@ You can get the logs of the Flocker services by running ``docker logs <container
 
 
 Conclusion
-====
+==========
 
 This should help those interested in running Flocker in environments where it is only suitable for containers to run services. Again, this is experimental so you may run into issues.
