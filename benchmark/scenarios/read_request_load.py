@@ -17,17 +17,18 @@ from .._interfaces import IScenario
 class RateMeasurer(object):
     _sample_size = 5
     _count = 0
-    _last_second = int(time.time())
 
-    def __init__(self):
+    def __init__(self, reactor):
         self._counts = []
+        self.reactor = reactor
+        self.last_second = int(self.reactor.seconds())
 
     def new_sample(self):
-        now = int(time.time())
-        if now > self._last_second:
+        now = int(self.reactor.seconds())
+        if now > self.last_second:
             self._counts.append(self._count)
             self._counts = self._counts[-self._sample_size:]
-            self._last_second = now
+            self.last_second = now
             self._count = 0
         self._count += 1
 
@@ -40,10 +41,11 @@ class RateMeasurer(object):
 
 
 class LoadGenerator(object):
-    def __init__(self, request_generator, req_per_sec, interval):
+    def __init__(self, request_generator, req_per_sec, interval, reactor):
         self._request_generator = request_generator
         self.req_per_sec = req_per_sec
         self.interval = interval
+        self.reactor = reactor
         self._loops = []
         self._starts = []
 
@@ -52,6 +54,7 @@ class LoadGenerator(object):
             loop = LoopingCall(
                 self._request_generator,
             )
+            loop.clock = self.reactor
             self._loops.append(loop)
             started = loop.start(interval=self.interval)
             self._starts.append(started)
@@ -81,7 +84,7 @@ class ReadRequestLoadScenario(object):
         self.control_service = control_service
         self.request_rate = request_rate
         self.interval = interval
-        self.rate_measurer = RateMeasurer()
+        self.rate_measurer = RateMeasurer(self.reactor)
 
     def _sample_and_return(self, result):
         self.rate_measurer.new_sample()
@@ -101,7 +104,8 @@ class ReadRequestLoadScenario(object):
         self.load_generator = LoadGenerator(
             request_generator=self._request_and_measure,
             req_per_sec=self.request_rate,
-            interval = self.interval
+            interval = self.interval,
+            reactor = self.reactor
         )
         self.load_generator.start()
 
