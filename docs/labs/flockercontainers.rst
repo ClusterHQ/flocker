@@ -10,12 +10,12 @@ For some of these environments, such as CoreOS, you can actually install Flocker
 .. note::
    Installing Flocker in containers is useful for environments such as CoreOS, RancherOS, or Amazon ECS, but please note that doing so is currently experimental.
 
-You can find the relevant Flocker containers here:
+You can find the relevant Docker Hub images here:
 
-* `Dataset Agent <https://hub.docker.com/r/clusterhq/flocker-dataset-agent/>`_.
-* `Container Agent <https://hub.docker.com/r/clusterhq/flocker-container-agent/>`_.
-* `Control Service <https://hub.docker.com/r/clusterhq/flocker-control-service/>`_.
-* `Docker Plugin <https://hub.docker.com/r/clusterhq/flocker-docker-plugin/>`_.
+* `Dataset Agent <https://hub.docker.com/r/clusterhq/flocker-dataset-agent/>`_
+* `Container Agent <https://hub.docker.com/r/clusterhq/flocker-container-agent/>`_
+* `Control Service <https://hub.docker.com/r/clusterhq/flocker-control-service/>`_
+* `Docker Plugin <https://hub.docker.com/r/clusterhq/flocker-docker-plugin/>`_
 
 Before you install flocker using containers, it assumes all authentication has been setup. This means that you should have the cluster certificate and key, node certificates and keys, and API certificates and keys ready to go before following the below instructions. Please refer to `Configuring Authentication <https://docs.clusterhq.com/en/latest/config/configuring-authentication.html>`_. 
 
