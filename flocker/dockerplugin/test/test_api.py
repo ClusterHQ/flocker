@@ -124,7 +124,7 @@ class APITestsMixin(APIAssertionsMixin):
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"profile": profile}},
                               OK, {u"Err": None})
-        dataset_id = UUID(dataset_id_from_name(name))
+        dataset_id = uuid4()
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(list)
@@ -160,7 +160,7 @@ class APITestsMixin(APIAssertionsMixin):
                               OK, {u"Err": None})
 
         real_size = parse_num(size_opt)
-        dataset_id = UUID(dataset_id_from_name(name))
+        dataset_id = uuid4()
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(list)
