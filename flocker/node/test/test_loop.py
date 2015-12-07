@@ -346,7 +346,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         local_state = NodeState(hostname=u"192.0.2.123")
         client = self.make_amp_client([local_state])
-        action = ControllableAction(result=Deferred())
+        action = ControllableAction(result=succeed(None))
         deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state)], [action]
         )
@@ -365,7 +365,6 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         )
         self.assertEqual(client.calls, [(NodeStateCommand,
                                          dict(state_changes=(local_state,)))])
-        action.result.callback(None)
 
     def test_convergence_done_unchanged_notify(self):
         """
