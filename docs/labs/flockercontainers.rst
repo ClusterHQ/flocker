@@ -1,4 +1,4 @@
-.. _labs-flockercontainers:
+.. _flocker-containers:
 
 =============================
 Running Flocker in Containers
