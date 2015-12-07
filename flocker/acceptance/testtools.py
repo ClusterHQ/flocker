@@ -753,7 +753,7 @@ class Cluster(PClass):
                 lambda item: self.remove_container(item[u"name"]),
             )
             _timeout_with_reason(
-                reactor, cleaning_containers, 3,
+                reactor, cleaning_containers, 30,
                 Exception("Timed out cleaning up containers"),
             )
             return cleaning_containers
@@ -766,7 +766,7 @@ class Cluster(PClass):
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
             _timeout_with_reason(
-                reactor, cleaning_datasets, 6,
+                reactor, cleaning_datasets, 60,
                 Exception("Timed out cleaning up datasets"),
             )
             return cleaning_datasets
@@ -788,7 +788,7 @@ class Cluster(PClass):
 
         cleaning_leases = cleanup_leases()
         _timeout_with_reason(
-            reactor, cleaning_leases, 2,
+            reactor, cleaning_leases, 20,
             Exception("Timed out cleaning up leases"),
         )
         d = DeferredContext(cleaning_leases)
