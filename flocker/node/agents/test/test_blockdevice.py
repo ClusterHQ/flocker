@@ -2222,7 +2222,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                     manifestations={
                         dataset_id: Manifestation(
                             dataset=requested_dataset,
-                            primary=True
+                            primary=True,
                         )
                     },
                 )
