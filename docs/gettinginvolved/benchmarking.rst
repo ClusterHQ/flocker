@@ -23,15 +23,15 @@ The :program:`benchmark` script has the following command line options:
    - ``user.crt`` - a user certificate file; and
    - ``user.key`` - a user private key file.
 
-   These files are equivalent to those created by the  :ref:`Quick Start Flocker Installer <labs-installer>`.
-   See :ref:`below <benchmarking-cluster-description>` for the format of the ``cluster.yml`` file.
+   These files are equivalent to those created by the :ref:`Quick Start Flocker Installer <labs-installer>`.
+   The format of the :file:`cluster.yml` file is specified in the  :ref:`benchmarking-cluster-description` section below.
 
    If this option is not specified, then the benchmark script expects environment variables as set by the :ref:`acceptance test runner <acceptance-testing-cluster-config>` using ```run-acceptance-tests --keep``.
 
 .. option:: --config <benchmark-config>
 
    Specifies a file containing configurations for scenarios, operations, and metrics.
-   See :ref:`below <benchmarking-configuration-file>` for the format of this file.
+   The format of this file is specified in the :ref:`benchmarking-configuration-file` section below.
    Defaults to the file ``./benchmark.yml``.
 
 .. option:: --scenario <scenario>
@@ -59,7 +59,7 @@ The :program:`benchmark` script has the following command line options:
 Cluster Description File
 ------------------------
 
-This file must be named ``cluster.yml`` and must be located in the directory named by the ``--cluster`` option.
+This file must be named :file:`cluster.yml` and must be located in the directory named by the ``--cluster`` option.
 
 An example file:
 
