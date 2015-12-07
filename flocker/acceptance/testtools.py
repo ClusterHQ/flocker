@@ -37,7 +37,7 @@ from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
 
-from ..common import gather_deferreds, loop_until
+from ..common import gather_deferreds, loop_until, timeout
 from ..common.runner import download_file, run_ssh
 
 from ..control.httpapi import REST_API_PORT
@@ -450,6 +450,21 @@ def _ensure_encodeable(value):
     return value
 
 
+def _propagate_reason(original_reason, reactor, deadline, propagation_reason):
+    if reactor.seconds() >= deadline:
+        # A rough heuristic for determining if this cancellation is due to the
+        # timeout instead of caused by something else.  Would be nicer if
+        # ``timeout`` had support for specifying an exception.
+        raise propagation_reason
+    return original_reason
+
+
+def _timeout_with_reason(reactor, deferred, timeout_sec, reason):
+    deadline = reactor.seconds() + timeout_sec
+    timeout(reactor, deferred, timeout_sec)
+    deferred.addErrback(_propagate_reason, reactor, deadline, reason)
+
+
 class Cluster(PClass):
     """
     A record of the control service and the nodes in a cluster for acceptance
@@ -731,20 +746,30 @@ class Cluster(PClass):
                 return get_items.addActionFinish()
 
         def cleanup_containers(_):
-            return api_clean_state(
+            cleaning_containers = api_clean_state(
                 u"containers",
                 self.configured_containers,
                 self.current_containers,
                 lambda item: self.remove_container(item[u"name"]),
             )
+            _timeout_with_reason(
+                reactor, cleaning_containers, 3,
+                Exception("Timed out cleaning up containers"),
+            )
+            return cleaning_containers
 
         def cleanup_datasets(_):
-            return api_clean_state(
+            cleaning_datasets = api_clean_state(
                 u"datasets",
                 self.client.list_datasets_configuration,
                 self.client.list_datasets_state,
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
+            _timeout_with_reason(
+                reactor, cleaning_datasets, 6,
+                Exception("Timed out cleaning up datasets"),
+            )
+            return cleaning_datasets
 
         def cleanup_leases():
             context = start_action(action_type="acceptance:cleanup_leases")
@@ -761,7 +786,12 @@ class Cluster(PClass):
                 get_items.addCallback(release_all)
                 return get_items.addActionFinish()
 
-        d = DeferredContext(cleanup_leases())
+        cleaning_leases = cleanup_leases()
+        _timeout_with_reason(
+            reactor, cleaning_leases, 2,
+            Exception("Timed out cleaning up leases"),
+        )
+        d = DeferredContext(cleaning_leases)
         d.addCallback(cleanup_containers)
         d.addCallback(cleanup_datasets)
         return d.result
