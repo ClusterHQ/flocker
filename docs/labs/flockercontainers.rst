@@ -4,8 +4,11 @@
 Running Flocker in Containers
 =============================
 
-The :ref:`Flocker Installer <labs-installer>` lets you install Flocker in a variety of environment.
-Of these environments includes CoreOS which actually installs Flocker inside of containers. Installing Flocker as containers is useful for uses such as CoreOS, RancherOS, or Amazon ECS, however doing so is experimental.
+The :ref:`Flocker Installer <labs-installer>` allows you install Flocker in a variety of environments.
+For some of these environments, such as CoreOS, you can actually install Flocker inside a container.
+
+.. note::
+   Installing Flocker in containers is useful for environments such as CoreOS, RancherOS, or Amazon ECS, but please note that doing so is currently experimental.
 
 You can find the relevant Flocker containers here:
 
