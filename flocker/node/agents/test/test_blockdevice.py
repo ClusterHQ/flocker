@@ -2203,7 +2203,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
 
     def test_dataset_with_metadata(self):
         """
-        XXX
+        When supplied with a configuration containing a dataset with metadata
+        size, ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``CreateBlockDeviceDataset`` with a dataset with that metadata.
         """
         node_id = uuid4()
         node_address = u"192.0.2.1"
