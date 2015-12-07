@@ -108,6 +108,12 @@ setup(
 
     cmdclass=versioneer.get_cmdclass(),
 
+    dependency_links = [
+        # Use our fork of testtools until #165, #171, and #172 are merged and
+        # released.
+        "git://github.com/ClusterHQ/testtools@clusterhq-fork#egg=testtools",
+    ],
+
     # Some "trove classifiers" which are relevant.
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
