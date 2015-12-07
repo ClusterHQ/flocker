@@ -22,47 +22,52 @@ This means that you will have generated the cluster certificate and key, the  no
 
 For more information on generating certificates, please see  :ref:`authentication`. 
 
+Before you begin, you will need to make sure port ``4523`` is available for the control API and port ``4524`` is available for agent nodes.
+
 Use the following steps to install Flocker using Docker containers:
 
 #. Run the following command on the hosts that are running your Flocker containers:
 
-.. prompt:: bash $
+   .. prompt:: bash $
 
-    echo > /tmp/flocker-command-log
+      echo > /tmp/flocker-command-log
 
 #. Run the Container agent:
 
-.. prompt:: bash $
+   .. prompt:: bash $
 
-    docker run --restart=always -d --net=host --privileged -v /etc/flocker:/etc/flocker -v /var/run/docker.sock:/var/run/docker.sock --name=flocker-container-agent clusterhq/flocker-container-agent
+      docker run --restart=always -d --net=host --privileged -v /etc/flocker:/etc/flocker -v /var/run/docker.sock:/var/run/docker.sock --name=flocker-container-agent clusterhq/flocker-container-agent
 
 #. Run the Dataset agent:
 
-.. prompt:: bash $
+   .. prompt:: bash $
 
-    docker run --restart=always -d --net=host --privileged -e DEBUG=1 -v /tmp/flocker-command-log:/tmp/flocker-command-log -v /flocker:/flocker -v /:/host -v /etc/flocker:/etc/flocker -v /dev:/dev --name=flocker-dataset-agent clusterhq/flocker-dataset-agent
+      docker run --restart=always -d --net=host --privileged -e DEBUG=1 -v /tmp/flocker-command-log:/tmp/flocker-command-log -v /flocker:/flocker -v /:/host -v /etc/flocker:/etc/flocker -v /dev:/dev --name=flocker-dataset-agent clusterhq/flocker-dataset-agent
 
 
-Where you want to be able to run the Docker ``--volume-driver=flocker`` command you should also run the below command where ``Control-Service-Host-DNS-or-IP`` is your control service host and ``Host-IP-Address`` is the current hosts local IP address.
+#. Run the following command where you want to be able to run the Docker ``--volume-driver=flocker`` command:
 
-.. prompt:: bash $
+   * ``Control-Service-Host-DNS-or-IP`` is your control service host.
+   * ``Host-IP-Address`` is the current hosts local IP address.
 
-    docker run --restart=always -d --net=host --privileged -e FLOCKER_CONTROL_SERVICE_BASE_URL=<Control-Service-Host-DNS-or-IP>:4523/v1 -e MY_NETWORK_IDENTITY=<Host-IP-Address> -v /etc/flocker:/etc/flocker -v /run/docker:/run/docker --name=flocker-docker-plugin clusterhq/flocker-docker-plugin
+   .. prompt:: bash $
 
-Then on one of the hosts run the Control Service
+      docker run --restart=always -d --net=host --privileged -e FLOCKER_CONTROL_SERVICE_BASE_URL=<Control-Service-Host-DNS-or-IP>:4523/v1 -e MY_NETWORK_IDENTITY=<Host-IP-Address> -v /etc/flocker:/etc/flocker -v /run/docker:/run/docker --name=flocker-docker-plugin clusterhq/flocker-docker-plugin
 
-.. prompt:: bash $
+#. Run the following commands on one of the hosts to run the Control Service:
 
-    docker run --name=flocker-control-volume -v /var/lib/flocker clusterhq/flocker-control-service true
+   .. prompt:: bash $
 
-    docker run --restart=always -d --net=host -v /etc/flocker:/etc/flocker --volumes-from=flocker-control-volume --name=flocker-control-service clusterhq/flocker-control-service
+      docker run --name=flocker-control-volume -v /var/lib/flocker clusterhq/flocker-control-service true
 
-Make sure port ``4523`` is available for the control API and ``4524`` is available for agent nodes.
+   .. prompt:: bash $
 
-What you should see
-===================
+      docker run --restart=always -d --net=host -v /etc/flocker:/etc/flocker --volumes-from=flocker-control-volume --name=flocker-control-service clusterhq/flocker-control-service
 
-Here is an example of a Flocker node running all the Flocker services in containers.
+Example
+=======
+
+Here is an example of a Flocker node, running all the Flocker services in containers.
 
 .. prompt:: bash $
 
@@ -77,7 +82,7 @@ Here is an example of a Flocker node running all the Flocker services in contain
 Logs
 ====
 
-You can get the logs of the Flocker services by running ``docker logs <container>``
+Run the following to get the logs of the Flocker services:
 
 .. prompt:: bash $
 
@@ -87,4 +92,5 @@ You can get the logs of the Flocker services by running ``docker logs <container
 Conclusion
 ==========
 
-This should help those interested in running Flocker in environments where it is only suitable for containers to run services. Again, this is experimental so you may run into issues.
+This should help those interested in running Flocker in environments where it is only suitable for containers to run services.
+Again, this is experimental so you may run into issues.
