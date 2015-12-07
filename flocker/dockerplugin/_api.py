@@ -11,6 +11,7 @@ from functools import wraps
 from uuid import UUID
 
 import yaml
+import re
 
 from bitmath import TiB, GiB, MiB, KiB
 
@@ -22,6 +23,11 @@ from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK
 
 from klein import Klein
+
+from ._errors import (
+    NoSizeExpressionFound, SizeOptNotExceptable,
+    UnitNotExceptable
+)
 
 from ..restapi import (
     structured, EndpointResponse, BadRequest, make_bad_request,
@@ -56,23 +62,34 @@ def parse_num(expression):
       :param expression: the dataset expression to parse.
     """
     if not expression:
-        return None
-    expression = expression.encode("ascii")
-    unit = expression.translate(None, "1234567890.")
-    num = int(expression.replace(unit, ""))
-    unit = unit.lower()
-    if unit == 'tb' or unit == 't' or unit == 'tib':
-        return int(TiB(num).to_Byte().value)
-    elif unit == 'gb' or unit == 'g' or unit == 'gib':
-        return int(GiB(num).to_Byte().value)
-    elif unit == 'mb' or unit == 'm' or unit == 'mib':
-        return int(MiB(num).to_Byte().value)
-    elif unit == 'kb' or unit == 'k' or unit == 'kib':
-        return int(KiB(num).to_Byte().value)
-    # this may parse a number 15giib to 15bytes becase
-    # of user error, should we handle this better?
+        raise NoSizeExpressionFound("No expression")
+    if type(expression) is unicode:
+        expression = str(expression)
+
+    def _match(exp, search=re.compile(
+            r'^(\d+){1}([KMGTkmgt][IiBb]){0,1}([Bb]){0,1}').search):
+        return bool(search(exp))
+
+    if _match(expression):
+        unit = expression.translate(None, "1234567890.")
+        num = int(expression.replace(unit, ""))
+        unit = unit.lower()
+        if unit == 'tb' or unit == 't' or unit == 'tib':
+            return int(TiB(num).to_Byte().value)
+        elif unit == 'gb' or unit == 'g' or unit == 'gib':
+            return int(GiB(num).to_Byte().value)
+        elif unit == 'mb' or unit == 'm' or unit == 'mib':
+            return int(MiB(num).to_Byte().value)
+        elif unit == 'kb' or unit == 'k' or unit == 'kib':
+            return int(KiB(num).to_Byte().value)
+        # this may parse a number 15giib to 15bytes becase
+        # of user error, should we handle this better?
+        elif unit == '':
+            return int(num)
+        else:
+            return UnitNotExceptable("Something is wrong with Unit in size.")
     else:
-        return int(num)
+        return SizeOptNotExceptable("Something is wrong with Size.")
 
 
 def _endpoint(name, ignore_body=False):
