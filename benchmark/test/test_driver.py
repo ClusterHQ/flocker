@@ -7,6 +7,8 @@ from itertools import count, repeat
 
 from zope.interface import implementer
 
+from eliot.testing import capture_logging
+
 from twisted.internet.defer import Deferred, succeed, fail
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 
@@ -137,7 +139,8 @@ class BenchmarkTest(TestCase):
         samples_ready.addCallback(check)
         return samples_ready
 
-    def test_bad_probes(self):
+    @capture_logging(None)
+    def test_bad_probes(self, logger):
         """
         Sampling returns reasons when probes fail.
         """

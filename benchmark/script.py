@@ -169,6 +169,34 @@ def get_config_by_name(section, name):
     return None
 
 
+def get_cluster(options, env):
+    """
+    Obtain a cluster from the command line options and environment.
+
+    :param BenchmarkOption options: Parsed command line options.
+    :param dict env: Dictionary of environment variables.
+    :return BenchmarkCluster: Cluster to benchmark.
+    """
+    cluster_option = options['cluster']
+    if cluster_option:
+        try:
+            cluster = BenchmarkCluster.from_cluster_yaml(
+                FilePath(cluster_option)
+            )
+        except IOError as e:
+            usage(
+                options, 'Cluster file {!r} not found.'.format(e.filename)
+            )
+    else:
+        try:
+            cluster = BenchmarkCluster.from_acceptance_test_env(env)
+        except KeyError as e:
+            usage(
+                options, 'Environment variable {!r} not set.'.format(e.args[0])
+            )
+    return cluster
+
+
 def main():
     options = BenchmarkOptions()
 
@@ -177,14 +205,7 @@ def main():
     except UsageError as e:
         usage(options, e.args[0])
 
-    if options['cluster']:
-        cluster = BenchmarkCluster.from_cluster_yaml(
-            FilePath(options['cluster']))
-    else:
-        try:
-            cluster = BenchmarkCluster.from_acceptance_test_env(os.environ)
-        except KeyError as e:
-            usage('Environment variable {!r} not set.'.format(e.args[0]))
+    cluster = get_cluster(options, os.environ)
 
     with open(options['config'], 'rt') as f:
         config = yaml.safe_load(f)
