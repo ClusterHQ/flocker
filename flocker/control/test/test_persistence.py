@@ -23,14 +23,14 @@ from twisted.internet.task import Clock
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from pyrsistent import PRecord, pset
+from pyrsistent import PClass, pset
 
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
     _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE,
-    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED,
+    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED, to_unserialized_json,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -415,6 +415,68 @@ class ConfigurationPersistenceServiceTests(TestCase):
         old_saving.addCallback(saved_old)
         return old_saving
 
+    def get_hash(self, service):
+        """
+        Get the configuration, doing some sanity checks along the way.
+
+        :param service: A ``ConfigurationPersistenceService``.
+        :return: Result of ``service.configuration_hash()``.
+        """
+        # Repeatable:
+        result1 = service.configuration_hash()
+        result2 = service.configuration_hash()
+        self.assertEqual(result1, result2)
+        # Bytes:
+        self.assertIsInstance(result1, bytes)
+        return result1
+
+    def test_hash_on_startup(self):
+        """
+        An empty configuration can be hashed.
+        """
+        path = FilePath(self.mktemp())
+        service = ConfigurationPersistenceService(reactor, path)
+        service.startService()
+        self.addCleanup(service.stopService)
+
+        # Hash can be retrieved and passes sanity check:
+        self.get_hash(service)
+
+    def test_hash_on_save(self):
+        """
+        The configuration hash changes when a new version is saved.
+        """
+        path = FilePath(self.mktemp())
+        service = ConfigurationPersistenceService(reactor, path)
+        service.startService()
+        self.addCleanup(service.stopService)
+        original = self.get_hash(service)
+        d = service.save(TEST_DEPLOYMENT)
+
+        def saved(_):
+            updated = self.get_hash(service)
+            self.assertNotEqual(updated, original)
+        d.addCallback(saved)
+        return d
+
+    def test_hash_persists_across_restarts(self):
+        """
+        A configuration that was saved can be loaded from a new service.
+        """
+        path = FilePath(self.mktemp())
+        service = ConfigurationPersistenceService(reactor, path)
+        service.startService()
+        self.addCleanup(service.stopService)
+        d = service.save(TEST_DEPLOYMENT)
+
+        def saved(_):
+            original = self.get_hash(service)
+            service.stopService()
+            service.startService()
+            self.assertEqual(self.get_hash(service), original)
+        d.addCallback(saved)
+        return d
+
 
 class StubMigration(object):
     """
@@ -589,7 +651,7 @@ SUPPORTED_VERSIONS = st.integers(1, _CONFIG_VERSION)
 
 class WireEncodeDecodeTests(SynchronousTestCase):
     """
-    Tests for ``wire_encode`` and ``wire_decode``.
+    Tests for ``to_unserialized_json``, ``wire_encode`` and ``wire_decode``.
     """
     def test_encode_to_bytes(self):
         """
@@ -607,12 +669,21 @@ class WireEncodeDecodeTests(SynchronousTestCase):
         decoded_deployment = wire_decode(source_json)
         self.assertEqual(decoded_deployment, deployment)
 
+    @given(DEPLOYMENTS)
+    def test_to_unserialized_json(self, deployment):
+        """
+        ``to_unserialized_json`` is same output as ``wire_encode`` except
+        without doing JSON byte encoding.
+        """
+        unserialized = to_unserialized_json(deployment)
+        self.assertEquals(wire_decode(json.dumps(unserialized)), deployment)
+
     def test_no_arbitrary_decoding(self):
         """
         ``wire_decode`` will not decode classes that are not in
         ``SERIALIZABLE_CLASSES``.
         """
-        class Temp(PRecord):
+        class Temp(PClass):
             """A class."""
         SERIALIZABLE_CLASSES.append(Temp)
 

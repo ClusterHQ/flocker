@@ -90,6 +90,30 @@
 {# JINJA2 MACROS DEFINED BELOW                                               #}
 {# --------------------------------------------------------------------------#}
 
+{% macro updateGitHubStatus(status, description, branch, dashProject,
+                            dashBranchName)                                 -%}
+"""
+#!/bin/bash
+{# Jenkins jobs are usually run using 'set -x' however we use 'set +x' here  #}
+{# to avoid leaking credentials into the build logs.                         #}
+set +x
+{# Read the GitHub credentials                                               #}
+. /etc/slave_config/github_status.sh
+
+{# Send a request to Github to update the commit with the build status       #}
+REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
+BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
+PAYLOAD="{\\"state\\": \\"{{ status }}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"{{ description }}\\", \\"context\\": \\"jenkins-multijob\\" }"
+curl \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
+  -X POST \\
+  --data "\$PAYLOAD" \\
+  https://api.github.com/repos/{{ cfg.project }}/statuses/\$REMOTE_GIT_COMMIT
+echo "Updating commit \$REMOTE_GIT_COMMIT with {{ status }} status."
+"""
+{%- endmacro -%}
+
 {% macro folder(folder, display_name)                                       -%}
 {# creates a folder structure to group jobs, these are the Jenkins folder views
    in the Jenkins UI.
@@ -101,6 +125,31 @@ println("creating {{folder}}...")
 folder("{{folder}}") { displayName("{{display_name}}") }
 {%- endmacro                                                                -%}
 
+{% macro view(name, regex, description)                                     -%}
+{# creates a tab view structure to group jobs inside a branch folder         %}
+
+   param name:  '/clusterhq-flocker/branchname/myView1'
+   param regex: '.*ubuntu.*r'                                                #}
+
+println("creating tab {{name}}...")
+listView("${dashProject}/${dashBranchName}/{{name}}") {
+  description("{{description}}")
+  filterBuildQueue()
+  filterExecutors()
+  jobs {
+    regex("{{regex}}")
+  }
+  columns {
+    status()
+    weather()
+    name()
+    lastSuccess()
+    lastFailure()
+    lastDuration()
+    buildButton()
+  }
+}
+{%- endmacro                                                                -%}
 
 {% macro wrappers(v, directory_to_delete)                                   -%}
 {# adds a list of common wrappers to the build jobs.
@@ -229,6 +278,9 @@ folder("{{folder}}") { displayName("{{display_name}}") }
    'results.xml', 'coverage.xml', '_trial_temp/trial.log'                    #}
       archiveArtifacts("{{artifact}}")
 {%        endfor                                                             %}
+{%      endif                                                               -%}
+
+{% if v.publish_test_results                                                -%}
 {# archives the junit results and publish the test results                   #}
       archiveJunit('results.xml') {
         retainLongStdout(true)
@@ -324,6 +376,10 @@ branches.each {
 {# create a folder for every branch: /git-username/git-repo/branch           #}
   {{ folder("${dashProject}/${dashBranchName}","${branchName}") }}
 
+{# create tabs inside the branch folder                                      #}
+{% for name, v  in cfg.views.iteritems()                                    -%}
+  {{ view(name, v.regex, v.description) }}
+{% endfor                                                                    %}
 
 {# ------------------------------------------------------------------------- #}
 {# JOB DEFINITIONS BELOW - THESE WILL BE ADDED TO A MULTIJOB PHASE           #}
@@ -486,13 +542,19 @@ branches.each {
     wrappers {
       timestamps()
       colorizeOutput()
-      {# lock down the multijob to 45 minutes so that 'stuck' jobs won't
+      {# lock down the multijob to 60 minutes so that 'stuck' jobs won't
           block future runs                                                  #}
       timeout {
-          absolute(45)
+          absolute(60)
           }
     }
+
+ {# the multijob runs on the jenkins-master only                             #}
+    label("master")
       steps {
+{# Set the commit status on GitHub to pending                                #}
+          shell({{ updateGitHubStatus('pending', 'Build started',
+            "${branchName}", "${dashProject}", "${dashBranchName}") }})
 {# make sure we are starting with a clean workspace                          #}
           shell('rm -rf *')
 {# build 'parallel_tests' phase that will run all our jobs in parallel       #}
@@ -644,6 +706,32 @@ branches.each {
             failUnstable(true)
             failNoReports(false)
           }
+{# Update the commit status on GitHub with the build result                  #}
+{# We use the flexible-publish plugin combined with the the any-buildstep    #}
+{# plugin to allow us to run shell commands as part of a post-build step.    #}
+{# We also use the run-condition plugin to inspect the status of the build   #}
+{# and update the commit with either a 'success' or 'failed' status.         #}
+{# https://wiki.jenkins-ci.org/display/JENKINS/Flexible+Publish+Plugin       #}
+{# https://wiki.jenkins-ci.org/display/JENKINS/Any+Build+Step+Plugin         #}
+{# https://wiki.jenkins-ci.org/display/JENKINS/Run+Condition+Plugin          #}
+          flexiblePublish {
+            condition {
+              status('SUCCESS', 'SUCCESS')
+            }
+            step {
+              shell({{ updateGitHubStatus('success', 'Build succeeded',
+                "${branchName}", "${dashProject}", "${dashBranchName}") }})
+            }
+          }
+          flexiblePublish {
+            condition {
+              status('FAILURE', 'FAILURE')
+            }
+            step {
+              shell({{ updateGitHubStatus('failure', 'Build failed',
+                "${branchName}", "${dashProject}", "${dashBranchName}") }})
+            }
+          }
       }
   }
 }
@@ -663,7 +751,7 @@ branches.each {
 {# apply config related to 'cronly_jobs' jobs                                #}
 {%    if job_type == 'cronly_jobs'                                          -%}
 {%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${branchName}/_{{ _job_name }}") {
+  job("${dashProject}/${dashBranchName}/_{{ _job_name }}") {
     parameters {
         textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
     }

@@ -18,13 +18,13 @@ from twisted.web.client import Agent
 
 from treq.client import HTTPClient
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from ._ca import UserCredential
 
 
 @implementer(IPolicyForHTTPS)
-class ControlServicePolicy(PRecord):
+class ControlServicePolicy(PClass):
     """
     HTTPS TLS policy for validating the control service's identity, and
     providing the HTTP client's identity.

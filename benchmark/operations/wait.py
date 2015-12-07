@@ -3,7 +3,6 @@
 Wait operation for the control service benchmarks.
 """
 
-from pyrsistent import PClass, field
 from zope.interface import implementer
 
 from twisted.internet.defer import Deferred, succeed
@@ -12,13 +11,14 @@ from benchmark._interfaces import IProbe, IOperation
 
 
 @implementer(IProbe)
-class WaitProbe(PClass):
+class WaitProbe(object):
     """
     A probe to wait for a specified time period.
     """
 
-    clock = field(mandatory=True)
-    wait_seconds = field(mandatory=True)
+    def __init__(self, clock, wait_seconds):
+        self.clock = clock
+        self.wait_seconds = wait_seconds
 
     def run(self):
         d = Deferred()
@@ -30,15 +30,15 @@ class WaitProbe(PClass):
 
 
 @implementer(IOperation)
-class Wait(PClass):
+class Wait(object):
     """
     An operation to wait 10 seconds.
     """
 
-    clock = field(mandatory=True)
-    # `control_service` attribute unused, but required for __init__ signature
-    control_service = field(mandatory=True)
-    wait_seconds = field(initial=10)
+    def __init__(self, clock, control_service, wait_seconds=10):
+        self.clock = clock
+        self.control_service = control_service
+        self.wait_seconds = wait_seconds
 
     def get_probe(self):
         return WaitProbe(clock=self.clock, wait_seconds=self.wait_seconds)

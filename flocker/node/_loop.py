@@ -47,6 +47,7 @@ from ..common import gather_deferreds
 from ..control import (
     NodeStateCommand, IConvergenceAgent, AgentAMP, SetNodeEraCommand,
 )
+from ..control._persistence import to_unserialized_json
 
 
 class ClusterStatusInputs(Names):
@@ -302,11 +303,11 @@ class ConvergenceLoopOutputs(Names):
 
 _FIELD_CONNECTION = Field(
     u"connection",
-    lambda client: repr(client),
+    repr,
     "The AMP connection to control service")
 
 _FIELD_LOCAL_CHANGES = Field(
-    u"local_changes", repr,
+    u"local_changes", to_unserialized_json,
     "Changes discovered in local state.")
 
 LOG_SEND_TO_CONTROL_SERVICE = ActionType(
@@ -315,11 +316,11 @@ LOG_SEND_TO_CONTROL_SERVICE = ActionType(
     "Send the local state to the control service.")
 
 _FIELD_CLUSTERSTATE = Field(
-    u"cluster_state", repr,
+    u"cluster_state", to_unserialized_json,
     "The state of the cluster, according to control service.")
 
 _FIELD_CONFIGURATION = Field(
-    u"desired_configuration", repr,
+    u"desired_configuration", to_unserialized_json,
     "The configuration of the cluster according to the control service.")
 
 _FIELD_ACTIONS = Field(

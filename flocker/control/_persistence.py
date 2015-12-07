@@ -8,6 +8,7 @@ from json import dumps, loads, JSONEncoder
 from uuid import UUID
 from calendar import timegm
 from datetime import datetime
+from hashlib import sha256
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
@@ -212,7 +213,18 @@ def wire_decode(data):
     return loads(data, object_hook=decode)
 
 
-_DEPLOYMENT_FIELD = Field(u"configuration", repr)
+def to_unserialized_json(obj):
+    """
+    Convert a wire encodeable object into structured Python objects that
+    are JSON serializable.
+
+    :param obj: An object that can be passed to ``wire_encode``.
+    :return: Python object that can be JSON serialized.
+    """
+    # Worst implementation everrrr:
+    return loads(wire_encode(obj))
+
+_DEPLOYMENT_FIELD = Field(u"configuration", to_unserialized_json)
 _LOG_STARTUP = MessageType(u"flocker-control:persistence:startup",
                            [_DEPLOYMENT_FIELD])
 _LOG_SAVE = ActionType(u"flocker-control:persistence:save",
@@ -297,6 +309,7 @@ class ConfigurationPersistenceService(MultiService):
     Persist configuration to disk, and load it back.
 
     :ivar Deployment _deployment: The current desired deployment configuration.
+    :ivar bytes _hash: A SHA256 hash of the configuration.
     """
     logger = Logger()
 
@@ -346,6 +359,12 @@ class ConfigurationPersistenceService(MultiService):
                 )
                 self._config_path.setContent(updated_json)
                 v1_config_path.moveTo(v1_archived_path)
+
+    def configuration_hash(self):
+        """
+        :return bytes: A hash of the configuration.
+        """
+        return self._hash
 
     def load_configuration(self):
         """
@@ -399,7 +418,9 @@ class ConfigurationPersistenceService(MultiService):
         Save and flush new configuration to disk synchronously.
         """
         config = Configuration(version=_CONFIG_VERSION, deployment=deployment)
-        self._config_path.setContent(wire_encode(config))
+        data = wire_encode(config)
+        self._hash = sha256(data).hexdigest()
+        self._config_path.setContent(data)
 
     def save(self, deployment):
         """

@@ -5,10 +5,10 @@
 Objects related to the representation of Flocker-controlled network state.
 """
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 
-class Proxy(PRecord):
+class Proxy(PClass):
     """
     :ivar ipaddr.IPv4Address ip: The IPv4 address towards which this proxy
         directs traffic.
@@ -19,7 +19,7 @@ class Proxy(PRecord):
     port = field(type=int, mandatory=True)
 
 
-class OpenPort(PRecord):
+class OpenPort(PClass):
     """
     :ivar int port: The TCP port which is opened.
     """

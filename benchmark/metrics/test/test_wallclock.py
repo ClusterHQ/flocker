@@ -1,6 +1,6 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Measurement tests for the control service benchmarks.
+Wallclock metric tests for the control service benchmarks.
 """
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -18,6 +18,6 @@ class WallClockTests(SynchronousTestCase):
         function.
         """
         clock = Clock()
-        wallclock = WallClock(clock=clock)
+        wallclock = WallClock(clock, None)
         d = wallclock.measure(maybeDeferred, clock.advance, 1.23)
         self.assertEqual(self.successResultOf(d), 1.23)

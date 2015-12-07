@@ -18,6 +18,8 @@ from ..test.blockdevicefactory import (
 )
 from ....testtools import random_name
 
+from .logging import CINDER_VOLUME
+
 
 def cinder_volume_manager():
     """
@@ -56,6 +58,7 @@ class VolumesCreateTests(SynchronousTestCase):
             size=100,
             metadata=expected_metadata
         )
+        CINDER_VOLUME(id=new_volume.id).write()
         self.addCleanup(self.cinder_volumes.delete, new_volume)
         listed_volume = wait_for_volume_state(
             volume_manager=self.cinder_volumes,
@@ -90,6 +93,7 @@ class VolumesSetMetadataTests(SynchronousTestCase):
         expected_metadata = {random_name(self): u"bar"}
 
         new_volume = self.cinder_volumes.create(size=100)
+        CINDER_VOLUME(id=new_volume.id).write()
         self.addCleanup(self.cinder_volumes.delete, new_volume)
 
         listed_volume = wait_for_volume_state(

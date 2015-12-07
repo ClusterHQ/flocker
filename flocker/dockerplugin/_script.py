@@ -12,7 +12,6 @@ from twisted.internet.endpoints import serverFromString
 from twisted.application.internet import StreamServerEndpointService
 from twisted.web.server import Site
 from twisted.python.filepath import FilePath
-from twisted.internet.address import UNIXAddress
 
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
@@ -59,12 +58,6 @@ class DockerPluginScript(object):
             umask(original_umask)
 
     def main(self, reactor, options):
-        # Many places in both twisted.web and Klein are unhappy with
-        # listening on Unix socket, e.g.
-        # https://twistedmatrix.com/trac/ticket/5406 "fix" that by
-        # pretending we have a port number. Yes, I feel guilty.
-        UNIXAddress.port = 0
-
         # We can use /etc/flocker/agent.yml and /etc/flocker/node.crt to load
         # some information we need:
         agent_config = get_configuration(options)

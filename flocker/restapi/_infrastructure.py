@@ -5,21 +5,19 @@ This module implements tools for exposing Python methods as API endpoints.
 
 from __future__ import absolute_import
 
-__all__ = [
-    "EndpointResponse", "structured", "user_documentation",
-    ]
-
 from functools import wraps
 
 from json import loads, dumps
 
-from pyrsistent import PRecord, field, pvector
+from pyrsistent import PClass, field, pvector
 
 from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 
 from eliot import Logger, writeFailure, Action
 from eliot.twisted import DeferredContext
+
+from pyrsistent import pmap
 
 from ._error import DECODING_ERROR, BadRequest, InvalidRequestJSON
 from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
@@ -36,16 +34,20 @@ class EndpointResponse(object):
     An endpoint can return an L{EndpointResponse} instance to return a custom
     response code to the client along with a successful response body.
     """
-    def __init__(self, code, result):
+    def __init__(self, code, result, headers=pmap()):
         """
         @param code: The HTTP response code to set in the response.
         @type code: L{int}
 
         @param result: The (structured) value to put into the response
             body.  This must be JSON encodeable.
+
+        @param headers: Mapping between keys and values, to be sent as
+            headers in the HTTP response.
         """
         self.code = code
         self.result = result
+        self.headers = headers
 
 
 def _get_logger(self):
@@ -153,12 +155,16 @@ def _serialize(outputValidator):
     def deco(original):
         def success(result, request):
             code = OK
+            headers = {}
             if isinstance(result, EndpointResponse):
                 code = result.code
+                headers = result.headers
                 result = result.result
             outputValidator.validate(result)
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
+            for key, value in headers.items():
+                request.responseHeaders.setRawHeaders(key, [value])
             request.setResponseCode(code)
             return dumps(result)
 
@@ -254,7 +260,7 @@ def structured(inputSchema, outputSchema, schema_store=None,
     return deco
 
 
-class UserDocumentation(PRecord):
+class UserDocumentation(PClass):
     """
     """
     text = field(type=unicode, mandatory=True)

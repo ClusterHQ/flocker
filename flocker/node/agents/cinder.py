@@ -12,7 +12,7 @@ from bitmath import Byte, GiB
 
 from eliot import Message
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
@@ -22,6 +22,7 @@ from keystoneclient.auth import get_plugin_class
 from keystoneclient.session import Session
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from cinderclient.client import Client as CinderClient
+from cinderclient.exceptions import NotFound as CinderClientNotFound
 from novaclient.client import Client as NovaClient
 from novaclient.exceptions import NotFound as NovaNotFound
 from novaclient.exceptions import ClientException as NovaClientException
@@ -311,28 +312,28 @@ class VolumeStateMonitor:
         Raise an exception if a non-valid state is reached or if the
         desired state is not reached within the supplied time limit.
         """
-        # Could be more efficient.  FLOC-1831
-        for listed_volume in self.volume_manager.list():
-            if listed_volume.id == self.expected_volume.id:
-                # Could miss the expected status because race conditions.
-                # FLOC-1832
-                current_state = listed_volume.status
-                if current_state == self.desired_state:
-                    return listed_volume
-                elif current_state in self.transient_states:
-                    # Once an intermediate state is reached, the prior
-                    # states become invalid.
-                    idx = self.transient_states.index(current_state)
-                    if idx > 0:
-                        self.transient_states = self.transient_states[idx:]
-                else:
-                    raise UnexpectedStateException(
-                        self.expected_volume, self.desired_state,
-                        current_state)
-        elapsed_time = time.time() - self.start_time
-        if elapsed_time > self.time_limit:
-            raise TimeoutException(
-                self.expected_volume, self.desired_state, elapsed_time)
+        try:
+            existing_volume = self.volume_manager.get(self.expected_volume.id)
+        except CinderClientNotFound:
+            elapsed_time = time.time() - self.start_time
+            if elapsed_time > self.time_limit:
+                raise TimeoutException(
+                    self.expected_volume, self.desired_state, elapsed_time)
+            return None
+        # Could miss the expected status because race conditions.
+        # FLOC-1832
+        current_state = existing_volume.status
+        if current_state == self.desired_state:
+            return existing_volume
+        elif current_state in self.transient_states:
+            # Once an intermediate state is reached, the prior
+            # states become invalid.
+            idx = self.transient_states.index(current_state)
+            if idx > 0:
+                self.transient_states = self.transient_states[idx:]
+        else:
+            raise UnexpectedStateException(
+                self.expected_volume, self.desired_state, current_state)
 
 
 def wait_for_volume_state(volume_manager, expected_volume, desired_state,
@@ -745,12 +746,12 @@ class _LoggingCinderVolumeManager(object):
 
 
 @auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
-class _LoggingNovaVolumeManager(PRecord):
+class _LoggingNovaVolumeManager(PClass):
     _nova_volumes = field(mandatory=True)
 
 
 @auto_openstack_logging(INovaServerManager, "_nova_servers")
-class _LoggingNovaServerManager(PRecord):
+class _LoggingNovaServerManager(PClass):
     _nova_servers = field(mandatory=True)
 
 

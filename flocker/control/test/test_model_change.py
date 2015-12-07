@@ -117,14 +117,14 @@ def generate_model(root_class=ROOT_CLASS):
     return result
 
 
-class Subtype(PRecord):
+class Subtype(PClass):
     """
     A sub-type used in ``GenerateModelTests``.
     """
 OriginalSubtype = Subtype
 
 
-class Subtype(PRecord):
+class Subtype(PClass):
     """
     A changed variant of ``Subtype``.
     """
@@ -178,11 +178,11 @@ class GenerateModelTests(SynchronousTestCase):
         """
         If a new field is added to a ``PRecord`` the output changes.
         """
-        class Different(PRecord):
+        class Different(PClass):
             pass
         Original = Different
 
-        class Different(PRecord):
+        class Different(PClass):
             x = field()
 
         self.assert_catches_changes(Original, Different)
@@ -192,12 +192,12 @@ class GenerateModelTests(SynchronousTestCase):
         If an existing field is removed from a ``PRecord`` the output
         changes.
         """
-        class Different(PRecord):
+        class Different(PClass):
             x = field()
             y = field()
         Original = Different
 
-        class Different(PRecord):
+        class Different(PClass):
             x = field()
 
         self.assert_catches_changes(Original, Different)
@@ -207,11 +207,11 @@ class GenerateModelTests(SynchronousTestCase):
         If an existing field has its type changed in a ``PRecord`` the output
         changes.
         """
-        class Different(PRecord):
+        class Different(PClass):
             x = field()
         Original = Different
 
-        class Different(PRecord):
+        class Different(PClass):
             x = field(type=int)
 
         self.assert_catches_changes(Original, Different)
@@ -221,11 +221,11 @@ class GenerateModelTests(SynchronousTestCase):
         If the an existing field in a ``PRecord`` has the same type, but the
         type changed somehow, the output changes.
         """
-        class Different(PRecord):
+        class Different(PClass):
             x = field(type=Subtype)
         Original = Different
 
-        class Different(PRecord):
+        class Different(PClass):
             x = field(type=ChangedSubtype)
 
         self.assert_catches_changes(Original, Different)
@@ -234,11 +234,11 @@ class GenerateModelTests(SynchronousTestCase):
         """
         The order of types in a ``PRecord`` doesn't change the output.
         """
-        class Different(PRecord):
+        class Different(PClass):
             x = field(type=(int, str))
         Original = Different
 
-        class Different(PRecord):
+        class Different(PClass):
             x = field(type=(str, int))
 
         self.assertEqual(generate_model(Original),

@@ -20,7 +20,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.web.http import (
     CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR,
-    NOT_ALLOWED as METHOD_NOT_ALLOWED
+    NOT_ALLOWED as METHOD_NOT_ALLOWED, PRECONDITION_FAILED,
 )
 from twisted.web.client import readBody
 from twisted.application.service import IService
@@ -39,7 +39,8 @@ from .. import (
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
-    api_dataset_from_dataset_and_node, container_configuration_response
+    api_dataset_from_dataset_and_node, container_configuration_response,
+    IF_MATCHES_HEADER,
 )
 from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
@@ -1925,6 +1926,29 @@ class CreateDatasetTestsMixin(APITestsMixin):
         creating.addCallback(created)
         return creating
 
+    def test_if_matches_success(self):
+        """
+        If an ``X-If-Configuration-Matches`` header is sent with a matching
+        tag, the operation succeeds.
+        """
+        return self.assertResponseCode(
+            b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+            CREATED,
+            additional_headers={
+                IF_MATCHES_HEADER:
+                [self.persistence_service.configuration_hash()]})
+
+    def test_if_matches_failure(self):
+        """
+        If an ``X-If-Configuration-Matches`` header is sent with a
+        non-matching tag, the operation fails.
+        """
+        return self.assertResponseCode(
+            b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+            PRECONDITION_FAILED,
+            additional_headers={IF_MATCHES_HEADER:
+                                [b"willnotmatch"]})
+
 
 class UpdateDatasetGeneralTestsMixin(APITestsMixin):
     """
@@ -1959,7 +1983,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
     ``/configuration/datasets/<dataset_id>`` when supplied with a ``primary``
     value.
     """
-    def _test_change_primary(self, dataset, deployment, origin, target):
+    def _test_change_primary(self, dataset, deployment, origin, target,
+                             if_matches=False):
         """
         Helper method which pre-populates the persistence_service with the
         supplied ``dataset``, makes an API call to move the supplied
@@ -1973,6 +1998,9 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             current primary manifestation of the ``dataset``.
         :param UUID target: The node UUID of the node to which the
             dataset will be moved.
+        :param if_matches: If true, send current hash in
+            ``X-If-Configuration-Matches`` header.
+
         :returns: A ``Deferred`` which fires when all assertions have been
             executed.
         """
@@ -1987,6 +2015,11 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         saving = self.persistence_service.save(deployment)
 
+        headers = {}
+        if if_matches:
+            headers[IF_MATCHES_HEADER] = [
+                self.persistence_service.configuration_hash()]
+
         def saved(ignored):
             creating = self.assertResult(
                 b"POST",
@@ -1994,7 +2027,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
                     expected_dataset_id.encode('ascii'),),
                 {u"primary": unicode(target)},
                 OK,
-                expected_dataset
+                expected_dataset,
+                additional_headers=headers,
             )
 
             def got_result(result):
@@ -2188,6 +2222,38 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         saving.addCallback(saved)
         return saving
 
+    def test_if_matches_success(self):
+        """
+        If an ``X-If-Configuration-Matches`` header is sent with a matching
+        tag, the operation succeeds.
+        """
+        expected_manifestation = _manifestation()
+        current_primary_node = Node(
+            uuid=self.NODE_A_UUID,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        deployment = Deployment(nodes=frozenset([current_primary_node]))
+
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A_UUID, self.NODE_B_UUID,
+            if_matches=True,
+        )
+
+    def test_if_matches_failure(self):
+        """
+        If an ``X-If-Configuration-Matches`` header is sent with a
+        non-matching tag, the operation fails.
+        """
+        return self.assertResponseCode(
+            b"POST", b"/configuration/datasets/%s" % (uuid4(),),
+            {u"primary": self.NODE_A},
+            PRECONDITION_FAILED,
+            additional_headers={IF_MATCHES_HEADER:
+                                [b"willnotmatch"]})
+
 
 RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
     buildIntegrationTests(
@@ -2213,7 +2279,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
             None, NOT_FOUND,
             {u"description": u'Dataset not found.'})
 
-    def _test_delete(self, dataset):
+    def _test_delete(self, dataset, if_matches=None):
         """
         Helper method which makes an API call to delete the supplied
         ``dataset`` from ``origin`` and finally asserts that the API call
@@ -2221,6 +2287,9 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         been updated.
 
         :param Dataset dataset: The dataset which will be deleted.
+        :param if_matches: If not ``None``, a value to send in
+            ``X-If-Configuration-Matches`` header.
+
         :returns: A ``Deferred`` which fires when all assertions have been
             executed.
         """
@@ -2236,11 +2305,16 @@ class DeleteDatasetTestsMixin(APITestsMixin):
             u"deleted": True,
         }
 
+        headers = {}
+        if if_matches is not None:
+            headers[IF_MATCHES_HEADER] = [if_matches]
+
         deleting = self.assertResult(
             b"DELETE",
             b"/configuration/datasets/%s" % (
                 expected_dataset_id.encode('ascii'),),
-            None, OK, expected_dataset
+            None, OK, expected_dataset,
+            additional_headers=headers,
         )
 
         def got_result(result):
@@ -2327,6 +2401,30 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         created.addCallback(got_manifestation)
         return created
 
+    def test_if_matches_success(self):
+        """
+        If an ``X-If-Configuration-Matches`` header is sent with a matching
+        tag, the operation succeeds.
+        """
+        d = self._setup_manifestation()
+        d.addCallback(lambda manifestation: self._test_delete(
+            manifestation.dataset,
+            if_matches=self.persistence_service.configuration_hash()))
+        return d
+
+    def test_if_matches_failure(self):
+        """
+        If an ``X-If-Configuration-Matches`` header is sent with a
+        non-matching tag, the operation fails.
+        """
+        return self.assertResponseCode(
+            b"DELETE",
+            b"/configuration/datasets/%s" % (uuid4(),),
+            None,
+            PRECONDITION_FAILED,
+            additional_headers={IF_MATCHES_HEADER:
+                                [b"willnotmatch"]})
+
     def test_multiple_manifestations(self):
         """
         If there are multiple manifestations on multiple nodes the ``DELETE``
@@ -2392,6 +2490,20 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         return self.assertResult(
             b"GET", b"/configuration/datasets", None, OK, []
         )
+
+    def test_tag(self):
+        """
+        The response includes an ``X-Configuration-Tag`` header with the
+        configuration hash.
+        """
+        d = self.assertResponseCode(
+            b"GET", b"/configuration/datasets", None, OK)
+        d.addCallback(
+            lambda response:
+            self.assertEqual(
+                response.headers.getRawHeaders("X-Configuration-Tag"),
+                [self.persistence_service.configuration_hash()]))
+        return d
 
     def _dataset_test(self, deployment, expected):
         """

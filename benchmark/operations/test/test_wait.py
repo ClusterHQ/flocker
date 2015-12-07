@@ -17,7 +17,7 @@ class WaitOperationTests(SynchronousTestCase):
         """
         seconds = 10
         clock = Clock()
-        op = Wait(clock=clock, control_service=None, wait_seconds=seconds)
+        op = Wait(clock, None, wait_seconds=seconds)
         probe = op.get_probe()
         d = probe.run()
         d.addCallback(lambda ignored: probe.cleanup)

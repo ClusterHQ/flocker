@@ -9,7 +9,6 @@ from subprocess import check_call
 
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase
 from yaml import safe_dump
 
 from ...common import loop_until
@@ -17,10 +16,10 @@ from ...control._config import FlockerConfiguration
 from ...control.httpapi import container_configuration_response
 
 from ..testtools import require_flocker_cli, require_cluster
-from ...testtools import random_name
+from ...testtools import AsyncTestCase, random_name, flaky
 
 
-class FlockerDeployTests(TestCase):
+class FlockerDeployTests(AsyncTestCase):
     """
     Tests for ``flocker-deploy``.
     """
@@ -104,6 +103,7 @@ class FlockerDeployTests(TestCase):
 
         return loop_until(reactor, configuration_matches_state)
 
+    @flaky([u'FLOC-3528'])
     @require_flocker_cli
     @require_cluster(1)
     def test_deploy(self, cluster):

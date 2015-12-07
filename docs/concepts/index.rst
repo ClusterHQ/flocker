@@ -11,3 +11,4 @@ Flocker Concepts
    security
    architecture
    storage-profiles
+   leases

@@ -30,6 +30,7 @@ from ..cinder import cinder_from_configuration
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
+from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 
 
 class InvalidConfig(Exception):
@@ -285,7 +286,7 @@ def get_device_allocation_unit():
 
 MINIMUM_ALLOCATABLE_SIZES = {
     # This really means Rackspace
-    'openstack': GiB(100),
+    'openstack': RACKSPACE_MINIMUM_VOLUME_SIZE,
     'devstack-openstack': GiB(1),
     'redhat-openstack': GiB(1),
     'aws': GiB(1),

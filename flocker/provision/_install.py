@@ -15,7 +15,7 @@ import yaml
 from zope.interface import implementer
 
 from characteristic import attributes
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from twisted.internet.error import ProcessTerminated
 
@@ -165,7 +165,7 @@ def get_repository_url(distribution, flocker_version):
                                 flocker_version),
                         ),
 
-        'ubuntu-15.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
+        'ubuntu-15.10': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
                         '$(lsb_release --release --short)/\\$(ARCH)'.format(
                             archive_bucket=ARCHIVE_BUCKET,
                             key='ubuntu' + get_package_key_suffix(
@@ -212,7 +212,7 @@ class DistributionNotSupported(NotImplementedError):
 
 
 @implementer(INode)
-class ManagedNode(PRecord):
+class ManagedNode(PClass):
     """
     A node managed by some other system (eg by hand or by another piece of
     orchestration software).

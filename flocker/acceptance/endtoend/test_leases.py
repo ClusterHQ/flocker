@@ -67,7 +67,8 @@ class LeaseAPITests(AsyncTestCase):
         client = get_docker_client(cluster, cluster.nodes[0].public_address)
 
         creating_dataset = create_dataset(
-            self, cluster, maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+            self, cluster,
+            maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
             dataset_id=dataset_id
         )
 
@@ -217,11 +218,13 @@ class LeaseAPITests(AsyncTestCase):
         A dataset cannot be moved if a lease is held on it by a particular
         node.
         """
+        target_node = cluster.nodes[1].uuid
         return self._assert_lease_behavior(
             cluster=cluster,
             operation=cluster.client.move_dataset,
-            additional_kwargs={'primary': cluster.nodes[1].uuid},
-            state_method=cluster.wait_for_dataset,
+            additional_kwargs={'primary': target_node},
+            state_method=lambda dataset: cluster.wait_for_dataset(
+                dataset.set(primary=UUID(target_node)))
         )
 
     @require_moving_backend
