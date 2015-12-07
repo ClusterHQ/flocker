@@ -23,14 +23,14 @@ from twisted.internet.task import Clock
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from pyrsistent import PRecord, pset
+from pyrsistent import PClass, pset
 
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
     _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE,
-    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED,
+    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED, to_unserialized_json,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -651,7 +651,7 @@ SUPPORTED_VERSIONS = st.integers(1, _CONFIG_VERSION)
 
 class WireEncodeDecodeTests(SynchronousTestCase):
     """
-    Tests for ``wire_encode`` and ``wire_decode``.
+    Tests for ``to_unserialized_json``, ``wire_encode`` and ``wire_decode``.
     """
     def test_encode_to_bytes(self):
         """
@@ -669,12 +669,21 @@ class WireEncodeDecodeTests(SynchronousTestCase):
         decoded_deployment = wire_decode(source_json)
         self.assertEqual(decoded_deployment, deployment)
 
+    @given(DEPLOYMENTS)
+    def test_to_unserialized_json(self, deployment):
+        """
+        ``to_unserialized_json`` is same output as ``wire_encode`` except
+        without doing JSON byte encoding.
+        """
+        unserialized = to_unserialized_json(deployment)
+        self.assertEquals(wire_decode(json.dumps(unserialized)), deployment)
+
     def test_no_arbitrary_decoding(self):
         """
         ``wire_decode`` will not decode classes that are not in
         ``SERIALIZABLE_CLASSES``.
         """
-        class Temp(PRecord):
+        class Temp(PClass):
             """A class."""
         SERIALIZABLE_CLASSES.append(Temp)
 

@@ -15,7 +15,7 @@ from uuid import UUID
 from bitmath import Byte, GiB
 
 from characteristic import with_cmp
-from pyrsistent import PClass, PRecord, field, pset, pmap, thaw
+from pyrsistent import PClass, field, pset, pmap, thaw
 from zope.interface import implementer
 from boto import ec2
 from boto import config
@@ -180,7 +180,7 @@ class VolumeStates(Values):
     DELETING = ValueConstant(u'deleting')
 
 
-class VolumeStateFlow(PRecord):
+class VolumeStateFlow(PClass):
     """
     Expected EBS volume state flow during ``VolumeOperations``.
     """
@@ -195,7 +195,7 @@ class VolumeStateFlow(PRecord):
     unsets_attach = field(mandatory=True, type=bool)
 
 
-class VolumeStateTable(PRecord):
+class VolumeStateTable(PClass):
     """
     Map of volume operation to expected volume state transitions
     and expected update to volume's ``attach_data``.
@@ -470,9 +470,9 @@ def boto_logger(*args, **kwargs):
 
 
 @boto_logger("connection")
-class _LoggedBotoConnection(PRecord):
+class _LoggedBotoConnection(PClass):
     """
-    Wrapper ``PRecord`` around ``boto.ec2.connection.EC2Connection``
+    Wrapper ``PClass`` around ``boto.ec2.connection.EC2Connection``
     to facilitate logging of exceptions from Boto APIs.
 
     :ivar boto.ec2.connection.EC2Connection connection: Object
@@ -482,7 +482,7 @@ class _LoggedBotoConnection(PRecord):
     connection = field(mandatory=True)
 
 
-class _EC2(PRecord):
+class _EC2(PClass):
     """
     :ivar str zone: The name of the zone for the connection.
     :ivar boto.ec2.connection.EC2Connection connection: Object

@@ -489,7 +489,7 @@ class ConfigurationAPIUserV1(object):
                 response_dataset[u"primary"] = unicode(node.uuid)
                 response_dataset[u"path"] = get_manifestation_path(
                     node.uuid,
-                    dataset[u"dataset_id"]
+                    dataset.dataset_id
                 ).path.decode("utf-8")
 
             if dataset.maximum_size is not None:
