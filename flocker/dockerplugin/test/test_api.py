@@ -169,7 +169,7 @@ class APITestsMixin(APIAssertionsMixin):
                           result, [
                               Dataset(dataset_id=result[0].dataset_id,
                                       primary=self.NODE_A,
-                                      maximum_size=int(DEFAULT_SIZE.to_Byte()),
+                                      maximum_size=real_size,
                                       metadata={u"name": name,
                                                 u"maximum_size":
                                                 unicode(real_size)})]))
