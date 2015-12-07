@@ -21,7 +21,7 @@ def capture_stderr():
     """
     Context manager to capture stderr.
 
-    Captured output is available
+    Call the returned context variable to obtain captured output.
     """
     s = StringIO()
     out, sys.stderr = sys.stderr, s

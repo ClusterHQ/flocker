@@ -14,16 +14,16 @@ class WallClock(object):
     Measure the elapsed wallclock time during an operation.
     """
 
-    def __init__(self, clock, cluster):
-        self.clock = clock
+    def __init__(self, reactor, cluster):
+        self.reactor = reactor
 
     def measure(self, f, *a, **kw):
         def finished(ignored):
-            end = self.clock.seconds()
+            end = self.reactor.seconds()
             elapsed = end - start
             return elapsed
 
-        start = self.clock.seconds()
+        start = self.reactor.seconds()
         d = f(*a, **kw)
         d.addCallback(finished)
         return d

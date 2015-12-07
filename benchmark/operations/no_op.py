@@ -24,7 +24,7 @@ class NoOperation(object):
     A no-op operation.
     """
 
-    def __init__(self, clock, cluster):
+    def __init__(self, reactor, cluster):
         pass
 
     def get_probe(self):
