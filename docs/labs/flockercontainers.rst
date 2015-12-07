@@ -17,21 +17,28 @@ You can find the relevant Docker Hub images here:
 * `Control Service <https://hub.docker.com/r/clusterhq/flocker-control-service/>`_
 * `Docker Plugin <https://hub.docker.com/r/clusterhq/flocker-docker-plugin/>`_
 
-Before you install flocker using containers, it assumes all authentication has been setup. This means that you should have the cluster certificate and key, node certificates and keys, and API certificates and keys ready to go before following the below instructions. Please refer to `Configuring Authentication <https://docs.clusterhq.com/en/latest/config/configuring-authentication.html>`_. 
+Before you install Flocker in containers, all authentication must be completed.
+This means that you will have generated the cluster certificate and key, the  node certificates and keys, and the API certificates and keys.
 
-If you have your certificates in ``/etc/flocker/`` you can use the following commands to install Flocker using Docker containers.
+For more information on generating certificates, please see  :ref:`authentication`. 
 
-On the hosts your running the Flocker containers, first run:
+Use the following steps to install Flocker using Docker containers:
+
+#. Run the following command on the hosts that are running your Flocker containers:
 
 .. prompt:: bash $
 
     echo > /tmp/flocker-command-log
 
-Then run the Container Agent and Dataset Agent
+#. Run the Container agent:
 
 .. prompt:: bash $
 
     docker run --restart=always -d --net=host --privileged -v /etc/flocker:/etc/flocker -v /var/run/docker.sock:/var/run/docker.sock --name=flocker-container-agent clusterhq/flocker-container-agent
+
+#. Run the Dataset agent:
+
+.. prompt:: bash $
 
     docker run --restart=always -d --net=host --privileged -e DEBUG=1 -v /tmp/flocker-command-log:/tmp/flocker-command-log -v /flocker:/flocker -v /:/host -v /etc/flocker:/etc/flocker -v /dev:/dev --name=flocker-dataset-agent clusterhq/flocker-dataset-agent
 
