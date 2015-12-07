@@ -40,19 +40,20 @@ class RateMeasurer(object):
 
 
 class LoadGenerator(object):
-    def __init__(self, request_generator, req_per_sec):
+    def __init__(self, request_generator, req_per_sec, interval):
         self._request_generator = request_generator
         self.req_per_sec = req_per_sec
+        self.interval = interval
         self._loops = []
         self._starts = []
 
     def start(self):
-        for i in range(self.req_per_sec):
+        for i in range(self.req_per_sec * self.interval):
             loop = LoopingCall(
                 self._request_generator,
             )
             self._loops.append(loop)
-            started = loop.start(interval=1)
+            started = loop.start(interval=self.interval)
             self._starts.append(started)
 
     def stop(self):
@@ -74,11 +75,12 @@ class ReadRequestLoadScenario(object):
     requests at a specified rate.
     """
 
-    def __init__(self, reactor, control_service, request_rate):
+    def __init__(self, reactor, control_service, request_rate, interval=10):
         self._maintained = Deferred()
         self.reactor = reactor
         self.control_service = control_service
         self.request_rate = request_rate
+        self.interval = interval
         self.rate_measurer = RateMeasurer()
 
     def _sample_and_return(self, result):
@@ -98,7 +100,8 @@ class ReadRequestLoadScenario(object):
         print "Starting scenario with rate: {}".format(self.request_rate)
         self.load_generator = LoadGenerator(
             request_generator=self._request_and_measure,
-            req_per_sec=self.request_rate
+            req_per_sec=self.request_rate,
+            interval = self.interval
         )
         self.load_generator.start()
 
@@ -132,7 +135,6 @@ class ReadRequestLoadScenario(object):
             scenario fails to hold between being established and being
             stopped.  This Deferred never fires with a callback.
         """
-
         return self._maintained
 
     def stop(self):
