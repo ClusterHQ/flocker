@@ -866,12 +866,23 @@ class IBlockDeviceAPI(Interface):
     Common operations provided by all block device backends, exposed via
     synchronous methods.
 
-    Note: This is an early sketch of the interface and it'll be refined as we
-    real blockdevice providers are implemented.
+    Implementation hints:
+
+    * The factory function that creates this instance will be called with
+      a unique cluster ID (see
+      https://docs.clusterhq.com/en/latest/gettinginvolved/plugins/building-driver.html).
+      If possible it's worth creating volumes with that cluster ID stored
+      as metadata, so you can filter results from the backend and only
+      include relevant volumes. This allows sharing the same storage
+      backend between multiple Flocker clusters.
+    * Avoid infinite loops. If an operation's time-to-finish is uncertain
+      then use a timeout.
+    * Logging the calls between your implementation and the backend with
+      the Eliot logging library will allow for easier debugging.
     """
     def allocation_unit():
         """
-        The size, in bytes up to which ``IDeployer`` will round volume
+        The size in bytes up to which ``IDeployer`` will round volume
         sizes before calling ``IBlockDeviceAPI.create_volume``.
 
         :rtype: ``int``
@@ -879,7 +890,7 @@ class IBlockDeviceAPI(Interface):
 
     def compute_instance_id():
         """
-        Get an identifier for this node.
+        Get the backend-specific identifier for this node.
 
         This will be compared against ``BlockDeviceVolume.attached_to``
         to determine which volumes are locally attached and it will be used
@@ -961,6 +972,13 @@ class IBlockDeviceAPI(Interface):
         """
         List all the block devices available via the back end API.
 
+        Only volumes for this particular Flocker cluster should be included.
+
+        Make sure you can list large numbers of volumes. E.g. some cloud
+        APIs have a hard limit on how many volumes they include in a
+        result, and therefore require the use of paging to get all volumes
+        listed.
+
         :returns: A ``list`` of ``BlockDeviceVolume``s.
         """
 
@@ -968,6 +986,10 @@ class IBlockDeviceAPI(Interface):
         """
         Return the device path that has been allocated to the block device on
         the host to which it is currently attached.
+
+        Returning the wrong value here can lead to data loss or corruption
+        if a container is started with an unexpected volume. Make very
+        sure you are returning the correct result.
 
         :param unicode blockdevice_id: The unique identifier for the block
             device.
