@@ -238,7 +238,8 @@ The mapping is supplied to the tests in the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUB
 
 .. _acceptance-testing-cluster-config:
 
-If you create nodes using ``run-acceptance-tests --keep`` the command will print out the cluster configuration when it exits. E.g.
+If you create nodes using ``run-acceptance-tests --keep`` the command will print out the cluster configuration when it exits.
+For example:
 
 .. code-block:: console
 
