@@ -1349,10 +1349,11 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         """
         local_state = self.ONE_DATASET_STATE.transform(
             # Remove the dataset.  This reflects its deletedness.
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        ).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard,
             # Remove its device too.
-            ["devices", self.DATASET_ID], discard
+            ["devices", self.DATASET_ID], discard,
+            # Remove its mountpoint too.
+            ["paths", unicode(self.DATASET_ID)], discard,
         )
 
         local_config = to_node(self.ONE_DATASET_STATE).transform(
@@ -1367,8 +1368,9 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(changes=[]),
+            self, local_state, local_config,
+            nonmanifest_datasets={},
+            expected_changes=in_parallel(changes=[]),
         )
 
 
@@ -1406,8 +1408,8 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
-                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
-                                          blockdevice_id=self.BLOCKDEVICE_ID)
+                UnmountBlockDevice(dataset_id=self.DATASET_ID,
+                                   blockdevice_id=self.BLOCKDEVICE_ID)
             ]),
             # Another node which is ignorant about its state:
             set([NodeState(hostname=u"1.2.3.4", uuid=uuid4())])
@@ -1425,8 +1427,8 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         """
         If the configuration indicates a dataset with a primary manifestation
         on the node has been deleted and the volume associated with that
-        dataset still exists, ``BlockDeviceDeployer.calculate_changes`` returns
-        a ``DestroyBlockDeviceDataset`` state change operation.
+        dataset is mounted, ``BlockDeviceDeployer.calculate_changes`` returns
+        a ``UnmountBlockDevice`` state change operation.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state).transform(
@@ -1436,8 +1438,8 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
-                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
-                                          blockdevice_id=self.BLOCKDEVICE_ID)
+                UnmountBlockDevice(dataset_id=self.DATASET_ID,
+                                   blockdevice_id=self.BLOCKDEVICE_ID)
             ]),
             discovered_datasets=[
                 DiscoveredDataset(
@@ -1924,6 +1926,31 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         # manifestation.
         node_config = to_node(self.ONE_DATASET_STATE).transform(
             ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, node_state, node_config, set(),
+            in_parallel(changes=[
+                UnmountBlockDevice(dataset_id=self.DATASET_ID,
+                                   blockdevice_id=self.BLOCKDEVICE_ID)
+            ])
+        )
+
+    def test_unmount_deleted_manifestation(self):
+        """
+        If the filesystem for a dataset is mounted on the node and the
+        configuration says the dataset is deleted on that node,
+        ``BlockDeviceDeployer.calculate_changes`` returns a state change to
+        unmount the filesystem.
+        """
+        # Give it a state that says it has a manifestation of the dataset.
+        node_state = self.ONE_DATASET_STATE
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID),
+             "dataset", "deleted"], True,
         )
 
         assert_calculated_changes(

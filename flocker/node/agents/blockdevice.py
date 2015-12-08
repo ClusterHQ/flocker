@@ -1649,10 +1649,6 @@ class BlockDeviceDeployer(PClass):
             configured_manifestations,
             discovered_datasets=local_state.datasets,
         ))
-        deletes = self._calculate_deletes(
-            local_node_state, configured_manifestations, local_state.volumes,
-            discovered_datasets=local_state.datasets,
-        )
         destroys = list(self._calculate_destroys(
             local_node_state, configured_manifestations, local_state.volumes,
             discovered_datasets=local_state.datasets,
@@ -1664,7 +1660,7 @@ class BlockDeviceDeployer(PClass):
         return in_parallel(changes=(
             not_in_use(unmounts) + detaches +
             attaches + mounts +
-            creates + not_in_use(deletes) + destroys + filesystem_creates
+            creates + destroys + filesystem_creates
         ))
 
     def _calculate_mounts(self, devices, paths, configured,
@@ -1745,7 +1741,10 @@ class BlockDeviceDeployer(PClass):
             mount, and is configured to not have a manifestation on this node.
         """
         for mounted_dataset_id in paths:
-            if mounted_dataset_id not in configured:
+            if (
+                mounted_dataset_id not in configured
+                or configured[mounted_dataset_id].dataset.deleted is True
+            ):
                 dataset_id = UUID(mounted_dataset_id)
                 yield UnmountBlockDevice.from_state_and_config(
                     discovered_dataset=discovered_datasets[dataset_id],
@@ -1826,38 +1825,6 @@ class BlockDeviceDeployer(PClass):
                     discovered_dataset=discovered_datasets[dataset_id],
                     desired_dataset=self._calculate_desired_for_manifestation(
                         manifestation),
-                )
-
-    def _calculate_deletes(self, local_node_state, configured_manifestations,
-                           volumes, discovered_datasets):
-        """
-        :param NodeState: The local state discovered immediately prior to
-            calculation.
-
-        :param dict configured_manifestations: The manifestations configured
-            for this node (like ``Node.manifestations``).
-
-        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
-            known to exist in the cluster.
-
-        :return: A generator of ``DestroyBlockDeviceDataset`` instances for
-            each volume that may need to be destroyed based on the given
-            configuration.
-        """
-        delete_dataset_ids = set(
-            manifestation.dataset.dataset_id
-            for manifestation in configured_manifestations.values()
-            if manifestation.dataset.deleted
-        )
-        for dataset_id_unicode in delete_dataset_ids:
-            dataset_id = UUID(dataset_id_unicode)
-            volume = _blockdevice_volume_from_datasetid(volumes, dataset_id)
-            if (volume is not None and
-                    dataset_id_unicode in local_node_state.manifestations):
-                yield DestroyBlockDeviceDataset.from_state_and_config(
-                    discovered_dataset=discovered_datasets[dataset_id],
-                    desired_dataset=self._calculate_desired_for_manifestation(
-                        configured_manifestations[dataset_id_unicode]),
                 )
 
     def _calculate_destroys(self, local_node_state, configured_manifestations,
