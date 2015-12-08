@@ -6,7 +6,8 @@ Tests for ``flocker.common._retry``.
 
 from sys import exc_info
 from datetime import timedelta
-from itertools import repeat
+from itertools import repeat, count
+from functools import partial
 
 import testtools
 from testtools.matchers import MatchesPredicate, Equals, raises
@@ -780,6 +781,9 @@ class WithRetryTests(testtools.TestCase):
             self.failures += 1
             raise CustomException(self.failures)
 
+    def always_failing(self, counter):
+        raise CustomException(next(counter))
+
     def test_default_retry(self):
         """
         If no value is given for the ``should_retry`` parameter, if the wrapped
@@ -790,17 +794,15 @@ class WithRetryTests(testtools.TestCase):
         time = []
         sleep = time.append
 
-        original = self.AlwaysFail()
-        wrapper = with_retry(original.some_method, sleep=sleep)
+        counter = iter(count())
+        wrapper = with_retry(
+            partial(self.always_failing, counter), sleep=sleep
+        )
         # XXX testtools ``raises`` helper generates a crummy message when this
         # assertion fails
-        # self.assertThat(
-        #     wrapper,
-        #     raises(CustomException),
-        # )
         self.assertRaises(CustomException, wrapper)
         self.assertThat(
-            original.failures,
+            next(counter),
             # The number of times we demonstrated (above) that retry_some_times
             # retries - plus one more for the initial call.
             Equals(EXPECTED_RETRY_SOME_TIMES_RETRIES + 1),
@@ -819,9 +821,10 @@ class WithRetryTests(testtools.TestCase):
         If a predicate is passed for ``should_retry``, it used to determine
         whether a retry should be attempted any time an exception is raised.
         """
-        original = self.AlwaysFail()
+        counter = iter(count())
+        original = partial(self.always_failing, counter)
         wrapped = with_retry(
-            original.some_method,
+            original,
             should_retry=retry_if(
                 lambda exception: (
                     isinstance(exception, CustomException) and
@@ -832,7 +835,7 @@ class WithRetryTests(testtools.TestCase):
         )
 
         self.assertThat(wrapped, raises(CustomException))
-        self.assertThat(original.failures, Equals(10))
+        self.assertThat(next(counter), Equals(11))
 
     def test_custom_should_retry_sleep_interval(self):
         """
@@ -847,9 +850,10 @@ class WithRetryTests(testtools.TestCase):
             timedelta(seconds=3), None,
             timedelta(seconds=5), None,
         ]
-        original = self.AlwaysFail()
+        counter = iter(count())
+        original = partial(self.always_failing, counter)
         wrapped = with_retry(
-            original.some_method,
+            original,
             retry_on_intervals(intervals),
             sleep=sleep,
         )
@@ -861,7 +865,7 @@ class WithRetryTests(testtools.TestCase):
         # XXX Generates a confusing error message when fails, says "expected !=
         # actual" when the argument order is "actual, expected"!
         self.assertThat(
-            original.failures,
+            next(counter),
             # One retry after each sleep interval - plus the initial try before
             # any sleeps.
             Equals(len(intervals) + 1),

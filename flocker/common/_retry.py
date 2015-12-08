@@ -417,13 +417,21 @@ def with_retry(method, should_retry=None, sleep=None):
         should_retry = retry_some_times()
 
     def method_with_retry(*a, **kw):
-        name = fullyQualifiedName(method)
+        name = _callable_repr(method)
         action_type = _TRY_UNTIL_SUCCESS
         with start_action(action_type=action_type, function=name):
             return _poll_until_success_returning_result(
                 should_retry, sleep, method, a, kw
             )
     return method_with_retry
+
+
+def _callable_repr(method):
+    """Get a useful representation ``method``."""
+    try:
+        return fullyQualifiedName(method)
+    except AttributeError:
+        return safe_repr(method)
 
 
 class _DecoratedInstance(object):
