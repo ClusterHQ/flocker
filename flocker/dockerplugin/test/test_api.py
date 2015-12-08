@@ -9,7 +9,7 @@ from uuid import uuid4
 from twisted.web.http import OK, NOT_ALLOWED, NOT_FOUND
 from twisted.internet.task import Clock, LoopingCall
 
-from hypothesis import given
+# from hypothesis import given
 from hypothesis.strategies import (
     sampled_from, builds, integers
 )
@@ -113,8 +113,8 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
                                  {u"Name": u"vol"}, OK, {u"Err": None})
 
-    #@given(profile=sampled_from(["gold", "silver", "bronze"]))
-    #def test_create_with_profile(self, profile):
+    # @given(profile=sampled_from(["gold", "silver", "bronze"]))
+    # def test_create_with_profile(self, profile):
     def test_create_with_profile(self):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
@@ -144,7 +144,8 @@ class APITestsMixin(APIAssertionsMixin):
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(list)
         d.addCallback(
-            lambda result: self.flocker_client.delete_dataset(result[0].dataset_id))
+            lambda result: self.flocker_client.delete_dataset(
+                result[0].dataset_id))
         return d
 
     # @given(integers(min_value=1, max_value=75), volume_expression)
@@ -182,8 +183,8 @@ class APITestsMixin(APIAssertionsMixin):
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(list)
         d.addCallback(
-            lambda result: self.flocker_client.delete_dataset(result[0].dataset_id))
-
+            lambda result: self.flocker_client.delete_dataset(
+                result[0].dataset_id))
         return d
 
     def create(self, name):
