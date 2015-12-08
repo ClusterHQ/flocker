@@ -950,7 +950,7 @@ job_type:
                    *get_s3_creds_for_bucket_staging_docs,
                    *upload_new_docs_html_to_s3_staging_docs]
           }
-      timeout: 10
+      timeout: 15
 
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
