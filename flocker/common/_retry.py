@@ -7,7 +7,6 @@ Helpers for retrying things.
 from __future__ import absolute_import, division
 
 from sys import exc_info
-from time import sleep
 
 from datetime import timedelta
 from functools import partial
@@ -258,34 +257,19 @@ _TRY_FAILURE = _TRY_UNTIL_SUCCESS + u":failure"
 _TRY_SUCCESS = _TRY_UNTIL_SUCCESS + u":success"
 
 
-def retry_on_intervals(intervals):
+def get_default_retry_steps(
+    delay=timedelta(seconds=0.1),
+    max_time=timedelta(minutes=2)
+):
     """
-    Create a predicate compatible with ``with_retry`` which will retry with
-    exactly the given delays in between.
+    Retry every 0.1 seconds for 2 minutes.
     """
-    intervals = iter(intervals)
-
-    def should_retry(exc_type, value, traceback):
-        for interval in intervals:
-            # Log any failure we're retrying
-            write_traceback()
-            return interval
-        # Out of steps, fail the retry loop overall.
-        raise exc_type, value, traceback
-    return should_retry
+    repetitions = max_time.total_seconds() / delay.total_seconds()
+    return repeat(delay, int(repetitions))
 
 
-def retry_some_times():
-    """
-    Create a predicate compatible with ``with_retry``
-    which will retry a fixed number of times with a brief delay in between.
-    """
-    delay = 0.1
-    timeout = 120.0
-    times = int(timeout // delay)
-    steps = repeat(timedelta(seconds=delay), times)
-
-    return retry_on_intervals(steps)
+def retry_always(exc_type, value, traceback):
+    pass
 
 
 def retry_if(predicate):
@@ -304,43 +288,23 @@ def retry_if(predicate):
     return should_retry
 
 
-def compose_retry(should_retries):
-    """
-    Combine several retry predicates by applying them in series.
-
-    The predicates are tested in the order given.  If a predicate raises an
-    exception, processing stops and no retry is attempted.  If a predicate
-    returns ``None``, processing continues to the next predicate.  If it
-    returns a ``timedelta``, processing stops and a retry is attempted after a
-    delay of that length.
-
-    :param list should_retries: The retry predicates to apply.
-
-    :return: A single retry predicate which is composed of ``should_retries``.
-    """
-    def composed(exc_type, value, traceback):
-        for should_retry in should_retries:
-            result = should_retry(exc_type, value, traceback)
-            if result is not None:
-                return result
-        return None
-    return composed
-
-
 def decorate_methods(obj, decorator):
     """
     Return a wrapper around ``obj`` with ``decorator`` applied to all of its
     method calls.
 
-    For example::
+    For example, to retry on IOError up to 5 times with a 3 second delay
+    between each try::
 
         retry_three_times = partial(
-            with_retry, should_retry=retry_on_intervals([1, 2, 3]),
+            with_retry,
+            should_retry=retry_if(lambda exc: isinstance(exc, IOError)),
+            steps=[timedelta(seconds=3)] * 5,
         )
         obj_with_three_retries = decorate_methods(obj, retry_three_times)
 
-    :param callable decorator: A unary callable that takes a method and
-        returns a method.
+    :param callable decorator: A unary callable that takes a method and returns
+        a method.
 
     :return: An object like ``obj`` but with all the methods decorated.
     """
@@ -348,7 +312,7 @@ def decorate_methods(obj, decorator):
 
 
 def _poll_until_success_returning_result(
-    should_retry, sleep, function, args, kwargs
+    should_retry, steps, sleep, function, args, kwargs
 ):
     """
     Call a function until it does not raise an exception or ``should_retry``
@@ -360,6 +324,7 @@ def _poll_until_success_returning_result(
         the indicated interval, respectively).  If an exception is raised,
         further tries are not attempted and the exception is allowed to
         propagate.
+    :param steps: XXX
     :param sleep: A function like ``time.sleep`` to use for the delays.
     :param function: The function to try calling.
     :param args: Position arguments to pass to the function.
@@ -368,7 +333,7 @@ def _poll_until_success_returning_result(
     :return: The value returned by ``function`` on the first call where it
         returns a value instead of raising an exception.
     """
-    saved_result = []
+    saved_result = [None]
 
     def pollable():
         Message.new(
@@ -377,28 +342,38 @@ def _poll_until_success_returning_result(
         try:
             result = function(*args, **kwargs)
         except Exception as e:
-            delay = should_retry(*exc_info())
+            # XXX: Should this return bool?
+            saved_result[0] = exc_info()
+            should_retry(*saved_result[0])
             Message.new(
                 message_type=_TRY_FAILURE,
                 exception=str(e),
             ).write()
-            if delay is not None:
-                sleep(delay.total_seconds())
             return False
         else:
             Message.new(
                 message_type=_TRY_SUCCESS,
                 result=result,
             ).write()
-            saved_result.append(result)
+            saved_result[0] = result
             return True
 
-    poll_until(pollable, repeat(0.0), sleep=sleep)
+    try:
+        poll_until(
+            pollable, (step.total_seconds() for step in steps), sleep=sleep,
+        )
+    except LoopExceeded:
+        # XXX untested
+        thing = saved_result.pop()
+        try:
+            raise thing[0], thing[1], thing[2]
+        finally:
+            del thing
+    else:
+        return saved_result[0]
 
-    return saved_result[0]
 
-
-def with_retry(method, should_retry=None, sleep=None):
+def with_retry(method, should_retry=None, steps=None, sleep=None):
     """
     Return a new version of ``method`` that retries.
 
@@ -409,19 +384,23 @@ def with_retry(method, should_retry=None, sleep=None):
         time to delay before the retry. If an exception is raised, no further
         retries are attempted and the exception is propagated from the method
         call.
+    :param XXX steps: XXX
     :param callable sleep: A replacement for ``time.sleep``.
 
     :return: A method that will retry.
     """
     if should_retry is None:
-        should_retry = retry_some_times()
+        should_retry = retry_always
+
+    if steps is None:
+        steps = get_default_retry_steps()
 
     def method_with_retry(*a, **kw):
         name = _callable_repr(method)
         action_type = _TRY_UNTIL_SUCCESS
         with start_action(action_type=action_type, function=name):
             return _poll_until_success_returning_result(
-                should_retry, sleep, method, a, kw
+                should_retry, steps, sleep, method, a, kw
             )
     return method_with_retry
 

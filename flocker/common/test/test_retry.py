@@ -10,7 +10,9 @@ from itertools import repeat, count
 from functools import partial
 
 import testtools
-from testtools.matchers import MatchesPredicate, Equals, raises
+from testtools.matchers import (
+    MatchesPredicate, Equals, AllMatch, IsInstance, GreaterThan, raises
+)
 
 from eliot.testing import (
     capture_logging,
@@ -38,9 +40,8 @@ from .. import (
     retry_failure,
     poll_until,
     timeout,
-    retry_some_times,
     retry_if,
-    compose_retry,
+    get_default_retry_steps,
     decorate_methods,
     with_retry,
 )
@@ -48,7 +49,6 @@ from .._retry import (
     LOOP_UNTIL_ACTION,
     LOOP_UNTIL_ITERATION_MESSAGE,
     LoopExceeded,
-    retry_on_intervals,
 )
 from ...testtools import CustomException
 
@@ -596,35 +596,32 @@ class RetryEffectTests(SynchronousTestCase):
         )
 
 
-EXPECTED_RETRY_SOME_TIMES_RETRIES = 1199
+EXPECTED_RETRY_SOME_TIMES_RETRIES = 1200
 
 
-class RetrySomeTimesTests(testtools.TestCase):
+class GetDefaultRetryStepsTests(testtools.TestCase):
     """
-    Tests for ``retry_some_times``.
+    Tests for ``get_default_retry_steps``.
     """
-    def test_retry_some_times(self):
+    def test_steps(self):
         """
-        The function returned by ``retry_some_times`` returns a ``timedelta``
-        of ``0.1`` seconds as long as the sum of the results is no more than
-        ``120.0`` and then raises the exception passed to it on the next call.
+        ``get_default_retry_steps`` returns an iterator consisting of the given
+        delay repeated enough times to fill the given maximum time period.
         """
-        try:
-            raise CustomException()
-        except:
-            details = exc_info()
+        delay = timedelta(seconds=3)
+        max_time = timedelta(minutes=3)
+        steps = list(get_default_retry_steps(delay, max_time))
+        self.assertThat(set(steps), Equals({delay}))
+        self.assertThat(sum(steps, timedelta()), Equals(max_time))
 
-        should_try = retry_some_times()
-        self.assertThat(
-            list(
-                should_try(*details)
-                for n in range(EXPECTED_RETRY_SOME_TIMES_RETRIES)
-            ),
-            Equals(
-                [timedelta(seconds=0.1)] * EXPECTED_RETRY_SOME_TIMES_RETRIES
-            ),
-        )
-        self.assertThat(lambda: should_try(*details), raises(CustomException))
+    def test_default(self):
+        """
+        There are default values for the delay and maximum time parameters
+        accepted by ``get_default_retry_steps``.
+        """
+        steps = get_default_retry_steps()
+        self.assertThat(steps, AllMatch(IsInstance(timedelta)))
+        self.assertThat(steps, AllMatch(GreaterThan(timedelta())))
 
 
 class RetryIfTests(testtools.TestCase):
@@ -659,64 +656,6 @@ class RetryIfTests(testtools.TestCase):
                 CustomException, CustomException("hello, world"), None
             ),
             raises(CustomException),
-        )
-
-
-class ComposeRetryTests(testtools.TestCase):
-    """
-    Tests for ``compose_retry``.
-    """
-    def test_raise_first_exception(self):
-        """
-        If one of the predicates passed to ``compose_retry`` raises an
-        exception, ``compose_retry`` raises that exception.
-        """
-        class AnotherException(Exception):
-            pass
-
-        def throw(exception):
-            raise exception
-
-        should_retry = compose_retry([
-            retry_if(lambda exception: isinstance(
-                exception, AnotherException
-            )),
-            lambda type, value, traceback: throw(CustomException()),
-            retry_if(lambda exception: True),
-        ])
-
-        self.assertThat(
-            lambda: should_retry(AnotherException, AnotherException(), None),
-            raises(CustomException),
-        )
-
-    def test_returns_first_value(self):
-        """
-        If one of the predicates passed to ``compose_retry`` returns a
-        non-``None`` value, ``compose_retry`` returns that value.
-        """
-        should_retry = compose_retry([
-            retry_if(lambda exception: True),
-            lambda type, value, traceback: timedelta(seconds=3.0),
-            retry_if(lambda exception: False),
-        ])
-
-        self.assertThat(
-            should_retry(CustomException, CustomException(), None),
-            Equals(timedelta(seconds=3.0)),
-        )
-
-    def test_default_none_result(self):
-        """
-        If all of the predicates passed to ``compose_retry`` return ``None``,
-        ``compose_retry`` returns ``None``.
-        """
-        should_retry = compose_retry([
-            retry_if(lambda exception: True),
-        ])
-        self.assertThat(
-            should_retry(CustomException, CustomException(), None),
-            Equals(None),
         )
 
 
@@ -784,6 +723,24 @@ class WithRetryTests(testtools.TestCase):
     def always_failing(self, counter):
         raise CustomException(next(counter))
 
+    def test_success(self):
+        """
+        If the wrapped method returns a value on the first call, the value is
+        returned and no retries are made.
+        """
+        time = []
+        sleep = time.append
+
+        expected = object()
+        another = object()
+        results = [another, expected]
+
+        wrapper = with_retry(results.pop, sleep=sleep)
+        actual = wrapper()
+
+        self.assertThat(actual, Equals(expected))
+        self.assertThat(results, Equals([another]))
+
     def test_default_retry(self):
         """
         If no value is given for the ``should_retry`` parameter, if the wrapped
@@ -816,6 +773,22 @@ class WithRetryTests(testtools.TestCase):
             ),
         )
 
+    def test_steps(self):
+        """
+        If an iterator of steps is passed to ``with_retry``, it is used to
+        determine the number of retries and the duration of the sleeps between
+        retries.
+        """
+        s = timedelta(seconds=1)
+        sleeps = []
+        wrapper = with_retry(
+            partial(self.always_failing, count()),
+            sleep=sleeps.append,
+            steps=[s * 1, s * 2, s * 3],
+        )
+        self.assertRaises(CustomException, wrapper)
+        self.assertThat(sleeps, Equals([1, 2, 3]))
+
     def test_custom_should_retry(self):
         """
         If a predicate is passed for ``should_retry``, it used to determine
@@ -836,41 +809,3 @@ class WithRetryTests(testtools.TestCase):
 
         self.assertThat(wrapped, raises(CustomException))
         self.assertThat(next(counter), Equals(11))
-
-    def test_custom_should_retry_sleep_interval(self):
-        """
-        If a predicate is passed for ``should_retry``, its return value is used
-        as a sleep interval between retries.
-        """
-        time = []
-        sleep = time.append
-
-        intervals = [
-            timedelta(seconds=1), None,
-            timedelta(seconds=3), None,
-            timedelta(seconds=5), None,
-        ]
-        counter = iter(count())
-        original = partial(self.always_failing, counter)
-        wrapped = with_retry(
-            original,
-            retry_on_intervals(intervals),
-            sleep=sleep,
-        )
-
-        self.assertThat(
-            wrapped,
-            raises(CustomException),
-        )
-        # XXX Generates a confusing error message when fails, says "expected !=
-        # actual" when the argument order is "actual, expected"!
-        self.assertThat(
-            next(counter),
-            # One retry after each sleep interval - plus the initial try before
-            # any sleeps.
-            Equals(len(intervals) + 1),
-        )
-        self.assertThat(
-            sum(time),
-            Equals(sum(filter(None, intervals), timedelta(0)).total_seconds()),
-        )
