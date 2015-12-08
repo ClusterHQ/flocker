@@ -1,14 +1,15 @@
+:tocdepth: 2
 
-======================
-Tutorials and Examples
-======================
+================
+Flocker Examples
+================
 
-.. XXX https://clusterhq.atlassian.net/browse/FLOC-3133 will create more tutorials
+You can find below examples of how to deploy some common applications with Flocker.
+Each example includes instructions and Flocker configuration files to download that can be used immediately with the virtual machines created in the :ref:`MongoDB tutorial <tutorial-mongo>`.
 
 .. toctree::
    :maxdepth: 2
 
-   tutorial/index
-   tutorial/vagrant-setup
-   examples/apps
-   examples/features
+   Using Environment Variables - MySQL <environment>
+   PostgreSQL <postgres>
+   Linking Containers - Elasticsearch, Logstash & Kibana stack <linking>
