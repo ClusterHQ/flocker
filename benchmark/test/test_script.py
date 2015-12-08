@@ -76,14 +76,12 @@ class ClusterConfigurationTests(SynchronousTestCase):
         This is true even if the environment contains a valid configuration.
         """
         tmpdir = tempfile.mkdtemp()
-        try:
-            with open(os.path.join(tmpdir, 'cluster.yml'), 'wt') as f:
-                f.write(_CLUSTER_YAML_CONTENTS)
-            options = BenchmarkOptions()
-            options.parseOptions(['--cluster', tmpdir])
-            cluster = get_cluster(options, self.environ)
-        finally:
-            shutil.rmtree(tmpdir)
+        self.addCleanup(shutil.rmtree, tmpdir)
+        with open(os.path.join(tmpdir, 'cluster.yml'), 'wt') as f:
+            f.write(_CLUSTER_YAML_CONTENTS)
+        options = BenchmarkOptions()
+        options.parseOptions(['--cluster', tmpdir])
+        cluster = get_cluster(options, self.environ)
         self.assertEqual(
             cluster.control_node_address().exploded,
             _YAML_CONTROL_SERVICE_ADDRESS
@@ -109,16 +107,14 @@ class ClusterConfigurationTests(SynchronousTestCase):
         YAML description.
         """
         tmpdir = tempfile.mkdtemp()
-        try:
-            options = BenchmarkOptions()
-            options.parseOptions(['--cluster', tmpdir])
-            with capture_stderr() as captured_stderr:
-                with self.assertRaises(SystemExit) as e:
-                    get_cluster(options, self.environ)
-                self.assertIn('not found', e.exception.args[0])
-                self.assertIn(options.getUsage(), captured_stderr())
-        finally:
-            shutil.rmtree(tmpdir)
+        self.addCleanup(shutil.rmtree, tmpdir)
+        options = BenchmarkOptions()
+        options.parseOptions(['--cluster', tmpdir])
+        with capture_stderr() as captured_stderr:
+            with self.assertRaises(SystemExit) as e:
+                get_cluster(options, self.environ)
+            self.assertIn('not found', e.exception.args[0])
+            self.assertIn(options.getUsage(), captured_stderr())
 
 
 class ValidationTests(SynchronousTestCase):
