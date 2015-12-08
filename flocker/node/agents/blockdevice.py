@@ -1690,6 +1690,9 @@ class BlockDeviceDeployer(PClass):
             if configured_dataset_id in paths:
                 # It's mounted already.
                 continue
+            if manifestation.dataset.deleted:
+                # We don't want to mount deleted datasets
+                continue
             dataset_id = UUID(configured_dataset_id)
             if dataset_id not in discovered_datasets:
                 # If it's not discovered very definitely not attached
@@ -1714,6 +1717,9 @@ class BlockDeviceDeployer(PClass):
             this node.
         """
         for configured_dataset_id, manifestation in configured.items():
+            if manifestation.dataset.deleted is True:
+                # If the dataset is deleted, don't create a filesystem.
+                continue
             dataset_id = UUID(configured_dataset_id)
             if dataset_id not in discovered_datasets:
                 continue
@@ -1763,8 +1769,13 @@ class BlockDeviceDeployer(PClass):
         """
         for attached_dataset_id in devices:
             if unicode(attached_dataset_id) in configured:
-                # It is supposed to be here.
-                continue
+                manifestation = configured[unicode(attached_dataset_id)]
+                if manifestation.dataset.deleted is False:
+                    # It is supposed to be here.
+                    continue
+                else:
+                    # Detatch it so it can be deleted.
+                    pass
             if unicode(attached_dataset_id) in paths:
                 # It is mounted and needs to unmounted before it can be
                 # detached.

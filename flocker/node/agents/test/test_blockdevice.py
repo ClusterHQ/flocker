@@ -1610,12 +1610,9 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             ],
             expected_changes=in_parallel(
                 changes=[
-                    MountBlockDevice(
-                        mountpoint=FilePath('/flocker/').child(
-                            unicode(self.DATASET_ID)
-                        ),
+                    DetachVolume(
+                        dataset_id=self.DATASET_ID,
                         blockdevice_id=self.BLOCKDEVICE_ID,
-                        dataset_id=self.DATASET_ID
                     )
                 ]
             ),
@@ -1673,9 +1670,9 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             ],
             expected_changes=in_parallel(
                 changes=[
-                    CreateFilesystem(
-                        device=device,
-                        filesystem=u"ext4",
+                    DetachVolume(
+                        dataset_id=self.DATASET_ID,
+                        blockdevice_id=self.BLOCKDEVICE_ID,
                     )
                 ]
             ),
@@ -2453,6 +2450,47 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # Give it a configuration that says no datasets should be manifest on
         # the deployer's node.
         node_config = to_node(node_state)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            in_parallel(changes=[
+                DetachVolume(dataset_id=self.DATASET_ID,
+                             blockdevice_id=self.BLOCKDEVICE_ID)
+            ])
+        )
+
+    def test_detach_deleted_manifestation(self):
+        """
+        ``BlockDeviceDeployer.calculate_changes`` recognizes a volume that is
+        attached but not mounted which is associated with a dataset configured
+        to have a deleted manifestation on the deployer's node and returns a
+        state change to detach the volume.
+        """
+        # Give it a state that says it has no manifestations but it does have
+        # some attached volumes.
+        node_state = NodeState(
+            uuid=self.NODE_UUID, hostname=self.NODE,
+            applications={},
+            manifestations={},
+            devices={self.DATASET_ID: FilePath(b"/dev/xda")},
+            paths={},
+        )
+
+        # Give it a configuration that says no datasets should be manifest on
+        # the deployer's node.
+        node_config = Node(
+            uuid=self.NODE_UUID, hostname=self.NODE,
+            manifestations={
+                unicode(self.DATASET_ID): Manifestation(
+                    dataset=Dataset(
+                        dataset_id=unicode(self.DATASET_ID),
+                        deleted=True,
+                    ),
+                    primary=True,
+                )
+            },
+        )
 
         assert_calculated_changes(
             self, node_state, node_config,
