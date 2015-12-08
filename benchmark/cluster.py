@@ -67,7 +67,6 @@ class BenchmarkCluster(object):
         self._control_node_address = control_node_address
         self._control_service_factory = control_service_factory
         self._public_addresses = public_addresses
-
         self._control_service = None
 
     @classmethod
