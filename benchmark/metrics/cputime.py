@@ -44,10 +44,15 @@ WALLCLOCK_LABEL = '-- WALL --'
 class CPUParser(LineOnlyReceiver):
     """
     Handler for the output lines returned from the cpu time command.
+
+    After parsing, the ``result`` attribute will contain a dictionary
+    mapping process names to elapsed CPU time.  Process names may be
+    truncated.  A special process will be added indicating the wallclock
+    time.
     """
 
     def __init__(self, reactor):
-        self.reactor = reactor
+        self._reactor = reactor
         self.result = {}
 
     def lineReceived(self, line):
@@ -56,7 +61,7 @@ class CPUParser(LineOnlyReceiver):
         """
         # Add wallclock time when receiving first line of output.
         if WALLCLOCK_LABEL not in self.result:
-            self.result[WALLCLOCK_LABEL] = self.reactor.seconds()
+            self.result[WALLCLOCK_LABEL] = self._reactor.seconds()
 
         # Lines are like:
         #
@@ -98,9 +103,9 @@ class SSHRunner:
     """
 
     def __init__(self, reactor, node_mapping, user=b'root'):
-        self.reactor = reactor
-        self.node_mapping = node_mapping
-        self.user = user
+        self._reactor = reactor
+        self._node_mapping = node_mapping
+        self._user = user
 
     def run(self, node, command_args, handle_stdout):
         """
@@ -113,10 +118,10 @@ class SSHRunner:
         """
         hostname = node.public_address.exploded
         # Map hostname to public IP address. If not in mapping, use hostname.
-        public_ip = self.node_mapping.get(hostname, hostname)
+        public_ip = self._node_mapping.get(hostname, hostname)
         d = run_ssh(
-            self.reactor,
-            self.user,
+            self._reactor,
+            self._user,
             public_ip,
             command_args,
             handle_stdout=handle_stdout,
