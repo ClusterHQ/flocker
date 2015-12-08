@@ -28,7 +28,7 @@ class ValidationTests(SynchronousTestCase):
             'control_node': 'ec.region1.compute.amazonaws.com',
             'users': ['user'],
             'os': 'ubuntu',
-            'private_key_path': '/home/XXX/private_key',
+            'private_key_path': '/home/example/private_key',
             'agent_config': {
                 'version': 1,
                 'control-service': {
@@ -38,9 +38,9 @@ class ValidationTests(SynchronousTestCase):
                 'dataset': {
                     'region': 'region1',
                     'backend': 'aws',
-                    'secret_access_key': 'XXXXXX',
+                    'secret_access_key': 'secret',
                     'zone': 'region1a',
-                    'access_key_id': 'AKIAXXXX'
+                    'access_key_id': 'AKIAsecret'
                 }
             },
         }
