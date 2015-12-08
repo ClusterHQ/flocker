@@ -21,7 +21,7 @@ class Handler(BaseHTTPRequestHandler):
                                             '-m', '%s' % argv[1],
                                             '-o',
                                             'SOURCE']).split(
-                                                '[')[0].split('\n')
+                                                '[')[0].split('\n')[0]
 
                 command = ["/bin/lsblk", "--noheadings", "--bytes",
                            "--output", "SIZE", device_path]
