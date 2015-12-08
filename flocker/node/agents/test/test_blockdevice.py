@@ -32,6 +32,7 @@ from hypothesis.strategies import (
     one_of,
 )
 
+from twisted.internet import reactor
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
@@ -100,7 +101,9 @@ from ....control._model import Leases
 
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
-from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
+from ....common import (
+    retry_failure, gather_deferreds, RACKSPACE_MINIMUM_VOLUME_SIZE
+)
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
@@ -3479,13 +3482,24 @@ def umount_all(root_path):
 
     :param FilePath root_path: A directory in which to search for mount points.
     """
-    for partition in psutil.disk_partitions():
+    def is_under_root(path):
         try:
-            FilePath(partition.mountpoint).segmentsFrom(root_path)
+            FilePath(path).segmentsFrom(root_path)
         except ValueError:
-            pass
-        else:
-            umount(FilePath(partition.device))
+            return False
+        return True
+
+    def create_umount_callable(partition):
+        return lambda: umount(FilePath(partition.device))
+
+    deferreds = list(
+        retry_failure(reactor,
+                      create_umount_callable(partition),
+                      steps=[0.1] * CLEANUP_RETRY_LIMIT)
+        for partition in psutil.disk_partitions()
+        if is_under_root(partition.mountpoint))
+
+    return gather_deferreds(deferreds)
 
 
 def mountroot_for_test(test_case):

@@ -218,11 +218,13 @@ class LeaseAPITests(AsyncTestCase):
         A dataset cannot be moved if a lease is held on it by a particular
         node.
         """
+        target_node = cluster.nodes[1].uuid
         return self._assert_lease_behavior(
             cluster=cluster,
             operation=cluster.client.move_dataset,
-            additional_kwargs={'primary': cluster.nodes[1].uuid},
-            state_method=cluster.wait_for_dataset,
+            additional_kwargs={'primary': target_node},
+            state_method=lambda dataset: cluster.wait_for_dataset(
+                dataset.set(primary=UUID(target_node)))
         )
 
     @require_moving_backend
