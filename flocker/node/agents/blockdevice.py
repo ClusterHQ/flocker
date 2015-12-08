@@ -1,5 +1,5 @@
 # -*- test-case-name: flocker.node.agents.test.test_blockdevice -*-
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 This module implements the parts of a block-device based dataset
