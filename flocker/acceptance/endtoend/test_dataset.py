@@ -36,7 +36,9 @@ from ..testtools import (
 )
 
 
-def upgrade_flocker(reactor, nodes, control_node, package_source):
+def upgrade_flocker(
+    reactor, nodes, control_node, package_source, distribution
+):
     """
     Put the version of Flocker indicated by ``package_source`` onto all of
     the given nodes.
@@ -56,7 +58,7 @@ def upgrade_flocker(reactor, nodes, control_node, package_source):
     :return: A ``Deferred`` that fires when the software has been upgraded.
     """
     managed_nodes = list(
-        ManagedNode(address=node, distribution='ubuntu-14.04')
+        ManagedNode(address=node, distribution=distribution)
         for node in nodes
     )
     dispatcher = make_dispatcher(reactor)
@@ -136,6 +138,14 @@ class DatasetAPITests(AsyncTestCase):
             branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'] or None,
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
+    def _get_distribution(self):
+        distribution = os.environ.get('FLOCKER_DISTRIBUTION')
+        if distribution is None:
+            raise SkipTest(
+                'Missing environment variable FLOCKER_DISTRIBUTION which is '
+                'required for upgrade test.')
+        return distribution
+
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
@@ -145,6 +155,7 @@ class DatasetAPITests(AsyncTestCase):
         control_node_address = cluster.control_node.public_address
         all_cluster_nodes = set([x.public_address for x in cluster.nodes] +
                                 [control_node_address])
+        distribution = self._get_distribution()
 
         def get_flocker_version():
             d = cluster.client.version()
@@ -158,7 +169,8 @@ class DatasetAPITests(AsyncTestCase):
                 if v and v == package_source.version:
                     return v
                 return upgrade_flocker(reactor, all_cluster_nodes,
-                                       control_node_address, package_source)
+                                       control_node_address, package_source,
+                                       distribution)
             d.addCallback(upgrade_if_needed)
             return d
 
