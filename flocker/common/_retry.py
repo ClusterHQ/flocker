@@ -260,8 +260,8 @@ _TRY_SUCCESS = _TRY_UNTIL_SUCCESS + u":success"
 
 def retry_on_intervals(intervals):
     """
-    Create a predicate compatible with ``wrap_methods_with_failure_retry``
-    which will retry with exactly the given delays in between.
+    Create a predicate compatible with ``with_retry`` which will retry with
+    exactly the given delays in between.
     """
     intervals = iter(intervals)
 
@@ -277,7 +277,7 @@ def retry_on_intervals(intervals):
 
 def retry_some_times():
     """
-    Create a predicate compatible with ``wrap_methods_with_failure_retry``
+    Create a predicate compatible with ``with_retry``
     which will retry a fixed number of times with a brief delay in between.
     """
     delay = 0.1
@@ -290,7 +290,7 @@ def retry_some_times():
 
 def retry_if(predicate):
     """
-    Create a predicate compatible with ``wrap_methods_with_failure_retry``
+    Create a predicate compatible with ``with_retry``
     which will retry if the raised exception satisfies the given predicate.
 
     :param predicate: A one-argument callable which will be called with the
@@ -331,6 +331,13 @@ def decorate_methods(obj, decorator):
     """
     Return a wrapper around ``obj`` with ``decorator`` applied to all of its
     method calls.
+
+    For example::
+
+        retry_three_times = partial(
+            with_retry, should_retry=retry_on_intervals([1, 2, 3]),
+        )
+        obj_with_three_retries = decorate_methods(obj, retry_three_times)
 
     :param callable decorator: A unary callable that takes a method and
         returns a method.
@@ -392,8 +399,23 @@ def _poll_until_success_returning_result(
 
 
 def with_retry(method, should_retry=None, sleep=None):
+    """
+    Return a new version of ``method`` that retries.
+
+    :param callable method: A method to retry.
+    :param callable should_retry: A one-argument callable which accepts a
+        three-tuple of exception state and returns a ``timedelta`` or raises
+        an exception. If the call should be retried, the ``timedelta`` gives a
+        time to delay before the retry. If an exception is raised, no further
+        retries are attempted and the exception is propagated from the method
+        call.
+    :param callable sleep: A replacement for ``time.sleep``.
+
+    :return: A method that will retry.
+    """
     if should_retry is None:
         should_retry = retry_some_times()
+
     def method_with_retry(*a, **kw):
         name = fullyQualifiedName(method)
         action_type = _TRY_UNTIL_SUCCESS
