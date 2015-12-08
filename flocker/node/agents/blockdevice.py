@@ -8,7 +8,6 @@ devices.
 """
 
 from uuid import UUID
-from subprocess import CalledProcessError, check_output, STDOUT
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
 from datetime import timedelta
@@ -20,8 +19,6 @@ from zope.interface import implementer, Interface
 
 from pyrsistent import PClass, field, pmap_field, pset_field
 
-import psutil
-
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
@@ -30,6 +27,8 @@ from twisted.python.constants import (
     Values, ValueConstant,
     Names, NamedConstant,
 )
+
+from .blockdevice_manager import BlockDeviceManager
 
 from .. import (
     IDeployer, ILocalState, IStateChange, sequentially, in_parallel,
@@ -452,58 +451,26 @@ class CreateFilesystem(PClass):
 
     def run(self, deployer):
         try:
-            _ensure_no_filesystem(self.device)
-            check_output([
-                b"mkfs", b"-t", self.filesystem.encode("ascii"),
-                # This is ext4 specific, and ensures mke2fs doesn't ask
-                # user interactively about whether they really meant to
-                # format whole device rather than partition. It will be
-                # removed once upstream bug is fixed. See FLOC-2085.
-                b"-F",
-                self.device.path
-            ])
+            _ensure_no_filesystem(self.device, deployer.block_device_manager)
+            deployer.block_device_manager.make_filesystem(self.device,
+                                                          self.filesystem)
         except:
             return fail()
         return succeed(None)
 
 
-def _has_filesystem(device):
-    """
-    :return: Boolean which is true if a filesystem exists on the
-        ``device``, otherwise false.
-    """
-    try:
-        check_output(
-            [b"blkid", b"-p", b"-u", b"filesystem", device.path],
-            stderr=STDOUT,
-        )
-    except CalledProcessError as e:
-        # According to the man page:
-        #   the specified token was not found, or no (specified) devices
-        #   could be identified
-        #
-        # Experimentation shows that there is no output in the case of the
-        # former, and an error printed to stderr in the case of the
-        # latter.
-        #
-        # FLOC-2388: We're assuming an interface. We should test this
-        # assumption.
-        if e.returncode == 2 and not e.output:
-            # There is no filesystem on this device.
-            return False
-        raise
-    return True
-
-
-def _ensure_no_filesystem(device):
+def _ensure_no_filesystem(device, block_device_manager):
     """
     Raises an error if there's already a filesystem on ``device``.
 
+    :param FilePath device: The path to the device to query.
+    :param block_device_manager: The ``IBlockDeviceManager`` implementer to use
+        for managing blockdevices on this machine.
     :raises: ``FilesystemExists`` if there is already a filesystem on
         ``device``.
     :return: ``None``
     """
-    if _has_filesystem(device):
+    if block_device_manager.has_filesystem(device):
         raise FilesystemExists(device)
 
 
@@ -561,7 +528,7 @@ class MountBlockDevice(PClass):
         self.mountpoint.parent().chmod(S_IRWXU)
 
         # This should be asynchronous.  FLOC-1797
-        check_output([b"mount", device.path, self.mountpoint.path])
+        deployer.block_device_manager.mount(device, self.mountpoint)
 
         # Remove lost+found to ensure filesystems always start out empty.
         # Mounted filesystem is also made world
@@ -618,7 +585,7 @@ class UnmountBlockDevice(PClass):
                 block_device_path=device
             ).write(_logger)
             # This should be asynchronous. FLOC-1797
-            check_output([b"umount", device.path])
+            deployer.block_device_manager.unmount(device)
         deferred_device_path.addCallback(got_device)
         return deferred_device_path
 
@@ -1124,22 +1091,6 @@ def get_blockdevice_volume(api, blockdevice_id):
     raise UnknownVolume(blockdevice_id)
 
 
-def get_system_mounts():
-    """
-    Load information about mounted filesystems.
-
-    :return: Mapping from block devices to mountpoints.
-    :rtype: ``dict`` mapping ``FilePath`` to ``FilePath``
-    """
-    partitions = psutil.disk_partitions()
-    return {
-        FilePath(partition.device):
-        FilePath(partition.mountpoint)
-        for partition
-        in partitions
-    }
-
-
 def _manifestation_from_volume(volume):
     """
     :param BlockDeviceVolume volume: The block device which has the
@@ -1266,6 +1217,8 @@ class BlockDeviceDeployer(PClass):
     :ivar _async_block_device_api: An object to override the value of the
         ``async_block_device_api`` property.  Used by tests.  Should be
         ``None`` in real-world use.
+    :ivar block_device_manager: An ``IBlockDeviceManager`` implementation used
+        to interact with the system regarding block devices.
     """
     hostname = field(type=unicode, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
@@ -1274,6 +1227,7 @@ class BlockDeviceDeployer(PClass):
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     poll_interval = timedelta(seconds=60.0)
+    block_device_manager = field(initial=BlockDeviceManager())
 
     @property
     def profiled_blockdevice_api(self):
@@ -1323,7 +1277,10 @@ class BlockDeviceDeployer(PClass):
         api = self.block_device_api
         compute_instance_id = api.compute_instance_id()
         volumes = api.list_volumes()
-        system_mounts = get_system_mounts()
+        system_mounts = {
+            mount.blockdevice: mount.mountpoint
+            for mount in self.block_device_manager.get_mounts()
+        }
 
         def is_existing_block_device(dataset_id, path):
             if isinstance(path, FilePath) and path.isBlockDevice():
@@ -1354,8 +1311,9 @@ class BlockDeviceDeployer(PClass):
             volumes=volumes,
             devices=devices,
             system_mounts=system_mounts,
-            devices_with_filesystems=[device for device in devices.values()
-                                      if _has_filesystem(device)],
+            devices_with_filesystems=[
+                device for device in devices.values()
+                if self.block_device_manager.has_filesystem(device)],
         )
         DISCOVERED_RAW_STATE(raw_state=result).write()
         return result

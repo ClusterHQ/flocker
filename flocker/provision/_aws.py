@@ -4,8 +4,9 @@
 AWS provisioner.
 """
 
+from itertools import repeat
 from textwrap import dedent
-from time import time, sleep
+from time import time
 
 from pyrsistent import PClass, field
 
@@ -18,6 +19,9 @@ from boto.ec2 import connect_to_region
 from boto.ec2.blockdevicemapping import (
     EBSBlockDeviceType, BlockDeviceMapping,
 )
+from boto.exception import EC2ResponseError
+
+from ..common import poll_until
 
 from ._common import INode, IProvisioner
 
@@ -26,7 +30,7 @@ from ._install import (
     task_install_ssh_key,
 )
 
-from eliot import start_action
+from eliot import start_action, Message
 
 from ._ssh import run_remotely, run_from_args
 from ._effect import sequence
@@ -50,6 +54,45 @@ IMAGE_NAMES = {
     'ubuntu-15.10': 'ubuntu/images/hvm-ssd/ubuntu-wily-15.10-amd64-server-20151116.1',  # noqa
 }
 
+BOTO_INSTANCE_NOT_FOUND = u'InvalidInstanceID.NotFound'
+INSTANCE_TIMEOUT = 300
+
+
+def _check_response_error(e, message_type):
+    """
+    Check if an exception is a transient one.
+    If it is, then it is simply logged, otherwise it is raised.
+
+    :param boto.exception import EC2ResponseErro e: The exception to check.
+    :param str message_type: The message type for logging.
+    """
+    if e.error_code != BOTO_INSTANCE_NOT_FOUND:
+        raise e
+    Message.new(
+        message_type=message_type,
+        reason=e.error_code,
+    ).write()
+
+
+def _check_if_running(instance):
+    """
+    Check if an instance is running.
+
+    :param boto.ec2.instance.Instance instance: The instance to check.
+    """
+    try:
+        instance.update()
+    except EC2ResponseError as e:
+        _check_response_error(
+            e,
+            u"flocker:provision:aws:check_if_running:retry"
+        )
+    Message.new(
+        message_type=u"flocker:provision:aws:check_if_running:update",
+        instance_state=instance.state,
+    ).write()
+    return instance.state == 'running'
+
 
 def _wait_until_running(instance):
     """
@@ -61,13 +104,8 @@ def _wait_until_running(instance):
         action_type=u"flocker:provision:aws:wait_until_running",
         instance_id=instance.id,
     ):
-        while instance.state != 'running':
-            with start_action(
-                action_type=u"flocker:provision:aws:wait_until_running:sleep",
-                instance_state=instance.state,
-            ):
-                sleep(1)
-            instance.update()
+        poll_until(lambda: _check_if_running(instance),
+                   repeat(1, INSTANCE_TIMEOUT))
 
 
 @implementer(INode)
@@ -242,10 +280,8 @@ class AWSProvisioner(PClass):
                 instance = reservation.instances[0]
                 context.add_success_fields(instance_id=instance.id)
 
-            self._connection.create_tags([instance.id], metadata)
-
-            # Display state as instance starts up, to keep user informed that
-            # things are happening.
+            poll_until(lambda: self._set_metadata(instance, metadata),
+                       repeat(1, INSTANCE_TIMEOUT))
             _wait_until_running(instance)
 
             return AWSNode(
@@ -254,6 +290,23 @@ class AWSProvisioner(PClass):
                 _instance=instance,
                 distribution=distribution,
             )
+
+    def _set_metadata(self, instance, metadata):
+        """
+        Set metadata for an instance.
+
+        :param boto.ec2.instance.Instance instance: The instance to configure.
+        :param dict metadata: The tag-value metadata.
+        """
+        try:
+            self._connection.create_tags([instance.id], metadata)
+            return True
+        except EC2ResponseError as e:
+            _check_response_error(
+                e,
+                u"flocker:provision:aws:set_metadata:retry"
+            )
+        return False
 
 
 def aws_provisioner(access_key, secret_access_token, keyname,
