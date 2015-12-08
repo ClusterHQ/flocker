@@ -327,7 +327,7 @@ def compose_retry(should_retries):
     return composed
 
 
-def wrap_methods(obj, decorator):
+def decorate_methods(obj, decorator):
     """
     Return a wrapper around ``obj`` with ``decorator`` applied to all of its
     method calls.

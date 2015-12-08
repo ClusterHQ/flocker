@@ -40,7 +40,7 @@ from .. import (
     retry_some_times,
     retry_if,
     compose_retry,
-    wrap_methods,
+    decorate_methods,
     with_retry,
 )
 from .._retry import (
@@ -719,9 +719,9 @@ class ComposeRetryTests(testtools.TestCase):
         )
 
 
-class WrapMethodsTests(testtools.TestCase):
+class DecorateMethodsTests(testtools.TestCase):
     """
-    Tests for ``wrap_methods``.
+    Tests for ``decorate_methods``.
     """
     @staticmethod
     def noop_wrapper(method):
@@ -739,7 +739,7 @@ class WrapMethodsTests(testtools.TestCase):
                 self.instance_attribute = object()
 
         original = Original()
-        wrapper = wrap_methods(original, self.noop_wrapper)
+        wrapper = decorate_methods(original, self.noop_wrapper)
         self.assertThat(
             wrapper.class_attribute,
             Equals(original.class_attribute),
@@ -762,7 +762,7 @@ class WrapMethodsTests(testtools.TestCase):
         a = object()
         b = object()
 
-        wrapper = wrap_methods(Original(), self.noop_wrapper)
+        wrapper = decorate_methods(Original(), self.noop_wrapper)
         self.assertThat(
             wrapper.some_method(a, b=b),
             Equals((b, a)),
@@ -794,6 +794,10 @@ class WithRetryTests(testtools.TestCase):
         wrapper = with_retry(original.some_method, sleep=sleep)
         # XXX testtools ``raises`` helper generates a crummy message when this
         # assertion fails
+        # self.assertThat(
+        #     wrapper,
+        #     raises(CustomException),
+        # )
         self.assertRaises(CustomException, wrapper)
         self.assertThat(
             original.failures,
