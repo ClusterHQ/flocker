@@ -281,7 +281,7 @@ common_cli:
     # check spelling
     sphinx-build -d _build/doctree -b spelling . _build/spelling
     # check links
-    sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
+    retry_with_timeout 60 sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
     # build html pages
     sphinx-build -d _build/doctree -b html . _build/html
 
