@@ -4745,3 +4745,34 @@ class ProcessLifetimeCacheTests(SynchronousTestCase):
 
         self.assertRaises(UnattachedVolume,
                           self.cache.get_device_path, attached_id1)
+
+
+def make_icloudapi_tests(
+        blockdevice_api_factory,
+        minimum_allocatable_size,
+        device_allocation_unit,
+        unknown_blockdevice_id_factory
+):
+    """
+    :param blockdevice_api_factory: A factory which will be called
+        with the generated ``TestCase`` during the ``setUp`` for each
+        test and which should return a provider of both ``IBlockDeviceAPI``
+        and ``ICloudAPI`` to be tested.
+
+    :returns: A ``TestCase`` with tests that will be performed on the
+       supplied ``IBlockDeviceAPI``/``ICloudAPI`` provider.
+    """
+    class Tests(SynchronousTestCase):
+        def setUp(self):
+            # ... XXX ...
+            self.api = blockdevice_api_factory(test_case=self)
+            self.unknown_blockdevice_id = unknown_blockdevice_id_factory(self)
+            check_allocatable_size(
+                self.api.allocation_unit(),
+                minimum_allocatable_size
+            )
+            self.minimum_allocatable_size = minimum_allocatable_size
+            self.device_allocation_unit = device_allocation_unit
+            self.this_node = self.api.compute_instance_id()
+
+    return Tests

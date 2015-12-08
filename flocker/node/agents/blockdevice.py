@@ -1117,6 +1117,39 @@ class IBlockDeviceAPI(Interface):
         """
 
 
+class ICloudAPI(Interface):
+    """
+    Additional functionality provided specifically by cloud-based block
+    device providers.
+
+    In particular the presumption is that nodes are also managed by a
+    centralized infrastructure.
+    """
+    def list_live_nodes():
+        """
+        Return the compute IDs of all nodes that are currently up and running.
+
+        :returns: A collection of compute instance IDs, compatible with
+            those returned by ``IBlockDeviceAPI.compute_instance_id``.
+        """
+
+
+@auto_threaded(ICloudAPI, "_reactor", "_sync", "_threadpool")
+class _SyncToThreadedAsyncCloudAPIAdapter(PClass):
+    """
+    Adapt any ``ICloudAPI`` to the same interface but with
+    ``Deferred``-returning methods by running those methods in a thread
+    pool.
+
+    :ivar _reactor: The reactor, providing ``IReactorThreads``.
+    :ivar _sync: The ``ICloudAPI`` provider.
+    :ivar _threadpool: ``twisted.python.threadpool.ThreadPool`` instance.
+    """
+    _reactor = field()
+    _sync = field()
+    _threadpool = field()
+
+
 class MandatoryProfiles(Values):
     """
     Mandatory Storage Profiles to be implemented by ``IProfiledBlockDeviceAPI``
