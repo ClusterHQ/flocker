@@ -176,10 +176,12 @@ class DatasetAPITests(AsyncTestCase):
             d.addCallback(lambda _: get_flocker_version())
 
             def verify_version(v):
-                self.assertEquals(
-                    v, package_source.version,
-                    "Failed to set version of flocker to %s, it is still %s." %
-                    (package_source.version, v))
+                print "VERSION:", v, "TARGET:", package_source.version
+                if package_source.version:
+                    self.assertEquals(
+                        v, package_source.version,
+                        "Failed to set version of flocker to %s, it is still "
+                        "%s." % (package_source.version, v))
                 return v
             d.addCallback(verify_version)
 
@@ -203,7 +205,7 @@ class DatasetAPITests(AsyncTestCase):
         # Downgrade flocker to the most recent released version.
         d.addCallback(
             lambda v: upgrade_flocker_to(
-                PackageSource(version=v.split('+')[0])))
+                PackageSource()))
 
         return d
 
