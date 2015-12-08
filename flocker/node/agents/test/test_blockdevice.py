@@ -2499,7 +2499,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
             paths={},
         )
 
-        # Give it a configuration that says no datasets should be manifest on
+        # Give it a configuration that says the dataset should be deleted on
         # the deployer's node.
         node_config = Node(
             uuid=self.NODE_UUID, hostname=self.NODE,
