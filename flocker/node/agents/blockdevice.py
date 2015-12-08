@@ -31,8 +31,7 @@ from twisted.python.constants import (
 from .blockdevice_manager import BlockDeviceManager
 
 from .. import (
-    IDeployer, ILocalState, IStateChange, sequentially, in_parallel,
-    run_state_change
+    IDeployer, ILocalState, IStateChange, in_parallel,
 )
 from .._deploy import NotInUseDatasets
 
@@ -420,53 +419,6 @@ def _blockdevice_volume_from_datasetid(volumes, dataset_id):
     for volume in volumes:
         if volume.dataset_id == dataset_id:
             return volume
-
-
-# Get rid of this in favor of calculating each individual operation in
-# BlockDeviceDeployer.calculate_changes.  FLOC-1772
-@implementer(IStateChange)
-@provider(IDatasetStateChangeFactory)
-class DestroyBlockDeviceDataset(PClass):
-    """
-    Destroy the volume for a dataset with a primary manifestation on the node
-    where this state change runs.
-
-    :ivar UUID dataset_id: The unique identifier of the dataset to which the
-        volume to be destroyed belongs.
-    :ivar unicode blockdevice_id: The unique identifier of the
-        ``IBlockDeviceAPI``-managed volume to be destroyed.
-    """
-    dataset_id = field(type=UUID, mandatory=True)
-    blockdevice_id = field(type=unicode, mandatory=True)
-
-    @classmethod
-    def from_state_and_config(cls, discovered_dataset, desired_dataset):
-        return cls(
-            dataset_id=desired_dataset.dataset_id,
-            blockdevice_id=discovered_dataset.blockdevice_id,
-        )
-
-    # This can be replaced with a regular attribute when the `_logger` argument
-    # is no longer required by Eliot.
-    @property
-    def eliot_action(self):
-        return DESTROY_BLOCK_DEVICE_DATASET(
-            _logger, dataset_id=self.dataset_id
-        )
-
-    def run(self, deployer):
-        return run_state_change(
-            sequentially(
-                changes=[
-                    UnmountBlockDevice(dataset_id=self.dataset_id,
-                                       blockdevice_id=self.blockdevice_id),
-                    DetachVolume(dataset_id=self.dataset_id,
-                                 blockdevice_id=self.blockdevice_id),
-                    DestroyVolume(blockdevice_id=self.blockdevice_id),
-                ]
-            ),
-            deployer,
-        )
 
 
 @implementer(IStateChange)

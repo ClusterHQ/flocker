@@ -44,7 +44,6 @@ from eliot.testing import (
     LoggedAction, assertHasMessage, assertHasAction
 )
 
-from ..._change import LOG_SEQUENTIALLY
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
@@ -52,15 +51,14 @@ from ..blockdevice import (
     IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
-    DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
+    UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
 
     DiscoveredDataset, DatasetStates,
 
     PROFILE_METADATA_KEY,
 
-    UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
-    DESTROY_VOLUME,
+    UNMOUNT_BLOCK_DEVICE,
     CREATE_BLOCK_DEVICE_DATASET,
     INVALID_DEVICE_PATH,
     CREATE_VOLUME_PROFILE_DROPPED,
@@ -3672,17 +3670,6 @@ _ARBITRARY_VOLUME = BlockDeviceVolume(
 )
 
 
-def _make_destroy_dataset():
-    """
-    Make a ``DestroyBlockDeviceDataset`` instance for
-    ``make_istate_tests``.
-    """
-    return DestroyBlockDeviceDataset(
-        dataset_id=_ARBITRARY_VOLUME.dataset_id,
-        blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id
-    )
-
-
 def multistep_change_log(parent, children):
     """
     Create an Eliot logging validation function which asserts that the given
@@ -3704,81 +3691,6 @@ def multistep_change_log(parent, children):
         ]
         self.assertEqual(children_actions, parent_action.children)
     return verify
-
-
-class DestroyBlockDeviceDatasetInitTests(
-    make_with_init_tests(
-        DestroyBlockDeviceDataset,
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
-        dict(),
-    )
-):
-    """
-    Tests for ``DestroyBlockDeviceDataset`` initialization.
-    """
-
-
-class DestroyBlockDeviceDatasetTests(
-    make_istatechange_tests(
-        DestroyBlockDeviceDataset,
-        # Avoid using the same instance, just provide the same value.
-        lambda _uuid=uuid4(): dict(dataset_id=_uuid,
-                                   blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
-        lambda _uuid=uuid4(): dict(dataset_id=_uuid,
-                                   blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2),
-    )
-):
-    """
-    Tests for ``DestroyBlockDeviceDataset``.
-    """
-    def test_dataset_id_must_be_uuid(self):
-        """
-        If the value given for ``dataset_id`` is not an instance of ``UUID``
-        when initializing ``DestroyBlockDeviceDataset``, ``TypeError`` is
-        raised.
-        """
-        self.assertRaises(
-            TypeError, DestroyBlockDeviceDataset, dataset_id=object(),
-            blockdevice_id=ARBITRARY_BLOCKDEVICE_ID
-        )
-
-    @capture_logging(multistep_change_log(
-        LOG_SEQUENTIALLY,
-        [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, DESTROY_VOLUME]
-    ))
-    def test_run(self, logger):
-        """
-        After running ``DestroyBlockDeviceDataset``, its volume has been
-        unmounted, detached, and destroyed.
-        """
-        self.patch(blockdevice, "_logger", logger)
-
-        node = u"192.0.2.3"
-        dataset_id = uuid4()
-
-        deployer = create_blockdevicedeployer(self, hostname=node)
-        api = deployer.block_device_api
-
-        volume = api.create_volume(
-            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-        volume = api.attach_volume(volume.blockdevice_id, node)
-        device = api.get_device_path(volume.blockdevice_id)
-        mountroot = mountroot_for_test(self)
-        mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
-        mountpoint.makedirs()
-        make_filesystem(device, block_device=True)
-        mount(device, mountpoint)
-
-        change = DestroyBlockDeviceDataset(
-            dataset_id=dataset_id, blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
-
-        # It's only possible to destroy a volume that's been detached.  It's
-        # only possible to detach a volume that's been unmounted.  If the
-        # volume doesn't exist, all three things we wanted to happen have
-        # happened.
-        self.assertEqual([], api.list_volumes())
 
 
 class CreateFilesystemInitTests(
