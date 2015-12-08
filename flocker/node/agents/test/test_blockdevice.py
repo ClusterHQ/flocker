@@ -1453,6 +1453,41 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             ],
         )
 
+    def test_deleted_dataset_volume_detached(self):
+        """
+        If the configuration indicates a dataset with a primary manifestation
+        on the node has been deleted and the volume associated with that
+        dataset still exists but is not attached,
+        ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``DestroyVolume`` state change operation.
+        """
+        local_state = self.ONE_DATASET_STATE.transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard,
+            ["paths"], {},
+            ["devices"], {},
+        )
+        local_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        assert_calculated_changes(
+            self, local_state, local_config,
+            nonmanifest_datasets=[
+                self.MANIFESTATION.dataset,
+            ],
+            expected_changes=in_parallel(changes=[
+                DestroyVolume(blockdevice_id=self.BLOCKDEVICE_ID)
+            ]),
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=self.DATASET_ID,
+                    blockdevice_id=self.BLOCKDEVICE_ID,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
+                ),
+            ],
+        )
+
     def test_deleted_dataset_belongs_to_other_node(self):
         """
         If a dataset with a primary manifestation on one node is marked as

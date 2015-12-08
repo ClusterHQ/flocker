@@ -768,6 +768,10 @@ class DestroyVolume(PClass):
     """
     blockdevice_id = field(type=unicode, mandatory=True)
 
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(blockdevice_id=discovered_dataset.blockdevice_id)
+
     @property
     def eliot_action(self):
         return DESTROY_VOLUME(_logger, block_device_id=self.blockdevice_id)
@@ -1649,6 +1653,10 @@ class BlockDeviceDeployer(PClass):
             local_node_state, configured_manifestations, local_state.volumes,
             discovered_datasets=local_state.datasets,
         )
+        destroys = list(self._calculate_destroys(
+            local_node_state, configured_manifestations, local_state.volumes,
+            discovered_datasets=local_state.datasets,
+        ))
 
         # FLOC-1484 Support resize for block storage backends. See also
         # FLOC-1875.
@@ -1656,7 +1664,7 @@ class BlockDeviceDeployer(PClass):
         return in_parallel(changes=(
             not_in_use(unmounts) + detaches +
             attaches + mounts +
-            creates + not_in_use(deletes) + filesystem_creates
+            creates + not_in_use(deletes) + destroys + filesystem_creates
         ))
 
     def _calculate_mounts(self, devices, paths, configured,
@@ -1788,6 +1796,9 @@ class BlockDeviceDeployer(PClass):
             if dataset_id in devices:
                 # It's already attached here.
                 continue
+            if manifestation.dataset.deleted is True:
+                # Don't attach a dataset to be deleted.
+                continue
             if manifestation.dataset_id in nonmanifest:
                 volume = _blockdevice_volume_from_datasetid(volumes,
                                                             dataset_id)
@@ -1833,6 +1844,40 @@ class BlockDeviceDeployer(PClass):
             if (volume is not None and
                     dataset_id_unicode in local_node_state.manifestations):
                 yield DestroyBlockDeviceDataset.from_state_and_config(
+                    discovered_dataset=discovered_datasets[dataset_id],
+                    desired_dataset=self._calculate_desired_for_manifestation(
+                        configured_manifestations[dataset_id_unicode]),
+                )
+
+    def _calculate_destroys(self, local_node_state, configured_manifestations,
+                            volumes, discovered_datasets):
+        """
+        :param NodeState: The local state discovered immediately prior to
+            calculation.
+
+        :param dict configured_manifestations: The manifestations configured
+            for this node (like ``Node.manifestations``).
+
+        :param volumes: An iterable of ``BlockDeviceVolume`` instances that are
+            known to exist in the cluster.
+
+        :return: A generator of ``DestroyVolume`` instances for each volume
+            that may need to be destroyed based on the given
+            configuration.
+        """
+        delete_dataset_ids = set(
+            manifestation.dataset.dataset_id
+            for manifestation in configured_manifestations.values()
+            if manifestation.dataset.deleted
+        )
+        for dataset_id_unicode in delete_dataset_ids:
+            dataset_id = UUID(dataset_id_unicode)
+            discovered_dataset = discovered_datasets.get(dataset_id)
+            if (
+                discovered_dataset is not None
+                and discovered_dataset.state == DatasetStates.NON_MANIFEST
+            ):
+                yield DestroyVolume.from_state_and_config(
                     discovered_dataset=discovered_datasets[dataset_id],
                     desired_dataset=self._calculate_desired_for_manifestation(
                         configured_manifestations[dataset_id_unicode]),
