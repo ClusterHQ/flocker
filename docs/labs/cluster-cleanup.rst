@@ -4,7 +4,7 @@
 Cleaning up your Cluster
 ========================
 
-You can run the following commands to clean up your volumes, your instances and your local files:
+If you have completed the steps in our :ref:`short tutorial <short-tutorial>`, you can run the following commands to clean up your volumes, your instances and your local files:
 
 .. prompt:: bash $
 
