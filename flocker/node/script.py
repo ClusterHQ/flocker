@@ -16,7 +16,7 @@ from jsonschema import FormatChecker, Draft4Validator
 
 from pyrsistent import PClass, field, PMap, pmap, pvector
 
-from eliot import ActionType, fields
+from eliot import ActionType, fields, add_global_fields
 
 from zope.interface import implementer
 
@@ -619,6 +619,7 @@ class AgentService(PClass):
             self.control_service_host, self.control_service_port,
         )
         node_uuid = self.node_credential.uuid
+        add_global_fields(node_uuid=unicode(node_uuid))
         return deployer_factory(
             api=api, hostname=address, node_uuid=node_uuid,
         )
