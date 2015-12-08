@@ -19,7 +19,7 @@ from .._install import (
     get_repository_url, UnsupportedDistribution, get_installable_version,
     get_repo_options,
     _remove_dataset_fields, _remove_private_key,
-)
+    UnknownAction, DistributionNotSupported)
 from .._ssh import Put
 from .._effect import sequence
 from ...acceptance.testtools import DatasetBackend
@@ -87,11 +87,30 @@ class EnableFlockerAgentTests(SynchronousTestCase):
     def test_centos_sequence(self):
         """
         ``task_enable_flocker_agent`` for the 'centos-7' distribution returns
-        a sequence of systemctl enable and restart commands for each agent.
+        a sequence of systemctl enable and start commands for each agent.
         """
         distribution = u"centos-7"
         commands = task_enable_flocker_agent(
             distribution=distribution,
+        )
+        expected_sequence = sequence([
+            run(command="systemctl enable flocker-dataset-agent"),
+            run(command="systemctl start flocker-dataset-agent"),
+            run(command="systemctl enable flocker-container-agent"),
+            run(command="systemctl start flocker-container-agent"),
+        ])
+        self.assertEqual(commands, expected_sequence)
+
+    def test_centos_sequence_managed(self):
+        """
+        ``task_enable_flocker_agent`` for the 'centos-7' distribution
+        returns a sequence of 'service restart' commands for each agent
+        when the action passed down is "restart" (used for managed provider).
+        """
+        distribution = u"centos-7"
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+            action="restart"
         )
         expected_sequence = sequence([
             run(command="systemctl enable flocker-dataset-agent"),
@@ -115,6 +134,45 @@ class EnableFlockerAgentTests(SynchronousTestCase):
             run(command="service flocker-container-agent start"),
         ])
         self.assertEqual(commands, expected_sequence)
+
+    def test_ubuntu_sequence_managed(self):
+        """
+        ``task_enable_flocker_agent`` for the 'ubuntu-14.04' distribution
+        returns a sequence of 'service restart' commands for each agent
+        when the action passed down is "restart" (used for managed provider).
+        """
+        distribution = u"ubuntu-14.04"
+        commands = task_enable_flocker_agent(
+            distribution=distribution,
+            action="restart"
+        )
+        expected_sequence = sequence([
+            run(command="service flocker-dataset-agent restart"),
+            run(command="service flocker-container-agent restart"),
+        ])
+        self.assertEqual(commands, expected_sequence)
+
+    def test_sequence_invalid_action(self):
+        """
+        ``task_enable_flocker_agent`` for a valid distribution
+        but an invalid action raises a ``UnknownAction``.
+        """
+        distribution = u"ubuntu-14.04"
+        self.assertRaises(UnknownAction,
+                          task_enable_flocker_agent,
+                          distribution=distribution,
+                          action="stop")
+
+    def test_sequence_invalid_distro(self):
+        """
+        ``task_enable_flocker_agent`` for a non supported
+        distribution raises a ``DistributionNotSupported``.
+        """
+        distribution = u"RedHat"
+        self.assertRaises(DistributionNotSupported,
+                          task_enable_flocker_agent,
+                          distribution=distribution,
+                          action="restart")
 
 
 def _centos7_install_commands(version):
@@ -195,16 +253,16 @@ class GetRepositoryURLTests(SynchronousTestCase):
             expected
         )
 
-    def test_ubuntu_15_04(self):
+    def test_ubuntu_15_10(self):
         """
-        It is possible to get a repository URL for Ubuntu 15.04 packages.
+        It is possible to get a repository URL for Ubuntu 15.10 packages.
         """
         expected = ("https://clusterhq-archive.s3.amazonaws.com/ubuntu/"
                     "$(lsb_release --release --short)/\\$(ARCH)")
 
         self.assertEqual(
             get_repository_url(
-                distribution='ubuntu-15.04',
+                distribution='ubuntu-15.10',
                 flocker_version='0.3.0'),
             expected
         )

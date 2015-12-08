@@ -12,7 +12,7 @@ from OpenSSL.crypto import X509Extension
 
 from twisted.python.filepath import FilePath
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from ..ca import (
     RootCredential, ControlCredential, NodeCredential, UserCredential,
@@ -43,7 +43,7 @@ def assert_has_extension(test, credential, name, value):
     test.assertIn(expected.get_data(), values)
 
 
-class CredentialSet(PRecord):
+class CredentialSet(PClass):
     """
     A full set of credentials for a CA.
 

@@ -17,7 +17,7 @@ By the end of the release process we will have:
 - a Python wheel on Amazon `S3`_,
 - CentOS 7 RPMs for software on the node and client,
 - Ubuntu 14.04 DEBs for software on the node and client,
-- Ubuntu 15.04 DEBs for software on the node and client,
+- Ubuntu 15.10 DEBs for software on the node and client,
 - a Vagrant base tutorial image,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_, and
 - an updated Homebrew recipe.
@@ -162,8 +162,10 @@ Preparing For a Release
 Pre-tag Review Process
 ======================
 
-A tag must not be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
-So it is important to check that the code in the release branch is working before it is tagged.
+A tag must not be deleted once it has been pushed to GitHub.
+This is a policy and not a technical limitation, as removing tags can cause problems for anyone who has updated a cloned copy of the repository.
+
+It is important to check that the code in the release branch is working before it is tagged.
 
 .. note::
 

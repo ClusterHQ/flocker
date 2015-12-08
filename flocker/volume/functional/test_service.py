@@ -16,7 +16,7 @@ class RealisticTests(TestCase):
     Tests for realistic scenarios, used to catch integration issues.
     """
 
-    @flaky('FLOC-2767')
+    @flaky(u'FLOC-2767')
     def test_handoff(self):
         """
         Handoff of a previously unpushed volume between two ZFS-based volume

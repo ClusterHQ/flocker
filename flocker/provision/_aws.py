@@ -35,7 +35,7 @@ from ._effect import sequence
 _usernames = {
     'centos-7': 'centos',
     'ubuntu-14.04': 'ubuntu',
-    'ubuntu-15.04': 'ubuntu',
+    'ubuntu-15.10': 'ubuntu',
 }
 
 
@@ -47,7 +47,7 @@ IMAGE_NAMES = {
     'centos-7': 'CentOS Linux 7 x86_64 HVM EBS 20150928_01-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-69327e0c.2',  # noqa
     # https://cloud-images.ubuntu.com/locator/ec2/
     'ubuntu-14.04': 'ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-20151019',  # noqa
-    'ubuntu-15.04': 'ubuntu/images/hvm-ssd/ubuntu-vivid-15.04-amd64-server-20151015',  # noqa
+    'ubuntu-15.10': 'ubuntu/images/hvm-ssd/ubuntu-wily-15.10-amd64-server-20151116.1',  # noqa
 }
 
 

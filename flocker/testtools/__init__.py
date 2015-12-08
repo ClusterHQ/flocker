@@ -51,9 +51,9 @@ from unittest import skipIf, skipUnless
 from StringIO import StringIO
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
-from bitmath import GiB, MiB
+from bitmath import MiB
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from docker import Client as DockerClient
 from eliot import ActionType, Message, MessageType, start_action, fields
@@ -79,13 +79,11 @@ from twisted.python.logfile import LogFile
 from ._base import AsyncTestCase, TestCase, async_runner
 from ._flaky import flaky
 from .. import __version__
+from ..common import RACKSPACE_MINIMUM_VOLUME_SIZE
 from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
-# This is currently set to the minimum size for a SATA based Rackspace Cloud
-# Block Storage volume. See:
-# * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
-REALISTIC_BLOCKDEVICE_SIZE = int(GiB(100).to_Byte().value)
+REALISTIC_BLOCKDEVICE_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
 
 
 @implementer(IProcessTransport)
@@ -594,7 +592,7 @@ class ProtocolPoppingFactory(Factory):
         return self.protocols.pop()
 
 
-class DockerImageBuilder(PRecord):
+class DockerImageBuilder(PClass):
     """
     Build a docker image, tag it, and remove the image later.
 
@@ -845,7 +843,7 @@ PROCESS_ENDED = MessageType(
     u'The process terminated')
 
 
-class _ProcessResult(PRecord):
+class _ProcessResult(PClass):
     """
     The return type for ``run_process`` representing the outcome of the process
     that was run.

@@ -40,13 +40,15 @@ from ..test.blockdevicefactory import (
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
     get_minimum_allocatable_size, get_openstack_region_for_test,
 )
-from ....testtools import flaky, run_process
+from ....testtools import REALISTIC_BLOCKDEVICE_SIZE, flaky, run_process
 
 from ..cinder import (
     get_keystone_session, get_cinder_v1_client, get_nova_v2_client,
     wait_for_volume_state, UnexpectedStateException, UnattachedVolume,
     TimeoutException
 )
+
+from .logging import CINDER_VOLUME
 
 # Tests requiring virtio can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
@@ -130,6 +132,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         requested_volume = cinder_client.volumes.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
+        CINDER_VOLUME(id=requested_volume.id).write()
         self.addCleanup(
             cinder_client.volumes.delete,
             requested_volume.id,
@@ -154,6 +157,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size,
             )
+        CINDER_VOLUME(id=flocker_volume.blockdevice_id).write()
         self.assert_foreign_volume(flocker_volume)
 
     def test_name(self):
@@ -166,12 +170,13 @@ class CinderBlockDeviceAPIInterfaceTests(
             dataset_id=dataset_id,
             size=self.minimum_allocatable_size,
         )
+        CINDER_VOLUME(id=flocker_volume.blockdevice_id).write()
         self.assertEqual(
             cinder_client.volumes.get(
                 flocker_volume.blockdevice_id).display_name,
             u"flocker-{}".format(dataset_id))
 
-    @flaky('FLOC-3347')
+    @flaky(u'FLOC-3347')
     def test_get_device_path_device(self):
         return super(
             CinderBlockDeviceAPIInterfaceTests,
@@ -330,15 +335,13 @@ class VirtIOClient:
                     host_device])
 
 
-class CinderAttachmentTests(SynchronousTestCase):
-    """
-    Cinder volumes can be attached and return correct device path.
-    """
+class OpenStackFixture(object):
+    def __init__(self, addCleanup):
+        self.addCleanup = addCleanup
+        self.setUp()
+
     def setUp(self):
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            raise SkipTest(str(e))
+        config = get_blockdevice_config(ProviderType.openstack)
         region = get_openstack_region_for_test()
         session = get_keystone_session(**config)
         self.cinder = get_cinder_v1_client(session, region)
@@ -354,11 +357,27 @@ class CinderAttachmentTests(SynchronousTestCase):
             transient_states=(u'in-use', u'detaching'),
         )
 
-    def _cleanup(self, instance_id, volume):
+    def cleanup(self, instance_id, volume):
         volume.get()
         if volume.attachments:
             self._detach(instance_id, volume)
         self.cinder.volumes.delete(volume.id)
+
+
+class CinderAttachmentTests(SynchronousTestCase):
+    """
+    Cinder volumes can be attached and return correct device path.
+    """
+    def setUp(self):
+        super(CinderAttachmentTests, self).setUp()
+        try:
+            self.openstack = OpenStackFixture(self.addCleanup)
+        except InvalidConfig as e:
+            self.skipTest(str(e))
+        self.cinder = self.openstack.cinder
+        self.nova = self.openstack.nova
+        self.blockdevice_api = self.openstack.blockdevice_api
+        self._cleanup = self.openstack.cleanup
 
     def test_get_device_path_no_attached_disks(self):
         """
@@ -369,6 +388,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
+        CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
@@ -396,7 +416,20 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
+
+class VirtIOCinderAttachmentTests(SynchronousTestCase):
     @require_virtio
+    def setUp(self):
+        super(VirtIOCinderAttachmentTests, self).setUp()
+        try:
+            self.openstack = OpenStackFixture(self.addCleanup)
+        except InvalidConfig as e:
+            self.skipTest(str(e))
+        self.cinder = self.openstack.cinder
+        self.nova = self.openstack.nova
+        self.blockdevice_api = self.openstack.blockdevice_api
+        self._cleanup = self.openstack.cleanup
+
     def test_get_device_path_correct_with_attached_disk(self):
         """
         get_device_path returns the correct device name even when a non-Cinder
@@ -414,6 +447,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
+        CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
@@ -441,7 +475,6 @@ class CinderAttachmentTests(SynchronousTestCase):
 
         self.assertEqual(device_path.realpath(), new_device)
 
-    @require_virtio
     def test_disk_attachment_fails_with_conflicting_disk(self):
         """
         create_server_volume will raise an exception when Cinder attempts to
@@ -459,6 +492,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
+        CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
@@ -479,7 +513,6 @@ class CinderAttachmentTests(SynchronousTestCase):
             )
         self.assertEqual(e.exception.unexpected_state, u'available')
 
-    @require_virtio
     def test_get_device_path_virtio_blk_error_without_udev(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver raises
@@ -490,6 +523,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
+        CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
@@ -524,7 +558,6 @@ class CinderAttachmentTests(SynchronousTestCase):
             volume.id,
         )
 
-    @require_virtio
     def test_get_device_path_virtio_blk_symlink(self):
         """
         ``get_device_path`` on systems using the virtio_blk driver
@@ -536,6 +569,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         cinder_volume = self.cinder.volumes.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
+        CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
             volume_manager=self.cinder.volumes,
@@ -585,16 +619,14 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
 
     def test_destroy_timesout(self):
         """
-        If the cinder cannot delete the volume, we should timeout
-        after waiting some time
+        If Cinder does not delete the volume within a specified amount of time,
+        the destroy attempt fails by raising ``TimeoutException``.
         """
-        new_volume = self.api.cinder_volume_manager.create(size=100)
-        listed_volume = wait_for_volume_state(
-            volume_manager=self.api.cinder_volume_manager,
-            expected_volume=new_volume,
-            desired_state=u'available',
-            transient_states=(u'creating',),
+        new_volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
         )
+
         expected_timeout = 8
         # Using a fake no-op delete so it doesn't actually delete anything
         # (we don't need any actual volumes here, as we only need to verify
@@ -604,6 +636,7 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
             "delete",
             lambda *args, **kwargs: None
         )
+
         # Now try to delete it
         time_module = FakeTime(initial_time=0)
         self.patch(self.api, "_time", time_module)
@@ -612,7 +645,7 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
         exception = self.assertRaises(
             TimeoutException,
             self.api.destroy_volume,
-            blockdevice_id=listed_volume.id
+            blockdevice_id=new_volume.blockdevice_id,
         )
 
         self.assertEqual(

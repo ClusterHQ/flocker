@@ -4,13 +4,6 @@
 Public utilities for testing code that uses the REST API.
 """
 
-__all__ = ["buildIntegrationTests", "dumps",
-           "loads", "dummyRequest", "CloseEnoughJSONResponse",
-           "CloseEnoughResponse",
-           "extractSuccessfulJSONResult", "render", "asResponse",
-           "build_schema_test"]
-
-
 from io import BytesIO
 from json import dumps, loads as _loads
 from itertools import count
@@ -21,7 +14,7 @@ from zope.interface import implementer
 
 from twisted.python.log import err
 from twisted.web.iweb import IAgent, IResponse
-from twisted.internet.endpoints import TCP4ClientEndpoint
+from twisted.internet.endpoints import TCP4ClientEndpoint, UNIXClientEndpoint
 from twisted.internet import defer
 from twisted.web.client import ProxyAgent, readBody, FileBodyProducer
 from twisted.web.server import NOT_DONE_YET, Site
@@ -36,7 +29,16 @@ from twisted.python.failure import Failure
 from twisted.internet import reactor
 from twisted.web.http_headers import Headers
 
+from pyrsistent import pmap
+
 from flocker.restapi._schema import getValidator
+
+
+__all__ = ["buildIntegrationTests", "dumps",
+           "loads", "dummyRequest", "CloseEnoughJSONResponse",
+           "CloseEnoughResponse",
+           "extractSuccessfulJSONResult", "render", "asResponse",
+           "build_schema_test"]
 
 
 def loads(s):
@@ -208,6 +210,42 @@ def buildIntegrationTests(mixinClass, name, fixture):
     RealTests.__module__ = mixinClass.__module__
     MemoryTests.__module__ = mixinClass.__module__
     return RealTests, MemoryTests
+
+
+def build_UNIX_integration_tests(mixin_class, name, fixture):
+    """
+    Build ``TestCase`` class that runs the tests in the mixin class with
+    real queries over a UNIX socket.
+
+    :param mixin_class: A mixin class for ``TestCase`` that relies on having a
+        ``self.scenario``.
+
+    :param name: A ``str``, the name of the test category.
+
+    :param fixture: A callable that takes a ``TestCase`` and returns a
+        ``klein.Klein`` object.
+
+    :return: A L``TestCase`` class.
+    """
+    class RealTests(mixin_class, TestCase):
+        """
+        Tests that endpoints are available over the network interfaces that
+        real API users will be connecting from.
+        """
+        def setUp(self):
+            path = self.mktemp()
+            self.app = fixture(self)
+            self.port = reactor.listenUNIX(
+                path, Site(self.app.resource()),
+            )
+            self.addCleanup(self.port.stopListening)
+            self.agent = ProxyAgent(UNIXClientEndpoint(reactor, path), reactor)
+            super(RealTests, self).setUp()
+
+    RealTests.__name__ += name
+    RealTests.__module__ = mixin_class.__module__
+    return RealTests
+
 
 # Fakes for testing Twisted Web servers.  Unverified.  Belongs in Twisted.
 # https://twistedmatrix.com/trac/ticket/3274
@@ -570,7 +608,8 @@ class APIAssertionsMixin(object):
     """
     Additional assertion methods useful for testing an API.
     """
-    def assertResponseCode(self, method, path, request_body, expected_code):
+    def assertResponseCode(self, method, path, request_body, expected_code,
+                           additional_headers=pmap()):
         """
         Issue an HTTP request and make an assertion about the response code.
 
@@ -579,6 +618,7 @@ class APIAssertionsMixin(object):
         :param dict request_body: A JSON-encodable object to encode (as JSON)
             into the request body.  Or ``None`` for no request body.
         :param int expected_code: The status code expected in the response.
+        :param additional_headers: A mapping, additional HTTP headers to send.
 
         :return: A ``Deferred`` that will fire when the response has been
             received.  It will fire with a failure if the status code is
@@ -586,12 +626,14 @@ class APIAssertionsMixin(object):
             ``IResponse`` provider representing the response.
         """
         if request_body is None:
-            headers = None
+            headers = {}
             body_producer = None
         else:
-            headers = Headers({b"content-type": [b"application/json"]})
+            headers = {b"content-type": [b"application/json"]}
             body_producer = FileBodyProducer(BytesIO(dumps(request_body)))
 
+        headers.update(additional_headers)
+        headers = Headers(headers)
         requesting = self.agent.request(
             method, path, headers, body_producer
         )
@@ -603,7 +645,8 @@ class APIAssertionsMixin(object):
         return requesting
 
     def assertResult(self, method, path, request_body,
-                     expected_code, expected_result):
+                     expected_code, expected_result,
+                     additional_headers=pmap()):
         """
         Assert a particular JSON response for the given API request.
 
@@ -613,11 +656,12 @@ class APIAssertionsMixin(object):
         :param int expected_code: The code expected in the response.
             response.
         :param list|dict expected_result: The body expected in the response.
+        :param additional_headers: A mapping, additional HTTP headers to send.
 
         :return: A ``Deferred`` that fires when test is done.
         """
         requesting = self.assertResponseCode(
-            method, path, request_body, expected_code)
+            method, path, request_body, expected_code, additional_headers)
         requesting.addCallback(readBody)
         requesting.addCallback(loads)
 
@@ -636,7 +680,8 @@ class APIAssertionsMixin(object):
         return requesting
 
     def assertResultItems(self, method, path, request_body,
-                          expected_code, expected_result):
+                          expected_code, expected_result,
+                          additional_headers=pmap()):
         """
         Assert a JSON array response for the given API request.
 
@@ -650,11 +695,12 @@ class APIAssertionsMixin(object):
         :param int expected_code: The code expected in the response.
         :param list expected_result: A list of items expects in a
             JSON array response.
+        :param additional_headers: A mapping, additional HTTP headers to send.
 
         :return: A ``Deferred`` that fires when test is done.
         """
         requesting = self.assertResponseCode(
-            method, path, request_body, expected_code)
+            method, path, request_body, expected_code, additional_headers)
         requesting.addCallback(readBody)
         requesting.addCallback(lambda body: self.assertItemsEqual(
             expected_result, loads(body)))

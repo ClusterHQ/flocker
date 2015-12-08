@@ -1,7 +1,14 @@
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
+from datetime import timedelta
 from collections import MutableSequence
 from pipes import quote as shell_quote
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 from effect import Effect, sync_performer
+
+from ...common import retry_effect_with_timeout
+
+_TIMEOUT = timedelta(minutes=5)
 
 
 def identity(arg):
@@ -9,7 +16,7 @@ def identity(arg):
     return arg
 
 
-class RunRemotely(PRecord):
+class RunRemotely(PClass):
     """
     Run some commands on a remote host.
 
@@ -67,7 +74,7 @@ def _shell_join(seq):
     return ' '.join(result)
 
 
-class Run(PRecord):
+class Run(PClass):
     """
     Run a shell command on a remote host.
 
@@ -85,7 +92,7 @@ class Run(PRecord):
             log_command_filter=log_command_filter)
 
 
-class Sudo(PRecord):
+class Sudo(PClass):
     """
     Run a shell command on a remote host with sudo.
 
@@ -112,7 +119,7 @@ def perform_sudo(dispatcher, intent):
         command='sudo ' + intent.command, log_command_filter=identity))
 
 
-class Put(PRecord):
+class Put(PClass):
     """
     Create a file with the given content on a remote host.
 
@@ -140,7 +147,7 @@ def perform_put(dispatcher, intent):
         ))
 
 
-class Comment(PRecord):
+class Comment(PClass):
     """
     Record a comment to be shown in the documentation corresponding to a task.
 
@@ -221,6 +228,8 @@ def run_from_args(command, log_command_filter=identity):
         Run.from_args(command, log_command_filter=log_command_filter))
 
 
+# TODO: Create an effect that can compose with any other effect to apply sudo,
+# then replace use of this function with `sudo(run_from_args(...))`.
 def sudo_from_args(command, log_command_filter=identity):
     """
     Run a command on a remote host with sudo. This quotes the provided
@@ -234,3 +243,28 @@ def sudo_from_args(command, log_command_filter=identity):
     """
     return Effect(
         Sudo.from_args(command, log_command_filter=log_command_filter))
+
+
+def run_network_interacting_from_args(*a, **kw):
+    """
+    Run a command that interacts with an unreliable network.
+
+    :see: ``run_from_args``
+    """
+    return retry_effect_with_timeout(
+        run_from_args(*a, **kw),
+        timeout=_TIMEOUT.total_seconds(),
+    )
+
+
+# TODO: See sudo_from_args.  We should be able to get rid of this function too.
+def sudo_network_interacting_from_args(*a, **kw):
+    """
+    Run a command that interacts with an unreliable network using ``sudo``.
+
+    :see: ``sudo_from_args``
+    """
+    return retry_effect_with_timeout(
+        sudo_from_args(*a, **kw),
+        timeout=_TIMEOUT.total_seconds(),
+    )

@@ -106,13 +106,16 @@ def benchmark(scenario, operation, metric, num_samples=3):
     return benchmarking
 
 
-def driver(reactor, config, scenario, operation, metric, result, output):
+def driver(
+    reactor, config, scenario_factory, operation_factory, metric_factory,
+    result, output
+):
     """
     :param reactor: Reactor to use.
     :param config: Configuration read from options.
-    :param IScenario scenario: A load scenario.
-    :param IOperation operation: An operation to perform.
-    :param IMetric metric: A quantity to measure.
+    :param callable scenario_factory: A load scenario factory.
+    :param callable operation_factory: An operation factory.
+    :param callable metric_factory: A metric factory.
     :param result: A dictionary which will be updated with values to
         create a JSON result.
     :param output: A callable to receive the JSON structure, for
@@ -147,9 +150,9 @@ def driver(reactor, config, scenario, operation, metric, result, output):
 
     def run_benchmark(ignored):
         return benchmark(
-            scenario(reactor, control_service),
-            operation(control_service=control_service),
-            metric(clock=reactor, control_service=control_service),
+            scenario_factory(reactor, control_service),
+            operation_factory(reactor, control_service),
+            metric_factory(reactor, control_service),
         )
 
     d.addCallback(run_benchmark)

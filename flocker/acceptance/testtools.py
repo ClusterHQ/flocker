@@ -31,7 +31,7 @@ from eliot.twisted import DeferredContext
 
 from treq import json_content, content, get, post
 
-from pyrsistent import PRecord, field, CheckedPVector, pmap
+from pyrsistent import PClass, field, CheckedPVector, pmap
 
 from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
@@ -302,7 +302,7 @@ def get_mongo_client(host, port=27017):
     return d
 
 
-class ControlService(PRecord):
+class ControlService(PClass):
     """
     A record of the cluster's control service.
 
@@ -311,7 +311,7 @@ class ControlService(PRecord):
     public_address = field(type=bytes)
 
 
-class Node(PRecord):
+class Node(PClass):
     """
     A record of a cluster node.
 
@@ -450,7 +450,7 @@ def _ensure_encodeable(value):
     return value
 
 
-class Cluster(PRecord):
+class Cluster(PClass):
     """
     A record of the control service and the nodes in a cluster for acceptance
     testing.
@@ -979,8 +979,8 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
         cluster.
     :param UUID dataset_id: The v4 UUID of the dataset.
         Generated if not specified.
-    :param dict metadata: Additional metadata to be added to the create_dataset
-        request beyond the default "name": "my_volume" metadata.
+    :param dict metadata: Metadata to be added to the create_dataset
+        request.
     :param node: Node to create dataset on. By default first one in cluster.
     :return: ``Deferred`` firing with a ``flocker.apiclient.Dataset``
         dataset is present in actual cluster state.
@@ -991,14 +991,11 @@ def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
         dataset_id = uuid4()
     if metadata is None:
         metadata = {}
-    metadata_arg = {u"name": u"my_volume"}
-    metadata_arg.update(metadata)
     if node is None:
         node = cluster.nodes[0]
-
     configuring_dataset = cluster.client.create_dataset(
         node.uuid, maximum_size=maximum_size,
-        dataset_id=dataset_id, metadata=metadata_arg
+        dataset_id=dataset_id, metadata=metadata,
     )
 
     # Wait for the dataset to be created

@@ -18,6 +18,8 @@ __all__ = [
 
 from inspect import cleandoc
 
+from eliot import register_exception_extractor
+
 from twisted.web.http import BAD_REQUEST, FORBIDDEN, NOT_FOUND
 
 # HTTP response code indicating the request is syntactically correct but
@@ -46,8 +48,13 @@ class BadRequest(Exception):
         @param result: The value to put into the field of the response
             body as JSON.
         """
+        Exception.__init__(self, code, result)
         self.code = code
         self.result = result
+
+
+# Add response_code field to logged BadRequest:
+register_exception_extractor(BadRequest, lambda e: {u"code": e.code})
 
 
 def makeBadRequest(code=BAD_REQUEST, **result):

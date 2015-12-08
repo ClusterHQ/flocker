@@ -55,11 +55,11 @@ class TestClientPackages(unittest.TestCase):
         """
         self.install('ubuntu-14.04', get_steps_pkg)
 
-    def test_ubuntu_15_04_deb(self):
+    def test_ubuntu_15_10_deb(self):
         """
-        Ubuntu 15.04 client packaging works.
+        Ubuntu 15.10 client packaging works.
         """
-        self.install('ubuntu-15.04', get_steps_pkg)
+        self.install('ubuntu-15.10', get_steps_pkg)
 
     def test_pip_install_apt(self):
         """

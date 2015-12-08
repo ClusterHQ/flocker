@@ -1,21 +1,22 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Metrics for the control service benchmarks.
+Wallclock time metric for the control service benchmarks.
 """
 
-from pyrsistent import PClass, field
 from zope.interface import implementer
 
 from .._interfaces import IMetric
 
 
 @implementer(IMetric)
-class WallClock(PClass):
+class WallClock(object):
     """
     Measure the elapsed wallclock time during an operation.
     """
-    clock = field(mandatory=True)
-    control_service = field()
+
+    def __init__(self, clock, control_service):
+        self.clock = clock
+        self.control_service = control_service
 
     def measure(self, f, *a, **kw):
         def finished(ignored):
