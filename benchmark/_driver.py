@@ -109,7 +109,7 @@ def driver(
 ):
     """
     :param reactor: Reactor to use.
-    :param cluster: Benchmark cluster.
+    :param BenchmarkCluster cluster: Benchmark cluster.
     :param callable scenario_factory: A load scenario factory.
     :param callable operation_factory: An operation factory.
     :param callable metric_factory: A metric factory.
