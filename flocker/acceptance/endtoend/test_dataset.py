@@ -206,8 +206,7 @@ class DatasetAPITests(AsyncTestCase):
         # Downgrade flocker to the most recent released version.
         d.addCallback(
             lambda v: upgrade_flocker_to(
-                PackageSource(version=get_release_version(
-                    original_package_source[0].version))))
+                PackageSource()))
 
         return d
 
