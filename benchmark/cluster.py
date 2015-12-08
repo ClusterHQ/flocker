@@ -168,7 +168,7 @@ class BenchmarkCluster(object):
         """
         return self._control_node_address
 
-    def control_service(self, reactor):
+    def get_control_service(self, reactor):
         """
         Return a provider of the ``IFlockerAPIV1Client`` interface.
         """

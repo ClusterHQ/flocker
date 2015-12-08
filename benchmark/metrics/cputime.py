@@ -200,7 +200,7 @@ class CPUTime(object):
         before_cpu = []
         after_cpu = []
 
-        control_service = self.cluster.control_service(self.reactor)
+        control_service = self.cluster.get_control_service(self.reactor)
 
         # Retrieve the cluster nodes
         d = control_service.list_nodes().addCallback(nodes.extend)

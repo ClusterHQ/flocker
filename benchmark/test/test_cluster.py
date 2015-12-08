@@ -105,7 +105,7 @@ class BenchmarkClusterTests(SynchronousTestCase):
         The ``control_service`` method gives expected results.
         """
         self.assertIs(
-            self.cluster.control_service(Clock()), self.control_service)
+            self.cluster.get_control_service(Clock()), self.control_service)
 
     def test_public_address(self):
         """

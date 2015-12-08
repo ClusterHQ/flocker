@@ -29,7 +29,7 @@ class ReadRequest(object):
     """
 
     def __init__(self, reactor, cluster):
-        self.control_service = cluster.control_service(reactor)
+        self.control_service = cluster.get_control_service(reactor)
 
     def get_probe(self):
         return ReadRequestProbe(control_service=self.control_service)

@@ -119,7 +119,7 @@ def driver(
         printing or storage.
     """
 
-    d = cluster.control_service(reactor).version()
+    d = cluster.get_control_service(reactor).version()
 
     def add_control_service(version, result):
         result['control_service'] = dict(
