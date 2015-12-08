@@ -36,19 +36,33 @@ _GET_CPUTIME_COMMAND = [
     b'-C',
 ]
 
+# A string that not a valid process name.  Any name with a space is good
+# because metric does not support process names containing spaces.
+WALLCLOCK_LABEL = '-- WALL --'
+
 
 class CPUParser(LineOnlyReceiver):
     """
     Handler for the output lines returned from the cpu time command.
+
+    After parsing, the ``result`` attribute will contain a dictionary
+    mapping process names to elapsed CPU time.  Process names may be
+    truncated.  A special process will be added indicating the wallclock
+    time.
     """
 
-    def __init__(self):
+    def __init__(self, reactor):
+        self._reactor = reactor
         self.result = {}
 
     def lineReceived(self, line):
         """
         Handle a single line output from the cpu time command.
         """
+        # Add wallclock time when receiving first line of output.
+        if WALLCLOCK_LABEL not in self.result:
+            self.result[WALLCLOCK_LABEL] = self._reactor.seconds()
+
         # Lines are like:
         #
         # flocker-control 1-00:03:41
@@ -79,7 +93,7 @@ class CPUParser(LineOnlyReceiver):
         self.result[name] = self.result.get(name, 0) + cputime
 
 
-class SSHRunner:
+class SSHRunner(object):
     """
     Run a command using ssh.
 
@@ -89,9 +103,9 @@ class SSHRunner:
     """
 
     def __init__(self, reactor, node_mapping, user=b'root'):
-        self.reactor = reactor
-        self.node_mapping = node_mapping
-        self.user = user
+        self._reactor = reactor
+        self._node_mapping = node_mapping
+        self._user = user
 
     def run(self, node, command_args, handle_stdout):
         """
@@ -104,10 +118,10 @@ class SSHRunner:
         """
         hostname = node.public_address.exploded
         # Map hostname to public IP address. If not in mapping, use hostname.
-        public_ip = self.node_mapping.get(hostname, hostname)
+        public_ip = self._node_mapping.get(hostname, hostname)
         d = run_ssh(
-            self.reactor,
-            self.user,
+            self._reactor,
+            self._user,
             public_ip,
             command_args,
             handle_stdout=handle_stdout,
@@ -115,10 +129,11 @@ class SSHRunner:
         return d
 
 
-def get_node_cpu_times(runner, node, processes):
+def get_node_cpu_times(reactor, runner, node, processes):
     """
     Get the CPU times for processes running on a node.
 
+    :param reactor: Twisted Reactor.
     :param runner: A method of running a command on a node.
     :param node: A node to run the command on.
     :param processes: An iterator of process names to monitor. The process
@@ -130,7 +145,7 @@ def get_node_cpu_times(runner, node, processes):
     # If no named processes are running, `ps` will return an error.  To
     # distinguish this case from real errors, ensure that at least one process
     # is present by adding `ps` as a monitored process.  Remove it later.
-    parser = CPUParser()
+    parser = CPUParser(reactor)
     d = runner.run(
         node,
         _GET_CPUTIME_COMMAND + [b','.join(processes) + b',ps'],
@@ -147,11 +162,11 @@ def get_node_cpu_times(runner, node, processes):
     return d
 
 
-def get_cluster_cpu_times(clock, runner, nodes, processes):
+def get_cluster_cpu_times(reactor, runner, nodes, processes):
     """
     Get the CPU times for processes running on a cluster.
 
-    :param clock: Twisted Reactor.
+    :param reactor: Twisted Reactor.
     :param runner: A method of running a command on a node.
     :param node: Node to run the command on.
     :param processes: An iterator of process names to monitor. The process
@@ -161,7 +176,7 @@ def get_cluster_cpu_times(clock, runner, nodes, processes):
         If an error occurs, returns None (after logging error).
     """
     return gather_deferreds(list(
-        get_node_cpu_times(runner, node, processes)
+        get_node_cpu_times(reactor, runner, node, processes)
         for node in nodes
     ))
 
