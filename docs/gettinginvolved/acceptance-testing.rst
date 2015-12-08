@@ -112,13 +112,6 @@ You will need a ssh agent running with access to the insecure vagrant private ke
 
   ssh-add ~/.vagrant.d/insecure_private_key
 
-
-.. The following step will go away once FLOC-1163 is addressed.
-
-You will also need the tutorial vagrant box BuildBot has created from the release branch.
-The URL can be found by examining the "upload-base-box" step of the ``flocker-vagrant-tutorial-box`` builder.
-The URL will look like ``http://build.clusterhq.com/results/vagrant/<branch>/flocker-tutorial.json``.
-
 .. prompt:: bash $
 
    vagrant box add <URL>
