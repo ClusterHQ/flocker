@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 A library for implementing state changes on external systems in an isolated
@@ -16,7 +16,7 @@ changes.
 
 from zope.interface import Interface, Attribute, implementer
 
-from pyrsistent import PVector, PRecord, pvector, field, PClass
+from pyrsistent import PVector, pvector, field, PClass
 
 from twisted.internet.defer import maybeDeferred, succeed
 
@@ -87,7 +87,7 @@ LOG_IN_PARALLEL = ActionType("flocker:node:in_parallel", [], [])
 
 
 @implementer(IStateChange)
-class _InParallel(PRecord):
+class _InParallel(PClass):
     changes = field(
         type=PVector,
         # Sort the changes for the benefit of comparison.  Stick with a vector
@@ -129,7 +129,7 @@ def in_parallel(changes):
 
 
 @implementer(IStateChange)
-class _Sequentially(PRecord):
+class _Sequentially(PClass):
     changes = field(type=PVector, factory=pvector, mandatory=True)
 
     @property

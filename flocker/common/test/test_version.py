@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for :module:`flocker.docs.version`.
@@ -13,7 +13,7 @@ try:
 except ImportError:
     PACKAGING_INSTALLED = False
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from ..version import (
     _parse_version, FlockerVersion,
@@ -84,7 +84,7 @@ class InvalidVersionTests(SynchronousTestCase):
         self.assertRaises(UnparseableVersion, _parse_version, 'unparseable')
 
 
-class VersionCase(PRecord):
+class VersionCase(PClass):
     """
     Description of a version and its expected interpretations.
 

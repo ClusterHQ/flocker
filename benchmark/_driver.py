@@ -6,11 +6,8 @@ Driver for the control service benchmarks.
 from eliot import start_action
 from eliot.twisted import DeferredContext
 
-from twisted.python.filepath import FilePath
 from twisted.internet.task import cooperate
-from twisted.internet.defer import Deferred, logError, maybeDeferred, succeed
-
-from flocker.apiclient import FlockerClient
+from twisted.internet.defer import Deferred, logError, maybeDeferred
 
 
 def bypass(result, func, *args, **kw):
@@ -106,40 +103,27 @@ def benchmark(scenario, operation, metric, num_samples=3):
     return benchmarking
 
 
-def driver(reactor, config, scenario, operation, metric, result, output):
+def driver(
+    reactor, cluster, scenario_factory, operation_factory, metric_factory,
+    result, output
+):
     """
     :param reactor: Reactor to use.
-    :param config: Configuration read from options.
-    :param IScenario scenario: A load scenario.
-    :param IOperation operation: An operation to perform.
-    :param IMetric metric: A quantity to measure.
+    :param BenchmarkCluster cluster: Benchmark cluster.
+    :param callable scenario_factory: A load scenario factory.
+    :param callable operation_factory: An operation factory.
+    :param callable metric_factory: A metric factory.
     :param result: A dictionary which will be updated with values to
         create a JSON result.
     :param output: A callable to receive the JSON structure, for
         printing or storage.
     """
 
-    if config['control']:
-        cert_directory = FilePath(config['certs'])
-        control_service = FlockerClient(
-            reactor,
-            host=config['control'],
-            port=4523,
-            ca_cluster_path=cert_directory.child(b"cluster.crt"),
-            cert_path=cert_directory.child(b"user.crt"),
-            key_path=cert_directory.child(b"user.key"),
-        )
-
-        d = control_service.version()
-    else:
-        # Only valid for operation 'no-op'
-        control_service = None
-        d = succeed({u'flocker': None})
+    d = cluster.get_control_service(reactor).version()
 
     def add_control_service(version, result):
         result['control_service'] = dict(
-            host=config['control'],
-            port=4523,
+            host=cluster.control_node_address().compressed,
             flocker_version=version[u"flocker"],
         )
 
@@ -147,9 +131,9 @@ def driver(reactor, config, scenario, operation, metric, result, output):
 
     def run_benchmark(ignored):
         return benchmark(
-            scenario(reactor, control_service),
-            operation(clock=reactor, control_service=control_service),
-            metric(clock=reactor, control_service=control_service),
+            scenario_factory(reactor, cluster),
+            operation_factory(reactor, cluster),
+            metric_factory(reactor, cluster),
         )
 
     d.addCallback(run_benchmark)

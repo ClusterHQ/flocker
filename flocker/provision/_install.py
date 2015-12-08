@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 # -*- test-case-name: flocker.provision.test.test_install -*-
 
 """
@@ -15,7 +15,7 @@ import yaml
 from zope.interface import implementer
 
 from characteristic import attributes
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from twisted.internet.error import ProcessTerminated
 
@@ -214,7 +214,7 @@ class DistributionNotSupported(NotImplementedError):
 
 
 @implementer(INode)
-class ManagedNode(PRecord):
+class ManagedNode(PClass):
     """
     A node managed by some other system (eg by hand or by another piece of
     orchestration software).

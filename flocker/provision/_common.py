@@ -1,7 +1,7 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 from characteristic import attributes, Attribute
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 from zope.interface import (
     Attribute as InterfaceAttribute, Interface)
 
@@ -56,7 +56,7 @@ class Variants(Values):
     ZFS_TESTING = ValueConstant("zfs-testing")
 
 
-class Cluster(PRecord):
+class Cluster(PClass):
     """
     Description of the components of a cluster.
 

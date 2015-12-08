@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Persistence of cluster configuration.
@@ -213,7 +213,18 @@ def wire_decode(data):
     return loads(data, object_hook=decode)
 
 
-_DEPLOYMENT_FIELD = Field(u"configuration", repr)
+def to_unserialized_json(obj):
+    """
+    Convert a wire encodeable object into structured Python objects that
+    are JSON serializable.
+
+    :param obj: An object that can be passed to ``wire_encode``.
+    :return: Python object that can be JSON serialized.
+    """
+    # Worst implementation everrrr:
+    return loads(wire_encode(obj))
+
+_DEPLOYMENT_FIELD = Field(u"configuration", to_unserialized_json)
 _LOG_STARTUP = MessageType(u"flocker-control:persistence:startup",
                            [_DEPLOYMENT_FIELD])
 _LOG_SAVE = ActionType(u"flocker-control:persistence:save",

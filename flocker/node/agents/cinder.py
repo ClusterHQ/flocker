@@ -1,5 +1,5 @@
 # -*- test-case-name: flocker.node.agents.functional.test_cinder,flocker.node.agents.functional.test_cinder_behaviour -*- # noqa
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
@@ -12,7 +12,7 @@ from bitmath import Byte, GiB
 
 from eliot import Message
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
@@ -746,12 +746,12 @@ class _LoggingCinderVolumeManager(object):
 
 
 @auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
-class _LoggingNovaVolumeManager(PRecord):
+class _LoggingNovaVolumeManager(PClass):
     _nova_volumes = field(mandatory=True)
 
 
 @auto_openstack_logging(INovaServerManager, "_nova_servers")
-class _LoggingNovaServerManager(PRecord):
+class _LoggingNovaServerManager(PClass):
     _nova_servers = field(mandatory=True)
 
 

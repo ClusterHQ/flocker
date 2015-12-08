@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.node._change``.
@@ -8,7 +8,7 @@ from unittest import SkipTest
 
 from zope.interface import implementer
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import FirstError, Deferred, succeed, fail
@@ -81,7 +81,7 @@ def largest(interface, instance):
 
 
 @implementer(IStateChange)
-class BrokenAction(PRecord):
+class BrokenAction(PClass):
     """
     An ``IStateChange`` implementation that synchronously raised an exception
     instead of returning a ``Deferred``.

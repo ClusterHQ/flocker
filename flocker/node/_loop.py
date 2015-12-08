@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 # -*- test-case-name: flocker.node.test.test_loop -*-
 
 """
@@ -47,6 +47,7 @@ from ..common import gather_deferreds
 from ..control import (
     NodeStateCommand, IConvergenceAgent, AgentAMP, SetNodeEraCommand,
 )
+from ..control._persistence import to_unserialized_json
 
 
 class ClusterStatusInputs(Names):
@@ -302,38 +303,42 @@ class ConvergenceLoopOutputs(Names):
 
 _FIELD_CONNECTION = Field(
     u"connection",
-    lambda client: repr(client),
-    "The AMP connection to control service")
+    repr,
+    u"The AMP connection to control service")
 
 _FIELD_LOCAL_CHANGES = Field(
-    u"local_changes", repr,
-    "Changes discovered in local state.")
+    u"local_changes", to_unserialized_json,
+    u"Changes discovered in local state.")
 
 LOG_SEND_TO_CONTROL_SERVICE = ActionType(
     u"flocker:agent:send_to_control_service",
     [_FIELD_CONNECTION, _FIELD_LOCAL_CHANGES], [],
-    "Send the local state to the control service.")
+    u"Send the local state to the control service.")
 
 _FIELD_CLUSTERSTATE = Field(
-    u"cluster_state", repr,
-    "The state of the cluster, according to control service.")
+    u"cluster_state", to_unserialized_json,
+    u"The state of the cluster, according to control service.")
 
 _FIELD_CONFIGURATION = Field(
-    u"desired_configuration", repr,
-    "The configuration of the cluster according to the control service.")
+    u"desired_configuration", to_unserialized_json,
+    u"The configuration of the cluster according to the control service.")
 
 _FIELD_ACTIONS = Field(
     u"calculated_actions", repr,
-    "The actions we decided to take to converge with configuration.")
+    u"The actions we decided to take to converge with configuration.")
 
 LOG_CONVERGE = ActionType(
     u"flocker:agent:converge",
     [_FIELD_CLUSTERSTATE, _FIELD_CONFIGURATION], [],
-    "The convergence action within the loop.")
+    u"The convergence action within the loop.")
+
+LOG_DISCOVERY = ActionType(
+    u"flocker:agent:discovery", [], [],
+    u"The deployer is doing discovery of local state.")
 
 LOG_CALCULATED_ACTIONS = MessageType(
     u"flocker:agent:converge:actions", [_FIELD_ACTIONS],
-    "The actions we're going to attempt.")
+    u"The actions we're going to attempt.")
 
 
 class ConvergenceLoop(object):
@@ -452,8 +457,11 @@ class ConvergenceLoop(object):
 
         with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
                           desired_configuration=self.configuration).context():
-            d = DeferredContext(maybeDeferred(
-                self.deployer.discover_state, known_local_state))
+            with LOG_DISCOVERY(self.fsm.logger).context():
+                discover = DeferredContext(maybeDeferred(
+                    self.deployer.discover_state, known_local_state))
+                discover.addActionFinish()
+            d = DeferredContext(discover.result)
 
         def got_local_state(local_state):
             self._last_discovered_local_state = local_state

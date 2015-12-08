@@ -3,12 +3,6 @@
 Benchmarking
 ============
 
-.. note::
-
-   For the ``benchmark`` command described on this page, if the cluster uses private addresses for communication (e.g. AWS nodes), set the environment variable ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` to a serialized JSON object mapping cluster internal IP addresses to public IP addresses.
-   This environment variable is provided if the cluster is started using the ``run-acceptance-tests`` command.
-   This is intended to be a temporary requirement, until other mechanisms are available [:issue:`2137`, :issue:`3514`, :issue:`3521`].
-
 Flocker includes a tool for benchmarking operations.
 It is called like this:
 
@@ -16,60 +10,131 @@ It is called like this:
 
    benchmark/benchmark <options>
 
-
-The :program:`benchmark` script has several options:
+The :program:`benchmark` script has the following command line options:
 
 .. program:: benchmark
 
-.. option:: --control <control-service-ipaddr>
+.. option:: --cluster <cluster-config>
 
-   Specifies the IP address for the Flocker cluster control node.
-   This must be specified, unless the ``no-op`` operation is requested.
+   Specifies a directory containing:
 
-.. option:: --certs <directory>
+   - ``cluster.yml`` - a cluster description file;
+   - ``cluster.crt`` - a CA certificate file;
+   - ``user.crt`` - a user certificate file; and
+   - ``user.key`` - a user private key file.
 
-   Specifies the directory containing the user certificates.
-   Defaults to the directory ``./certs``.
+   These files are equivalent to those created by the :ref:`Quick Start Flocker Installer <labs-installer>`.
+   The format of the :file:`cluster.yml` file is specified in the  :ref:`benchmarking-cluster-description` section below.
+
+   If this option is not specified, then the benchmark script expects environment variables as set by the :ref:`acceptance test runner <acceptance-testing-cluster-config>` using ```run-acceptance-tests --keep``.
+
+.. option:: --config <benchmark-config>
+
+   Specifies a file containing configurations for scenarios, operations, and metrics.
+   The format of this file is specified in the :ref:`benchmarking-configuration-file` section below.
+   Defaults to the file ``./benchmark.yml``.
 
 .. option:: --scenario <scenario>
 
    Specifies the scenario to run the benchmark under.
-   Supported values include:
-
-      ``no-load``
-         No additional load on system.
-         This is the default.
+   This is the ``name`` of a scenario in the configuration file.
+   Defaults to the name ``default``.
 
 .. option:: --operation <operation>
 
    Specifies the operation to be benchmarked.
-   This operation is sampled 3 times.
-   Supported values include:
-
-      ``no-op``
-         A no-op operation that performs no action.
-
-      ``read-request``
-         Read from the control service.
-         This is the default.
-
-      ``wait-10``
-         Wait 10 seconds between measurements.
+   This is the ``name`` of an operation in the configuration file.
+   Defaults to the name ``default``.
+   The operation is sampled 3 times.
 
 .. option:: --metric <metric>
 
    Specifies the quantity to measure while the operation is performed.
-   Supported values include:
+   This is the ``name`` of a metric in the configuration file.
+   Defaults to the name ``default``.
 
-      ``cputime``
-         CPU time elapsed.
 
-      ``wallclock``
-         Actual clock time elapsed.
-         This is the default.
+.. _benchmarking-cluster-description:
 
-To see the supported values for each option, run:
+Cluster Description File
+------------------------
 
-.. prompt:: bash $
+This file must be named :file:`cluster.yml` and must be located in the directory named by the ``--cluster`` option.
 
-   benchmark/benchmark --help
+An example file:
+
+.. code-block:: yaml
+
+   agent_nodes:
+    - {public: 172.31.105.15, private: 10.0.84.25}
+    - {public: 172.31.105.16, private: 10.0.84.22}
+   control_node: 172.31.105.15
+
+.. _benchmarking-configuration-file:
+
+Configuration File
+------------------
+
+The :program:`benchmark` script requires a configuration file describing the possible scenarios, operations, and metrics.
+Each of these has a name, a type, and possibly other parameters.
+
+An example file:
+
+.. code-block:: yaml
+
+   scenarios:
+     - name: default
+       type: no-load
+
+   operations:
+     - name: default
+       type: read-request
+
+     - name: wait-10
+       type: wait
+       wait_seconds: 10
+
+     - name: wait-100
+       type: wait
+       wait_seconds: 100
+
+   metrics:
+     - name: default
+       type: wallclock
+
+     - name: cputime
+       type: cputime
+
+Scenario Types
+~~~~~~~~~~~~~~
+
+.. option:: no-load
+
+   No additional load on system.
+
+Operation Types
+~~~~~~~~~~~~~~~
+
+.. option:: no-op
+
+   A no-op operation that performs no action.
+
+.. option:: read-request
+
+   Read the current cluster state from the control service.
+
+.. option:: wait
+
+   Wait for a number of seconds between measurements.
+   The number of seconds to wait must be provided as an additional ``wait_seconds`` property.
+
+Metric Types
+~~~~~~~~~~~~
+
+.. option:: cputime
+
+   CPU time elapsed.
+
+.. option:: wallclock
+
+   Actual clock time elapsed.

@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 # -*- test-case-name: flocker.node.test.test_deploy -*-
 
 """
@@ -15,7 +15,7 @@ from zope.interface import Interface, implementer, Attribute
 
 from characteristic import attributes
 
-from pyrsistent import PRecord, field, PClass
+from pyrsistent import PClass, field
 
 from eliot import Message, write_failure, Logger, start_action
 
@@ -156,7 +156,7 @@ def _eliot_system(part):
 
 
 @implementer(IStateChange)
-class StartApplication(PRecord):
+class StartApplication(PClass):
     """
     Launch the supplied application as a container.
 
@@ -258,7 +258,7 @@ def _link_environment(protocol, alias, local_port, hostname, remote_port):
 
 
 @implementer(IStateChange)
-class StopApplication(PRecord):
+class StopApplication(PClass):
     """
     Stop and disable the given application.
 
@@ -280,7 +280,7 @@ class StopApplication(PRecord):
 
 
 @implementer(IStateChange)
-class CreateDataset(PRecord):
+class CreateDataset(PClass):
     """
     Create a new locally-owned dataset.
 
@@ -389,7 +389,7 @@ class PushDataset(object):
 
 
 @implementer(IStateChange)
-class DeleteDataset(PRecord):
+class DeleteDataset(PClass):
     """
     Delete all local copies of the dataset.
 
@@ -426,7 +426,7 @@ class DeleteDataset(PRecord):
 
 
 @implementer(IStateChange)
-class SetProxies(PRecord):
+class SetProxies(PClass):
     """
     Set the ports which will be forwarded to other nodes.
 
@@ -438,7 +438,7 @@ class SetProxies(PRecord):
     def eliot_action(self):
         return start_action(
             _logger, _eliot_system("setproxies"),
-            addresses=list(dict(port) for port in self.ports),
+            addresses=list(port.serialize() for port in self.ports),
         )
 
     def run(self, deployer):
@@ -459,7 +459,7 @@ class SetProxies(PRecord):
 
 
 @implementer(IStateChange)
-class OpenPorts(PRecord):
+class OpenPorts(PClass):
     """
     Set the ports which will have the firewall opened.
 

@@ -1,11 +1,11 @@
 # -*- test-case-name: flocker.common.test.test_version -*-
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 import re
 
 from characteristic import attributes, Attribute
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 
 # This regex parses valid version numbers for Flocker. It handles two
@@ -238,7 +238,7 @@ def get_package_key_suffix(version):
         return "-testing"
 
 
-class RPMVersion(PRecord):
+class RPMVersion(PClass):
     """
     An RPM compatible version and a release version.
     See: http://fedoraproject.org/wiki/Packaging:NamingGuidelines#Pre-Release_packages  # noqa

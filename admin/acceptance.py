@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
 Run the acceptance tests.
 """
@@ -30,7 +30,7 @@ from effect import parallel
 from txeffect import perform
 
 from admin.vagrant import vagrant_version
-from flocker.common import gather_deferreds
+from flocker.common import RACKSPACE_MINIMUM_VOLUME_SIZE, gather_deferreds
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
@@ -421,7 +421,7 @@ def configured_cluster_for_nodes(
     # FLOC-2584 also discusses this.
     default_volume_size = GiB(1)
     if dataset_backend_configuration.get('auth_plugin') == 'rackspace':
-        default_volume_size = GiB(100)
+        default_volume_size = RACKSPACE_MINIMUM_VOLUME_SIZE
 
     cluster = Cluster(
         all_nodes=pvector(nodes),
@@ -585,8 +585,19 @@ class LibcloudRunner(object):
         }
         metadata.update(self.metadata)
 
+        # Try to make names unique even if the same creator is starting
+        # multiple clusters at the same time.  This lets other code use the
+        # name as a way to identify nodes.  This is only necessary in one
+        # place, the node creation code, to perform cleanup when the create
+        # operation fails in a way such that it isn't clear if the instance has
+        # been created or not.
+        random_tag = os.urandom(8).encode("base64").strip("\n=")
+        print "Assigning random tag:", random_tag
+
         for index in range(self.num_nodes):
-            name = "acceptance-test-%s-%d" % (self.creator, index)
+            name = "acceptance-test-%s-%s-%d" % (
+                self.creator, random_tag, index,
+            )
             try:
                 print "Creating node %d: %s" % (index, name)
                 node = self.provisioner.create_node(

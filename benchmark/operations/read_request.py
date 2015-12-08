@@ -1,4 +1,3 @@
-from pyrsistent import PClass, field
 from zope.interface import implementer
 
 from twisted.internet.defer import succeed
@@ -7,12 +6,13 @@ from .._interfaces import IProbe, IOperation
 
 
 @implementer(IProbe)
-class ReadRequestProbe(PClass):
+class ReadRequestProbe(object):
     """
     A probe to perform a read request on the control service.
     """
 
-    control_service = field(mandatory=True)
+    def __init__(self, control_service):
+        self.control_service = control_service
 
     def run(self):
         d = self.control_service.list_datasets_state()
@@ -23,14 +23,13 @@ class ReadRequestProbe(PClass):
 
 
 @implementer(IOperation)
-class ReadRequest(PClass):
+class ReadRequest(object):
     """
     An operation to perform a read request on the control service.
     """
 
-    # `clock` unused, but required for __init__ signature
-    clock = field(mandatory=True)
-    control_service = field(mandatory=True)
+    def __init__(self, reactor, cluster):
+        self.control_service = cluster.get_control_service(reactor)
 
     def get_probe(self):
         return ReadRequestProbe(control_service=self.control_service)
