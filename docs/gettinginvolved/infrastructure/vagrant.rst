@@ -19,7 +19,6 @@ Development Box (:file:`vagrant/dev`)
 Building
 ^^^^^^^^
 
-Buildbot's `flocker-vagrant-tutorial-box` builder builds the tutorial box.
 The `flocker-vagrant-dev-box` builder builds the development box on some branches but not others.
 The `flocker-vagrant-dev-box` builder can be forced on any branch.
 
