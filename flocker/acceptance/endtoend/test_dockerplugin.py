@@ -152,9 +152,6 @@ class DockerPluginTests(AsyncTestCase):
         self.addCleanup(client.remove_volume, name)
         return result
 
-    # @given(size=integers(min_value=75, max_value=100),
-    #        expression=volume_expression)
-    # def _test_sized_vol_container(self, cluster, node, size, expression):
     def _test_sized_vol_container(self, cluster, node):
         """
         Create a volume with a size, then create a
