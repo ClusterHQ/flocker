@@ -7,6 +7,7 @@ import shutil
 import sys
 import tempfile
 
+from ipaddr import IPAddress
 from jsonschema.exceptions import ValidationError
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -65,8 +66,8 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options.parseOptions([])
         cluster = get_cluster(options, self.environ)
         self.assertEqual(
-            cluster.control_node_address().exploded,
-            _ENV_CONTROL_SERVICE_ADDRESS
+            cluster.control_node_address(),
+            IPAddress(_ENV_CONTROL_SERVICE_ADDRESS)
         )
 
     def test_yaml_setup(self):
@@ -83,8 +84,8 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options.parseOptions(['--cluster', tmpdir])
         cluster = get_cluster(options, self.environ)
         self.assertEqual(
-            cluster.control_node_address().exploded,
-            _YAML_CONTROL_SERVICE_ADDRESS
+            cluster.control_node_address(),
+            IPAddress(_YAML_CONTROL_SERVICE_ADDRESS)
         )
 
     def test_missing_environment(self):
