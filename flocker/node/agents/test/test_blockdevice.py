@@ -1492,7 +1492,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         """
         If a dataset with a primary manifestation on one node is marked as
         deleted in the configuration, the ``BlockDeviceDeployer`` for a
-        different node does not return a ``DestroyBlockDeviceDataset`` from its
+        different node does not return a ``DestroyVolume`` from its
         ``calculate_necessary_state_changes`` for that dataset.
         """
         other_node = u"192.0.2.2"
@@ -1577,10 +1577,10 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
     def test_deleted_dataset_volume_unmounted(self):
         """
-        ``DestroyBlockDeviceDataset`` is a compound state change that first
-        attempts to unmount the block device.
-        Therefore do not calculate deletion for blockdevices that are not
-        manifest.
+        If the configuration indicates a dataset with a primary manifestation
+        on the node has been deleted and the volume associated with that
+        dataset is mounted, ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``UnmountBlockDevice`` state change operation.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state).transform(
@@ -1631,14 +1631,11 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
     def test_deleted_dataset_volume_no_filesystem(self):
         """
-        ``DestroyBlockDeviceDataset`` is a compound state change that first
-        attempts to unmount the block device.
-        Therefore do not calculate deletion for blockdevices that are not
-        manifest, instead creating filesystem.
-
-        This will be unnecessary once we do FLOC-1772, but until that is
-        fixed is necessary to ensure volumes without filesystems get
-        deleted.
+        If the configuration indicates a dataset with a primary manifestation
+        on the node has been deleted and the volume associated with that
+        dataset is attached but has no filesystem,
+        ``BlockDeviceDeployer.calculate_changes`` returns a ``DetachVolume``
+        state change operation.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state).transform(
