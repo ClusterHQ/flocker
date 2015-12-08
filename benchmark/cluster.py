@@ -50,7 +50,7 @@ def validate_cluster_configuration(cluster_config):
     v.validate(cluster_config)
 
 
-class BenchmarkCluster:
+class BenchmarkCluster(object):
     """
     Cluster for benchmark performance.
 

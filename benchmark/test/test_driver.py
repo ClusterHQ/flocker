@@ -17,7 +17,7 @@ from benchmark._interfaces import IScenario, IProbe, IOperation, IMetric
 
 
 @implementer(IMetric)
-class FakeMetric:
+class FakeMetric(object):
 
     def __init__(self, measurements):
         """
@@ -36,7 +36,7 @@ class FakeMetric:
 
 
 @implementer(IProbe)
-class FakeProbe:
+class FakeProbe(object):
     """
     A probe performs a single operation, which can be timed.
     """
@@ -54,7 +54,7 @@ class FakeProbe:
 
 
 @implementer(IOperation)
-class FakeOperation:
+class FakeOperation(object):
 
     def __init__(self, succeeds):
         """
@@ -68,7 +68,7 @@ class FakeOperation:
 
 
 @implementer(IScenario)
-class FakeScenario:
+class FakeScenario(object):
 
     def __init__(self, maintained=Deferred()):
         self._maintained = maintained
