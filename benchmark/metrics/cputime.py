@@ -93,7 +93,7 @@ class CPUParser(LineOnlyReceiver):
         self.result[name] = self.result.get(name, 0) + cputime
 
 
-class SSHRunner:
+class SSHRunner(object):
     """
     Run a command using ssh.
 

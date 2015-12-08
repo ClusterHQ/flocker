@@ -86,7 +86,7 @@ class CPUParseTests(SynchronousTestCase):
         self.assertEqual(e.exception.args[-1], 'proc 20:34')
 
 
-class _LocalRunner:
+class _LocalRunner(object):
     """
     Like SSHRunner, but runs command locally.
     """
