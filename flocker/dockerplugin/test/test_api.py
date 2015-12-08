@@ -6,10 +6,12 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4
 
+from bitmath import GiB
+
 from twisted.web.http import OK, NOT_ALLOWED, NOT_FOUND
 from twisted.internet.task import Clock, LoopingCall
 
-# from hypothesis import given
+from hypothesis import given
 from hypothesis.strategies import (
     sampled_from, builds, integers
 )
@@ -113,8 +115,6 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
                                  {u"Name": u"vol"}, OK, {u"Err": None})
 
-    # @given(profile=sampled_from(["gold", "silver", "bronze"]))
-    # def test_create_with_profile(self, profile):
     def test_create_with_profile(self):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
@@ -148,8 +148,6 @@ class APITestsMixin(APIAssertionsMixin):
                 result[0].dataset_id))
         return d
 
-    # @given(integers(min_value=1, max_value=75), volume_expression)
-    # def test_create_with_size(self, size, expression):
     def test_create_with_size(self):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
@@ -186,6 +184,29 @@ class APITestsMixin(APIAssertionsMixin):
             lambda result: self.flocker_client.delete_dataset(
                 result[0].dataset_id))
         return d
+
+    @given(size=sampled_from([u"10Gb", "10gib", "10G", "10GIB", "10GiB"]))
+    def test_parsenum_size(self, size):
+        """
+        Testing the parse_num expressions
+
+        :param size str: A string representing the volume size
+        """
+        expected_size = int(GiB(10).to_Byte())
+        return self.assertEqual(expected_size,
+                                int(parse_num(size).to_Byte()))
+
+    @given(size=sampled_from([u"foo10Gb", "10foogib",
+                              "10Gfoo", "GIB", "bar10foo"]))
+    def test_parsenum_bad_size(self, size):
+        """
+        Test sending bad size expressions to docker, upon error
+        users will receive DEFAULT_SIZE
+
+        :param size str: A string representing the volume size
+        """
+        return self.assertEqual(int(DEFAULT_SIZE.to_Byte()),
+                                int(parse_num(size).to_Byte()))
 
     def create(self, name):
         """

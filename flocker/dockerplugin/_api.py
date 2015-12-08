@@ -23,11 +23,6 @@ from twisted.web.http import OK
 
 from klein import Klein
 
-from ._errors import (
-    NoSizeExpressionFound, SizeOptNotExceptable,
-    UnitNotExceptable
-)
-
 from ..restapi import (
     structured, EndpointResponse, BadRequest, make_bad_request,
 )
@@ -60,12 +55,15 @@ if DEFAULT_SIZE == DEVICEMAPPER_LOOPBACK_SIZE:
 def parse_num(expression):
     """
       Parse a string of a dataset size 10g, 100kib etc into
-      a usable integer
+      a usable integer.
+
+      If user doesnt not submit a correct size, give back
+      the default size.
 
       :param expression: the dataset expression to parse.
     """
     if not expression:
-        raise NoSizeExpressionFound("No expression")
+        return DEFAULT_SIZE
     if type(expression) is unicode:
         expression = str(expression)
 
@@ -90,9 +88,9 @@ def parse_num(expression):
         elif unit == '':
             return Byte(num)
         else:
-            return UnitNotExceptable("Something is wrong with Unit in size.")
+            return DEFAULT_SIZE
     else:
-        return SizeOptNotExceptable("Something is wrong with Size.")
+        return DEFAULT_SIZE
 
 
 def _endpoint(name, ignore_body=False):
