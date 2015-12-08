@@ -7,10 +7,11 @@ Tests for ``flocker.common._retry``.
 from datetime import timedelta
 from itertools import repeat
 
+from eliot import MessageType, fields
 from eliot.testing import (
     capture_logging,
     LoggedAction, LoggedMessage,
-    assertContainsFields,
+    assertContainsFields, assertHasAction,
 )
 
 from twisted.internet.defer import succeed, Deferred
@@ -259,6 +260,9 @@ class TimeoutTests(SynchronousTestCase):
         self.failureResultOf(self._deferred, Exception)
 
 
+ITERATION_MESSAGE = MessageType("iteration_message", fields(iteration=int))
+
+
 class RetryFailureTests(SynchronousTestCase):
     """
     Tests for :py:func:`retry_failure`.
@@ -300,7 +304,19 @@ class RetryFailureTests(SynchronousTestCase):
         clock.advance(0.1)
         self.assertEqual(self.successResultOf(d), result)
 
-    def test_multiple_iterations(self):
+    def assert_logged_multiple_iterations(self, logger):
+        """
+        Function passed to ``retry_failure`` is run in the context of a
+        ``LOOP_UNTIL_ACTION``.
+        """
+        iterations = LoggedMessage.of_type(logger.messages, ITERATION_MESSAGE)
+        loop = assertHasAction(self, logger, LOOP_UNTIL_ACTION, True)
+        self.assertEqual(
+            sorted(iterations, key=lambda m: m.message["iteration"]),
+            loop.children)
+
+    @capture_logging(assert_logged_multiple_iterations)
+    def test_multiple_iterations(self, logger):
         """
         If the function fails multiple times and then succeeds,
         ``retry_failure`` returns the success.
@@ -315,6 +331,7 @@ class RetryFailureTests(SynchronousTestCase):
         ]
 
         def function():
+            ITERATION_MESSAGE(iteration=(3 - len(results))).write()
             return results.pop(0)
 
         clock = Clock()
