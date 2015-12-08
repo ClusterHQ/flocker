@@ -318,7 +318,42 @@ class VolumeStub(object):
     `boto3.resources.factory.ec2.Volume`. This allows a ``Volume``
     with properties to be compared to expected values.
     """
-    pass
+    def __init__(self, **kwargs):
+        self._volume_attributes = dict(
+            id=None, create_time=None, tags=None, attachments=None,
+            size=None, snapshot_id=None, zone=None, volume_type=None,
+            iops=None, state=None, encrypted=None
+        )
+        for key, value in kwargs.items():
+            if key in self._volume_attributes:
+                self._volume_attributes[key] = value
+
+    def __getattr__(self, name):
+        if name in self._volume_attributes:
+            return self._volume_attributes[name]
+        else:
+            raise AttributeError
+
+    def __eq__(self, other):
+        """
+        Compare set attributes on this stub to a boto3 ``Volume``.
+        """
+        equal = True
+        for key, value in self._volume_attributes.items():
+            other_value = getattr(other, key, None)
+            if self._volume_attributes[key] is not None:
+                if self._volume_attributes[key] != other_value:
+                    equal = False
+            if other_value is not None:
+                if self._volume_attributes[key] != other_value:
+                    equal = False
+        return equal
+
+    def __neq__(self, other):
+        """
+        Negative comparison. See ``VolumeStub.__eq__``.
+        """
+        return not self.__eq__(other)
 
 
 class VolumeStateTransitionTests(TestCase):
@@ -355,7 +390,7 @@ class VolumeStateTransitionTests(TestCase):
             A value from ``VolumeOperations``.
 
         :returns: Suitable volume in the right start state for input operation.
-        :rtype: boto.ec2.volume.Volume
+        :rtype: ``VolumeStub``
         """
         volume = VolumeStub()
 
@@ -617,5 +652,3 @@ class VolumeStateTransitionTests(TestCase):
         volume = self._process_volume(self.V.DETACH, self.S.DESTINATION_STATE,
                                       self.A.DETACH_SUCCESS)
         self.assertEqual(volume.state, u'available')
-
-

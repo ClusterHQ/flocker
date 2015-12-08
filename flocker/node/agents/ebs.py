@@ -12,6 +12,14 @@ import time
 import logging
 import itertools
 
+# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
+# exception when we try an API call on an idled persistent connection.
+# See https://github.com/boto/boto3/issues/220
+from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
+    extract_from_urllib3,
+)
+extract_from_urllib3()
+
 import boto3
 
 from botocore.exceptions import ClientError
@@ -34,7 +42,7 @@ from twisted.python.constants import (
 )
 from twisted.python.filepath import FilePath
 
-from eliot import Message
+from eliot import Message, register_exception_extractor
 
 from .blockdevice import (
     IBlockDeviceAPI, IProfiledBlockDeviceAPI, BlockDeviceVolume, UnknownVolume,
@@ -44,7 +52,7 @@ from .blockdevice import (
 from ...control import pmap_field
 
 from ._logging import (
-    AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
+    AWS_ACTION, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
     BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE,
     BOTO_LOG_RESULT
@@ -66,6 +74,17 @@ IOPS_MIN_SIZE = 4
 # for error details:
 NOT_FOUND = u'InvalidVolume.NotFound'
 INVALID_PARAMETER_VALUE = u'InvalidParameterValue'
+
+
+# Register Eliot field extractor for ClientError responses.
+register_exception_extractor(
+    ClientError,
+    lambda e: {
+        "aws_code": e.response['Error']['Code'],
+        "aws_message": unicode(e.response['Error']['Message']),
+        "aws_request_id": e.response['ResponseMetadata']['RequestId'],
+    }
+)
 
 
 class EBSVolumeTypes(Values):
@@ -266,7 +285,7 @@ class InvalidStateException(Exception):
         that would have been valid for this operation.
     """
     def __init__(self, volume, state, valid_states):
-        Exception.__init__(self)
+        Exception.__init__(self, volume, state, valid_states)
         self.volume = volume
         self.state = state
         self.valid_states = valid_states
@@ -331,7 +350,7 @@ def _enable_boto_logging():
     Make boto log activity using Eliot.
     """
     logger = logging.getLogger("boto3")
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     logger.addHandler(EliotLogHandler())
 
 _enable_boto_logging()
@@ -410,6 +429,13 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     :return: An ``_EC2`` giving information about EC2 client connection
         and EC2 instance zone.
     """
+    # Set a retry option in Botocore to BOTO_NUM_RETRIES:
+    # ``metadata_service_num_attempts``:
+    # Request for retry attempts by Boto to
+    # retrieve data from Metadata Service used to retrieve
+    # credentials for IAM roles on EC2 instances.
+    # Exponential backoff and retry for ``RequestLimitExceeded``
+    # errors is already set in botocore.
     connection = boto3.session.Session(
         aws_access_key_id=access_key_id,
         aws_secret_access_key=secret_access_key
@@ -417,7 +443,7 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     connection._session.set_config_variable(
         'metadata_service_num_attempts', BOTO_NUM_RETRIES)
     ec2_resource = connection.resource("ec2", region_name=region)
-    return EC2Client(zone=zone, connection=ec2_resource)
+    return _EC2(zone=zone, connection=ec2_resource)
 
 
 def boto3_log(method):
@@ -435,30 +461,33 @@ def boto3_log(method):
         Run given boto3.ec2.ServiceResource method with exception
         logging for ``ClientError``.
         """
-        def log_boto3_error(e):
-            BOTO_EC2RESPONSE_ERROR(
-                aws_code=e.response['Error']['Code'],
-                aws_message=unicode(e.response['Error']['Message']),
-                aws_request_id=e.response['ResponseMetadata']['RequestId'],
-            ).write()
-            raise
-
         with AWS_ACTION(operation=[method.__name__, args[1:], kwargs]):
             try:
                 return method(*args, **kwargs)
-            except SSLError as e:
+            except SSLError:
                 # We lost an idle connection. Try again; boto3 will open
                 # a new one.
-                try:
-                    return method(*args, **kwargs)
-                except ClientError as e:
-                    log_boto3_error(e)
-            except ClientError as e:
-                log_boto3_error(e)
+                return method(*args, **kwargs)
     return _run_with_logging
 
 
-class EC2Client(PClass):
+def _get_volume_tag(volume, name):
+    """
+    Retrieve the tag from the specified volume with the specified name.
+
+    :param Volume volume: The volume.
+    :param unicode name: The tag name.
+
+    :return: A ``str`` representing the value of the tag, or ``None`` if
+        no tag with this name can be found in the volume.
+    """
+    for tag in volume.tags:
+        if tag['Key'] == name:
+            return tag['Value']
+    return None
+
+
+class _EC2(PClass):
     """
     :ivar str zone: The name of the zone for the connection.
     :ivar boto3.resources.factory.ec2.ServiceResource: Object
@@ -466,21 +495,6 @@ class EC2Client(PClass):
     """
     zone = field(mandatory=True)
     connection = field(mandatory=True)
-
-    def get_volume_tag(self, volume, name):
-        """
-        Retreive the tag from the specified volume with the specified name.
-
-        :param Volume volume: The volume.
-        :param unicode name: The tag name.
-
-        :return: A ``str`` representing the value of the tag, or ``None`` if
-            no tag with this name can be found in the volume.
-        """
-        for tag in volume.tags:
-            if tag['Key'] == name:
-                return tag['Value']
-        return None
 
     @boto3_log
     def get_volume(self, volume_id):
@@ -615,10 +629,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     else:
         attached_to = None
 
-    volume_dataset_id = None
-    for tag in ebs_volume.tags:
-        if tag['Key'] == DATASET_ID_LABEL:
-            volume_dataset_id = tag['Value']
+    volume_dataset_id = _get_volume_tag(ebs_volume, DATASET_ID_LABEL)
 
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
