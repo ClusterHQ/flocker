@@ -12,7 +12,7 @@ from functools import wraps
 import yaml
 import re
 
-from bitmath import TiB, GiB, MiB, KiB
+from bitmath import TiB, GiB, MiB, KiB, Byte
 
 from eliot import writeFailure
 
@@ -78,17 +78,17 @@ def parse_num(expression):
         num = int(expression.replace(unit, ""))
         unit = unit.lower()
         if unit == 'tb' or unit == 't' or unit == 'tib':
-            return int(TiB(num).to_Byte().value)
+            return TiB(num)
         elif unit == 'gb' or unit == 'g' or unit == 'gib':
-            return int(GiB(num).to_Byte().value)
+            return GiB(num)
         elif unit == 'mb' or unit == 'm' or unit == 'mib':
-            return int(MiB(num).to_Byte().value)
+            return MiB(num)
         elif unit == 'kb' or unit == 'k' or unit == 'kib':
-            return int(KiB(num).to_Byte().value)
+            return KiB(num)
         # this may parse a number 15giib to 15bytes becase
         # of user error, should we handle this better?
         elif unit == '':
-            return int(num)
+            return Byte(num)
         else:
             return UnitNotExceptable("Something is wrong with Unit in size.")
     else:
@@ -276,7 +276,7 @@ class VolumePlugin(object):
         size_from_opts = opts.get(u"size")
         if size_from_opts:
             size = parse_num(size_from_opts)
-            metadata[u"maximum_size"] = unicode(size)
+            metadata[u"maximum_size"] = unicode(int(size.to_Byte()))
         else:
             size = DEFAULT_SIZE
 
