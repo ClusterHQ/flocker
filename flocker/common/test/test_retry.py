@@ -31,17 +31,23 @@ from effect import (
 )
 from effect.testing import perform_sequence
 
-from .._retry import (
-    LOOP_UNTIL_ACTION,
-    LOOP_UNTIL_ITERATION_MESSAGE,
-    LoopExceeded,
+from .. import (
     loop_until,
     retry_effect_with_timeout,
     retry_failure,
     poll_until,
     timeout,
-    retry_on_intervals, retry_some_times, retry_if, compose_retry,
-    wrap_methods_with_failure_retry,
+    retry_some_times,
+    retry_if,
+    compose_retry,
+    wrap_methods,
+    with_retry,
+)
+from .._retry import (
+    LOOP_UNTIL_ACTION,
+    LOOP_UNTIL_ITERATION_MESSAGE,
+    LoopExceeded,
+    retry_on_intervals,
 )
 from ...testtools import CustomException
 
@@ -713,16 +719,13 @@ class ComposeRetryTests(testtools.TestCase):
         )
 
 
-class WrapMethodsWithFailureRetryTests(testtools.TestCase):
+class WrapMethodsTests(testtools.TestCase):
     """
-    Tests for ``wrap_methods_with_failure_retry``.
+    Tests for ``wrap_methods``.
     """
-    class AlwaysFail(object):
-        failures = 0
-
-        def some_method(self):
-            self.failures += 1
-            raise CustomException(self.failures)
+    @staticmethod
+    def noop_wrapper(method):
+        return method
 
     def test_data_descriptor(self):
         """
@@ -736,7 +739,7 @@ class WrapMethodsWithFailureRetryTests(testtools.TestCase):
                 self.instance_attribute = object()
 
         original = Original()
-        wrapper = wrap_methods_with_failure_retry(original)
+        wrapper = wrap_methods(original, self.noop_wrapper)
         self.assertThat(
             wrapper.class_attribute,
             Equals(original.class_attribute),
@@ -759,11 +762,23 @@ class WrapMethodsWithFailureRetryTests(testtools.TestCase):
         a = object()
         b = object()
 
-        wrapper = wrap_methods_with_failure_retry(Original())
+        wrapper = wrap_methods(Original(), self.noop_wrapper)
         self.assertThat(
             wrapper.some_method(a, b=b),
             Equals((b, a)),
         )
+
+
+class WithRetryTests(testtools.TestCase):
+    """
+    Tests for ``with_retry``.
+    """
+    class AlwaysFail(object):
+        failures = 0
+
+        def some_method(self):
+            self.failures += 1
+            raise CustomException(self.failures)
 
     def test_default_retry(self):
         """
@@ -776,13 +791,10 @@ class WrapMethodsWithFailureRetryTests(testtools.TestCase):
         sleep = time.append
 
         original = self.AlwaysFail()
-        wrapper = wrap_methods_with_failure_retry(original, sleep=sleep)
+        wrapper = with_retry(original.some_method, sleep=sleep)
         # XXX testtools ``raises`` helper generates a crummy message when this
         # assertion fails
-        self.assertThat(
-            wrapper.some_method,
-            raises(CustomException),
-        )
+        self.assertRaises(CustomException, wrapper)
         self.assertThat(
             original.failures,
             # The number of times we demonstrated (above) that retry_some_times
@@ -804,9 +816,9 @@ class WrapMethodsWithFailureRetryTests(testtools.TestCase):
         whether a retry should be attempted any time an exception is raised.
         """
         original = self.AlwaysFail()
-        wrapped = wrap_methods_with_failure_retry(
-            original,
-            retry_if(
+        wrapped = with_retry(
+            original.some_method,
+            should_retry=retry_if(
                 lambda exception: (
                     isinstance(exception, CustomException) and
                     exception.args[0] < 10
@@ -815,14 +827,8 @@ class WrapMethodsWithFailureRetryTests(testtools.TestCase):
             sleep=lambda interval: None,
         )
 
-        self.assertThat(
-            wrapped.some_method,
-            raises(CustomException),
-        )
-        self.assertThat(
-            original.failures,
-            Equals(10),
-        )
+        self.assertThat(wrapped, raises(CustomException))
+        self.assertThat(original.failures, Equals(10))
 
     def test_custom_should_retry_sleep_interval(self):
         """
@@ -838,14 +844,14 @@ class WrapMethodsWithFailureRetryTests(testtools.TestCase):
             timedelta(seconds=5), None,
         ]
         original = self.AlwaysFail()
-        wrapped = wrap_methods_with_failure_retry(
-            original,
+        wrapped = with_retry(
+            original.some_method,
             retry_on_intervals(intervals),
             sleep=sleep,
         )
 
         self.assertThat(
-            wrapped.some_method,
+            wrapped,
             raises(CustomException),
         )
         # XXX Generates a confusing error message when fails, says "expected !=

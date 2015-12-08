@@ -327,26 +327,17 @@ def compose_retry(should_retries):
     return composed
 
 
-def wrap_methods_with_failure_retry(obj, should_retry=None, sleep=sleep):
+def wrap_methods(obj, decorator):
     """
-    Return a wrapper around ``obj`` which automatically re-runs method calls
-    which would otherwise have failed.
+    Return a wrapper around ``obj`` with ``decorator`` applied to all of its
+    method calls.
 
-    :param should_retry: A one-argument callable which accepts a three-tuple of
-        exception state and returns a ``timedelta`` or raises an exception.  If
-        the call should be retried, the ``timedelta`` gives a time to delay
-        before the retry.  If an exception is raised, no further retries are
-        attempted and the exception is propagated from the method call.
+    :param callable decorator: A unary callable that takes a method and
+        returns a method.
 
-    :return: An object like ``obj`` but the methods of which will be retried
-        when they raise an exception.
+    :return: An object like ``obj`` but with all the methods decorated.
     """
-    if should_retry is None:
-        should_retry = retry_some_times()
-
-    return _DecoratedInstance(
-        obj, _with_retry, should_retry=should_retry, sleep=sleep,
-    )
+    return _DecoratedInstance(obj, decorator)
 
 
 def _poll_until_success_returning_result(
@@ -400,7 +391,9 @@ def _poll_until_success_returning_result(
     return saved_result[0]
 
 
-def _with_retry(method, should_retry, sleep):
+def with_retry(method, should_retry=None, sleep=None):
+    if should_retry is None:
+        should_retry = retry_some_times()
     def method_with_retry(*a, **kw):
         name = fullyQualifiedName(method)
         action_type = _TRY_UNTIL_SUCCESS
