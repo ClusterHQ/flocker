@@ -113,18 +113,19 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
                                  {u"Name": u"vol"}, OK, {u"Err": None})
 
-    @given(profile=sampled_from(["gold", "silver", "bronze"]))
-    def test_create_with_profile(self, profile):
+    #@given(profile=sampled_from(["gold", "silver", "bronze"]))
+    #def test_create_with_profile(self, profile):
+    def test_create_with_profile(self):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
         of "profile=[gold,silver,bronze] in the request body JSON create a
         volume with a given name with [gold,silver,bronze] profile.
         """
+        profile = sampled_from(["gold", "silver", "bronze"]).example()
         name = random_name(self)
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"profile": profile}},
                               OK, {u"Err": None})
-        dataset_id = uuid4()
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(list)
@@ -140,7 +141,10 @@ class APITestsMixin(APIAssertionsMixin):
 
         # evidently with hypothesis you cant trust setUp or tearDown
         d.addCallback(
-            lambda _: self.flocker_client.delete_dataset(dataset_id))
+            lambda _: self.flocker_client.list_datasets_configuration())
+        d.addCallback(list)
+        d.addCallback(
+            lambda result: self.flocker_client.delete_dataset(result[0].dataset_id))
         return d
 
     # @given(integers(min_value=1, max_value=75), volume_expression)
@@ -159,8 +163,7 @@ class APITestsMixin(APIAssertionsMixin):
                               {u"Name": name, 'Opts': {u"size": size_opt}},
                               OK, {u"Err": None})
 
-        real_size = parse_num(int(size_opt.to_Byte())
-        dataset_id = uuid4()
+        real_size = int(parse_num(size_opt).to_Byte())
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(list)
@@ -176,7 +179,10 @@ class APITestsMixin(APIAssertionsMixin):
 
         # evidently with hypothesis you cant trust setUp or tearDown
         d.addCallback(
-            lambda _: self.flocker_client.delete_dataset(dataset_id))
+            lambda _: self.flocker_client.list_datasets_configuration())
+        d.addCallback(list)
+        d.addCallback(
+            lambda result: self.flocker_client.delete_dataset(result[0].dataset_id))
 
         return d
 
