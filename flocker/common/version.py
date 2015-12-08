@@ -117,13 +117,20 @@ def _parse_version(version):
     return FlockerVersion(**parts)
 
 
+def get_release_version(version):
+    """
+    Get the previously released version of Flocker.
+    """
+    return _parse_version(version).release
+
+
 def get_doc_version(version):
     """
     Get the version string of Flocker to display in documentation.
     """
     parsed_version = _parse_version(version)
-    if (is_release(version)
-            and parsed_version.documentation_revision is not None):
+    if (is_release(version) and
+            parsed_version.documentation_revision is not None):
         return parsed_version.release
     else:
         return version

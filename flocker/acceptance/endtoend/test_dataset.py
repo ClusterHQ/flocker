@@ -16,6 +16,7 @@ from twisted.trial.unittest import SkipTest
 from txeffect import perform
 
 from ...common import loop_until
+from ...common.version import get_release_version
 from ...testtools import AsyncTestCase, async_runner, flaky
 
 from ...provision import PackageSource
@@ -205,7 +206,8 @@ class DatasetAPITests(AsyncTestCase):
         # Downgrade flocker to the most recent released version.
         d.addCallback(
             lambda v: upgrade_flocker_to(
-                PackageSource()))
+                PackageSource(version=get_release_version(
+                    original_package_source[0].version))))
 
         return d
 
