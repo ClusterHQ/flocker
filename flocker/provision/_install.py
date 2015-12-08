@@ -395,6 +395,9 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # support empty values other than None, as '' sometimes used to
         # indicate latest version, due to previous behaviour
         flocker_version = get_installable_version(version)
+    repository_url = get_repository_url(
+        distribution=distribution,
+        flocker_version=flocker_version)
     commands = [
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
@@ -406,30 +409,27 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
         # Add ClusterHQ repo for installation of Flocker packages.
         # XXX This needs retry
-        run(command='add-apt-repository -y "deb {} /"'.format(
-            get_repository_url(
-                distribution=distribution,
-                flocker_version=flocker_version)))
+        run(command='add-apt-repository -y "deb {} /"'.format(repository_url))
         ]
+
+    pinned_host = urlparse(repository_url).hostname
 
     if base_url is not None:
         # Add BuildBot repo for running tests
         commands.append(run_network_interacting_from_args([
             "add-apt-repository", "-y", "deb {} /".format(base_url)]))
-        # During a release, the ClusterHQ repo may contain packages with
-        # a higher version number than the Buildbot repo for a branch.
-        # Use a pin file to ensure that any Buildbot repo has higher
-        # priority than the ClusterHQ repo.  We only add the Buildbot
-        # repo when a branch is specified, so it wil not interfere with
-        # attempts to install a release (when no branch is specified).
-        buildbot_host = urlparse(package_source.build_server).hostname
-        commands.append(put(dedent('''\
-            Package: *
-            Pin: origin {}
-            Pin-Priority: 700
-        '''.format(buildbot_host)), '/tmp/apt-pref'))
-        commands.append(run_from_args([
-            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
+        # During a release, or during upgrade testing, we might not be able to
+        # rely on package management to install flocker from the correct
+        # server. Thus, in all cases we pin precisely which host we want to
+        # install flocker from.
+        pinned_host = urlparse(package_source.build_server).hostname
+    commands.append(put(dedent('''\
+        Package: *
+        Pin: origin {}
+        Pin-Priority: 700
+    '''.format(pinned_host)), '/tmp/apt-pref'))
+    commands.append(run_from_args([
+        'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
 
     # Update to read package info from new repos
     commands.append(apt_get_update())
