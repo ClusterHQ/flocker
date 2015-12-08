@@ -139,11 +139,11 @@ class DatasetAPITests(AsyncTestCase):
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
     def _get_distribution(self):
-        distribution = os.environ.get('FLOCKER_DISTRIBUTION')
+        distribution = os.environ.get('FLOCKER_ACCEPTANCE_DISTRIBUTION')
         if distribution is None:
             raise SkipTest(
-                'Missing environment variable FLOCKER_DISTRIBUTION which is '
-                'required for upgrade test.')
+                'Missing environment variable FLOCKER_ACCEPTANCE_DISTRIBUTION '
+                'which is required for upgrade test.')
         return distribution
 
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
@@ -172,6 +172,17 @@ class DatasetAPITests(AsyncTestCase):
                                        control_node_address, package_source,
                                        distribution)
             d.addCallback(upgrade_if_needed)
+
+            d.addCallback(lambda _: get_flocker_version())
+
+            def verify_version(v):
+                self.assertEquals(
+                    v, package_source.version,
+                    "Failed to set version of flocker to %s, it is still %s." %
+                    (package_source.version, v))
+                return v
+            d.addCallback(verify_version)
+
             return d
 
         # Get the initial flocker version and setup a cleanup call to restore

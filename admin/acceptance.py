@@ -106,6 +106,7 @@ def get_trial_environment(cluster, package_source):
         ),
         'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
             cluster.dataset_backend_config_file.path,
+        'FLOCKER_ACCEPTANCE_DISTRIBUTION': cluster.control_node.distribution,
         'FLOCKER_ACCEPTANCE_PACKAGE_BRANCH': package_source.branch or '',
         'FLOCKER_ACCEPTANCE_PACKAGE_VERSION': package_source.version or '',
         'FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER': package_source.build_server,
