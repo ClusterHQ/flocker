@@ -866,12 +866,48 @@ class IBlockDeviceAPI(Interface):
     Common operations provided by all block device backends, exposed via
     synchronous methods.
 
-    Note: This is an early sketch of the interface and it'll be refined as we
-    real blockdevice providers are implemented.
+    This will be used by the dataset agent convergence loop, which works
+    more or less as follows:
+
+    1. Call ``list_volumes`` to discover the state of the volumes.
+    2. Compare the state to the required configuration, calculate
+       necessary actions (which will involve calls to ``create_volume``
+       and other methods that change the backend state).
+    3. Run the actions.
+    4. Go to step 1.
+
+    What this means is that if an action fails for some reason it will be
+    retried in the next iteration of the convergence loop. Automatic retry
+    on errors is therefore unnecessary insofar as operations will be
+    retried by the convergence loop. The methods do need to be able to
+    deal with intermediate states not exposed by the API, however, by
+    automatically recovering when they are encountered.
+
+    For example, let's imagine ``attach_volume`` internally takes two
+    steps and might fail between the first and the
+    second. ``list_volumes`` should list a volume in that intermediate
+    state as unattached, which will result in ``attach_volume`` being
+    called again. ``attach_volume`` should then be able to recognize the
+    intermediate state and skip the first step in attachment and only run
+    the second step.
+
+    Other implementation hints:
+
+    * The factory function that creates this instance will be called with
+      a unique cluster ID (see
+      https://docs.clusterhq.com/en/latest/gettinginvolved/plugins/building-driver.html).
+      If possible it's worth creating volumes with that cluster ID stored
+      as metadata, so you can filter results from the backend and only
+      include relevant volumes. This allows sharing the same storage
+      backend between multiple Flocker clusters.
+    * Avoid infinite loops. If an operation's time-to-finish is uncertain
+      then use a timeout.
+    * Logging the calls between your implementation and the backend with
+      the Eliot logging library will allow for easier debugging.
     """
     def allocation_unit():
         """
-        The size, in bytes up to which ``IDeployer`` will round volume
+        The size in bytes up to which ``IDeployer`` will round volume
         sizes before calling ``IBlockDeviceAPI.create_volume``.
 
         :rtype: ``int``
@@ -879,7 +915,7 @@ class IBlockDeviceAPI(Interface):
 
     def compute_instance_id():
         """
-        Get an identifier for this node.
+        Get the backend-specific identifier for this node.
 
         This will be compared against ``BlockDeviceVolume.attached_to``
         to determine which volumes are locally attached and it will be used
@@ -961,6 +997,13 @@ class IBlockDeviceAPI(Interface):
         """
         List all the block devices available via the back end API.
 
+        Only volumes for this particular Flocker cluster should be included.
+
+        Make sure you can list large numbers of volumes. E.g. some cloud
+        APIs have a hard limit on how many volumes they include in a
+        result, and therefore require the use of paging to get all volumes
+        listed.
+
         :returns: A ``list`` of ``BlockDeviceVolume``s.
         """
 
@@ -968,6 +1011,10 @@ class IBlockDeviceAPI(Interface):
         """
         Return the device path that has been allocated to the block device on
         the host to which it is currently attached.
+
+        Returning the wrong value here can lead to data loss or corruption
+        if a container is started with an unexpected volume. Make very
+        sure you are returning the correct result.
 
         :param unicode blockdevice_id: The unique identifier for the block
             device.
