@@ -3,10 +3,9 @@
 Read request load scenario for the control service benchmarks.
 """
 
-import time
 from zope.interface import implementer
 
-from twisted.internet.defer import Deferred, succeed
+from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 
 from flocker.common import gather_deferreds, loop_until
@@ -15,27 +14,29 @@ from .._interfaces import IScenario
 
 
 class RateMeasurer(object):
-    _sample_size = 5
-    _count = 0
-
-    def __init__(self, reactor):
-        self._counts = []
+    """
+    Measures the rate of requests in requests per second
+    """
+    def __init__(self, reactor, sample_size=5):
+        self.counts = []
+        self.count = 0
         self.reactor = reactor
+        self.sample_size = sample_size
         self.last_second = int(self.reactor.seconds())
 
     def new_sample(self):
         now = int(self.reactor.seconds())
         if now > self.last_second:
-            self._counts.append(self._count)
-            self._counts = self._counts[-self._sample_size:]
+            self.counts.append(self.count)
+            self.counts = self.counts[-self.sample_size:]
             self.last_second = now
-            self._count = 0
-        self._count += 1
+            self.count = 0
+        self.count += 1
 
     def rate(self):
-        num_counts = len(self._counts)
-        if num_counts == self._sample_size:
-            return float(sum(self._counts) / float(num_counts))
+        num_counts = len(self.counts)
+        if num_counts == self.sample_size:
+            return float(sum(self.counts) / float(num_counts))
         else:
             return float('nan')
 
