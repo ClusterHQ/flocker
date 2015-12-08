@@ -159,7 +159,7 @@ class APITestsMixin(APIAssertionsMixin):
                               {u"Name": name, 'Opts': {u"size": size_opt}},
                               OK, {u"Err": None})
 
-        real_size = parse_num(size_opt)
+        real_size = parse_num(int(size_opt.to_Byte())
         dataset_id = uuid4()
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
