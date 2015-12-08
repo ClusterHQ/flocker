@@ -50,18 +50,37 @@ class ClusterConfigurationTests(SynchronousTestCase):
         self.environ = {
             'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': '107374182400',
             'FLOCKER_ACCEPTANCE_CONTROL_NODE': _ENV_CONTROL_SERVICE_ADDRESS,
-            'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS': '{}',
-            'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': 'openstack',
+            'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS':
+                '{"172.31.37.0": "52.11.208.0", "172.31.47.0": "52.32.250.0"}',
+            'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': 'aws',
             'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
                 '/tmp/tmp84DVr3/dataset-backend.yml',
             'FLOCKER_ACCEPTANCE_NUM_AGENT_NODES': '2',
             'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH': '/tmp/tmpSvE7ug',
         }
 
-    def test_environment_setup(self):
+    def test_environment_setup_aws(self):
         """
         Uses environment variables for cluster configuration if option missing.
+
+        This test checks a typical AWS configuration.
         """
+        options = BenchmarkOptions()
+        options.parseOptions([])
+        cluster = get_cluster(options, self.environ)
+        self.assertEqual(
+            cluster.control_node_address(),
+            IPAddress(_ENV_CONTROL_SERVICE_ADDRESS)
+        )
+
+    def test_environment_setup_rackspace(self):
+        """
+        Uses environment variables for cluster configuration if option missing.
+
+        This test checks a typical Rackspace configuration.
+        """
+        self.environ['FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS'] = '{}'
+        self.environ['FLOCKER_ACCEPTANCE_VOLUME_BACKEND'] = 'openstack'
         options = BenchmarkOptions()
         options.parseOptions([])
         cluster = get_cluster(options, self.environ)
@@ -115,6 +134,62 @@ class ClusterConfigurationTests(SynchronousTestCase):
             with self.assertRaises(SystemExit) as e:
                 get_cluster(options, self.environ)
             self.assertIn('not found', e.exception.args[0])
+            self.assertIn(options.getUsage(), captured_stderr())
+
+    def test_environment_invalid_control_node(self):
+        """
+        Rejects configuration if control node is invalid.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions([])
+        self.environ['FLOCKER_ACCEPTANCE_CONTROL_NODE'] = 'notanipaddress'
+        with capture_stderr() as captured_stderr:
+            with self.assertRaises(SystemExit) as e:
+                get_cluster(options, self.environ)
+            self.assertIn('notanipaddress', e.exception.args[0])
+            self.assertIn(options.getUsage(), captured_stderr())
+
+    def test_environment_hostname_mapping_invalid_json(self):
+        """
+        Rejects configuration if hostname mapping is invalid.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions([])
+        self.environ['FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS'] = '}'
+        with capture_stderr() as captured_stderr:
+            with self.assertRaises(SystemExit) as e:
+                get_cluster(options, self.environ)
+            self.assertIn('JSON', e.exception.args[0])
+            self.assertIn(options.getUsage(), captured_stderr())
+
+    def test_environment_hostname_mapping_not_object(self):
+        """
+        Rejects configuration if hostname mapping is invalid.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions([])
+        self.environ['FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS'] = (
+            '[{"notanipaddress": "notanipaddress"}]'
+        )
+        with capture_stderr() as captured_stderr:
+            with self.assertRaises(SystemExit) as e:
+                get_cluster(options, self.environ)
+            self.assertIn('notanipaddress', e.exception.args[0])
+            self.assertIn(options.getUsage(), captured_stderr())
+
+    def test_environment_hostname_mapping_invalid_ipaddress(self):
+        """
+        Rejects configuration if hostname mapping is invalid.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions([])
+        self.environ['FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS'] = (
+            '{"notanipaddress": "notanipaddress"}'
+        )
+        with capture_stderr() as captured_stderr:
+            with self.assertRaises(SystemExit) as e:
+                get_cluster(options, self.environ)
+            self.assertIn('notanipaddress', e.exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
 

@@ -12,6 +12,24 @@ from twisted.python.filepath import FilePath
 from flocker.apiclient import FlockerClient
 
 
+def validate_host_mapping(host_mapping):
+    """
+    Validate a provided host mapping.
+
+    :param dict host_mapping: The parsed JSON host mapping from the
+    environment variable ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS``.
+    :raises: jsonschema.ValidationError if the configuration is invalid.
+    """
+    schema = {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "additionalProperties": "true",
+    }
+
+    v = Draft4Validator(schema, format_checker=FormatChecker())
+    v.validate(host_mapping)
+
+
 def validate_cluster_configuration(cluster_config):
     """
     Validate a provided cluster configuration.
@@ -74,18 +92,32 @@ class BenchmarkCluster(object):
         """
         Create a cluster from acceptance test environment variables.
 
+        See the Flocker documentation acceptance testing page for more details.
+
         :param dict env: Dictionary mapping acceptance test environment names
             to values.
         :return: A ``BenchmarkCluster`` instance.
+        :raise KeyError: if expected environment variables do not exist.
+        :raise ValueError: if environment variables are malformed.
+        :raise jsonschema.ValidationError: if host mapping is not a valid
+            format.
         """
         control_node_address = env['FLOCKER_ACCEPTANCE_CONTROL_NODE']
         certs = FilePath(env['FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH'])
-        host_to_public = json.loads(
-            env['FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS']
-        )
-        public_addresses = {
-            IPAddress(k): IPAddress(v) for k, v in host_to_public.items()
-        }
+        try:
+            host_to_public = json.loads(
+                env['FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS']
+            )
+            validate_host_mapping(host_to_public)
+            public_addresses = {
+                IPAddress(k): IPAddress(v) for k, v in host_to_public.items()
+            }
+        except ValueError as e:
+            raise type(e)(
+                ': '.join(
+                    ('FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS',) + e.args
+                )
+            )
         control_service = partial(
             FlockerClient,
             host=control_node_address,
@@ -94,8 +126,13 @@ class BenchmarkCluster(object):
             cert_path=certs.child('user.crt'),
             key_path=certs.child('user.key')
         )
-        return cls(
-            IPAddress(control_node_address), control_service, public_addresses)
+        try:
+            control_node_ip = IPAddress(control_node_address)
+        except ValueError as e:
+            raise type(e)(
+                ': '.join(('FLOCKER_ACCEPTANCE_CONTROL_NODE',) + e.args)
+            )
+        return cls(control_node_ip, control_service, public_addresses)
 
     @classmethod
     def from_cluster_yaml(cls, path):

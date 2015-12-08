@@ -10,7 +10,7 @@ import os
 from platform import node, platform
 import sys
 
-from jsonschema import FormatChecker, Draft4Validator
+from jsonschema import FormatChecker, Draft4Validator, ValidationError
 import yaml
 
 from eliot import to_file
@@ -194,6 +194,10 @@ def get_cluster(options, env):
             usage(
                 options, 'Environment variable {!r} not set.'.format(e.args[0])
             )
+        except ValueError as e:
+            usage(options, e.args[0])
+        except ValidationError as e:
+            usage(options, e.message)
     return cluster
 
 
