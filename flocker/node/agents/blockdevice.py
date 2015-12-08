@@ -866,7 +866,32 @@ class IBlockDeviceAPI(Interface):
     Common operations provided by all block device backends, exposed via
     synchronous methods.
 
-    Implementation hints:
+    This will be used by the dataset agent convergence loop, which works
+    more or less as follows:
+
+    1. Call ``list_volumes`` to discover the state of the volumes.
+    2. Compare the state to the required configuration, calculate
+       necessary actions (which will involve calls to ``create_volume``
+       and other methods that change the backend state).
+    3. Run the actions.
+    4. Go to step 1.
+
+    What this means is that if an action fails for some reason it will be
+    retried in the next iteration of the convergence loop. Automatic retry
+    on errors is therefore unnecessary insofar as operations will be
+    retried by the convergence loop. The methods do need to be able to
+    deal with intermediate states not exposed by the API, however, by
+    automatically recovering when they are encountered.
+
+    For example, let's imagine ``attach_volume`` internally takes two
+    steps and might fail between the first and the
+    second. ``list_volumes`` should list a volume in that intermediate
+    state as unattached, which will result in ``attach_volume`` being
+    called again. ``attach_volume`` should then be able to recognize the
+    intermediate state and skip the first step in attachment and only run
+    the second step.
+
+    Other implementation hints:
 
     * The factory function that creates this instance will be called with
       a unique cluster ID (see
