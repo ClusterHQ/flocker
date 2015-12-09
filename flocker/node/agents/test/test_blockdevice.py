@@ -86,7 +86,7 @@ from ....common.algebraic import tagged_union_strategy
 from ... import run_state_change, in_parallel, ILocalState, NoOp
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
-    compute_cluster_state
+    compute_cluster_state,
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
@@ -308,7 +308,7 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
         """
         ``shared_state_changes`` returns a ``NodeState`` with
         the ``node_uuid`` and ``hostname`` from the
-        BlockDeviceDeployerLocalState`` and a
+        ``BlockDeviceDeployerLocalState`` and a
         ``NonManifestDatasets``.
         """
         local_state = BlockDeviceDeployerLocalState(

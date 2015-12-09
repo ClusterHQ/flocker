@@ -122,7 +122,7 @@ class DesiredDataset(PClass):
     )
     mount_point = field(FilePath)
     filesystem = field(unicode, initial=u"ext4", mandatory=True,
-                       invariant=lambda v: v == "ext4")
+                       invariant=lambda v: (v == "ext4", "Must be 'ext4'."))
 
 
 class IDatasetStateChangeFactory(Interface):
