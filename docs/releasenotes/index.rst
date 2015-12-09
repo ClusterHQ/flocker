@@ -3,7 +3,6 @@ Release Notes
 =============
 
 See the :ref:`upgrading instructions <upgrading>` for information on upgrading Flocker clusters from earlier releases.
-If you have a Vagrant tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
 You can learn more about where we might be going with future releases by:
 
