@@ -117,6 +117,15 @@ ARBITRARY_BLOCKDEVICE_ID_2 = u'blockdevice_id_2'
 # approach. So just use this global logger for now.
 _logger = Logger()
 
+
+def dataset_map_from_iterable(iterable):
+    """
+    Turn a list of datasets into a map from their IDs to the datasets.
+    """
+    return {dataset.dataset_id: dataset
+            for dataset in iterable}
+
+
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
     # module just happens to run some code that obviously breaks on some other
@@ -575,10 +584,7 @@ def assert_discovered_state(
         BlockDeviceDeployerLocalState(
             hostname=deployer.hostname,
             node_uuid=deployer.node_uuid,
-            datasets={
-                dataset.dataset_id: dataset
-                for dataset in expected_discovered_datasets
-            },
+            datasets=dataset_map_from_iterable(expected_discovered_datasets),
             volumes=expected_volumes,
         )
     )
@@ -1036,8 +1042,7 @@ def assert_calculated_changes(
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=node_state.uuid,
             hostname=node_state.hostname,
-            datasets={dataset.dataset_id: dataset
-                      for dataset in discovered_datasets},
+            datasets=dataset_map_from_iterable(discovered_datasets),
             volumes=volumes,
         )
         case.assertEqual(
@@ -1284,10 +1289,7 @@ class LocalStateFromSharedStateTests(SynchronousTestCase):
             hostname=text(),
             datasets=lists(
                 DISCOVERED_DATASET_STRATEGY,
-            ).map(
-                lambda datasets: {dataset.dataset_id: dataset
-                                  for dataset in datasets}
-            ),
+            ).map(dataset_map_from_iterable),
             volumes=lists(
                 builds(
                     BlockDeviceVolume,
