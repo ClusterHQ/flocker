@@ -98,8 +98,6 @@ RPM-based distributions tend to bundle ``yum`` repository definitions in ``*-rel
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
-.. XXX This should be a Python script with tests which can be run on the :doc:`Flocker development machine <vagrant>`, see :issue:`1530`.
-
 To build and upload these packages, set up `gsutil` with S3 credentials on a machine with the operating system for which the package is for.
 Go to the relevant directory in :file:`admin/release-packaging` and run:
 
