@@ -111,6 +111,10 @@ setup(
     dependency_links = [
         # Use our fork of testtools until #165, #171, and #172 are merged and
         # released. See FLOC-3498.
+        #
+        # "git+git" weirdness is due to setuptools expecting:
+        #     vcs+proto://host/path@revision#egg=project-version
+        # See http://setuptools.readthedocs.org/en/latest/setuptools.html
         "git+git://github.com/ClusterHQ/testtools@clusterhq-fork#egg=testtools-1.8.2chq1",  # noqa
     ],
 

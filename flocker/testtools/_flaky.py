@@ -238,8 +238,9 @@ class _RetryFlaky(testtools.RunTest):
             result was and ``details`` is a dictionary of testtools details.
         """
         tmp_result = testtools.TestResult()
-        # XXX: jml: Argh! Of course putting _reset in TestCase.run() doesn't
-        # help runners that want to re-run.
+        # XXX: Still using internal API of testtools despite improvements in
+        # #165. Will need to do follow-up work on testtools to ensure that
+        # RunTest.run(case); RunTest.run(case) is supported.
         case._reset()
         self._run_test(case, tmp_result)
         result_type = _get_result_type(tmp_result)
