@@ -5,16 +5,20 @@ Set up a flocker cluster.
 
 import sys
 import yaml
+from copy import deepcopy
+from itertools import repeat
+from json import dumps
 from pipes import quote as shell_quote
 
-from eliot import (
-    add_destination, FileDestination
-)
+from eliot import add_destination, FileDestination
 
-from twisted.python.usage import Options, UsageError
-from twisted.python.filepath import FilePath
+from treq import json_content
+
 from twisted.internet.defer import inlineCallbacks
+from twisted.python.filepath import FilePath
 from twisted.python.reflect import prefixedMethodNames
+from twisted.python.usage import Options, UsageError
+from twisted.web.http import OK
 
 from admin.acceptance import (
     DISTRIBUTIONS,
@@ -26,7 +30,11 @@ from admin.acceptance import (
     eliot_output,
     get_trial_environment,
 )
-from flocker.common import gather_deferreds
+
+from flocker.acceptance.testtools import check_and_decode_json
+from flocker.ca import treq_with_authentication
+from flocker.common import gather_deferreds, loop_until
+from flocker.control.httpapi import REST_API_PORT
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.acceptance.testtools import DatasetBackend
 
@@ -52,6 +60,10 @@ class RunOptions(Options):
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
         ['node-count', None, 2, 'Number of nodes to create (where applicable)',
+         int],
+        ['app-template', None, None,
+         'Configuration to use for each application container'],
+        ['apps-per-node', None, 1, 'Number of application containers per node',
          int],
     ]
 
@@ -132,6 +144,12 @@ class RunOptions(Options):
             self['config'] = yaml.safe_load(config_file.getContent())
         else:
             self['config'] = {}
+
+        if self['app-template'] is not None:
+            template_file = FilePath(self['app-template'])
+            self['template'] = yaml.safe_load(template_file.getContent())
+        else:
+            self['template'] = {}
 
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
@@ -348,7 +366,10 @@ def main(reactor, args, base_path, top_level):
                                                remote_logs_file)
                                )
         gather_deferreds(results)
-        result = 0
+
+        config = _build_config(cluster, options['template'],
+                               options['apps-per-node'])
+        result = yield _configure(reactor, cluster, config)
 
     except Exception:
         result = 1
@@ -371,3 +392,86 @@ def main(reactor, args, base_path, top_level):
                 print("Be sure to preserve the required files.")
 
     raise SystemExit(result)
+
+
+def _build_config(cluster, application_template,  per_node):
+    application_root = {}
+    applications = {}
+    application_root["version"] = 1
+    application_root["applications"] = applications
+    for node in cluster.agent_nodes:
+        for i in range(per_node):
+            name = "app_%s_%d" % (node.private_address, i)
+            applications[name] = deepcopy(application_template)
+
+    deployment_root = {}
+    nodes = {}
+    deployment_root["nodes"] = nodes
+    deployment_root["version"] = 1
+    for node in cluster.agent_nodes:
+        nodes[node.private_address] = []
+        for i in range(per_node):
+            name = "app_%s_%d" % (node.private_address, i)
+            nodes[node.private_address].append(name)
+
+    return {"applications": application_root,
+            "deployment": deployment_root}
+
+
+def _configure(reactor, cluster, configuration):
+    base_url = b"https://{}:{}/v1".format(
+        cluster.control_node.address, REST_API_PORT
+    )
+    certificates_path = cluster.certificates_path
+    cluster_cert = certificates_path.child(b"cluster.crt")
+    user_cert = certificates_path.child(b"user.crt")
+    user_key = certificates_path.child(b"user.key")
+    body = dumps(configuration)
+    treq_client = treq_with_authentication(
+        reactor, cluster_cert, user_cert, user_key)
+
+    def got_all_nodes():
+        d = treq_client.get(
+            base_url + b"/state/nodes",
+            persistent=False
+        )
+        d.addCallback(check_and_decode_json, OK)
+        d.addCallbacks(
+            lambda nodes: len(nodes) >= len(cluster.agent_nodes),
+            lambda _: False
+        )
+        return d
+
+    got_nodes = loop_until(reactor, got_all_nodes, repeat(1, 300))
+
+    def do_configure(success):
+        if not success:
+            return 1
+
+        posted = treq_client.post(
+            base_url + b"/configuration/_compose", data=body,
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        def got_response(response):
+            if response.code != OK:
+                sys.stderr.write("Got response %d\n" % (response.code,))
+                d = json_content(response)
+
+                def got_error(error):
+                    if isinstance(error, dict):
+                        error = error[u"description"] + u"\n"
+                    else:
+                        error = u"Unknown error: " + unicode(error) + "\n"
+                    sys.stderr.write(error)
+                    return 1
+                d.addCallbacks(got_error, lambda _: 1)
+                return d
+            else:
+                return 0
+        posted.addCallback(got_response)
+        return posted
+
+    configured = got_nodes.addCallback(do_configure)
+    return configured
