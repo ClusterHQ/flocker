@@ -15,8 +15,10 @@ from twisted.internet import reactor
 from twisted.trial.unittest import SkipTest
 from txeffect import perform
 
+
+from flocker import __version__ as version
+from flocker.common.version import get_installable_version
 from ...common import loop_until
-from ...common.version import get_release_version
 from ...testtools import AsyncTestCase, async_runner, flaky
 
 from ...provision import PackageSource
@@ -35,6 +37,7 @@ from ...provision._ssh._conch import make_dispatcher
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
 )
+
 
 
 def upgrade_flocker(
@@ -97,7 +100,7 @@ def upgrade_flocker(
                     address=control_node,
                     commands=sequence([
                         task_enable_flocker_control(
-                            'ubuntu-14.04',
+                            distribution,
                             'restart'),
                     ])
                 )
@@ -157,6 +160,7 @@ class DatasetAPITests(AsyncTestCase):
         all_cluster_nodes = set([x.public_address for x in cluster.nodes] +
                                 [control_node_address])
         distribution = self._get_distribution()
+        upgrade_from_version = get_installable_version(version)
 
         def get_flocker_version():
             d = cluster.client.version()
@@ -206,7 +210,7 @@ class DatasetAPITests(AsyncTestCase):
         # Downgrade flocker to the most recent released version.
         d.addCallback(
             lambda v: upgrade_flocker_to(
-                PackageSource()))
+                PackageSource(version=upgrade_from_version)))
 
         return d
 

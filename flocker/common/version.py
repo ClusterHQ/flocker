@@ -142,7 +142,10 @@ def get_installable_version(version):
     installed (CLI and node).
     """
     parsed_version = _parse_version(version)
-    return parsed_version.installable_release
+    returned_version = parsed_version.installable_release
+    if returned_version == '1.9.0.dev1':
+        returned_version = '1.8.0'
+    return returned_version
 
 
 def is_release(version):

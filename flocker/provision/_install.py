@@ -192,7 +192,7 @@ def get_repo_options(flocker_version):
     if is_dev:
         return ['--enablerepo=clusterhq-testing']
     else:
-        return []
+        return ['--enablerepo=clusterhq']
 
 
 class UnsupportedDistribution(Exception):
@@ -401,6 +401,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         distribution=distribution,
         flocker_version=flocker_version)
     print "REPO_URL", repository_url
+    print "VER", flocker_version
     commands = [
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
