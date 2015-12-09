@@ -41,3 +41,5 @@ Your message will be forwarded to the ClusterHQ security team (a small group of 
 
 Due to the sensitive nature of security issues, we ask you not to send a message to one of the public mailing lists.
 ClusterHQ has a policy for :ref:`reporting-security-issues` designed to minimize any damage that could be inflicted through public knowledge of a defect while it is still outstanding.
+
+.. _the Flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
