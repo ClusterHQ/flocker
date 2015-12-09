@@ -13,7 +13,7 @@ from botocore.exceptions import ClientError
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.trial.unittest import SkipTest, TestCase
-from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
+from eliot.testing import LoggedAction, capture_logging, assertHasMessage
 
 from ..blockdevice import MandatoryProfiles
 
@@ -149,10 +149,9 @@ class EBSBlockDeviceAPIInterfaceTests(
         # actually logged to ``Eliot`` logger.
         expected_message_keys = {AWS_CODE.key, AWS_MESSAGE.key,
                                  AWS_REQUEST_ID.key}
-        for logged in LoggedMessage.of_type(logger.messages,
-                                            AWS_ACTION,):
+        for logged in LoggedAction.of_type(logger.messages, AWS_ACTION,):
             key_subset = set(key for key in expected_message_keys
-                             if key in logged.message.keys())
+                             if key in logged.end_message.keys())
             self.assertEqual(expected_message_keys, key_subset)
 
     @capture_logging(None)

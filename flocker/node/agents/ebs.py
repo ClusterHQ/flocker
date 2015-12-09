@@ -1000,7 +1000,6 @@ class EBSBlockDeviceAPI(object):
         return self.create_volume_with_profile(
             dataset_id, size, MandatoryProfiles.DEFAULT.value)
 
-    @boto3_log
     def create_volume_with_profile(self, dataset_id, size, profile_name):
         """
         Create a volume on EBS. Store Flocker-specific
@@ -1026,7 +1025,7 @@ class EBSBlockDeviceAPI(object):
             if e.response['Error']['Code'] != INVALID_PARAMETER_VALUE:
                 raise e
             CREATE_VOLUME_FAILURE(
-                dataset_id=dataset_id,
+                dataset_id=unicode(dataset_id),
                 aws_code=e.response['Error']['Code'],
                 aws_message=unicode(e.response['Error']['Message'])
             ).write()
