@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Public utilities for testing code that uses the REST API.
@@ -14,7 +14,7 @@ from zope.interface import implementer
 
 from twisted.python.log import err
 from twisted.web.iweb import IAgent, IResponse
-from twisted.internet.endpoints import TCP4ClientEndpoint
+from twisted.internet.endpoints import TCP4ClientEndpoint, UNIXClientEndpoint
 from twisted.internet import defer
 from twisted.web.client import ProxyAgent, readBody, FileBodyProducer
 from twisted.web.server import NOT_DONE_YET, Site
@@ -210,6 +210,42 @@ def buildIntegrationTests(mixinClass, name, fixture):
     RealTests.__module__ = mixinClass.__module__
     MemoryTests.__module__ = mixinClass.__module__
     return RealTests, MemoryTests
+
+
+def build_UNIX_integration_tests(mixin_class, name, fixture):
+    """
+    Build ``TestCase`` class that runs the tests in the mixin class with
+    real queries over a UNIX socket.
+
+    :param mixin_class: A mixin class for ``TestCase`` that relies on having a
+        ``self.scenario``.
+
+    :param name: A ``str``, the name of the test category.
+
+    :param fixture: A callable that takes a ``TestCase`` and returns a
+        ``klein.Klein`` object.
+
+    :return: A L``TestCase`` class.
+    """
+    class RealTests(mixin_class, TestCase):
+        """
+        Tests that endpoints are available over the network interfaces that
+        real API users will be connecting from.
+        """
+        def setUp(self):
+            path = self.mktemp()
+            self.app = fixture(self)
+            self.port = reactor.listenUNIX(
+                path, Site(self.app.resource()),
+            )
+            self.addCleanup(self.port.stopListening)
+            self.agent = ProxyAgent(UNIXClientEndpoint(reactor, path), reactor)
+            super(RealTests, self).setUp()
+
+    RealTests.__name__ += name
+    RealTests.__module__ = mixin_class.__module__
+    return RealTests
+
 
 # Fakes for testing Twisted Web servers.  Unverified.  Belongs in Twisted.
 # https://twistedmatrix.com/trac/ticket/3274

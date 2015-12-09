@@ -57,8 +57,8 @@ Storage Profiles
 
 .. _supported-backends:
 
-List of Supported Backends
-==========================
+Supported Backends
+==================
 
 The following pages describe how to configure the backends currently supported by Flocker.
 
@@ -69,7 +69,6 @@ ClusterHQ supported drivers:
 
    aws-configuration
    openstack-configuration
-   zfs-configuration
    loopback-configuration
 
 Community supported drivers:
