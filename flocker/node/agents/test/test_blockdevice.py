@@ -29,7 +29,7 @@ from pyrsistent import (
 from hypothesis import given
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
-    one_of,
+    one_of, dictionaries
 )
 
 from twisted.internet import reactor
@@ -48,13 +48,17 @@ from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployerLocalState, BlockDeviceDeployer,
+    BlockDeviceCalculater,
+
     IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
 
-    DiscoveredDataset, DatasetStates,
+    ICalculater,
+
+    DiscoveredDataset, DesiredDataset, DatasetStates,
 
     PROFILE_METADATA_KEY,
 
@@ -83,7 +87,8 @@ from ..loopback import (
 )
 from ....common.algebraic import tagged_union_strategy
 
-from ... import run_state_change, in_parallel, ILocalState, NoOp
+
+from ... import run_state_change, in_parallel, ILocalState, NoOp, IStateChange
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
     compute_cluster_state,
@@ -116,6 +121,39 @@ ARBITRARY_BLOCKDEVICE_ID_2 = u'blockdevice_id_2'
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach. So just use this global logger for now.
 _logger = Logger()
+
+
+DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
+    DiscoveredDataset,
+    {
+        'dataset_id': uuids(),
+        'maximum_size': integers(min_value=1),
+        'mount_point': builds(FilePath, sampled_from([
+            '/flocker/abc', '/flocker/xyz',
+        ])),
+        'blockdevice_id': just(u''),  # This gets overriden below.
+        'device_path': builds(FilePath, sampled_from([
+            '/dev/xvdf', '/dev/xvdg',
+        ])),
+    }
+).map(lambda dataset: dataset.set(
+    blockdevice_id=_create_blockdevice_id_for_test(dataset.dataset_id),
+))
+
+DESIRED_DATASET_STRATEGY = builds(
+    DesiredDataset,
+    **{
+        'state': sampled_from([
+            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
+            DatasetStates.DELETED]),
+        'dataset_id': uuids(),
+        'maximum_size': integers(min_value=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE),
+        'metadata': dictionaries(keys=text(), values=text()),
+        'mount_point': builds(FilePath, sampled_from([
+            '/flocker/abc', '/flocker/xyz',
+        ])),
+    }
+)
 
 
 def dataset_map_from_iterable(iterable):
@@ -1001,6 +1039,57 @@ class UnusableAPI(object):
     """
 
 
+def make_icalculater_tests(calculater_factory):
+    """
+    Make a test case to test an ``ICalculater`` implementation.
+
+    :param calculater_factory: Factory to make an ``ICalculater`` provider.
+    :type calculater_factory: No argument ``callable``.
+
+    :return: A ``TestCase`` subclass.
+    """
+    class ICalculaterTests(SynchronousTestCase):
+        """
+        Tests of an ``ICalculater`` implementation.
+        """
+        def test_interface(self):
+            """
+            The ``ICalculater`` implemention actually implements the interface.
+            """
+            verifyObject(ICalculater, calculater_factory())
+
+        @given(
+            discovered_datasets=builds(
+                dataset_map_from_iterable,
+                lists(DISCOVERED_DATASET_STRATEGY),
+            ),
+            desired_datasets=builds(
+                dataset_map_from_iterable,
+                lists(DESIRED_DATASET_STRATEGY),
+            ),
+        )
+        def test_returns_changes(self, discovered_datasets, desired_datasets):
+            """
+            ``ICalculater.calculate_changes_for_datasets`` returns a
+            ``IStateChange``.
+            """
+            calculater = calculater_factory()
+            changes = calculater.calculate_changes_for_datasets(
+                discovered_datasets=discovered_datasets,
+                desired_datasets=desired_datasets)
+            self.assertTrue(IStateChange.providedBy(changes))
+
+    return ICalculaterTests
+
+
+class BlockDeviceCalculaterTests(
+    make_icalculater_tests(BlockDeviceCalculater)
+):
+    """
+    Tests for ``BlockDeviceCalculater``.
+    """
+
+
 def assert_calculated_changes(
         case, node_state, node_config, nonmanifest_datasets, expected_changes,
         additional_node_states=frozenset(), leases=Leases(),
@@ -1258,24 +1347,6 @@ def local_state_from_shared_state(
         datasets=datasets,
         volumes=volumes,
     )
-
-
-DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
-    DiscoveredDataset,
-    {
-        'dataset_id': uuids(),
-        'maximum_size': integers(min_value=1),
-        'mount_point': builds(FilePath, sampled_from([
-            '/flocker/abc', '/flocker/xyz',
-        ])),
-        'blockdevice_id': text(),
-        'device_path': builds(FilePath, sampled_from([
-            '/dev/xvdf', '/dev/xvdg',
-        ])),
-    }
-).map(lambda dataset: dataset.set(
-    blockdevice_id=_create_blockdevice_id_for_test(dataset.dataset_id),
-))
 
 
 class LocalStateFromSharedStateTests(SynchronousTestCase):

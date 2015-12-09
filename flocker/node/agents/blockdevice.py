@@ -31,7 +31,7 @@ from twisted.python.constants import (
 from .blockdevice_manager import BlockDeviceManager
 
 from .. import (
-    IDeployer, ILocalState, IStateChange, in_parallel,
+    IDeployer, ILocalState, IStateChange, in_parallel, NoOp,
 )
 from .._deploy import NotInUseDatasets
 
@@ -114,6 +114,10 @@ class DesiredDataset(PClass):
     """
     Dataset as requested by configuration and applications.
     """
+    state = field(
+        invariant=lambda state: (state in DatasetStates.iterconstants(),
+                                 "Not a valid state"),
+    )
     dataset_id = field(type=UUID, mandatory=True)
     maximum_size = field(type=int)
     metadata = pmap_field(
@@ -138,6 +142,28 @@ class IDatasetStateChangeFactory(Interface):
 
         :return: The desired state change.
         :rtype: ``IStateChange``.
+        """
+
+
+class ICalculater(Interface):
+    """
+    An object that can calculate the changes required to bring dataset state
+    and desired dataset configuration into alignment.
+    """
+    def calculate_changes_for_datasets(
+        discovered_datasets, desired_datasets,
+    ):
+        """
+        Calculate the state changes necessary to make the local state match the
+        desired cluster configuration.
+
+        :param discovered_datasets: The datasets that have been discovered.
+        :type discovered_datasets: mapping of `dataset_id`` to
+            ``DiscoveredDataset``.
+        :param desired_datasets: The datasets that are desired on this node.
+        :type desired_datasets: mapping of `dataset_id`` to ``DesiredDataset``.
+
+        :return: An ``IStateChange`` provider.
         """
 
 
@@ -1292,6 +1318,18 @@ class BlockDeviceDeployerLocalState(PClass):
                 datasets=nonmanifest_datasets
             ),
         )
+
+
+@implementer(ICalculater)
+class BlockDeviceCalculater(PClass):
+    """
+    An ``ICalculater`` that calculates actions that use a
+    ``BlockDeviceDeployer``.
+    """
+    def calculate_changes_for_datasets(
+        self, discovered_datasets, desired_datasets
+    ):
+        return NoOp()
 
 
 @implementer(IDeployer)
