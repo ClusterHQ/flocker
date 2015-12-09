@@ -37,8 +37,8 @@ from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
 from ..common import (
-    poll_until, compose_retry, retry_if,
-    retry_some_times, wrap_methods_with_failure_retry,
+    poll_until,
+    retry_if, decorate_methods, with_retry, get_default_retry_steps,
 )
 
 from ..control._model import (
@@ -451,12 +451,13 @@ def dockerpy_client(**kwargs):
     if "version" not in kwargs:
         kwargs = kwargs.copy()
         kwargs["version"] = "1.15"
-    return wrap_methods_with_failure_retry(
+    return decorate_methods(
         TimeoutClient(**kwargs),
-        compose_retry([
-            retry_if(_is_known_retryable),
-            retry_some_times(),
-        ]),
+        partial(
+            with_retry,
+            should_retry=retry_if(_is_known_retryable),
+            steps=get_default_retry_steps(),
+        ),
     )
 
 
