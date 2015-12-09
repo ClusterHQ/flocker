@@ -105,8 +105,8 @@ class ReadRequestLoadScenario(object):
         self.load_generator = LoadGenerator(
             request_generator=self._request_and_measure,
             req_per_sec=self.request_rate,
-            interval = self.interval,
-            reactor = self.reactor
+            interval=self.interval,
+            reactor=self.reactor
         )
         self.load_generator.start()
 
