@@ -28,8 +28,6 @@ from botocore.exceptions import ClientError
 # See https://github.com/boto/boto3/issues/313
 from boto.utils import get_instance_metadata
 
-from OpenSSL.SSL import Error as SSLError
-
 from uuid import UUID
 
 from bitmath import Byte, GiB
@@ -462,12 +460,7 @@ def boto3_log(method):
         logging for ``ClientError``.
         """
         with AWS_ACTION(operation=[method.__name__, args[1:], kwargs]):
-            try:
-                return method(*args, **kwargs)
-            except SSLError:
-                # We lost an idle connection. Try again; boto3 will open
-                # a new one.
-                return method(*args, **kwargs)
+            return method(*args, **kwargs)
     return _run_with_logging
 
 
@@ -495,123 +488,6 @@ class _EC2(PClass):
     """
     zone = field(mandatory=True)
     connection = field(mandatory=True)
-
-    @boto3_log
-    def get_volume(self, volume_id):
-        """
-        Instantiate a ``boto3.resources.factory.ec2.Volume`` from a given
-        ID and retrieve volume information from EC2.
-
-        :param str volume_id: The volume ID.
-        :return: A ``Volume`` representation of this volume.
-        """
-        volume = self.connection.Volume(volume_id)
-        volume.load()
-        return volume
-
-    @boto3_log
-    def detach_volume(self, volume_id):
-        """
-        Detach the specified volume ID from an instance.
-
-        :param str volume_id: The volume ID.
-        :return: A ``dict`` containing the EC2 response data.
-        """
-        volume = self.connection.Volume(volume_id)
-        return volume.detach_from_instance()
-
-    @boto3_log
-    def attach_volume(self, volume_id, instance_id, device):
-        """
-        Attach a volume to an instance.
-
-        :param str volume_id: The volume ID.
-        :param str instance_id: The instance ID.
-        :param unicode device: The OS device path to which to attach
-            the device.
-
-        :return: A ``dict`` containing the EC2 response data.
-        """
-        volume = self.connection.Volume(volume_id)
-        return volume.attach_to_instance(
-            InstanceId=instance_id, Device=device)
-
-    @boto3_log
-    def delete_volume(self, volume_id):
-        """
-        Delete the specified volume, or raise an exception if the volume
-        state is not "available".
-
-        :param str volume_id: The volume ID.
-
-        :return: A ``dict`` containing the EC2 response data.
-        """
-        volume = self.connection.Volume(volume_id)
-        volume.load()
-        if volume.state == 'available':
-            return volume.delete()
-        raise InvalidStateException(volume, volume.state, ['available'])
-
-    @boto3_log
-    def create_volume(
-        self, size=1, volume_type=EBSVolumeTypes.STANDARD.value,
-        zone=None, iops=None
-    ):
-        """
-        Create a new EC2 volume with the specified parameters.
-
-        :param int size: Volume size in GiB. For provisioned IOPS volumes,
-            this is a minimum of 4.
-        :param str volume_type: The type of volume to create.
-            This can be 'gp2' for General Purpose (SSD) volumes,
-            'io1' for Provisioned IOPS (SSD) volumes, or 'standard'
-            for Magnetic volumes.
-        :param str zone: The availability zone where this volume will be
-            created. If not specified, the default zone of this client.
-        :param int iops: If creating a provisioned IOPS volume, the
-            The number of I/O operations per second to provision,
-            with a maximum ratio of 30 IOPS/GiB.
-
-        :return: The ``Volume`` representation of the created volume.
-        """
-        if zone is None:
-            zone = self.zone
-        client = self.connection.meta.client
-        if volume_type == EBSVolumeTypes.IO1.value:
-            if iops is None:
-                iops = IOPS_MIN_IOPS
-            if size < IOPS_MIN_SIZE:
-                size = IOPS_MIN_SIZE
-            volume_data = client.create_volume(
-                Size=size,
-                AvailabilityZone=zone,
-                VolumeType=volume_type,
-                Iops=iops
-            )
-        else:
-            volume_data = client.create_volume(
-                Size=size,
-                AvailabilityZone=zone,
-                VolumeType=volume_type
-            )
-        volume = self.connection.Volume(volume_data['VolumeId'])
-        volume.load()
-        return volume
-
-    def list_volumes(self, page_size=100):
-        """
-        List all the volumes associated with this client's region.
-        Volumes are retrieved in lists limited to the specified page size,
-        then amalgamated to return a single list of all volumes.
-
-        :param int page_size: Maximum page size of each list of volumes.
-
-        :return: A ``list`` of ``Volume`` objects.
-        """
-        return list(itertools.chain.from_iterable(list(
-            volumes for volumes in
-            self.connection.volumes.page_size(page_size).pages()
-        )))
 
 
 def _blockdevicevolume_from_ebs_volume(ebs_volume):
@@ -938,7 +814,7 @@ class EBSBlockDeviceAPI(object):
         :param UUID cluster_id: UUID of cluster for this
             API instance.
         """
-        self.connection = ec2_client
+        self.connection = ec2_client.connection
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
@@ -950,6 +826,7 @@ class EBSBlockDeviceAPI(object):
         """
         return int(GiB(1).to_Byte().value)
 
+    @boto3_log
     def compute_instance_id(self):
         """
         Look up the EC2 instance ID for this node.
@@ -959,6 +836,69 @@ class EBSBlockDeviceAPI(object):
             raise UnknownInstanceID(self)
         return instance_id.decode("ascii")
 
+    @boto3_log
+    def _create_ebs_volume(
+        self, size=1, volume_type=EBSVolumeTypes.STANDARD.value,
+        zone=None, iops=None
+    ):
+        """
+        Create a new EC2 volume with the specified parameters.
+
+        :param int size: Volume size in GiB. For provisioned IOPS volumes,
+            this is a minimum of 4.
+        :param str volume_type: The type of volume to create.
+            This can be 'gp2' for General Purpose (SSD) volumes,
+            'io1' for Provisioned IOPS (SSD) volumes, or 'standard'
+            for Magnetic volumes.
+        :param str zone: The availability zone where this volume will be
+            created. If not specified, the default zone of this client.
+        :param int iops: If creating a provisioned IOPS volume, the
+            The number of I/O operations per second to provision,
+            with a maximum ratio of 30 IOPS/GiB.
+
+        :return: The ``Volume`` representation of the created volume.
+        """
+        if zone is None:
+            zone = self.zone
+        client = self.connection.meta.client
+        if volume_type == EBSVolumeTypes.IO1.value:
+            if iops is None:
+                iops = IOPS_MIN_IOPS
+            if size < IOPS_MIN_SIZE:
+                size = IOPS_MIN_SIZE
+            volume_data = client.create_volume(
+                Size=size,
+                AvailabilityZone=zone,
+                VolumeType=volume_type,
+                Iops=iops
+            )
+        else:
+            volume_data = client.create_volume(
+                Size=size,
+                AvailabilityZone=zone,
+                VolumeType=volume_type
+            )
+        volume = self.connection.Volume(volume_data['VolumeId'])
+        volume.load()
+        return volume
+
+    @boto3_log
+    def _list_ebs_volumes(self, page_size=100):
+        """
+        List all the volumes associated with this client's region.
+        Volumes are retrieved in lists limited to the specified page size,
+        then amalgamated to return a single list of all volumes.
+
+        :param int page_size: Maximum page size of each list of volumes.
+
+        :return: A ``list`` of ``Volume`` objects.
+        """
+        return list(itertools.chain.from_iterable(list(
+            volumes for volumes in
+            self.connection.volumes.page_size(page_size).pages()
+        )))
+
+    @boto3_log
     def _get_ebs_volume(self, blockdevice_id):
         """
         Lookup EBS Volume information for a given blockdevice_id.
@@ -971,13 +911,41 @@ class EBSBlockDeviceAPI(object):
              found.
         """
         try:
-            volume = self.connection.get_volume(blockdevice_id)
+            volume = self.connection.Volume(blockdevice_id)
+            volume.load()
             return volume
         except ClientError as e:
             if e.response['Error']['Code'] == NOT_FOUND:
                 raise UnknownVolume(blockdevice_id)
             else:
                 raise
+
+    @boto3_log
+    def _detach_ebs_volume(self, volume_id):
+        """
+        Detach the specified volume ID from an instance.
+
+        :param str volume_id: The volume ID.
+        :return: A ``dict`` containing the EC2 response data.
+        """
+        volume = self.connection.Volume(volume_id)
+        return volume.detach_from_instance()
+
+    @boto3_log
+    def _attach_ebs_volume(self, volume_id, instance_id, device):
+        """
+        Attach a volume to an instance.
+
+        :param str volume_id: The volume ID.
+        :param str instance_id: The instance ID.
+        :param unicode device: The OS device path to which to attach
+            the device.
+
+        :return: A ``dict`` containing the EC2 response data.
+        """
+        volume = self.connection.Volume(volume_id)
+        return volume.attach_to_instance(
+            InstanceId=instance_id, Device=device)
 
     def _next_device(self, instance_id, volumes, devices_in_use):
         """
@@ -1032,6 +1000,7 @@ class EBSBlockDeviceAPI(object):
         return self.create_volume_with_profile(
             dataset_id, size, MandatoryProfiles.DEFAULT.value)
 
+    @boto3_log
     def create_volume_with_profile(self, dataset_id, size, profile_name):
         """
         Create a volume on EBS. Store Flocker-specific
@@ -1043,7 +1012,7 @@ class EBSBlockDeviceAPI(object):
         try:
             volume_type, iops = _volume_type_and_iops_for_profile_name(
                 profile_name, requested_size)
-            requested_volume = self.connection.create_volume(
+            requested_volume = self._create_ebs_volume(
                 size=requested_size,
                 zone=self.zone,
                 volume_type=volume_type,
@@ -1063,7 +1032,7 @@ class EBSBlockDeviceAPI(object):
             ).write()
             volume_type, iops = _volume_type_and_iops_for_profile_name(
                 MandatoryProfiles.DEFAULT.value, requested_size)
-            requested_volume = self.connection.create_volume(
+            requested_volume = self._create_ebs_volume(
                 size=requested_size,
                 zone=self.zone,
                 volume_type=volume_type,
@@ -1108,7 +1077,7 @@ class EBSBlockDeviceAPI(object):
         Return all volumes that belong to this Flocker cluster.
         """
         try:
-            ebs_volumes = self.connection.list_volumes()
+            ebs_volumes = self._list_ebs_volumes()
             message_type = BOTO_LOG_RESULT + u':listed_volumes'
             Message.new(
                 message_type=message_type,
@@ -1163,7 +1132,7 @@ class EBSBlockDeviceAPI(object):
         ignore_devices = pset([])
         for attach_attempt in range(3):
             with self.lock:
-                volumes = self.connection.list_volumes()
+                volumes = self._list_ebs_volumes()
                 device = self._next_device(attach_to, volumes, ignore_devices)
                 if device is None:
                     # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
@@ -1173,8 +1142,8 @@ class EBSBlockDeviceAPI(object):
                 blockdevices = _get_blockdevices()
                 attached = _attach_volume_and_wait_for_device(
                     volume, attach_to,
-                    self.connection.attach_volume,
-                    self.connection.detach_volume,
+                    self._attach_ebs_volume,
+                    self._detach_ebs_volume,
                     device, blockdevices,
                 )
                 if attached:
@@ -1203,10 +1172,11 @@ class EBSBlockDeviceAPI(object):
         if ebs_volume.state != VolumeStates.IN_USE.value:
             raise UnattachedVolume(blockdevice_id)
 
-        self.connection.detach_volume(blockdevice_id)
+        self._detach_ebs_volume(blockdevice_id)
 
         _wait_for_volume_state_change(VolumeOperations.DETACH, ebs_volume)
 
+    @boto3_log
     def destroy_volume(self, blockdevice_id):
         """
         Destroy EBS volume identified by blockdevice_id.
@@ -1218,8 +1188,14 @@ class EBSBlockDeviceAPI(object):
         :raises Exception: If we failed to destroy Flocker cluster volume
             corresponding to input blockdevice_id.
         """
+        destroy_result = None
         ebs_volume = self._get_ebs_volume(blockdevice_id)
-        destroy_result = self.connection.delete_volume(blockdevice_id)
+        ebs_volume.load()
+        if ebs_volume.state == 'available':
+            destroy_result = ebs_volume.delete()
+        else:
+            raise InvalidStateException(
+                ebs_volume, ebs_volume.state, ['available'])
         if destroy_result:
             try:
                 _wait_for_volume_state_change(VolumeOperations.DESTROY,
