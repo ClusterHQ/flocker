@@ -63,7 +63,7 @@ class RunOptions(Options):
          int],
         ['app-template', None, None,
          'Configuration to use for each application container'],
-        ['apps-per-node', None, 1, 'Number of application containers per node',
+        ['apps-per-node', None, 0, 'Number of application containers per node',
          int],
     ]
 
@@ -367,9 +367,12 @@ def main(reactor, args, base_path, top_level):
                                )
         gather_deferreds(results)
 
-        config = _build_config(cluster, options['template'],
-                               options['apps-per-node'])
-        result = yield _configure(reactor, cluster, config)
+        if options['apps-per-node'] > 0:
+            config = _build_config(cluster, options['template'],
+                                   options['apps-per-node'])
+            result = yield _configure(reactor, cluster, config)
+        else:
+            result = 0
 
     except Exception:
         result = 1
