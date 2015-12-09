@@ -39,7 +39,7 @@ class DatasetAPITests(AsyncTestCase):
         for the sake of using it as a wrapper on the cloud API.
         """
         waiting_for_create = create_dataset(
-            self, cluster,
+            self, cluster, maximum_size=4*1024*1024*1024,
             metadata={u"clusterhq:flocker:profile": u"gold"})
 
         def confirm_gold(dataset):
@@ -66,19 +66,24 @@ class DatasetAPITests(AsyncTestCase):
 
         # Once created, request to move the dataset to node2
         def move_dataset(dataset):
+            print 'in move dataset'
             dataset_moving = cluster.client.move_dataset(
                 UUID(cluster.nodes[1].uuid), dataset.dataset_id)
 
             # Wait for the dataset to be moved; we expect the state to
             # match that of the originally created dataset in all ways
             # other than the location.
+            print 'ehm two'
             moved_dataset = dataset.set(
                 primary=UUID(cluster.nodes[1].uuid))
+            print 'three?'
             dataset_moving.addCallback(
                 lambda dataset: cluster.wait_for_dataset(moved_dataset))
+            print 'aha four'
             return dataset_moving
 
         waiting_for_create.addCallback(move_dataset)
+        print 'waitin to create'
         return waiting_for_create
 
     @flaky(u'FLOC-3196')
