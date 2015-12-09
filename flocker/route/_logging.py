@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 from eliot import Field, ActionType
 from eliot._validation import ValidationError
