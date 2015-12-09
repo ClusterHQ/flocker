@@ -1,4 +1,4 @@
-# Copyright ClusterHQ Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.node.agents.blockdevice``.
@@ -2204,6 +2204,55 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         expected_changes = in_parallel(changes=[])
 
         self.assertEqual(expected_changes, actual_changes)
+
+    def test_dataset_with_metadata(self):
+        """
+        When supplied with a configuration containing a dataset with metadata
+        size, ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``CreateBlockDeviceDataset`` with a dataset with that metadata.
+        """
+        node_id = uuid4()
+        node_address = u"192.0.2.1"
+        dataset_id = unicode(uuid4())
+
+        requested_dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            metadata={u"some": u"metadata"},
+        )
+
+        configuration = Deployment(
+            nodes={
+                Node(
+                    uuid=node_id,
+                    manifestations={
+                        dataset_id: Manifestation(
+                            dataset=requested_dataset,
+                            primary=True,
+                        )
+                    },
+                )
+            }
+        )
+        node_state = NodeState(
+            uuid=node_id,
+            hostname=node_address,
+            applications=[],
+            manifestations={},
+            devices={},
+            paths={},
+        )
+        changes = self._calculate_changes(
+            node_id, node_address, node_state, configuration)
+        self.assertEqual(
+            in_parallel(
+                changes=[
+                    CreateBlockDeviceDataset(
+                        dataset=requested_dataset,
+                    )
+                ]),
+            changes
+        )
 
     def test_dataset_without_maximum_size(self):
         """

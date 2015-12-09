@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 # Generate a v1 configuration.
 # Commit Hash: 7bd476e2fdc7353018ff1fc446b9b4c76e7c7c17

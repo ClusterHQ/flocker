@@ -35,7 +35,6 @@ ClusterHQ supported drivers:
 
 * Amazon AWS EBS
 * Anything that supports the OpenStack Cinder API
-* Local storage using our ZFS driver (currently Experimental)
 
 Community supported drivers:
 
