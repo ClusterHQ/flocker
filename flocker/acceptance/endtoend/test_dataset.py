@@ -95,7 +95,6 @@ class DatasetAPITests(AsyncTestCase):
             d.addCallback(lambda _: get_flocker_version())
 
             def verify_version(v):
-                print "VERSION:", v, "TARGET:", package_source.version
                 if package_source.version:
                     self.assertEquals(
                         v, package_source.version,
@@ -126,12 +125,8 @@ class DatasetAPITests(AsyncTestCase):
             lambda _: upgrade_flocker_to(
                 PackageSource(version=upgrade_from_version)))
 
-        def wrapper(unused):
-            return create_dataset(self, cluster, node=node)
-
         # Create a dataset with the code from the most recent release.
-        #d.addCallback(lambda _: create_dataset(self, cluster, node=node))
-        d.addCallback(wrapper)
+        d.addCallback(lambda _: create_dataset(self, cluster, node=node))
         first_dataset = [None]
 
         # Write some data to a file in the dataset.
@@ -156,12 +151,12 @@ class DatasetAPITests(AsyncTestCase):
         def cat_and_verify_file(dataset):
             output = []
 
-            def add_output(line):
+            def append_output(line):
                 output.append(line)
             file_catting = node.run_as_root(
                 ['bash', '-c', 'cat %s' % (
                     os.path.join(dataset.path.path, 'test.txt'))],
-                handle_stdout=add_output)
+                handle_stdout=append_output)
 
             def verify_file(_):
                 file_contents = ''.join(output)
