@@ -60,9 +60,8 @@ INSTANCE_TIMEOUT = 300
 
 class FailedToRun(Exception):
     """
-    Raised if a pending AWS failed to become running.
-    See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-lifecycle.html
-    """     # noqa
+    Raised if a pending AWS instance fails to become running.
+    """
 
 
 def _check_response_error(e, message_type):
@@ -120,6 +119,7 @@ def _wait_until_running(instance):
     Wait until a instance is running.
 
     :param boto.ec2.instance.Instance instance: The instance to wait for.
+    :raises FailedToRun: The instance failed to become running.
     """
     with start_action(
         action_type=u"flocker:provision:aws:wait_until_running",
