@@ -18,7 +18,7 @@ from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
 from ..blockdevice import MandatoryProfiles
 
 from ..ebs import (
-    _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
+    _wait_for_volume_state_change,
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
     EBSMandatoryProfileAttributes,
@@ -27,7 +27,7 @@ from ....testtools import flaky
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
-    CREATE_VOLUME_FAILURE
+    CREATE_VOLUME_FAILURE, AWS_ACTION,
 )
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests
@@ -148,7 +148,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         expected_message_keys = {AWS_CODE.key, AWS_MESSAGE.key,
                                  AWS_REQUEST_ID.key}
         for logged in LoggedMessage.of_type(logger.messages,
-                                            BOTO_EC2RESPONSE_ERROR,):
+                                            AWS_ACTION,):
             key_subset = set(key for key in expected_message_keys
                              if key in logged.message.keys())
             self.assertEqual(expected_message_keys, key_subset)
