@@ -244,9 +244,6 @@ class RunOptions(Options):
         """
         Run some nodes using ``libcloud``.
 
-        By default, two nodes are run.  This can be overridden by setting
-        ``FLOCKER_ACCEPTANCE_NUM_NODES`` in the environment.
-
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider: The name of the cloud provider of nodes for the tests.
@@ -397,7 +394,20 @@ def main(reactor, args, base_path, top_level):
     raise SystemExit(result)
 
 
-def _build_config(cluster, application_template,  per_node):
+def _build_config(cluster, application_template, per_node):
+    """
+    Build a flocker deployment configuration for the given cluster
+    and parameters.
+    The configuration consists of identically configured applications
+    (containers) uniformly spread over all cluster nodes.
+
+    :param flocker.provision._common.Cluster cluster: The target cluster.
+    :param dict application_template: A dictionary that provides configuration
+                                      for an individual application.
+    :param int per_node: The number of applications to deploy on each cluster
+                         node.
+    :return dict: The deployment configuration.
+    """
     application_root = {}
     applications = {}
     application_root["version"] = 1
@@ -422,6 +432,15 @@ def _build_config(cluster, application_template,  per_node):
 
 
 def _configure(reactor, cluster, configuration):
+    """
+    Configure the cluster with the given deployment configuration.
+
+    :param reactor: The reactor to use.
+    :param flocker.provision._common.Cluster cluster: The target cluster.
+    :param dict configuration: The deployment configuration.
+    :return Deferred: Deferred that fires when the configuration is pushed
+                      to the cluster's control agent.
+    """
     base_url = b"https://{}:{}/v1".format(
         cluster.control_node.address, REST_API_PORT
     )
