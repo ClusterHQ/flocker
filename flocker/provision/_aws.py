@@ -58,6 +58,12 @@ BOTO_INSTANCE_NOT_FOUND = u'InvalidInstanceID.NotFound'
 INSTANCE_TIMEOUT = 300
 
 
+class FailedToRun(Exception):
+    """
+    Raised if a pending AWS instance fails to become running.
+    """
+
+
 def _check_response_error(e, message_type):
     """
     Check if an exception is a transient one.
@@ -74,9 +80,11 @@ def _check_response_error(e, message_type):
     ).write()
 
 
-def _check_if_running(instance):
+def _node_is_booting(instance):
     """
-    Check if an instance is running.
+    Check if an instance is still booting, where booting is defined
+    as either a pending or rebooting instance that is expected to
+    become running.
 
     :param boto.ec2.instance.Instance instance: The instance to check.
     """
@@ -85,14 +93,25 @@ def _check_if_running(instance):
     except EC2ResponseError as e:
         _check_response_error(
             e,
-            u"flocker:provision:aws:check_if_running:retry"
+            u"flocker:provision:aws:node_is_booting:retry"
         )
     Message.new(
-        message_type=u"flocker:provision:aws:check_if_running:update",
+        message_type=u"flocker:provision:aws:node_is_booting:update",
         instance_state=instance.state,
         ip_address=instance.ip_address,
     ).write()
-    return instance.state == 'running' and instance.ip_address is not None
+
+    # Sometimes an instance can be reported as running but without a public
+    # address being set, we consider that instance to be still pending.
+    return (instance.state == u'pending' or instance.state == u'rebooting' or
+            (instance.state == u'running' and instance.ip_address is None))
+
+
+def _poll_while(predicate, steps, sleep=None):
+    """
+    Like common.poll_until, but with the reverse meaning of the predicate.
+    """
+    return poll_until(lambda: not predicate(), steps, sleep)
 
 
 def _wait_until_running(instance):
@@ -100,13 +119,22 @@ def _wait_until_running(instance):
     Wait until a instance is running.
 
     :param boto.ec2.instance.Instance instance: The instance to wait for.
+    :raises FailedToRun: The instance failed to become running.
     """
     with start_action(
         action_type=u"flocker:provision:aws:wait_until_running",
         instance_id=instance.id,
-    ):
-        poll_until(lambda: _check_if_running(instance),
-                   repeat(1, INSTANCE_TIMEOUT))
+    ) as context:
+        # Since we are refreshing the instance's state once in a while
+        # we may miss some transitions.  So, here we are waiting until
+        # the node has transitioned out of the original state and then
+        # check if the new state is the one that we expect.
+        _poll_while(lambda: _node_is_booting(instance),
+                    repeat(1, INSTANCE_TIMEOUT))
+        context.add_success_fields(instance_state=instance.state)
+        context.add_success_fields(instance_state_reason=instance.state_reason)
+    if instance.state != u'running':
+        raise FailedToRun(instance.state_reason)
 
 
 @implementer(INode)
@@ -258,39 +286,55 @@ class AWSProvisioner(PClass):
             images = self._connection.get_all_images(
                 filters={'name': IMAGE_NAMES[distribution]},
             )
-
-            with start_action(
-                action_type=u"flocker:provision:aws:create_node:run_instances",
-            ) as context:
-                reservation = self._connection.run_instances(
-                    images[0].id,
-                    key_name=self._keyname,
-                    instance_type=size,
-                    security_groups=self._security_groups,
-                    block_device_map=diskmap,
-                    placement=self._zone,
-                    # On some operating systems, a tty is requried for sudo.
-                    # Since AWS systems have a non-root user as the login,
-                    # disable this, so we can use sudo with conch.
-                    user_data=dedent("""\
-                        #!/bin/sh
-                        sed -i '/Defaults *requiretty/d' /etc/sudoers
-                        """),
-                )
-
-                instance = reservation.instances[0]
-                context.add_success_fields(instance_id=instance.id)
-
-            poll_until(lambda: self._set_metadata(instance, metadata),
-                       repeat(1, INSTANCE_TIMEOUT))
-            _wait_until_running(instance)
-
+            # Retry several times, no sleep between retries is needed.
+            instance = poll_until(
+                lambda: self._get_node(images[0].id, size, diskmap, metadata),
+                repeat(0, 10),
+                lambda x: None)
             return AWSNode(
                 name=name,
                 _provisioner=self,
                 _instance=instance,
                 distribution=distribution,
             )
+
+    def _get_node(self, image_id, size, diskmap, metadata):
+        """
+        Create an AWS instance with the given parameters.
+
+        Return either boto.ec2.instance object or None if the instance
+        could not be created.
+        """
+        with start_action(
+            action_type=u"flocker:provision:aws:create_node:run_instances",
+        ) as context:
+            reservation = self._connection.run_instances(
+                image_id,
+                key_name=self._keyname,
+                instance_type=size,
+                security_groups=self._security_groups,
+                block_device_map=diskmap,
+                placement=self._zone,
+                # On some operating systems a tty is requried for sudo.
+                # Since AWS systems have a non-root user as the login,
+                # disable this, so we can use sudo with conch.
+                user_data=dedent("""\
+                    #!/bin/sh
+                    sed -i '/Defaults *requiretty/d' /etc/sudoers
+                    """),
+            )
+
+            instance = reservation.instances[0]
+            context.add_success_fields(instance_id=instance.id)
+
+        poll_until(lambda: self._set_metadata(instance, metadata),
+                   repeat(1, INSTANCE_TIMEOUT))
+        try:
+            _wait_until_running(instance)
+            return instance
+        except FailedToRun:
+            instance.terminate()
+            return None     # the instance is in the wrong state
 
     def _set_metadata(self, instance, metadata):
         """

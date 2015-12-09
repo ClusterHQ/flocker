@@ -45,6 +45,10 @@ _LOG_HTTP_REQUEST = ActionType(
      Field("response_body", lambda o: o, "JSON response body.")],
     "A HTTP request.")
 
+_LOG_CONDITIONAL_CREATE = ActionType(
+    u"flocker:apiclient:conditional_create", [], [],
+    u"Conditionally create a dataset.")
+
 
 NoneType = type(None)
 
@@ -812,15 +816,23 @@ def conditional_create(client, reactor, condition, *args, **kwargs):
     :return: ``Deferred`` firing with resulting ``Dataset`` if creation
         succeeded, or the relevant exception if creation failed.
     """
+    context = _LOG_CONDITIONAL_CREATE()
+
     def create():
         d = client.list_datasets_configuration()
 
         def got_config(config):
             condition(config)
-            return deferLater(reactor, 0.001, client.create_dataset,
+            return deferLater(reactor, 0.001, context.run,
+                              client.create_dataset,
                               *args, configuration_tag=config.tag,
                               **kwargs)
         d.addCallback(got_config)
         return d
-    return retry_failure(reactor, create, [ConfigurationChanged],
-                         [0.001] * 19)
+
+    with context.context():
+        result = DeferredContext(
+            retry_failure(reactor, create, [ConfigurationChanged],
+                          [0.001] * 19))
+        result.addActionFinish()
+        return result.result
