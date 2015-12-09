@@ -16,7 +16,7 @@ from testtools.deferredruntest import (
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
 
-from ._flaky import retry_flaky, _reset_case
+from ._flaky import retry_flaky
 
 
 class TestCase(unittest.SynchronousTestCase):
@@ -82,15 +82,6 @@ class AsyncTestCase(testtools.TestCase):
         # XXX: Actually belongs in a mixin or something, not actually specific
         # to async.
         return make_temporary_directory(self).child('temp').path
-
-    def run(self, *args, **kwargs):
-        """
-        Run ``AsyncTestCase``
-        """
-        # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879.
-        # Constructed tests are called more than once when run with `trial -u`.
-        _reset_case(self)
-        super(AsyncTestCase, self).run(*args, **kwargs)
 
 
 def _path_for_test_id(test_id, max_segment_length=32):

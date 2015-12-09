@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
 Run the acceptance tests.
 """
@@ -1176,7 +1176,7 @@ def main(reactor, args, base_path, top_level):
                                                node.address,
                                                remote_logs_file)
                                )
-        elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.04'):
+        elif options['distribution'] in ('ubuntu-14.04',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
                 results.append(capture_upstart(reactor,
