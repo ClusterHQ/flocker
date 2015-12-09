@@ -82,7 +82,7 @@ v1.3.1
 ======
 
 * Fixed a bug in previous fix where OpenStack Cinder volumes failed to mount.
-* Creation of a ZFS pool using ZFS 0.6.5 or later requires the setting of a :ref:`ZFS_MODULE_LOADING environment variable<zfs-creating-pool>`.
+* Creation of a ZFS pool using ZFS 0.6.5 or later requires the setting of a ``ZFS_MODULE_LOADING`` environment variable.
 
 v1.3
 ====
