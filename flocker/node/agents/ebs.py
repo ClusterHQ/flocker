@@ -289,6 +289,21 @@ class InvalidStateException(Exception):
         self.valid_states = valid_states
 
 
+class TagNotFound(Exception):
+    """
+    A named tag could not be found an a volume.
+
+    :param str volume_id: The ID of the volume.
+    :param str tag: The name of the tag that could not be found.
+    :param list existing_tags: The tags that do exist on the volume.
+    """
+    def __init__(self, volume_id, tag, existing_tags):
+        Exception.__init__(self, volume_id, tag, existing_tags)
+        self.volume_id = volume_id
+        self.tag = tag
+        self.existing_tags = existing_tags
+
+
 class TimeoutException(Exception):
     """
     A timeout on waiting for volume to reach destination end state.
@@ -335,12 +350,9 @@ class UnexpectedStateException(Exception):
 
 class EliotLogHandler(logging.Handler):
     def emit(self, record):
-        # Only log certain things.  The log is massively too verbose
-        # otherwise.
-        if record.levelname == 'INFO':
-            Message.new(
-                message_type=BOTO_LOG_HEADER, message=record.getMessage()
-            ).write()
+        Message.new(
+            message_type=BOTO_LOG_HEADER, message=record.getMessage()
+        ).write()
 
 
 def _enable_boto_logging():
@@ -471,13 +483,12 @@ def _get_volume_tag(volume, name):
     :param Volume volume: The volume.
     :param unicode name: The tag name.
 
-    :return: A ``str`` representing the value of the tag, or ``None`` if
-        no tag with this name can be found in the volume.
+    :return: A ``str`` representing the value of the tag.
     """
     for tag in volume.tags:
         if tag['Key'] == name:
             return tag['Value']
-    return None
+    return TagNotFound(volume.id, name, volume.tags)
 
 
 class _EC2(PClass):
