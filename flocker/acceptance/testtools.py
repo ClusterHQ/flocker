@@ -462,6 +462,8 @@ class Cluster(PClass):
     :ivar treq: A ``treq`` client, eventually to be completely replaced by
         ``FlockerClient`` usage.
     :ivar client: A ``FlockerClient``.
+    :ivar raw_distribution: Either a string with the distribution being run on
+        the cluster or None if it is unknown.
     """
     control_node = field(mandatory=True, type=ControlService)
     nodes = field(mandatory=True, type=_NodeList)
@@ -469,6 +471,20 @@ class Cluster(PClass):
     client = field(type=FlockerClient, mandatory=True)
     certificates_path = field(FilePath, mandatory=True)
     cluster_uuid = field(mandatory=True, type=UUID)
+    raw_distribution = field(mandatory=True, type=(str, type(None)))
+
+    @property
+    def distribution(self):
+        """
+        :returns: The name of the distribution installed on the cluster.
+        :raises SkipTest: If the distribution was not set in environment
+            variables.
+        """
+        if self.raw_distribution is None:
+            raise SkipTest(
+                'Set FLOCKER_ACCEPTANCE_DISTRIBUTION with the distribution '
+                'that is installed on the nodes of the cluster.')
+        return self.raw_distribution
 
     @property
     def base_url(self):
@@ -828,6 +844,7 @@ def _get_test_cluster(reactor, node_count):
                              cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
         cluster_uuid=user_credential.cluster_uuid,
+        raw_distribution=environ.get('FLOCKER_ACCEPTANCE_DISTRIBUTION'),
     )
 
     hostname_to_public_address_env_var = environ.get(

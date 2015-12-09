@@ -8,12 +8,9 @@ import os
 from datetime import timedelta
 from uuid import UUID
 
-from eliot import write_failure
-from effect import parallel
 from testtools import run_test_with
 from twisted.internet import reactor
 from twisted.trial.unittest import SkipTest
-from txeffect import perform
 
 
 from flocker import __version__ as version
@@ -21,97 +18,11 @@ from flocker.common.version import get_installable_version
 from ...common import loop_until
 from ...testtools import AsyncTestCase, async_runner, flaky
 
-from ...provision import PackageSource
-from ...provision._install import (
-    uninstall_flocker,
-    install_flocker,
-    task_enable_flocker_agent,
-    task_enable_docker_plugin,
-    task_enable_flocker_control,
-    ManagedNode
-)
-from ...provision._effect import sequence
-from ...provision._ssh import run_remotely
-from ...provision._ssh._conch import make_dispatcher
+from ...provision import PackageSource, reinstall_flocker_at_version
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
 )
-
-
-
-def upgrade_flocker(
-    reactor, nodes, control_node, package_source, distribution
-):
-    """
-    Put the version of Flocker indicated by ``package_source`` onto all of
-    the given nodes.
-
-    This takes a primitive approach of uninstalling the software and then
-    installing the new version instead of trying to take advantage of any
-    OS-level package upgrade support.  Because it's easier.  The package
-    removal step is allowed to fail in case the package is not installed
-    yet (other failures are not differentiated).  The only action taken on
-    failure is that the failure is logged.
-
-    :param reactor: The reactor to use to schedule the work.
-    :param nodes: An iterable of node addresses of nodes in the cluster.
-    :param control_node: The address of the control node.
-    :param PackageSource package_source: The version of the software to
-        install.
-    :param distribution: The distribution installed on the nodes.
-
-    :return: A ``Deferred`` that fires when the software has been upgraded.
-    """
-    managed_nodes = list(
-        ManagedNode(address=node, distribution=distribution)
-        for node in nodes
-    )
-    dispatcher = make_dispatcher(reactor)
-
-    uninstalling = perform(dispatcher, uninstall_flocker(managed_nodes))
-
-    uninstalling.addErrback(write_failure, logger=None)
-
-    def install(ignored):
-        return perform(
-            dispatcher,
-            install_flocker(managed_nodes, package_source),
-        )
-    uninstalling.addCallback(install)
-
-    def restart_services(ignored):
-        return perform(
-            dispatcher,
-            parallel([
-                run_remotely(
-                    username='root',
-                    address=node.address,
-                    commands=sequence([
-                        task_enable_docker_plugin(node.distribution),
-                        task_enable_flocker_agent(
-                            distribution=node.distribution,
-                            action='restart',
-                        )
-                    ])
-                )
-                for node in managed_nodes
-            ] + [
-                run_remotely(
-                    username='root',
-                    address=control_node,
-                    commands=sequence([
-                        task_enable_flocker_control(
-                            distribution,
-                            'restart'),
-                    ])
-                )
-            ])
-        )
-
-    uninstalling.addCallback(restart_services)
-
-    return uninstalling
 
 
 class DatasetAPITests(AsyncTestCase):
@@ -128,6 +39,16 @@ class DatasetAPITests(AsyncTestCase):
         return create_dataset(self, cluster)
 
     def _get_package_source(self, default_version=None):
+        """
+        Get the package source for the flocker version under test from
+        environment variables.
+
+        :param unicode default_version: The version of flocker to use
+            if not specified in environment variables.
+
+        :return: A ``PackageSource`` that can be used to install the version of
+            flocker under test.
+        """
         env_vars = ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH',
                     'FLOCKER_ACCEPTANCE_PACKAGE_VERSION',
                     'FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER']
@@ -136,21 +57,12 @@ class DatasetAPITests(AsyncTestCase):
             raise SkipTest(
                 'Missing environment variables for upgrade test: %s.' %
                 ', '.join(missing_vars))
-        version = (
-            os.environ['FLOCKER_ACCEPTANCE_PACKAGE_VERSION'] or default_version
-        )
+        version = os.environ.get('FLOCKER_ACCEPTANCE_PACKAGE_VERSION',
+                                 default_version)
         return PackageSource(
             version=version,
             branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'] or None,
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
-
-    def _get_distribution(self):
-        distribution = os.environ.get('FLOCKER_ACCEPTANCE_DISTRIBUTION')
-        if distribution is None:
-            raise SkipTest(
-                'Missing environment variable FLOCKER_ACCEPTANCE_DISTRIBUTION '
-                'which is required for upgrade test.')
-        return distribution
 
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
@@ -161,7 +73,7 @@ class DatasetAPITests(AsyncTestCase):
         control_node_address = cluster.control_node.public_address
         all_cluster_nodes = set([x.public_address for x in cluster.nodes] +
                                 [control_node_address])
-        distribution = self._get_distribution()
+        distribution = cluster.distribution
         upgrade_from_version = get_installable_version(version)
 
         def get_flocker_version():
@@ -175,9 +87,9 @@ class DatasetAPITests(AsyncTestCase):
             def upgrade_if_needed(v):
                 if v and v == package_source.version:
                     return v
-                return upgrade_flocker(reactor, all_cluster_nodes,
-                                       control_node_address, package_source,
-                                       distribution)
+                return reinstall_flocker_at_version(
+                    reactor, all_cluster_nodes, control_node_address,
+                    package_source, distribution)
             d.addCallback(upgrade_if_needed)
 
             d.addCallback(lambda _: get_flocker_version())
@@ -200,24 +112,26 @@ class DatasetAPITests(AsyncTestCase):
 
         original_package_source = [None]
 
-        def setup_restore_default(version):
+        def setup_restore_original_flocker(version):
             original_package_source[0] = (
                 self._get_package_source(default_version=version))
             self.addCleanup(
                 lambda: upgrade_flocker_to(original_package_source[0]))
             return version
 
-        d.addCallback(setup_restore_default)
+        d.addCallback(setup_restore_original_flocker)
 
         # Downgrade flocker to the most recent released version.
         d.addCallback(
-            lambda v: upgrade_flocker_to(
+            lambda _: upgrade_flocker_to(
                 PackageSource(version=upgrade_from_version)))
 
-        return d
+        def wrapper(unused):
+            return create_dataset(self, cluster, node=node)
 
         # Create a dataset with the code from the most recent release.
-        d.addCallback(lambda _: create_dataset(self, cluster, node=node))
+        #d.addCallback(lambda _: create_dataset(self, cluster, node=node))
+        d.addCallback(wrapper)
         first_dataset = [None]
 
         # Write some data to a file in the dataset.
@@ -239,11 +153,23 @@ class DatasetAPITests(AsyncTestCase):
         d.addCallback(lambda _: cluster.wait_for_dataset(first_dataset[0]))
 
         # Verify that the file still has its contents.
-        def verify_file(dataset):
-            return node.run_as_root(
+        def cat_and_verify_file(dataset):
+            output = []
+
+            def add_output(line):
+                output.append(line)
+            file_catting = node.run_as_root(
                 ['bash', '-c', 'cat %s' % (
-                    os.path.join(dataset.path.path, 'test.txt'))])
-        d.addCallback(verify_file)
+                    os.path.join(dataset.path.path, 'test.txt'))],
+                handle_stdout=add_output)
+
+            def verify_file(_):
+                file_contents = ''.join(output)
+                self.assertEqual(file_contents, SAMPLE_STR)
+
+            file_catting.addCallback(verify_file)
+            return file_catting
+        d.addCallback(cat_and_verify_file)
         return d
 
     @require_cluster(1, required_backend=DatasetBackend.aws)

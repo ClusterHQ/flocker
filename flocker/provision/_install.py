@@ -14,8 +14,10 @@ import yaml
 
 from zope.interface import implementer
 
+from eliot import write_failure
 from characteristic import attributes
 from pyrsistent import PClass, field
+from txeffect import perform
 
 from twisted.internet.error import ProcessTerminated
 
@@ -28,6 +30,7 @@ from ._ssh import (
     put,
     run_remotely,
 )
+from ._ssh._conch import make_dispatcher
 from ._effect import sequence
 
 from ..common import retry_effect_with_timeout
@@ -1556,3 +1559,77 @@ def configure_cluster(cluster, dataset_backend_configuration, provider):
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])
     ])
+
+
+def reinstall_flocker_at_version(
+    reactor, nodes, control_node, package_source, distribution
+):
+    """
+    Put the version of Flocker indicated by ``package_source`` onto all of
+    the given nodes.
+
+    This takes a primitive approach of uninstalling the software and then
+    installing the new version instead of trying to take advantage of any
+    OS-level package upgrade support.  Because it's easier.  The package
+    removal step is allowed to fail in case the package is not installed
+    yet (other failures are not differentiated).  The only action taken on
+    failure is that the failure is logged.
+
+    :param reactor: The reactor to use to schedule the work.
+    :param nodes: An iterable of node addresses of nodes in the cluster.
+    :param control_node: The address of the control node.
+    :param PackageSource package_source: The version of the software to
+        install.
+    :param distribution: The distribution installed on the nodes.
+
+    :return: A ``Deferred`` that fires when the software has been upgraded.
+    """
+    managed_nodes = list(
+        ManagedNode(address=node, distribution=distribution)
+        for node in nodes
+    )
+    dispatcher = make_dispatcher(reactor)
+
+    uninstalling = perform(dispatcher, uninstall_flocker(managed_nodes))
+
+    uninstalling.addErrback(write_failure, logger=None)
+
+    def install(ignored):
+        return perform(
+            dispatcher,
+            install_flocker(managed_nodes, package_source),
+        )
+    uninstalling.addCallback(install)
+
+    def restart_services(ignored):
+        return perform(
+            dispatcher,
+            parallel([
+                run_remotely(
+                    username='root',
+                    address=node.address,
+                    commands=sequence([
+                        task_enable_docker_plugin(node.distribution),
+                        task_enable_flocker_agent(
+                            distribution=node.distribution,
+                            action='restart',
+                        )
+                    ])
+                )
+                for node in managed_nodes
+            ] + [
+                run_remotely(
+                    username='root',
+                    address=control_node,
+                    commands=sequence([
+                        task_enable_flocker_control(
+                            distribution,
+                            'restart'),
+                    ])
+                )
+            ])
+        )
+
+    uninstalling.addCallback(restart_services)
+
+    return uninstalling
