@@ -350,7 +350,7 @@ class VolumeStub(object):
                     equal = False
         return equal
 
-    def __neq__(self, other):
+    def __ne__(self, other):
         """
         Negative comparison. See ``VolumeStub.__eq__``.
         """
