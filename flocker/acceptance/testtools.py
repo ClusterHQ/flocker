@@ -45,6 +45,7 @@ from ..ca import treq_with_authentication, UserCredential
 from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.agents.ebs import aws_from_configuration
+from ..provision import reinstall_flocker_at_version
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
@@ -87,6 +88,13 @@ DOCKER_PORT = 2376
 # polling for a condition, it's better to time out quickly and retry instead of
 # possibly getting stuck in this case.
 SOCKET_TIMEOUT_FOR_POLLING = 2.0
+
+
+class FailureToUpgrade(Exception):
+    """
+    Exception raised to indicate a failure to install a new version of Flocker.
+    """
+    pass
 
 
 def get_docker_client(cluster, address):
@@ -703,6 +711,46 @@ class Cluster(PClass):
 
         request.addCallback(check_and_decode_json, OK)
         return request
+
+    @log_method
+    def install_flocker_version(self, package_source):
+        """
+        Change the version of flocker installed on all of the nodes to the
+        version indicated by `package_source`.
+        """
+        control_node_address = self.control_node.public_address
+        all_cluster_nodes = set([x.public_address for x in self.nodes] +
+                                [control_node_address])
+        distribution = self.distribution
+
+        def get_flocker_version():
+            d = self.client.version()
+            d.addCallback(lambda v: str(v.get('flocker')) or None)
+            return d
+
+        d = get_flocker_version()
+
+        def reinstall_if_needed(v):
+            if v and v == package_source.version:
+                return v
+            return reinstall_flocker_at_version(
+                reactor, all_cluster_nodes, control_node_address,
+                package_source, distribution)
+        d.addCallback(reinstall_if_needed)
+
+        d.addCallback(lambda _: get_flocker_version())
+
+        def verify_version(v):
+            if package_source.version:
+                if v != package_source.version:
+                    raise FailureToUpgrade(
+                        "Failed to set version of flocker to %s, it is still "
+                        "%s." % (package_source.version, v)
+                    )
+            return v
+        d.addCallback(verify_version)
+
+        return d
 
     @log_method
     def clean_nodes(self):

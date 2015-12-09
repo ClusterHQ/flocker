@@ -18,7 +18,7 @@ from flocker.common.version import get_installable_version
 from ...common import loop_until
 from ...testtools import AsyncTestCase, async_runner, flaky
 
-from ...provision import PackageSource, reinstall_flocker_at_version
+from ...provision import PackageSource
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
@@ -61,68 +61,42 @@ class DatasetAPITests(AsyncTestCase):
                                  default_version)
         return PackageSource(
             version=version,
-            branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'] or None,
+            branch=os.environ.get('FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'),
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
+        """
+        Given a dataset created and used with the previously installable
+        version of flocker, uninstalling the previous version of flocker and
+        installing HEAD does not destroy the data on the dataset.
+        """
         node = cluster.nodes[0]
         SAMPLE_STR = '123456' * 100
 
-        control_node_address = cluster.control_node.public_address
-        all_cluster_nodes = set([x.public_address for x in cluster.nodes] +
-                                [control_node_address])
-        distribution = cluster.distribution
         upgrade_from_version = get_installable_version(version)
-
-        def get_flocker_version():
-            d = cluster.client.version()
-            d.addCallback(lambda v: str(v.get('flocker')) or None)
-            return d
-
-        def upgrade_flocker_to(package_source):
-            d = get_flocker_version()
-
-            def upgrade_if_needed(v):
-                if v and v == package_source.version:
-                    return v
-                return reinstall_flocker_at_version(
-                    reactor, all_cluster_nodes, control_node_address,
-                    package_source, distribution)
-            d.addCallback(upgrade_if_needed)
-
-            d.addCallback(lambda _: get_flocker_version())
-
-            def verify_version(v):
-                if package_source.version:
-                    self.assertEquals(
-                        v, package_source.version,
-                        "Failed to set version of flocker to %s, it is still "
-                        "%s." % (package_source.version, v))
-                return v
-            d.addCallback(verify_version)
-
-            return d
 
         # Get the initial flocker version and setup a cleanup call to restore
         # flocker to that version when the test is done.
-        d = get_flocker_version()
-
+        d = cluster.client.version()
         original_package_source = [None]
 
         def setup_restore_original_flocker(version):
             original_package_source[0] = (
-                self._get_package_source(default_version=version))
+                self._get_package_source(
+                    default_version=str(version.get('flocker')) or None)
+            )
             self.addCleanup(
-                lambda: upgrade_flocker_to(original_package_source[0]))
+                lambda: cluster.install_flocker_version(
+                    original_package_source[0]))
             return version
 
         d.addCallback(setup_restore_original_flocker)
 
         # Downgrade flocker to the most recent released version.
         d.addCallback(
-            lambda _: upgrade_flocker_to(
+            lambda _: cluster.install_flocker_version(
                 PackageSource(version=upgrade_from_version)))
 
         # Create a dataset with the code from the most recent release.
@@ -138,7 +112,8 @@ class DatasetAPITests(AsyncTestCase):
         d.addCallback(write_to_file)
 
         # Upgrade flocker to the code under test.
-        d.addCallback(lambda _: upgrade_flocker_to(original_package_source[0]))
+        d.addCallback(lambda _: cluster.install_flocker_version(
+            original_package_source[0]))
 
         # Create a new dataset to convince ourselves that the new code is
         # running.
