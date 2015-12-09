@@ -39,7 +39,7 @@ class DatasetAPITests(AsyncTestCase):
         for the sake of using it as a wrapper on the cloud API.
         """
         waiting_for_create = create_dataset(
-            self, cluster, maximum_size=512*1024*1024,
+            self, cluster,
             metadata={u"clusterhq:flocker:profile": u"gold"})
 
         def confirm_gold(dataset):
