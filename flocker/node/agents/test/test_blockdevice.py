@@ -1082,12 +1082,124 @@ def make_icalculater_tests(calculater_factory):
     return ICalculaterTests
 
 
-class BlockDeviceCalculaterTests(
+class BlockDeviceCalculaterInterfaceTests(
     make_icalculater_tests(BlockDeviceCalculater)
 ):
     """
+    Tests for ``BlockDeviceCalculater``'s implementation of ``ICalculater``.
+    """
+
+
+def compare_dataset_state(discovered_dataset, desired_dataset):
+    """
+    Compare a discovered dataset to a desired dataset to determine if they have
+    converged.
+
+    .. note:: This ignores ``maximum_size`` as we don't support resizing yet.
+
+    :return: ``bool`` indicating if the datasets correspond.
+    """
+    if discovered_dataset is None:
+        return (desired_dataset is None
+                or desired_dataset.state == DatasetStates.DELETED)
+    if desired_dataset is None:
+        return discovered_dataset.state == DatasetStates.NON_MANIFEST
+    if discovered_dataset.state != desired_dataset.state:
+        return False
+    if discovered_dataset.state == DatasetStates.MOUNTED:
+        return discovered_dataset.mount_point == desired_dataset.mount_point
+    elif discovered_dataset.state == DatasetStates.NON_MANIFEST:
+        return True
+    elif discovered_dataset.state == DatasetStates.DELETED:
+        return True
+    else:
+        raise ValueError("Not possible")
+
+
+def compare_dataset_states(discovered_datasets, desired_datasets):
+    for dataset_id in set(discovered_datasets) | set(desired_datasets):
+        desired_dataset = desired_datasets.get(dataset_id)
+        discovered_dataset = discovered_datasets.get(dataset_id)
+        result = compare_dataset_state(
+            discovered_dataset=discovered_dataset,
+            desired_dataset=desired_dataset,
+        )
+        if result is False:
+            return False
+    return True
+
+
+class DidNotConverge(Exception):
+    """
+    """
+
+
+class BlockDeviceCalculaterTests(SynchronousTestCase):
+    """
     Tests for ``BlockDeviceCalculater``.
     """
+    def setUp(self):
+        self.deployer = create_blockdevicedeployer(self)
+
+    def current_state(self):
+        return self.successResultOf(self.deployer.discover_state(
+            NodeState(
+                uuid=self.deployer.node_uuid,
+                hostname=self.deployer.hostname,
+            ),
+        ))
+
+    def run_convergence_step(self, desired_datasets):
+        local_state = self.current_state()
+        changes = self.deployer.calculater.calculate_changes_for_datasets(
+            discovered_datasets=local_state.datasets,
+            desired_datasets=desired_datasets,
+        )
+        note("Running changes: {changes}".format(changes=changes))
+        self.successResultOf(run_state_change(changes, self.deployer))
+
+    def teardown_example(self, token):
+        """
+        Cleanup after running a hypothesis example.
+        """
+        detach_destroy_volumes(self.deployer.block_device_api)
+
+    def run_to_convergence(self, desired_datasets, max_iterations=10):
+        for i in range(max_iterations):
+            self.run_convergence_step(
+                dataset_map_from_iterable(desired_datasets))
+            note(self.current_state().datasets)
+            if compare_dataset_states(
+                self.current_state().datasets,
+                dataset_map_from_iterable(desired_datasets),
+            ):
+                break
+        else:
+            raise DidNotConverge()
+
+    @given(
+        initial_dataset=DESIRED_DATASET_STRATEGY,
+        next_state=sampled_from([
+            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
+            DatasetStates.DELETED]),
+    )
+    def test_transitions(self, initial_dataset, next_state):
+        """
+        """
+        dataset_id = initial_dataset.dataset_id
+        initial_dataset = initial_dataset.set(
+            mount_point=self.deployer._mountpath_for_dataset_id(
+                unicode(dataset_id)),
+        )
+
+        try:
+            self.run_to_convergence([initial_dataset])
+        except DidNotConverge:
+            self.fail("Did not converge to initial state after 10 iterations")
+        try:
+            self.run_to_convergence([initial_dataset.set(state=next_state)])
+        except DidNotConverge:
+            self.fail("Did not converge to next state after 10 iterations")
 
 
 def assert_calculated_changes(
@@ -1347,94 +1459,6 @@ def local_state_from_shared_state(
         datasets=datasets,
         volumes=volumes,
     )
-
-
-def compare(discovered, desired):
-    if discovered is None:
-        return desired.state == DatasetStates.DELETED
-    if discovered.state != desired.state:
-        return False
-    if discovered.state == DatasetStates.MOUNTED:
-        return (
-            discovered.mount_point == desired.mount_point
-        ) and (
-            True  # We don't handle resize
-            # discovered.maximum_size == desired.maximum_size
-        )
-    elif discovered.state == DatasetStates.NON_MANIFEST:
-        return (
-            True  # We don't handle resize
-            # discovered.maximum_size == desired.maximum_size
-        )
-    elif discovered.state == DatasetStates.DELETED:
-        return True
-    else:
-        raise Exception("Not possible")
-
-
-class Tests(SynchronousTestCase):
-    def setUp(self):
-        self.deployer = create_blockdevicedeployer(self)
-
-    def current_state(self):
-        return self.successResultOf(self.deployer.discover_state(
-            NodeState(
-                uuid=self.deployer.node_uuid,
-                hostname=self.deployer.hostname,
-            ),
-        ))
-
-    def run_convergence_step(self, desired):
-        local_state = self.current_state()
-        changes = self.deployer.calculater.calculate_changes_for_datasets(
-            discovered_datasets=local_state.datasets,
-            desired_datasets={desired.dataset_id: desired},
-        )
-        self.successResultOf(run_state_change(changes, self.deployer))
-
-    def execute_example(self, f):
-        result = f()
-        from mock import Mock
-        self._runCleanups(Mock())
-        return result
-
-    @given(
-        discovered_dataset=DESIRED_DATASET_STRATEGY,
-        desired_dataset=DESIRED_DATASET_STRATEGY,
-    )
-    def test_stuff(self, discovered_dataset, desired_dataset):
-
-        dataset_id = discovered_dataset.dataset_id
-        desired_dataset = desired_dataset.set(dataset_id=dataset_id)
-        if discovered_dataset.state == DatasetStates.MOUNTED:
-            discovered_dataset = discovered_dataset.set(
-                mount_point=self.deployer._mountpath_for_dataset_id(
-                    unicode(dataset_id)),
-            )
-        if desired_dataset.state == DatasetStates.MOUNTED:
-            desired_dataset = desired_dataset.set(
-                mount_point=self.deployer._mountpath_for_dataset_id(
-                    unicode(dataset_id)),
-            )
-        note(discovered_dataset)
-        note(desired_dataset)
-        for i in range(10):
-            self.run_convergence_step(discovered_dataset)
-            note(self.current_state().datasets.get(dataset_id))
-            if compare(self.current_state().datasets.get(dataset_id),
-                       discovered_dataset):
-                break
-        else:
-            self.fail("Did not converge after 10 iterations")
-
-        for i in range(10):
-            self.run_convergence_step(desired_dataset)
-            note(self.current_state().datasets.get(dataset_id))
-            if compare(self.current_state().datasets.get(dataset_id),
-                       desired_dataset):
-                break
-        else:
-            self.fail("Did not converge after 10 iterations")
 
 
 class LocalStateFromSharedStateTests(SynchronousTestCase):
