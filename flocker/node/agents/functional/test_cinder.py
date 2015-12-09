@@ -1,4 +1,4 @@
-# Copyright ClusterHQ Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
@@ -624,7 +624,7 @@ class BlockDeviceAPIDestroyTests(SynchronousTestCase):
         """
         new_volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
         )
 
         expected_timeout = 8

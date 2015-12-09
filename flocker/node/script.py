@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 # -*- test-case-name: flocker.node.test.test_script,flocker.node.functional.test_script -*- # noqa
 
 """
@@ -14,7 +14,7 @@ import yaml
 
 from jsonschema import FormatChecker, Draft4Validator
 
-from pyrsistent import PRecord, field, PMap, pmap, pvector
+from pyrsistent import PClass, field, PMap, pmap, pvector
 
 from eliot import ActionType, fields
 
@@ -128,7 +128,7 @@ def _get_external_ip(host, port):
             sleep(0.1)
 
 
-class _TLSContext(PRecord):
+class _TLSContext(PClass):
     """
     Information extracted from the TLS certificates for this node.
 
@@ -257,7 +257,7 @@ class ContainerAgentOptions(_AgentOptions):
 
 
 @implementer(ICommandLineScript)
-class AgentScript(PRecord):
+class AgentScript(PClass):
     """
     Implement top-level logic for the ``flocker-dataset-agent`` and
     ``flocker-container-agent`` scripts.
@@ -276,7 +276,7 @@ class AgentScript(PRecord):
         )
 
 
-class AgentServiceFactory(PRecord):
+class AgentServiceFactory(PClass):
     """
     Implement general agent setup in a way that's usable by
     ``AgentScript`` but also easily testable.
@@ -407,7 +407,7 @@ class DeployerType(Names):
     block = NamedConstant()
 
 
-class BackendDescription(PRecord):
+class BackendDescription(PClass):
     """
     Represent one kind of storage backend we might be able to use.
 
@@ -479,7 +479,7 @@ _DEFAULT_DEPLOYERS = {
 }
 
 
-class AgentService(PRecord):
+class AgentService(PClass):
     """
     :ivar backends: ``BackendDescription`` instances describing how to use each
         available storage backend.
@@ -641,7 +641,7 @@ class AgentService(PRecord):
         )
 
 
-class DatasetServiceFactory(PRecord):
+class DatasetServiceFactory(PClass):
     """
     A helper for creating most of the pieces that go into a dataset convergence
     agent.
@@ -709,7 +709,7 @@ class DiagnosticsOptions(Options):
 
 
 @implementer(ICommandLineScript)
-class DiagnosticsScript(PRecord):
+class DiagnosticsScript(PClass):
     """
     Implement top-level logic for the ``flocker-diagnostics``.
     """

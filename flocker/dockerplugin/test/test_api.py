@@ -6,7 +6,7 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4
 
-from twisted.web.http import OK
+from twisted.web.http import OK, NOT_ALLOWED, NOT_FOUND
 from twisted.internet.task import Clock, LoopingCall
 
 from pyrsistent import pmap
@@ -18,7 +18,9 @@ from ...apiclient import FakeFlockerClient, Dataset, DatasetsConfiguration
 from ...testtools import CustomException
 
 from ...restapi import make_bad_request
-from ...restapi.testtools import buildIntegrationTests, APIAssertionsMixin
+from ...restapi.testtools import (
+    build_UNIX_integration_tests, APIAssertionsMixin,
+)
 
 
 class SimpleCountingProxy(object):
@@ -118,7 +120,7 @@ class APITestsMixin(APIAssertionsMixin):
                           result, [
                               Dataset(dataset_id=result[0].dataset_id,
                                       primary=self.NODE_A,
-                                      maximum_size=DEFAULT_SIZE,
+                                      maximum_size=int(DEFAULT_SIZE.to_Byte()),
                                       metadata={u"name": name})]))
         return d
 
@@ -148,7 +150,7 @@ class APITestsMixin(APIAssertionsMixin):
                           result, [
                               Dataset(dataset_id=result[0].dataset_id,
                                       primary=self.NODE_A,
-                                      maximum_size=DEFAULT_SIZE,
+                                      maximum_size=int(DEFAULT_SIZE.to_Byte()),
                                       metadata={u"name": name})]))
         return d
 
@@ -161,7 +163,7 @@ class APITestsMixin(APIAssertionsMixin):
         # Create a dataset out-of-band with matching name but non-matching
         # dataset ID:
         d = self.flocker_client.create_dataset(
-            self.NODE_A, DEFAULT_SIZE, metadata={u"name": name})
+            self.NODE_A, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name})
         d.addCallback(lambda _: self.create(name))
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
@@ -184,7 +186,7 @@ class APITestsMixin(APIAssertionsMixin):
             # But first time we're called, we create dataset and lie about
             # its existence:
             d = self.flocker_client.create_dataset(
-                self.NODE_A, DEFAULT_SIZE,
+                self.NODE_A, int(DEFAULT_SIZE.to_Byte()),
                 metadata={u"name": name})
             d.addCallback(lambda _: DatasetsConfiguration(
                 tag=u"1234", datasets={}))
@@ -223,7 +225,7 @@ class APITestsMixin(APIAssertionsMixin):
 
         # Create dataset on a different node:
         d = self.flocker_client.create_dataset(
-            self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
+            self.NODE_B, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name},
             dataset_id=dataset_id)
 
         self._flush_volume_plugin_reactor_on_endpoint_render()
@@ -264,7 +266,7 @@ class APITestsMixin(APIAssertionsMixin):
         dataset_id = uuid4()
         # Create dataset on a different node:
         d = self.flocker_client.create_dataset(
-            self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
+            self.NODE_B, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name},
             dataset_id=dataset_id)
 
         self._flush_volume_plugin_reactor_on_endpoint_render()
@@ -292,7 +294,7 @@ class APITestsMixin(APIAssertionsMixin):
         name = u"myvol"
 
         d = self.flocker_client.create_dataset(
-            self.NODE_A, DEFAULT_SIZE, metadata={u"name": name})
+            self.NODE_A, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name})
 
         def created(dataset):
             self.flocker_client.synchronize_state()
@@ -355,7 +357,7 @@ class APITestsMixin(APIAssertionsMixin):
         name = u"myvol"
 
         d = self.flocker_client.create_dataset(
-            self.NODE_A, DEFAULT_SIZE, metadata={u"name": name})
+            self.NODE_A, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name})
 
         def created(dataset):
             self.flocker_client.synchronize_state()
@@ -394,7 +396,7 @@ class APITestsMixin(APIAssertionsMixin):
 
         # Create dataset on node B:
         d = self.flocker_client.create_dataset(
-            self.NODE_B, DEFAULT_SIZE, metadata={u"name": name},
+            self.NODE_B, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name},
             dataset_id=dataset_id)
         d.addCallback(lambda _: self.flocker_client.synchronize_state())
 
@@ -438,10 +440,35 @@ class APITestsMixin(APIAssertionsMixin):
             {u"Name": u"whatever"}, 423,
             {u"Err": "no good"})
 
+    def test_unsupported_method(self):
+        """
+        If an unsupported method is requested the 405 Not Allowed response
+        code is returned.
+        """
+        return self.assertResponseCode(
+            b"BAD_METHOD", b"/VolumeDriver.Path", None, NOT_ALLOWED)
+
+    def test_unknown_uri(self):
+        """
+        If an unknown URI path is requested the 404 Not Found response code is
+        returned.
+        """
+        return self.assertResponseCode(
+            b"BAD_METHOD", b"/xxxnotthere", None, NOT_FOUND)
+
+    def test_empty_host(self):
+        """
+        If an empty host header is sent to the Docker plugin it does not blow
+        up, instead operating normally. E.g. for ``Plugin.Activate`` call
+        returns the ``Implements`` response.
+        """
+        return self.assertResult(b"POST", b"/Plugin.Activate", 12345, OK,
+                                 {u"Implements": [u"VolumeDriver"]},
+                                 additional_headers={b"Host": [""]})
+
 
 def _build_app(test):
     test.initialize()
     return VolumePlugin(
         test.volume_plugin_reactor, test.flocker_client, test.NODE_A).app
-RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
-    APITestsMixin, "API", _build_app)
+RealTestsAPI = build_UNIX_integration_tests(APITestsMixin, "API", _build_app)

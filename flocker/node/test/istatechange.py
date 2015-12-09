@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Helpers for tests for implementations of ``IStateChange``.
@@ -14,7 +14,7 @@ from zope.interface import implementer
 
 from eliot import Logger, start_action
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 from characteristic import attributes
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -89,7 +89,7 @@ def make_istatechange_tests(klass, kwargs1, kwargs2):
 
 
 @implementer(IStateChange)
-class DummyStateChange(PRecord):
+class DummyStateChange(PClass):
     """
     A do-nothing implementation of ``IStateChange``.
     """

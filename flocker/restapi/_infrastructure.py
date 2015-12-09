@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
 This module implements tools for exposing Python methods as API endpoints.
 """
@@ -9,7 +9,7 @@ from functools import wraps
 
 from json import loads, dumps
 
-from pyrsistent import PRecord, field, pvector
+from pyrsistent import PClass, field, pvector
 
 from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK, INTERNAL_SERVER_ERROR
@@ -260,7 +260,7 @@ def structured(inputSchema, outputSchema, schema_store=None,
     return deco
 
 
-class UserDocumentation(PRecord):
+class UserDocumentation(PClass):
     """
     """
     text = field(type=unicode, mandatory=True)

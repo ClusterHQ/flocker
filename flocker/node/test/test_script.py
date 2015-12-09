@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for :module:`flocker.node.script`.
@@ -10,7 +10,7 @@ from unittest import skipUnless
 import yaml
 from ipaddr import IPAddress
 
-from pyrsistent import PRecord, field
+from pyrsistent import PClass, field
 
 from jsonschema.exceptions import ValidationError
 
@@ -97,7 +97,7 @@ def deployer_factory_stub(**kw):
     return deployer
 
 
-class DummyAgentService(PRecord):
+class DummyAgentService(PClass):
     reactor = field()
     loop_service = field()
     configuration = field()
@@ -242,7 +242,7 @@ class AgentServiceGetAPITests(SynchronousTestCase):
         factory corresponding to the agent's ``backend`` in the agent's
         ``backends`` dictionary, supplying ``api_args``.
         """
-        class API(PRecord):
+        class API(PClass):
             a = field()
             b = field()
 
@@ -280,7 +280,7 @@ class AgentServiceGetAPITests(SynchronousTestCase):
         """
         reactor = MemoryCoreReactor()
 
-        class API(PRecord):
+        class API(PClass):
             reactor = field()
 
         agent_service = self.agent_service.set(
@@ -307,7 +307,7 @@ class AgentServiceGetAPITests(SynchronousTestCase):
         from the node certificate when ``AgentService.get_api`` calls the
         backend factory.
         """
-        class API(PRecord):
+        class API(PClass):
             cluster_id = field()
 
         agent_service = self.agent_service.set(
@@ -424,12 +424,12 @@ class AgentServiceDeployerTests(SynchronousTestCase):
              self.agent_service.control_service_port): ip,
         }
 
-        class Deployer(PRecord):
+        class Deployer(PClass):
             api = field(mandatory=True)
             hostname = field(mandatory=True)
             node_uuid = field(mandatory=True)
 
-        class WrongDeployer(PRecord):
+        class WrongDeployer(PClass):
             pass
 
         def get_external_ip(host, port):

@@ -1,4 +1,4 @@
-# Copyright ClusterHQ Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.node.agents.blockdevice``.
@@ -23,7 +23,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    PRecord, field, discard, pmap, pvector,
+    PClass, field, discard, pmap, pvector,
 )
 
 from hypothesis import given
@@ -32,6 +32,7 @@ from hypothesis.strategies import (
     one_of,
 )
 
+from twisted.internet import reactor
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
@@ -100,6 +101,9 @@ from ....control._model import Leases
 
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
+from ....common import (
+    retry_failure, gather_deferreds, RACKSPACE_MINIMUM_VOLUME_SIZE
+)
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
@@ -123,7 +127,7 @@ if not platform.isLinux():
     skip = "flocker.node.agents.blockdevice is only supported on Linux"
 
 
-class _SizeInfo(PRecord):
+class _SizeInfo(PClass):
     """
     :ivar int actual: The number of bytes allocated in the filesystem to a
         file, as computed by counting block size.  A sparse file may have less
@@ -1075,7 +1079,7 @@ class ScenarioMixin(object):
     MANIFESTATION = Manifestation(
         dataset=Dataset(
             dataset_id=unicode(DATASET_ID),
-            maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+            maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
         ),
         primary=True,
     )
@@ -1131,7 +1135,7 @@ def create_test_blockdevice_volume_for_dataset_id(dataset_id,
 
     return BlockDeviceVolume(
         blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
-        size=REALISTIC_BLOCKDEVICE_SIZE,
+        size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
         attached_to=attached_to,
         dataset_id=UUID(dataset_id))
 
@@ -1440,7 +1444,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     state=DatasetStates.MOUNTED,
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=self.BLOCKDEVICE_ID,
-                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                     device_path=FilePath(b"/dev/sda"),
                     mount_point=FilePath(b"/flocker").child(
                         bytes(self.DATASET_ID),
@@ -1586,7 +1590,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
-                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                     device_path=FilePath(b"/dev/sda"),
                 ),
             ],
@@ -1646,7 +1650,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
-                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                     device_path=device,
                 ),
             ],
@@ -2171,7 +2175,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                     primary=True,
                     dataset=Dataset(
                         dataset_id=expected_dataset_id,
-                        maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+                        maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                         # Dataset state will always have empty metadata and
                         # deleted will always be False.
                         metadata={},
@@ -2201,12 +2205,63 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
 
         self.assertEqual(expected_changes, actual_changes)
 
+    def test_dataset_with_metadata(self):
+        """
+        When supplied with a configuration containing a dataset with metadata
+        size, ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``CreateBlockDeviceDataset`` with a dataset with that metadata.
+        """
+        node_id = uuid4()
+        node_address = u"192.0.2.1"
+        dataset_id = unicode(uuid4())
+
+        requested_dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            metadata={u"some": u"metadata"},
+        )
+
+        configuration = Deployment(
+            nodes={
+                Node(
+                    uuid=node_id,
+                    manifestations={
+                        dataset_id: Manifestation(
+                            dataset=requested_dataset,
+                            primary=True,
+                        )
+                    },
+                )
+            }
+        )
+        node_state = NodeState(
+            uuid=node_id,
+            hostname=node_address,
+            applications=[],
+            manifestations={},
+            devices={},
+            paths={},
+        )
+        changes = self._calculate_changes(
+            node_id, node_address, node_state, configuration)
+        self.assertEqual(
+            in_parallel(
+                changes=[
+                    CreateBlockDeviceDataset(
+                        dataset=requested_dataset,
+                    )
+                ]),
+            changes
+        )
+
     def test_dataset_without_maximum_size(self):
         """
         When supplied with a configuration containing a dataset with a null
         size, ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``CreateBlockDeviceDataset`` for a 100GiB dataset.
-        XXX: Make the default size configurable. FLOC-2679
+        ``CreateBlockDeviceDataset`` for a dataset with a size fixed to the
+        minimum allowed Rackspace volume size.
+
+        XXX: Make the default size configurable.  FLOC-2679
         """
         node_id = uuid4()
         node_address = u"192.0.2.1"
@@ -2255,7 +2310,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         )
         changes = deployer.calculate_changes(
             configuration, state, local_state)
-        expected_size = int(GiB(100).to_Byte().value)
+        expected_size = int(RACKSPACE_MINIMUM_VOLUME_SIZE.to_Byte())
         self.assertEqual(
             in_parallel(
                 changes=[
@@ -3476,13 +3531,24 @@ def umount_all(root_path):
 
     :param FilePath root_path: A directory in which to search for mount points.
     """
-    for partition in psutil.disk_partitions():
+    def is_under_root(path):
         try:
-            FilePath(partition.mountpoint).segmentsFrom(root_path)
+            FilePath(path).segmentsFrom(root_path)
         except ValueError:
-            pass
-        else:
-            umount(FilePath(partition.device))
+            return False
+        return True
+
+    def create_umount_callable(partition):
+        return lambda: umount(FilePath(partition.device))
+
+    deferreds = list(
+        retry_failure(reactor,
+                      create_umount_callable(partition),
+                      steps=[0.1] * CLEANUP_RETRY_LIMIT)
+        for partition in psutil.disk_partitions()
+        if is_under_root(partition.mountpoint))
+
+    return gather_deferreds(deferreds)
 
 
 def mountroot_for_test(test_case):
@@ -3501,7 +3567,7 @@ def mountroot_for_test(test_case):
 
 _ARBITRARY_VOLUME = BlockDeviceVolume(
     blockdevice_id=u"abcd",
-    size=REALISTIC_BLOCKDEVICE_SIZE,
+    size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
     dataset_id=uuid4(),
 )
 
@@ -3654,7 +3720,7 @@ class MountBlockDeviceInitTests(
     """
 
 
-class _MountScenario(PRecord):
+class _MountScenario(PClass):
     """
     Setup tools for the tests defined on ``MountBlockDeviceTests``.
 

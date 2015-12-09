@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Combine and retrieve current cluster state.
@@ -11,7 +11,7 @@ from twisted.python.deprecate import deprecated
 from twisted.application.service import MultiService
 from twisted.application.internet import TimerService
 
-from pyrsistent import PRecord, field, pmap
+from pyrsistent import PClass, field, pmap
 
 from . import DeploymentState, ChangeSource
 
@@ -21,7 +21,7 @@ EXPIRATION_TIME = timedelta(seconds=120)
 v1_0 = Version("flocker", 1, 0, 0)
 
 
-class _WiperAndSource(PRecord):
+class _WiperAndSource(PClass):
     """
     :ivar IClusterStateWipe wiper: A change wiper.
     :ivar IClusterStateSource source: Where the change wiper came from.

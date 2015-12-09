@@ -27,7 +27,10 @@ from ..restapi import (
 )
 from ..apiclient import DatasetAlreadyExists, conditional_create
 from ..node.agents.blockdevice import PROFILE_METADATA_KEY
-from ..common import loop_until, timeout
+from ..common import (
+    RACKSPACE_MINIMUM_VOLUME_SIZE, DEVICEMAPPER_LOOPBACK_SIZE,
+    loop_until, timeout,
+)
 
 
 SCHEMA_BASE = FilePath(__file__).sibling(b'schema')
@@ -43,7 +46,9 @@ SCHEMAS = {
 # as devicemapper loopback size (100GiB) so we don't trigger
 # https://clusterhq.atlassian.net/browse/FLOC-2889 and that is large
 # enough to hit Rackspace minimums. This is, obviously, not ideal.
-DEFAULT_SIZE = int(GiB(75).to_Byte().value)
+DEFAULT_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
+if DEFAULT_SIZE == DEVICEMAPPER_LOOPBACK_SIZE:
+    DEFAULT_SIZE = DEFAULT_SIZE + GiB(1)
 
 
 def _endpoint(name, ignore_body=False):
@@ -231,7 +236,7 @@ class VolumePlugin(object):
 
         creating = conditional_create(
             self._flocker_client, self._reactor, ensure_unique_name,
-            self._node_id, DEFAULT_SIZE, metadata=metadata)
+            self._node_id, int(DEFAULT_SIZE.to_Byte()), metadata=metadata)
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})
         return creating

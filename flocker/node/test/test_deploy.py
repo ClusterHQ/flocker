@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.node._deploy``.
@@ -519,7 +519,10 @@ class StartApplicationTests(SynchronousTestCase):
         StartApplication(application=application,
                          node_state=EMPTY_NODESTATE).run(deployer)
 
-        self.assertEqual(policy, RestartNever())
+        [unit] = self.successResultOf(fake_docker.list())
+        self.assertEqual(
+            unit.restart_policy,
+            RestartNever())
 
     def test_command_line(self):
         """
@@ -1026,7 +1029,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
 
         manifestation = Manifestation(
             dataset=Dataset(
-                dataset_id=DATASET_ID,
+                dataset_id=self.DATASET_ID,
                 maximum_size=1024 * 1024 * 100),
             primary=True,
         )
@@ -1038,7 +1041,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         )
         d = api.discover_state(self.EMPTY_NODESTATE)
 
-        self.assertItemsEqual(
+        self.assertEqual(
             self.successResultOf(d).node_state.manifestations[
                 self.DATASET_ID],
             manifestation)

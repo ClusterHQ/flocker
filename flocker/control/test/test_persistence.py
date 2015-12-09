@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.control._persistence``.
@@ -23,7 +23,7 @@ from twisted.internet.task import Clock
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from pyrsistent import PRecord, pset
+from pyrsistent import PClass, pset
 
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
@@ -683,7 +683,7 @@ class WireEncodeDecodeTests(SynchronousTestCase):
         ``wire_decode`` will not decode classes that are not in
         ``SERIALIZABLE_CLASSES``.
         """
-        class Temp(PRecord):
+        class Temp(PClass):
             """A class."""
         SERIALIZABLE_CLASSES.append(Temp)
 

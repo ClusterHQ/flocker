@@ -236,7 +236,10 @@ In this case the acceptance tests need a hint in order to map the private IP add
 E.g. When a test needs to verify that a container on the node is listening on an expected port or to communicate directly with the Docker API on that node.
 The mapping is supplied to the tests in the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` environment variable.
 
-If you create nodes using ``run-acceptance-tests --runner=aws --keep`` the command will print out the node addresses when it exits. E.g.
+.. _acceptance-testing-cluster-config:
+
+If you create nodes using ``run-acceptance-tests --keep`` the command will print out the cluster configuration when it exits.
+For example:
 
 .. code-block:: console
 
