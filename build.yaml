@@ -166,21 +166,6 @@ common_cli:
       fi
     }
 
-    # Retries a command if it fails, using the exponential backoff algorithm.
-    # It will retry forever, we rely on Jenkins to kill it if it takes too long
-    # Usage: retry 'command'
-    function retry {
-      let delay=2
-      while true; do
-        if (\$1); then
-          break
-        fi
-        echo Command failed, waiting \$delay...
-        sleep \$delay
-        let delay=delay*2
-      done
-    }
-
   # TODO: do we need to clean up old files on ubuntu and centos or
   # does the pre-scm plugin does this correctly for us ?
   # https://clusterhq.atlassian.net/browse/FLOC-3139
@@ -462,9 +447,9 @@ common_cli:
     # make sure we're no longer in our virtualenv
     deactivate
     # install the new freshly baked package
-    retry "brew update"
-    retry "brew tap ClusterHQ/tap"
-    retry "brew install \${RECIPE_FILE}"
+    brew update
+    brew tap ClusterHQ/tap
+    brew install \${RECIPE_FILE}
     brew test \${RECIPE_FILE}
 
   build_repo_metadata: &build_repo_metadata |
@@ -574,21 +559,6 @@ common_cli:
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
 
-  build_dockerfile_ubuntu_vivid: &build_dockerfile_ubuntu_vivid |
-    # Download the latest pip requirements file from master branch of flocker
-    wget -c \
-    https://raw.githubusercontent.com/ClusterHQ/flocker/master/requirements.txt
-    # don't waste time installing ruby or fpm, use an image containing fpm
-    # https://github.com/alanfranz/fpm-within-docker
-    echo "FROM alanfranz/fwd-ubuntu-vivid:latest" > Dockerfile
-    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
-    echo "RUN apt-get update" >> Dockerfile
-    echo "RUN apt-get install --no-install-recommends -y \
-          git ruby-dev libffi-dev libssl-dev build-essential python-pip \
-          python2.7-dev lintian" >> Dockerfile
-    echo "COPY requirements.txt /tmp/" >> Dockerfile
-    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
-
   build_vagrant_tutorial_basebox: &build_vagrant_tutorial_basebox |
     vagrant destroy -f
     parse_logs \$venv/bin/python admin/build-vagrant-box --box tutorial \
@@ -683,11 +653,11 @@ common_cli:
     softwareupdate -i "\${PROD}" -v
 
     # the basebox we use for OSX is missing quite a number of software pieces.
-    retry "brew update"
-    retry "brew install rsync"
-    retry "brew install python"
-    retry "pip install virtualenv"
-    retry "brew install libffi"
+    brew update
+    brew install rsync
+    brew install python
+    pip install virtualenv
+    brew install libffi
     export PKG_CONFIG_PATH=/usr/local/Cellar/libffi/3.0.13/lib/pkgconfig/; pip install bcrypt
 
   package_jenkins_osx_yosemite_box: &package_jenkins_osx_yosemite_box |
@@ -706,7 +676,6 @@ common_cli:
     # gather the vanilla Vagrantfile from upstream and do a vagrant up
     rm -f Vagrantfile
     wget https://raw.githubusercontent.com/AndrewDryga/vagrant-box-osx/master/Vagrantfile
-    VAGRANT_LOG=debug
     vagrant up
 
   install_aws_cli: &install_aws_cli |
@@ -1168,17 +1137,6 @@ job_type:
                    *push_image_to_dockerhub ]
           }
       timeout: 30
-    run_docker_build_ubuntu_vivid_fpm:
-      at: '0 2 * * *'
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-vivid',
-                   *build_dockerfile_ubuntu_vivid,
-                   *build_docker_image,
-                   *push_image_to_dockerhub ]
-          }
     run_docker_build_ubuntu_wily_fpm:
       at: '0 3 * * *'
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
@@ -1219,7 +1177,6 @@ job_type:
                    *do_not_abort_on_errors,
                    *start_vanilla_osx_yosemite_vagrant_box,
                    *begin_build_sh_EOF,
-                   *add_shell_functions,
                    *install_pkgs_on_vanilla_osx_yosemite_box,
                    *end_build_sh_EOF,
                    *copy_files_to_osx_yosemite_box,
@@ -1283,9 +1240,6 @@ views:
   Ubuntu_Trusty_14_04_LTS:
     description: 'All Ubuntu Trusty LTS (14.04) jobs'
     regex: '.*_(?i)trusty_.*.*'
-  Ubuntu_Vivid_15_04:
-    description: 'All Ubuntu Vivid (15.04) jobs'
-    regex: '.*_(?i)vivid_.*.*'
   Ubuntu_Wily_15_10:
     description: 'All Ubuntu Wily (15.10) jobs'
     regex: '.*_(?i)wily_.*.*'

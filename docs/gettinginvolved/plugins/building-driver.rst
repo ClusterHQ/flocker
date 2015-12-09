@@ -67,6 +67,7 @@ Testing Your Driver
 #. Run acceptance tests:
 
    After all functional tests pass, please run acceptance tests according to our :ref:`acceptance-testing` documentation.
+   Make sure you configure the acceptance test environment to use your new backend.
 
 #. Setup a Continuous Integration environment for tests.
 
@@ -75,27 +76,6 @@ Testing Your Driver
    
    * `EBS functional tests <http://build.clusterhq.com/builders/flocker%2Ffunctional%2Faws%2Fubuntu-14.04%2Fstorage-driver>`_
    * `EBS acceptance tests <http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fubuntu-14.04%2Faws>`_
-
-
-Publishing Your Driver
-======================
-
-Once your CI tests are running and passing successfully, you are ready to publish your driver and assert that is certified to work with Flocker.  
-
-Completed drivers should be published as a ``Public`` repository on GitHub.
-
-Please include the Apache 2.0 License as part of the repository.
-For example, see the `Flocker License <https://github.com/ClusterHQ/flocker/blob/master/LICENSE>`_ .
-
-
-Certifying Your Driver
-======================
-
-To demonstrate that your driver passes all tests, we recommend you include a Build Status badge at the top of the ``README`` on your driver's GitHub repository.
-
-Examples of status images include `Travis CI <http://docs.travis-ci.com/user/status-images/>`_ and `Jenkins <https://wiki.jenkins-ci.org/display/JENKINS/Embeddable+Build+Status+Plugin>`_.
-
-You should also clearly indicate which version of Flocker your driver has been certified against.
 
 
 Enabling Flocker Users to Install Your Storage Driver
@@ -153,6 +133,30 @@ Here's what the module could look like:
 
 The ``cluster_id`` parameter is a Python :py:obj:`uuid.UUID` instance uniquely identifying the cluster.
 This is useful if you want to build a system that supports multiple Flocker clusters talking to a shared storage backend.
+
+Make sure that your factory function raises an exception if it is given incorrect or insufficient parameters, so that users can easily see when they have mis-configured your backend.
+
+.. XXX FLOC-3461 might suggest using ``UsageError`` exceptions, or some other more specific suggestion.
+
+Publishing Your Driver
+======================
+
+Once your CI tests are running and passing successfully, you are ready to publish your driver and assert that it is certified to work with Flocker.
+
+Completed drivers should be published as open source, publicly available source code, e.g. a ``Public`` repository on GitHub.
+
+Please include the Apache 2.0 License as part of the repository.
+For example, see the `Flocker License <https://github.com/ClusterHQ/flocker/blob/master/LICENSE>`_ .
+
+
+Certifying Your Driver
+======================
+
+To demonstrate that your driver passes all tests, we recommend you include a Build Status badge at the top of the ``README`` on your driver's GitHub repository.
+
+Examples of status images include `Travis CI <http://docs.travis-ci.com/user/status-images/>`_ and `Jenkins <https://wiki.jenkins-ci.org/display/JENKINS/Embeddable+Build+Status+Plugin>`_.
+
+You should also clearly indicate which version of Flocker your driver has been certified against.
 
 
 What's Next?
