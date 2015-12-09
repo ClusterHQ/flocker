@@ -26,7 +26,7 @@ from pyrsistent import (
     PClass, field, discard, pmap, pvector,
 )
 
-from hypothesis import given
+from hypothesis import given, note
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
     one_of, dictionaries
@@ -1347,6 +1347,94 @@ def local_state_from_shared_state(
         datasets=datasets,
         volumes=volumes,
     )
+
+
+def compare(discovered, desired):
+    if discovered is None:
+        return desired.state == DatasetStates.DELETED
+    if discovered.state != desired.state:
+        return False
+    if discovered.state == DatasetStates.MOUNTED:
+        return (
+            discovered.mount_point == desired.mount_point
+        ) and (
+            True  # We don't handle resize
+            # discovered.maximum_size == desired.maximum_size
+        )
+    elif discovered.state == DatasetStates.NON_MANIFEST:
+        return (
+            True  # We don't handle resize
+            # discovered.maximum_size == desired.maximum_size
+        )
+    elif discovered.state == DatasetStates.DELETED:
+        return True
+    else:
+        raise Exception("Not possible")
+
+
+class Tests(SynchronousTestCase):
+    def setUp(self):
+        self.deployer = create_blockdevicedeployer(self)
+
+    def current_state(self):
+        return self.successResultOf(self.deployer.discover_state(
+            NodeState(
+                uuid=self.deployer.node_uuid,
+                hostname=self.deployer.hostname,
+            ),
+        ))
+
+    def run_convergence_step(self, desired):
+        local_state = self.current_state()
+        changes = self.deployer.calculater.calculate_changes_for_datasets(
+            discovered_datasets=local_state.datasets,
+            desired_datasets={desired.dataset_id: desired},
+        )
+        self.successResultOf(run_state_change(changes, self.deployer))
+
+    def execute_example(self, f):
+        result = f()
+        from mock import Mock
+        self._runCleanups(Mock())
+        return result
+
+    @given(
+        discovered_dataset=DESIRED_DATASET_STRATEGY,
+        desired_dataset=DESIRED_DATASET_STRATEGY,
+    )
+    def test_stuff(self, discovered_dataset, desired_dataset):
+
+        dataset_id = discovered_dataset.dataset_id
+        desired_dataset = desired_dataset.set(dataset_id=dataset_id)
+        if discovered_dataset.state == DatasetStates.MOUNTED:
+            discovered_dataset = discovered_dataset.set(
+                mount_point=self.deployer._mountpath_for_dataset_id(
+                    unicode(dataset_id)),
+            )
+        if desired_dataset.state == DatasetStates.MOUNTED:
+            desired_dataset = desired_dataset.set(
+                mount_point=self.deployer._mountpath_for_dataset_id(
+                    unicode(dataset_id)),
+            )
+        note(discovered_dataset)
+        note(desired_dataset)
+        for i in range(10):
+            self.run_convergence_step(discovered_dataset)
+            note(self.current_state().datasets.get(dataset_id))
+            if compare(self.current_state().datasets.get(dataset_id),
+                       discovered_dataset):
+                break
+        else:
+            self.fail("Did not converge after 10 iterations")
+
+        for i in range(10):
+            self.run_convergence_step(desired_dataset)
+            note(self.current_state().datasets.get(dataset_id))
+            if compare(self.current_state().datasets.get(dataset_id),
+                       desired_dataset):
+                break
+        else:
+            self.fail("Did not converge after 10 iterations")
 
 
 class LocalStateFromSharedStateTests(SynchronousTestCase):

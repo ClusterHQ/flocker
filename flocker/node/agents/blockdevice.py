@@ -60,6 +60,8 @@ class DatasetStates(Names):
     States that a ``Dataset`` can be in.
 
     """
+    # Doesn't exist yet.
+    NON_EXISTENT = NamedConstant()
     # Exists, but attached elsewhere
     ATTACHED_ELSEWHERE = NamedConstant()
     # Exists, but not attached
@@ -1320,16 +1322,96 @@ class BlockDeviceDeployerLocalState(PClass):
         )
 
 
+# Mapping from desired and discovered dataset state to
+# IStateChange factory. (The factory is expected to take
+# ``desired_dataset`` and ``discovered_dataset``.
+Desired = Discovered = DatasetStates
+DO_NOTHING = lambda **kwargs: NoOp()
+DATASET_TRANSITIONS = {
+    Desired.MOUNTED: {
+        Discovered.NON_EXISTENT:
+            CreateBlockDeviceDataset.from_state_and_config,
+        # Other node will need to deatch first
+        Discovered.ATTACHED_ELSEWHERE: DO_NOTHING,
+        Discovered.ATTACHED_NO_FILESYSTEM:
+            CreateFilesystem.from_state_and_config,
+        Discovered.NON_MANIFEST: AttachVolume.from_state_and_config,
+        DatasetStates.ATTACHED: MountBlockDevice.from_state_and_config,
+    },
+    Desired.NON_MANIFEST: {
+        # Can't create non-manifest datasets yet.
+        # XXX
+        Discovered.NON_EXISTENT:
+            CreateBlockDeviceDataset.from_state_and_config,
+        # Other node will deatch
+        Discovered.ATTACHED_ELSEWHERE: DO_NOTHING,
+        Discovered.ATTACHED_NO_FILESYSTEM:
+            DetachVolume.from_state_and_config,
+        Discovered.ATTACHED: DetachVolume.from_state_and_config,
+        Discovered.MOUNTED: UnmountBlockDevice.from_state_and_config,
+    },
+    Desired.DELETED: {
+        Discovered.NON_EXISTENT: DO_NOTHING,
+        # Other node will destroy
+        Discovered.ATTACHED_ELSEWHERE: DO_NOTHING,
+        # Can't pick node that will do destruction yet.
+        Discovered.NON_MANIFEST: DestroyVolume.from_state_and_config,
+        Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume.from_state_and_config,
+        Discovered.ATTACHED: DetachVolume.from_state_and_config,
+        Discovered.MOUNTED: UnmountBlockDevice.from_state_and_config,
+    },
+}
+del Desired, Discovered, DO_NOTHING
+
+
 @implementer(ICalculater)
 class BlockDeviceCalculater(PClass):
     """
     An ``ICalculater`` that calculates actions that use a
     ``BlockDeviceDeployer``.
     """
+    def _calculate_dataset_change(self, discovered_dataset, desired_dataset):
+        """
+        Calculate the state changes necessary to make ``discovered_dataset``
+        state match ``desired_dataset`` configuration.
+
+        :param discovered_dataset: The current state of the dataset.
+        :type discovered_dataset: ``DiscoveredDataset`` or ``None``
+        :param desired_dataset: The desired state of the dataset.
+        :type desired_dataset: ``DesiredDataset`` or ``None``
+        """
+        # If the configuration doesn't know about a dataset,
+        # we detach it.
+        desired_state = (desired_dataset.state
+                         if desired_dataset is not None
+                         else DatasetStates.NON_MANIFEST)
+        # If we haven't discovered a dataset, then it is doesn't
+        # exist.
+        discovered_state = (discovered_dataset.state
+                            if discovered_dataset is not None
+                            else DatasetStates.NON_EXISTENT)
+        if desired_state != discovered_state:
+            return DATASET_TRANSITIONS[desired_state][discovered_state](
+                discovered_dataset=discovered_dataset,
+                desired_dataset=desired_dataset,
+            )
+        else:
+            return NoOp()
+
     def calculate_changes_for_datasets(
         self, discovered_datasets, desired_datasets
     ):
-        return NoOp()
+        actions = []
+        # If a dataset isn't in the configuration, we don't act on it.
+        for dataset_id in set(discovered_datasets) | set(desired_datasets):
+            desired_dataset = desired_datasets.get(dataset_id)
+            discovered_dataset = discovered_datasets.get(dataset_id)
+            actions.append(self._calculate_dataset_change(
+                discovered_dataset=discovered_dataset,
+                desired_dataset=desired_dataset,
+            ))
+
+        return in_parallel(changes=actions)
 
 
 @implementer(IDeployer)
@@ -1360,6 +1442,12 @@ class BlockDeviceDeployer(PClass):
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     poll_interval = timedelta(seconds=60.0)
     block_device_manager = field(initial=BlockDeviceManager())
+    calculater = field(
+        # XXX We should abstact this invariant out.
+        invariant=lambda i: (ICalculater.providedBy(i),
+                             "Must provide ICalculater"),
+        mandatory=True,
+        initial=BlockDeviceCalculater())
 
     @property
     def profiled_blockdevice_api(self):
@@ -1543,7 +1631,7 @@ class BlockDeviceDeployer(PClass):
         # XXX: Make this configurable. FLOC-2679
         maximum_size = manifestation.dataset.maximum_size
         if maximum_size is None:
-            maximum_size = DEFAULT_DATASET_SIZE
+            maximum_size = int(DEFAULT_DATASET_SIZE.bytes)
 
         return DesiredDataset(
             dataset_id=dataset_id,
