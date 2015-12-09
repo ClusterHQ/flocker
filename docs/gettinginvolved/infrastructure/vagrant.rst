@@ -9,21 +9,16 @@ See the `Vagrant documentation <http://docs.vagrantup.com/v2/>`_ for more detail
 Boxes
 -----
 
-There are several vagrant boxes.
+There is currently one vagrant box:
 
 Development Box (:file:`vagrant/dev`)
    This CentOS box is initialized with the yum repositories for ZFS.
    This is the box the :file:`Vagrantfile` in the root of the repository is based on.
 
-Tutorial Box (:file:`vagrant/tutorial`)
-   This CentOS box is initialized with the yum repositories for ZFS and Flocker, and has Flocker pre-installed.
-   This is the box the :ref:`tutorial <vagrant-setup>` is based on.
-
 
 Building
 ^^^^^^^^
 
-Buildbot's `flocker-vagrant-tutorial-box` builder builds the tutorial box.
 The `flocker-vagrant-dev-box` builder builds the development box on some branches but not others.
 The `flocker-vagrant-dev-box` builder can be forced on any branch.
 
