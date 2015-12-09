@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
 Set up a flocker cluster.
 """
