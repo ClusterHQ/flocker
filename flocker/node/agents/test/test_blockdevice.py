@@ -1117,6 +1117,14 @@ def compare_dataset_state(discovered_dataset, desired_dataset):
 
 
 def compare_dataset_states(discovered_datasets, desired_datasets):
+    """
+    Compare discovered and desired state of datasets to determine if they have
+    converged.
+
+    .. note:: This ignores ``maximum_size`` as we don't support resizing yet.
+
+    :return: ``bool`` indicating if the datasets correspond.
+    """
     for dataset_id in set(discovered_datasets) | set(desired_datasets):
         desired_dataset = desired_datasets.get(dataset_id)
         discovered_dataset = discovered_datasets.get(dataset_id)
@@ -1131,6 +1139,8 @@ def compare_dataset_states(discovered_datasets, desired_datasets):
 
 class DidNotConverge(Exception):
     """
+    Raised if running convergence with an ``ICalculater`` does not converge
+    in the specified number of iterations.
     """
 
 
@@ -1141,36 +1151,52 @@ class BlockDeviceCalculaterTests(SynchronousTestCase):
     def setUp(self):
         self.deployer = create_blockdevicedeployer(self)
 
-    def current_state(self):
-        return self.successResultOf(self.deployer.discover_state(
-            NodeState(
-                uuid=self.deployer.node_uuid,
-                hostname=self.deployer.hostname,
-            ),
-        ))
-
-    def run_convergence_step(self, desired_datasets):
-        local_state = self.current_state()
-        changes = self.deployer.calculater.calculate_changes_for_datasets(
-            discovered_datasets=local_state.datasets,
-            desired_datasets=desired_datasets,
-        )
-        note("Running changes: {changes}".format(changes=changes))
-        self.successResultOf(run_state_change(changes, self.deployer))
-
     def teardown_example(self, token):
         """
         Cleanup after running a hypothesis example.
         """
         detach_destroy_volumes(self.deployer.block_device_api)
 
-    def run_to_convergence(self, desired_datasets, max_iterations=10):
+    def current_datasets(self):
+        """
+        Return the current state of datasets from the deployer.
+        """
+        return self.successResultOf(self.deployer.discover_state(
+            NodeState(
+                uuid=self.deployer.node_uuid,
+                hostname=self.deployer.hostname,
+            ),
+        )).datasets
+
+    def run_convergence_step(self, desired_datasets):
+        """
+        Run one step of the calculater.
+
+        :param desired_datasets: The dataset state to converge to.
+        :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
+        """
+        local_datasets = self.current_datasets()
+        changes = self.deployer.calculater.calculate_changes_for_datasets(
+            discovered_datasets=local_datasets,
+            desired_datasets=desired_datasets,
+        )
+        note("Running changes: {changes}".format(changes=changes))
+        self.successResultOf(run_state_change(changes, self.deployer))
+
+    def run_to_convergence(self, desired_datasets, max_iterations=4):
+        """
+        Run the calculater until it converges on the desired state.
+
+        :param desired_datasets: The dataset state to converge to.
+        :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
+        :param int max_iterations: The maximum number of steps to iterate.
+        """
         for i in range(max_iterations):
             self.run_convergence_step(
                 dataset_map_from_iterable(desired_datasets))
-            note(self.current_state().datasets)
+            note(self.current_datasets())
             if compare_dataset_states(
-                self.current_state().datasets,
+                self.current_datasets(),
                 dataset_map_from_iterable(desired_datasets),
             ):
                 break
@@ -1183,8 +1209,11 @@ class BlockDeviceCalculaterTests(SynchronousTestCase):
             DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
             DatasetStates.DELETED]),
     )
-    def test_transitions(self, initial_dataset, next_state):
+    def test_simple_transitions(self, initial_dataset, next_state):
         """
+        Given an initial empty state, ``BlockDeviceCalculater`` will converge
+        to any ``DesiredDataset``, followed by any other state of the same
+        dataset.
         """
         dataset_id = initial_dataset.dataset_id
         initial_dataset = initial_dataset.set(
@@ -1192,10 +1221,13 @@ class BlockDeviceCalculaterTests(SynchronousTestCase):
                 unicode(dataset_id)),
         )
 
+        # Converge to the initial state.
         try:
             self.run_to_convergence([initial_dataset])
         except DidNotConverge:
             self.fail("Did not converge to initial state after 10 iterations")
+
+        # Converge from the initial state to the next state.
         try:
             self.run_to_convergence([initial_dataset.set(state=next_state)])
         except DidNotConverge:
