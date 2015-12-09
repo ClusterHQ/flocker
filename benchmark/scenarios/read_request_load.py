@@ -79,10 +79,10 @@ class ReadRequestLoadScenario(object):
     requests at a specified rate.
     """
 
-    def __init__(self, reactor, control_service, request_rate, interval=10):
+    def __init__(self, reactor, cluster, request_rate, interval=10):
         self._maintained = Deferred()
         self.reactor = reactor
-        self.control_service = control_service
+        self.control_service = cluster.get_control_service(reactor)
         self.request_rate = request_rate
         self.interval = interval
         self.rate_measurer = RateMeasurer(self.reactor)
