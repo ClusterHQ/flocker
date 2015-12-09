@@ -69,7 +69,6 @@ ClusterHQ supported drivers:
 
    aws-configuration
    openstack-configuration
-   zfs-configuration
    loopback-configuration
 
 Community supported drivers:
