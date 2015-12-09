@@ -2,6 +2,7 @@ from itertools import repeat
 from uuid import uuid4
 from ipaddr import IPAddress
 import math
+from twisted.internet.defer import succeed
 from twisted.internet.task import Clock
 from twisted.trial.unittest import SynchronousTestCase
 
@@ -72,6 +73,25 @@ class RateMeasurerTest(SynchronousTestCase):
         self.assertEqual(r.rate(), 2.0)
 
 
+class RequestDroppingFakeFlockerClient(FakeFlockerClient):
+    """
+    A FakeFlockerClient that can drop alternating requests.
+    """
+    def __init__(self, nodes, drop_requests=False):
+        super(RequestDroppingFakeFlockerClient, self).__init__(nodes)
+        self.drop_requests = drop_requests
+        self._dropped_last_request = False
+
+    def list_nodes(self):
+        if not self.drop_requests:
+            return succeed(True)
+        else:
+            if self._dropped_last_request:
+                self._dropped_last_request = False
+                return succeed(True)
+            self._dropped_last_request = True
+
+
 class ReadRequestLoadScenarioTest(SynchronousTestCase):
     """
     ReadRequestLoadScenario tests
@@ -99,7 +119,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         )
 
 
-    def test_read_request_load_happy(self):
+    def test_read_request_load_succeeds(self):
         """
         ReadRequestLoadScenario starts and stops without collapsing.
         """
@@ -118,3 +138,30 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
 
+    def test_scenario_throws_exception_when_rate_drops(self):
+        """
+        ReadRequestLoadScenario raises RequestRateTooLow if rate
+        drops below the requested rate.
+
+        Establish the requested rate by having the FakeFlockerClient
+        repond to all requests. Then attempt to lower the rate by
+        dropping alternate requests. This should result in
+        RequestRateTooLow being raised.
+        """
+        node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
+        node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
+        c = Clock()
+        client = RequestDroppingFakeFlockerClient([node1, node2])
+        s = ReadRequestLoadScenario(c, client, 5, interval=1)
+
+        d = s.start()
+        # TODO: Add comment here to explain these numbers
+        c.pump(repeat(1, 6))
+
+        def drop_requests(something):
+            client.drop_requests = True
+            c.pump(repeat(1, 2))
+            print s.rate_measurer.rate()
+
+        s.maintained().addBoth(lambda _: self.fail())
+        d.addCallback(drop_requests)
