@@ -488,7 +488,7 @@ def _get_volume_tag(volume, name):
     for tag in volume.tags:
         if tag['Key'] == name:
             return tag['Value']
-    return TagNotFound(volume.id, name, volume.tags)
+    raise TagNotFound(volume.id, name, volume.tags)
 
 
 class _EC2(PClass):
