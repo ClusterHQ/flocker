@@ -21,7 +21,7 @@ from ..ebs import (
     _wait_for_volume_state_change,
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
-    EBSMandatoryProfileAttributes,
+    EBSMandatoryProfileAttributes, _get_volume_tag,
 )
 from ....testtools import flaky
 
@@ -75,13 +75,16 @@ class EBSBlockDeviceAPIInterfaceTests(
         except InvalidConfig as e:
             raise SkipTest(str(e))
         ec2_client = get_ec2_client_for_test(config)
-        requested_volume = ec2_client.create_volume(
-            size=int(Byte(self.minimum_allocatable_size).to_GiB().value),
-            zone=ec2_client.zone)
-        self.addCleanup(ec2_client.delete_volume, requested_volume.id)
+        meta_client = ec2_client.connection.meta.client
+        requested_volume = meta_client.create_volume(
+            Size=int(Byte(self.minimum_allocatable_size).to_GiB().value),
+            AvailabilityZone=ec2_client.zone)
+        created_volume = ec2_client.connection.Volume(
+            requested_volume['VolumeId'])
+        self.addCleanup(created_volume.delete)
 
         _wait_for_volume_state_change(VolumeOperations.CREATE,
-                                      requested_volume)
+                                      created_volume)
 
         self.assertEqual(self.api.list_volumes(), [])
 
@@ -114,9 +117,8 @@ class EBSBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
         )
         ec2_client = get_ec2_client_for_test(config)
-        volume = ec2_client.get_volume(
-            volume_id=flocker_volume.blockdevice_id)
-        name = ec2_client.get_volume_tag(volume, u"Name")
+        volume = ec2_client.connection.Volume(flocker_volume.blockdevice_id)
+        name = _get_volume_tag(volume, u"Name")
         self.assertEqual(name, u"flocker-{}".format(dataset_id))
 
     @capture_logging(lambda self, logger: None)
