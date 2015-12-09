@@ -8,7 +8,9 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient._client import FakeFlockerClient, Node
 
-from benchmark.scenarios import ReadRequestLoadScenario, RateMeasurer
+from benchmark.scenarios import (
+    ReadRequestLoadScenario, RateMeasurer, RequestRateTooLow
+)
 
 from benchmark.cluster import BenchmarkCluster
 
@@ -96,35 +98,28 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
     """
     ReadRequestLoadScenario tests
     """
-    def setUp(self):
+    def make_cluster(self, FlockerClient):
         """
-        Initializing the common variables used by the tests.
-        We will need a fake cluster to instantiate the load
-        scenario, and this fake cluster will need a control
-        service, that is also instantiated here and shared
-        between all the tests.
+        Create a cluster that can be used by the scenario tests.
         """
         # TODO I dont know what is the convention putting braces
         # and splitting a function call between different
         # lines when it is too long
-        self.node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
-        self.node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
-        self.fake_control_service = FakeFlockerClient(
-            [self.node1, self.node2]
+        node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
+        node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
+        return BenchmarkCluster(
+            node1.public_address,
+            lambda reactor: FlockerClient([node1, node2]),
+            {node1.public_address, node2.public_address},
         )
-        self.cluster = BenchmarkCluster(
-            self.node1.public_address,
-            lambda reactor: self.fake_control_service,
-            {self.node1.public_address, self.node2.public_address},
-        )
-
 
     def test_read_request_load_succeeds(self):
         """
         ReadRequestLoadScenario starts and stops without collapsing.
         """
         c = Clock()
-        s = ReadRequestLoadScenario(c, self.cluster, 5, interval=1)
+        cluster = self.make_cluster(FakeFlockerClient)
+        s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
 
         d = s.start()
         # TODO: Add comment here to explain these numbers
@@ -148,20 +143,16 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         dropping alternate requests. This should result in
         RequestRateTooLow being raised.
         """
-        node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
-        node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
         c = Clock()
-        client = RequestDroppingFakeFlockerClient([node1, node2])
-        s = ReadRequestLoadScenario(c, client, 5, interval=1)
+        cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
+        s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
 
-        d = s.start()
+        s.start()
         # TODO: Add comment here to explain these numbers
         c.pump(repeat(1, 6))
 
-        def drop_requests(something):
-            client.drop_requests = True
-            c.pump(repeat(1, 2))
-            print s.rate_measurer.rate()
+        cluster.get_control_service(c).drop_requests = True
+        c.pump(repeat(1, 3))
 
-        s.maintained().addBoth(lambda _: self.fail())
-        d.addCallback(drop_requests)
+        failure = self.failureResultOf(s.maintained())
+        self.assertIsInstance(failure.value, RequestRateTooLow)
