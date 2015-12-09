@@ -1097,7 +1097,10 @@ job_type:
                    *destroy_vagrant_box]
           }
       clean_repo: false
-      timeout: 30
+      # FLOC-3597: Importing base box 'jenkins-osx-yosemite' step can
+      # sometimes take ~20 minutes, leaving us not quite enough time to
+      # actually run the tests.
+      timeout: 60
 
 
   run_lint:
