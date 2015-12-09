@@ -16,7 +16,7 @@ from ...common import loop_until
 from ...common.runner import run_ssh
 
 from ...testtools import (
-    AsyncTestCase, random_name, flaky, async_runner,
+    AsyncTestCase, random_name, find_free_port, flaky, async_runner,
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
@@ -163,7 +163,7 @@ class DockerPluginTests(AsyncTestCase):
         node = cluster.nodes[0]
         client = get_docker_client(cluster, node.public_address)
         http_port = 8080
-        host_port = 8080
+        host_port = find_free_port()[1]
 
         if volume_name is None:
             volume_name = random_name(self)
@@ -255,7 +255,7 @@ class DockerPluginTests(AsyncTestCase):
         client = get_docker_client(cluster, node.public_address)
 
         http_port = 8080
-        host_port = 8080
+        host_port = find_free_port()[1]
 
         volume_name = random_name(self)
         self.run_python_container(
@@ -342,7 +342,7 @@ class DockerPluginTests(AsyncTestCase):
         client = get_docker_client(cluster, origin_node.public_address)
         data = "hello world"
         http_port = 8080
-        host_port = 8080
+        host_port = find_free_port()[1]
         volume_name = random_name(self)
         container_args = {
             "host_config": client.create_host_config(
