@@ -677,6 +677,7 @@ class RunOptions(Options):
         ['flocker-version', None, None, 'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
+        ['number-of-nodes', None, 2, 'Number of nodes to launch.', int],
     ]
 
     optFlags = [
@@ -855,8 +856,8 @@ class RunOptions(Options):
         """
         Run some nodes using ``libcloud``.
 
-        By default, two nodes are run.  This can be overridden by setting
-        ``FLOCKER_ACCEPTANCE_NUM_NODES`` in the environment.
+        By default, two nodes are run.  This can be overridden by using
+        the ``--number-of-nodes`` command line option.
 
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
@@ -878,7 +879,7 @@ class RunOptions(Options):
             dataset_backend=dataset_backend,
             dataset_backend_configuration=self.dataset_backend_configuration(),
             variants=self['variants'],
-            num_nodes=int(os.environ.get("FLOCKER_ACCEPTANCE_NUM_NODES", "2")),
+            num_nodes=self['number-of-nodes'],
         )
 
     def _runner_RACKSPACE(self, package_source, dataset_backend,
