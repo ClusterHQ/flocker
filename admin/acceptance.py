@@ -196,39 +196,6 @@ RUNNER_ATTRIBUTES = [
 ]
 
 
-def upgrade_flocker(reactor, nodes, package_source):
-    """
-    Put the version of Flocker indicated by ``package_source`` onto all of
-    the given nodes.
-
-    This takes a primitive approach of uninstalling the software and then
-    installing the new version instead of trying to take advantage of any
-    OS-level package upgrade support.  Because it's easier.  The package
-    removal step is allowed to fail in case the package is not installed
-    yet (other failures are not differentiated).  The only action taken on
-    failure is that the failure is logged.
-
-    :param pvector nodes: The ``ManagedNode``\ s on which to upgrade the
-        software.
-    :param PackageSource package_source: The version of the software to
-        which to upgrade.
-
-    :return: A ``Deferred`` that fires when the software has been upgraded.
-    """
-    dispatcher = make_dispatcher(reactor)
-
-    uninstalling = perform(dispatcher, uninstall_flocker(nodes))
-    uninstalling.addErrback(write_failure, logger=None)
-
-    def install(ignored):
-        return perform(
-            dispatcher,
-            install_flocker(nodes, package_source),
-        )
-    installing = uninstalling.addCallback(install)
-    return installing
-
-
 @implementer(IClusterRunner)
 class ManagedRunner(object):
     """
@@ -277,6 +244,38 @@ class ManagedRunner(object):
         self.package_source = package_source
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
+
+    def _upgrade_flocker(self, reactor, nodes, package_source):
+        """
+        Put the version of Flocker indicated by ``package_source`` onto all of
+        the given nodes.
+
+        This takes a primitive approach of uninstalling the software and then
+        installing the new version instead of trying to take advantage of any
+        OS-level package upgrade support.  Because it's easier.  The package
+        removal step is allowed to fail in case the package is not installed
+        yet (other failures are not differentiated).  The only action taken on
+        failure is that the failure is logged.
+
+        :param pvector nodes: The ``ManagedNode``\ s on which to upgrade the
+            software.
+        :param PackageSource package_source: The version of the software to
+            which to upgrade.
+
+        :return: A ``Deferred`` that fires when the software has been upgraded.
+        """
+        dispatcher = make_dispatcher(reactor)
+
+        uninstalling = perform(dispatcher, uninstall_flocker(nodes))
+        uninstalling.addErrback(write_failure, logger=None)
+
+        def install(ignored):
+            return perform(
+                dispatcher,
+                install_flocker(nodes, package_source),
+            )
+        installing = uninstalling.addCallback(install)
+        return installing
 
     def ensure_keys(self, reactor):
         """

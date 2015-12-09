@@ -139,8 +139,6 @@ def get_repository_url(distribution, flocker_version):
     :return bytes: The URL pointing to a repository of packages.
     :raises: ``UnsupportedDistribution`` if the distribution is unsupported.
     """
-    print "FLOCKER_VERSION", flocker_version
-    print "FLOCKER_VERSION_SUFFIX", get_package_key_suffix(flocker_version)
     distribution_to_url = {
         # TODO instead of hardcoding keys, use the _to_Distribution map
         # and then choose the name
@@ -192,7 +190,7 @@ def get_repo_options(flocker_version):
     if is_dev:
         return ['--enablerepo=clusterhq-testing']
     else:
-        return ['--enablerepo=clusterhq']
+        return []
 
 
 class UnsupportedDistribution(Exception):
@@ -400,8 +398,6 @@ def install_commands_ubuntu(package_name, distribution, package_source,
     repository_url = get_repository_url(
         distribution=distribution,
         flocker_version=flocker_version)
-    print "REPO_URL", repository_url
-    print "VER", flocker_version
     commands = [
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
@@ -424,7 +420,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
             "add-apt-repository", "-y", "deb {} /".format(base_url)]))
         # During a release, or during upgrade testing, we might not be able to
         # rely on package management to install flocker from the correct
-        # server. Thus, in all cases we pin precisely which host we want to
+        # server. Thus, in all cases we pin precisely which url we want to
         # install flocker from.
         pinned_host = urlparse(package_source.build_server).hostname
     commands.append(put(dedent('''\

@@ -182,7 +182,7 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
         connection.transport.instance.agent = None
 
     yield connection_helper.cleanupConnection(
-        connection, True)
+        connection, False)
 
 
 def make_dispatcher(reactor):

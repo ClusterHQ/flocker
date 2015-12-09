@@ -923,7 +923,7 @@ def require_cluster(num_nodes, required_backend=None):
             def clean(cluster):
                 return cluster.clean_nodes().addCallback(lambda _: cluster)
 
-            #waiting_for_cluster.addCallback(clean)
+            waiting_for_cluster.addCallback(clean)
             calling_test_method = waiting_for_cluster.addCallback(
                 call_test_method_with_cluster,
                 test_case, args, kwargs

@@ -54,10 +54,12 @@ def upgrade_flocker(
     yet (other failures are not differentiated).  The only action taken on
     failure is that the failure is logged.
 
-    :param pvector nodes: The ``ManagedNode``\ s on which to upgrade the
-        software.
+    :param reactor: The reactor to use to schedule the work.
+    :param nodes: An iterable of node addresses of nodes in the cluster.
+    :param control_node: The address of the control node.
     :param PackageSource package_source: The version of the software to
-        which to upgrade.
+        install.
+    :param distribution: The distribution installed on the nodes.
 
     :return: A ``Deferred`` that fires when the software has been upgraded.
     """
