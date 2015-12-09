@@ -6,7 +6,7 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4
 
-from bitmath import GiB
+from bitmath import TiB, GiB, MiB, KiB, Byte
 
 from twisted.web.http import OK, NOT_ALLOWED, NOT_FOUND
 from twisted.internet.task import Clock, LoopingCall
@@ -35,7 +35,7 @@ from ...restapi.testtools import (
 # alternativley we could assert for failure.
 volume_expression = builds(
     lambda expression: b"".join(expression),
-    expression=sampled_from(["gib", "G", "Gb", "gb", "Gib", "g"]),
+    expression=sampled_from([u"GB", "gib", "G", "Gb", "gb", "Gib", "g"]),
 )
 
 
@@ -138,14 +138,6 @@ class APITestsMixin(APIAssertionsMixin):
                                       metadata={u"name": name,
                                                 u"clusterhq:flocker:profile":
                                                 unicode(profile)})]))
-
-        # evidently with hypothesis you cant trust setUp or tearDown
-        d.addCallback(
-            lambda _: self.flocker_client.list_datasets_configuration())
-        d.addCallback(list)
-        d.addCallback(
-            lambda result: self.flocker_client.delete_dataset(
-                result[0].dataset_id))
         return d
 
     def test_create_with_size(self):
@@ -175,35 +167,53 @@ class APITestsMixin(APIAssertionsMixin):
                                       metadata={u"name": name,
                                                 u"maximum_size":
                                                 unicode(real_size)})]))
-
-        # evidently with hypothesis you cant trust setUp or tearDown
-        d.addCallback(
-            lambda _: self.flocker_client.list_datasets_configuration())
-        d.addCallback(list)
-        d.addCallback(
-            lambda result: self.flocker_client.delete_dataset(
-                result[0].dataset_id))
         return d
 
-    @given(size=sampled_from([u"10Gb", "10gib", "10G", "10GIB", "10GiB"]))
-    def test_parsenum_size(self, size):
+    @given(expr=volume_expression,
+           size=integers(min_value=75, max_value=100))
+    def test_parsenum_size(self, expr, size):
         """
-        Testing the parse_num expressions
+        Test sending different forms of size expressions
+        to parse_num and get expxted G size results.
 
-        :param size str: A string representing the volume size
+        :param expr str: A string representing the size expression
+        :param size int: A string representing the volume size
         """
-        expected_size = int(GiB(10).to_Byte())
+        expected_size = int(GiB(size).to_Byte())
         return self.assertEqual(expected_size,
-                                int(parse_num(size).to_Byte()))
+                                int(parse_num(str(size)+expr).to_Byte()))
 
-    @given(size=sampled_from([u"foo10Gb", "10foogib",
+    @given(expr=sampled_from(["KB", "MB", "GB", "TB", ""]),
+           size=integers(min_value=1, max_value=100))
+    def test_parsenum_all_sizes(self, expr, size):
+        """
+        Test sending standard size expressions to parse_num in
+        many sizes to get expected size results.
+
+        :param expr str: A string representing the size expression
+        :param size int: A string representing the volume size
+        """
+        if expr is "KB":
+            expected_size = int(KiB(size).to_Byte())
+        elif expr is "MB":
+            expected_size = int(MiB(size).to_Byte())
+        elif expr is "GB":
+            expected_size = int(GiB(size).to_Byte())
+        elif expr is "TB":
+            expected_size = int(TiB(size).to_Byte())
+        else:
+            expected_size = int(Byte(size).to_Byte())
+        return self.assertEqual(expected_size,
+                                int(parse_num(str(size)+expr).to_Byte()))
+
+    @given(size=sampled_from([u"foo10Gb", u"10bar10", "10foogib",
                               "10Gfoo", "GIB", "bar10foo"]))
     def test_parsenum_bad_size(self, size):
         """
-        Test sending bad size expressions to docker, upon error
-        users will receive DEFAULT_SIZE
+        Test sending bad size expressions, upon error
+        users should receive Flocker's DEFAULT_SIZE
 
-        :param size str: A string representing the volume size
+        :param size str: A string representing the bad volume size
         """
         return self.assertEqual(int(DEFAULT_SIZE.to_Byte()),
                                 int(parse_num(size).to_Byte()))
