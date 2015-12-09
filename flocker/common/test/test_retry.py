@@ -4,7 +4,6 @@
 Tests for ``flocker.common._retry``.
 """
 
-from sys import exc_info
 from datetime import timedelta
 from itertools import repeat, count
 from functools import partial

@@ -15,7 +15,7 @@ from itertools import repeat
 import time
 
 from eliot import (
-    ActionType, MessageType, Message, Field, start_action, write_traceback,
+    ActionType, MessageType, Message, Field, start_action,
 )
 from eliot.twisted import DeferredContext
 
