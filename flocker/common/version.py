@@ -1,5 +1,5 @@
 # -*- test-case-name: flocker.common.test.test_version -*-
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 import re
 

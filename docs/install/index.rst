@@ -6,8 +6,6 @@ Installing Flocker
 
 There are several installation options with which you can get up and running with Flocker.
 
-.. XXX The content relating to our live hosted environment or virtual machines using our Vagrant image has been removed (See FLOC 3577 and https://github.com/ClusterHQ/flocker/pull/2260).
-
 .. _quick-start-installer:
 
 Quick Start Flocker Installer

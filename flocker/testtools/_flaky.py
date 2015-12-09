@@ -238,8 +238,10 @@ class _RetryFlaky(testtools.RunTest):
             result was and ``details`` is a dictionary of testtools details.
         """
         tmp_result = testtools.TestResult()
-        # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879
-        _reset_case(case)
+        # XXX: Still using internal API of testtools despite improvements in
+        # #165. Will need to do follow-up work on testtools to ensure that
+        # RunTest.run(case); RunTest.run(case) is supported.
+        case._reset()
         self._run_test(case, tmp_result)
         result_type = _get_result_type(tmp_result)
         details = pmap(case.getDetails())
@@ -311,14 +313,3 @@ def _combine_details(detailses):
     for details in detailses:
         gather_details(details, result)
     return pmap(result)
-
-
-def _reset_case(case):
-    """
-    Reset ``case`` so it can be run again.
-    """
-    # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879
-    # Don't want details from last run.
-    case.getDetails().clear()
-    case._TestCase__setup_called = False
-    case._TestCase__teardown_called = False

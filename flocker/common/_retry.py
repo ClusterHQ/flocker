@@ -156,7 +156,9 @@ def retry_failure(reactor, function, expected=None, steps=None):
         steps = repeat(0.1)
     steps = iter(steps)
 
-    d = maybeDeferred(function)
+    action = LOOP_UNTIL_ACTION(predicate=function)
+    with action.context():
+        d = DeferredContext(maybeDeferred(function))
 
     def loop(failure):
         if expected and not failure.check(*expected):
@@ -167,13 +169,18 @@ def retry_failure(reactor, function, expected=None, steps=None):
         except StopIteration:
             return failure
 
-        d = deferLater(reactor, interval, function)
+        d = deferLater(reactor, interval, action.run, function)
         d.addErrback(loop)
         return d
 
     d.addErrback(loop)
 
-    return d
+    def got_result(result):
+        action.add_success_fields(result=result)
+        return result
+    d.addCallback(got_result)
+    d.addActionFinish()
+    return d.result
 
 
 def poll_until(predicate, steps, sleep=None):

@@ -11,4 +11,3 @@ Introduction to Flocker
    flocker-basics
    flocker-plugin
    flocker-supports
-   get-started

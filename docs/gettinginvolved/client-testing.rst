@@ -81,12 +81,9 @@ An internal document describing how to use this is available at "Infrastructure 
 Linux
 ~~~~~
 
-To test on various Linux distributions, it is possible to create either Docker containers or Vagrant virtual machines.
+To test on various Linux distributions, it is possible to create a Docker container.
 
-Using Docker
-^^^^^^^^^^^^
-
-To create a Docker container, choose a Docker image from the `Docker Hub <https://hub.docker.com/>`_, and start it as below:
+For example. choose a Docker image from the `Docker Hub <https://hub.docker.com/>`_, and run either of the following commands to start it:
 
 .. prompt:: bash $
 
@@ -98,20 +95,5 @@ or:
 
    docker run -i -t fedora:20 /bin/bash
 
-for example.
-
 This will likely allow you to test commands as a root user.
 If you want to test as a non-root user, create a new user which has the ability to use ``sudo``.
-
-Using Vagrant
-^^^^^^^^^^^^^
-
-To create a Vagrant virtual machine, choose a Vagrant box from `Atlas <https://atlas.hashicorp.com/boxes/search>`_ and start it as below:
-
-.. prompt:: bash $
-
-   vagrant init ubuntu/trusty64
-   vagrant up
-   vagrant ssh
-
-for example.

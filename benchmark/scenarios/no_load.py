@@ -16,7 +16,7 @@ class NoLoadScenario(object):
     A scenario that places no additional load on the cluster.
     """
 
-    def __init__(self, clock, control_service):
+    def __init__(self, clock, cluster):
         self._maintained = Deferred()
 
     def start(self):

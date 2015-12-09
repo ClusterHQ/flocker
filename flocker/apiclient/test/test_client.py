@@ -34,6 +34,7 @@ from .._client import (
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
     Lease, LeaseAlreadyHeld, Node, Container, ContainerAlreadyExists,
     DatasetsConfiguration, ConfigurationChanged, conditional_create,
+    _LOG_CONDITIONAL_CREATE,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -815,7 +816,8 @@ class ConditionalCreateTests(SynchronousTestCase):
                     raise CustomException()
         return condition
 
-    def test_simple_success(self):
+    @capture_logging(assertHasAction, _LOG_CONDITIONAL_CREATE, True)
+    def test_simple_success(self, logger):
         """
         If no configuration changes or condition violations occur the creation
         succeeds.

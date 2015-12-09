@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 # -*- test-case-name: flocker.restapi.docs.test.test_publicapi -*-
 """
 Sphinx extension for automatically documenting api endpoints.

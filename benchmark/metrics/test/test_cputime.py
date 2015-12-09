@@ -12,9 +12,10 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from flocker.apiclient._client import FakeFlockerClient, Node
 
+from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IMetric
 from benchmark.metrics.cputime import (
-    CPUTime, CPUParser, get_node_cpu_times, compute_change,
+    WALLCLOCK_LABEL, CPUTime, CPUParser, get_node_cpu_times, compute_change,
 )
 
 
@@ -41,33 +42,37 @@ class CPUParseTests(SynchronousTestCase):
         """
         Blank lines are ignored.
         """
-        parser = CPUParser()
+        parser = CPUParser(Clock())
         parser.lineReceived('')
-        self.assertEqual(parser.result, {})
+        self.assertEqual(parser.result, {WALLCLOCK_LABEL: 0})
 
     def test_nodays(self):
         """
         CPU time line with no days part parses correctly.
         """
-        parser = CPUParser()
+        parser = CPUParser(Clock())
         parser.lineReceived('proc  12:34:56')
         expected_cputime = (12 * 60 + 34) * 60 + 56
-        self.assertEqual(parser.result, {'proc': expected_cputime})
+        self.assertEqual(
+            parser.result, {'proc': expected_cputime, WALLCLOCK_LABEL: 0}
+        )
 
     def test_days(self):
         """
         CPU time line with a days part parses correctly.
         """
-        parser = CPUParser()
+        parser = CPUParser(Clock())
         parser.lineReceived('proc  5-12:34:56')
         expected_cputime = ((5 * 24 + 12) * 60 + 34) * 60 + 56
-        self.assertEqual(parser.result, {'proc': expected_cputime})
+        self.assertEqual(
+            parser.result, {'proc': expected_cputime, WALLCLOCK_LABEL: 0}
+        )
 
     def test_unexpected_line(self):
         """
         Line that doesn't fit expected pattern raises exception.
         """
-        parser = CPUParser()
+        parser = CPUParser(Clock())
         with self.assertRaises(ValueError) as e:
             parser.lineReceived('Unexpected Error Message')
         self.assertEqual(e.exception.args[-1], 'Unexpected Error Message')
@@ -76,13 +81,13 @@ class CPUParseTests(SynchronousTestCase):
         """
         Line that has incorrectly formatted time raises exception.
         """
-        parser = CPUParser()
+        parser = CPUParser(Clock())
         with self.assertRaises(ValueError) as e:
             parser.lineReceived('proc 20:34')
         self.assertEqual(e.exception.args[-1], 'proc 20:34')
 
 
-class _LocalRunner:
+class _LocalRunner(object):
     """
     Like SSHRunner, but runs command locally.
     """
@@ -108,13 +113,16 @@ class GetNodeCPUTimeTests(TestCase):
         Success results in output of dictionary containing process names.
         """
         d = get_node_cpu_times(
+            Clock(),
             _LocalRunner(),
             Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
             [_standard_process],
         )
 
         def check(result):
-            self.assertEqual(result.keys(), [_standard_process])
+            self.assertEqual(
+                result.keys(), [_standard_process, WALLCLOCK_LABEL]
+            )
 
         d.addCallback(check)
 
@@ -123,15 +131,16 @@ class GetNodeCPUTimeTests(TestCase):
     @on_linux
     def test_no_such_process(self):
         """
-        If processes do not exist, empty directory is returned.
+        If processes do not exist, only wallclock time is returned.
         """
         d = get_node_cpu_times(
+            Clock(),
             _LocalRunner(),
             Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
             ['n0n-exist'],
         )
 
-        d.addCallback(self.assertEqual, {})
+        d.addCallback(self.assertEqual, {WALLCLOCK_LABEL: 0.0})
 
         return d
 
@@ -180,7 +189,7 @@ class CPUTimeTests(TestCase):
     Test top-level CPU time metric.
     """
 
-    def implements_IMetric(self):
+    def test_implements_IMetric(self):
         """
         CPUTime provides the IMetric interface.
         """
@@ -191,12 +200,20 @@ class CPUTimeTests(TestCase):
         """
         Fake Flocker cluster gives expected results.
         """
+        clock = Clock()
         node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
         node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
         metric = CPUTime(
-            Clock(), FakeFlockerClient([node1, node2]),
-            _LocalRunner(), processes=[_standard_process])
-        d = metric.measure(lambda: None)  # measure a fast no-op command
+            clock,
+            BenchmarkCluster(
+                IPAddress('10.0.0.1'),
+                lambda reactor: FakeFlockerClient([node1, node2]),
+                {}
+            ),
+            _LocalRunner(),
+            processes=[_standard_process]
+        )
+        d = metric.measure(lambda: clock.advance(5))
 
         # Although it is unlikely, it's possible that we could get a CPU
         # time != 0, so filter values out.
@@ -204,7 +221,8 @@ class CPUTimeTests(TestCase):
             for process_times in node_cpu_times.values():
                 if process_times:
                     for process in process_times:
-                        process_times[process] = 0
+                        if process != WALLCLOCK_LABEL:
+                            process_times[process] = 0
             return node_cpu_times
         d.addCallback(filter)
 
@@ -212,8 +230,8 @@ class CPUTimeTests(TestCase):
             self.assertEqual(
                 result,
                 {
-                    '10.0.0.1': {_standard_process: 0},
-                    '10.0.0.2': {_standard_process: 0}
+                    '10.0.0.1': {_standard_process: 0, WALLCLOCK_LABEL: 5},
+                    '10.0.0.2': {_standard_process: 0, WALLCLOCK_LABEL: 5}
                 }
             )
         d.addCallback(check)

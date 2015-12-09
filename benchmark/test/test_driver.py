@@ -7,6 +7,8 @@ from itertools import count, repeat
 
 from zope.interface import implementer
 
+from eliot.testing import capture_logging
+
 from twisted.internet.defer import Deferred, succeed, fail
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 
@@ -15,7 +17,7 @@ from benchmark._interfaces import IScenario, IProbe, IOperation, IMetric
 
 
 @implementer(IMetric)
-class FakeMetric:
+class FakeMetric(object):
 
     def __init__(self, measurements):
         """
@@ -34,7 +36,7 @@ class FakeMetric:
 
 
 @implementer(IProbe)
-class FakeProbe:
+class FakeProbe(object):
     """
     A probe performs a single operation, which can be timed.
     """
@@ -52,7 +54,7 @@ class FakeProbe:
 
 
 @implementer(IOperation)
-class FakeOperation:
+class FakeOperation(object):
 
     def __init__(self, succeeds):
         """
@@ -66,7 +68,7 @@ class FakeOperation:
 
 
 @implementer(IScenario)
-class FakeScenario:
+class FakeScenario(object):
 
     def __init__(self, maintained=Deferred()):
         self._maintained = maintained
@@ -86,7 +88,8 @@ class SampleTest(SynchronousTestCase):
     Test sample function.
     """
 
-    def test_good_probe(self):
+    @capture_logging(None)
+    def test_good_probe(self, logger):
         """
         Sampling returns value when probe succeeds.
         """
@@ -95,7 +98,8 @@ class SampleTest(SynchronousTestCase):
         self.assertEqual(
             self.successResultOf(sampled), {'success': True, 'value': 5})
 
-    def test_bad_probe(self):
+    @capture_logging(None)
+    def test_bad_probe(self, logger):
         """
         Sampling returns reason when probe fails.
         """
@@ -121,7 +125,8 @@ class BenchmarkTest(TestCase):
     # the `benchmark` function uses `twisted.task.cooperate`, which uses
     # the global reactor.
 
-    def test_good_probes(self):
+    @capture_logging(None)
+    def test_good_probes(self, logger):
         """
         Sampling returns results when probes succeed.
         """
@@ -137,7 +142,8 @@ class BenchmarkTest(TestCase):
         samples_ready.addCallback(check)
         return samples_ready
 
-    def test_bad_probes(self):
+    @capture_logging(None)
+    def test_bad_probes(self, logger):
         """
         Sampling returns reasons when probes fail.
         """

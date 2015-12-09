@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin

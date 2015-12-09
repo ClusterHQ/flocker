@@ -14,7 +14,7 @@ With the Flocker API or CLI you can:
 * Attach and detach data volumes from containers as they change hosts
 * Migrate local data volumes between servers (currently Experimental)
 
-Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud Block Storage, and EMC ScaleIO, as well as local storage (currently Experimental using our ZFS storage backend) so you can choose any of :ref:`the available storage backends <storage-backends>` that best suit your application.
+Flocker supports block-based shared storage such as Amazon EBS, Rackspace Cloud Block Storage, and EMC ScaleIO, as well as local storage, so you can choose any of :ref:`the available storage backends <storage-backends>` that best suit your application.
 
 .. XXX add link to choosing the best storage for your application marketing page (yet to be published)
 

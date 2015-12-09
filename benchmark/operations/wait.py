@@ -16,13 +16,13 @@ class WaitProbe(object):
     A probe to wait for a specified time period.
     """
 
-    def __init__(self, clock, wait_seconds):
-        self.clock = clock
+    def __init__(self, reactor, wait_seconds):
+        self.reactor = reactor
         self.wait_seconds = wait_seconds
 
     def run(self):
         d = Deferred()
-        self.clock.callLater(self.wait_seconds, d.callback, None)
+        self.reactor.callLater(self.wait_seconds, d.callback, None)
         return d
 
     def cleanup(self):
@@ -32,13 +32,12 @@ class WaitProbe(object):
 @implementer(IOperation)
 class Wait(object):
     """
-    An operation to wait 10 seconds.
+    An operation to wait for a number of seconds.
     """
 
-    def __init__(self, clock, control_service, wait_seconds=10):
-        self.clock = clock
-        self.control_service = control_service
+    def __init__(self, reactor, cluster, wait_seconds=10):
+        self.reactor = reactor
         self.wait_seconds = wait_seconds
 
     def get_probe(self):
-        return WaitProbe(clock=self.clock, wait_seconds=self.wait_seconds)
+        return WaitProbe(self.reactor, self.wait_seconds)
