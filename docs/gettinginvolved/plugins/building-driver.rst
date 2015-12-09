@@ -160,4 +160,4 @@ What's Next?
 
 We recommend a demo to show off your hard work!
 
-After driver development clears all tests and you've published great getting-started instructions for your users, we recommend a great video which you can use to share with others how they can build a Dockerized application using your storage backend.
+After driver development clears all tests and you've published getting-started instructions for your users, we recommend a video which you can use to share with others how they can build a Dockerized application using your storage backend.
