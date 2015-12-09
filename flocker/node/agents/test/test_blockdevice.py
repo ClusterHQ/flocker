@@ -44,7 +44,6 @@ from eliot.testing import (
     LoggedAction, assertHasMessage, assertHasAction
 )
 
-from ..._change import LOG_SEQUENTIALLY
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
@@ -52,15 +51,14 @@ from ..blockdevice import (
     IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
-    DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume, AttachVolume,
+    UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
 
     DiscoveredDataset, DatasetStates,
 
     PROFILE_METADATA_KEY,
 
-    UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
-    DESTROY_VOLUME,
+    UNMOUNT_BLOCK_DEVICE,
     CREATE_BLOCK_DEVICE_DATASET,
     INVALID_DEVICE_PATH,
     CREATE_VOLUME_PROFILE_DROPPED,
@@ -1349,10 +1347,11 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         """
         local_state = self.ONE_DATASET_STATE.transform(
             # Remove the dataset.  This reflects its deletedness.
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        ).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard,
             # Remove its device too.
-            ["devices", self.DATASET_ID], discard
+            ["devices", self.DATASET_ID], discard,
+            # Remove its mountpoint too.
+            ["paths", unicode(self.DATASET_ID)], discard,
         )
 
         local_config = to_node(self.ONE_DATASET_STATE).transform(
@@ -1367,8 +1366,9 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config, set(),
-            in_parallel(changes=[]),
+            self, local_state, local_config,
+            nonmanifest_datasets={},
+            expected_changes=in_parallel(changes=[]),
         )
 
 
@@ -1406,8 +1406,8 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
-                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
-                                          blockdevice_id=self.BLOCKDEVICE_ID)
+                UnmountBlockDevice(dataset_id=self.DATASET_ID,
+                                   blockdevice_id=self.BLOCKDEVICE_ID)
             ]),
             # Another node which is ignorant about its state:
             set([NodeState(hostname=u"1.2.3.4", uuid=uuid4())])
@@ -1425,8 +1425,8 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         """
         If the configuration indicates a dataset with a primary manifestation
         on the node has been deleted and the volume associated with that
-        dataset still exists, ``BlockDeviceDeployer.calculate_changes`` returns
-        a ``DestroyBlockDeviceDataset`` state change operation.
+        dataset is mounted, ``BlockDeviceDeployer.calculate_changes`` returns
+        a ``UnmountBlockDevice`` state change operation.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state).transform(
@@ -1436,8 +1436,8 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
-                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID,
-                                          blockdevice_id=self.BLOCKDEVICE_ID)
+                UnmountBlockDevice(dataset_id=self.DATASET_ID,
+                                   blockdevice_id=self.BLOCKDEVICE_ID)
             ]),
             discovered_datasets=[
                 DiscoveredDataset(
@@ -1453,11 +1453,46 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             ],
         )
 
+    def test_deleted_dataset_volume_detached(self):
+        """
+        If the configuration indicates a dataset with a primary manifestation
+        on the node has been deleted and the volume associated with that
+        dataset still exists but is not attached,
+        ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``DestroyVolume`` state change operation.
+        """
+        local_state = self.ONE_DATASET_STATE.transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard,
+            ["paths"], {},
+            ["devices"], {},
+        )
+        local_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        assert_calculated_changes(
+            self, local_state, local_config,
+            nonmanifest_datasets=[
+                self.MANIFESTATION.dataset,
+            ],
+            expected_changes=in_parallel(changes=[
+                DestroyVolume(blockdevice_id=self.BLOCKDEVICE_ID)
+            ]),
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.NON_MANIFEST,
+                    dataset_id=self.DATASET_ID,
+                    blockdevice_id=self.BLOCKDEVICE_ID,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
+                ),
+            ],
+        )
+
     def test_deleted_dataset_belongs_to_other_node(self):
         """
         If a dataset with a primary manifestation on one node is marked as
         deleted in the configuration, the ``BlockDeviceDeployer`` for a
-        different node does not return a ``DestroyBlockDeviceDataset`` from its
+        different node does not return a ``DestroyVolume`` from its
         ``calculate_necessary_state_changes`` for that dataset.
         """
         other_node = u"192.0.2.2"
@@ -1542,10 +1577,10 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
     def test_deleted_dataset_volume_unmounted(self):
         """
-        ``DestroyBlockDeviceDataset`` is a compound state change that first
-        attempts to unmount the block device.
-        Therefore do not calculate deletion for blockdevices that are not
-        manifest.
+        If the configuration indicates a dataset with a primary manifestation
+        on the node has been deleted and the volume associated with that
+        dataset is mounted, ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``UnmountBlockDevice`` state change operation.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state).transform(
@@ -1575,12 +1610,9 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             ],
             expected_changes=in_parallel(
                 changes=[
-                    MountBlockDevice(
-                        mountpoint=FilePath('/flocker/').child(
-                            unicode(self.DATASET_ID)
-                        ),
+                    DetachVolume(
+                        dataset_id=self.DATASET_ID,
                         blockdevice_id=self.BLOCKDEVICE_ID,
-                        dataset_id=self.DATASET_ID
                     )
                 ]
             ),
@@ -1599,14 +1631,11 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
     def test_deleted_dataset_volume_no_filesystem(self):
         """
-        ``DestroyBlockDeviceDataset`` is a compound state change that first
-        attempts to unmount the block device.
-        Therefore do not calculate deletion for blockdevices that are not
-        manifest, instead creating filesystem.
-
-        This will be unnecessary once we do FLOC-1772, but until that is
-        fixed is necessary to ensure volumes without filesystems get
-        deleted.
+        If the configuration indicates a dataset with a primary manifestation
+        on the node has been deleted and the volume associated with that
+        dataset is attached but has no filesystem,
+        ``BlockDeviceDeployer.calculate_changes`` returns a ``DetachVolume``
+        state change operation.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state).transform(
@@ -1638,9 +1667,9 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             ],
             expected_changes=in_parallel(
                 changes=[
-                    CreateFilesystem(
-                        device=device,
-                        filesystem=u"ext4",
+                    DetachVolume(
+                        dataset_id=self.DATASET_ID,
+                        blockdevice_id=self.BLOCKDEVICE_ID,
                     )
                 ]
             ),
@@ -1892,6 +1921,31 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         # manifestation.
         node_config = to_node(self.ONE_DATASET_STATE).transform(
             ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, node_state, node_config, set(),
+            in_parallel(changes=[
+                UnmountBlockDevice(dataset_id=self.DATASET_ID,
+                                   blockdevice_id=self.BLOCKDEVICE_ID)
+            ])
+        )
+
+    def test_unmount_deleted_manifestation(self):
+        """
+        If the filesystem for a dataset is mounted on the node and the
+        configuration says the dataset is deleted on that node,
+        ``BlockDeviceDeployer.calculate_changes`` returns a state change to
+        unmount the filesystem.
+        """
+        # Give it a state that says it has a manifestation of the dataset.
+        node_state = self.ONE_DATASET_STATE
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID),
+             "dataset", "deleted"], True,
         )
 
         assert_calculated_changes(
@@ -2418,6 +2472,47 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # Give it a configuration that says no datasets should be manifest on
         # the deployer's node.
         node_config = to_node(node_state)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            in_parallel(changes=[
+                DetachVolume(dataset_id=self.DATASET_ID,
+                             blockdevice_id=self.BLOCKDEVICE_ID)
+            ])
+        )
+
+    def test_detach_deleted_manifestation(self):
+        """
+        ``BlockDeviceDeployer.calculate_changes`` recognizes a volume that is
+        attached but not mounted which is associated with a dataset configured
+        to have a deleted manifestation on the deployer's node and returns a
+        state change to detach the volume.
+        """
+        # Give it a state that says it has no manifestations but it does have
+        # some attached volumes.
+        node_state = NodeState(
+            uuid=self.NODE_UUID, hostname=self.NODE,
+            applications={},
+            manifestations={},
+            devices={self.DATASET_ID: FilePath(b"/dev/xda")},
+            paths={},
+        )
+
+        # Give it a configuration that says the dataset should be deleted on
+        # the deployer's node.
+        node_config = Node(
+            uuid=self.NODE_UUID, hostname=self.NODE,
+            manifestations={
+                unicode(self.DATASET_ID): Manifestation(
+                    dataset=Dataset(
+                        dataset_id=unicode(self.DATASET_ID),
+                        deleted=True,
+                    ),
+                    primary=True,
+                )
+            },
+        )
 
         assert_calculated_changes(
             self, node_state, node_config,
@@ -3572,17 +3667,6 @@ _ARBITRARY_VOLUME = BlockDeviceVolume(
 )
 
 
-def _make_destroy_dataset():
-    """
-    Make a ``DestroyBlockDeviceDataset`` instance for
-    ``make_istate_tests``.
-    """
-    return DestroyBlockDeviceDataset(
-        dataset_id=_ARBITRARY_VOLUME.dataset_id,
-        blockdevice_id=_ARBITRARY_VOLUME.blockdevice_id
-    )
-
-
 def multistep_change_log(parent, children):
     """
     Create an Eliot logging validation function which asserts that the given
@@ -3604,81 +3688,6 @@ def multistep_change_log(parent, children):
         ]
         self.assertEqual(children_actions, parent_action.children)
     return verify
-
-
-class DestroyBlockDeviceDatasetInitTests(
-    make_with_init_tests(
-        DestroyBlockDeviceDataset,
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
-        dict(),
-    )
-):
-    """
-    Tests for ``DestroyBlockDeviceDataset`` initialization.
-    """
-
-
-class DestroyBlockDeviceDatasetTests(
-    make_istatechange_tests(
-        DestroyBlockDeviceDataset,
-        # Avoid using the same instance, just provide the same value.
-        lambda _uuid=uuid4(): dict(dataset_id=_uuid,
-                                   blockdevice_id=ARBITRARY_BLOCKDEVICE_ID),
-        lambda _uuid=uuid4(): dict(dataset_id=_uuid,
-                                   blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2),
-    )
-):
-    """
-    Tests for ``DestroyBlockDeviceDataset``.
-    """
-    def test_dataset_id_must_be_uuid(self):
-        """
-        If the value given for ``dataset_id`` is not an instance of ``UUID``
-        when initializing ``DestroyBlockDeviceDataset``, ``TypeError`` is
-        raised.
-        """
-        self.assertRaises(
-            TypeError, DestroyBlockDeviceDataset, dataset_id=object(),
-            blockdevice_id=ARBITRARY_BLOCKDEVICE_ID
-        )
-
-    @capture_logging(multistep_change_log(
-        LOG_SEQUENTIALLY,
-        [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, DESTROY_VOLUME]
-    ))
-    def test_run(self, logger):
-        """
-        After running ``DestroyBlockDeviceDataset``, its volume has been
-        unmounted, detached, and destroyed.
-        """
-        self.patch(blockdevice, "_logger", logger)
-
-        node = u"192.0.2.3"
-        dataset_id = uuid4()
-
-        deployer = create_blockdevicedeployer(self, hostname=node)
-        api = deployer.block_device_api
-
-        volume = api.create_volume(
-            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        )
-        volume = api.attach_volume(volume.blockdevice_id, node)
-        device = api.get_device_path(volume.blockdevice_id)
-        mountroot = mountroot_for_test(self)
-        mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
-        mountpoint.makedirs()
-        make_filesystem(device, block_device=True)
-        mount(device, mountpoint)
-
-        change = DestroyBlockDeviceDataset(
-            dataset_id=dataset_id, blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
-
-        # It's only possible to destroy a volume that's been detached.  It's
-        # only possible to detach a volume that's been unmounted.  If the
-        # volume doesn't exist, all three things we wanted to happen have
-        # happened.
-        self.assertEqual([], api.list_volumes())
 
 
 class CreateFilesystemInitTests(
