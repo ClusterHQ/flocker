@@ -101,28 +101,6 @@ The top-level mapping may also contain any number of computer-resource provider 
 These are used to provide required parameters to the cluster runner selected by the ``--provider`` option.
 Configuration is loaded from the item in the top-level mapping with a key matching the value given to ``--provider``.
 
-Vagrant
-=======
-
-The Vagrant cluster runner does not require any configuration and so does not require an item in the configuration file.
-
-You will need a ssh agent running with access to the insecure vagrant private key:
-
-.. prompt:: bash $
-
-  ssh-add ~/.vagrant.d/insecure_private_key
-
-.. prompt:: bash $
-
-   vagrant box add <URL>
-
-Ensure that they all pass, with no skips:
-
-.. prompt:: bash $
-
-  admin/run-acceptance-tests --distribution centos-7 --provider vagrant
-
-
 .. _acceptance-testing-rackspace-config:
 
 Rackspace
