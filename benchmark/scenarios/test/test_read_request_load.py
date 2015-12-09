@@ -4,9 +4,12 @@ from ipaddr import IPAddress
 import math
 from twisted.internet.defer import succeed
 from twisted.internet.task import Clock
+from twisted.python.components import proxyForInterface
 from twisted.trial.unittest import SynchronousTestCase
 
-from flocker.apiclient._client import FakeFlockerClient, Node
+from flocker.apiclient._client import (
+    IFlockerAPIV1Client, FakeFlockerClient, Node
+)
 
 from benchmark.scenarios import (
     ReadRequestLoadScenario, RateMeasurer, RequestRateTooLow
@@ -75,13 +78,15 @@ class RateMeasurerTest(SynchronousTestCase):
         self.assertEqual(r.rate(), 2.0)
 
 
-class RequestDroppingFakeFlockerClient(FakeFlockerClient):
+class RequestDroppingFakeFlockerClient(
+    proxyForInterface(IFlockerAPIV1Client)
+):
     """
     A FakeFlockerClient that can drop alternating requests.
     """
-    def __init__(self, nodes, drop_requests=False):
+    def __init__(self, nodes):
         super(RequestDroppingFakeFlockerClient, self).__init__(nodes)
-        self.drop_requests = drop_requests
+        self.drop_requests = False
         self._dropped_last_request = False
 
     def list_nodes(self):
@@ -109,7 +114,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
         return BenchmarkCluster(
             node1.public_address,
-            lambda reactor: FlockerClient([node1, node2]),
+            lambda reactor: FlockerClient(FakeFlockerClient([node1, node2])),
             {node1.public_address, node2.public_address},
         )
 
