@@ -74,6 +74,12 @@ class DatasetAPITests(AsyncTestCase):
             # match that of the originally created dataset in all ways
             # other than the location.
             print 'ehm two'
+            print dataset
+            print dataset.__class__
+            print cluster
+            print cluster.__class__
+            print cluster.client
+            print cluster.client.__class__
             moved_dataset = dataset.set(
                 primary=UUID(cluster.nodes[1].uuid))
             print 'three?'
