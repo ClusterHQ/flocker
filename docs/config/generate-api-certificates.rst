@@ -1,16 +1,16 @@
 .. _generate-api:
 
-==================================
-Generating an API User Certificate
-==================================
+====================================
+Generating an API Client Certificate
+====================================
 
-To send instructions to the control service, whether it is via the API directly, or the CLI, or by any other method, you will need to follow the instructions below to generate an API user certificate:
+To send instructions to the control service, whether it is via the API directly, or the CLI, or by any other method, you will need to follow the instructions below to generate an API client certificate:
 
-#. Generate an API user certificate:
+#. Generate an API client certificate:
 
    Run the following command from the directory which contains the certificate authority files generated when you first installed the cluster. For more information, see :ref:`authentication`.
 
-   Replace ``<username>`` with a unique username for an API user.
+   Replace ``<username>`` with a unique username for an API client.
 
    .. prompt:: bash $
 
@@ -18,23 +18,23 @@ To send instructions to the control service, whether it is via the API directly,
 
    You will now have the files :file:`<username>.crt` and :file:`<username>.key`.
 
-#. Provide the certificates to the API end user:
+#. Provide the certificates to the API client, or end user:
 
-   You can now copy the following files to the API end user via a secure communication medium, such as SSH, SCP or SFTP:
+   You can now copy the following files to the API client, or end user via a secure communication medium, such as SSH, SCP or SFTP:
    
    * :file:`<username>.crt`
    * :file:`<username>.key`
    * :file:`cluster.crt`
 
-   .. note:: In this example ``<username>`` is a unique username for an API user.
+   .. note:: In this example ``<username>`` is a unique username for an API client.
 			 Please note though that ``flocker-deploy`` requires these files to be renamed :file:`user.crt` and :file:`user.key`.
 
 Using an API Certificate to Authenticate
 ========================================
 
-Once in possession of an API user certificate and the cluster certificate, an API end user must authenticate with those certificates in every request to the cluster REST API.
-The cluster certificate ensures the user is connecting to the genuine API of their cluster.
-The client certificate allows the API server to ensure the request is from a genuine, authorized user.
+Once in possession of an API client certificate and the cluster certificate, an API client must authenticate with those certificates in every request to the cluster REST API.
+The cluster certificate ensures the client is connecting to the genuine API of their cluster.
+The client certificate allows the API server to ensure the request is from a genuine, authorized client.
 
 The following is an example of an authenticated request to create a new container on a cluster, using ``cURL``.
 In this example, ``172.16.255.250`` represents the DNS IP address of the control service.
