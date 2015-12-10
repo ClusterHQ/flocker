@@ -11,7 +11,9 @@ import tempfile
 import testtools
 from testtools.content import text_content
 from testtools.deferredruntest import (
-    AsynchronousDeferredRunTestForBrokenTwisted)
+    AsynchronousDeferredRunTestForBrokenTwisted,
+    CaptureTwistedLogs,
+)
 
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
@@ -70,6 +72,10 @@ class AsyncTestCase(testtools.TestCase):
         super(AsyncTestCase, self).__init__(*args, **kwargs)
         # XXX: Work around testing-cabal/unittest-ext#60
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
+
+    def setUp(self):
+        super(AsyncTestCase, self).setUp()
+        self.useFixture(CaptureTwistedLogs())
 
     def mktemp(self):
         """

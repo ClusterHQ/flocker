@@ -22,6 +22,7 @@ from testtools.matchers import (
     FileContains,
     Matcher,
     MatchesAny,
+    MatchesDict,
     LessThan,
     Not,
     PathExists,
@@ -131,7 +132,12 @@ class AsyncTestCaseTests(TestCase):
 
         test = SomeTest('test_something')
         test.run()
-        self.assertThat(test.getDetails(), Equals({'twisted-log': {}}))
+        self.assertThat(
+            test.getDetails(),
+            MatchesDict({
+                'twisted-log': AfterPreprocessing(
+                    lambda c: c.as_text(), Contains('foo')),
+            }))
 
 
 identifier_characters = string.ascii_letters + string.digits + '_'
