@@ -4,7 +4,7 @@
 Generating an API Client Certificate
 ====================================
 
-To send instructions to the control service, whether it is via the API directly, or the CLI, or by any other method, you will need to follow the instructions below to generate an API client certificate:
+To send instructions to the Flocker control service, whether it is via the API directly, or the CLI, or by any other method, you will need to follow the instructions below to generate an API client certificate:
 
 #. Generate an API client certificate:
 
@@ -37,7 +37,7 @@ The cluster certificate ensures the client is connecting to the genuine API of t
 The client certificate allows the API server to ensure the request is from a genuine, authorized client.
 
 The following is an example of an authenticated request to create a new container on a cluster, using ``cURL``.
-In this example, ``172.16.255.250`` represents the DNS IP address of the control service.
+In this example, ``172.16.255.250`` represents the DNS IP address of the Flocker control service.
 If you used a DNS name when creating the control certificate, then replace the IP address with the DNS name.
 
 .. contents::
