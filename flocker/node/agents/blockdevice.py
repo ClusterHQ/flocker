@@ -37,7 +37,7 @@ from .._deploy import NotInUseDatasets
 
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 from ...control._model import pvector_field
-from ...common import RACKSPACE_MINIMUM_VOLUME_SIZE, auto_threaded
+from ...common import RACKSPACE_MINIMUM_VOLUME_SIZE, auto_threaded, provides
 from ...common.algebraic import TaggedUnionInvariant
 
 
@@ -1175,8 +1175,8 @@ class ProfiledBlockDeviceAPIAdapter(PClass):
     """
     _blockdevice_api = field(
         mandatory=True,
-        invariant=lambda i: (IBlockDeviceAPI.providedBy(i),
-                             '_blockdevice_api must provide IBlockDeviceAPI'))
+        invariant=provides(IBlockDeviceAPI),
+    )
 
     def create_volume_with_profile(self, dataset_id, size, profile_name):
         """
@@ -1470,11 +1470,10 @@ class BlockDeviceDeployer(PClass):
     poll_interval = timedelta(seconds=60.0)
     block_device_manager = field(initial=BlockDeviceManager())
     calculator = field(
-        # XXX We should abstract this invariant out.
-        invariant=lambda i: (ICalculator.providedBy(i),
-                             "Must provide ICalculator"),
+        invariant=provides(ICalculator),
         mandatory=True,
-        initial=BlockDeviceCalculator())
+        initial=BlockDeviceCalculator(),
+    )
 
     @property
     def profiled_blockdevice_api(self):
