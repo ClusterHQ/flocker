@@ -18,7 +18,7 @@ from ...testtools import (
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
     get_docker_client, verify_socket, check_http_server, DatasetBackend,
-    create_dataset,
+    create_dataset, require_moving_backend,
 )
 
 from ..scripts import SCRIPTS
@@ -382,6 +382,7 @@ class DockerPluginTests(AsyncTestCase):
         """
         return self._test_move(cluster, cluster.nodes[0], cluster.nodes[0])
 
+    @require_moving_backend
     @flaky(u'FLOC-3346')
     @require_cluster(2)
     def test_move_volume_different_node(self, cluster):
