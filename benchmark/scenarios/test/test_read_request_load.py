@@ -16,6 +16,8 @@ from benchmark.scenarios import (
     RequestRateNotReached
 )
 
+from benchmark.scenarios.read_request_load import DEFAULT_SAMPLE_SIZE
+
 from benchmark.cluster import BenchmarkCluster
 
 
@@ -108,9 +110,6 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         """
         Create a cluster that can be used by the scenario tests.
         """
-        # TODO I dont know what is the convention putting braces
-        # and splitting a function call between different
-        # lines when it is too long
         node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
         node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
         return BenchmarkCluster(
@@ -128,13 +127,13 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
 
         d = s.start()
-        # TODO: Add comment here to explain these numbers
-        # The interval is 5, so in order to register a rate,
-        # we need to start the next interval, as when starting
-        # a new interval is when we will store the last result
-        # of the previous interval (we will store what happened
-        # in 5, in 5+1 = 6)
-        c.pump(repeat(1, 6))
+
+        # Request rate samples are taken at most every second and by
+        # default, 5 samples are required to establish the rate.
+        # The sample recorded at nth second is the sample for the
+        # (n - 1)th second, therefore we need to advance the clock by
+        # n + 1 seconds to obtain a rate for n samples.
+        c.pump(repeat(1, DEFAULT_SAMPLE_SIZE + 1))
         s.maintained().addBoth(lambda x: self.fail())
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
@@ -145,19 +144,24 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         drops below the requested rate.
 
         Establish the requested rate by having the FakeFlockerClient
-        repond to all requests. Then attempt to lower the rate by
-        dropping alternate requests. This should result in
-        RequestRateTooLow being raised.
+        respond to all requests, then lower the rate by dropping
+        alternate requests. This should result in RequestRateTooLow
+        being raised.
         """
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
         s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
 
         s.start()
-        # TODO: Add comment here to explain these numbers
-        c.pump(repeat(1, 6))
+
+        # Advance the clock by DEFAULT_SAMPLE_SIZE + 1 seconds to
+        # establish the requested rate.
+        c.pump(repeat(1, DEFAULT_SAMPLE_SIZE + 1))
 
         cluster.get_control_service(c).drop_requests = True
+
+        # Advance the clock by 3 seconds so that a request is dropped
+        # and a new rate which is below the target can be established.
         c.pump(repeat(1, 3))
 
         failure = self.failureResultOf(s.maintained())
@@ -165,8 +169,8 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
     def test_scenario_throws_exception_if_requested_rate_not_reached(self):
         """
-        ReadRequestLoadScenario raises a RequestRateNotReached if the
-        requested rate cannot be established within a given timeframe.
+        ReadRequestLoadScenario raises RequestRateNotReached if the
+        target rate cannot be established within a given timeframe.
         """
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
@@ -174,6 +178,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
         d = s.start()
         cluster.get_control_service(c).drop_requests = True
+
         # Continue the clock for one second longer than the timeout
         # value to allow the timeout to be triggered.
         c.pump(repeat(1, s.timeout + 1))

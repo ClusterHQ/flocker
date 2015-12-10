@@ -12,12 +12,15 @@ from flocker.common import gather_deferreds, loop_until, timeout
 
 from .._interfaces import IScenario
 
+DEFAULT_SAMPLE_SIZE = 5
+
 
 class RateMeasurer(object):
     """
     Measures the rate of requests in requests per second
     """
-    def __init__(self, reactor, sample_size=5):
+
+    def __init__(self, reactor, sample_size=DEFAULT_SAMPLE_SIZE):
         self.counts = []
         self.count = 0
         self.reactor = reactor
