@@ -25,6 +25,7 @@ jsonschema==2.4.0
 klein==0.2.3
 machinist==0.2.0
 msgpack-python==0.4.6
+ndg-httpsclient==0.4.0
 netaddr==0.7.14
 netifaces==0.10.4
 oslo.config==1.12.1
