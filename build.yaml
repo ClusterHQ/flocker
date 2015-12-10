@@ -179,27 +179,7 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
     #
-    if is_osx; then
-      # OSX doesn't allow us to sudo (no tty)
-      # we can't be certain that cloudbees will always gives us a new OSX slave
-      # so we make sure we remove any old files
-      rm -f results.xml
-      rm -f trial.log
-      rm -rf _trial_temp/
-      rm -rf \${venv}
-      rm -f "Flocker*.rb"
-      rm -f "dist/Flocker-*.tar.gz"
-    fi
-    if is_centos || is_ubuntu; then
-      # some of our tests (which run as root), leave some files behind when
-      # they abort or fail to complete.
-      # We use 'sudo' so that we can remove those files before a next job run.
-      sudo rm -rf \${venv}
-      sudo rm -f results.xml
-      sudo rm -f trial.log
-      sudo rm -rf _trial_temp/
-      sudo rm -rf .hypothesis/
-    fi
+    rm -rf \${venv}
 
   setup_venv: &setup_venv |
     # setup the new venv

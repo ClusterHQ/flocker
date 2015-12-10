@@ -151,11 +151,11 @@ listView("${dashProject}/${dashBranchName}/{{name}}") {
 }
 {%- endmacro                                                                -%}
 
-{% macro wrappers(v, directory_to_delete)                                   -%}
+{% macro wrappers(v, directories_to_delete)                                 -%}
 {# adds a list of common wrappers to the build jobs.
 
    param v:  dictionary containing the values from the job
-   param directory_to_delete: directory to clean up
+   param list directories_to_delete: directory to clean up
 #}
     wrappers {
 {#    adds timestamps to the job log output                                  #}
@@ -184,7 +184,7 @@ listView("${dashProject}/${dashBranchName}/{{name}}") {
 {% if v.clean_repo %}
       preScmSteps {
           steps {
-          shell("sudo rm -rf {{ directory_to_delete }}")
+          shell("sudo rm -rf {{ directories_to_delete | map('quote') | join(' ') }}")
           }
       }
 {% endif %}
@@ -401,8 +401,8 @@ branches.each {
     }
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
-{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/_trial_temp" %}
-    {{ wrappers(job_values, directory_to_delete) }}
+{% set directories_to_delete = ["/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/" + dir for dir in ("_trial_temp", ".hypothesis")] %}
+    {{ wrappers(job_values, directories_to_delete) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}
@@ -422,8 +422,8 @@ branches.each {
     }
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
-{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/_trial_temp" %}
-    {{ wrappers(job_values, directory_to_delete) }}
+{% set directories_to_delete = ["/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/" + dir for dir in ("_trial_temp", ".hypothesis")] %}
+    {{ wrappers(job_values, directories_to_delete) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}
@@ -440,7 +440,7 @@ branches.each {
     }
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
+    {{ wrappers(job_values, []) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
@@ -462,8 +462,8 @@ branches.each {
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
 
-{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
-    {{ wrappers(job_values, directory_to_delete) }}
+{% set directories_to_delete = ["/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" ] %}
+    {{ wrappers(job_values, directories_to_delete) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}
@@ -484,8 +484,8 @@ branches.each {
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
 
-{% set directory_to_delete = "/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo" %}
-    {{ wrappers(job_values, directory_to_delete) }}
+{% set directories_to_delete = ["/tmp/workspace/${dashProject}/${dashBranchName}/" + _job_name + "/repo"] %}
+    {{ wrappers(job_values, directories_to_delete) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
     {{ publishers(job_values) }}
@@ -499,7 +499,7 @@ branches.each {
   job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
+    {{ wrappers(job_values, []) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
@@ -511,7 +511,7 @@ branches.each {
   job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
 {# limit execution to jenkins slaves with a particular label                 #}
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
+    {{ wrappers(job_values, []) }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
   }
@@ -756,7 +756,7 @@ branches.each {
         textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
     }
     label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, 'none') }}
+    {{ wrappers(job_values, []) }}
     {{ triggers('cron', job_values.at, "${branchName}") }}
     {{ scm("${git_url}", "${branchName}") }}
     {{ steps(job_values.with_steps) }}
