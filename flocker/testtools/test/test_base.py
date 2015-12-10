@@ -8,6 +8,7 @@ import shutil
 import string
 import unittest
 
+from eliot import MessageType, fields
 from hypothesis import assume, given
 from hypothesis.strategies import integers, lists, text
 from testtools import PlaceHolder, TestCase, TestResult
@@ -23,6 +24,7 @@ from testtools.matchers import (
     Matcher,
     MatchesAny,
     MatchesDict,
+    MatchesRegex,
     LessThan,
     Not,
     PathExists,
@@ -135,9 +137,40 @@ class AsyncTestCaseTests(TestCase):
         self.assertThat(
             test.getDetails(),
             MatchesDict({
-                'twisted-log': AfterPreprocessing(
-                    lambda c: c.as_text(), Contains('foo')),
+                'twisted-log': match_text_content(MatchesRegex(
+                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\+\d{4} \[-\] foo$'
+                )),
             }))
+
+    def test_separate_eliot_log(self):
+        """
+        AsyncTestCases attach the eliot log as a detail separate from the
+        Twisted log.
+        """
+        message_type = MessageType(u'foo', fields(name=str), u'test message')
+
+        class SomeTest(AsyncTestCase):
+            def test_something(self):
+                from twisted.python import log
+                log.msg('foo')
+                message_type(name='qux').write()
+
+        test = SomeTest('test_something')
+        test.run()
+        self.assertThat(
+            test.getDetails(),
+            MatchesDict({
+                'twisted-log': match_text_content(MatchesRegex(
+                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\+\d{4} \[-\] foo$'
+                )),
+            }))
+
+
+def match_text_content(matcher):
+    """
+    Match the text of a ``Content`` instance.
+    """
+    return AfterPreprocessing(lambda content: content.as_text(), matcher)
 
 
 identifier_characters = string.ascii_letters + string.digits + '_'
