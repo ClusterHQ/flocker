@@ -21,7 +21,9 @@ If you want to get started with Flocker quickly, but in your own environment, yo
 Full Installation
 =================
 
-To get the full Flocker functionality, the following installation steps will take you through installing the Flocker client, the Flocker node services, and the Flocker plugin for Docker:
+To get the full Flocker functionality, the following installation steps will take you through installing the :ref:`Flocker client <installing-flocker-cli>`, the :ref:`Flocker node services <installing-flocker-node>`.
+
+If you want to install the :ref:`Flocker plugin for Docker <docker-plugin>`, this is included in the Flocker node services instructions:
 
 .. XXX this introduction could be improved with an image. See FLOC-2077
 
