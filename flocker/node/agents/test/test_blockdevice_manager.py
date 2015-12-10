@@ -34,7 +34,7 @@ class BlockDeviceManagerTests(AsyncTestCase):
         """
         Establish testing infrastructure for test cases.
         """
-        super(BlockDeviceManagerTests, self)
+        super(BlockDeviceManagerTests, self).setUp()
         self.loopback_api = loopbackblockdeviceapi_for_test(self)
         self.manager_under_test = BlockDeviceManager()
         self.mountroot = mountroot_for_test(self)
