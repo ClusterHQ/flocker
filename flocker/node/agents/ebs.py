@@ -1096,7 +1096,7 @@ class EBSBlockDeviceAPI(object):
         except ClientError as e:
             # Work around some internal race-condition in EBS by retrying,
             # since this error makes no sense:
-            if e.code == NOT_FOUND:
+            if e.response['Error']['Code'] == NOT_FOUND:
                 return self.list_volumes()
             else:
                 raise
