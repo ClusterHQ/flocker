@@ -2755,7 +2755,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
     def test_dataset_elsewhere(self):
         """
         If block device is attached elsewhere but is part of the configuration
-        for the deployer's node, no state changes are calculated.
+        for the deployer's node, ``calculate_changes`` does not
+        attempt to create a new dataset.
         """
         uuid = uuid4()
         dataset_id = uuid4()
@@ -3018,50 +3019,6 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(), in_parallel(changes=[]),
         )
-
-    def test_dataset_exists_on_other_node(self):
-        """
-        ``calculate_changes`` does not attempt to create a new dataset if it is
-        already manifest on another node.
-        """
-        # Remote node still has an attached dataset
-        remote_state = self.ONE_DATASET_STATE
-
-        # But the dataset has been moved.
-        empty_state = delete_manifestation(remote_state, self.MANIFESTATION)
-        remote_config = to_node(empty_state)
-
-        # Local state has no manifestations
-        local_node_id = uuid4()
-        local_node_address = u"192.0.2.2"
-        local_state = empty_state.set(
-            "uuid", local_node_id, "hostname", local_node_address
-        )
-
-        # But the dataset is configured here.
-        local_config = to_node(remote_state).set(
-            "uuid", local_node_id, "hostname", local_node_address
-        )
-
-        configuration = Deployment(
-            nodes={local_config, remote_config}
-        )
-        state = DeploymentState(
-            nodes={local_state, remote_state},
-        )
-
-        deployer = create_blockdevicedeployer(
-            self,
-            hostname=local_node_address,
-            node_uuid=local_node_id,
-        )
-        local_state = local_state_from_shared_state(
-            node_state=local_state,
-            nonmanifest_datasets={},
-        )
-        changes = deployer.calculate_changes(configuration, state, local_state)
-
-        self.assertEqual(in_parallel(changes=[]), changes)
 
 
 class BlockDeviceDeployerDetachCalculateChangesTests(
