@@ -27,10 +27,13 @@ def validate_method_name(interface, method_name):
     for name, method in interface.namesAndDescriptions():
         if name == method_name:
             if len(method.getSignatureInfo()['required']) > 0:
-                raise InvalidMethod('Require no-arg method')
+                raise InvalidMethod(
+                    'Method {!r} requires parameters'.format(method_name)
+                )
             return
     raise InvalidMethod(
-        'Method not found in interface {}'.format(interface.__name__)
+        'Method {!r} not found in interface {}'.format(
+            method_name, interface.__name__)
     )
 
 
