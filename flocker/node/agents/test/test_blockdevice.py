@@ -1132,11 +1132,10 @@ def compare_dataset_states(discovered_datasets, desired_datasets):
     for dataset_id in set(discovered_datasets) | set(desired_datasets):
         desired_dataset = desired_datasets.get(dataset_id)
         discovered_dataset = discovered_datasets.get(dataset_id)
-        result = compare_dataset_state(
+        if not compare_dataset_state(
             discovered_dataset=discovered_dataset,
             desired_dataset=desired_dataset,
-        )
-        if result is False:
+        ):
             return False
     return True
 
