@@ -1325,6 +1325,9 @@ class BlockDeviceDeployerLocalState(PClass):
 
 @provider(IDatasetStateChangeFactory)
 class DoNothing(PClass):
+    """
+    Build a no-op ``IStateChange`` from dataset state.
+    """
     @staticmethod
     def from_state_and_config(discovered_dataset, desired_dataset):
         return NoOp()
