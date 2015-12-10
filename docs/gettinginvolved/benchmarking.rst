@@ -86,6 +86,10 @@ An example file:
      - name: default
        type: no-load
 
+     - name: read-request-5
+       type: read-request-load
+       request_rate: 5
+
    operations:
      - name: default
        type: read-request
@@ -111,6 +115,11 @@ Scenario Types
 .. option:: no-load
 
    No additional load on system.
+
+.. option:: read-request-load
+
+   Create additional load on the system by performing read requests.
+   The rate of requests to perform per second must be provided as an additional ``request_rate`` property.
 
 Operation Types
 ~~~~~~~~~~~~~~~
