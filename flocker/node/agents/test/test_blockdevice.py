@@ -29,7 +29,7 @@ from pyrsistent import (
 from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
-    one_of, dictionaries
+    dictionaries
 )
 
 from twisted.internet import reactor
@@ -3153,7 +3153,6 @@ class BlockDeviceDeployerCalculateChangesTests(
         ``BlockDeviceDeployer.calculate_changes`` returns the changes
         calculated by calling the provided ``ICalculator``.
         """
-        # We're ignorant about application state:
         node_state = NodeState(
             hostname=ScenarioMixin.NODE,
             uuid=ScenarioMixin.NODE_UUID,
