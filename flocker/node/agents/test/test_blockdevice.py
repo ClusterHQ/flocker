@@ -147,7 +147,10 @@ DESIRED_DATASET_STRATEGY = builds(
             DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
             DatasetStates.DELETED]),
         'dataset_id': uuids(),
-        'maximum_size': integers(min_value=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE),
+        'maximum_size': integers(min_value=0).map(
+            lambda n:
+            LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+            + n*LOOPBACK_ALLOCATION_UNIT),
         'metadata': dictionaries(keys=text(), values=text()),
         'mount_point': builds(FilePath, sampled_from([
             '/flocker/abc', '/flocker/xyz',
