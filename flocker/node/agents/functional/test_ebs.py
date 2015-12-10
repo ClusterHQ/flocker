@@ -33,7 +33,8 @@ from .._logging import (
     CREATE_VOLUME_FAILURE
 )
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests
+    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
+    make_icloudapi_tests,
 )
 
 from ..test.blockdevicefactory import (
@@ -612,3 +613,14 @@ class VolumeStateTransitionTests(TestCase):
         volume = self._process_volume(self.V.DETACH, self.S.DESTINATION_STATE,
                                       self.A.DETACH_SUCCESS)
         self.assertEqual(volume.status, u'available')
+
+
+class EBSCloudInterfaceTests(
+        make_icloudapi_tests(
+            blockdevice_api_factory=(
+                lambda test_case: ebsblockdeviceapi_for_test(
+                    test_case=test_case)))):
+
+    """
+    ``ICloudAPI`` adherence tests for ``EBSBlockDeviceAPI``.
+    """

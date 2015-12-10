@@ -74,6 +74,9 @@ from ..blockdevice import (
     FilesystemExists,
     UnknownInstanceID,
     get_blockdevice_volume,
+
+    ICloudAPI,
+    _SyncToThreadedAsyncCloudAPIAdapter,
 )
 
 from ..loopback import (
@@ -4749,9 +4752,6 @@ class ProcessLifetimeCacheTests(SynchronousTestCase):
 
 def make_icloudapi_tests(
         blockdevice_api_factory,
-        minimum_allocatable_size,
-        device_allocation_unit,
-        unknown_blockdevice_id_factory
 ):
     """
     :param blockdevice_api_factory: A factory which will be called
@@ -4764,15 +4764,23 @@ def make_icloudapi_tests(
     """
     class Tests(SynchronousTestCase):
         def setUp(self):
-            # ... XXX ...
             self.api = blockdevice_api_factory(test_case=self)
-            self.unknown_blockdevice_id = unknown_blockdevice_id_factory(self)
-            check_allocatable_size(
-                self.api.allocation_unit(),
-                minimum_allocatable_size
-            )
-            self.minimum_allocatable_size = minimum_allocatable_size
-            self.device_allocation_unit = device_allocation_unit
             self.this_node = self.api.compute_instance_id()
+            self.async_cloud_api = _SyncToThreadedAsyncCloudAPIAdapter(
+                self.api)
 
+        def test_interface(self):
+            """
+            The result of the factory provides ``ICloudAPI``.
+            """
+            self.assertTrue(verifyObject(ICloudAPI, self.api))
+
+        def test_current_machine_is_live(self):
+            """
+            The machine running the test is reported as alive.
+            """
+            d = self.async_cloud_api.list_live_nodes()
+            d.addCallback(lambda live:
+                          self.assertIn(self.api.compute_instance_id(), live))
+            return d
     return Tests
