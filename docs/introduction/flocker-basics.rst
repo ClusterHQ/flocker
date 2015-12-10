@@ -3,7 +3,7 @@ Flocker Basics
 ==============
 
 Flocker works by exposing a simple :ref:`REST API<api>` on its Control Service.
-The Flocker Control Service communicates with Flocker Agents running on each node in the cluster to carry out commands.
+The :ref:`control-service` communicates with Flocker Agents running on each node in the cluster to carry out commands.
 
 To interact with the Flocker API you can use the :ref:`Flocker CLI<cli>`, or access it directly in popular programming languages like Go, Python and Ruby.
 
