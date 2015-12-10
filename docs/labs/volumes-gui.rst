@@ -42,7 +42,7 @@ Run this command from the directory where you created your cluster configuration
 
 .. warning::
 
-    You must substitute ``your.control.service`` with the name (or IP address, depending on how you configured it) of your control service and ``certuser`` with the name of an API client you generated a key and certificate for (where you have those files in your current working directory).
+    You must substitute ``your.control.service`` with the name (or IP address, depending on how you configured it) of your Flocker control service and ``certuser`` with the name of an API client you generated a key and certificate for (where you have those files in your current working directory).
     Refer to the instructions in the :ref:`experimental installer <labs-installer>`.
 
 Step 2 - Load Up the Experimental Flocker GUI
