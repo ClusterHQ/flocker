@@ -179,26 +179,7 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
     #
-    if is_osx; then
-      # OSX doesn't allow us to sudo (no tty)
-      # we can't be certain that cloudbees will always gives us a new OSX slave
-      # so we make sure we remove any old files
-      rm -f results.xml
-      rm -f trial.log
-      rm -rf _trial_temp/
-      rm -rf \${venv}
-      rm -f "Flocker*.rb"
-      rm -f "dist/Flocker-*.tar.gz"
-    fi
-    if is_centos || is_ubuntu; then
-      # some of our tests (which run as root), leave some files behind when
-      # they abort or fail to complete.
-      # We use 'sudo' so that we can remove those files before a next job run.
-      sudo rm -rf \${venv}
-      sudo rm -f results.xml
-      sudo rm -f trial.log
-      sudo rm -rf _trial_temp/
-    fi
+    rm -rf \${venv}
 
   setup_venv: &setup_venv |
     # setup the new venv
@@ -742,7 +723,6 @@ run_trial_modules: &run_trial_modules
   - flocker.restapi
   - flocker.docs
   - flocker.dockerplugin
-  - flocker.node.agents
   - flocker.node.test
   - flocker.node.functional.test_docker.GenericDockerClientTests
   - flocker.node.functional.test_docker.IDockerClientNamespacedTests
@@ -754,9 +734,13 @@ run_trial_modules: &run_trial_modules
   - flocker.route
   - flocker.test
   - flocker.testtools
+run_trial_as_root_modules: &run_trial_as_root_modules
   # flocker.volume needs to run as root due to ZFS calls
   # so we run it as part of the run_trial_on_<Cloud>_<OS>_as_root jobs
-  # - flocker.volume
+  - flocker.volume
+  # flocker.node.agent needs to run as root due to mounting filesystems
+  - flocker.node.agents
+
 
 # run_trial_cli contains a list of all the CLI yaml anchors we want to
 # execute as part of our run_trial_tasks
@@ -816,8 +800,7 @@ job_type:
 
     run_trial_on_AWS_CentOS_7_as_root:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
-      with_modules:
-        - flocker.volume
+      with_modules: *run_trial_as_root_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
@@ -841,8 +824,7 @@ job_type:
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
-      with_modules:
-        - flocker.volume
+      with_modules: *run_trial_as_root_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
