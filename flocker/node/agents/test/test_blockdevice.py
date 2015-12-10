@@ -1117,7 +1117,9 @@ def compare_dataset_state(discovered_dataset, desired_dataset):
     elif discovered_dataset.state == DatasetStates.DELETED:
         return True
     else:
-        raise ValueError("Not possible")
+        raise ValueError("Impossible dataset states: {} {}".format(
+            discovered_dataset, desired_dataset,
+        ))
 
 
 def compare_dataset_states(discovered_datasets, desired_datasets):

@@ -1449,7 +1449,7 @@ class BlockDeviceDeployer(PClass):
     poll_interval = timedelta(seconds=60.0)
     block_device_manager = field(initial=BlockDeviceManager())
     calculator = field(
-        # XXX We should abstact this invariant out.
+        # XXX We should abstract this invariant out.
         invariant=lambda i: (ICalculator.providedBy(i),
                              "Must provide ICalculator"),
         mandatory=True,
