@@ -121,12 +121,16 @@ Operation Types
 
 .. option:: read-request
 
-   Read the current cluster state from the control service.
+   Perform a read operation on the control service.
+
+   Specify the operation to be performed using an additional ``method`` property.
+   The value must be the name of a zero-parameter method in the ``flocker.apiclient.IFlockerAPIV1Client`` interface, and defaults to ``version``.
 
 .. option:: wait
 
    Wait for a number of seconds between measurements.
-   The number of seconds to wait must be provided as an additional ``wait_seconds`` property.
+   Specify the number of seconds to wait using an additional ``wait_seconds`` property.
+   The default is 10 seconds.
 
 Metric Types
 ~~~~~~~~~~~~
@@ -134,6 +138,8 @@ Metric Types
 .. option:: cputime
 
    CPU time elapsed.
+   Specify the process names to be monitored using an additional ``processes`` property.
+   The value must be a list of process name strings, and defaults to the names of the Flocker services.
 
 .. option:: wallclock
 
