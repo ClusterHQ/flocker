@@ -48,7 +48,7 @@ from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployerLocalState, BlockDeviceDeployer,
-    BlockDeviceCalculater,
+    BlockDeviceCalculator,
 
     IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -57,7 +57,7 @@ from ..blockdevice import (
     CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
 
     DATASET_TRANSITIONS, IDatasetStateChangeFactory,
-    ICalculater,
+    ICalculator,
 
     DiscoveredDataset, DesiredDataset, DatasetStates,
 
@@ -1043,24 +1043,24 @@ class UnusableAPI(object):
     """
 
 
-def make_icalculater_tests(calculater_factory):
+def make_icalculator_tests(calculator_factory):
     """
-    Make a test case to test an ``ICalculater`` implementation.
+    Make a test case to test an ``ICalculator`` implementation.
 
-    :param calculater_factory: Factory to make an ``ICalculater`` provider.
-    :type calculater_factory: No argument ``callable``.
+    :param calculator_factory: Factory to make an ``ICalculator`` provider.
+    :type calculator_factory: No argument ``callable``.
 
     :return: A ``TestCase`` subclass.
     """
-    class ICalculaterTests(SynchronousTestCase):
+    class ICalculatorTests(SynchronousTestCase):
         """
-        Tests of an ``ICalculater`` implementation.
+        Tests of an ``ICalculator`` implementation.
         """
         def test_interface(self):
             """
-            The ``ICalculater`` implemention actually implements the interface.
+            The ``ICalculator`` implemention actually implements the interface.
             """
-            verifyObject(ICalculater, calculater_factory())
+            verifyObject(ICalculator, calculator_factory())
 
         @given(
             discovered_datasets=builds(
@@ -1074,23 +1074,23 @@ def make_icalculater_tests(calculater_factory):
         )
         def test_returns_changes(self, discovered_datasets, desired_datasets):
             """
-            ``ICalculater.calculate_changes_for_datasets`` returns a
+            ``ICalculator.calculate_changes_for_datasets`` returns a
             ``IStateChange``.
             """
-            calculater = calculater_factory()
-            changes = calculater.calculate_changes_for_datasets(
+            calculator = calculator_factory()
+            changes = calculator.calculate_changes_for_datasets(
                 discovered_datasets=discovered_datasets,
                 desired_datasets=desired_datasets)
             self.assertTrue(IStateChange.providedBy(changes))
 
-    return ICalculaterTests
+    return ICalculatorTests
 
 
-class BlockDeviceCalculaterInterfaceTests(
-    make_icalculater_tests(BlockDeviceCalculater)
+class BlockDeviceCalculatorInterfaceTests(
+    make_icalculator_tests(BlockDeviceCalculator)
 ):
     """
-    Tests for ``BlockDeviceCalculater``'s implementation of ``ICalculater``.
+    Tests for ``BlockDeviceCalculator``'s implementation of ``ICalculator``.
     """
 
 
@@ -1143,14 +1143,14 @@ def compare_dataset_states(discovered_datasets, desired_datasets):
 
 class DidNotConverge(Exception):
     """
-    Raised if running convergence with an ``ICalculater`` does not converge
+    Raised if running convergence with an ``ICalculator`` does not converge
     in the specified number of iterations.
     """
 
 
-class BlockDeviceCalculaterTests(SynchronousTestCase):
+class BlockDeviceCalculatorTests(SynchronousTestCase):
     """
-    Tests for ``BlockDeviceCalculater``.
+    Tests for ``BlockDeviceCalculator``.
     """
     def setUp(self):
         self.deployer = create_blockdevicedeployer(self)
@@ -1174,13 +1174,13 @@ class BlockDeviceCalculaterTests(SynchronousTestCase):
 
     def run_convergence_step(self, desired_datasets):
         """
-        Run one step of the calculater.
+        Run one step of the calculator.
 
         :param desired_datasets: The dataset state to converge to.
         :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
         """
         local_datasets = self.current_datasets()
-        changes = self.deployer.calculater.calculate_changes_for_datasets(
+        changes = self.deployer.calculator.calculate_changes_for_datasets(
             discovered_datasets=local_datasets,
             desired_datasets=desired_datasets,
         )
@@ -1189,7 +1189,7 @@ class BlockDeviceCalculaterTests(SynchronousTestCase):
 
     def run_to_convergence(self, desired_datasets, max_iterations=4):
         """
-        Run the calculater until it converges on the desired state.
+        Run the calculator until it converges on the desired state.
 
         :param desired_datasets: The dataset state to converge to.
         :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
@@ -1215,7 +1215,7 @@ class BlockDeviceCalculaterTests(SynchronousTestCase):
     )
     def test_simple_transitions(self, initial_dataset, next_state):
         """
-        Given an initial empty state, ``BlockDeviceCalculater`` will converge
+        Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
         dataset.
         """

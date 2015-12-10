@@ -147,7 +147,7 @@ class IDatasetStateChangeFactory(Interface):
         """
 
 
-class ICalculater(Interface):
+class ICalculator(Interface):
     """
     An object that can calculate the changes required to bring dataset state
     and desired dataset configuration into alignment.
@@ -1369,10 +1369,10 @@ DATASET_TRANSITIONS = {
 del Desired, Discovered
 
 
-@implementer(ICalculater)
-class BlockDeviceCalculater(PClass):
+@implementer(ICalculator)
+class BlockDeviceCalculator(PClass):
     """
-    An ``ICalculater`` that calculates actions that use a
+    An ``ICalculator`` that calculates actions that use a
     ``BlockDeviceDeployer``.
     """
     def _calculate_dataset_change(self, discovered_dataset, desired_dataset):
@@ -1448,12 +1448,12 @@ class BlockDeviceDeployer(PClass):
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     poll_interval = timedelta(seconds=60.0)
     block_device_manager = field(initial=BlockDeviceManager())
-    calculater = field(
+    calculator = field(
         # XXX We should abstact this invariant out.
-        invariant=lambda i: (ICalculater.providedBy(i),
-                             "Must provide ICalculater"),
+        invariant=lambda i: (ICalculator.providedBy(i),
+                             "Must provide ICalculator"),
         mandatory=True,
-        initial=BlockDeviceCalculater())
+        initial=BlockDeviceCalculator())
 
     @property
     def profiled_blockdevice_api(self):
