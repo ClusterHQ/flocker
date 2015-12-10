@@ -1276,8 +1276,6 @@ class BlockDeviceDeployerLocalState(PClass):
     hostname = field(type=unicode, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
     datasets = pmap_field(UUID, DiscoveredDataset)
-    # XXX This should go away in FLOC-3386
-    volumes = pvector_field(BlockDeviceVolume)
 
     def shared_state_changes(self):
         """
@@ -1619,8 +1617,6 @@ class BlockDeviceDeployer(PClass):
             node_uuid=self.node_uuid,
             hostname=self.hostname,
             datasets=datasets,
-            # XXX This should go away in FLOC-3386
-            volumes=raw_state.volumes,
         )
 
         return succeed(local_state)

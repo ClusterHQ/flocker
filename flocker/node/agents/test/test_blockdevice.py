@@ -595,7 +595,6 @@ def assert_discovered_state(
     case,
     deployer,
     expected_discovered_datasets,
-    expected_volumes,
 ):
     """
     Assert that datasets on the state object returned by
@@ -626,7 +625,6 @@ def assert_discovered_state(
             hostname=deployer.hostname,
             node_uuid=deployer.node_uuid,
             datasets=dataset_map_from_iterable(expected_discovered_datasets),
-            volumes=expected_volumes,
         )
     )
 
@@ -738,7 +736,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         empty ``manifestations`` if the ``api`` reports no locally attached
         volumes.
         """
-        assert_discovered_state(self, self.deployer, [], [])
+        assert_discovered_state(self, self.deployer, [])
 
     def test_unattached_volume(self):
         volume = self.api.create_volume(
@@ -755,7 +753,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                 ),
             ],
-            expected_volumes=[volume],
         )
 
     def test_attached_unmounted_device(self):
@@ -768,7 +765,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset_id=uuid4(),
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        attached_volume = self.api.attach_volume(
+        self.api.attach_volume(
             volume.blockdevice_id,
             attach_to=self.this_node,
         )
@@ -785,7 +782,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     device_path=device_path,
                 ),
             ],
-            expected_volumes=[attached_volume],
         )
 
     def test_one_device(self):
@@ -799,7 +795,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        attached_volume = self.api.attach_volume(
+        self.api.attach_volume(
             volume.blockdevice_id,
             attach_to=self.this_node,
         )
@@ -821,7 +817,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     mount_point=mount_point,
                 ),
             ],
-            expected_volumes=[attached_volume],
         )
 
     def test_attached_and_mismounted(self):
@@ -838,7 +833,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
-        attached_volume = self.api.attach_volume(
+        self.api.attach_volume(
             volume.blockdevice_id,
             attach_to=self.this_node,
         )
@@ -865,7 +860,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     device_path=device_path,
                 ),
             ],
-            expected_volumes=[attached_volume],
         )
 
     def _incorrect_device_path_test(self, bad_value):
@@ -879,7 +873,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         volume = self.api.create_volume(
             dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        attached_volume = self.api.attach_volume(
+        self.api.attach_volume(
             volume.blockdevice_id, self.api.compute_instance_id(),
         )
 
@@ -898,7 +892,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                 ),
             ],
-            expected_volumes=[attached_volume]
         )
 
     @capture_logging(
@@ -942,7 +935,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
-        attached_volume = self.api.attach_volume(
+        self.api.attach_volume(
             volume.blockdevice_id,
             # This is a hack.  We don't know any other IDs, though.
             # https://clusterhq.atlassian.net/browse/FLOC-1839
@@ -958,7 +951,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                 ),
             ],
-            expected_volumes=[attached_volume],
         )
 
     def test_unrelated_mounted(self):
@@ -979,7 +971,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         )
         mountpoint = self.deployer.mountroot.child(bytes(volume.dataset_id))
         mountpoint.makedirs()
-        attached_volume = self.api.attach_volume(
+        self.api.attach_volume(
             volume.blockdevice_id,
             attach_to=self.this_node,
         )
@@ -1002,7 +994,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     device_path=device_path,
                 ),
             ],
-            expected_volumes=[attached_volume],
         )
 
     def test_attached_no_filesystem(self):
@@ -1014,7 +1005,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset_id=uuid4(),
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
-        attached_volume = self.api.attach_volume(
+        self.api.attach_volume(
             volume.blockdevice_id,
             attach_to=self.this_node,
         )
@@ -1030,7 +1021,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     device_path=device_path,
                 ),
             ],
-            expected_volumes=[attached_volume],
         )
 
 
@@ -1784,25 +1774,16 @@ def assert_calculated_changes(
     cluster_state = compute_cluster_state(node_state, additional_node_states,
                                           nonmanifest_datasets)
 
-    compute_instance_id = u"instance-".format(node_state.uuid)
-    volumes = _infer_volumes_for_test(
-        node_state=node_state,
-        nonmanifest_datasets=cluster_state.nonmanifest_datasets,
-        additional_node_states=additional_node_states,
-        compute_instance_id=compute_instance_id,
-    )
     if discovered_datasets is None:
         local_state = local_state_from_shared_state(
             node_state=node_state,
             nonmanifest_datasets=cluster_state.nonmanifest_datasets,
-            volumes=volumes,
         )
     else:
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=node_state.uuid,
             hostname=node_state.hostname,
             datasets=dataset_map_from_iterable(discovered_datasets),
-            volumes=volumes,
         )
         case.assertEqual(
             local_state.shared_state_changes(),
@@ -1904,72 +1885,10 @@ def create_test_blockdevice_volume_for_dataset_id(dataset_id,
         dataset_id=UUID(dataset_id))
 
 
-def _infer_volumes_for_test(
-    node_state,
-    nonmanifest_datasets,
-    compute_instance_id,
-    additional_node_states=frozenset(),
-):
-    """
-    Infer the current ``BlockDeviceVolume`` instances in the cluster. This is
-    for use by tests that create cluster_state by hand instead of using the API
-    to actually construct the cluster.  The ``BlockDeviceVolume`` instances
-    constructed with this function do not have blockdevice_ids that can be
-    used with the ``IBlockDeviceAPI``. Note that this function is brittle and
-    can easily become out of date with the ``discover_state`` implementation of
-    ``BlockDeviceDeployer``.  The tests that create a cluster_state by hand
-    would probably be better off actually using the API to construct a state
-    so that this brittle function can be removed.
-
-    If you are using the ``IBlockDeviceAPI`` to set up the cluster_state, just
-    use api.list_volumes() instead of calling this function.
-
-    :param NodeState node_state: The state of the local node.
-    :param nonmanifest_datasets: The state of non-manifest datasets.
-    :type nonmanifest_datasets: Mapping of ``UUID`` to ``Dataset``
-    :param additional_node_states: States of other nodes.
-    :type additional_node_states: ``set`` of ``NodeState``
-
-    :param unicode compute_instance_id: The value for the attached_to field of
-        the ``BlockDeviceVolume`` instances that are created for manifestions
-        on the local node.
-
-    :returns: A list of ``BlockDeviceVolume`` instances for all the volumes in
-        cluster_state that is only suitable for use in tests that do not use
-        the ``IBlockDeviceAPI`` to set up the cluster_state.
-    """
-    local_volumes = [
-        create_test_blockdevice_volume_for_dataset_id(
-            dataset_id, attached_to=compute_instance_id)
-        for dataset_id in (node_state.manifestations or {})]
-
-    unattached_volumes = [
-        create_test_blockdevice_volume_for_dataset_id(dataset_id)
-        for dataset_id in (nonmanifest_datasets or {})]
-
-    volumes = local_volumes + unattached_volumes
-
-    for remote_node_state in additional_node_states:
-        # Construct a fake instance id for the attached_to field of the
-        # ``BlockDeviceVolume`` instances that are connected to remote nodes.
-        # This is an opaque identifier, and just needs to be different than
-        # compute_instance_id for the sake of testing this node.
-        fake_instance_id = u"remote_node_{}".format(
-            unicode(remote_node_state.uuid))
-        remote_volumes = [
-            create_test_blockdevice_volume_for_dataset_id(
-                dataset_id, attached_to=fake_instance_id)
-            for dataset_id in (remote_node_state.manifestations or {})]
-
-        volumes.extend(remote_volumes)
-    return volumes
-
-
 @implementer(ILocalState)
 def local_state_from_shared_state(
     node_state,
     nonmanifest_datasets,
-    volumes,
 ):
     """
     Convert the state as reported by
@@ -2017,7 +1936,6 @@ def local_state_from_shared_state(
         hostname=node_state.hostname,
         node_uuid=node_state.uuid,
         datasets=datasets,
-        volumes=volumes,
     )
 
 
@@ -2033,18 +1951,6 @@ class LocalStateFromSharedStateTests(SynchronousTestCase):
             datasets=lists(
                 DISCOVERED_DATASET_STRATEGY,
             ).map(dataset_map_from_iterable),
-            volumes=lists(
-                builds(
-                    BlockDeviceVolume,
-                    blockdevice_id=text(),
-                    size=integers(min_value=0),
-                    attached_to=one_of(
-                        just(None),
-                        text(),
-                    ),
-                    dataset_id=uuids(),
-                )
-            )
         )
     )
     def test_round_trip(self, local_state):
@@ -2058,7 +1964,6 @@ class LocalStateFromSharedStateTests(SynchronousTestCase):
         fake_local_state = local_state_from_shared_state(
             node_state=node_state,
             nonmanifest_datasets=nonmanifest_datasets.datasets,
-            volumes=local_state.volumes,
         )
         self.assertEqual(local_state.shared_state_changes(),
                          fake_local_state.shared_state_changes())
@@ -2270,7 +2175,6 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         local_state = local_state_from_shared_state(
             node_state=node_state,
             nonmanifest_datasets={},
-            volumes=api.list_volumes(),
         )
         changes = deployer.calculate_changes(
             cluster_configuration, cluster_state, local_state)
@@ -2473,15 +2377,9 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             nonmanifest_datasets=nonmanifest_datasets,
         )
 
-        api = deployer.block_device_api
         local_state = local_state_from_shared_state(
             node_state=node_state,
             nonmanifest_datasets=cluster_state.nonmanifest_datasets,
-            volumes=_infer_volumes_for_test(
-                node_state=node_state,
-                nonmanifest_datasets=nonmanifest_datasets,
-                compute_instance_id=api.compute_instance_id(),
-            )
         )
         changes = deployer.calculate_changes(
             cluster_config, cluster_state, local_state)
@@ -2537,7 +2435,7 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         local_state = local_state_from_shared_state(
             node_state=node_state,
             nonmanifest_datasets=cluster_state.nonmanifest_datasets,
-            volumes=[])  # Out of date info, lacking an expected volume
+        )  # XXX Out of date info, lacking an expected volume
         changes = deployer.calculate_changes(
             cluster_config, cluster_state, local_state)
         self.assertNotEqual(
@@ -2803,15 +2701,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=node_uuid
         )
-        api = deployer.block_device_api
         local_state = local_state_from_shared_state(
             node_state=state.get_node(node_uuid, hostname=node),
             nonmanifest_datasets={},
-            volumes=_infer_volumes_for_test(
-                node_state=state.get_node(node_uuid, hostname=node),
-                nonmanifest_datasets={},
-                compute_instance_id=api.compute_instance_id(),
-            )
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(in_parallel(changes=[]), changes)
@@ -2845,15 +2737,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
-        api = deployer.block_device_api
         local_state = local_state_from_shared_state(
             node_state=state.get_node(uuid),
             nonmanifest_datasets={},
-            volumes=_infer_volumes_for_test(
-                node_state=state.get_node(uuid),
-                nonmanifest_datasets={},
-                compute_instance_id=api.compute_instance_id(),
-            )
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(
@@ -2899,12 +2785,6 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         local_state = local_state_from_shared_state(
             node_state=node_state,
             nonmanifest_datasets={},
-            volumes=[
-                create_test_blockdevice_volume_for_dataset_id(
-                    dataset_id=dataset_id,
-                    attached_to=u"remote_node",
-                ),
-            ],
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(
@@ -2935,16 +2815,10 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, node_uuid=local_uuid, hostname=local_hostname,
         )
-        api = deployer.block_device_api
 
         local_state = local_state_from_shared_state(
             node_state=local_state,
             nonmanifest_datasets={},
-            volumes=_infer_volumes_for_test(
-                node_state=local_state,
-                nonmanifest_datasets={},
-                compute_instance_id=api.compute_instance_id(),
-            ),
         )
         return deployer.calculate_changes(
             desired_configuration, current_cluster_state, local_state)
@@ -3097,15 +2971,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             hostname=node_address,
             node_uuid=node_id,
         )
-        api = deployer.block_device_api
         local_state = local_state_from_shared_state(
             node_state=node_state,
             nonmanifest_datasets={},
-            volumes=_infer_volumes_for_test(
-                node_state=node_state,
-                nonmanifest_datasets={},
-                compute_instance_id=api.compute_instance_id,
-            ),
         )
         changes = deployer.calculate_changes(
             configuration, state, local_state)
@@ -3178,16 +3046,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             hostname=local_node_address,
             node_uuid=local_node_id,
         )
-        api = deployer.block_device_api
         local_state = local_state_from_shared_state(
             node_state=local_state,
             nonmanifest_datasets={},
-            volumes=_infer_volumes_for_test(
-                node_state=local_state,
-                nonmanifest_datasets={},
-                additional_node_states={remote_state},
-                compute_instance_id=api.compute_instance_id(),
-            ),
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
 
@@ -3319,7 +3180,6 @@ class BlockDeviceDeployerCalculateChangesTests(
             node_uuid=ScenarioMixin.NODE_UUID,
             hostname=ScenarioMixin.NODE,
             datasets={},
-            volumes={},
         )
 
     def test_calculates_changes(self):
