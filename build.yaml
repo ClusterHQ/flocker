@@ -806,15 +806,9 @@ run_trial_cli_as_root: &run_trial_cli_as_root [
 # run_acceptance_modules contains the list of Flocker modules to be executed
 # during the acceptance tests
 run_acceptance_modules: &run_acceptance_modules
-  - flocker.acceptance.endtoend.test_dataset
-  - flocker.acceptance.endtoend.test_diagnostics
-  - flocker.acceptance.endtoend.test_dockerplugin
-  - flocker.acceptance.endtoend.test_leases
-  - flocker.acceptance.integration.test_mongodb
-  - flocker.acceptance.integration.test_platform
-  - flocker.acceptance.integration.test_postgres
-  - flocker.acceptance.obsolete.test_cli
-  - flocker.acceptance.obsolete.test_containers
+  - flocker.acceptance.endtoend
+  - flocker.acceptance.integration
+  - flocker.acceptance.obsolete
 
 # When we have acceptance tests that run quickly enough (as they do on loopback)
 # we just run them all in one builder:
