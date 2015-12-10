@@ -184,7 +184,7 @@ listView("${dashProject}/${dashBranchName}/{{name}}") {
 {% if v.clean_repo %}
       preScmSteps {
           steps {
-          shell("sudo rm -rf {{ directories_to_delete | map('quote') | join(' ') }}")
+          shell("sudo rm -rf {{ directories_to_delete | join(' ') }}")
           }
       }
 {% endif %}
