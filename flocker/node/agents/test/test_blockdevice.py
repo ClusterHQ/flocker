@@ -26,7 +26,7 @@ from pyrsistent import (
     PClass, field, discard, pmap, pvector,
 )
 
-from hypothesis import given, note
+from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
     one_of, dictionaries
@@ -56,6 +56,7 @@ from ..blockdevice import (
     UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
 
+    DATASET_TRANSITIONS, IDatasetStateChangeFactory,
     ICalculater,
 
     DiscoveredDataset, DesiredDataset, DatasetStates,
@@ -1235,6 +1236,27 @@ class BlockDeviceCalculaterTests(SynchronousTestCase):
             self.run_to_convergence([initial_dataset.set(state=next_state)])
         except DidNotConverge:
             self.fail("Did not converge to next state after 10 iterations")
+
+    @given(
+        desired_state=sampled_from([
+            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
+            DatasetStates.DELETED,
+        ]),
+        discovered_state=sampled_from(
+            DiscoveredDataset.__invariant__.attributes_for_tag.keys()
+            + [DatasetStates.NON_EXISTENT]
+        )
+    )
+    def test_all_transitions(self, desired_state, discovered_state):
+        """
+        Transitions are defined from all possible desired states towards
+        all possible discovered states.
+        """
+        assume(desired_state != discovered_state)
+        verifyObject(
+            IDatasetStateChangeFactory,
+            DATASET_TRANSITIONS[desired_state][discovered_state],
+        )
 
 
 def assert_calculated_changes(

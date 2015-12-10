@@ -739,6 +739,7 @@ class DetachVolume(PClass):
 
 
 @implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
 class DestroyVolume(PClass):
     """
     Destroy the storage (and therefore contents) of a volume.
@@ -1322,46 +1323,47 @@ class BlockDeviceDeployerLocalState(PClass):
         )
 
 
+@provider(IDatasetStateChangeFactory)
+class DoNothing(PClass):
+    @staticmethod
+    def from_state_and_config(discovered_dataset, desired_dataset):
+        return NoOp()
+
 # Mapping from desired and discovered dataset state to
 # IStateChange factory. (The factory is expected to take
 # ``desired_dataset`` and ``discovered_dataset``.
 Desired = Discovered = DatasetStates
-DO_NOTHING = lambda **kwargs: NoOp()
 DATASET_TRANSITIONS = {
     Desired.MOUNTED: {
-        Discovered.NON_EXISTENT:
-            CreateBlockDeviceDataset.from_state_and_config,
+        Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
         # Other node will need to deatch first
-        Discovered.ATTACHED_ELSEWHERE: DO_NOTHING,
-        Discovered.ATTACHED_NO_FILESYSTEM:
-            CreateFilesystem.from_state_and_config,
-        Discovered.NON_MANIFEST: AttachVolume.from_state_and_config,
-        DatasetStates.ATTACHED: MountBlockDevice.from_state_and_config,
+        Discovered.ATTACHED_ELSEWHERE: DoNothing,
+        Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
+        Discovered.NON_MANIFEST: AttachVolume,
+        DatasetStates.ATTACHED: MountBlockDevice,
     },
     Desired.NON_MANIFEST: {
         # Can't create non-manifest datasets yet.
         # XXX
-        Discovered.NON_EXISTENT:
-            CreateBlockDeviceDataset.from_state_and_config,
+        Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
         # Other node will deatch
-        Discovered.ATTACHED_ELSEWHERE: DO_NOTHING,
-        Discovered.ATTACHED_NO_FILESYSTEM:
-            DetachVolume.from_state_and_config,
-        Discovered.ATTACHED: DetachVolume.from_state_and_config,
-        Discovered.MOUNTED: UnmountBlockDevice.from_state_and_config,
+        Discovered.ATTACHED_ELSEWHERE: DoNothing,
+        Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
+        Discovered.ATTACHED: DetachVolume,
+        Discovered.MOUNTED: UnmountBlockDevice,
     },
     Desired.DELETED: {
-        Discovered.NON_EXISTENT: DO_NOTHING,
+        Discovered.NON_EXISTENT: DoNothing,
         # Other node will destroy
-        Discovered.ATTACHED_ELSEWHERE: DO_NOTHING,
+        Discovered.ATTACHED_ELSEWHERE: DoNothing,
         # Can't pick node that will do destruction yet.
-        Discovered.NON_MANIFEST: DestroyVolume.from_state_and_config,
-        Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume.from_state_and_config,
-        Discovered.ATTACHED: DetachVolume.from_state_and_config,
-        Discovered.MOUNTED: UnmountBlockDevice.from_state_and_config,
+        Discovered.NON_MANIFEST: DestroyVolume,
+        Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
+        Discovered.ATTACHED: DetachVolume,
+        Discovered.MOUNTED: UnmountBlockDevice,
     },
 }
-del Desired, Discovered, DO_NOTHING
+del Desired, Discovered
 
 
 @implementer(ICalculater)
@@ -1391,7 +1393,8 @@ class BlockDeviceCalculater(PClass):
                             if discovered_dataset is not None
                             else DatasetStates.NON_EXISTENT)
         if desired_state != discovered_state:
-            return DATASET_TRANSITIONS[desired_state][discovered_state](
+            transition = DATASET_TRANSITIONS[desired_state][discovered_state]
+            return transition.from_state_and_config(
                 discovered_dataset=discovered_dataset,
                 desired_dataset=desired_dataset,
             )
