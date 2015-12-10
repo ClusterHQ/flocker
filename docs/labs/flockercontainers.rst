@@ -19,7 +19,7 @@ You can find the relevant Docker Hub images here:
 Before you install Flocker in containers, all authentication must be completed.
 This means that you will have generated the cluster certificate and key, the  node certificates and keys, and the API certificates and keys.
 
-In the below example commands, certificates are assumed to live in ``/etc/flocker`` but other environments may choose to create containers that hold certificates and configuration and share amognt thte Flocker service containers. The latter is not documented.
+In the below example commands, certificates are assumed to live in ``/etc/flocker`` but other environments may choose to create containers that hold certificates and configuration and share amongst the Flocker service containers. The latter is not documented.
 
 For more information on generating certificates, please see  :ref:`authentication`. 
 
@@ -88,4 +88,5 @@ Conclusion
 ==========
 
 This should help those interested in running Flocker in environments where it is only suitable for containers to run services.
+
 Again, this is experimental so you may run into issues.
