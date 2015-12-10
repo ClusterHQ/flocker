@@ -1346,8 +1346,8 @@ DATASET_TRANSITIONS = {
         DatasetStates.ATTACHED: MountBlockDevice,
     },
     Desired.NON_MANIFEST: {
+        # XXX FLOC-2206
         # Can't create non-manifest datasets yet.
-        # XXX
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
         # Other node will deatch
         Discovered.ATTACHED_ELSEWHERE: DoNothing,
