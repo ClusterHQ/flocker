@@ -110,7 +110,6 @@ class ReadRequestLoadScenario(object):
         :return: A Deferred that fires when the desired scenario is
             established (e.g. that a certain load is being applied).
         """
-        print "Starting scenario with rate: {}".format(self.request_rate)
         self.load_generator = LoadGenerator(
             request_generator=self._request_and_measure,
             req_per_sec=self.request_rate,
@@ -121,7 +120,6 @@ class ReadRequestLoadScenario(object):
 
         def reached_target_rate():
             current_rate = self.rate_measurer.rate()
-            print "current rate", current_rate
             return current_rate >= self.request_rate
 
         def handle_timeout(failure):
