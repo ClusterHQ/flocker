@@ -69,10 +69,6 @@ class DatasetAPITests(AsyncTestCase):
             print 'in move dataset'
             print dataset
             print dataset.__class__
-            print cluster
-            print cluster.__class__
-            print cluster.client
-            print cluster.client.__class__
 
             dataset_moving = cluster.client.move_dataset(
                 UUID(cluster.nodes[1].uuid), dataset.dataset_id)
@@ -91,6 +87,10 @@ class DatasetAPITests(AsyncTestCase):
 
         waiting_for_create.addCallback(move_dataset)
         print 'waitin to create'
+        print cluster
+        print cluster.__class__
+        print cluster.client
+        print cluster.client.__class__
         return waiting_for_create
 
     @flaky(u'FLOC-3196')
