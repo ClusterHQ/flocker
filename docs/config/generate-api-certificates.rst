@@ -4,7 +4,7 @@
 Generating an API Client Certificate
 ====================================
 
-To send instructions to the Flocker control service, whether it is via the API directly, or the CLI, or by any other method, you will need to follow the instructions below to generate an API client certificate:
+To send instructions to the :ref:`Flocker control service <control-service>`, whether it is via the API directly, or the CLI, or by any other method, you will need to follow the instructions below to generate an API client certificate:
 
 #. Generate an API client certificate:
 

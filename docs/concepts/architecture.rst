@@ -14,8 +14,8 @@ The Flocker cluster is comprised of the following sets of services:
 
 .. _control-service:
 
-The Control Service
-===================
+Flocker Control Service
+=======================
 
 The control service is the brain of Flocker.
 It enables a user, or an automated orchestration framework, to monitor and modify the cluster state.
