@@ -677,7 +677,10 @@ class RunOptions(Options):
         ['flocker-version', None, None, 'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
-        ['number-of-nodes', None, 2, 'Number of nodes to launch.', int],
+        ['number-of-nodes', None,
+         int(os.environ.get("FLOCKER_ACCEPTANCE_NUM_NODES", 2)),
+         'Number of nodes to start; default is 2 unless you set the deprecated'
+         ' environment variable which was previous way to do this.', int],
     ]
 
     optFlags = [
@@ -718,6 +721,9 @@ class RunOptions(Options):
 
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
+        if "FLOCKER_ACCEPTANCE_NUM_NODES" in os.environ:
+            print("Please use --number-of-nodes command line option instead "
+                  "of FLOCKER_ACCEPTANCE_NUM_NODES environment variable.")
 
     def dataset_backend_configuration(self):
         """
