@@ -10,23 +10,23 @@ To send instructions to the control service, whether it is via the API directly,
 
    Run the following command from the directory which contains the certificate authority files generated when you first installed the cluster. For more information, see :ref:`authentication`.
 
-   Replace ``<username>`` with a unique username for an API client.
+   Replace ``<client_name>`` with a unique identifier for an API client.
 
    .. prompt:: bash $
 
-      flocker-ca create-api-certificate <username>
+      flocker-ca create-api-certificate <client_name>
 
-   You will now have the files :file:`<username>.crt` and :file:`<username>.key`.
+   You will now have the files :file:`<client_name>.crt` and :file:`<client_name>.key`.
 
 #. Provide the certificates to the API client, or end user:
 
    You can now copy the following files to the API client, or end user via a secure communication medium, such as SSH, SCP or SFTP:
    
-   * :file:`<username>.crt`
-   * :file:`<username>.key`
+   * :file:`<client_name>.crt`
+   * :file:`<client_name>.key`
    * :file:`cluster.crt`
 
-   .. note:: In this example ``<username>`` is a unique username for an API client.
+   .. note:: In this example ``<client_name>`` is a unique username for an API client.
 			 Please note though that ``flocker-deploy`` requires these files to be renamed :file:`user.crt` and :file:`user.key`.
 
 Using an API Certificate to Authenticate
@@ -49,7 +49,7 @@ OS X
 ----
 
 Make sure you know the common name of the client certificate you will use.
-If you just generated the certificate following the :ref:`instructions above <generate-api>`, the common name is ``user-<username>`` where ``<username>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
+If you just generated the certificate following the :ref:`instructions above <generate-api>`, the common name is ``user-<client_name>`` where ``<client_name>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
 If you're not sure what the username is, you can find the common name like this:
 
 .. prompt:: bash $ auto
