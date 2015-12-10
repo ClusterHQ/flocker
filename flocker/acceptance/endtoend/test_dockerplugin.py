@@ -7,10 +7,16 @@ Tests for the Flocker Docker plugin.
 from twisted.internet import reactor
 from twisted.trial.unittest import SkipTest
 
+from hypothesis.strategies import integers
+
+from bitmath import GiB
+
 from distutils.version import LooseVersion
 
 from ...common import loop_until
 from ...common.runner import run_ssh
+
+from ...dockerplugin.test.test_api import volume_expression
 
 from ...testtools import (
     AsyncTestCase, random_name, find_free_port, flaky,
@@ -145,6 +151,62 @@ class DockerPluginTests(AsyncTestCase):
         result = client._result(client._post_json(url, data=data), True)
         self.addCleanup(client.remove_volume, name)
         return result
+
+    def _test_sized_vol_container(self, cluster, node):
+        """
+        Create a volume with a size, then create a
+        container that can use that volume and run lsbk to test
+        its size. An http server inside the container uses lsblk to
+        return the size of the volume when path is not "/is_http"
+        :param cluster: flocker cluster
+        :param node: node the contianer and volume will be on.
+        """
+        client = get_docker_client(cluster, node.public_address)
+        volume_name = random_name(self)
+        size = integers(min_value=75, max_value=100).example()
+        expression = volume_expression.example()
+        size_opt = "".join(str(size))+expression
+        size_bytes = int(GiB(size).to_Byte().value)
+        self._create_volume(client, volume_name,
+                            driver_opts={'size': size_opt})
+        http_port = 8080
+        host_port = find_free_port()[1]
+        self.run_python_container(
+            cluster, node.public_address,
+            {"host_config": client.create_host_config(
+                binds=["{}:/sizedvoldata".format(volume_name)],
+                port_bindings={http_port: host_port},
+                restart_policy={"Name": "always"},
+                privileged=True),
+             "ports": [http_port]},
+            SCRIPTS.child(b"lsblkhttp.py"),
+            [u"/sizedvoldata"], client=client)
+
+        d = assert_http_server(
+            self, node.public_address, host_port,
+            expected_response=str(size_bytes))
+
+        def _get_datasets(unused_arg):
+            return cluster.client.list_datasets_configuration()
+        d.addCallback(_get_datasets)
+
+        def _verify_volume_metadata_size(datasets):
+            dataset = next(d for d in datasets
+                           if d.metadata.get(u'name') == volume_name)
+            self.assertEqual(int(dataset.metadata.get(u'maximum_size')),
+                             size_bytes)
+        d.addCallback(_verify_volume_metadata_size)
+
+        return d
+
+    @require_cluster(1)
+    def test_create_sized_volume_with_v2_plugin_api(self, cluster):
+        """
+        Docker can run a container with a provisioned volumes with a
+        specific size.
+        """
+        self.require_docker('1.9.0', cluster)
+        return self._test_sized_vol_container(cluster, cluster.nodes[0])
 
     def _test_create_container(self, cluster, volume_name=None):
         """

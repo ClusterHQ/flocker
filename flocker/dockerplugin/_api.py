@@ -10,8 +10,9 @@ from itertools import repeat
 from functools import wraps
 
 import yaml
+import re
 
-from bitmath import GiB
+from bitmath import TiB, GiB, MiB, KiB, Byte
 
 from eliot import writeFailure
 from eliot.twisted import DeferredContext
@@ -50,6 +51,44 @@ SCHEMAS = {
 DEFAULT_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
 if DEFAULT_SIZE == DEVICEMAPPER_LOOPBACK_SIZE:
     DEFAULT_SIZE = DEFAULT_SIZE + GiB(1)
+
+
+# A function to help parse size expressions for size opt
+def parse_num(expression):
+    """
+      Parse a string of a dataset size 10g, 100kib etc into
+      a usable integer.
+      If user doesnt not submit a correct size, give back
+      the default size.
+      :param expression: the dataset expression to parse.
+    """
+    if not expression:
+        return DEFAULT_SIZE
+    if type(expression) is unicode:
+        expression = str(expression)
+
+    def _match(exp, search=re.compile(
+            r'^(\d+){1}([KMGTkmgt][IiBb]){0,1}([Bb]){0,1}').search):
+        return bool(search(exp))
+
+    if _match(expression):
+        unit = expression.translate(None, "1234567890.")
+        num = int(expression.replace(unit, ""))
+        unit = unit.lower()
+        if unit == 'tb' or unit == 't' or unit == 'tib':
+            return TiB(num)
+        elif unit == 'gb' or unit == 'g' or unit == 'gib':
+            return GiB(num)
+        elif unit == 'mb' or unit == 'm' or unit == 'mib':
+            return MiB(num)
+        elif unit == 'kb' or unit == 'k' or unit == 'kib':
+            return KiB(num)
+        elif unit == '':
+            return Byte(num)
+        else:
+            return DEFAULT_SIZE
+    else:
+        return DEFAULT_SIZE
 
 
 def _endpoint(name, ignore_body=False):
@@ -230,6 +269,13 @@ class VolumePlugin(object):
         if profile:
             metadata[PROFILE_METADATA_KEY] = profile
 
+        size_from_opts = opts.get(u"size")
+        if size_from_opts:
+            size = parse_num(size_from_opts)
+            metadata[u"maximum_size"] = unicode(int(size.to_Byte()))
+        else:
+            size = DEFAULT_SIZE
+
         def ensure_unique_name(configured):
             for dataset in configured:
                 if dataset.metadata.get(u"name") == Name:
@@ -237,7 +283,7 @@ class VolumePlugin(object):
 
         creating = conditional_create(
             self._flocker_client, self._reactor, ensure_unique_name,
-            self._node_id, int(DEFAULT_SIZE.to_Byte()), metadata=metadata)
+            self._node_id, int(size.to_Byte()), metadata=metadata)
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})
         return creating

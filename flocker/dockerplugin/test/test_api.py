@@ -6,20 +6,35 @@ Tests for the Volumes Plugin API provided by the plugin.
 
 from uuid import uuid4
 
+from bitmath import TiB, GiB, MiB, KiB, Byte
+
 from twisted.web.http import OK, NOT_ALLOWED, NOT_FOUND
 from twisted.internet.task import Clock, LoopingCall
+
+from hypothesis import given
+from hypothesis.strategies import (
+    sampled_from, builds, integers
+)
 
 from pyrsistent import pmap
 
 from eliot.testing import capture_logging
 
-from .._api import VolumePlugin, DEFAULT_SIZE
+from .._api import VolumePlugin, DEFAULT_SIZE, parse_num
 from ...apiclient import FakeFlockerClient, Dataset, DatasetsConfiguration
-from ...testtools import CustomException
+from ...testtools import CustomException, random_name
 
 from ...restapi import make_bad_request
 from ...restapi.testtools import (
     build_UNIX_integration_tests, APIAssertionsMixin,
+)
+
+
+# A Hypothesis strategy for generating size expression of volume
+# dont bother with kib, or mib its too small, tib to big.
+volume_expression = builds(
+    lambda expression: b"".join(expression),
+    expression=sampled_from([u"GB", "gib", "G", "Gb", "gb", "Gib", "g"]),
 )
 
 
@@ -102,15 +117,16 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
                                  {u"Name": u"vol"}, OK, {u"Err": None})
 
-    def test_create_with_opts(self):
+    def test_create_with_profile(self):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
-        in the request body JSON ignores this parameter and creates
-        a volume with the given name.
+        of "profile=[gold,silver,bronze] in the request body JSON create a
+        volume with a given name with [gold,silver,bronze] profile.
         """
-        name = u"testvolume"
+        profile = sampled_from(["gold", "silver", "bronze"]).example()
+        name = random_name(self)
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
-                              {u"Name": name, 'Opts': {'ignored': 'ignored'}},
+                              {u"Name": name, 'Opts': {u"profile": profile}},
                               OK, {u"Err": None})
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
@@ -121,8 +137,85 @@ class APITestsMixin(APIAssertionsMixin):
                               Dataset(dataset_id=result[0].dataset_id,
                                       primary=self.NODE_A,
                                       maximum_size=int(DEFAULT_SIZE.to_Byte()),
-                                      metadata={u"name": name})]))
+                                      metadata={u"name": name,
+                                                u"clusterhq:flocker:profile":
+                                                unicode(profile)})]))
         return d
+
+    def test_create_with_size(self):
+        """
+        Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
+        of "size=<somesize> in the request body JSON create a Volumes
+        with a given name and random size between 1-100G
+        """
+        name = random_name(self)
+        size = integers(min_value=1, max_value=75).example()
+        expression = volume_expression.example()
+        size_opt = "".join(str(size))+expression
+        d = self.assertResult(b"POST", b"/VolumeDriver.Create",
+                              {u"Name": name, 'Opts': {u"size": size_opt}},
+                              OK, {u"Err": None})
+
+        real_size = int(parse_num(size_opt).to_Byte())
+        d.addCallback(
+            lambda _: self.flocker_client.list_datasets_configuration())
+        d.addCallback(list)
+        d.addCallback(lambda result:
+                      self.assertItemsEqual(
+                          result, [
+                              Dataset(dataset_id=result[0].dataset_id,
+                                      primary=self.NODE_A,
+                                      maximum_size=real_size,
+                                      metadata={u"name": name,
+                                                u"maximum_size":
+                                                unicode(real_size)})]))
+        return d
+
+    @given(expr=volume_expression,
+           size=integers(min_value=75, max_value=100))
+    def test_parsenum_size(self, expr, size):
+        """
+        Test sending different forms of size expressions
+        to parse_num and get expxted G size results.
+        :param expr str: A string representing the size expression
+        :param size int: A string representing the volume size
+        """
+        expected_size = int(GiB(size).to_Byte())
+        return self.assertEqual(expected_size,
+                                int(parse_num(str(size)+expr).to_Byte()))
+
+    @given(expr=sampled_from(["KB", "MB", "GB", "TB", ""]),
+           size=integers(min_value=1, max_value=100))
+    def test_parsenum_all_sizes(self, expr, size):
+        """
+        Test sending standard size expressions to parse_num in
+        many sizes to get expected size results.
+        :param expr str: A string representing the size expression
+        :param size int: A string representing the volume size
+        """
+        if expr is "KB":
+            expected_size = int(KiB(size).to_Byte())
+        elif expr is "MB":
+            expected_size = int(MiB(size).to_Byte())
+        elif expr is "GB":
+            expected_size = int(GiB(size).to_Byte())
+        elif expr is "TB":
+            expected_size = int(TiB(size).to_Byte())
+        else:
+            expected_size = int(Byte(size).to_Byte())
+        return self.assertEqual(expected_size,
+                                int(parse_num(str(size)+expr).to_Byte()))
+
+    @given(size=sampled_from([u"foo10Gb", u"10bar10", "10foogib",
+                              "10Gfoo", "GIB", "bar10foo"]))
+    def test_parsenum_bad_size(self, size):
+        """
+        Test sending bad size expressions, upon error
+        users should receive Flocker's DEFAULT_SIZE
+        :param size str: A string representing the bad volume size
+        """
+        return self.assertEqual(int(DEFAULT_SIZE.to_Byte()),
+                                int(parse_num(size).to_Byte()))
 
     def create(self, name):
         """
