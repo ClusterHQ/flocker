@@ -1,14 +1,14 @@
 .. _generate-api-docker-plugin:
 
-====================================================================
-Generating an API User Certificate for the Flocker Plugin for Docker
-====================================================================
+======================================================================
+Generating an API Client Certificate for the Flocker Plugin for Docker
+======================================================================
 
 The Flocker plugin for Docker requires access to the Flocker REST API.
-To use the plugin, you will need to create an API user certificate and key for a user named ``plugin`` on each node. 
+To use the plugin, you will need to create an API client certificate and key for a user named ``plugin`` on each node. 
 For more information, see the :ref:`generate-api` instructions.
 
-#. Generate an API user certificate for a user named ``plugin``:
+#. Generate an API client certificate for a user named ``plugin``:
 
    .. prompt:: bash $
 

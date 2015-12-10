@@ -42,9 +42,9 @@ Before ``flocker-deploy`` can do this it needs to be able to authenticate itself
 
 Flocker uses TLS mutual authentication to communicate with the control service you specify as the first command line argument.
 
-To authenticate with the control service, you will need a copy of the public cluster certificate created when you first :ref:`installed flocker on your nodes <authentication>` and an API user certificate, which you can :ref:`generate <generate-api>` using the ``flocker-ca`` tool.
+To authenticate with the control service, you will need a copy of the public cluster certificate created when you first :ref:`installed flocker on your nodes <authentication>` and an API client certificate, which you can :ref:`generate <generate-api>` using the ``flocker-ca`` tool.
 
-By default, ``flocker-deploy`` will look for these certificate files in the current working directory and expect them to be named :file:`cluster.crt` (the public cluster certificate), :file:`user.crt` (the API user certificate) and :file:`user.key` (the API user's private key).
+By default, ``flocker-deploy`` will look for these certificate files in the current working directory and expect them to be named :file:`cluster.crt` (the public cluster certificate), :file:`user.crt` (the API client certificate) and :file:`user.key` (the API client's private key).
 
 You can override these defaults with the ``--cacert`` (cluster certificate), ``--cert`` (user certificate) and ``--key`` (user private key) options, specifying the full path to each file.
 
