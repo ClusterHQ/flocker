@@ -12,7 +12,8 @@ from flocker.apiclient._client import (
 )
 
 from benchmark.scenarios import (
-    ReadRequestLoadScenario, RateMeasurer, RequestRateTooLow
+    ReadRequestLoadScenario, RateMeasurer, RequestRateTooLow,
+    RequestRateNotReached
 )
 
 from benchmark.cluster import BenchmarkCluster
@@ -161,3 +162,21 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestRateTooLow)
+
+    def test_scenario_throws_exception_if_requested_rate_not_reached(self):
+        """
+        ReadRequestLoadScenario raises a RequestRateNotReached if the
+        requested rate cannot be established within a given timeframe.
+        """
+        c = Clock()
+        cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
+        s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
+
+        d = s.start()
+        cluster.get_control_service(c).drop_requests = True
+        # Continue the clock for one second longer than the timeout
+        # value to allow the timeout to be triggered.
+        c.pump(repeat(1, s.timeout + 1))
+
+        failure = self.failureResultOf(d)
+        self.assertIsInstance(failure.value, RequestRateNotReached)

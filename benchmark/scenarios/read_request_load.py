@@ -5,10 +5,10 @@ Read request load scenario for the control service benchmarks.
 
 from zope.interface import implementer
 
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import CancelledError, Deferred
 from twisted.internet.task import LoopingCall
 
-from flocker.common import gather_deferreds, loop_until
+from flocker.common import gather_deferreds, loop_until, timeout
 
 from .._interfaces import IScenario
 
@@ -72,6 +72,12 @@ class RequestRateTooLow(Exception):
     """
 
 
+class RequestRateNotReached(Exception):
+    """
+    The RequestRate did not reach the target level.
+    """
+
+
 @implementer(IScenario)
 class ReadRequestLoadScenario(object):
     """
@@ -79,12 +85,15 @@ class ReadRequestLoadScenario(object):
     requests at a specified rate.
     """
 
-    def __init__(self, reactor, cluster, request_rate, interval=10):
+    def __init__(
+        self, reactor, cluster, request_rate, interval=10, timeout=45
+    ):
         self._maintained = Deferred()
         self.reactor = reactor
         self.control_service = cluster.get_control_service(reactor)
         self.request_rate = request_rate
         self.interval = interval
+        self.timeout = timeout
         self.rate_measurer = RateMeasurer(self.reactor)
 
     def _sample_and_return(self, result):
@@ -115,7 +124,13 @@ class ReadRequestLoadScenario(object):
             print "current rate", current_rate
             return current_rate >= self.request_rate
 
+        def handle_timeout(failure):
+            failure.trap(CancelledError)
+            raise RequestRateNotReached
+
         waiting_for_target_rate = loop_until(self.reactor, reached_target_rate)
+        timeout(self.reactor, waiting_for_target_rate, self.timeout)
+        waiting_for_target_rate.addErrback(handle_timeout)
 
         def scenario_collapsed():
             return self.rate_measurer.rate() < self.request_rate
