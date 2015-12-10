@@ -123,7 +123,7 @@ class AsyncTestCaseTests(TestCase):
 
     def test_attaches_twisted_log(self):
         """
-        AsyncTestCases attach the twisted log as a detail.
+        AsyncTestCases attach the Twisted log as a detail.
         """
         class SomeTest(AsyncTestCase):
             def test_something(self):
