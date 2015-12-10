@@ -121,7 +121,7 @@ Operation Types
 
 .. option:: read-request
 
-   Read the current cluster state from the control service.
+   Read the current cluster state from the Flocker control service.
 
 .. option:: wait
 
