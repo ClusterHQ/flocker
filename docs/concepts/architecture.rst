@@ -6,7 +6,7 @@ Flocker Cluster Architecture
 
 The Flocker cluster is comprised of the following sets of services:
 
-* :ref:`The control service <control-service>` exposes the :ref:`api`, with which you can manage and modify the configuration of your cluster.
+* :ref:`The Flocker control service <control-service>` exposes the :ref:`api`, with which you can manage and modify the configuration of your cluster.
 * :ref:`Flocker agents <flocker-agents>` are installed on each node in the cluster, and are used to modify the node to match the desired configuration of your cluster.
 * :ref:`The Flocker plugin for Docker <plugin>` is also installed on each node in your cluster if you want Flocker to manage your data volumes, while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
 
@@ -42,7 +42,7 @@ Flocker agents can:
 
 Multiple agents can also run on a specific node depending on the cluster setup.
 
-Each Flocker agent runs the following loop to converge the local state it manages with the desired cluster configuration, as managed by the control service:
+Each Flocker agent runs the following loop to converge the local state it manages with the desired cluster configuration, as managed by the Flocker control service:
 
 #. Checks the local state that it is in charge of.
 #. Notifies the control service of the local state.
