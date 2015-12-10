@@ -43,7 +43,10 @@ def async_runner(timeout, flaky_output=None):
     # loops the reactor a couple of times after the test is done.
     return retry_flaky(
         AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
-            timeout=timeout.total_seconds()),
+            timeout=timeout.total_seconds(),
+            suppress_twisted_logging=False,
+            store_twisted_logs=False,
+        ),
         output=flaky_output,
     )
 

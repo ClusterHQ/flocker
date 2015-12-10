@@ -135,6 +135,7 @@ class _RetryFlaky(testtools.RunTest):
     # https://bugs.launchpad.net/testtools/+bug/1515933
 
     def __init__(self, output, run_test_factory, case, *args, **kwargs):
+        super(_RetryFlaky, self).__init__(case)
         self._output = output
         self._run_test_factory = run_test_factory
         self._case = case

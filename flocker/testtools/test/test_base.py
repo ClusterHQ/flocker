@@ -120,6 +120,19 @@ class AsyncTestCaseTests(TestCase):
             )
         )
 
+    def test_attaches_twisted_log(self):
+        """
+        AsyncTestCases attach the twisted log as a detail.
+        """
+        class SomeTest(AsyncTestCase):
+            def test_something(self):
+                from twisted.python import log
+                log.msg('foo')
+
+        test = SomeTest('test_something')
+        test.run()
+        self.assertThat(test.getDetails(), Equals({'twisted-log': {}}))
+
 
 identifier_characters = string.ascii_letters + string.digits + '_'
 identifiers = text(average_size=20, min_size=1, alphabet=identifier_characters)
