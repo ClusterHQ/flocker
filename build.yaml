@@ -812,7 +812,7 @@ run_acceptance_modules: &run_acceptance_modules
 
 # When we have acceptance tests that run quickly enough (as they do on loopback)
 # we just run them all in one builder:
-run_loopback_acceptance_modules: &run_loopback_acceptance_modules
+run_full_acceptance_modules: &run_full_acceptance_modules
   - flocker.acceptance
 
 # flocker.node.functional is hanging, so we don't run it
