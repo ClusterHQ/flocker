@@ -742,7 +742,6 @@ run_trial_modules: &run_trial_modules
   - flocker.restapi
   - flocker.docs
   - flocker.dockerplugin
-  - flocker.node.agents
   - flocker.node.test
   - flocker.node.functional.test_docker.GenericDockerClientTests
   - flocker.node.functional.test_docker.IDockerClientNamespacedTests
@@ -754,9 +753,13 @@ run_trial_modules: &run_trial_modules
   - flocker.route
   - flocker.test
   - flocker.testtools
+run_trial_as_root_modules: &run_trial_as_root_modules
   # flocker.volume needs to run as root due to ZFS calls
   # so we run it as part of the run_trial_on_<Cloud>_<OS>_as_root jobs
-  # - flocker.volume
+  - flocker.volume
+  # flocker.node.agent needs to run as root due to mounting filesystems
+  - flocker.node.agents
+
 
 # run_trial_cli contains a list of all the CLI yaml anchors we want to
 # execute as part of our run_trial_tasks
@@ -816,8 +819,7 @@ job_type:
 
     run_trial_on_AWS_CentOS_7_as_root:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
-      with_modules:
-        - flocker.volume
+      with_modules: *run_trial_as_root_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
@@ -841,8 +843,7 @@ job_type:
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
-      with_modules:
-        - flocker.volume
+      with_modules: *run_trial_as_root_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
