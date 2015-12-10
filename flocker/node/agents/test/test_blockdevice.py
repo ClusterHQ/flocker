@@ -2758,10 +2758,11 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         for the deployer's node, no state changes are calculated.
         """
         uuid = uuid4()
-        dataset_id = unicode(uuid4())
+        dataset_id = uuid4()
+        maximum_size = int(GiB(1).bytes)
         dataset = Dataset(
-            dataset_id=dataset_id,
-            maximum_size=int(GiB(1).to_Byte().value)
+            dataset_id=unicode(dataset_id),
+            maximum_size=maximum_size,
         )
         manifestation = Manifestation(
             dataset=dataset, primary=True
@@ -2771,7 +2772,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             nodes={
                 Node(
                     uuid=uuid,
-                    manifestations={dataset_id: manifestation},
+                    manifestations={unicode(dataset_id): manifestation},
                 )
             }
         )
@@ -2782,9 +2783,17 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
-        local_state = local_state_from_shared_state(
-            node_state=node_state,
-            nonmanifest_datasets={},
+        local_state = BlockDeviceDeployerLocalState(
+            node_uuid=uuid,
+            hostname=node,
+            datasets=dataset_map_from_iterable([
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_ELSEWHERE,
+                    dataset_id=dataset_id,
+                    maximum_size=maximum_size,
+                    blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
+                ),
+            ]),
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(
