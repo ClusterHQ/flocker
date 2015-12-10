@@ -1238,6 +1238,10 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         except DidNotConverge:
             self.fail("Did not converge to next state after 10 iterations")
 
+    test_simple_transitions.skip = (
+        "This test sometimes fails in a way that cause a failure cascade."
+    )
+
     @given(
         desired_state=sampled_from([
             DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
