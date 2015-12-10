@@ -12,8 +12,19 @@ import testtools
 from testtools.content import text_content
 from testtools.deferredruntest import (
     AsynchronousDeferredRunTestForBrokenTwisted,
-    CaptureTwistedLogs,
 )
+
+try:
+    from testtools.deferredruntest import CaptureTwistedLogs
+except ImportError:
+    # We are using a fork of testtools, which unfortunately means that we need
+    # to do special things to make sure we're using the latest version. Raise
+    # an error message that will help people figure out what they need to do.
+    raise Exception(
+        'Cannot import CaptureTwistedLogs. Maybe upgrade your version of '
+        'testtools: pip install --upgrade --process-dependency-links .[dev]'
+    )
+
 
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
