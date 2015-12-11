@@ -691,6 +691,7 @@ class AttachVolume(PClass):
 
 
 @implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
 class ActionNeeded(PClass):
     """
     We need to take some action on a dataset but lack the necessary
@@ -708,6 +709,12 @@ class ActionNeeded(PClass):
     # Nominal interface compliance; we don't expect this to be ever run,
     # it's just a marker object basically.
     eliot_action = None
+
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=discovered_dataset.dataset_id,
+        )
 
     def run(self, deployer):
         """
@@ -1350,8 +1357,9 @@ Desired = Discovered = DatasetStates
 DATASET_TRANSITIONS = {
     Desired.MOUNTED: {
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
-        # Other node will need to deatch first
-        Discovered.ATTACHED_ELSEWHERE: DoNothing,
+        # Other node will need to deatch first, but we we need to
+        # wake up to notice that it has detached.
+        Discovered.ATTACHED_ELSEWHERE: ActionNeeded,
         Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
         Discovered.NON_MANIFEST: AttachVolume,
         DatasetStates.ATTACHED: MountBlockDevice,
