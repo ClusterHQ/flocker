@@ -94,6 +94,11 @@ class AsyncTestCase(testtools.TestCase):
     def setUp(self):
         super(AsyncTestCase, self).setUp()
         # Need this to run _after_ the clean-up in CaptureTwistedLogs.
+        #
+        # Would ideally like to move post-processing to its own fixture that
+        # wraps up CaptureTwistedLogs, but there doesn't seem to be a way to
+        # do that. https://github.com/testing-cabal/fixtures/pull/20 for
+        # details.
         self.addCleanup(self._post_process_twisted_logs)
         self.useFixture(CaptureTwistedLogs())
 
