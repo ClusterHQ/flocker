@@ -24,13 +24,13 @@
     }
   },
   "Mappings": {
-    "Ubuntu1404Ami": {
+    "RegionToAmi": {
       "us-west-2": {
-        "stable": "ami-5189a661"
+        "ubuntu-14.04": "ami-5189a661"
       }
     }
   },
-  "Resources": {
+ "Resources": {
     "I1WW6N": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
@@ -40,11 +40,11 @@
         },
         "ImageId": {
           "Fn::FindInMap": [
-            "Ubuntu1404Ami",
+            "RegionToAmi",
             {
               "Ref": "AWS::Region"
             },
-            "stable"
+            "ubuntu-14.04"
           ]
         }
       },
