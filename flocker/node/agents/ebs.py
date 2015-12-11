@@ -1302,8 +1302,8 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
     :param UUID cluster_id: The unique identifier of the cluster with which to
         associate the resulting object.  It will only manipulate volumes
         belonging to this cluster.
-    :param bool no_validate: If False, do not attempt to validate the region
-        and zone by calling out to AWS. Useful for testing.
+    :param bool validate_region: If False, do not attempt to validate the
+        region and zone by calling out to AWS. Useful for testing.
 
     :return: A ``EBSBlockDeviceAPI`` instance using the given parameters.
     """
