@@ -1450,7 +1450,8 @@ class CalculateDesiredStateTests(SynchronousTestCase):
         """
         If there is a lease for a mounted dataset present on node,
         there is a corresponding dataset that has a desired state of
-        ``MOUNTED``.
+        ``MOUNTED`` even if the configuration of the node doesn't mention the
+        dataset.
         """
         assert_desired_datasets(
             self, self.deployer,
