@@ -10,7 +10,7 @@ from itertools import repeat
 from json import dumps
 from pipes import quote as shell_quote
 
-from eliot import add_destination, FileDestination
+from eliot import add_destination, write_failure, FileDestination
 
 from treq import json_content
 
@@ -458,10 +458,10 @@ def _configure(reactor, cluster, configuration):
             persistent=False
         )
         d.addCallback(check_and_decode_json, OK)
-        d.addCallbacks(
-            lambda nodes: len(nodes) >= len(cluster.agent_nodes),
-            lambda _: False
+        d.addCallback(
+            lambda nodes: len(nodes) >= len(cluster.agent_nodes)
         )
+        d.addErrback(write_failure, logger=None)
         return d
 
     got_nodes = loop_until(reactor, got_all_nodes, repeat(1, 300))
