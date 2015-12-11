@@ -1573,9 +1573,9 @@ class CalculateDesiredStateTests(SynchronousTestCase):
 
     def test_deleted_leased_manifestation(self):
         """
-        If there is a manfestation on this node that is deleted and there is a
-        lease on the volume for this node, the corresponding desired dataset
-        has a state of ``MOUNTED``.
+        If there is a manfestation on this node that is configured as deleted
+        and there is a lease on the volume for this node, the corresponding
+        desired dataset has a state of ``MOUNTED``.
         """
         assert_desired_datasets(
             self, self.deployer,
