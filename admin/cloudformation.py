@@ -5,6 +5,9 @@ from troposphere import Base64, FindInMap, GetAtt
 from troposphere import Parameter, Output, Ref, Template
 import troposphere.ec2 as ec2
 
+OWNER = u"richardw"
+NUM_NODES = 3
+NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 
 template = Template()
 
@@ -25,45 +28,36 @@ template.add_mapping('RegionMap', {
     "ap-northeast-1": {"AMI": "ami-dcfa4edd"}
 })
 
-ec2_instance = template.add_resource(ec2.Instance(
-    "Ec2Instance",
-    ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "AMI"),
-    InstanceType="t1.micro",
-    KeyName=Ref(keyname_param),
-    SecurityGroups=["default"],
-    UserData=Base64("80")
-))
+instances = []
+for i in range(NUM_NODES):
+    node_name = NODE_NAME_TEMPLATE.format(owner=OWNER, index=i)
+    ec2_instance = ec2.Instance(
+        node_name,
+        ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "AMI"),
+        InstanceType="t1.micro",
+        KeyName=Ref(keyname_param),
+        SecurityGroups=["default"],
+        UserData=Base64("80")
+    )
+    template.add_resource(ec2_instance)
+    template.add_output([
+        Output(
+            "{}PublicIP".format(node_name),
+            Description="Public IP address of the newly created EC2 instance",
+            Value=GetAtt(ec2_instance, "PublicIp"),
+        ),
+        Output(
+            "{}PublicDNS".format(node_name),
+            Description="Public DNSName of the newly created EC2 instance",
+            Value=GetAtt(ec2_instance, "PublicDnsName"),
+        ),
+    ])
 
 template.add_output([
     Output(
-        "InstanceId",
-        Description="InstanceId of the newly created EC2 instance",
-        Value=Ref(ec2_instance),
-    ),
-    Output(
-        "AZ",
+        "AvailabilityZone",
         Description="Availability Zone of the newly created EC2 instance",
-        Value=GetAtt(ec2_instance, "AvailabilityZone"),
-    ),
-    Output(
-        "PublicIP",
-        Description="Public IP address of the newly created EC2 instance",
-        Value=GetAtt(ec2_instance, "PublicIp"),
-    ),
-    Output(
-        "PrivateIP",
-        Description="Private IP address of the newly created EC2 instance",
-        Value=GetAtt(ec2_instance, "PrivateIp"),
-    ),
-    Output(
-        "PublicDNS",
-        Description="Public DNSName of the newly created EC2 instance",
-        Value=GetAtt(ec2_instance, "PublicDnsName"),
-    ),
-    Output(
-        "PrivateDNS",
-        Description="Private DNSName of the newly created EC2 instance",
-        Value=GetAtt(ec2_instance, "PrivateDnsName"),
+        Value=Ref("AWS::Region"),
     ),
 ])
 
