@@ -1446,7 +1446,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             ],
         )
 
-    def test_leased_mounted_manifestaion(self):
+    def test_leased_mounted_manifestation(self):
         """
         If there is a lease for a mounted dataset present on node,
         there is a corresponding dataset that has a desired state of
@@ -1483,7 +1483,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             )
         )
 
-    def test_leased_attached_manifestaion(self):
+    def test_leased_attached_manifestation(self):
         """
         If there is a lease for an attached dataset present on node,
         there is not a corresponding desired dataset.
@@ -1559,7 +1559,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             )
         )
 
-    def test_application_mounted_manifestaion(self):
+    def test_application_mounted_manifestation(self):
         """
         If there is an application with attached volume, there is a
         corresponding dataset that has a desired state of
