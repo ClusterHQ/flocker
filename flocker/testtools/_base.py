@@ -86,7 +86,19 @@ class AsyncTestCase(testtools.TestCase):
 
     def setUp(self):
         super(AsyncTestCase, self).setUp()
+        # Need this to run _after_ the clean-up in CaptureTwistedLogs.
+        self.addCleanup(self._post_process_twisted_logs)
         self.useFixture(CaptureTwistedLogs())
+
+    def _post_process_twisted_logs(self):
+        """
+        Split the eliot logs out of the Twisted logs.
+        """
+        twisted_log = self.getDetails()['twisted-log']
+        new_twisted_log, eliot_log = _fix_twisted_logs(twisted_log)
+        # Overrides the existing Twisted log.
+        self.addDetail('twisted-log', new_twisted_log)
+        self.addDetail('eliot-log', eliot_log)
 
     def mktemp(self):
         """
@@ -102,6 +114,19 @@ class AsyncTestCase(testtools.TestCase):
         # XXX: Actually belongs in a mixin or something, not actually specific
         # to async.
         return make_temporary_directory(self).child('temp').path
+
+
+def _fix_twisted_logs(log_content):
+    """
+    Split the Eliot logs out of a Twisted log.
+
+    :param Content log_content: A text content object that contains a Twisted
+        log.
+    :return: The log split into two, the first containing the core Twisted log
+        messages and the second containing line-separated Eliot JSON messages.
+    :rtype: (Content, Content)
+    """
+    return log_content, text_content('')
 
 
 def _path_for_test_id(test_id, max_segment_length=32):

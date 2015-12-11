@@ -17,6 +17,7 @@ from testtools.matchers import (
     AfterPreprocessing,
     Annotate,
     Contains,
+    ContainsDict,
     DirExists,
     HasLength,
     Equals,
@@ -136,7 +137,7 @@ class AsyncTestCaseTests(TestCase):
         test.run()
         self.assertThat(
             test.getDetails(),
-            MatchesDict({
+            ContainsDict({
                 'twisted-log': match_text_content(MatchesRegex(
                     r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\+\d{4} \[-\] foo$'
                 )),
