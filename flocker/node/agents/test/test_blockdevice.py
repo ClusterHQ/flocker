@@ -1359,7 +1359,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             node_uuid=self.node_uuid,
             hostname=self.hostname,
             block_device_api=self.api,
-            mountroot=mountroot_for_test(self),
+            mountroot=FilePath('/flocker'),
         )
 
     def test_no_manifestations(self):
@@ -1380,27 +1380,30 @@ class CalculateDesiredStateTests(SynchronousTestCase):
         """
         assert_desired_datasets(
             self, self.deployer,
+            desired_manifestations=[ScenarioMixin.MANIFESTATION],
+            expected_datasets=[ScenarioMixin.MOUNTED_DESIRED_DATASET],
+        )
+
+    def test_manifestation_metadata(self):
+        """
+        If there is a manifesation configured with metadata on this node, then
+        the corresponding desired dataset has that metadata.
+        """
+        assert_desired_datasets(
+            self, self.deployer,
             desired_manifestations=[ScenarioMixin.MANIFESTATION.transform(
                 ['dataset', 'metadata'], ScenarioMixin.METADATA,
             )],
-            expected_datasets=[
-                DesiredDataset(
-                    state=DatasetStates.MOUNTED,
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    metadata=ScenarioMixin.METADATA,
-                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-                    mount_point=self.deployer.mountroot.child(
-                        unicode(ScenarioMixin.DATASET_ID)
-                    ),
-                ),
-            ],
+            expected_datasets=[ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
+                ['metadata'], ScenarioMixin.METADATA,
+            )],
         )
 
     def test_manifestation_default_size(self):
         """
         If there is a manifesation configured on this node without a size, then
-        the corresponding desired dataset has a size fixed to the minimum
-        allowed Rackspace volume size.
+        the corresponding desired dataset has a size fixed to the
+        minimum allowed Rackspace volume size.
 
         XXX: Make the default size configurable.  FLOC-2679
         """
@@ -1410,18 +1413,11 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             desired_manifestations=[
                 ScenarioMixin.MANIFESTATION.transform(
                     ["dataset", "maximum_size"], lambda _: None,
-                    ['dataset', 'metadata'], ScenarioMixin.METADATA,
                 ),
             ],
             expected_datasets=[
-                DesiredDataset(
-                    state=DatasetStates.MOUNTED,
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    metadata=ScenarioMixin.METADATA,
-                    maximum_size=expected_size,
-                    mount_point=self.deployer.mountroot.child(
-                        unicode(ScenarioMixin.DATASET_ID)
-                    ),
+                ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
+                    ['maximum_size'], expected_size,
                 ),
             ],
         )
@@ -1449,7 +1445,10 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             ],
         )
 
-    def test_leased_mounted_manifestation(self):
+    @given(
+        expected_size=integers(min_value=0),
+    )
+    def test_leased_mounted_manifestation(self, expected_size):
         """
         If there is a lease for a mounted dataset present on node, there is a
         corresponding desired dataset that has a state of ``MOUNTED`` even if
@@ -1463,20 +1462,15 @@ class CalculateDesiredStateTests(SynchronousTestCase):
                     dataset_id=ScenarioMixin.DATASET_ID,
                     blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
                     state=DatasetStates.MOUNTED,
-                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
+                    maximum_size=expected_size,
                     device_path=FilePath('/dev/xvdf'),
                     mount_point=FilePath('/mount/path'),
                 )
             ],
             expected_datasets=[
-                DesiredDataset(
-                    state=DatasetStates.MOUNTED,
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-                    metadata={},
-                    mount_point=self.deployer.mountroot.child(
-                        unicode(ScenarioMixin.DATASET_ID)
-                    ),
+                ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
+                    ['metadata'], {},
+                    ['maximum_size'], expected_size,
                 ),
             ],
             leases=Leases().acquire(
@@ -1563,18 +1557,14 @@ class CalculateDesiredStateTests(SynchronousTestCase):
                 ),
             ],
             expected_datasets=[
-                DesiredDataset(
-                    state=DatasetStates.MOUNTED,
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    metadata={},
-                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-                    mount_point=self.deployer.mountroot.child(
-                        unicode(ScenarioMixin.DATASET_ID)),
-                ),
+                ScenarioMixin.MOUNTED_DESIRED_DATASET,
             ],
         )
 
-    def test_leased_manifestation(self):
+    @given(
+        expected_size=integers(min_value=0),
+    )
+    def test_leased_manifestation(self, expected_size):
         """
         If there is a manifesation on this node and lease for the corresponding
         volume for this node, then the corresponding desired dataset has a
@@ -1589,18 +1579,14 @@ class CalculateDesiredStateTests(SynchronousTestCase):
                     dataset_id=ScenarioMixin.DATASET_ID,
                     blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
                     state=DatasetStates.MOUNTED,
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                    maximum_size=expected_size,
                     device_path=FilePath('/dev/xvdf'),
                     mount_point=FilePath('/mount/path'),
                 )
             ],
             expected_datasets=[
-                DesiredDataset(
-                    state=DatasetStates.MOUNTED,
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    mount_point=self.deployer.mountroot.child(
-                        unicode(ScenarioMixin.DATASET_ID)),
+                ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
+                    ['maximum_size'], expected_size,
                 ),
             ],
             leases=Leases().acquire(
@@ -1634,13 +1620,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
                 )
             ],
             expected_datasets=[
-                DesiredDataset(
-                    state=DatasetStates.MOUNTED,
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    mount_point=self.deployer.mountroot.child(
-                        unicode(ScenarioMixin.DATASET_ID)),
-                ),
+                ScenarioMixin.MOUNTED_DESIRED_DATASET,
             ],
             leases=Leases().acquire(
                 now=datetime.now(tz=UTC),
@@ -1745,6 +1725,16 @@ class ScenarioMixin(object):
             DATASET_ID: FilePath(b"/dev/sda"),
         },
         applications=[],
+    )
+
+    MOUNT_ROOT = FilePath('/flocker')
+    MOUNTED_DESIRED_DATASET = DesiredDataset(
+        state=DatasetStates.MOUNTED,
+        dataset_id=DATASET_ID,
+        maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
+        mount_point=MOUNT_ROOT.child(
+            unicode(DATASET_ID)
+        ),
     )
 
 
