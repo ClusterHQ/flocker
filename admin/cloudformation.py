@@ -20,7 +20,7 @@ keyname_param = template.add_parameter(Parameter(
 
 template.add_mapping('RegionMap', {
     # richardw-test1 AMI generated from a running acceptance test node.
-    "us-west-1":      {"AMI": "ami-68deb608"},
+    "us-west-1":      {"AMI": "ami-6cabe306"},
 })
 
 instances = []
