@@ -49,6 +49,21 @@ You can run all of the tox environments using the command ``tox``.
 
 Flocker is also tested using `continuous integration`_.
 
+Cloudformation Deployment
+-------------------------
+
+```
+$ aws cloudformation validate-template \
+      --template-body file://flocker-cloudformation-template.json
+```
+
+```
+$ aws cloudformation create-stack  \
+      --stack-name "richardw-stack-$(date +%s)" \
+      --template-body file://flocker-cloudformation-template.json \
+      --parameters ParameterKey=KeyName,ParameterValue=richardw-testing
+```
+
 .. _ClusterHQ: https://clusterhq.com/
 .. _Twisted: https://twistedmatrix.com/trac/
 .. _Flocker docs: https://docs.clusterhq.com/
