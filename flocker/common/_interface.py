@@ -75,6 +75,6 @@ def provides(interface):
             return (False, "{value!r} doesn't provide {interface}".format(
                 value=value, interface=interface_name,
             ))
-    invariant.__name__ = "{interface}_invariant".format(interface_name)
+    invariant.__name__ = "provides_{}_invariant".format(interface_name)
 
     return invariant
