@@ -31,7 +31,7 @@ from ...restapi.testtools import (
 
 
 # A Hypothesis strategy for generating size expression of volume
-# dont bother with kib, or mib its too small, tib to big.
+# don't bother with kib, or mib it's too small, tib too big.
 volume_expression = builds(
     lambda expression: b"".join(expression),
     expression=sampled_from([u"GB", "gib", "G", "Gb", "gb", "Gib", "g"]),
@@ -145,7 +145,7 @@ class APITestsMixin(APIAssertionsMixin):
     def test_create_with_size(self):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
-        of "size=<somesize> in the request body JSON create a Volumes
+        of "size=<somesize> in the request body JSON create a volume
         with a given name and random size between 1-100G
         """
         name = random_name(self)
@@ -175,8 +175,9 @@ class APITestsMixin(APIAssertionsMixin):
            size=integers(min_value=75, max_value=100))
     def test_parsenum_size(self, expr, size):
         """
-        Test sending different forms of size expressions
-        to parse_num and get expxted G size results.
+        Send different forms of size expressions
+        to ``parse_num``, we expect G(Gigabyte) size results.
+
         :param expr str: A string representing the size expression
         :param size int: A string representing the volume size
         """
@@ -188,8 +189,9 @@ class APITestsMixin(APIAssertionsMixin):
            size=integers(min_value=1, max_value=100))
     def test_parsenum_all_sizes(self, expr, size):
         """
-        Test sending standard size expressions to parse_num in
-        many sizes to get expected size results.
+        Send standard size expressions to ``parse_num`` in
+        many sizes, we expect to get correct size results.
+
         :param expr str: A string representing the size expression
         :param size int: A string representing the volume size
         """
@@ -210,8 +212,9 @@ class APITestsMixin(APIAssertionsMixin):
                               "10Gfoo", "GIB", "bar10foo"]))
     def test_parsenum_bad_size(self, size):
         """
-        Test sending bad size expressions, upon error
-        users should receive Flocker's DEFAULT_SIZE
+        Send unacceptable size expressions, upon error
+        users should expect to receive Flocker's ``DEFAULT_SIZE``
+
         :param size str: A string representing the bad volume size
         """
         return self.assertEqual(int(DEFAULT_SIZE.to_Byte()),

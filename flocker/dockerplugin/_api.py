@@ -56,11 +56,12 @@ if DEFAULT_SIZE == DEVICEMAPPER_LOOPBACK_SIZE:
 # A function to help parse size expressions for size opt
 def parse_num(expression):
     """
-      Parse a string of a dataset size 10g, 100kib etc into
-      a usable integer.
-      If user doesnt not submit a correct size, give back
-      the default size.
-      :param expression: the dataset expression to parse.
+    Parse a string of a dataset size 10g, 100kib etc into
+    a usable integer.
+    If user doesn't submit a correct size, give back
+    the default size.
+
+    :param expression: the dataset expression to parse.
     """
     if not expression:
         return DEFAULT_SIZE

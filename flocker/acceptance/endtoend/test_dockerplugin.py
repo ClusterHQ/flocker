@@ -157,7 +157,8 @@ class DockerPluginTests(AsyncTestCase):
         Create a volume with a size, then create a
         container that can use that volume and run lsbk to test
         its size. An http server inside the container uses lsblk to
-        return the size of the volume when path is not "/is_http"
+        return the size of the volume when path is not "/is_http".
+
         :param cluster: flocker cluster
         :param node: node the contianer and volume will be on.
         """
@@ -165,7 +166,7 @@ class DockerPluginTests(AsyncTestCase):
         volume_name = random_name(self)
         size = integers(min_value=75, max_value=100).example()
         expression = volume_expression.example()
-        size_opt = "".join(str(size))+expression
+        size_opt = "".join(str(size)) + expression
         size_bytes = int(GiB(size).to_Byte().value)
         self._create_volume(client, volume_name,
                             driver_opts={'size': size_opt})
