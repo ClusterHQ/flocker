@@ -253,7 +253,7 @@ class FlockerScriptRunner(object):
 
             def got_error(failure):
                 if failure.check(UsageError):
-                    err(': '.join(failure.value.args))
+                    err(failure.value.args)
                     raise SystemExit(1)
                 elif not failure.check(SystemExit):
                     err(failure)
