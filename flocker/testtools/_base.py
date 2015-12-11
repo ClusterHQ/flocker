@@ -216,6 +216,7 @@ def _iter_lines(byte_iter, separator='\n'):
     :yield: Separator-terminated bytestrings.
     """
     # XXX: Someone must have written this before.
+    # XXX: Move this to flocker.common?
     chunks = []
     for data in byte_iter:
         while data:
