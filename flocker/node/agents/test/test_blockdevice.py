@@ -1295,7 +1295,7 @@ def assert_desired_datasets(
     :param TestCase test_case: The ``TestCase`` which is being run.
     :param BlockDeviceDeployer deployer: The deployer that will be asked to
         calculate the desired datasets.
-    :param desired_manifeations: Manifestations to include in the local nodes
+    :param desired_manifestations: Manifestations to include in the local nodes
         configuration.
     :type desired_manifestations: iterable of ``Manifestations``
     :param local_datasets: Datasets to include in the local node's state.
