@@ -1034,6 +1034,10 @@ class UnusableAPI(object):
 
 @implementer(ICalculator)
 class RecordingCalculator(object):
+    """
+    An ``ICalculator`` that records the datasets passed to it, and calculates a
+    fixed change.
+    """
     def __init__(self, expected_changes):
         self.expected_changes = expected_changes
 
