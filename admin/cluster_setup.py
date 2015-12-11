@@ -148,8 +148,10 @@ class RunOptions(Options):
         if self['app-template'] is not None:
             template_file = FilePath(self['app-template'])
             self['template'] = yaml.safe_load(template_file.getContent())
-        else:
-            self['template'] = {}
+        elif self['apps-per-node'] > 0:
+            raise UsageError(
+                "app-template parameter must be provided if apps-per-node > 0"
+            )
 
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
