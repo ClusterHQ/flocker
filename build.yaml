@@ -316,7 +316,7 @@ common_cli:
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
     retry_with_timeout 1800 '\${venv}/bin/coverage run \${venv}/bin/trial \
-      --exitfirst --debug-stacktraces --reporter=subunit \
+      --debug-stacktraces --reporter=subunit \
       \${MODULE} 2>&1 | tee trial.log && if egrep -E -q "^error:\\s|^Traceback\\s" trial.log; then false; fi'
 
   run_trial_with_coverage_as_root: &run_trial_with_coverage_as_root |
@@ -328,7 +328,7 @@ common_cli:
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
     retry_with_timeout 1200 'sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
-      --exitfirst --debug-stacktraces --reporter=subunit \
+      --debug-stacktraces --reporter=subunit \
       \${MODULE} 2>&1 | tee trial.log && if egrep -E -q "^error:\\s|^Traceback\\s" trial.log; then false; fi'
 
   run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
@@ -339,7 +339,7 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # Consume the MODULE parameter set in the job configuration
     retry_with_timeout 1200 'sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
-      --exitfirst --debug-stacktraces --reporter=subunit \
+      --debug-stacktraces --reporter=subunit \
       --testmodule \${MODULE} 2>&1 | tee trial.log && if egrep -E -q "^error:\\s|^Traceback\\s" trial.log; then false; fi'
 
   setup_authentication: &setup_authentication |
