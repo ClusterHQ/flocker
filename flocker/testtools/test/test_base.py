@@ -3,7 +3,6 @@ Tests for flocker base test cases.
 """
 
 import errno
-import json
 import os
 import shutil
 import string
@@ -11,7 +10,7 @@ import unittest
 
 from eliot import MessageType, fields
 from hypothesis import assume, given
-from hypothesis.strategies import integers, lists, text
+from hypothesis.strategies import binary, integers, lists, text
 from testtools import PlaceHolder, TestCase, TestResult
 from testtools.content import text_content
 from testtools.matchers import (
@@ -22,6 +21,7 @@ from testtools.matchers import (
     ContainsDict,
     DirExists,
     HasLength,
+    EndsWith,
     Equals,
     FileContains,
     Is,
@@ -40,7 +40,7 @@ from .._base import (
     AsyncTestCase,
     make_temporary_directory,
     _get_eliot_data,
-    _iter_content_lines,
+    _iter_lines,
     _path_for_test_id,
 )
 from .._testhelpers import (
@@ -183,16 +183,39 @@ def match_text_content(matcher):
     return AfterPreprocessing(lambda content: content.as_text(), matcher)
 
 
-class IterContentLinesTests(TestCase):
+class IterLinesTests(TestCase):
     """
-    Tests for ``_iter_content_lines``.
+    Tests for ``_iter_lines``.
     """
 
-    @given(text())
-    def test_splits_into_lines(self, data):
-        content = text_content(data)
-        expected = list(line.encode('utf8') for line in data.splitlines(True))
-        self.assertThat(list(_iter_content_lines(content)), Equals(expected))
+    @given(lists(binary()), binary(min_size=1, max_size=1))
+    def test_preserves_data(self, data, separator):
+        """
+        Splitting into lines loses no data.
+        """
+        observed = _iter_lines(iter(data), separator)
+        self.assertThat(''.join(observed), Equals(''.join(data)))
+
+    @given(lists(binary()), binary(min_size=1, max_size=1))
+    def test_separator_terminates(self, data, separator):
+        """
+        After splitting into lines, each line ends with the separator.
+        """
+        # Make sure data ends with the separator.
+        data.append(separator)
+        observed = list(_iter_lines(iter(data), separator))
+        self.assertThat(observed, AllMatch(EndsWith(separator)))
+
+    @given(lists(binary(), min_size=1), binary(min_size=1, max_size=1))
+    def test_nonterminated_line(self, data, separator):
+        """
+        If the input data does not end with a separator, then every line ends
+        with a separator *except* the last line.
+        """
+        assume(not data[-1].endswith(separator) and sum(map(len, data)) > 0)
+        observed = list(_iter_lines(iter(data), separator))
+        self.expectThat(observed[:-1], AllMatch(EndsWith(separator)))
+        self.assertThat(observed[-1], Not(EndsWith(separator)))
 
 
 class GetEliotDataTests(TestCase):

@@ -196,12 +196,36 @@ def _iter_content_lines(content):
     """
     Iterate over the lines that make up ``content``.
 
-    :param Content content: Text content.
-    :raise ValueError: If content is not text content.
-    :yield: Newline-terminated UTF8-encoded bytestrings that make up content.
+    :param Content content: Arbitrary newline-separated content.
+    :yield: Newline-terminated bytestrings that make up the content.
     """
-    # XXX: Make this lazy.
-    return (line.encode('utf8') for line in content.as_text().splitlines(True))
+    return _iter_lines(content.iter_bytes(), '\n')
+
+
+def _iter_lines(byte_iter, separator='\n'):
+    """
+    Iterate over the lines that make up ``content``.
+
+    :param iter(bytes) byte_iter: An iterable of bytes.
+    :param bytes separator: A single byte that marks the end of a line.
+    :yield: Separator-terminated bytestrings.
+    """
+    # XXX: Someone must have written this before.
+    chunks = []
+    for data in byte_iter:
+        while data:
+            index = data.find(separator)
+            if index < 0:
+                chunks.append(data)
+                break
+
+            head, data = data[:index + 1], data[index + 1:]
+            chunks.append(head)
+            yield ''.join(chunks)
+            chunks = []
+
+    if chunks:
+        yield ''.join(chunks)
 
 
 def _path_for_test_id(test_id, max_segment_length=32):
