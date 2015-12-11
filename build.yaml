@@ -383,7 +383,7 @@ common_cli:
     # The admin/run-acceptance-tests will provision a flocker cluster with a
     # single node since the loopback backend doesn't support moving data across
     # hosts.
-    parse_logs \${venv}/bin/python admin/run-acceptance-tests \
+    \${venv}/bin/python admin/run-acceptance-tests \
     --distribution \${DISTRIBUTION_NAME} --number-of-nodes 1 \
     --provider aws --dataset-backend loopback --branch \${TRIGGERED_BRANCH} \
     --build-server  \
