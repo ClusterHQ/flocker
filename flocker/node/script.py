@@ -42,7 +42,7 @@ from .diagnostics import (
     lookup_distribution,
 )
 from .agents.blockdevice import (
-    BlockDeviceDeployer, ProcessLifetimeCache,
+    BlockDeviceDeployer, ProcessLifetimeCache, BlockDeviceInitializationError,
 )
 from .agents.loopback import (
     LoopbackBlockDeviceAPI,
@@ -600,7 +600,11 @@ class AgentService(PClass):
         if backend.needs_reactor:
             api_args = api_args.set("reactor", self.reactor)
 
-        return backend.api_factory(**api_args)
+        try:
+            return backend.api_factory(**api_args)
+        except BlockDeviceInitializationError as e:
+            # import pdb;pdb.set_trace()
+            pass
 
     def get_deployer(self, api):
         """
