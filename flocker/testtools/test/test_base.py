@@ -169,12 +169,9 @@ class AsyncTestCaseTests(TestCase):
                 'twisted-log': match_text_content(MatchesRegex(
                     r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\+\d{4} \[-\] foo$'
                 )),
-                AsyncTestCase._ELIOT_LOG_DETAIL_NAME: AfterPreprocessing(
-                    lambda content: json.loads(content.as_text()),
-                    ContainsDict({
-                        'name': Equals('qux'),
-                        'message_type': Equals('foo'),
-                    })
+                AsyncTestCase._ELIOT_LOG_DETAIL_NAME: match_text_content(
+                    Contains("  message_type: 'foo'\n"
+                             "  name: 'qux'\n")
                 ),
             }))
 

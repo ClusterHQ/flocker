@@ -7,9 +7,11 @@ Base classes for unit tests.
 from datetime import timedelta
 from functools import partial
 from itertools import tee
+import json
 import sys
 import tempfile
 
+from eliot.prettyprint import pretty_format
 import testtools
 from testtools.content import Content, text_content
 from testtools.content_type import UTF8_TEXT
@@ -134,7 +136,10 @@ def _fix_twisted_logs(log_content):
     twisted_lines, eliot_lines = tee(_iter_content_lines(log_content))
     return (
         Content(UTF8_TEXT, partial(_pure_twisted_logs, twisted_lines)),
-        Content(UTF8_TEXT, partial(_iter_eliot_logs, eliot_lines)),
+        Content(
+            UTF8_TEXT,
+            lambda: _prettyformat_lines(_iter_eliot_logs(eliot_lines)),
+        ),
     )
 
 
@@ -144,6 +149,15 @@ def _pure_twisted_logs(log_lines):
     are not Eliot data.
     """
     return (line for line in log_lines if _get_eliot_data(line) is None)
+
+
+def _prettyformat_lines(lines):
+    """
+    Pretty format lines of Eliot logs.
+    """
+    for line in lines:
+        data = json.loads(line)
+        yield pretty_format(data)
 
 
 def _iter_eliot_logs(log_lines):
