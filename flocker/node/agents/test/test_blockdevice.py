@@ -1040,6 +1040,7 @@ class RecordingCalculator(object):
     def calculate_changes_for_datasets(
         self, discovered_datasets, desired_datasets,
     ):
+        self.discovered_datasets = discovered_datasets
         self.desired_datasets = desired_datasets
         return self.expected_changes
 
@@ -3148,7 +3149,11 @@ class BlockDeviceDeployerCalculateChangesTests(
             datasets={},
         )
 
-    def test_calculates_changes(self):
+    @given(
+        discovered_datasets=lists(DISCOVERED_DATASET_STRATEGY).map(
+            dataset_map_from_iterable),
+    )
+    def test_calculates_changes(self, discovered_datasets):
         """
         ``BlockDeviceDeployer.calculate_changes`` returns the changes
         calculated by calling the provided ``ICalculator``.
@@ -3160,7 +3165,7 @@ class BlockDeviceDeployerCalculateChangesTests(
         )
         node_config = to_node(node_state)
 
-        return assert_calculated_changes_for_deployer(
+        assert_calculated_changes_for_deployer(
             self, self.deployer,
             node_state=node_state,
             node_config=node_config,
@@ -3168,7 +3173,13 @@ class BlockDeviceDeployerCalculateChangesTests(
             additional_node_states=set(),
             additional_node_config=set(),
             expected_changes=self.expected_change,
-            local_state=self.local_state,
+            local_state=self.local_state.transform(
+                ["datasets"], discovered_datasets,
+            ),
+        )
+        self.assertEqual(
+            self.deployer.calculator.discovered_datasets,
+            discovered_datasets,
         )
 
     def test_unknown_applications(self):
