@@ -147,10 +147,13 @@ class IDatasetStateChangeFactory(Interface):
         Create a state change that will bring the discovered dataset into the
         state described by the desired dataset.
 
-        :param DiscoveredDataset discovered_dataset: The discovered state of
-            the dataset.
+        :param discovered_dataset: The discovered state of the dataset or
+            ``None`` if nothing is known about the dataset.
+        :type discovered_dataset: ``DiscoveredDataset`` or ``NoneType``
         :param DesiredDataset desired_dataset: The desired state of the
-            dataset.
+            dataset or ``None`` if nothing is known about the desired state of
+            the dataset.
+        :type desired_dataset: ``DesiredDataset`` or ``NoneType``
 
         :return: The desired state change.
         :rtype: ``IStateChange``.
