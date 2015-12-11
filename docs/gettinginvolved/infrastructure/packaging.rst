@@ -13,7 +13,9 @@ To build omnibus packages, create a VirtualEnv and install Flocker then its rele
    cd /path/to/flocker
    mkvirtualenv flocker-packaging
    pip install .
-   pip install Flocker[dev]
+   pip install --process-dependency-links .[dev]
+
+.. Need --process-dependency-links while we're using a fork of testtools.
 
 Then run the following command from a clean checkout of the Flocker repository:
 
