@@ -717,6 +717,23 @@ class BlockDeviceDeployerDiscoverRawStateTests(SynchronousTestCase):
                 without_fs=False))
 
 
+@implementer(ICloudAPI)
+class FakeCloudAPI(proxyForInterface(IBlockDeviceAPI)):
+    """
+    Wrap a ``IBlockDeviceAPI`` and also provide ``ICloudAPI``.
+    """
+    def __init__(self, block_api, live_nodes=()):
+        """
+        @param block_api: ``IBlockDeviceAPI`` to wrap.
+        @param live_nodes: Live nodes beyond the current one.
+        """
+        self.original = block_api
+        self.live_nodes = live_nodes
+
+    def list_live_nodes(self):
+        return [self.compute_instance_id()] + list(self.live_nodes)
+
+
 class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
     """
     Tests for ``BlockDeviceDeployer.discover_state``.
@@ -951,6 +968,51 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     state=DatasetStates.ATTACHED_ELSEWHERE,
                     dataset_id=volume.dataset_id,
                     blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
+        )
+
+    def test_remote_device_dead_node(self):
+        """
+        If the API supports ``ICloudAPI`` and a volume is attached to a remote
+        node that is dead, the dataset returned by
+        ``BlockDeviceDeployer.discover_state`` is marked as
+        ``ATTACHED_ELSEWHERE``.
+        """
+        dead_host = u'dead'
+        live_host = u'live'
+        api = FakeCloudAPI(self.api, [live_host])
+
+        volume_attached_to_live = api.create_volume(
+            dataset_id=uuid4(),
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+        api.attach_volume(
+            volume_attached_to_live.blockdevice_id,
+            attach_to=live_host,
+        )
+        volume_attached_to_dead = api.create_volume(
+            dataset_id=uuid4(),
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        )
+        api.attach_volume(
+            volume_attached_to_dead.blockdevice_id,
+            attach_to=dead_host,
+        )
+        assert_discovered_state(
+            self, self.deployer.set(block_device_api=api),
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_ELSEWHERE,
+                    dataset_id=volume_attached_to_live.dataset_id,
+                    blockdevice_id=volume_attached_to_live.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_TO_DEAD_NODE,
+                    dataset_id=volume_attached_to_dead.dataset_id,
+                    blockdevice_id=volume_attached_to_dead.blockdevice_id,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                 ),
             ],
@@ -5462,3 +5524,11 @@ def make_icloudapi_tests(
                           self.assertIn(self.api.compute_instance_id(), live))
             return d
     return Tests
+
+
+class FakeCloudAPITests(make_icloudapi_tests(
+        lambda test_case: FakeCloudAPI(
+            loopbackblockdeviceapi_for_test(test_case)))):
+    """
+    ``ICloudAPI`` tests for ``FakeCloudAPI``.
+    """

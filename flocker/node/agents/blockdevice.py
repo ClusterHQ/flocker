@@ -62,8 +62,10 @@ class DatasetStates(Names):
     """
     # Doesn't exist yet.
     NON_EXISTENT = NamedConstant()
-    # Exists, but attached elsewhere
+    # Exists, but attached elsewhere to a live host:
     ATTACHED_ELSEWHERE = NamedConstant()
+    # Exists, but attached elsewhere to a dead host:
+    ATTACHED_TO_DEAD_NODE = NamedConstant()
     # Exists, but not attached
     NON_MANIFEST = NamedConstant()
     # Attached to this node but no filesystem
@@ -104,6 +106,7 @@ class DiscoveredDataset(PClass):
         tag_attribute='state',
         attributes_for_tag={
             DatasetStates.ATTACHED_ELSEWHERE: set(),
+            DatasetStates.ATTACHED_TO_DEAD_NODE: set(),
             DatasetStates.NON_MANIFEST: set(),
             DatasetStates.ATTACHED_NO_FILESYSTEM: {'device_path'},
             DatasetStates.ATTACHED: {'device_path'},
@@ -1276,6 +1279,7 @@ class RawState(PClass):
     The raw state of a node.
 
     :param unicode compute_instance_id: The identifier for this node.
+    :param unicode live_instances: The identifiers of live nodes.
     :param volumes: List of all volumes in the cluster.
     :type volumes: ``pvector`` of ``BlockDeviceVolume``
     :param devices: Mapping from dataset UUID to block device path containing
@@ -1288,6 +1292,7 @@ class RawState(PClass):
         those devices that have filesystems on this node.
     """
     compute_instance_id = field(unicode, mandatory=True)
+    live_instances = pset_field(unicode)
     volumes = pvector_field(BlockDeviceVolume)
     devices = pmap_field(UUID, FilePath)
     system_mounts = pmap_field(FilePath, FilePath)
@@ -1575,8 +1580,15 @@ class BlockDeviceDeployer(PClass):
                     # in the filesystem yet.
                     pass
 
+        if ICloudAPI.providedBy(api):
+            live_instances = api.list_live_nodes()
+        else:
+            # Assume everything is alive:
+            live_instances = [volume.attached_to for volume in volumes
+                              if volume.attached_to is not None]
         result = RawState(
             compute_instance_id=compute_instance_id,
+            live_instances=live_instances,
             volumes=volumes,
             devices=devices,
             system_mounts=system_mounts,
@@ -1639,8 +1651,12 @@ class BlockDeviceDeployer(PClass):
                         blockdevice_id=volume.blockdevice_id,
                     )
                 else:
+                    if volume.attached_to in raw_state.live_instances:
+                        state = DatasetStates.ATTACHED_ELSEWHERE
+                    else:
+                        state = DatasetStates.ATTACHED_TO_DEAD_NODE
                     datasets[dataset_id] = DiscoveredDataset(
-                        state=DatasetStates.ATTACHED_ELSEWHERE,
+                        state=state,
                         dataset_id=dataset_id,
                         maximum_size=volume.size,
                         blockdevice_id=volume.blockdevice_id,
