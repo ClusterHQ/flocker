@@ -28,15 +28,19 @@ Before you begin, you will need to make sure port ``4523`` is available for the 
 
 Use the following steps to install Flocker using Docker containers:
 
-#. Run the following commands on one of the hosts to run the Control Service, the first command will create a volume for the control service configuration state to live in so it remains past the container lifecycle, the second command will start the control-service:
+#. Run the Control Service:
 
-   .. prompt:: bash $
+   * Run the following command on one of the hosts to create a volume for the control service configuration state to live in so it remains past the container lifecycle:
 
-      docker run --name=flocker-control-volume -v /var/lib/flocker clusterhq/flocker-control-service true
+     .. prompt:: bash $
 
-   .. prompt:: bash $
+        docker run --name=flocker-control-volume -v /var/lib/flocker clusterhq/flocker-control-service true
+	 
+   * Run the following command on the same host to start the control-service:
 
-      docker run --restart=always -d --net=host -v /etc/flocker:/etc/flocker --volumes-from=flocker-control-volume --name=flocker-control-service clusterhq/flocker-control-service
+     .. prompt:: bash $
+
+        docker run --restart=always -d --net=host -v /etc/flocker:/etc/flocker --volumes-from=flocker-control-volume --name=flocker-control-service clusterhq/flocker-control-service
 
 #. Run the Container agent:
 
