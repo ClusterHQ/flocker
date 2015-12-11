@@ -181,6 +181,7 @@ class _RetryFlaky(testtools.RunTest):
 
         :return: A ``TestResult`` with the result of running the flaky test.
         """
+        result.startTest(case)
         successes = 0
         results = []
 
@@ -203,7 +204,6 @@ class _RetryFlaky(testtools.RunTest):
         combined_details = _combine_details(
             [flaky_details] + list(r[1] for r in results))
 
-        result.startTest(case)
         if successful:
             skip_reported = False
             for result_type, details in results:

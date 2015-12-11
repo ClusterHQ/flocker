@@ -45,12 +45,6 @@ AWS_REQUEST_ID = Field.for_types(
     u"The unique identifier assigned by the server for this request.",
 )
 
-# Structures to help log ``boto.exception.EC2ResponseError`` from AWS.
-BOTO_EC2RESPONSE_ERROR = MessageType(
-    u"flocker:node:agents:blockdevice:aws:boto_ec2response_error",
-    [AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID],
-)
-
 DEVICES = Field.for_types(
     u"devices", [list],
     u"List of devices currently in use by the compute instance.")
