@@ -45,8 +45,11 @@ from eliot import Message, register_exception_extractor
 from .blockdevice import (
     IBlockDeviceAPI, IProfiledBlockDeviceAPI, BlockDeviceVolume, UnknownVolume,
     AlreadyAttachedVolume, UnattachedVolume, UnknownInstanceID,
-    MandatoryProfiles, BlockDeviceInitializationError,
+    MandatoryProfiles
 )
+
+from ..script import StorageInitializationError
+
 from ...control import pmap_field
 
 from ._logging import (
@@ -278,7 +281,8 @@ class InvalidRegionError(Exception):
     The supplied region is not a valid AWS endpoint.
     """
     def __init__(self, region):
-        Exception.__init__(self, region)
+        message = u"The specified AWS region is not valid."
+        Exception.__init__(self, message, region)
         self.region = region
 
 
@@ -286,8 +290,9 @@ class InvalidZoneError(Exception):
     """
     The supplied zone is not valid for the given AWS region.
     """
-    def __init__(self, zone, available_zones):
-        Exception.__init__(self, zone, available_zones)
+    def __init__(self, message, zone, available_zones):
+        message = u"The specified AWS zone is not valid."
+        Exception.__init__(self, message, zone, available_zones)
         self.zone = zone
         self.available_zones = available_zones
 
@@ -1306,4 +1311,5 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
             cluster_id=cluster_id,
         )
     except (InvalidRegionError, InvalidZoneError) as e:
-        raise BlockDeviceInitializationError(e.args)
+        raise StorageInitializationError(
+            StorageInitializationError.CONFIGURATION_ERROR, e.args)

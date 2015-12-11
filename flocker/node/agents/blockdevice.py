@@ -169,16 +169,6 @@ class ICalculator(Interface):
         """
 
 
-class BlockDeviceInitializationError(Exception):
-    """
-    An exception raised when an ``IBlockDeviceAPI`` implementer cannot
-    be successfully initialized, for example due to an invalid
-    configuration.
-    """
-    def __init__(self, *args):
-        Exception.__init__(self, *args)
-
-
 class VolumeException(Exception):
     """
     A base class for exceptions raised by  ``IBlockDeviceAPI`` operations.

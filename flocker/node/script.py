@@ -42,7 +42,7 @@ from .diagnostics import (
     lookup_distribution,
 )
 from .agents.blockdevice import (
-    BlockDeviceDeployer, ProcessLifetimeCache, BlockDeviceInitializationError,
+    BlockDeviceDeployer, ProcessLifetimeCache,
 )
 from .agents.loopback import (
     LoopbackBlockDeviceAPI,
@@ -55,6 +55,22 @@ __all__ = [
     "flocker_container_agent_main",
     "flocker_diagnostics_main",
 ]
+
+
+class StorageInitializationError(Exception):
+    """
+    Exception raised by a storage API factory in the event that
+    the backend could not be successfully initialized.
+
+    :param NamedConstant code: The ``StorageInitializationError`` constant
+        indicating the type of failure.
+    """
+    CONFIGURATION_ERROR = NamedConstant()
+    OPERATIVE_ERROR = NamedConstant()
+
+    def __init__(self, code, *args):
+        Exception.__init__(self, *args)
+        self.code = code
 
 
 def flocker_dataset_agent_main():
@@ -602,9 +618,9 @@ class AgentService(PClass):
 
         try:
             return backend.api_factory(**api_args)
-        except BlockDeviceInitializationError as e:
-            # import pdb;pdb.set_trace()
-            pass
+        except StorageInitializationError as e:
+            if e.code == StorageInitializationError.CONFIGURATION_ERROR:
+                raise UsageError(e.args)
 
     def get_deployer(self, api):
         """
