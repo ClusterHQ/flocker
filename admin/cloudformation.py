@@ -19,13 +19,8 @@ keyname_param = template.add_parameter(Parameter(
 ))
 
 template.add_mapping('RegionMap', {
-    "us-east-1":      {"AMI": "ami-7f418316"},
-    "us-west-1":      {"AMI": "ami-951945d0"},
-    "us-west-2":      {"AMI": "ami-16fd7026"},
-    "eu-west-1":      {"AMI": "ami-24506250"},
-    "sa-east-1":      {"AMI": "ami-3e3be423"},
-    "ap-southeast-1": {"AMI": "ami-74dda626"},
-    "ap-northeast-1": {"AMI": "ami-dcfa4edd"}
+    # richardw-test1 AMI generated from a running acceptance test node.
+    "us-west-1":      {"AMI": "ami-68deb608"},
 })
 
 instances = []
@@ -34,9 +29,9 @@ for i in range(NUM_NODES):
     ec2_instance = ec2.Instance(
         node_name,
         ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "AMI"),
-        InstanceType="t1.micro",
+        InstanceType="m3.large",
         KeyName=Ref(keyname_param),
-        SecurityGroups=["default"],
+        SecurityGroups=["acceptance"],
         UserData=Base64("80")
     )
     template.add_resource(ec2_instance)
