@@ -621,6 +621,8 @@ class AgentService(PClass):
         except StorageInitializationError as e:
             if e.code == StorageInitializationError.CONFIGURATION_ERROR:
                 raise UsageError(u"Configuration error", *e.args)
+            else:
+                raise
 
     def get_deployer(self, api):
         """
