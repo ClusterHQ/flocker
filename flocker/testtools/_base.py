@@ -129,6 +129,18 @@ def _fix_twisted_logs(log_content):
     return log_content, text_content('')
 
 
+def _iter_content_lines(content):
+    """
+    Iterate over the lines that make up ``content``.
+
+    :param Content content: Text content.
+    :raise ValueError: If content is not text content.
+    :yield: Newline-terminated UTF8-encoded bytestrings that make up content.
+    """
+    # XXX: Make this lazy.
+    return (line.encode('utf8') for line in content.as_text().splitlines(True))
+
+
 def _path_for_test_id(test_id, max_segment_length=32):
     """
     Get the temporary directory path for a test ID.

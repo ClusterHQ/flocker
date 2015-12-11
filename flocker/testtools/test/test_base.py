@@ -12,6 +12,7 @@ from eliot import MessageType, fields
 from hypothesis import assume, given
 from hypothesis.strategies import integers, lists, text
 from testtools import PlaceHolder, TestCase, TestResult
+from testtools.content import text_content
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
@@ -36,6 +37,7 @@ from twisted.python.filepath import FilePath
 from .._base import (
     AsyncTestCase,
     make_temporary_directory,
+    _iter_content_lines,
     _path_for_test_id,
 )
 from .._testhelpers import (
@@ -172,6 +174,18 @@ def match_text_content(matcher):
     Match the text of a ``Content`` instance.
     """
     return AfterPreprocessing(lambda content: content.as_text(), matcher)
+
+
+class IterContentLinesTests(TestCase):
+    """
+    Tests for ``_iter_content_lines``.
+    """
+
+    @given(text())
+    def test_splits_into_lines(self, data):
+        content = text_content(data)
+        expected = list(line.encode('utf8') for line in data.splitlines(True))
+        self.assertThat(list(_iter_content_lines(content)), Equals(expected))
 
 
 identifier_characters = string.ascii_letters + string.digits + '_'
