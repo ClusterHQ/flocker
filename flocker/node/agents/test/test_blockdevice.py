@@ -2615,7 +2615,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(
-            in_parallel(changes=[]),
+            in_parallel(changes=[ActionNeeded(dataset_id=dataset_id)]),
             changes
         )
 
