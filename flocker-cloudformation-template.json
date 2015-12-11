@@ -1,22 +1,4 @@
 {
-  "AWSTemplateFormatVersion": "2010-09-09",
-  "Metadata": {
-    "AWS::CloudFormation::Designer": {
-      "id": "1762219e-1664-4526-97f7-40fae2d71a25",
-      "14b6a620-6900-40f5-8dab-7631d4b14545": {
-        "size": {
-          "width": 60,
-          "height": 60
-        },
-        "position": {
-          "x": 60,
-          "y": 90
-        },
-        "z": 1,
-        "embeds": []
-      }
-    }
-  },
   "Parameters": {
     "KeyName": {
       "Description": "Name of SSH key to link",
@@ -46,11 +28,6 @@
             },
             "ubuntu-14.04"
           ]
-        }
-      },
-      "Metadata": {
-        "AWS::CloudFormation::Designer": {
-          "id": "14b6a620-6900-40f5-8dab-7631d4b14545"
         }
       }
     }
