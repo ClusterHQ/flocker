@@ -1,5 +1,5 @@
 from .no_load import NoLoadScenario
 from .read_request_load import (
     ReadRequestLoadScenario, RateMeasurer, RequestRateTooLow,
-    RequestRateNotReached
+    RequestRateNotReached, RequestOverload
 )

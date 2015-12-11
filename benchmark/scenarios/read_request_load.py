@@ -11,7 +11,7 @@ import eliot
 from twisted.internet.defer import CancelledError, Deferred, succeed
 from twisted.internet.task import LoopingCall
 
-from flocker.common import gather_deferreds, loop_until, timeout
+from flocker.common import loop_until, timeout
 
 from .._interfaces import IScenario
 
@@ -36,14 +36,8 @@ class RateMeasurer(object):
     def receive_request(self, result):
         self.received += 1
 
-    def check_rate(self):
-        if self.received - self.counts[0] < self.rate:
-            raise RequestRateTooLow()
-        if self.sent - self.received > self.overflow:
-            raise RequestOverload()
-
     def update_rate(self):
-        self._rate = (self.received - self.counts[0]) / self.sample_size
+        self._rate = (self.received - self.counts[0]) / float(self.sample_size)
         self.counts.append(self.received)
 
     def outstanding(self):
@@ -103,14 +97,19 @@ class ReadRequestLoadScenario(object):
             d = self.control_service.list_nodes()
             self.rate_measurer.send_request()
             d.addCallbacks(self.rate_measurer.receive_request,
-                           eliot.write_failure)
+                           errback=eliot.write_failure)
+
+    def _fail(self, exception):
+        self.monitor_loop.stop()
+        self._maintained.errback(exception)
 
     def check_rate(self):
         rate = self.rate_measurer.rate()
         if rate < self.request_rate:
-            self._maintained.errback(RequestRateTooLow(rate))
+            self._fail(RequestRateTooLow(rate))
+
         if self.rate_measurer.outstanding() > self.max_outstanding:
-            self._maintained.errback(RequestOverload())
+            self._fail(RequestOverload())
 
     def start(self):
         """
@@ -162,3 +161,4 @@ class ReadRequestLoadScenario(object):
             self.loop.stop()
 
         return succeed(None)
+

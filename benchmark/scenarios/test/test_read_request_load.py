@@ -1,8 +1,7 @@
 from itertools import repeat
 from uuid import uuid4
 from ipaddr import IPAddress
-import math
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, Deferred
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
 from twisted.trial.unittest import SynchronousTestCase
@@ -13,7 +12,7 @@ from flocker.apiclient._client import (
 
 from benchmark.scenarios import (
     ReadRequestLoadScenario, RateMeasurer, RequestRateTooLow,
-    RequestRateNotReached
+    RequestRateNotReached, RequestOverload
 )
 
 from benchmark.scenarios.read_request_load import DEFAULT_SAMPLE_SIZE
@@ -26,72 +25,79 @@ class RateMeasurerTest(SynchronousTestCase):
     RateMeasurer tests
     """
 
-    def test_rate_is_nan_when_no_samples(self):
+    def send_requests(self, r_measurer, num_req, num_samples):
+        for i in range(num_samples):
+            for i in range(num_req):
+                r_measurer.send_request()
+
+    def receive_requests(self, r_measurer, num_req, num_samples):
+        ignored = ""
+        for i in range(num_samples):
+            for i in range(num_req):
+                r_measurer.receive_request(ignored)
+            r_measurer.update_rate()
+
+    def increase_rate(self, r_measurer, num_req, num_samples):
+        self.send_requests(r_measurer, num_req, num_samples)
+        self.receive_requests(r_measurer, num_req, num_samples)
+
+    def test_rate_is_zero_when_no_samples(self):
         """
         When no samples have been collected, a rate should not yet be
         established.
 
         This is represented by RateMeasurer as NaN.
         """
-        r = RateMeasurer(Clock())
-        self.assertTrue(math.isnan(r.rate()))
+        r = RateMeasurer()
+        self.assertEqual(r.rate(), 0, "Expected initial rate to be zero")
 
-    def test_rate_is_nan_when_not_enough_samples(self):
+    def test_rate_is_small_when_not_enough_samples(self):
         """
         When the number of samples collected is less than the sample
         size, the rate should not be established.
         """
-        c = Clock()
-        sample_size = DEFAULT_SAMPLE_SIZE
-        r = RateMeasurer(c, sample_size=sample_size)
+        r = RateMeasurer()
+        req_per_second = 5
 
-        for i in xrange(sample_size - 1):
-            r.new_sample()
-            c.advance(1)
+        self.increase_rate(r, req_per_second, (r.sample_size / 2))
 
-        self.assertTrue(math.isnan(r.rate()))
+        self.assertEqual((req_per_second * (r.sample_size / 2)) /
+                         r.sample_size,
+                         r.rate())
 
     def test_rate_is_correct_when_enough_samples(self):
         """
         A RateMeasurer should correctly report the rate when enough
         samples have been collected.
         """
-        c = Clock()
-        sample_size = DEFAULT_SAMPLE_SIZE
-        r = RateMeasurer(c, sample_size=sample_size)
+        r = RateMeasurer()
+        req_per_second = 5
 
-        # Advance by sample size + 1 because the RateMeasurer only knows
-        # that time has passed when new_sample is called.
-        for i in xrange(sample_size + 1):
-            r.new_sample()
-            c.advance(1)
+        self.increase_rate(r, req_per_second, r.sample_size)
 
-        # TODO: Should this be assertAlmostEqual? Will this pass
-        # everywhere? We are suspicious of floating point comparisons
-        self.assertEqual(r.rate(), 1.0)
+        self.assertEqual(req_per_second, r.rate())
 
     def test_old_samples_are_not_considered(self):
-        """
-        When calculating the rate, a RateMeasurer should only consider
-        the last n samples, where n is the specified sample size.
-        """
-        c = Clock()
-        sample_size = DEFAULT_SAMPLE_SIZE
-        r = RateMeasurer(c, sample_size=sample_size)
+        r = RateMeasurer()
+        req_per_second = 5
+        # generate samples that should get lost
+        self.increase_rate(r, 100, r.sample_size/2)
 
-        # Establish a rate of 1.0
-        for i in xrange(sample_size):
-            r.new_sample()
-            c.advance(1)
+        # generate r.sample_size samples that will make the initial
+        # ones not count
+        self.increase_rate(r, req_per_second, r.sample_size)
 
-        # Establish an increased rate of 2.0
-        for i in xrange(sample_size + 1):
-            r.new_sample()
-            r.new_sample()
-            c.advance(1)
+        self.assertEqual(req_per_second, r.rate())
 
-        # TODO: Same question as above test.
-        self.assertEqual(r.rate(), 2.0)
+    def test_only_received_samples_considered_in_rate(self):
+        r = RateMeasurer()
+        send_per_second = 100
+        rec_per_second = 5
+
+        self.send_requests(r, send_per_second, r.sample_size)
+        self.receive_requests(r, rec_per_second, r.sample_size)
+
+        self.assertEqual(rec_per_second, r.rate())
 
 
 class RequestDroppingFakeFlockerClient(
@@ -113,6 +119,7 @@ class RequestDroppingFakeFlockerClient(
                 self._dropped_last_request = False
                 return succeed(True)
             self._dropped_last_request = True
+        return Deferred()
 
 
 class ReadRequestLoadScenarioTest(SynchronousTestCase):
@@ -137,7 +144,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         """
         c = Clock()
         cluster = self.make_cluster(FakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
+        s = ReadRequestLoadScenario(c, cluster, 5, interval=3)
 
         d = s.start()
 
@@ -151,6 +158,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
 
+
     def test_scenario_throws_exception_when_rate_drops(self):
         """
         ReadRequestLoadScenario raises RequestRateTooLow if rate
@@ -158,7 +166,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
         Establish the requested rate by having the FakeFlockerClient
         respond to all requests, then lower the rate by dropping
-        alternate requests. This should result in RequestRateTooLow
+        alternate requeeas. This should result in RequestRateTooLow
         being raised.
         """
         c = Clock()
@@ -188,13 +196,53 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
         s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
-
-        d = s.start()
         cluster.get_control_service(c).drop_requests = True
+        d = s.start()
 
         # Continue the clock for one second longer than the timeout
         # value to allow the timeout to be triggered.
-        c.pump(repeat(1, s.timeout + 1))
+        c.pump(repeat(1, s.timeout + 15))
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, RequestRateNotReached)
+
+    def test_scenario_throws_exceptions_if_overloads(self):
+        """
+        `ReadRequestLoadScenarioTest` raises `RequestOverload` if,
+        once we start monitoring the scenario, we go over the max
+        tolerated difference between sent requests and received requests.
+
+        Note that, right now, the only way to make it fail is to generate
+        this different before we start monitoring the scenario.
+        Once we implement some kind of tolerance, to allow small highs/ups
+        on the rates, we can update this tests to trigger the exception
+        in a more realistic manner.
+        """
+        # XXX update this tests when we add tolerance to the rate going
+        # a bit up and down.
+        c = Clock()
+        cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
+        req_per_second = 2
+        sample_size = 20
+        s = ReadRequestLoadScenario(c, cluster, req_per_second,
+                                    interval=sample_size)
+        dropped_req_per_sec = req_per_second / 2
+        seconds_to_overload = s.max_outstanding / dropped_req_per_sec
+
+        s.start()
+        # Reach initial rate
+        cluster.get_control_service(c).drop_requests = True
+        # Initially, we generate enough dropped request to make it crash once
+        # we start monitoring the scenario
+        c.pump(repeat(1, seconds_to_overload+1))
+        # We stop dropping requests
+        cluster.get_control_service(c).drop_requests = False
+        # Now we generate the initial rate to start monitoring the scenario
+        c.pump(repeat(1, sample_size))
+        # We only need to advance one more second (first loop in the monitoring
+        # loop) to make it crash with RequestOverload
+        c.pump(repeat(1, 1))
+
+        failure = self.failureResultOf(s.maintained())
+        self.assertIsInstance(failure.value, RequestOverload)
+
