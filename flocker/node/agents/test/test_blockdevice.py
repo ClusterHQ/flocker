@@ -26,10 +26,10 @@ from pyrsistent import (
     PClass, field, discard, pmap, pvector,
 )
 
-from hypothesis import given
+from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
-    one_of,
+    one_of, dictionaries
 )
 
 from twisted.internet import reactor
@@ -48,13 +48,18 @@ from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployerLocalState, BlockDeviceDeployer,
+    BlockDeviceCalculator,
+
     IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
 
-    DiscoveredDataset, DatasetStates,
+    DATASET_TRANSITIONS, IDatasetStateChangeFactory,
+    ICalculator,
+
+    DiscoveredDataset, DesiredDataset, DatasetStates,
 
     PROFILE_METADATA_KEY,
 
@@ -83,10 +88,11 @@ from ..loopback import (
 )
 from ....common.algebraic import tagged_union_strategy
 
-from ... import run_state_change, in_parallel, ILocalState, NoOp
+
+from ... import run_state_change, in_parallel, ILocalState, NoOp, IStateChange
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
-    compute_cluster_state
+    compute_cluster_state,
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
@@ -116,6 +122,51 @@ ARBITRARY_BLOCKDEVICE_ID_2 = u'blockdevice_id_2'
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach. So just use this global logger for now.
 _logger = Logger()
+
+
+DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
+    DiscoveredDataset,
+    {
+        'dataset_id': uuids(),
+        'maximum_size': integers(min_value=1),
+        'mount_point': builds(FilePath, sampled_from([
+            '/flocker/abc', '/flocker/xyz',
+        ])),
+        'blockdevice_id': just(u''),  # This gets overriden below.
+        'device_path': builds(FilePath, sampled_from([
+            '/dev/xvdf', '/dev/xvdg',
+        ])),
+    }
+).map(lambda dataset: dataset.set(
+    blockdevice_id=_create_blockdevice_id_for_test(dataset.dataset_id),
+))
+
+DESIRED_DATASET_STRATEGY = builds(
+    DesiredDataset,
+    **{
+        'state': sampled_from([
+            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
+            DatasetStates.DELETED]),
+        'dataset_id': uuids(),
+        'maximum_size': integers(min_value=0).map(
+            lambda n:
+            LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+            + n*LOOPBACK_ALLOCATION_UNIT),
+        'metadata': dictionaries(keys=text(), values=text()),
+        'mount_point': builds(FilePath, sampled_from([
+            '/flocker/abc', '/flocker/xyz',
+        ])),
+    }
+)
+
+
+def dataset_map_from_iterable(iterable):
+    """
+    Turn a list of datasets into a map from their IDs to the datasets.
+    """
+    return {dataset.dataset_id: dataset
+            for dataset in iterable}
+
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -308,7 +359,7 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
         """
         ``shared_state_changes`` returns a ``NodeState`` with
         the ``node_uuid`` and ``hostname`` from the
-        BlockDeviceDeployerLocalState`` and a
+        ``BlockDeviceDeployerLocalState`` and a
         ``NonManifestDatasets``.
         """
         local_state = BlockDeviceDeployerLocalState(
@@ -575,10 +626,7 @@ def assert_discovered_state(
         BlockDeviceDeployerLocalState(
             hostname=deployer.hostname,
             node_uuid=deployer.node_uuid,
-            datasets={
-                dataset.dataset_id: dataset
-                for dataset in expected_discovered_datasets
-            },
+            datasets=dataset_map_from_iterable(expected_discovered_datasets),
             volumes=expected_volumes,
         )
     )
@@ -995,6 +1043,227 @@ class UnusableAPI(object):
     """
 
 
+def make_icalculator_tests(calculator_factory):
+    """
+    Make a test case to test an ``ICalculator`` implementation.
+
+    :param calculator_factory: Factory to make an ``ICalculator`` provider.
+    :type calculator_factory: No argument ``callable``.
+
+    :return: A ``TestCase`` subclass.
+    """
+    class ICalculatorTests(SynchronousTestCase):
+        """
+        Tests of an ``ICalculator`` implementation.
+        """
+        def test_interface(self):
+            """
+            The ``ICalculator`` implemention actually implements the interface.
+            """
+            verifyObject(ICalculator, calculator_factory())
+
+        @given(
+            discovered_datasets=builds(
+                dataset_map_from_iterable,
+                lists(DISCOVERED_DATASET_STRATEGY),
+            ),
+            desired_datasets=builds(
+                dataset_map_from_iterable,
+                lists(DESIRED_DATASET_STRATEGY),
+            ),
+        )
+        def test_returns_changes(self, discovered_datasets, desired_datasets):
+            """
+            ``ICalculator.calculate_changes_for_datasets`` returns a
+            ``IStateChange``.
+            """
+            calculator = calculator_factory()
+            changes = calculator.calculate_changes_for_datasets(
+                discovered_datasets=discovered_datasets,
+                desired_datasets=desired_datasets)
+            self.assertTrue(IStateChange.providedBy(changes))
+
+    return ICalculatorTests
+
+
+class BlockDeviceCalculatorInterfaceTests(
+    make_icalculator_tests(BlockDeviceCalculator)
+):
+    """
+    Tests for ``BlockDeviceCalculator``'s implementation of ``ICalculator``.
+    """
+
+
+def compare_dataset_state(discovered_dataset, desired_dataset):
+    """
+    Compare a discovered dataset to a desired dataset to determine if they have
+    converged.
+
+    .. note:: This ignores ``maximum_size`` as we don't support resizing yet.
+
+    :return: ``bool`` indicating if the datasets correspond.
+    """
+    if discovered_dataset is None:
+        return (desired_dataset is None
+                or desired_dataset.state == DatasetStates.DELETED)
+    if desired_dataset is None:
+        return discovered_dataset.state == DatasetStates.NON_MANIFEST
+    if discovered_dataset.state != desired_dataset.state:
+        return False
+    if discovered_dataset.state == DatasetStates.MOUNTED:
+        return discovered_dataset.mount_point == desired_dataset.mount_point
+    elif discovered_dataset.state == DatasetStates.NON_MANIFEST:
+        return True
+    elif discovered_dataset.state == DatasetStates.DELETED:
+        return True
+    else:
+        raise ValueError("Impossible dataset states: {} {}".format(
+            discovered_dataset, desired_dataset,
+        ))
+
+
+def compare_dataset_states(discovered_datasets, desired_datasets):
+    """
+    Compare discovered and desired state of datasets to determine if they have
+    converged.
+
+    .. note:: This ignores ``maximum_size`` as we don't support resizing yet.
+
+    :return: ``bool`` indicating if the datasets correspond.
+    """
+    for dataset_id in set(discovered_datasets) | set(desired_datasets):
+        desired_dataset = desired_datasets.get(dataset_id)
+        discovered_dataset = discovered_datasets.get(dataset_id)
+        if not compare_dataset_state(
+            discovered_dataset=discovered_dataset,
+            desired_dataset=desired_dataset,
+        ):
+            return False
+    return True
+
+
+class DidNotConverge(Exception):
+    """
+    Raised if running convergence with an ``ICalculator`` does not converge
+    in the specified number of iterations.
+    """
+
+
+class BlockDeviceCalculatorTests(SynchronousTestCase):
+    """
+    Tests for ``BlockDeviceCalculator``.
+    """
+    def setUp(self):
+        self.deployer = create_blockdevicedeployer(self)
+
+    def teardown_example(self, token):
+        """
+        Cleanup after running a hypothesis example.
+        """
+        detach_destroy_volumes(self.deployer.block_device_api)
+
+    def current_datasets(self):
+        """
+        Return the current state of datasets from the deployer.
+        """
+        return self.successResultOf(self.deployer.discover_state(
+            NodeState(
+                uuid=self.deployer.node_uuid,
+                hostname=self.deployer.hostname,
+            ),
+        )).datasets
+
+    def run_convergence_step(self, desired_datasets):
+        """
+        Run one step of the calculator.
+
+        :param desired_datasets: The dataset state to converge to.
+        :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
+        """
+        local_datasets = self.current_datasets()
+        changes = self.deployer.calculator.calculate_changes_for_datasets(
+            discovered_datasets=local_datasets,
+            desired_datasets=desired_datasets,
+        )
+        note("Running changes: {changes}".format(changes=changes))
+        self.successResultOf(run_state_change(changes, self.deployer))
+
+    def run_to_convergence(self, desired_datasets, max_iterations=4):
+        """
+        Run the calculator until it converges on the desired state.
+
+        :param desired_datasets: The dataset state to converge to.
+        :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
+        :param int max_iterations: The maximum number of steps to iterate.
+        """
+        for i in range(max_iterations):
+            self.run_convergence_step(
+                dataset_map_from_iterable(desired_datasets))
+            note(self.current_datasets())
+            if compare_dataset_states(
+                self.current_datasets(),
+                dataset_map_from_iterable(desired_datasets),
+            ):
+                break
+        else:
+            raise DidNotConverge()
+
+    @given(
+        initial_dataset=DESIRED_DATASET_STRATEGY,
+        next_state=sampled_from([
+            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
+            DatasetStates.DELETED]),
+    )
+    def test_simple_transitions(self, initial_dataset, next_state):
+        """
+        Given an initial empty state, ``BlockDeviceCalculator`` will converge
+        to any ``DesiredDataset``, followed by any other state of the same
+        dataset.
+        """
+        dataset_id = initial_dataset.dataset_id
+        initial_dataset = initial_dataset.set(
+            mount_point=self.deployer._mountpath_for_dataset_id(
+                unicode(dataset_id)),
+        )
+
+        # Converge to the initial state.
+        try:
+            self.run_to_convergence([initial_dataset])
+        except DidNotConverge:
+            self.fail("Did not converge to initial state after 10 iterations")
+
+        # Converge from the initial state to the next state.
+        try:
+            self.run_to_convergence([initial_dataset.set(state=next_state)])
+        except DidNotConverge:
+            self.fail("Did not converge to next state after 10 iterations")
+
+    test_simple_transitions.skip = (
+        "This test sometimes fails in a way that cause a failure cascade."
+    )
+
+    @given(
+        desired_state=sampled_from([
+            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
+            DatasetStates.DELETED,
+        ]),
+        discovered_state=sampled_from(
+            DiscoveredDataset.__invariant__.attributes_for_tag.keys()
+            + [DatasetStates.NON_EXISTENT]
+        )
+    )
+    def test_all_transitions(self, desired_state, discovered_state):
+        """
+        Transitions are defined from all possible desired states towards
+        all possible discovered states.
+        """
+        assume(desired_state != discovered_state)
+        verifyObject(
+            IDatasetStateChangeFactory,
+            DATASET_TRANSITIONS[desired_state][discovered_state],
+        )
+
+
 def assert_calculated_changes(
         case, node_state, node_config, nonmanifest_datasets, expected_changes,
         additional_node_states=frozenset(), leases=Leases(),
@@ -1036,8 +1305,7 @@ def assert_calculated_changes(
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=node_state.uuid,
             hostname=node_state.hostname,
-            datasets={dataset.dataset_id: dataset
-                      for dataset in discovered_datasets},
+            datasets=dataset_map_from_iterable(discovered_datasets),
             volumes=volumes,
         )
         case.assertEqual(
@@ -1255,24 +1523,6 @@ def local_state_from_shared_state(
     )
 
 
-DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
-    DiscoveredDataset,
-    {
-        'dataset_id': uuids(),
-        'maximum_size': integers(min_value=1),
-        'mount_point': builds(FilePath, sampled_from([
-            '/flocker/abc', '/flocker/xyz',
-        ])),
-        'blockdevice_id': text(),
-        'device_path': builds(FilePath, sampled_from([
-            '/dev/xvdf', '/dev/xvdg',
-        ])),
-    }
-).map(lambda dataset: dataset.set(
-    blockdevice_id=_create_blockdevice_id_for_test(dataset.dataset_id),
-))
-
-
 class LocalStateFromSharedStateTests(SynchronousTestCase):
     """
     Tests for ``local_state_from_shared_state``.
@@ -1284,10 +1534,7 @@ class LocalStateFromSharedStateTests(SynchronousTestCase):
             hostname=text(),
             datasets=lists(
                 DISCOVERED_DATASET_STRATEGY,
-            ).map(
-                lambda datasets: {dataset.dataset_id: dataset
-                                  for dataset in datasets}
-            ),
+            ).map(dataset_map_from_iterable),
             volumes=lists(
                 builds(
                     BlockDeviceVolume,

@@ -179,26 +179,7 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
     #
-    if is_osx; then
-      # OSX doesn't allow us to sudo (no tty)
-      # we can't be certain that cloudbees will always gives us a new OSX slave
-      # so we make sure we remove any old files
-      rm -f results.xml
-      rm -f trial.log
-      rm -rf _trial_temp/
-      rm -rf \${venv}
-      rm -f "Flocker*.rb"
-      rm -f "dist/Flocker-*.tar.gz"
-    fi
-    if is_centos || is_ubuntu; then
-      # some of our tests (which run as root), leave some files behind when
-      # they abort or fail to complete.
-      # We use 'sudo' so that we can remove those files before a next job run.
-      sudo rm -rf \${venv}
-      sudo rm -f results.xml
-      sudo rm -f trial.log
-      sudo rm -rf _trial_temp/
-    fi
+    rm -rf \${venv}
 
   setup_venv: &setup_venv |
     # setup the new venv
@@ -380,6 +361,23 @@ common_cli:
     parse_logs \${venv}/bin/python admin/run-acceptance-tests \
     --distribution \${DISTRIBUTION_NAME} \
     --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --config-file /tmp/acceptance.yaml \
+    \${ACCEPTANCE_TEST_MODULE}
+    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+
+  run_acceptance_loopback_tests: &run_acceptance_loopback_tests |
+    # We gather the return code but make sure we come out of these tests with 0
+    # we store that code and pass it to the end of the job execution,
+    # as part of the JOB_EXIT_STATUS variable.
+    #
+    # The admin/run-acceptance-tests will provision a flocker cluster with a
+    # single node since the loopback backend doesn't support moving data across
+    # hosts.
+    parse_logs \${venv}/bin/python admin/run-acceptance-tests \
+    --distribution \${DISTRIBUTION_NAME} --number-of-nodes 1 \
+    --provider aws --dataset-backend loopback --branch \${TRIGGERED_BRANCH} \
     --build-server  \
     http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
     --config-file /tmp/acceptance.yaml \
@@ -742,7 +740,6 @@ run_trial_modules: &run_trial_modules
   - flocker.restapi
   - flocker.docs
   - flocker.dockerplugin
-  - flocker.node.agents
   - flocker.node.test
   - flocker.node.functional.test_docker.GenericDockerClientTests
   - flocker.node.functional.test_docker.IDockerClientNamespacedTests
@@ -754,9 +751,13 @@ run_trial_modules: &run_trial_modules
   - flocker.route
   - flocker.test
   - flocker.testtools
+run_trial_as_root_modules: &run_trial_as_root_modules
   # flocker.volume needs to run as root due to ZFS calls
   # so we run it as part of the run_trial_on_<Cloud>_<OS>_as_root jobs
-  # - flocker.volume
+  - flocker.volume
+  # flocker.node.agent needs to run as root due to mounting filesystems
+  - flocker.node.agents
+
 
 # run_trial_cli contains a list of all the CLI yaml anchors we want to
 # execute as part of our run_trial_tasks
@@ -793,6 +794,11 @@ run_acceptance_modules: &run_acceptance_modules
   - flocker.acceptance.integration
   - flocker.acceptance.obsolete
 
+# When we have acceptance tests that run quickly enough (as they do on loopback)
+# we just run them all in one builder:
+run_full_acceptance_modules: &run_full_acceptance_modules
+  - flocker.acceptance
+
 # flocker.node.functional is hanging, so we don't run it
 job_type:
   run_trial:
@@ -810,8 +816,7 @@ job_type:
 
     run_trial_on_AWS_CentOS_7_as_root:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
-      with_modules:
-        - flocker.volume
+      with_modules: *run_trial_as_root_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
@@ -835,8 +840,7 @@ job_type:
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
-      with_modules:
-        - flocker.volume
+      with_modules: *run_trial_as_root_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
@@ -1019,6 +1023,46 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
                    *run_acceptance_rackspace_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      timeout: 45
+    run_acceptance_loopback_on_AWS_CentOS_7_for:
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_modules: *run_full_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_loopback_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts
+      timeout: 45
+    run_acceptance_loopback_on_AWS_Ubuntu_Trusty_for:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_modules: *run_full_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_loopback_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }

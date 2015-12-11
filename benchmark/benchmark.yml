@@ -6,6 +6,10 @@ operations:
   - name: default
     type: read-request
 
+  - name: list_datasets_state
+    type: read-request
+    method: list_datasets_state
+
   - name: no-op
     type: no-op
 

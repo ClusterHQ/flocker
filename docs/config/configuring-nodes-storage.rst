@@ -26,7 +26,7 @@ The file must always include ``version`` and ``control-service`` items, and will
 
 The value of the ``hostname`` field should be a hostname or IP that is routable from all your node agents.
 
-When configuring node agents, consider whether the control service location you choose will have multiple possible addresses, and ensure the hostname you provide is the correct one.
+When configuring node agents, consider whether the location you choose for the Flocker control service will have multiple possible addresses, and ensure the hostname you provide is the correct one.
 
 .. warning::
 	You should never choose ``127.0.0.1`` or ``localhost`` as the hostname, even if the control service is on same machine as the node agent, as this will keep the control service from correctly identifying the agent's IP address.
