@@ -4,16 +4,19 @@
 Tests for the Flocker Docker plugin.
 """
 
+from datetime import timedelta
+from distutils.version import LooseVersion
+
+from testtools import run_test_with
+
 from twisted.internet import reactor
 from twisted.trial.unittest import SkipTest
-
-from distutils.version import LooseVersion
 
 from ...common import loop_until
 from ...common.runner import run_ssh
 
 from ...testtools import (
-    AsyncTestCase, random_name, find_free_port, flaky,
+    AsyncTestCase, random_name, find_free_port, flaky, async_runner,
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
@@ -384,6 +387,8 @@ class DockerPluginTests(AsyncTestCase):
 
     @require_moving_backend
     @flaky(u'FLOC-3346')
+    # Test is very slow on Rackspace, it seems:
+    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     @require_cluster(2)
     def test_move_volume_different_node(self, cluster):
         """
