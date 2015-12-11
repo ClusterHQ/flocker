@@ -80,6 +80,8 @@ class AsyncTestCase(testtools.TestCase):
     Base class for asynchronous test cases.
     """
 
+    _ELIOT_LOG_DETAIL_NAME = 'twisted-eliot-log'
+
     run_tests_with = async_runner(timeout=DEFAULT_ASYNC_TIMEOUT)
 
     def __init__(self, *args, **kwargs):
@@ -97,11 +99,11 @@ class AsyncTestCase(testtools.TestCase):
         """
         Split the eliot logs out of the Twisted logs.
         """
-        twisted_log = self.getDetails()['twisted-log']
+        twisted_log = self.getDetails()[CaptureTwistedLogs.LOG_DETAIL_NAME]
         new_twisted_log, eliot_log = _fix_twisted_logs(twisted_log)
         # Overrides the existing Twisted log.
-        self.addDetail('twisted-log', new_twisted_log)
-        self.addDetail('eliot-log', eliot_log)
+        self.addDetail(CaptureTwistedLogs.LOG_DETAIL_NAME, new_twisted_log)
+        self.addDetail(self._ELIOT_LOG_DETAIL_NAME, eliot_log)
 
     def mktemp(self):
         """
