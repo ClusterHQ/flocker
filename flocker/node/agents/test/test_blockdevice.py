@@ -1423,49 +1423,10 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             ],
         )
 
-    def test_deleted_manifestation(self):
+    def test_deleted_dataset(self):
         """
-        If there is a mounted dataset that is deleted on this
-        node, the corresponding dataset has a desired state of
-        ``DELETED``.
-        """
-        assert_desired_datasets(
-            self, self.deployer,
-            desired_manifestations=[
-                ScenarioMixin.MANIFESTATION.transform(
-                    ["dataset", "deleted"], True,
-                    ['dataset', 'metadata'], ScenarioMixin.METADATA,
-                ),
-            ],
-            # XXX FLOC-1772 We only need to do this to handle
-            # deleting unmounted datasets
-            local_datasets=[
-                DiscoveredDataset(
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
-                    state=DatasetStates.MOUNTED,
-                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-                    device_path=FilePath('/dev/xvdf'),
-                    mount_point=FilePath('/mount/path'),
-                ),
-            ],
-            expected_datasets=[
-                DesiredDataset(
-                    state=DatasetStates.DELETED,
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    metadata=ScenarioMixin.METADATA,
-                ),
-            ],
-        )
-
-    def test_deleted_attached_manifest_dataset(self):
-        """
-        If there is a non-manifest dataset that is deleted on this
-        node, the corresponding dataset has a desired state of
-        ``DELETED``.
-
-        This is only necessary until we can delete non-manifest datasets
-        (FLOC-1772).
+        If there is a dataset that is deleted on this node, the corresponding
+        dataset has a desired state of ``DELETED``.
         """
         assert_desired_datasets(
             self, self.deployer,
@@ -1475,47 +1436,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
                     ['dataset', 'metadata'], ScenarioMixin.METADATA,
                 ),
             ],
-            # XXX FLOC-1772 We only need to do this to handle
-            # deleting unmounted datasets
-            local_datasets=[
-                DiscoveredDataset(
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
-                    state=DatasetStates.ATTACHED,
-                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-                    device_path=FilePath('/dev/xvdf'),
-                ),
-            ],
-            expected_datasets=[
-                DesiredDataset(
-                    state=DatasetStates.DELETED,
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    metadata=ScenarioMixin.METADATA,
-                ),
-            ],
-        )
-
-    def test_deleted_non_manifest_dataset(self):
-        """
-        If there is a manfestation on this node that is deleted,
-        the corresponding dataset has a desired state of ``DELETED``.
-        """
-        assert_desired_datasets(
-            self, self.deployer,
-            desired_manifestations=[
-                ScenarioMixin.MANIFESTATION.transform(
-                    ["dataset", "deleted"], True,
-                    ['dataset', 'metadata'], ScenarioMixin.METADATA,
-                ),
-            ],
-            local_datasets=[
-                DiscoveredDataset(
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
-                    state=DatasetStates.NON_MANIFEST,
-                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-                ),
-            ],
+            local_datasets=[],
             expected_datasets=[
                 DesiredDataset(
                     state=DatasetStates.DELETED,
