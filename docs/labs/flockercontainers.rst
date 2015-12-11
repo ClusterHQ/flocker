@@ -19,12 +19,12 @@ You can find the relevant Docker Hub images here:
 Before you install Flocker in containers, all authentication must be completed.
 This means that you will have generated the cluster certificate and key, the  node certificates and keys, and the API certificates and keys.
 
-In the example commands below, certificates are assumed to live in :file:`/etc/flocker` but other environments may choose to create containers that hold certificates and configuration and share amongst the Flocker service containers.
+In the example commands below, certificates are assumed to live in :file:`/etc/flocker` but other environments may choose to create containers that hold certificates and configuration, and share them amongst the Flocker service containers.
 The latter is not documented.
 
 For more information on generating certificates, please see  :ref:`authentication`. 
 
-Before you begin, you will need to make sure port ``4523`` is available for the control API and port ``4524`` is available for agent nodes.
+Before you begin, you will need to make sure port ``4523`` is available for the control API, and port ``4524`` is available for agent nodes.
 
 Use the following steps to install Flocker using Docker containers:
 
