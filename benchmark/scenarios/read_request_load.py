@@ -2,10 +2,13 @@
 """
 Read request load scenario for the control service benchmarks.
 """
+from collections import deque
+from itertools import repeat
 
 from zope.interface import implementer
+import eliot
 
-from twisted.internet.defer import CancelledError, Deferred
+from twisted.internet.defer import CancelledError, Deferred, succeed
 from twisted.internet.task import LoopingCall
 
 from flocker.common import gather_deferreds, loop_until, timeout
@@ -20,53 +23,34 @@ class RateMeasurer(object):
     Measures the rate of requests in requests per second
     """
 
-    def __init__(self, reactor, sample_size=DEFAULT_SAMPLE_SIZE):
-        self.counts = []
-        self.count = 0
-        self.reactor = reactor
+    def __init__(self, sample_size=DEFAULT_SAMPLE_SIZE):
+        self.counts = deque([0] * sample_size, sample_size)
+        self.sent = 0
+        self.received = 0
+        self._rate = 0
         self.sample_size = sample_size
-        self.last_second = int(self.reactor.seconds())
 
-    def new_sample(self):
-        now = int(self.reactor.seconds())
-        if now > self.last_second:
-            self.counts.append(self.count)
-            self.counts = self.counts[-self.sample_size:]
-            self.last_second = now
-            self.count = 0
-        self.count += 1
+    def send_request(self):
+        self.sent += 1
+
+    def receive_request(self, result):
+        self.received += 1
+
+    def check_rate(self):
+        if self.received - self.counts[0] < self.rate:
+            raise RequestRateTooLow()
+        if self.sent - self.received > self.overflow:
+            raise RequestOverload()
+
+    def update_rate(self):
+        self._rate = (self.received - self.counts[0]) / self.sample_size
+        self.counts.append(self.received)
+
+    def outstanding(self):
+        return self.sent - self.received
 
     def rate(self):
-        num_counts = len(self.counts)
-        if num_counts == self.sample_size:
-            return float(sum(self.counts) / float(num_counts))
-        else:
-            return float('nan')
-
-
-class LoadGenerator(object):
-    def __init__(self, request_generator, req_per_sec, interval, reactor):
-        self._request_generator = request_generator
-        self.req_per_sec = req_per_sec
-        self.interval = interval
-        self.reactor = reactor
-        self._loops = []
-        self._starts = []
-
-    def start(self):
-        for i in range(self.req_per_sec * self.interval):
-            loop = LoopingCall(
-                self._request_generator,
-            )
-            loop.clock = self.reactor
-            self._loops.append(loop)
-            started = loop.start(interval=self.interval)
-            self._starts.append(started)
-
-    def stop(self):
-        for loop in self._loops:
-            loop.stop()
-        return gather_deferreds(self._starts)
+        return self._rate
 
 
 class RequestRateTooLow(Exception):
@@ -81,6 +65,12 @@ class RequestRateNotReached(Exception):
     """
 
 
+class RequestOverload(Exception):
+    """
+    There are too many outstanding requests
+    """
+
+
 @implementer(IScenario)
 class ReadRequestLoadScenario(object):
     """
@@ -89,7 +79,8 @@ class ReadRequestLoadScenario(object):
     """
 
     def __init__(
-        self, reactor, cluster, request_rate=10, interval=10, timeout=45
+        self, reactor, cluster, request_rate=10, interval=DEFAULT_SAMPLE_SIZE,
+        timeout=45
     ):
         self._maintained = Deferred()
         self.reactor = reactor
@@ -97,54 +88,53 @@ class ReadRequestLoadScenario(object):
         self.request_rate = request_rate
         self.interval = interval
         self.timeout = timeout
-        self.rate_measurer = RateMeasurer(self.reactor)
+        self.rate_measurer = RateMeasurer(interval)
+        self.max_outstanding = 10 * request_rate
+        # Send requests per second
+        self.loop = LoopingCall.withCount(self._request_and_measure)
+        self.loop.clock = self.reactor
+        self.monitor_loop = LoopingCall(self.check_rate)
+        self.monitor_loop.clock = self.reactor
 
-    def _sample_and_return(self, result):
-        self.rate_measurer.new_sample()
-        return result
+    def _request_and_measure(self, count):
+        for i in range(count):
+            self.rate_measurer.update_rate()
+        for i in range(self.request_rate):
+            d = self.control_service.list_nodes()
+            self.rate_measurer.send_request()
+            d.addCallbacks(self.rate_measurer.receive_request,
+                           eliot.write_failure)
 
-    def _request_and_measure(self):
-        d = self.control_service.list_nodes()
-        d.addCallback(self._sample_and_return)
-        return d
+    def check_rate(self):
+        rate = self.rate_measurer.rate()
+        if rate < self.request_rate:
+            self._maintained.errback(RequestRateTooLow(rate))
+        if self.rate_measurer.outstanding() > self.max_outstanding:
+            self._maintained.errback(RequestOverload())
 
     def start(self):
         """
         :return: A Deferred that fires when the desired scenario is
             established (e.g. that a certain load is being applied).
         """
-        self.load_generator = LoadGenerator(
-            request_generator=self._request_and_measure,
-            req_per_sec=self.request_rate,
-            interval=self.interval,
-            reactor=self.reactor
-        )
-        self.load_generator.start()
+        self.loop.start(interval=1)
 
         def reached_target_rate():
-            current_rate = self.rate_measurer.rate()
-            return current_rate >= self.request_rate
+            return self.rate_measurer.rate() >= self.request_rate
 
         def handle_timeout(failure):
             failure.trap(CancelledError)
             raise RequestRateNotReached
 
-        waiting_for_target_rate = loop_until(self.reactor, reached_target_rate)
+        waiting_for_target_rate = loop_until(self.reactor,
+                                             reached_target_rate,
+                                             repeat(1))
         timeout(self.reactor, waiting_for_target_rate, self.timeout)
         waiting_for_target_rate.addErrback(handle_timeout)
 
-        def scenario_collapsed():
-            return self.rate_measurer.rate() < self.request_rate
-
         # Start monitoring the scenario as soon as the target rate is reached.
         def monitor_scenario_status(result):
-            scenario_monitor = loop_until(self.reactor, scenario_collapsed)
-            scenario_monitor.addCallback(
-                lambda ignored: self._maintained.errback(
-                    RequestRateTooLow(self.rate_measurer.rate())
-                )
-            )
-            return result
+            self.monitor_loop.start(interval=1)
 
         waiting_for_target_rate.addCallback(monitor_scenario_status)
 
@@ -165,4 +155,10 @@ class ReadRequestLoadScenario(object):
         :return: A Deferred that fires when the desired scenario is
             stopped.
         """
-        return self.load_generator.stop()
+        if self.monitor_loop.running:
+            self.monitor_loop.stop()
+
+        if self.loop.running:
+            self.loop.stop()
+
+        return succeed(None)
