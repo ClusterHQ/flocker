@@ -5,11 +5,14 @@ Base classes for unit tests.
 """
 
 from datetime import timedelta
+from functools import partial
+from itertools import tee
 import sys
 import tempfile
 
 import testtools
-from testtools.content import text_content
+from testtools.content import Content, text_content
+from testtools.content_type import UTF8_TEXT
 from testtools.deferredruntest import (
     AsynchronousDeferredRunTestForBrokenTwisted,
 )
@@ -126,7 +129,51 @@ def _fix_twisted_logs(log_content):
         messages and the second containing line-separated Eliot JSON messages.
     :rtype: (Content, Content)
     """
-    return log_content, text_content('')
+    twisted_lines, eliot_lines = tee(_iter_content_lines(log_content))
+    return (
+        Content(UTF8_TEXT, partial(_pure_twisted_logs, twisted_lines)),
+        Content(UTF8_TEXT, partial(_iter_eliot_logs, eliot_lines)),
+    )
+
+
+def _pure_twisted_logs(log_lines):
+    """
+    Given an iterable of lines of bytes of Twisted logs, yield the lines that
+    are not Eliot data.
+    """
+    return (line for line in log_lines if _get_eliot_data(line) is None)
+
+
+def _iter_eliot_logs(log_lines):
+    """
+    Given an iterable of lines of bytes of Twisted logs, yield the Eliot data
+    from lines that were logged by Eliot.
+    """
+    for line in log_lines:
+        data = _get_eliot_data(line)
+        if data is not None:
+            yield data
+
+
+_ELIOT_MARKER = ' [-] ELIOT: '
+_ELIOT_MARKER_LENGTH = len(_ELIOT_MARKER)
+
+
+def _get_eliot_data(twisted_log_line):
+    """
+    Given a line from a Twisted log message, return the text of the Eliot log
+    message that is on that line.
+
+    If there is no Eliot message on that line, return ``None``.
+
+    :return: A logged eliot message without Twisted logging preamble, or
+        ``None``.
+    :rtype: unicode or ``NoneType``.
+    """
+    index = twisted_log_line.find(_ELIOT_MARKER)
+    if index < 0:
+        return None
+    return twisted_log_line[index + _ELIOT_MARKER_LENGTH:].strip()
 
 
 def _iter_content_lines(content):

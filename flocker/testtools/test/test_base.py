@@ -3,6 +3,7 @@ Tests for flocker base test cases.
 """
 
 import errno
+import json
 import os
 import shutil
 import string
@@ -23,6 +24,7 @@ from testtools.matchers import (
     HasLength,
     Equals,
     FileContains,
+    Is,
     Matcher,
     MatchesAny,
     MatchesDict,
@@ -37,6 +39,7 @@ from twisted.python.filepath import FilePath
 from .._base import (
     AsyncTestCase,
     make_temporary_directory,
+    _get_eliot_data,
     _iter_content_lines,
     _path_for_test_id,
 )
@@ -145,7 +148,7 @@ class AsyncTestCaseTests(TestCase):
                 )),
             }))
 
-    def disabled_test_separate_eliot_log(self):
+    def test_separate_eliot_log(self):
         """
         AsyncTestCases attach the eliot log as a detail separate from the
         Twisted log.
@@ -166,6 +169,13 @@ class AsyncTestCaseTests(TestCase):
                 'twisted-log': match_text_content(MatchesRegex(
                     r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\+\d{4} \[-\] foo$'
                 )),
+                'eliot-log': AfterPreprocessing(
+                    lambda content: json.loads(content.as_text()),
+                    ContainsDict({
+                        'name': Equals('qux'),
+                        'message_type': Equals('foo'),
+                    })
+                ),
             }))
 
 
@@ -186,6 +196,41 @@ class IterContentLinesTests(TestCase):
         content = text_content(data)
         expected = list(line.encode('utf8') for line in data.splitlines(True))
         self.assertThat(list(_iter_content_lines(content)), Equals(expected))
+
+
+class GetEliotDataTests(TestCase):
+    """
+    Tests for ``_get_eliot_data``.
+    """
+
+    def test_twisted_line(self):
+        """
+        When given a line logged by Twisted, _get_eliot_data returns ``None``.
+        """
+        line = '2015-12-11 11:59:48+0000 [-] foo\n'
+        self.assertThat(_get_eliot_data(line), Is(None))
+
+    def test_eliot_line(self):
+        """
+        When given a line logged by Eliot, _get_eliot_data returns the bytes
+        that were logged by Eliot.
+        """
+        logged_line = (
+            '2015-12-11 11:59:48+0000 [-] ELIOT: '
+            '{"timestamp": 1449835188.575052, '
+            '"task_uuid": "6c579710-1b95-4604-b5a1-36b56f8ceb53", '
+            '"message_type": "foo", '
+            '"name": "qux", '
+            '"task_level": [1]}\n'
+        )
+        expected = (
+            '{"timestamp": 1449835188.575052, '
+            '"task_uuid": "6c579710-1b95-4604-b5a1-36b56f8ceb53", '
+            '"message_type": "foo", '
+            '"name": "qux", '
+            '"task_level": [1]}'
+        )
+        self.assertThat(_get_eliot_data(logged_line), Equals(expected))
 
 
 identifier_characters = string.ascii_letters + string.digits + '_'
