@@ -1458,18 +1458,12 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             self, self.deployer,
             desired_manifestations=[],
             local_datasets=[
-                DiscoveredDataset(
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
-                    state=DatasetStates.MOUNTED,
-                    maximum_size=expected_size,
-                    device_path=FilePath('/dev/xvdf'),
-                    mount_point=FilePath('/mount/path'),
-                )
+                ScenarioMixin.MOUNTED_DISCOVERED_DATASET.transform(
+                    ['maximum_size'], expected_size,
+                ),
             ],
             expected_datasets=[
                 ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
-                    ['metadata'], {},
                     ['maximum_size'], expected_size,
                 ),
             ],
@@ -1511,14 +1505,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
         assert_desired_datasets(
             self, self.deployer,
             local_datasets=[
-                DiscoveredDataset(
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
-                    state=DatasetStates.MOUNTED,
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=FilePath('/dev/xvdf'),
-                    mount_point=FilePath('/mount/path'),
-                )
+                ScenarioMixin.MOUNTED_DISCOVERED_DATASET,
             ],
             expected_datasets=[],
             leases=Leases().acquire(
@@ -1537,14 +1524,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             self, self.deployer,
             desired_manifestations=[],
             local_datasets=[
-                DiscoveredDataset(
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
-                    state=DatasetStates.MOUNTED,
-                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-                    device_path=FilePath('/dev/xvdf'),
-                    mount_point=FilePath('/mount/path'),
-                )
+                ScenarioMixin.MOUNTED_DISCOVERED_DATASET,
             ],
             local_applications=[
                 Application(
@@ -1575,14 +1555,9 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             self, self.deployer,
             desired_manifestations=[ScenarioMixin.MANIFESTATION],
             local_datasets=[
-                DiscoveredDataset(
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
-                    state=DatasetStates.MOUNTED,
-                    maximum_size=expected_size,
-                    device_path=FilePath('/dev/xvdf'),
-                    mount_point=FilePath('/mount/path'),
-                )
+                ScenarioMixin.MOUNTED_DISCOVERED_DATASET.transform(
+                    ['maximum_size'], expected_size,
+                ),
             ],
             expected_datasets=[
                 ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
@@ -1610,14 +1585,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
                 ),
             ],
             local_datasets=[
-                DiscoveredDataset(
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
-                    state=DatasetStates.MOUNTED,
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=FilePath('/dev/xvdf'),
-                    mount_point=FilePath('/mount/path'),
-                )
+                ScenarioMixin.MOUNTED_DISCOVERED_DATASET,
             ],
             expected_datasets=[
                 ScenarioMixin.MOUNTED_DESIRED_DATASET,
@@ -1728,6 +1696,14 @@ class ScenarioMixin(object):
     )
 
     MOUNT_ROOT = FilePath('/flocker')
+    MOUNTED_DISCOVERED_DATASET = DiscoveredDataset(
+        dataset_id=DATASET_ID,
+        blockdevice_id=BLOCKDEVICE_ID,
+        state=DatasetStates.MOUNTED,
+        maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
+        device_path=FilePath('/dev/xvdf'),
+        mount_point=MOUNT_ROOT,
+    )
     MOUNTED_DESIRED_DATASET = DesiredDataset(
         state=DatasetStates.MOUNTED,
         dataset_id=DATASET_ID,
