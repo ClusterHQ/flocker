@@ -1375,8 +1375,8 @@ class CalculateDesiredStateTests(SynchronousTestCase):
 
     def test_manifestation(self):
         """
-        If there is a manifesation on this node, then the
-        corresponding dataset has a desired state of ``MOUNTED``.
+        If there is a manifesation configured on this node, then the
+        corresponding desired dataset has a state of ``MOUNTED``.
         """
         assert_desired_datasets(
             self, self.deployer,
@@ -1398,10 +1398,13 @@ class CalculateDesiredStateTests(SynchronousTestCase):
 
     def test_manifestation_default_size(self):
         """
-        If there is a manifesation on this node, then the
-        corresponding dataset has a desired state of ``MOUNTED``.
+        If there is a manifesation configured on this node without a size, then
+        the corresponding desired dataset has a size fixed to the minimum
+        allowed Rackspace volume size.
+
+        XXX: Make the default size configurable.  FLOC-2679
         """
-        expected_size = int(GiB(75).bytes)
+        expected_size = int(RACKSPACE_MINIMUM_VOLUME_SIZE.bytes)
         assert_desired_datasets(
             self, self.deployer,
             desired_manifestations=[
@@ -1425,8 +1428,8 @@ class CalculateDesiredStateTests(SynchronousTestCase):
 
     def test_deleted_dataset(self):
         """
-        If there is a dataset that is deleted on this node, the corresponding
-        dataset has a desired state of ``DELETED``.
+        If there is a dataset that is configured as deleted on this node, the
+        corresponding dataset has a desired state of ``DELETED``.
         """
         assert_desired_datasets(
             self, self.deployer,
@@ -1448,10 +1451,9 @@ class CalculateDesiredStateTests(SynchronousTestCase):
 
     def test_leased_mounted_manifestation(self):
         """
-        If there is a lease for a mounted dataset present on node,
-        there is a corresponding dataset that has a desired state of
-        ``MOUNTED`` even if the configuration of the node doesn't mention the
-        dataset.
+        If there is a lease for a mounted dataset present on node, there is a
+        corresponding desired dataset that has a state of ``MOUNTED`` even if
+        the configuration of the node doesn't mention the dataset.
         """
         assert_desired_datasets(
             self, self.deployer,
@@ -1484,61 +1486,33 @@ class CalculateDesiredStateTests(SynchronousTestCase):
             )
         )
 
-    def test_leased_attached_manifestation(self):
+    @given(
+        local_dataset=DISCOVERED_DATASET_STRATEGY.filter(
+            lambda dataset: dataset.state != DatasetStates.MOUNTED,
+        ),
+    )
+    def test_leased_not_mounted(self, local_dataset):
         """
-        If there is a lease for an attached dataset present on node,
-        there is not a corresponding desired dataset.
-        """
-        assert_desired_datasets(
-            self, self.deployer,
-            desired_manifestations=[],
-            local_datasets=[
-                DiscoveredDataset(
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
-                    state=DatasetStates.ATTACHED,
-                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-                    device_path=FilePath('/dev/xvdf'),
-                )
-            ],
-            expected_datasets=[],
-            leases=Leases().acquire(
-                now=datetime.now(tz=UTC),
-                dataset_id=ScenarioMixin.DATASET_ID,
-                node_id=self.deployer.node_uuid,
-            )
-        )
-
-    def test_leased_non_manifest(self):
-        """
-        If there is a lease for a mounted dataset present on node,
-        there is a corresponding dataset that has a desired state of
-        ``MOUNTED``.
+        If there is a lease for a dataset that isn't mounted on the node and
+        the dataset isn't requested in the configuration of the node, there is
+        not a corresponding desired dataset.
         """
         assert_desired_datasets(
             self, self.deployer,
             desired_manifestations=[],
-            local_datasets=[
-                DiscoveredDataset(
-                    dataset_id=ScenarioMixin.DATASET_ID,
-                    blockdevice_id=ScenarioMixin.BLOCKDEVICE_ID,
-                    state=DatasetStates.NON_MANIFEST,
-                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-                )
-            ],
+            local_datasets=[local_dataset],
             expected_datasets=[],
             leases=Leases().acquire(
                 now=datetime.now(tz=UTC),
-                dataset_id=ScenarioMixin.DATASET_ID,
+                dataset_id=local_dataset.dataset_id,
                 node_id=self.deployer.node_uuid,
             )
         )
 
     def test_lease_elsewhere(self):
         """
-        If there is a lease for a dataset on another node,
-        there isn't a corresponding dataset that has a desired state
-        of ``MOUNTED``.
+        If there is a lease for a dataset on another node, there isn't a
+        corresponding desired dataset.
         """
         assert_desired_datasets(
             self, self.deployer,
@@ -1563,8 +1537,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
     def test_application_mounted_manifestation(self):
         """
         If there is an application with attached volume, there is a
-        corresponding dataset that has a desired state of
-        ``MOUNTED``.
+        corresponding desired dataset that has a state of ``MOUNTED``.
         """
         assert_desired_datasets(
             self, self.deployer,
@@ -1603,10 +1576,10 @@ class CalculateDesiredStateTests(SynchronousTestCase):
 
     def test_leased_manifestation(self):
         """
-        If there is a manifesation on this node and lease for the
-        corresponding volume for this node, then the corresponding
-        dataset has a desired state of ``MOUNTED`` and the
-        associated size corresponds to the discovered dataset.
+        If there is a manifesation on this node and lease for the corresponding
+        volume for this node, then the corresponding desired dataset has a
+        state of ``MOUNTED`` and the associated size corresponds to the
+        discovered dataset.
         """
         assert_desired_datasets(
             self, self.deployer,
@@ -1639,9 +1612,9 @@ class CalculateDesiredStateTests(SynchronousTestCase):
 
     def test_deleted_leased_manifestation(self):
         """
-        If there is a manfestation on this node that is deleted and
-        there is a lease on the volume for this node, the
-        corresponding dataset has a desired state of ``DELETED``.
+        If there is a manfestation on this node that is deleted and there is a
+        lease on the volume for this node, the corresponding desired dataset
+        has a state of ``MOUNTED``.
         """
         assert_desired_datasets(
             self, self.deployer,
