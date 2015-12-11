@@ -17,6 +17,7 @@ from twisted.python.log import textFromEventDict, startLoggingWithObserver, err
 from twisted.python import log as twisted_log
 from twisted.python.logfile import LogFile
 from twisted.python.filepath import FilePath
+from twisted.python.usage import UsageError
 
 from zope.interface import Interface
 
@@ -251,7 +252,9 @@ class FlockerScriptRunner(object):
             d = maybeDeferred(self.script.main, reactor, options)
 
             def got_error(failure):
-                if not failure.check(SystemExit):
+                if failure.check(UsageError):
+                    err(message=str(failure.value))
+                elif not failure.check(SystemExit):
                     err(failure)
                 return failure
             d.addErrback(got_error)
