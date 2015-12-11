@@ -281,7 +281,7 @@ class InvalidRegionError(Exception):
     The supplied region is not a valid AWS endpoint.
     """
     def __init__(self, region):
-        message = u"The specified AWS region is not valid"
+        message = u"The specified AWS region is not valid."
         Exception.__init__(self, message, region)
         self.region = region
 
@@ -291,11 +291,9 @@ class InvalidZoneError(Exception):
     The supplied zone is not valid for the given AWS region.
     """
     def __init__(self, zone, available_zones):
-        message = u"The specified AWS zone is not valid"
+        message = u"The specified AWS zone is not valid."
         Exception.__init__(
-            self, message, zone,
-            u"available_zones", ', '.join(available_zones)
-        )
+            self, message, zone, u"Available zones:", available_zones)
         self.zone = zone
         self.available_zones = available_zones
 
