@@ -8,6 +8,7 @@ import os
 import yaml
 import json
 import re
+import string
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -535,7 +536,7 @@ class VagrantRunner(object):
 
 
 @attributes(RUNNER_ATTRIBUTES + [
-    'provisioner', 'num_nodes',
+    'provisioner', 'num_nodes', 'purpose',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
@@ -562,6 +563,13 @@ class LibcloudRunner(object):
             )
         self.creator = creator
 
+        if any(x not in string.ascii_letters + string.digits + '-'
+               for x in self.purpose):
+            raise UsageError(
+                "Purpose may have only alphanumeric symbols and dash. " +
+                "Found {!r}".format(self.purpose)
+            )
+
     @inlineCallbacks
     def start_cluster(self, reactor):
         """
@@ -570,7 +578,7 @@ class LibcloudRunner(object):
         :return Cluster: The cluster to connect to for acceptance tests.
         """
         metadata = {
-            'purpose': 'acceptance-testing',
+            'purpose': self.purpose,
             'distribution': self.distribution,
         }
         metadata.update(self.metadata)
@@ -585,8 +593,8 @@ class LibcloudRunner(object):
         print "Assigning random tag:", random_tag
 
         for index in range(self.num_nodes):
-            name = "acceptance-test-%s-%s-%d" % (
-                self.creator, random_tag, index,
+            name = "%s-%s-%s-%d" % (
+                self.purpose, self.creator, random_tag, index,
             )
             try:
                 print "Creating node %d: %s" % (index, name)
@@ -872,6 +880,7 @@ class CommonOptions(Options):
             dataset_backend_configuration=self.dataset_backend_configuration(),
             variants=self['variants'],
             num_nodes=self['number-of-nodes'],
+            purpose=self['purpose'],
         )
 
     def _runner_RACKSPACE(self, package_source, dataset_backend,
@@ -930,6 +939,13 @@ class RunOptions(CommonOptions):
 
     synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '
                 '[--provider <provider>] [<test-cases>]')
+
+    def __init__(self, top_level):
+        """
+        :param FilePath top_level: The top-level of the flocker repository.
+        """
+        super(RunOptions, self).__init__(top_level)
+        self['purpose'] = 'acceptance-testing'
 
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args

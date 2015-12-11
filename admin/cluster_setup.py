@@ -41,6 +41,8 @@ class RunOptions(CommonOptions):
          int],
         ['app-template', None, None,
          'Configuration to use for each application container'],
+        ['purpose', None, 'testing',
+         "Purpose of the cluster recorded in its metadata where possible"],
     ]
 
     optFlags = [
