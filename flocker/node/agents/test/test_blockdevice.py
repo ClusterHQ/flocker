@@ -1104,7 +1104,7 @@ class RecordingCalculatorInterfaceTests(
     make_icalculator_tests(lambda: RecordingCalculator(NoOp()))
 ):
     """
-    Tests for ``BlockDeviceCalculator``'s implementation of ``ICalculator``.
+    Tests for ``RecordingCalculator``'s implementation of ``ICalculator``.
     """
 
 
@@ -1289,7 +1289,7 @@ def assert_desired_datasets(
     leases=Leases(),
 ):
     """
-    Assert that ``calculate_changes`` calculates the given desired datasetsg
+    Assert that ``calculate_changes`` calculates the given desired datasets
     invoked with the given state and configuration.
 
     :param TestCase test_case: The ``TestCase`` which is being run.
