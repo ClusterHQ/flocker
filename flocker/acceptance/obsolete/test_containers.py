@@ -159,8 +159,19 @@ class ContainerAPITests(AsyncTestCase):
             moved = cluster.move_container(
                 container_name, node2.uuid
             )
+
+            def on_new_node():
+                current = cluster.current_containers()
+                current.addCallback(lambda result: all([
+                    data.node_uuid == node2.uuid
+                    for data in result
+                    if data['name'] == container_name
+                ]))
+                return current
+            moved.addCallback(lambda _: loop_until(reactor, on_new_node))
             return moved
         creating_dataset.addCallback(move_container)
+        creating_dataset.addCallback(lambda _: sleep(20))
         creating_dataset.addCallback(
             lambda _: assert_http_server(
                 self, node2.public_address, 8080,
