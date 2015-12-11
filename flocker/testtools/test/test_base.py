@@ -206,13 +206,14 @@ class IterLinesTests(TestCase):
         observed = list(_iter_lines(iter(data), separator))
         self.assertThat(observed, AllMatch(EndsWith(separator)))
 
-    @given(lists(binary(), min_size=1), binary(min_size=1, max_size=1))
+    @given(lists(binary(min_size=1), min_size=1),
+           binary(min_size=1, max_size=1))
     def test_nonterminated_line(self, data, separator):
         """
         If the input data does not end with a separator, then every line ends
         with a separator *except* the last line.
         """
-        assume(not data[-1].endswith(separator) and sum(map(len, data)) > 0)
+        assume(not data[-1].endswith(separator))
         observed = list(_iter_lines(iter(data), separator))
         self.expectThat(observed[:-1], AllMatch(EndsWith(separator)))
         self.assertThat(observed[-1], Not(EndsWith(separator)))
