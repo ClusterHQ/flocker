@@ -28,26 +28,36 @@ class RateMeasurerTest(SynchronousTestCase):
 
     def test_rate_is_nan_when_no_samples(self):
         """
+        When no samples have been collected, a rate should not yet be
+        established.
+
+        This is represented by RateMeasurer as NaN.
         """
         r = RateMeasurer(Clock())
         self.assertTrue(math.isnan(r.rate()))
 
     def test_rate_is_nan_when_not_enough_samples(self):
         """
+        When the number of samples collected is less than the sample
+        size, the rate should not be established.
         """
         c = Clock()
-        r = RateMeasurer(c)
+        sample_size = DEFAULT_SAMPLE_SIZE
+        r = RateMeasurer(c, sample_size=sample_size)
 
-        r.new_sample()
-        c.advance(1)
+        for i in xrange(sample_size - 1):
+            r.new_sample()
+            c.advance(1)
 
         self.assertTrue(math.isnan(r.rate()))
 
     def test_rate_is_correct_when_enough_samples(self):
         """
+        A RateMeasurer should correctly report the rate when enough
+        samples have been collected.
         """
         c = Clock()
-        sample_size = 2
+        sample_size = DEFAULT_SAMPLE_SIZE
         r = RateMeasurer(c, sample_size=sample_size)
 
         # Advance by sample size + 1 because the RateMeasurer only knows
@@ -62,22 +72,25 @@ class RateMeasurerTest(SynchronousTestCase):
 
     def test_old_samples_are_not_considered(self):
         """
+        When calculating the rate, a RateMeasurer should only consider
+        the last n samples, where n is the specified sample size.
         """
         c = Clock()
-        sample_size = 2
+        sample_size = DEFAULT_SAMPLE_SIZE
         r = RateMeasurer(c, sample_size=sample_size)
 
-        # Create a rate of 1.0
+        # Establish a rate of 1.0
         for i in xrange(sample_size):
             r.new_sample()
             c.advance(1)
 
-        # Create a rate of 2.0
+        # Establish an increased rate of 2.0
         for i in xrange(sample_size + 1):
             r.new_sample()
             r.new_sample()
             c.advance(1)
 
+        # TODO: Same question as above test.
         self.assertEqual(r.rate(), 2.0)
 
 
