@@ -5023,7 +5023,8 @@ def make_icloudapi_tests(
             self.api = blockdevice_api_factory(test_case=self)
             self.this_node = self.api.compute_instance_id()
             self.async_cloud_api = _SyncToThreadedAsyncCloudAPIAdapter(
-                _sync=self.api)
+                _reactor=reactor, _sync=self.api,
+                _threadpool=reactor.getThreadPool())
 
         def test_interface(self):
             """
