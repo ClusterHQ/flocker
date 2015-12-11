@@ -1,0 +1,58 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Metadata": {
+    "AWS::CloudFormation::Designer": {
+      "id": "1762219e-1664-4526-97f7-40fae2d71a25",
+      "14b6a620-6900-40f5-8dab-7631d4b14545": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 60,
+          "y": 90
+        },
+        "z": 1,
+        "embeds": []
+      }
+    }
+  },
+  "Parameters": {
+    "KeyName": {
+      "Description": "Name of SSH key to link",
+      "Type": "AWS::EC2::KeyPair::KeyName"
+    }
+  },
+  "Mappings": {
+    "Ubuntu1404Ami": {
+      "us-west-2": {
+        "stable": "ami-5189a661"
+      }
+    }
+  },
+  "Resources": {
+    "I1WW6N": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "InstanceType": "t2.micro",
+        "KeyName": {
+            "Ref": "KeyName"
+        },
+        "ImageId": {
+          "Fn::FindInMap": [
+            "Ubuntu1404Ami",
+            {
+              "Ref": "AWS::Region"
+            },
+            "stable"
+          ]
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "14b6a620-6900-40f5-8dab-7631d4b14545"
+        }
+      }
+    }
+  }
+}
