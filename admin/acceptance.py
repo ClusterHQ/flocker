@@ -657,9 +657,10 @@ class LibcloudRunner(object):
 DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04')
 
 
-class RunOptions(Options):
-    description = "Run the acceptance tests."
-
+class CommonOptions(Options):
+    """
+    Options common to ``run-acceptance-tests`` and ``setup-cluster``.
+    """
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
@@ -682,15 +683,6 @@ class RunOptions(Options):
          'Number of nodes to start; default is 2 unless you set the deprecated'
          ' environment variable which was previous way to do this.', int],
     ]
-
-    optFlags = [
-        ["keep", "k", "Keep VMs around, if the tests fail."],
-        ["no-pull", None,
-         "Do not pull any Docker images when provisioning nodes."],
-    ]
-
-    synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '
-                '[--provider <provider>] [<test-cases>]')
 
     def __init__(self, top_level):
         """
@@ -718,12 +710,6 @@ class RunOptions(Options):
         Supported variants: distro-testing, docker-head, zfs-testing.
         """
         self['variants'].append(Variants.lookupByValue(arg))
-
-    def parseArgs(self, *trial_args):
-        self['trial-args'] = trial_args
-        if "FLOCKER_ACCEPTANCE_NUM_NODES" in os.environ:
-            print("Please use --number-of-nodes command line option instead "
-                  "of FLOCKER_ACCEPTANCE_NUM_NODES environment variable.")
 
     def dataset_backend_configuration(self):
         """
@@ -931,6 +917,26 @@ class RunOptions(Options):
         return self._libcloud_runner(
             package_source, dataset_backend, "aws", provider_config
         )
+
+
+class RunOptions(CommonOptions):
+    description = "Run the acceptance tests."
+
+    optFlags = [
+        ["keep", "k", "Keep VMs around, if the tests fail."],
+        ["no-pull", None,
+         "Do not pull any Docker images when provisioning nodes."],
+    ]
+
+    synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '
+                '[--provider <provider>] [<test-cases>]')
+
+    def parseArgs(self, *trial_args):
+        self['trial-args'] = trial_args
+        if "FLOCKER_ACCEPTANCE_NUM_NODES" in os.environ:
+            print("Please use --number-of-nodes command line option instead "
+                  "of FLOCKER_ACCEPTANCE_NUM_NODES environment variable.")
+
 
 MESSAGE_FORMATS = {
     "flocker.provision.ssh:run":
