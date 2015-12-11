@@ -233,7 +233,7 @@ class DockerPluginTests(AsyncTestCase):
 
             self.assertEqual(
                 EBSMandatoryProfileAttributes.SILVER.value.volume_type.value,
-                ebs_volume.type)
+                ebs_volume.volume_type)
 
         create_container.addCallback(_verify_created_volume_is_silver)
 
