@@ -26,7 +26,7 @@
   "Mappings": {
     "RegionToAmi": {
       "us-west-2": {
-        "ubuntu-14.04": "ami-5189a661"
+        "ubuntu1404": "ami-5189a661"
       }
     }
   },
