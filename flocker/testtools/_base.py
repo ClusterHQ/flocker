@@ -11,7 +11,20 @@ import tempfile
 import testtools
 from testtools.content import text_content
 from testtools.deferredruntest import (
-    AsynchronousDeferredRunTestForBrokenTwisted)
+    AsynchronousDeferredRunTestForBrokenTwisted,
+)
+
+try:
+    from testtools.deferredruntest import CaptureTwistedLogs
+except ImportError:
+    # We are using a fork of testtools, which unfortunately means that we need
+    # to do special things to make sure we're using the latest version. Raise
+    # an error message that will help people figure out what they need to do.
+    raise Exception(
+        'Cannot import CaptureTwistedLogs. Maybe upgrade your version of '
+        'testtools: pip install --upgrade --process-dependency-links .[dev]'
+    )
+
 
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
@@ -43,7 +56,10 @@ def async_runner(timeout, flaky_output=None):
     # loops the reactor a couple of times after the test is done.
     return retry_flaky(
         AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
-            timeout=timeout.total_seconds()),
+            timeout=timeout.total_seconds(),
+            suppress_twisted_logging=False,
+            store_twisted_logs=False,
+        ),
         output=flaky_output,
     )
 
@@ -67,6 +83,10 @@ class AsyncTestCase(testtools.TestCase):
         super(AsyncTestCase, self).__init__(*args, **kwargs)
         # XXX: Work around testing-cabal/unittest-ext#60
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
+
+    def setUp(self):
+        super(AsyncTestCase, self).setUp()
+        self.useFixture(CaptureTwistedLogs())
 
     def mktemp(self):
         """

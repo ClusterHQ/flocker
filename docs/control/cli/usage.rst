@@ -14,7 +14,7 @@ Command Line Arguments
 
 ``flocker-deploy`` takes three arguments:
 
-1. The hostname of the machine where the control service (including the Flocker REST API) is running.
+1. The hostname of the machine where the Flocker control service (including the Flocker REST API) is running.
 2. The path to a deployment configuration file.
 3. The path to an application configuration file.
 
