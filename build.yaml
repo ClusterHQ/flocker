@@ -317,7 +317,7 @@ common_cli:
     # This is how we tell trial which flocker module to call.
     retry_with_timeout 1800 '\${venv}/bin/coverage run \${venv}/bin/trial \
       --debug-stacktraces --reporter=subunit \
-      \${MODULE} 2>&1 | tee trial.log && if egrep -E -q "^error:\\s|^Traceback\\s" trial.log; then false; fi'
+      \${MODULE} 2>&1 | tee trial.log && if egrep -E -q "^error:\\s|^xfail:\\s" trial.log; then false; fi'
 
   run_trial_with_coverage_as_root: &run_trial_with_coverage_as_root |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -329,7 +329,7 @@ common_cli:
     # This is how we tell trial which flocker module to call.
     retry_with_timeout 1200 'sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
       --debug-stacktraces --reporter=subunit \
-      \${MODULE} 2>&1 | tee trial.log && if egrep -E -q "^error:\\s|^Traceback\\s" trial.log; then false; fi'
+      \${MODULE} 2>&1 | tee trial.log && if egrep -E -q "^error:\\s|^xfail:\\s" trial.log; then false; fi'
 
   run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -340,7 +340,7 @@ common_cli:
     # Consume the MODULE parameter set in the job configuration
     retry_with_timeout 1200 'sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
       --debug-stacktraces --reporter=subunit \
-      --testmodule \${MODULE} 2>&1 | tee trial.log && if egrep -E -q "^error:\\s|^Traceback\\s" trial.log; then false; fi'
+      --testmodule \${MODULE} 2>&1 | tee trial.log && if egrep -E -q "^error:\\s|^xfail:\\s" trial.log; then false; fi'
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
