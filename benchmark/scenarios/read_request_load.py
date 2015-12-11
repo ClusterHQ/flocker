@@ -89,7 +89,7 @@ class ReadRequestLoadScenario(object):
     """
 
     def __init__(
-        self, reactor, cluster, request_rate, interval=10, timeout=45
+        self, reactor, cluster, request_rate=10, interval=10, timeout=45
     ):
         self._maintained = Deferred()
         self.reactor = reactor

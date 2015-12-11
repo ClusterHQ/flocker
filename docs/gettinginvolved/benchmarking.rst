@@ -90,6 +90,12 @@ An example file:
        type: read-request-load
        request_rate: 5
 
+     - name: read-request-10
+       type: read-request-load
+       request_rate: 10
+       interval: 5
+       timeout: 60
+
    operations:
      - name: default
        type: read-request
@@ -119,7 +125,14 @@ Scenario Types
 .. option:: read-request-load
 
    Create additional load on the system by performing read requests.
-   The rate of requests to perform per second must be provided as an additional ``request_rate`` property.
+   Specify the rate of requests to perform per second using an additional ``request_rate`` property.
+   The default is 10 requests per second.
+
+   Specify the interval to be used when sampling the request rate using an additional ``interval`` property.
+   The default is 10 seconds.
+
+   Specify a timeout for establishing the scenario using an additional ``timeout`` property.
+   The default is 45 seconds.
 
 Operation Types
 ~~~~~~~~~~~~~~~
