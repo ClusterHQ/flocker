@@ -5328,6 +5328,12 @@ class CallbackProxy(object):
 
     def __getattr__(self, name):
         """
+        The implementation of the proxy. Gets the attribute on the underlying
+        object and returns a wrapped function that calls the callback before
+        and after its execution.
+
+        :param name: The name of the method on the proxy object that should be
+            called.
         """
         method = getattr(self._proxy_object, name)
 
