@@ -3,12 +3,12 @@ characteristic==14.1.0
 pyOpenSSL==0.14
 pycrypto==2.6.1
 virtualenv==13.1.0
-effect==0.1a13 
+effect==0.1a13
 boto==2.30.0
 requests==2.4.3
 requests-file==1.0
 ipaddr==2.1.11
-eliot==0.6.0
+eliot==0.11.0
 pyrsistent==0.11.9
 python-cinderclient==1.1.1
 python-novaclient==2.24.1

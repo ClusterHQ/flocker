@@ -22,6 +22,7 @@ from testtools.matchers import (
     FileContains,
     Matcher,
     MatchesAny,
+    MatchesDict,
     LessThan,
     Not,
     PathExists,
@@ -119,6 +120,24 @@ class AsyncTestCaseTests(TestCase):
                 tests_run=Equals(2),
             )
         )
+
+    def test_attaches_twisted_log(self):
+        """
+        AsyncTestCases attach the Twisted log as a detail.
+        """
+        class SomeTest(AsyncTestCase):
+            def test_something(self):
+                from twisted.python import log
+                log.msg('foo')
+
+        test = SomeTest('test_something')
+        test.run()
+        self.assertThat(
+            test.getDetails(),
+            MatchesDict({
+                'twisted-log': AfterPreprocessing(
+                    lambda c: c.as_text(), Contains('foo')),
+            }))
 
 
 identifier_characters = string.ascii_letters + string.digits + '_'

@@ -11,7 +11,7 @@ Logging
 
 Flocker processes use the `Eliot`_ framework for logging.
 Eliot structures logs as a tree of actions, which means given an error you can see what Flocker actions caused the errors by finding the other messages in the tree.
-The tree of actions can also span processes; thus you can trace API calls from within the Docker plugin and see the effects in the control service logs.
+The tree of actions can also span processes; thus you can trace API calls from within the Docker plugin and see the effects in the Flocker control service logs.
 Messages can be rendered into a human-readable tree using the `eliot-tree`_ command line tool, which is pre-installed with Flocker.
 Eliot also includes a tool called ``eliot-prettyprint`` which renders messages into a more human-readable format but does not present them in a tree structure.
 
@@ -193,13 +193,13 @@ Profiling
 
    It is not recommended to use profiling while relying on Flocker within a production environment as there is a performance overhead.
 
-Control Service
-^^^^^^^^^^^^^^^
+Flocker Control Service
+^^^^^^^^^^^^^^^^^^^^^^^
 
-It is possible to obtain :py:mod:`cProfile` profiling data of the :ref:`Control Service <control-service>` between two user defined intervals.
+It is possible to obtain :py:mod:`cProfile` profiling data of the :ref:`control-service` between two user defined intervals.
 
 Profiling is disabled by default.
-To enable profiling of the Control Service run the following command as root on the control node:
+To enable profiling of the control service run the following command as root on the control node:
 
 .. prompt:: bash #
 
