@@ -17,7 +17,7 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface, provider
 
-from pyrsistent import PClass, field, pmap_field, pset_field
+from pyrsistent import PClass, field, pmap_field, pset_field, thaw
 
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail
@@ -314,9 +314,21 @@ PROFILE_NAME = Field.forTypes(
     u"The name of a profile for a volume."
 )
 
+MAXIMUM_SIZE = Field.forTypes(
+    u"maximum_size",
+    [int],
+    u"The maximum size of a volume.",
+)
+
+METADATA = Field(
+    u"metadata",
+    thaw,
+    u"The metadata of a dataset.",
+)
+
 CREATE_BLOCK_DEVICE_DATASET = ActionType(
     u"agent:blockdevice:create",
-    [DATASET],
+    [DATASET_ID, MAXIMUM_SIZE, METADATA],
     [],
     u"A block-device-backed dataset is being created.",
 )
@@ -819,23 +831,25 @@ class CreateBlockDeviceDataset(PClass):
 
     :ivar Dataset dataset: The dataset for which to create a block device.
     """
-    dataset = field(mandatory=True, type=Dataset)
+    dataset_id = field(UUID, mandatory=True)
+    maximum_size = field(int, mandatory=True)
+    metadata = pmap_field(unicode, unicode)
 
     @classmethod
     def from_state_and_config(cls, discovered_dataset, desired_dataset):
         return cls(
-            dataset=Dataset(
-                dataset_id=desired_dataset.dataset_id,
-                maximum_size=desired_dataset.maximum_size,
-                metadata=desired_dataset.metadata,
-            ),
+            dataset_id=desired_dataset.dataset_id,
+            maximum_size=desired_dataset.maximum_size,
+            metadata=desired_dataset.metadata,
         )
 
     @property
     def eliot_action(self):
         return CREATE_BLOCK_DEVICE_DATASET(
             _logger,
-            dataset=self.dataset,
+            dataset_id=self.dataset_id,
+            maximum_size=self.maximum_size,
+            metadata=self.metadata,
         )
 
     def _create_volume(self, deployer):
@@ -853,20 +867,19 @@ class CreateBlockDeviceDataset(PClass):
         :returns: The created ``BlockDeviceVolume``.
         """
         api = deployer.block_device_api
-        profile_name = self.dataset.metadata.get(PROFILE_METADATA_KEY)
-        dataset_id = UUID(self.dataset.dataset_id)
+        profile_name = self.metadata.get(PROFILE_METADATA_KEY)
         size = allocated_size(allocation_unit=api.allocation_unit(),
-                              requested_size=self.dataset.maximum_size)
+                              requested_size=self.maximum_size)
         if profile_name:
             return (
                 deployer.profiled_blockdevice_api.create_volume_with_profile(
-                    dataset_id=dataset_id,
+                    dataset_id=self.dataset_id,
                     size=size,
                     profile_name=profile_name
                 )
             )
         else:
-            return api.create_volume(dataset_id=dataset_id, size=size)
+            return api.create_volume(dataset_id=self.dataset_id, size=size)
 
     def run(self, deployer):
         """
@@ -884,7 +897,7 @@ class CreateBlockDeviceDataset(PClass):
         """
         api = deployer.block_device_api
         try:
-            check_for_existing_dataset(api, UUID(hex=self.dataset.dataset_id))
+            check_for_existing_dataset(api, self.dataset_id)
         except:
             return fail()
 
