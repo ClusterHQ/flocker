@@ -92,19 +92,9 @@ class AsyncTestCase(testtools.TestCase):
 
     def setUp(self):
         super(AsyncTestCase, self).setUp()
-        # Need the cleanups in this to run *after* the cleanup in
-        # CaptureTwistedLogs, so add it first, because cleanups are run in
-        # reverse order.
-        #
-        # Would ideally like to have all the log capturing (including
-        # post-processing) in its own fixture that wraps up
-        # CaptureTwistedLogs, but there doesn't seem to be a way to do that.
-        # https://github.com/testing-cabal/fixtures/pull/20 for details.
-        #
         # XXX: Would also be useful for synchronous test cases once they're
         # migrated over to testtools.
         self.useFixture(_SplitEliotLogs(self))
-        self.useFixture(CaptureTwistedLogs())
 
     def mktemp(self):
         """
@@ -138,11 +128,22 @@ class _SplitEliotLogs(Fixture):
     _ELIOT_LOG_DETAIL_NAME = 'twisted-eliot-log'
 
     def __init__(self, case):
+        """
+        Construct a ``_SplitEliotLogs``.
+
+        :param TestCase case: The ``TestCase`` on which this fixture was
+            installed. The fixture will mutate the ``getDetails()`` dict
+            of this test case.
+        """
         super(_SplitEliotLogs, self).__init__()
         self._case = case
 
     def _setUp(self):
+        # Need the cleanups in this to run *after* the cleanup in
+        # CaptureTwistedLogs, so add it first, because cleanups are run in
+        # reverse order.
         self.addCleanup(self._post_process_twisted_logs, self._case)
+        self.useFixture(CaptureTwistedLogs())
 
     def _post_process_twisted_logs(self, case):
         """
@@ -152,7 +153,17 @@ class _SplitEliotLogs(Fixture):
             were attached.
         """
         # XXX: Mutating the details dict of the TestCase is a bit of a hack.
-        # See comment in AsyncTestCase.setUp for explanation.
+        # Indeed, having a Fixture depend on the TestCase to which it's fixed
+        # is also a bit of a hack.
+        #
+        # Ideally, we'd just mutate the details here, but there's no hook
+        # provided by the Fixture API where we can do this. (Details are gone
+        # from fixtures by the time clean-up happens; the addDetail API won't
+        # let us mutate details and preserve names; splitting one detail into
+        # two is hard.)
+        #
+        # See https://github.com/testing-cabal/fixtures/pull/20 for some
+        # discussion.
         twisted_log = case.getDetails().pop(CaptureTwistedLogs.LOG_DETAIL_NAME)
         new_twisted_log, eliot_log = _fix_twisted_logs(twisted_log)
         # Overrides the existing Twisted log.
