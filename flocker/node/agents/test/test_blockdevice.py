@@ -37,7 +37,8 @@ from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase, SkipTest
+from twisted.trial.unittest import (
+    SynchronousTestCase, SkipTest, AsynchronousTestCase)
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
@@ -5501,7 +5502,7 @@ def make_icloudapi_tests(
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI``/``ICloudAPI`` provider.
     """
-    class Tests(SynchronousTestCase):
+    class Tests(AsynchronousTestCase):
         def setUp(self):
             self.api = blockdevice_api_factory(test_case=self)
             self.this_node = self.api.compute_instance_id()
