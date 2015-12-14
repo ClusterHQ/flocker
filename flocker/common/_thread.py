@@ -6,6 +6,8 @@ Some thread-related tools.
 
 from twisted.internet.threads import deferToThreadPool
 
+from eliot import preserve_context
+
 from ._interface import interface_decorator
 
 
@@ -33,7 +35,7 @@ def _threaded_method(method_name, sync_name, reactor_name, threadpool_name):
         threadpool = getattr(self, threadpool_name)
         original = getattr(sync, method_name)
         return deferToThreadPool(
-            reactor, threadpool, original, *args, **kwargs
+            reactor, threadpool, preserve_context(original), *args, **kwargs
         )
     return _run_in_thread
 

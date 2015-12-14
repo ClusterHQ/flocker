@@ -83,7 +83,7 @@ Getting Started with the Installer
 
      .. note::
 
-        By default, the installer will launch one master node (where the control service runs) and two agent nodes (where volumes get attached and containers run).
+        By default, the installer will launch one master node (where the Flocker control service runs) and two agent nodes (where volumes get attached and containers run).
         Please refer to the `AWS pricing guide <https://aws.amazon.com/ec2/pricing/>`_ to understand how much this will cost you.
 
    * Now run the following command to automatically provision some nodes.
@@ -112,7 +112,7 @@ Getting Started with the Installer
    This step should take about 5 minutes, and will:
 
    * Install the OS packages on your nodes required to run Flocker, including Docker.
-   * Configure certificates, push them to your nodes, set up firewall rules for the control service.
+   * Configure certificates, push them to your nodes, set up firewall rules for the Flocker control service.
    * Start all the requisite Flocker services.
    * Install the Flocker plugin for Docker, so that you can control Flocker directly from the Docker CLI.
 

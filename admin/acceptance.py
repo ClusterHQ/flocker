@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
 Run the acceptance tests.
 """
@@ -575,8 +575,19 @@ class LibcloudRunner(object):
         }
         metadata.update(self.metadata)
 
+        # Try to make names unique even if the same creator is starting
+        # multiple clusters at the same time.  This lets other code use the
+        # name as a way to identify nodes.  This is only necessary in one
+        # place, the node creation code, to perform cleanup when the create
+        # operation fails in a way such that it isn't clear if the instance has
+        # been created or not.
+        random_tag = os.urandom(8).encode("base64").strip("\n=")
+        print "Assigning random tag:", random_tag
+
         for index in range(self.num_nodes):
-            name = "acceptance-test-%s-%d" % (self.creator, index)
+            name = "acceptance-test-%s-%s-%d" % (
+                self.creator, random_tag, index,
+            )
             try:
                 print "Creating node %d: %s" % (index, name)
                 node = self.provisioner.create_node(
@@ -666,6 +677,10 @@ class RunOptions(Options):
         ['flocker-version', None, None, 'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
+        ['number-of-nodes', None,
+         int(os.environ.get("FLOCKER_ACCEPTANCE_NUM_NODES", 2)),
+         'Number of nodes to start; default is 2 unless you set the deprecated'
+         ' environment variable which was previous way to do this.', int],
     ]
 
     optFlags = [
@@ -706,6 +721,9 @@ class RunOptions(Options):
 
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
+        if "FLOCKER_ACCEPTANCE_NUM_NODES" in os.environ:
+            print("Please use --number-of-nodes command line option instead "
+                  "of FLOCKER_ACCEPTANCE_NUM_NODES environment variable.")
 
     def dataset_backend_configuration(self):
         """
@@ -844,8 +862,8 @@ class RunOptions(Options):
         """
         Run some nodes using ``libcloud``.
 
-        By default, two nodes are run.  This can be overridden by setting
-        ``FLOCKER_ACCEPTANCE_NUM_NODES`` in the environment.
+        By default, two nodes are run.  This can be overridden by using
+        the ``--number-of-nodes`` command line option.
 
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
@@ -867,7 +885,7 @@ class RunOptions(Options):
             dataset_backend=dataset_backend,
             dataset_backend_configuration=self.dataset_backend_configuration(),
             variants=self['variants'],
-            num_nodes=int(os.environ.get("FLOCKER_ACCEPTANCE_NUM_NODES", "2")),
+            num_nodes=self['number-of-nodes'],
         )
 
     def _runner_RACKSPACE(self, package_source, dataset_backend,
@@ -1165,7 +1183,7 @@ def main(reactor, args, base_path, top_level):
                                                node.address,
                                                remote_logs_file)
                                )
-        elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.04'):
+        elif options['distribution'] in ('ubuntu-14.04',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
                 results.append(capture_upstart(reactor,
