@@ -453,7 +453,7 @@ def _expected_device(requested_device):
 
 
 def ec2_client(region, zone, access_key_id,
-               secret_access_key, validate_region):
+               secret_access_key, validate_region=True):
     """
     Establish connection to EC2 client.
 
