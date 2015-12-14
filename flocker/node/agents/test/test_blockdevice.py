@@ -37,7 +37,7 @@ from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase, SkipTest
+from twisted.trial.unittest import SynchronousTestCase, SkipTest, TestCase
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
@@ -78,6 +78,9 @@ from ..blockdevice import (
     FilesystemExists,
     UnknownInstanceID,
     get_blockdevice_volume,
+
+    ICloudAPI,
+    _SyncToThreadedAsyncCloudAPIAdapter,
 )
 
 from ..loopback import (
@@ -5251,3 +5254,40 @@ class ProcessLifetimeCacheTests(SynchronousTestCase):
 
         self.assertRaises(UnattachedVolume,
                           self.cache.get_device_path, attached_id1)
+
+
+def make_icloudapi_tests(
+        blockdevice_api_factory,
+):
+    """
+    :param blockdevice_api_factory: A factory which will be called
+        with the generated ``TestCase`` during the ``setUp`` for each
+        test and which should return a provider of both ``IBlockDeviceAPI``
+        and ``ICloudAPI`` to be tested.
+
+    :returns: A ``TestCase`` with tests that will be performed on the
+       supplied ``IBlockDeviceAPI``/``ICloudAPI`` provider.
+    """
+    class Tests(TestCase):
+        def setUp(self):
+            self.api = blockdevice_api_factory(test_case=self)
+            self.this_node = self.api.compute_instance_id()
+            self.async_cloud_api = _SyncToThreadedAsyncCloudAPIAdapter(
+                _reactor=reactor, _sync=self.api,
+                _threadpool=reactor.getThreadPool())
+
+        def test_interface(self):
+            """
+            The result of the factory provides ``ICloudAPI``.
+            """
+            self.assertTrue(verifyObject(ICloudAPI, self.api))
+
+        def test_current_machine_is_live(self):
+            """
+            The machine running the test is reported as alive.
+            """
+            d = self.async_cloud_api.list_live_nodes()
+            d.addCallback(lambda live:
+                          self.assertIn(self.api.compute_instance_id(), live))
+            return d
+    return Tests

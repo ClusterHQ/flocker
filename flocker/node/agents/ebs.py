@@ -45,7 +45,7 @@ from eliot import Message, register_exception_extractor
 from .blockdevice import (
     IBlockDeviceAPI, IProfiledBlockDeviceAPI, BlockDeviceVolume, UnknownVolume,
     AlreadyAttachedVolume, UnattachedVolume, UnknownInstanceID,
-    MandatoryProfiles
+    MandatoryProfiles, ICloudAPI,
 )
 
 from ..script import StorageInitializationError
@@ -851,6 +851,7 @@ def _get_blockdevices():
 
 @implementer(IBlockDeviceAPI)
 @implementer(IProfiledBlockDeviceAPI)
+@implementer(ICloudAPI)
 class EBSBlockDeviceAPI(object):
     """
     An EBS implementation of ``IBlockDeviceAPI`` which creates
@@ -1284,6 +1285,13 @@ class EBSBlockDeviceAPI(object):
             )
 
         return _expected_device(ebs_volume.attachments[0]['Device'])
+
+    # ICloudAPI:
+    @boto3_log
+    def list_live_nodes(self):
+        instances = self.connection.instances.filter(
+            Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
+        return list(instance.id for instance in instances)
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
