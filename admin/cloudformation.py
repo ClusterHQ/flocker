@@ -2,24 +2,22 @@
 # http://aws.amazon.com/cloudformation/aws-cloudformation-templates/
 
 from troposphere import FindInMap, GetAtt, Base64, Join
-from troposphere.cloudformation import (
-    Metadata, Init, InitConfig, InitFiles, InitFile
-)
-from troposphere import Parameter, Output, Ref, Template
+from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
 import troposphere.ec2 as ec2
 
 OWNER = u"richardw"
-NUM_NODES = 1
+NUM_NODES = 2
 NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 
+# TODO: Fix control-service IP
 AGENT_YAML_TEMPLATE = """\
 control-service:
-    hostname: ""
+    hostname: "${control_service_ip}"
     port: 4524
 dataset:
     backend: "aws"
     region: "${aws_region}"
-    zone: "${aws_region}"
+    zone: "${aws_zone}"
     access_key_id: "${access_key_id}"
     secret_access_key: "${secret_access_key}"
 version: 1
@@ -52,6 +50,8 @@ template.add_mapping('RegionMap', {
 })
 
 instances = []
+zone = Select(0, GetAZs(""))
+
 for i in range(NUM_NODES):
     node_name = NODE_NAME_TEMPLATE.format(owner=OWNER, index=i)
     ec2_instance = ec2.Instance(
@@ -60,18 +60,24 @@ for i in range(NUM_NODES):
         InstanceType="m3.large",
         KeyName=Ref(keyname_param),
         SecurityGroups=["acceptance"],
+        AvailabilityZone=zone,
     )
-    ec2_instance.UserData=Base64(Join("",[
-            '#!/bin/bash\n',
-            # Ref("AWS::Region"),
-            # ]))
-            'aws_region="', Ref("AWS::Region"), '"\n',
-            'access_key_id="', Ref(access_key_id_param), '"\n',
-            'secret_access_key="', Ref(secret_access_key_param), '"\n',
-            'cat <<EOF >/etc/flocker/agent.yml\n',
-            AGENT_YAML_TEMPLATE,
-            'EOF\n'
-            ]))
+    if i == 0:
+        control_service_ip = '127.0.0.1'
+        control_service_instance = ec2_instance
+    else:
+        control_service_ip = GetAtt(control_service_instance, "PublicIp")
+    ec2_instance.UserData = Base64(Join("", [
+        '#!/bin/bash\n',
+        'control_service_ip="', control_service_ip, '"\n',
+        'aws_region="', Ref("AWS::Region"), '"\n',
+        'aws_zone="', zone, '"\n',
+        'access_key_id="', Ref(access_key_id_param), '"\n',
+        'secret_access_key="', Ref(secret_access_key_param), '"\n',
+        'cat <<EOF >/etc/flocker/agent.yml\n',
+        AGENT_YAML_TEMPLATE,
+        'EOF\n'
+        ]))
     template.add_resource(ec2_instance)
     template.add_output([
         Output(
