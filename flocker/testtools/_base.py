@@ -142,22 +142,34 @@ def _fix_twisted_logs(log_content):
         messages and the second containing line-separated Eliot JSON messages.
     :rtype: (Content, Content)
     """
-    twisted_lines, eliot_lines = tee(_iter_content_lines(log_content))
+    twisted_lines, eliot_lines = _split_map_maybe(
+        _get_eliot_data, _iter_content_lines(log_content))
     return (
-        Content(UTF8_TEXT, partial(_pure_twisted_logs, twisted_lines)),
-        Content(
-            UTF8_TEXT,
-            lambda: _prettyformat_lines(_iter_eliot_logs(eliot_lines)),
-        ),
+        Content(UTF8_TEXT, lambda: twisted_lines),
+        Content(UTF8_TEXT, partial(_prettyformat_lines, eliot_lines)),
     )
 
 
-def _pure_twisted_logs(log_lines):
+def _split_map_maybe(function, sequence, marker=None):
     """
-    Given an iterable of lines of bytes of Twisted logs, yield the lines that
-    are not Eliot data.
+    Lazily map ``function`` over ``sequence``, yielding two streams:
+    ``(original, applied)``
+
+    :param function: Unary callable that might return ``marker``.
+    :param sequence: Iterable of objects that ``function`` will be applied to.
+    :param marker: Value returned by ``function`` when it cannot be
+        meaningfully applied to an object in ``sequence``.
+    :return: ``(original, applied)``, where ``original`` is an iterable of all
+        the elements, ``x``, in ``sequence`` where ``function(x)`` is
+        ``marker``, and ``applied`` is an iterable of all of the results of
+        ``function(x)`` that are not ``marker``.
     """
-    return (line for line in log_lines if _get_eliot_data(line) is None)
+    annotated = ((x, function(x)) for x in sequence)
+    original, mapped = tee(annotated)
+    return (
+        (x for (x, y) in original if y is marker),
+        (y for (x, y) in mapped if y is not marker)
+    )
 
 
 def _prettyformat_lines(lines):
@@ -167,17 +179,6 @@ def _prettyformat_lines(lines):
     for line in lines:
         data = json.loads(line)
         yield pretty_format(data)
-
-
-def _iter_eliot_logs(log_lines):
-    """
-    Given an iterable of lines of bytes of Twisted logs, yield the Eliot data
-    from lines that were logged by Eliot.
-    """
-    for line in log_lines:
-        data = _get_eliot_data(line)
-        if data is not None:
-            yield data
 
 
 _ELIOT_MARKER = ' [-] ELIOT: '
