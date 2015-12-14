@@ -5,7 +5,6 @@ Base classes for unit tests.
 """
 
 from datetime import timedelta
-from functools import partial
 from itertools import tee
 import json
 import sys
@@ -126,6 +125,7 @@ class _SplitEliotLogs(Fixture):
     """
 
     _ELIOT_LOG_DETAIL_NAME = 'twisted-eliot-log'
+    _TMP_TWISTED_LOG_DETAIL_NAME = 'tmp-twisted-log'
 
     def __init__(self, case):
         """
@@ -143,7 +143,37 @@ class _SplitEliotLogs(Fixture):
         # CaptureTwistedLogs, so add it first, because cleanups are run in
         # reverse order.
         self.addCleanup(self._post_process_twisted_logs, self._case)
-        self.useFixture(CaptureTwistedLogs())
+        twisted_logs = self.useFixture(CaptureTwistedLogs())
+        self._fix_twisted_logs(twisted_logs.LOG_DETAIL_NAME)
+
+    def _fix_twisted_logs(self, detail_name):
+        """
+        Split the Eliot logs out of a Twisted log.
+        """
+        split_logs = [None]
+
+        def _get_split_logs():
+            # Memoize the split log so we don't iterate through it twice.
+            if split_logs[0] is None:
+                split_logs[0] = _split_map_maybe(
+                    _get_eliot_data,
+                    _iter_content_lines(self.getDetails()[detail_name]),
+                )
+            return split_logs[0]
+
+        # The real trick here is that we can't call self.getDetails()
+        # directly. We have to call it *only* when the content objects that we
+        # add are iterated. This is because the only time that we *know* the
+        # details are populated is when the details are evaluated.
+
+        self.addDetail(
+            self._TMP_TWISTED_LOG_DETAIL_NAME,
+            Content(UTF8_TEXT, lambda: _get_split_logs()[0]))
+
+        self.addDetail(
+            self._ELIOT_LOG_DETAIL_NAME,
+            Content(
+                UTF8_TEXT, lambda: _prettyformat_lines(_get_split_logs()[1])))
 
     def _post_process_twisted_logs(self, case):
         """
@@ -164,29 +194,9 @@ class _SplitEliotLogs(Fixture):
         #
         # See https://github.com/testing-cabal/fixtures/pull/20 for some
         # discussion.
-        twisted_log = case.getDetails().pop(CaptureTwistedLogs.LOG_DETAIL_NAME)
-        new_twisted_log, eliot_log = _fix_twisted_logs(twisted_log)
-        # Overrides the existing Twisted log.
-        case.addDetail(CaptureTwistedLogs.LOG_DETAIL_NAME, new_twisted_log)
-        case.addDetail(self._ELIOT_LOG_DETAIL_NAME, eliot_log)
-
-
-def _fix_twisted_logs(log_content):
-    """
-    Split the Eliot logs out of a Twisted log.
-
-    :param Content log_content: A text content object that contains a Twisted
-        log.
-    :return: The log split into two, the first containing the core Twisted log
-        messages and the second containing line-separated Eliot JSON messages.
-    :rtype: (Content, Content)
-    """
-    twisted_lines, eliot_lines = _split_map_maybe(
-        _get_eliot_data, _iter_content_lines(log_content))
-    return (
-        Content(UTF8_TEXT, lambda: twisted_lines),
-        Content(UTF8_TEXT, partial(_prettyformat_lines, eliot_lines)),
-    )
+        details = case.getDetails()
+        details[CaptureTwistedLogs.LOG_DETAIL_NAME] = details.pop(
+            self._TMP_TWISTED_LOG_DETAIL_NAME)
 
 
 def _split_map_maybe(function, sequence, marker=None):
