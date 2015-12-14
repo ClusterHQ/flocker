@@ -178,7 +178,7 @@ def _prettyformat_lines(lines):
     """
     for line in lines:
         data = json.loads(line)
-        yield pretty_format(data)
+        yield pretty_format(data) + '\n'
 
 
 _ELIOT_MARKER = ' [-] ELIOT: '
