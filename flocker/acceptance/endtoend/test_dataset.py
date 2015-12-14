@@ -126,7 +126,14 @@ class DatasetAPITests(AsyncTestCase):
                 " moving from dead node but as first pass we assume it "
                 "doesn't.")
 
-        waiting_for_create = create_dataset(self, cluster)
+        # Find a node which is not running the control service.
+        # If the control node is shut down we won't be able to move anything!
+        node = list(node for node in cluster.nodes
+                    if node.public_address !=
+                    cluster.control_node.public_address)[0]
+        other_node = list(other_node for other_node in cluster.nodes
+                          if other_node != node)[0]
+        waiting_for_create = create_dataset(self, cluster, node=node)
 
         def startup_node(node_id):
             api.start_node(node_id)
@@ -138,7 +145,6 @@ class DatasetAPITests(AsyncTestCase):
         # dataset to node2:
         def shutdown(dataset):
             live_node_ids = set(api.list_live_nodes())
-            node = cluster.nodes[0]
             d = node.shutdown()
             # Wait for shutdown to be far enough long that node is down:
             d.addCallback(
@@ -156,13 +162,13 @@ class DatasetAPITests(AsyncTestCase):
 
         def move_dataset(dataset):
             dataset_moving = cluster.client.move_dataset(
-                UUID(cluster.nodes[1].uuid), dataset.dataset_id)
+                UUID(other_node.uuid), dataset.dataset_id)
 
             # Wait for the dataset to be moved; we expect the state to
             # match that of the originally created dataset in all ways
             # other than the location.
             moved_dataset = dataset.set(
-                primary=UUID(cluster.nodes[1].uuid))
+                primary=UUID(other_node.uuid))
             dataset_moving.addCallback(
                 lambda dataset: cluster.wait_for_dataset(moved_dataset))
             return dataset_moving
