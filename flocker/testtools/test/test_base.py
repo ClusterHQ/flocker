@@ -188,7 +188,7 @@ class IterLinesTests(TestCase):
     Tests for ``_iter_lines``.
     """
 
-    @given(lists(binary()), binary(min_size=1, max_size=1))
+    @given(lists(binary()), binary(min_size=1))
     def test_preserves_data(self, data, separator):
         """
         Splitting into lines loses no data.
@@ -196,7 +196,7 @@ class IterLinesTests(TestCase):
         observed = _iter_lines(iter(data), separator)
         self.assertThat(''.join(observed), Equals(''.join(data)))
 
-    @given(lists(binary()), binary(min_size=1, max_size=1))
+    @given(lists(binary()), binary(min_size=1))
     def test_separator_terminates(self, data, separator):
         """
         After splitting into lines, each line ends with the separator.
@@ -206,8 +206,7 @@ class IterLinesTests(TestCase):
         observed = list(_iter_lines(iter(data), separator))
         self.assertThat(observed, AllMatch(EndsWith(separator)))
 
-    @given(lists(binary(min_size=1), min_size=1),
-           binary(min_size=1, max_size=1))
+    @given(lists(binary(min_size=1), min_size=1), binary(min_size=1))
     def test_nonterminated_line(self, data, separator):
         """
         If the input data does not end with a separator, then every line ends

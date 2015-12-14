@@ -224,12 +224,12 @@ def _iter_content_lines(content):
     return _iter_lines(content.iter_bytes(), '\n')
 
 
-def _iter_lines(byte_iter, separator='\n'):
+def _iter_lines(byte_iter, line_separator):
     """
     Iterate over the lines that make up ``content``.
 
     :param iter(bytes) byte_iter: An iterable of bytes.
-    :param bytes separator: A single byte that marks the end of a line.
+    :param bytes line_separator: The bytes that mark the end of a line.
     :yield: Separator-terminated bytestrings.
     """
     # XXX: Someone must have written this before.
@@ -237,13 +237,12 @@ def _iter_lines(byte_iter, separator='\n'):
     chunks = []
     for data in byte_iter:
         while data:
-            index = data.find(separator)
-            if index < 0:
-                chunks.append(data)
+            head, sep, data = data.partition(line_separator)
+            if not sep:
+                chunks.append(head)
                 break
 
-            head, data = data[:index + 1], data[index + 1:]
-            chunks.append(head)
+            chunks.append(head + sep)
             yield ''.join(chunks)
             chunks = []
 
