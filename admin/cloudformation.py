@@ -61,19 +61,16 @@ for i in range(NUM_NODES):
         KeyName=Ref(keyname_param),
         SecurityGroups=["acceptance"],
     )
-    ec2_instance.UserData=Join(
-        delimiter="",
-        values=[
-            Base64('#!/bin/bash\n'),
-            Base64('cat <<EOF >/etc/flocker/agent.yml\n'),
-            Base64('aws_region="'), Base64(Ref("AWS::Region")), Base64('"\n'),
-            Base64('EOF\n')
+    ec2_instance.UserData=Base64(Join("",[
+            '#!/bin/bash\n',
+            'cat <<EOF >/etc/flocker/agent.yml\naws_region=',
+            Ref("AWS::Region"),
+            'EOF\n'
+            ]))
             # Base64('aws_zone="'), Ref("AWS::Zone"), Base64('"\n'),
             # Base64('access_key_id="'), Ref(access_key_id_param), Base64('"\n'),
             # Base64('secret_access_key="'), Ref(secret_access_key_param), Base64('"\n'),
             # Base64(AGENT_YAML_TEMPLATE),
-        ]
-    )
     template.add_resource(ec2_instance)
     template.add_output([
         Output(
