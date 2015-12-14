@@ -979,7 +979,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         If the API supports ``ICloudAPI`` and a volume is attached to a remote
         node that is dead, the dataset returned by
         ``BlockDeviceDeployer.discover_state`` is marked as
-        ``ATTACHED_ELSEWHERE``.
+        ``ATTACHED_TO_DEAD_NODE``.
         """
         dead_host = u'dead'
         live_host = u'live'
