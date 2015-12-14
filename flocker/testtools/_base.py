@@ -115,13 +115,11 @@ class _SplitEliotLogs(Fixture):
     """
     Split the Eliot logs out of Twisted logs.
 
-    Assumes that Twisted logs contain Eliot logs as per
-    ``flocker._redirect_eliot_logs_for_trial``, and that these logs have been
-    attached to a test case as a detail named with the value of
-    ``CaptureTwistedLogs.LOG_DETAIL_NAME``.
-
-    Takes the Eliot logs that are in the Trial logs and splits them into a
-    separate detail that contains only the pretty printed Eliot logs.
+    Captures Twisted logs that contain Eliot logs as per
+    ``flocker._redirect_eliot_logs_for_trial``, and ensures these logs are
+    attached to a test case as details: one that contains the pure Twisted
+    logs without Eliot logs, and one that contains only the pretty printed
+    Eliot logs.
     """
 
     _ELIOT_LOG_DETAIL_NAME = 'twisted-eliot-log'
