@@ -93,7 +93,7 @@ class AsyncTestCase(testtools.TestCase):
         super(AsyncTestCase, self).setUp()
         # XXX: Would also be useful for synchronous test cases once they're
         # migrated over to testtools.
-        self.useFixture(_SplitEliotLogs(self))
+        self.useFixture(_SplitEliotLogs())
 
     def mktemp(self):
         """
@@ -126,17 +126,6 @@ class _SplitEliotLogs(Fixture):
 
     _ELIOT_LOG_DETAIL_NAME = 'twisted-eliot-log'
 
-    def __init__(self, case):
-        """
-        Construct a ``_SplitEliotLogs``.
-
-        :param TestCase case: The ``TestCase`` on which this fixture was
-            installed. The fixture will mutate the ``getDetails()`` dict
-            of this test case.
-        """
-        super(_SplitEliotLogs, self).__init__()
-        self._case = case
-
     def _setUp(self):
         # Need the cleanups in this to run *after* the cleanup in
         # CaptureTwistedLogs, so add it first, because cleanups are run in
@@ -163,15 +152,13 @@ class _SplitEliotLogs(Fixture):
                 )
             return split_logs[0]
 
-        # The trick here is that we can't call detailed.getDetails() directly.
-        # We can only call it inside the iter_bytes of the Content objects
+        # The trick here is that we can't iterate over the base detail yet.
+        # We can only use it inside the iter_bytes of the Content objects
         # that we add. This is because the only time that we *know* the
         # details are populated is when the details are evaluated. If we call
         # it in _setUp(), the logs are empty. If we call it in cleanup, the
         # detail is gone.
 
-        # XXX: Use a temporary name for the log detail that we'll fix up in
-        # cleanup. If we try to use `detail_name`, we get infinite recursion.
         detailed.addDetail(
             detail_name,
             Content(UTF8_TEXT, lambda: _get_split_logs()[0]))
