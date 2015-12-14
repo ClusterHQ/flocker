@@ -2563,7 +2563,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             in_parallel(
                 changes=[
                     CreateBlockDeviceDataset(
-                        dataset=dataset,
+                        dataset_id=UUID(dataset_id),
+                        maximum_size=int(GiB(1).bytes)
                     )
                 ]),
             changes
@@ -2748,7 +2749,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             in_parallel(
                 changes=[
                     CreateBlockDeviceDataset(
-                        dataset=requested_dataset,
+                        dataset_id=UUID(dataset_id),
+                        maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                        metadata={u"some": u"metadata"},
                     )
                 ]),
             changes
@@ -2809,9 +2812,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             in_parallel(
                 changes=[
                     CreateBlockDeviceDataset(
-                        dataset=requested_dataset.set(
-                            'maximum_size', expected_size
-                        ),
+                        dataset_id=UUID(dataset_id),
+                        maximum_size=expected_size,
                     )
                 ]),
             changes
@@ -4692,9 +4694,11 @@ class CreateBlockDeviceDatasetInitTests(
     make_with_init_tests(
         CreateBlockDeviceDataset,
         dict(
-            dataset=Dataset(dataset_id=unicode(uuid4())),
+            dataset_id=uuid4(),
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            metadata={u"meta": u"data"},
         ),
-        dict(),
+        dict(metadata={}),
     )
 ):
     """
@@ -4706,10 +4710,12 @@ class CreateBlockDeviceDatasetInterfaceTests(
     make_istatechange_tests(
         CreateBlockDeviceDataset,
         lambda _uuid=uuid4(): dict(
-            dataset=Dataset(dataset_id=unicode(_uuid)),
+            dataset_id=_uuid,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         ),
         lambda _uuid=uuid4(): dict(
-            dataset=Dataset(dataset_id=unicode(uuid4())),
+            dataset_id=uuid4(),
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         ),
     )
 ):
@@ -4736,13 +4742,11 @@ class CreateBlockDeviceDatasetImplementationMixin(object):
 
         :returns: A ``BlockDeviceVolume`` for the created volume.
         """
-        dataset = Dataset(
-            dataset_id=unicode(dataset_id),
+        change = CreateBlockDeviceDataset(
+            dataset_id=dataset_id,
             maximum_size=maximum_size,
             metadata=metadata
         )
-
-        change = CreateBlockDeviceDataset(dataset=dataset)
 
         run_state_change(change, self.deployer)
 
@@ -4819,12 +4823,10 @@ class CreateBlockDeviceDatasetImplementationTests(
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
-        dataset = Dataset(
-            dataset_id=unicode(dataset_id),
+        change = CreateBlockDeviceDataset(
+            dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
-
-        change = CreateBlockDeviceDataset(dataset=dataset)
 
         changing = run_state_change(change, self.deployer)
 
