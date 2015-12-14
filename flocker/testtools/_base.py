@@ -144,11 +144,15 @@ class _SplitEliotLogs(Fixture):
         # reverse order.
         self.addCleanup(self._post_process_twisted_logs, self._case)
         twisted_logs = self.useFixture(CaptureTwistedLogs())
-        self._fix_twisted_logs(twisted_logs.LOG_DETAIL_NAME)
+        self._fix_twisted_logs(twisted_logs, twisted_logs.LOG_DETAIL_NAME)
 
-    def _fix_twisted_logs(self, detail_name):
+    def _fix_twisted_logs(self, detailed, detail_name):
         """
         Split the Eliot logs out of a Twisted log.
+
+        :param detailed: Object with ``getDetails`` where the original Twisted
+            logs are stored.
+        :param detail_name: Name of the Twisted log detail.
         """
         split_logs = [None]
 
@@ -157,20 +161,24 @@ class _SplitEliotLogs(Fixture):
             if split_logs[0] is None:
                 split_logs[0] = _split_map_maybe(
                     _get_eliot_data,
-                    _iter_content_lines(self.getDetails()[detail_name]),
+                    _iter_content_lines(detailed.getDetails()[detail_name]),
                 )
             return split_logs[0]
 
-        # The real trick here is that we can't call self.getDetails()
-        # directly. We have to call it *only* when the content objects that we
-        # add are iterated. This is because the only time that we *know* the
-        # details are populated is when the details are evaluated.
+        # The trick here is that we can't call detailed.getDetails() directly.
+        # We can only call it inside the iter_bytes of the Content objects
+        # that we add. This is because the only time that we *know* the
+        # details are populated is when the details are evaluated. If we call
+        # it in _setUp(), the logs are empty. If we call it in cleanup, the
+        # detail is gone.
 
-        self.addDetail(
+        # XXX: Use a temporary name for the log detail that we'll fix up in
+        # cleanup. If we try to use `detail_name`, we get infinite recursion.
+        detailed.addDetail(
             self._TMP_TWISTED_LOG_DETAIL_NAME,
             Content(UTF8_TEXT, lambda: _get_split_logs()[0]))
 
-        self.addDetail(
+        detailed.addDetail(
             self._ELIOT_LOG_DETAIL_NAME,
             Content(
                 UTF8_TEXT, lambda: _prettyformat_lines(_get_split_logs()[1])))
