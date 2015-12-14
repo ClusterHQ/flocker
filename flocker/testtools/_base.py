@@ -196,7 +196,6 @@ def _prettyformat_lines(lines):
 
 
 _ELIOT_MARKER = ' [-] ELIOT: '
-_ELIOT_MARKER_LENGTH = len(_ELIOT_MARKER)
 
 
 def _get_eliot_data(twisted_log_line):
@@ -210,10 +209,9 @@ def _get_eliot_data(twisted_log_line):
         ``None``.
     :rtype: unicode or ``NoneType``.
     """
-    index = twisted_log_line.find(_ELIOT_MARKER)
-    if index < 0:
-        return None
-    return twisted_log_line[index + _ELIOT_MARKER_LENGTH:].strip()
+    _, _, eliot_data = twisted_log_line.partition(_ELIOT_MARKER)
+    if eliot_data:
+        return eliot_data.strip()
 
 
 def _iter_content_lines(content):
