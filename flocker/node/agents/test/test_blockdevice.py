@@ -84,7 +84,7 @@ from ..blockdevice import (
     ICloudAPI,
     _SyncToThreadedAsyncCloudAPIAdapter,
 )
-from ..blockdevice_manager import BlockDeviceManager
+from ..blockdevice_manager import BlockDeviceManager, IBlockDeviceManager
 
 from ..loopback import (
     check_allocatable_size,
@@ -115,7 +115,8 @@ from ....control._model import Leases
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
 from ....common import (
-    retry_failure, gather_deferreds, RACKSPACE_MINIMUM_VOLUME_SIZE
+    retry_failure, gather_deferreds, interface_decorator,
+    RACKSPACE_MINIMUM_VOLUME_SIZE
 )
 
 CLEANUP_RETRY_LIMIT = 10
@@ -5307,43 +5308,47 @@ def make_icloudapi_tests(
             return d
     return Tests
 
-@attributes(["_proxy_object", "_callback"], apply_with_init=False)
-class CallbackProxy(object):
+def _surround_with_callbacks_decorator(method_name, callback, proxy_object):
     """
-    A proxy to another object that calls a callback before and after each call
-    to the underlying object. This enables tests where you want to inject code
-    before or after any calls to an underlying API.
+    Creates a method that proxies to ``getattr(proxy_object, method_name)`` and
+    calls callback before and after.
 
-    Note that this proxy assumes that the underlying object only has public
-    methods and not public attributes.
-
-    :ivar _proxy_object: The object that is being proxied to.
-    :ivar _callback: The callback to be called before and after every call to a
-        method of _proxy_object.
+    :param method_name: The name of the method that should be called.
+    :param callback: The callback to call before and after calling the method.
+    :param proxy_object: The object to proxy the invocation to.
     """
 
-    def __init__(self, proxy_object, callback):
-        self._proxy_object = proxy_object
-        self._callback = callback
+    def proxied_function(self, *args, **kwargs):
+        method = getattr(proxy_object, method_name)
+        callback('Before %s' % method_name)
+        result = method(*args, **kwargs)
+        callback('After %s' % method_name)
+        return result
 
-    def __getattr__(self, name):
-        """
-        The implementation of the proxy. Gets the attribute on the underlying
-        object and returns a wrapped function that calls the callback before
-        and after its execution.
+    return proxied_function
 
-        :param name: The name of the method on the proxy object that should be
-            called.
-        """
-        method = getattr(self._proxy_object, name)
 
-        def proxied_function(*args, **kwargs):
-            self._callback('Before %s' % name)
-            result = method(*args, **kwargs)
-            self._callback('After %s' % name)
-            return result
+def create_callback_blockdevice_manager_proxy(proxy_object, callback):
+    """
+    Creates a provider of ``IBlockDeviceManager`` that proxies to another
+    ``IBlockDeviceManager`` privider and calls a callback before and after
+    each call to the underlying object. This enables tests where you want to
+    inject code before or after any calls to the underlying API.
 
-        return proxied_function
+    :param proxy_object: The ``IBlockDeviceManager`` provider that is being
+        proxied to.
+    :param callback: The callback to be called before and after every call to a
+        method of ``proxy_object``.
+    """
+    @interface_decorator("callback_blockdevice_manager",
+                         IBlockDeviceManager,
+                         _surround_with_callbacks_decorator,
+                         callback,
+                         proxy_object)
+    class BlockDeviceManagerCallbackProxy(object):
+        pass
+
+    return BlockDeviceManagerCallbackProxy()
 
 
 class EndToEndBlockdeviceDeployerTests(AsyncTestCase, ScenarioMixin):
@@ -5433,7 +5438,7 @@ class EndToEndBlockdeviceDeployerTests(AsyncTestCase, ScenarioMixin):
             if evaluate_function:
                 evaluate_function(when_description)
         actual_blockdevice_manager = BlockDeviceManager()
-        proxy_blockdevice_manager = CallbackProxy(
+        proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
             actual_blockdevice_manager, callback)
 
         # Set up a deployer with a blockdevice_manager that has hooks so we can
