@@ -19,7 +19,7 @@ control-service:
 dataset:
     backend: "aws"
     region: "${aws_region}"
-    zone: "${aws_zone}"
+    zone: "${aws_region}"
     access_key_id: "${access_key_id}"
     secret_access_key: "${secret_access_key}"
 version: 1
@@ -63,14 +63,15 @@ for i in range(NUM_NODES):
     )
     ec2_instance.UserData=Base64(Join("",[
             '#!/bin/bash\n',
-            'cat <<EOF >/etc/flocker/agent.yml\naws_region=',
-            Ref("AWS::Region"),
+            # Ref("AWS::Region"),
+            # ]))
+            'aws_region="', Ref("AWS::Region"), '"\n',
+            'access_key_id="', Ref(access_key_id_param), '"\n',
+            'secret_access_key="', Ref(secret_access_key_param), '"\n',
+            'cat <<EOF >/etc/flocker/agent.yml\n',
+            AGENT_YAML_TEMPLATE,
             'EOF\n'
             ]))
-            # Base64('aws_zone="'), Ref("AWS::Zone"), Base64('"\n'),
-            # Base64('access_key_id="'), Ref(access_key_id_param), Base64('"\n'),
-            # Base64('secret_access_key="'), Ref(secret_access_key_param), Base64('"\n'),
-            # Base64(AGENT_YAML_TEMPLATE),
     template.add_resource(ec2_instance)
     template.add_output([
         Output(
