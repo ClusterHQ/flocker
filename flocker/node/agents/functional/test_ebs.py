@@ -21,7 +21,7 @@ from ..ebs import (
     _wait_for_volume_state_change,
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
-    EBSMandatoryProfileAttributes, _get_volume_tag,
+    EBSMandatoryProfileAttributes, _get_volume_tag, AttachFailed,
 )
 from ....testtools import flaky
 
@@ -80,60 +80,35 @@ class EBSBlockDeviceAPIInterfaceTests(
         except InvalidConfig as e:
             raise SkipTest(str(e))
 
+        ONE_GIB = 1073741824
+        dataset_id = uuid4()
         ec2_client = get_ec2_client_for_test(config)
+        meta_client = ec2_client.connection.meta.client
+
         # Create a volume directly using boto.
-        requested_volume = ec2_client.connection.create_volume(
-            int(Byte(self.minimum_allocatable_size).to_GiB().value),
-            ec2_client.zone)
-        self.addCleanup(ec2_client.connection.delete_volume,
-                        requested_volume.id)
+        requested_volume = meta_client.create_volume(
+            Size=int(Byte(self.minimum_allocatable_size).to_GiB().value),
+            AvailabilityZone=ec2_client.zone)
+        created_volume = ec2_client.connection.Volume(
+            requested_volume['VolumeId'])
+        self.addCleanup(created_volume.delete)
 
         _wait_for_volume_state_change(VolumeOperations.CREATE,
                                       requested_volume)
 
+        # Now create a volume via Flocker EBS backend.
+        blockdevice_volume = self.api.create_volume(
+            dataset_id=dataset_id, size=ONE_GIB)
+
+        # Determine our instance ID and attempt to attach the blockdevice
+        # volume to this instance.
         instance_id = self.api.compute_instance_id()
-        # See what device Flocker would try to use when it next attaches a
-        # device.
-        # eg /dev/sdX
-        flocker_next_device1 = self.api._next_device(
-            instance_id,
-            ec2_client.connection.get_all_volumes(),
-            ()
+        self.assertRaises(
+            AttachFailed, self.api.attach_volume,
+            blockdevice_volume.blockdevice_id, instance_id
         )
-        # Assign the equivelent xvdX device to our manually attached volume.
-        foreign_next_device = flocker_next_device1.replace(
-            '/sd', '/xvd'
-        )
-        ec2_client.connection.attach_volume(
-            volume_id=requested_volume.id,
-            instance_id=instance_id,
-            device=foreign_next_device
-        )
-
-        def _detach_afterwards():
-            ec2_client.connection.detach_volume(
-                requested_volume.id
-            )
-
-            _wait_for_volume_state_change(
-                VolumeOperations.DETACH,
-                requested_volume
-            )
-        self.addCleanup(_detach_afterwards)
-
-        _wait_for_volume_state_change(VolumeOperations.ATTACH,
-                                      requested_volume)
-
-        # Flocker should no longer attempt to assign that device sdX since that
-        # would result in a device path of /dev/xvdX in the OS, which is
-        # already occupied.
-        flocker_next_device2 = self.api._next_device(
-            instance_id,
-            ec2_client.connection.get_all_volumes(),
-            ()
-        )
-        # But currently it does.
-        self.assertNotEqual(flocker_next_device1, flocker_next_device2)
+        # xxx the above should fail
+        # import pdb;pdb.set_trace()
 
     def test_foreign_volume(self):
         """
