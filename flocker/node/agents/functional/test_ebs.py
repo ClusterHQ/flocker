@@ -21,7 +21,7 @@ from ..ebs import (
     _wait_for_volume_state_change,
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
-    EBSMandatoryProfileAttributes, _get_volume_tag, AttachFailed,
+    EBSMandatoryProfileAttributes, _get_volume_tag, AttachedUnexpectedDevice,
 )
 from ....testtools import flaky
 
@@ -108,6 +108,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         # self.api.attach_volume(unicode(created_volume.id), instance_id)
         all_volumes = self.api._list_ebs_volumes()
         device_name = self.api._next_device(instance_id, all_volumes, set())
+        device_name = device_name.replace('/sd', '/xvd')
         self.api._attach_ebs_volume(
             created_volume.id, instance_id, device_name)
         _wait_for_volume_state_change(VolumeOperations.ATTACH, created_volume)
@@ -122,7 +123,7 @@ class EBSBlockDeviceAPIInterfaceTests(
 
         # Attempt to attach the blockdevice volume to this instance.
         self.assertRaises(
-            AttachFailed, self.api.attach_volume,
+            AttachedUnexpectedDevice, self.api.attach_volume,
             blockdevice_volume.blockdevice_id, instance_id
         )
         # xxx the above should fail
