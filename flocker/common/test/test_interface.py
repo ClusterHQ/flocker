@@ -167,7 +167,8 @@ class ProvidesTests(SynchronousTestCase):
     def test_invariant_message(self):
         """
         When an object not providing the given interface is provided,
-        an ``InvariantException`` is raised.
+        the message contains both the value and the interface it
+        doesn't provide.
         """
         exception = self.assertRaises(
             InvariantException,
@@ -179,6 +180,10 @@ class ProvidesTests(SynchronousTestCase):
         )
 
     def test_invariant_name(self):
+        """
+        The invariant functions name includes the interface being
+        required.
+        """
         invariant = provides(IDummy)
         self.assertEqual(
             invariant.__name__,
