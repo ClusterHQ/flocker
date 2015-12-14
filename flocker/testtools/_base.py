@@ -125,7 +125,6 @@ class _SplitEliotLogs(Fixture):
     """
 
     _ELIOT_LOG_DETAIL_NAME = 'twisted-eliot-log'
-    _TMP_TWISTED_LOG_DETAIL_NAME = 'tmp-twisted-log'
 
     def __init__(self, case):
         """
@@ -142,7 +141,6 @@ class _SplitEliotLogs(Fixture):
         # Need the cleanups in this to run *after* the cleanup in
         # CaptureTwistedLogs, so add it first, because cleanups are run in
         # reverse order.
-        self.addCleanup(self._post_process_twisted_logs, self._case)
         twisted_logs = self.useFixture(CaptureTwistedLogs())
         self._fix_twisted_logs(twisted_logs, twisted_logs.LOG_DETAIL_NAME)
 
@@ -154,14 +152,14 @@ class _SplitEliotLogs(Fixture):
             logs are stored.
         :param detail_name: Name of the Twisted log detail.
         """
+        twisted_log = detailed.getDetails()[detail_name]
         split_logs = [None]
 
         def _get_split_logs():
             # Memoize the split log so we don't iterate through it twice.
             if split_logs[0] is None:
                 split_logs[0] = _split_map_maybe(
-                    _get_eliot_data,
-                    _iter_content_lines(detailed.getDetails()[detail_name]),
+                    _get_eliot_data, _iter_content_lines(twisted_log),
                 )
             return split_logs[0]
 
@@ -175,36 +173,13 @@ class _SplitEliotLogs(Fixture):
         # XXX: Use a temporary name for the log detail that we'll fix up in
         # cleanup. If we try to use `detail_name`, we get infinite recursion.
         detailed.addDetail(
-            self._TMP_TWISTED_LOG_DETAIL_NAME,
+            detail_name,
             Content(UTF8_TEXT, lambda: _get_split_logs()[0]))
 
         detailed.addDetail(
             self._ELIOT_LOG_DETAIL_NAME,
             Content(
                 UTF8_TEXT, lambda: _prettyformat_lines(_get_split_logs()[1])))
-
-    def _post_process_twisted_logs(self, case):
-        """
-        Split the eliot logs out of the Twisted logs.
-
-        :param TestCase case: The test case to which the Twisted log details
-            were attached.
-        """
-        # XXX: Mutating the details dict of the TestCase is a bit of a hack.
-        # Indeed, having a Fixture depend on the TestCase to which it's fixed
-        # is also a bit of a hack.
-        #
-        # Ideally, we'd just mutate the details here, but there's no hook
-        # provided by the Fixture API where we can do this. (Details are gone
-        # from fixtures by the time clean-up happens; the addDetail API won't
-        # let us mutate details and preserve names; splitting one detail into
-        # two is hard.)
-        #
-        # See https://github.com/testing-cabal/fixtures/pull/20 for some
-        # discussion.
-        details = case.getDetails()
-        details[CaptureTwistedLogs.LOG_DETAIL_NAME] = details.pop(
-            self._TMP_TWISTED_LOG_DETAIL_NAME)
 
 
 def _split_map_maybe(function, sequence, marker=None):
