@@ -1,7 +1,7 @@
 # Converted from EC2InstanceSample.template located at:
 # http://aws.amazon.com/cloudformation/aws-cloudformation-templates/
 
-from troposphere import FindInMap, GetAtt, Base64
+from troposphere import FindInMap, GetAtt, Base64, Join
 from troposphere.cloudformation import (
     Metadata, Init, InitConfig, InitFiles, InitFile
 )
@@ -14,14 +14,14 @@ NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 
 AGENT_YAML_TEMPLATE = """\
 control-service:
-    hostname: {control_node_ipaddress}
+    hostname: ""
     port: 4524
 dataset:
-    access_key_id: {access_key_id}
-    backend: aws
-    region: {aws_region}
-    secret_access_key: {secret_access_key}
-    zone: {aws_zone}
+    backend: "aws"
+    region: "${aws_region}"
+    zone: "${aws_zone}"
+    access_key_id: "${access_key_id}"
+    secret_access_key: "${secret_access_key}"
 version: 1
 """
 
@@ -61,19 +61,19 @@ for i in range(NUM_NODES):
         KeyName=Ref(keyname_param),
         SecurityGroups=["acceptance"],
     )
-    ec2_instance.UserData=Base64('\n'.join([
-            '#!/bin/bash',
-            'cat <<EOF >/etc/flocker/agent.yml',
-            AGENT_YAML_TEMPLATE.format(access_key_id=Ref(access_key_id_param),
-                            secret_access_key=Ref(access_key_id_param),
-                            control_node_ipaddress=GetAtt(
-                                ec2_instance, "PublicIp"
-                            ),
-                            aws_region=Ref("AWS::Region"),
-                            aws_zone=Ref("AWS::Zone"),
-                        ),
-           'EOF'
-        ]))
+    ec2_instance.UserData=Join(
+        delimiter="",
+        values=[
+            Base64('#!/bin/bash\n'),
+            Base64('aws_region="'), Ref("AWS::Region"), Base64('"\n'),
+            # Base64('aws_zone="'), Ref("AWS::Zone"), Base64('"\n'),
+            Base64('access_key_id="'), Ref(access_key_id_param), Base64('"\n'),
+            Base64('secret_access_key="'), Ref(secret_access_key_param), Base64('"\n'),
+            Base64('cat <<EOF >/etc/flocker/agent.yml\n'),
+            Base64(AGENT_YAML_TEMPLATE),
+            Base64('EOF\n')
+        ]
+    )
     template.add_resource(ec2_instance)
     template.add_output([
         Output(
