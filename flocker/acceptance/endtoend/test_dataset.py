@@ -5,11 +5,17 @@ Tests for the datasets REST API.
 """
 
 from uuid import UUID
+from unittest import SkipTest
+from time import sleep
+from datetime import timedelta
+
+from testtools import run_test_with
 
 from twisted.internet import reactor
 
 from ...common import loop_until
-from ...testtools import AsyncTestCase, flaky
+from ...testtools import AsyncTestCase, flaky, get_backend_api, async_runner
+from ...node.agents.blockdevice import ICloudAPI
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend
@@ -102,3 +108,63 @@ class DatasetAPITests(AsyncTestCase):
             return deleted
         created.addCallback(delete_dataset)
         return created
+
+    @require_moving_backend
+    @run_test_with(async_runner(timeout=timedelta(minutes=6)))
+    @require_cluster(2)
+    def test_dataset_move_from_dead_node(self, cluster):
+        """
+        A dataset can be moved from one node to another.
+
+        All attributes, including the maximum size, are preserved.
+        """
+        api = get_backend_api(self, cluster.cluster_uuid)
+        if not ICloudAPI.providedBy(api):
+            raise SkipTest(
+                "Backend doesn't support ICloudAPI; therefore it might support"
+                " moving from dead node but as first pass we assume it "
+                "doesn't.")
+
+        waiting_for_create = create_dataset(self, cluster)
+
+        def startup_node(node_id):
+            api.start_node(node_id)
+            # Give node some minimal amount of time to boot so next test
+            # is happier:
+            sleep(20)
+
+        # Once created, shut down origin node and then request to move the
+        # dataset to node2:
+        def shutdown(dataset):
+            live_node_ids = set(api.list_live_nodes())
+            node = cluster.nodes[0]
+            d = node.shutdown()
+            # Wait for shutdown to be far enough long that node is down:
+            d.addCallback(
+                lambda _:
+                loop_until(lambda:
+                           set(api.list_live_nodes()) == live_node_ids))
+            # Schedule node start up:
+            d.addCallback(
+                lambda _: self.addCleanup(
+                    startup_node,
+                    (live_node_ids - set(api.list_live_nodes())).pop()))
+            d.addCallback(lambda _: dataset)
+            return d
+        waiting_for_shutdown = waiting_for_create.addCallback(shutdown)
+
+        def move_dataset(dataset):
+            dataset_moving = cluster.client.move_dataset(
+                UUID(cluster.nodes[1].uuid), dataset.dataset_id)
+
+            # Wait for the dataset to be moved; we expect the state to
+            # match that of the originally created dataset in all ways
+            # other than the location.
+            moved_dataset = dataset.set(
+                primary=UUID(cluster.nodes[1].uuid))
+            dataset_moving.addCallback(
+                lambda dataset: cluster.wait_for_dataset(moved_dataset))
+            return dataset_moving
+
+        waiting_for_shutdown.addCallback(move_dataset)
+        return waiting_for_shutdown

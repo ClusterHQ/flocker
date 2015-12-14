@@ -349,6 +349,15 @@ class Node(PClass):
         result.addErrback(lambda f: f.trap(ProcessTerminated))
         return result
 
+    def shutdown(self):
+        """
+        Shutdown the node.
+        """
+        result = self.run_as_root([b"shutdown", b"-h", b"now"])
+        # Shutdown kills the SSH connection:
+        result.addErrback(lambda f: f.trap(ProcessTerminated))
+        return result
+
     def run_script(self, python_script, *argv):
         """
         Run a Python script as root on the node.

@@ -1132,13 +1132,29 @@ class ICloudAPI(Interface):
 
     In particular the presumption is that nodes are also managed by a
     centralized infrastructure.
+
+    This is specifically designed for cloud systems where shut down nodes
+    continue to have volumes attached to them.
     """
     def list_live_nodes():
         """
         Return the compute IDs of all nodes that are currently up and running.
 
+        This is used to figure out which nodes are dead, so that other
+        nodes can do the detach.
+
         :returns: A collection of compute instance IDs, compatible with
             those returned by ``IBlockDeviceAPI.compute_instance_id``.
+        """
+
+    def start_node(node_id):
+        """
+        Start up a node that has been shutdown.
+
+        This is only used by acceptance tests, so has no direct functional
+        tests.
+
+        :param unicode node_id: The compute node ID to startup.
         """
 
 

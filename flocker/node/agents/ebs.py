@@ -1293,6 +1293,10 @@ class EBSBlockDeviceAPI(object):
             Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
         return list(instance.id for instance in instances)
 
+    @boto3_log
+    def start_node(self, node_id):
+        self.connection.start_instances(instance_ids=[node_id])
+
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
                            cluster_id, validate_region=True):

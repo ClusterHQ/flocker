@@ -690,6 +690,10 @@ class CinderBlockDeviceAPI(object):
     def list_live_nodes(self):
         return list(server.id for server in self.nova_server_manager.list())
 
+    def start_node(self, node_id):
+        server = self.nova_server_manager.get(node_id)
+        server.start()
+
 
 def _is_virtio_blk(device_path):
     """
