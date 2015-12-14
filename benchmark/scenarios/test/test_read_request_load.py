@@ -26,11 +26,25 @@ class RateMeasurerTest(SynchronousTestCase):
     """
 
     def send_requests(self, r_measurer, num_req, num_samples):
+        """
+        Helper function that will send the desired number of request.
+
+        :param r_measurer: `rate_measurer` we are testing
+        :param num_req: number of request we want to send.
+        :param num_samples: numbe of samples (interval)
+        """
         for i in range(num_samples):
             for i in range(num_req):
                 r_measurer.send_request()
 
     def receive_requests(self, r_measurer, num_req, num_samples):
+        """
+        Helper function that will receive the desired number of requests.
+
+        :param r_measurer: `rate_measurer` we are testing
+        :param num_req: number of request we want to receive.
+        :param num_samples: numbe of samples (interval)
+        """
         ignored = ""
         for i in range(num_samples):
             for i in range(num_req):
@@ -38,15 +52,21 @@ class RateMeasurerTest(SynchronousTestCase):
             r_measurer.update_rate()
 
     def increase_rate(self, r_measurer, num_req, num_samples):
+        """
+        Helper function that will increase the rate, sending the
+        desired number of request, and receiving the same
+        amount of them.
+
+        :param r_measurer: `rate_measurer` we are testing
+        :param num_req: number of request we want to make.
+        :param num_samples: numbe of samples (interval)
+        """
         self.send_requests(r_measurer, num_req, num_samples)
         self.receive_requests(r_measurer, num_req, num_samples)
 
     def test_rate_is_zero_when_no_samples(self):
         """
-        When no samples have been collected, a rate should not yet be
-        established.
-
-        This is represented by RateMeasurer as NaN.
+        When no samples have been collected, the rate should be 0.
         """
         r = RateMeasurer()
         self.assertEqual(r.rate(), 0, "Expected initial rate to be zero")
@@ -54,7 +74,7 @@ class RateMeasurerTest(SynchronousTestCase):
     def test_rate_is_small_when_not_enough_samples(self):
         """
         When the number of samples collected is less than the sample
-        size, the rate should not be established.
+        size, the rate should be smaller than `req_per_second`.
         """
         r = RateMeasurer()
         req_per_second = 5
@@ -78,6 +98,11 @@ class RateMeasurerTest(SynchronousTestCase):
         self.assertEqual(req_per_second, r.rate())
 
     def test_old_samples_are_not_considered(self):
+        """
+        Old samples should be discarded, meaning that only `sample_size`
+        number of requests are considered for the rate, and when receiving
+        a new sample, the oldest one is discarded.
+        """
         r = RateMeasurer()
         req_per_second = 5
         # generate samples that should get lost
@@ -90,6 +115,10 @@ class RateMeasurerTest(SynchronousTestCase):
         self.assertEqual(req_per_second, r.rate())
 
     def test_only_received_samples_considered_in_rate(self):
+        """
+        The rate should be based on the number of received requests,
+        not the number of sent requests.
+        """
         r = RateMeasurer()
         send_per_second = 100
         rec_per_second = 5

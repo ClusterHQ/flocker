@@ -21,6 +21,9 @@ DEFAULT_SAMPLE_SIZE = 5
 class RateMeasurer(object):
     """
     Measures the rate of requests in requests per second
+
+    :ivar sample_size: size of the sample we request - how many samples,
+    or counts, do we want to consider we have reached the rate.
     """
 
     def __init__(self, sample_size=DEFAULT_SAMPLE_SIZE):
@@ -31,16 +34,29 @@ class RateMeasurer(object):
         self.sample_size = sample_size
 
     def send_request(self):
+        """
+        Increase the counter of sent requests
+        """
         self.sent += 1
 
     def receive_request(self, result):
+        """
+        Increase the counter of sent requests
+        """
         self.received += 1
 
     def update_rate(self):
+        """
+        Updates the current rate and stores a new count in the counts list
+        """
         self._rate = (self.received - self.counts[0]) / float(self.sample_size)
         self.counts.append(self.received)
 
     def outstanding(self):
+        """
+        returns the number of outstanding requests; requests that have been
+        sent but haven't been received yet
+        """
         return self.sent - self.received
 
     def rate(self):
@@ -70,6 +86,14 @@ class ReadRequestLoadScenario(object):
     """
     A scenario that places load on the cluster by performing read
     requests at a specified rate.
+
+    :ivar reactor: reactor we are using
+    :ivar cluster: `BenchmarkCluster` containing the control service.
+    :ivar request_rate: number requests per second do we want
+    :ivar interval: number of samples we want.
+    :ivar timeout: how long we want to wait to reach the requested load
+        before timing out.
+
     """
 
     def __init__(
@@ -80,7 +104,6 @@ class ReadRequestLoadScenario(object):
         self.reactor = reactor
         self.control_service = cluster.get_control_service(reactor)
         self.request_rate = request_rate
-        self.interval = interval
         self.timeout = timeout
         self.rate_measurer = RateMeasurer(interval)
         self.max_outstanding = 10 * request_rate
@@ -91,6 +114,10 @@ class ReadRequestLoadScenario(object):
         self.monitor_loop.clock = self.reactor
 
     def _request_and_measure(self, count):
+        """
+        Updates the rate with the current value and sends `request_rate`
+        number of new requests.
+        """
         for i in range(count):
             self.rate_measurer.update_rate()
         for i in range(self.request_rate):
@@ -100,10 +127,22 @@ class ReadRequestLoadScenario(object):
                            errback=eliot.write_failure)
 
     def _fail(self, exception):
+        """
+        Fail the scenario. Stops the monitor loop and throws the
+        error.
+        """
         self.monitor_loop.stop()
         self._maintained.errback(exception)
 
     def check_rate(self):
+        """
+        Meassures rate and verifies that the rate haven't decreased
+        and that the scenario is not overloaded - an scenario would be
+        overloaded if there were too many outstanding requests.
+
+        :raise: `RequestRateTooLow` if the rate has dropped
+        :raise: `RequestOverload` if the scenario is overloaded
+        """
         rate = self.rate_measurer.rate()
         if rate < self.request_rate:
             self._fail(RequestRateTooLow(rate))
@@ -149,7 +188,8 @@ class ReadRequestLoadScenario(object):
 
     def stop(self):
         """
-        Stop the scenario from being maintained.
+        Stop the scenario from being maintained, stopping all the loops
+        that may be executing.
 
         :return: A Deferred that fires when the desired scenario is
             stopped.
