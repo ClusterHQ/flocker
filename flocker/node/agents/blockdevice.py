@@ -1353,6 +1353,7 @@ class BlockDeviceDeployerLocalState(PClass):
             elif dataset.state in (
                 DatasetStates.NON_MANIFEST, DatasetStates.ATTACHED,
                 DatasetStates.ATTACHED_NO_FILESYSTEM,
+                DatasetStates.ATTACHED_TO_DEAD_NODE,
             ):
                 nonmanifest_datasets[unicode(dataset_id)] = Dataset(
                     dataset_id=dataset_id,
@@ -1400,7 +1401,8 @@ DATASET_TRANSITIONS = {
         Discovered.ATTACHED_ELSEWHERE: ActionNeeded,
         Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
         Discovered.NON_MANIFEST: AttachVolume,
-        DatasetStates.ATTACHED: MountBlockDevice,
+        Discovered.ATTACHED: MountBlockDevice,
+        Discovered.ATTACHED_TO_DEAD_NODE: DetachVolume,
     },
     Desired.NON_MANIFEST: {
         # XXX FLOC-2206

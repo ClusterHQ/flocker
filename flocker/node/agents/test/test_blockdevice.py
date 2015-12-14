@@ -428,37 +428,44 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
             expected_changes,
         )
 
-    def attached_dataset_test(self, state):
+    def attached_dataset_test(self, state, pass_device_path=True):
         """
         When there is a a dataset in the given attached state,
         it is reported as a non-manifest dataset.
 
-        :param state: Either ``DatasetStates.ATTACHED`` or
-            ``DatasetStates.ATTACHED_NO_FILESYSTEM``.
+        :param state: Either ``DatasetStates.ATTACHED``,
+            ``DatasetStates.ATTACHED_NO_FILESYSTEM`` or
+            ``DatasetStates.ATTACHED_TO_DEAD_NODE``.
+        :param pass_device_path: If false don't create
+            ``DiscoveredDataset`` with device path.
         """
         dataset_id = uuid4()
+        arguments = dict(
+            state=state,
+            dataset_id=dataset_id,
+            blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            device_path=FilePath('/dev/xvdf'),
+        )
+        if not pass_device_path:
+            del arguments["device_path"]
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=self.node_uuid,
             hostname=self.hostname,
             datasets={
-                dataset_id: DiscoveredDataset(
-                    state=state,
-                    dataset_id=dataset_id,
-                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    device_path=FilePath('/dev/xvdf'),
-                ),
+                dataset_id: DiscoveredDataset(**arguments),
             },
         )
+        devices = {}
+        if pass_device_path:
+            devices[dataset_id] = FilePath('/dev/xvdf')
         expected_changes = (
             NodeState(
                 uuid=self.node_uuid,
                 hostname=self.hostname,
                 manifestations={},
                 paths={},
-                devices={
-                    dataset_id: FilePath('/dev/xvdf'),
-                },
+                devices=devices,
                 applications=None
             ),
             NonManifestDatasets(
@@ -488,6 +495,14 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
         it is reported as a non-manifest dataset.
         """
         self.attached_dataset_test(DatasetStates.ATTACHED_NO_FILESYSTEM)
+
+    def test_attached_to_dead_node_dataset(self):
+        """
+        When there is a a dataset in the ``ATTACHED_TO_DEAD_NODE`` state,
+        it is reported as a non-manifest dataset.
+        """
+        self.attached_dataset_test(DatasetStates.ATTACHED_TO_DEAD_NODE,
+                                   pass_device_path=False)
 
     def test_mounted_dataset(self):
         """
@@ -1666,7 +1681,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
 def assert_calculated_changes(
         case, node_state, node_config, nonmanifest_datasets, expected_changes,
         additional_node_states=frozenset(), leases=Leases(),
-        discovered_datasets=None,
+        discovered_datasets=None, api=UnusableAPI(),
 ):
     """
     Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
@@ -1674,10 +1689,10 @@ def assert_calculated_changes(
 
     :param discovered_datasets: Collection of ``DiscoveredDataset`` to
         expose as local state.
+    :param api: ``IBlockDeviceAPI`` provider to use; by default a
+        ``UnusableAPI``.
     :see: ``assert_calculated_changes_for_deployer``.
     """
-    api = UnusableAPI()
-
     deployer = BlockDeviceDeployer(
         node_uuid=node_state.uuid,
         hostname=node_state.hostname,
@@ -2972,6 +2987,43 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
             self, node_state, node_config,
             {Dataset(dataset_id=unicode(self.DATASET_ID))},
             in_parallel(changes=[
+                DetachVolume(dataset_id=self.DATASET_ID,
+                             blockdevice_id=self.BLOCKDEVICE_ID)
+            ])
+        )
+
+    def test_detach_remote_volume_attached_to_dead_node(self):
+        """
+        ``BlockDeviceDeployer.calculate_changes`` recognizes a volume that is
+        attached to a remote dead node and is supposed to be mounted
+        locally. The result ensures the volume is detached from the remote
+        node so it can later be attached to the local node.
+        """
+        # Local node has no manifestations:
+        node_state = NodeState(
+            uuid=self.NODE_UUID, hostname=self.NODE,
+            applications={},
+            manifestations={},
+            devices={},
+            paths={},
+        )
+
+        # Give it a configuration that says a dataset should be local:
+        node_config = to_node(self.ONE_DATASET_STATE)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID),
+                     maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()))},
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_TO_DEAD_NODE,
+                    dataset_id=self.DATASET_ID,
+                    blockdevice_id=self.BLOCKDEVICE_ID,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
+                ),
+            ],
+            expected_changes=in_parallel(changes=[
                 DetachVolume(dataset_id=self.DATASET_ID,
                              blockdevice_id=self.BLOCKDEVICE_ID)
             ])
