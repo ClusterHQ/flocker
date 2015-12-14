@@ -87,7 +87,7 @@ class EBSBlockDeviceAPIInterfaceTests(
 
         # Create a volume directly using boto.
         requested_volume = meta_client.create_volume(
-            Size=int(Byte(self.minimum_allocatable_size).to_GiB().value),
+            Size=int(Byte(ONE_GIB).to_GiB().value),
             AvailabilityZone=ec2_client.zone)
         created_volume = ec2_client.connection.Volume(
             requested_volume['VolumeId'])
@@ -110,10 +110,15 @@ class EBSBlockDeviceAPIInterfaceTests(
         device_name = self.api._next_device(instance_id, all_volumes, set())
         self.api._attach_ebs_volume(
             created_volume.id, instance_id, device_name)
+        _wait_for_volume_state_change(VolumeOperations.ATTACH, created_volume)
 
         # Now create a volume via Flocker EBS backend.
         blockdevice_volume = self.api.create_volume(
             dataset_id=dataset_id, size=ONE_GIB)
+
+        flocker_volume = ec2_client.connection.Volume(
+            blockdevice_volume.blockdevice_id)
+        _wait_for_volume_state_change(VolumeOperations.CREATE, flocker_volume)
 
         # Attempt to attach the blockdevice volume to this instance.
         self.assertRaises(
