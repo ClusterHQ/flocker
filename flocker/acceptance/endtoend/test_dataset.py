@@ -149,8 +149,8 @@ class DatasetAPITests(AsyncTestCase):
             # Wait for shutdown to be far enough long that node is down:
             d.addCallback(
                 lambda _:
-                loop_until(lambda:
-                           set(api.list_live_nodes()) == live_node_ids))
+                loop_until(reactor, lambda:
+                           set(api.list_live_nodes()) != live_node_ids))
             # Schedule node start up:
             d.addCallback(
                 lambda _: self.addCleanup(
