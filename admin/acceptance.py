@@ -205,9 +205,10 @@ class ManagedRunner(object):
         use when they are "started".
     :ivar dict dataset_backend_configuration: The backend-specific
         configuration the nodes will be given for their dataset backend.
+    :ivar str purpose: The purpose of the cluster.
     """
     def __init__(self, node_addresses, package_source, distribution,
-                 dataset_backend, dataset_backend_configuration):
+                 dataset_backend, dataset_backend_configuration, purpose):
         """
         :param list: A ``list`` of public IP addresses or
             ``[private_address, public_address]`` lists.
@@ -236,6 +237,7 @@ class ManagedRunner(object):
         self.package_source = package_source
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
+        self.purpose = purpose
 
     def _upgrade_flocker(self, reactor, nodes, package_source):
         """
@@ -288,20 +290,22 @@ class ManagedRunner(object):
         else:
             upgrading = succeed(None)
 
+        cluster_name, cluster_id = make_cluster_name_and_id(
+            self.purpose,
+            self.dataset_backend
+        )
+
         def configure(ignored):
             return configured_cluster_for_nodes(
                 reactor,
-                generate_certificates(
-                    make_cluster_id(
-                        TestTypes.ACCEPTANCE,
-                        _provider_for_cluster_id(self.dataset_backend),
-                    ),
-                    self._nodes),
+                generate_certificates(cluster_name, cluster_id, self._nodes),
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
-                _save_backend_configuration(self.dataset_backend,
-                    self.dataset_backend_configuration),
+                _save_backend_configuration(
+                    self.dataset_backend,
+                    self.dataset_backend_configuration
+                ),
                 provider="managed"
             )
         configuring = upgrading.addCallback(configure)
@@ -328,12 +332,13 @@ def _provider_for_cluster_id(dataset_backend):
     return Providers.UNSPECIFIED
 
 
-def generate_certificates(cluster_id, nodes):
+def generate_certificates(cluster_name, cluster_id, nodes):
     """
     Generate a new set of certificates for the given nodes.
 
     :param UUID cluster_id: The unique identifier of the cluster for which to
-        generate the certificates.
+        generate the certificates.  If ``None`` then a new random identifier
+        is generated.
     :param list nodes: The ``INode`` providers that make up the cluster.
 
     :return: A ``Certificates`` instance referring to the newly generated
@@ -345,9 +350,34 @@ def generate_certificates(cluster_id, nodes):
         certificates_path,
         nodes[0].address,
         len(nodes),
+        cluster_name=cluster_name,
         cluster_id=cluster_id,
     )
     return certificates
+
+
+def make_cluster_name_and_id(purpose, dataset_backend):
+    """
+    Generate a cluster name and cluster UUID based on the cluster's purpose.
+
+    :param str purpose: The purpose of the cluster.
+                        "acceptance-testing" is a special value.
+    :param DatasetBackend dataset_backend: The dataset backend used by
+                        the cluster.
+
+    :rtype: tuple of bytes, UUID
+    :returns: The generated name and UUID of the cluster as a tuple.
+    """
+    if purpose == u'acceptance-testing':
+        cluster_name = b'acceptance-cluster'
+        cluster_id = make_cluster_id(
+            TestTypes.ACCEPTANCE,
+            _provider_for_cluster_id(dataset_backend),
+        )
+    else:
+        cluster_name = b'{}-cluster'.format(purpose.encode("ascii"))
+        cluster_id = None       # let a random UUID be generated
+    return (cluster_name, cluster_id)
 
 
 def _save_backend_configuration(dataset_backend_name,
@@ -626,14 +656,14 @@ class LibcloudRunner(object):
 
         yield perform(make_dispatcher(reactor), commands)
 
+        cluster_name, cluster_id = make_cluster_name_and_id(
+            self.purpose,
+            self.dataset_backend
+        )
+
         cluster = yield configured_cluster_for_nodes(
             reactor,
-            generate_certificates(
-                make_cluster_id(
-                    TestTypes.ACCEPTANCE,
-                    _provider_for_cluster_id(self.dataset_backend),
-                ),
-                self.nodes),
+            generate_certificates(cluster_name, cluster_id, self.nodes),
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,
@@ -849,6 +879,7 @@ class CommonOptions(Options):
             distribution=self['distribution'],
             dataset_backend=dataset_backend,
             dataset_backend_configuration=self.dataset_backend_configuration(),
+            purpose=self['purpose'],
         )
 
     def _libcloud_runner(self, package_source, dataset_backend,
@@ -945,7 +976,7 @@ class RunOptions(CommonOptions):
         :param FilePath top_level: The top-level of the flocker repository.
         """
         super(RunOptions, self).__init__(top_level)
-        self['purpose'] = 'acceptance-testing'
+        self['purpose'] = u'acceptance-testing'
 
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
