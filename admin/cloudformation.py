@@ -65,13 +65,13 @@ for i in range(NUM_NODES):
         delimiter="",
         values=[
             Base64('#!/bin/bash\n'),
+            Base64('cat <<EOF >/etc/flocker/agent.yml\n'),
             Base64('aws_region="'), Base64(Ref("AWS::Region")), Base64('"\n'),
+            Base64('EOF\n')
             # Base64('aws_zone="'), Ref("AWS::Zone"), Base64('"\n'),
             # Base64('access_key_id="'), Ref(access_key_id_param), Base64('"\n'),
             # Base64('secret_access_key="'), Ref(secret_access_key_param), Base64('"\n'),
-            # Base64('cat <<EOF >/etc/flocker/agent.yml\n'),
             # Base64(AGENT_YAML_TEMPLATE),
-            # Base64('EOF\n')
         ]
     )
     template.add_resource(ec2_instance)
