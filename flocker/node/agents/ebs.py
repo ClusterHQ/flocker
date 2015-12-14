@@ -22,7 +22,7 @@ extract_from_urllib3()
 
 import boto3
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, EndpointConnectionError
 
 # There is no boto3 equivalent of this yet.
 # See https://github.com/boto/boto3/issues/313
@@ -47,6 +47,9 @@ from .blockdevice import (
     AlreadyAttachedVolume, UnattachedVolume, UnknownInstanceID,
     MandatoryProfiles, ICloudAPI,
 )
+
+from ..script import StorageInitializationError
+
 from ...control import pmap_field
 
 from ._logging import (
@@ -273,6 +276,28 @@ class AttachFailed(Exception):
     """
 
 
+class InvalidRegionError(Exception):
+    """
+    The supplied region is not a valid AWS endpoint.
+    """
+    def __init__(self, region):
+        message = u"The specified AWS region is not valid."
+        Exception.__init__(self, message, region)
+        self.region = region
+
+
+class InvalidZoneError(Exception):
+    """
+    The supplied zone is not valid for the given AWS region.
+    """
+    def __init__(self, zone, available_zones):
+        message = u"The specified AWS zone is not valid."
+        Exception.__init__(
+            self, message, zone, u"Available zones:", available_zones)
+        self.zone = zone
+        self.available_zones = available_zones
+
+
 class InvalidStateException(Exception):
     """
     A volume is not in an appropriate state to perform an operation.
@@ -427,7 +452,8 @@ def _expected_device(requested_device):
     )
 
 
-def ec2_client(region, zone, access_key_id, secret_access_key):
+def ec2_client(region, zone, access_key_id,
+               secret_access_key, validate_region=True):
     """
     Establish connection to EC2 client.
 
@@ -435,6 +461,8 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     :param str zone: The zone for the EC2 region to connect to.
     :param str access_key_id: "aws_access_key_id" credential for EC2.
     :param str secret_access_key: "aws_secret_access_key" EC2 credential.
+    :param bool validate_region: Flag indicating whether to validate the
+        region and zone by calling out to AWS.
 
     :return: An ``_EC2`` giving information about EC2 client connection
         and EC2 instance zone.
@@ -453,6 +481,17 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     connection._session.set_config_variable(
         'metadata_service_num_attempts', BOTO_NUM_RETRIES)
     ec2_resource = connection.resource("ec2", region_name=region)
+    if validate_region:
+        try:
+            zones = ec2_resource.meta.client.describe_availability_zones()
+        except EndpointConnectionError:
+            raise InvalidRegionError(region)
+        available_zones = [
+            available_zone['ZoneName']
+            for available_zone in zones['AvailabilityZones']
+        ]
+        if zone not in available_zones:
+            raise InvalidZoneError(zone, available_zones)
     return _EC2(zone=zone, connection=ec2_resource)
 
 
@@ -1256,7 +1295,7 @@ class EBSBlockDeviceAPI(object):
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
-                           cluster_id):
+                           cluster_id, validate_region=True):
     """
     Build an ``EBSBlockDeviceAPI`` instance using configuration and
     credentials.
@@ -1271,15 +1310,22 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
     :param UUID cluster_id: The unique identifier of the cluster with which to
         associate the resulting object.  It will only manipulate volumes
         belonging to this cluster.
+    :param bool validate_region: If False, do not attempt to validate the
+        region and zone by calling out to AWS. Useful for testing.
 
     :return: A ``EBSBlockDeviceAPI`` instance using the given parameters.
     """
-    return EBSBlockDeviceAPI(
-        ec2_client=ec2_client(
-            region=region,
-            zone=zone,
-            access_key_id=access_key_id,
-            secret_access_key=secret_access_key,
-        ),
-        cluster_id=cluster_id,
-    )
+    try:
+        return EBSBlockDeviceAPI(
+            ec2_client=ec2_client(
+                region=region,
+                zone=zone,
+                access_key_id=access_key_id,
+                secret_access_key=secret_access_key,
+                validate_region=validate_region,
+            ),
+            cluster_id=cluster_id,
+        )
+    except (InvalidRegionError, InvalidZoneError) as e:
+        raise StorageInitializationError(
+            StorageInitializationError.CONFIGURATION_ERROR, *e.args)
