@@ -11,6 +11,7 @@ Getting Involved
    plugins/index
    acceptance-testing
    functional-testing
+   cluster-setup
    benchmarking
    client-testing
    infrastructure/index
