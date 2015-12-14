@@ -127,9 +127,6 @@ class _SplitEliotLogs(Fixture):
     _ELIOT_LOG_DETAIL_NAME = 'twisted-eliot-log'
 
     def _setUp(self):
-        # Need the cleanups in this to run *after* the cleanup in
-        # CaptureTwistedLogs, so add it first, because cleanups are run in
-        # reverse order.
         twisted_logs = self.useFixture(CaptureTwistedLogs())
         self._fix_twisted_logs(twisted_logs, twisted_logs.LOG_DETAIL_NAME)
 
