@@ -91,18 +91,31 @@ class EBSBlockDeviceAPIInterfaceTests(
             AvailabilityZone=ec2_client.zone)
         created_volume = ec2_client.connection.Volume(
             requested_volume['VolumeId'])
-        self.addCleanup(created_volume.delete)
 
-        _wait_for_volume_state_change(VolumeOperations.CREATE,
-                                      requested_volume)
+        def clean_volume(volume):
+            volume.detach_from_instance()
+            _wait_for_volume_state_change(VolumeOperations.DETACH, volume)
+            volume.delete()
+
+        self.addCleanup(clean_volume, created_volume)
+
+        _wait_for_volume_state_change(VolumeOperations.CREATE, created_volume)
+
+        # Get this instance ID.
+        instance_id = self.api.compute_instance_id()
+
+        # Attach manual volume.
+        # self.api.attach_volume(unicode(created_volume.id), instance_id)
+        all_volumes = self.api._list_ebs_volumes()
+        device_name = self.api._next_device(instance_id, all_volumes, set())
+        self.api._attach_ebs_volume(
+            created_volume.id, instance_id, device_name)
 
         # Now create a volume via Flocker EBS backend.
         blockdevice_volume = self.api.create_volume(
             dataset_id=dataset_id, size=ONE_GIB)
 
-        # Determine our instance ID and attempt to attach the blockdevice
-        # volume to this instance.
-        instance_id = self.api.compute_instance_id()
+        # Attempt to attach the blockdevice volume to this instance.
         self.assertRaises(
             AttachFailed, self.api.attach_volume,
             blockdevice_volume.blockdevice_id, instance_id

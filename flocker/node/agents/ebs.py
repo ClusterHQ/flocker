@@ -524,9 +524,10 @@ def _get_volume_tag(volume, name):
 
     :return: A ``str`` representing the value of the tag.
     """
-    for tag in volume.tags:
-        if tag['Key'] == name:
-            return tag['Value']
+    if volume.tags:
+        for tag in volume.tags:
+            if tag['Key'] == name:
+                return tag['Value']
     raise TagNotFound(volume.id, name, volume.tags)
 
 
