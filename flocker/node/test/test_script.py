@@ -356,6 +356,7 @@ class AgentServiceGetAPITests(SynchronousTestCase):
                 "access_key_id": "XXXXXXXXXX",
                 "secret_access_key": "YYYYYYYYYY",
                 "cluster_id": "123456789",
+                "validate_region": False,
             }
         )
         ebs = agent_service.get_api()
