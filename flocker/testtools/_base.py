@@ -12,6 +12,7 @@ import sys
 import tempfile
 
 from eliot.prettyprint import pretty_format
+from fixtures import Fixture
 import testtools
 from testtools.content import Content, text_content
 from testtools.content_type import UTF8_TEXT
@@ -82,8 +83,6 @@ class AsyncTestCase(testtools.TestCase):
     Base class for asynchronous test cases.
     """
 
-    _ELIOT_LOG_DETAIL_NAME = 'twisted-eliot-log'
-
     run_tests_with = async_runner(timeout=DEFAULT_ASYNC_TIMEOUT)
 
     def __init__(self, *args, **kwargs):
@@ -93,28 +92,19 @@ class AsyncTestCase(testtools.TestCase):
 
     def setUp(self):
         super(AsyncTestCase, self).setUp()
-        # Need this to run _after_ the clean-up in CaptureTwistedLogs, so add
-        # it first, because cleanups are run in reverse order.
+        # Need the cleanups in this to run *after* the cleanup in
+        # CaptureTwistedLogs, so add it first, because cleanups are run in
+        # reverse order.
         #
-        # Would ideally like to move post-processing to its own fixture that
-        # wraps up CaptureTwistedLogs, but there doesn't seem to be a way to
-        # do that. https://github.com/testing-cabal/fixtures/pull/20 for
-        # details.
+        # Would ideally like to have all the log capturing (including
+        # post-processing) in its own fixture that wraps up
+        # CaptureTwistedLogs, but there doesn't seem to be a way to do that.
+        # https://github.com/testing-cabal/fixtures/pull/20 for details.
         #
-        # XXX: Would also be useful for synchronous test cases, once they're
+        # XXX: Would also be useful for synchronous test cases once they're
         # migrated over to testtools.
-        self.addCleanup(self._post_process_twisted_logs)
+        self.useFixture(_SplitEliotLogs(self))
         self.useFixture(CaptureTwistedLogs())
-
-    def _post_process_twisted_logs(self):
-        """
-        Split the eliot logs out of the Twisted logs.
-        """
-        twisted_log = self.getDetails()[CaptureTwistedLogs.LOG_DETAIL_NAME]
-        new_twisted_log, eliot_log = _fix_twisted_logs(twisted_log)
-        # Overrides the existing Twisted log.
-        self.addDetail(CaptureTwistedLogs.LOG_DETAIL_NAME, new_twisted_log)
-        self.addDetail(self._ELIOT_LOG_DETAIL_NAME, eliot_log)
 
     def mktemp(self):
         """
@@ -130,6 +120,44 @@ class AsyncTestCase(testtools.TestCase):
         # XXX: Actually belongs in a mixin or something, not actually specific
         # to async.
         return make_temporary_directory(self).child('temp').path
+
+
+class _SplitEliotLogs(Fixture):
+    """
+    Split the Eliot logs out of Twisted logs.
+
+    Assumes that Twisted logs contain Eliot logs as per
+    ``flocker._redirect_eliot_logs_for_trial``, and that these logs have been
+    attached to a test case as a detail named with the value of
+    ``CaptureTwistedLogs.LOG_DETAIL_NAME``.
+
+    Takes the Eliot logs that are in the Trial logs and splits them into a
+    separate detail that contains only the pretty printed Eliot logs.
+    """
+
+    _ELIOT_LOG_DETAIL_NAME = 'twisted-eliot-log'
+
+    def __init__(self, case):
+        super(_SplitEliotLogs, self).__init__()
+        self._case = case
+
+    def _setUp(self):
+        self.addCleanup(self._post_process_twisted_logs, self._case)
+
+    def _post_process_twisted_logs(self, case):
+        """
+        Split the eliot logs out of the Twisted logs.
+
+        :param TestCase case: The test case to which the Twisted log details
+            were attached.
+        """
+        # XXX: Mutating the details dict of the TestCase is a bit of a hack.
+        # See comment in AsyncTestCase.setUp for explanation.
+        twisted_log = case.getDetails().pop(CaptureTwistedLogs.LOG_DETAIL_NAME)
+        new_twisted_log, eliot_log = _fix_twisted_logs(twisted_log)
+        # Overrides the existing Twisted log.
+        case.addDetail(CaptureTwistedLogs.LOG_DETAIL_NAME, new_twisted_log)
+        case.addDetail(self._ELIOT_LOG_DETAIL_NAME, eliot_log)
 
 
 def _fix_twisted_logs(log_content):

@@ -12,7 +12,6 @@ from eliot import MessageType, fields
 from hypothesis import assume, given
 from hypothesis.strategies import binary, integers, lists, text
 from testtools import PlaceHolder, TestCase, TestResult
-from testtools.content import text_content
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
@@ -39,6 +38,7 @@ from twisted.python.filepath import FilePath
 from .._base import (
     AsyncTestCase,
     make_temporary_directory,
+    _SplitEliotLogs,
     _get_eliot_data,
     _iter_lines,
     _path_for_test_id,
@@ -169,7 +169,7 @@ class AsyncTestCaseTests(TestCase):
                 'twisted-log': match_text_content(MatchesRegex(
                     r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\+\d{4} \[-\] foo$'
                 )),
-                AsyncTestCase._ELIOT_LOG_DETAIL_NAME: match_text_content(
+                _SplitEliotLogs._ELIOT_LOG_DETAIL_NAME: match_text_content(
                     Contains("  message_type: 'foo'\n"
                              "  name: 'qux'\n")
                 ),
