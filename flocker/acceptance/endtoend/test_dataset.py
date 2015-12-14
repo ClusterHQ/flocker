@@ -14,11 +14,12 @@ from testtools import run_test_with
 from twisted.internet import reactor
 
 from ...common import loop_until
-from ...testtools import AsyncTestCase, flaky, get_backend_api, async_runner
+from ...testtools import AsyncTestCase, flaky, async_runner
 from ...node.agents.blockdevice import ICloudAPI
 
 from ..testtools import (
-    require_cluster, require_moving_backend, create_dataset, DatasetBackend
+    require_cluster, require_moving_backend, create_dataset, DatasetBackend,
+    get_backend_api,
 )
 
 
