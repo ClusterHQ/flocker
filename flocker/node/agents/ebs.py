@@ -1023,9 +1023,9 @@ class EBSBlockDeviceAPI(object):
             lambda d: d.startswith(b"xvd") or d.startswith('sd'),
             command_result.split("\n")[1:]
         ))
-        devices_in_use = pset(list(devices_in_use) + [
+        devices_in_use = pset(list(devices_in_use) + list(
             device.replace('/dev/sd', 'xvd') for device in devices_in_use
-        ])
+        ))
         devices = local_devices | devices_in_use
         sorted_devices = sorted(list(thaw(devices)))
         IN_USE_DEVICES(devices=sorted_devices).write()
@@ -1037,7 +1037,9 @@ class EBSBlockDeviceAPI(object):
             possible_devices = [
                 next_local_device, next_local_sd_device, file_name
             ]
-            if not any([device in devices for device in possible_devices]):
+            if not any(
+                list(device in devices for device in possible_devices)
+            ):
                 return file_name
 
         # Could not find any suitable device that is available
