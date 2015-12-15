@@ -32,7 +32,7 @@ class RateMeasurerTest(SynchronousTestCase):
         :param num_samples: The number of samples to collect.
         """
         for i in range(num_samples * num_requests):
-            rate_measurer.send_request()
+            rate_measurer.request_sent()
 
     def receive_requests(self, rate_measurer, num_requests, num_samples):
         """
@@ -45,7 +45,7 @@ class RateMeasurerTest(SynchronousTestCase):
         ignored = ""
         for i in range(num_samples):
             for i in range(num_requests):
-                rate_measurer.receive_request(ignored)
+                rate_measurer.response_received(ignored)
             rate_measurer.update_rate()
 
     def increase_rate(self, rate_measurer, num_requests, num_samples):

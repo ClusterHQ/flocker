@@ -32,13 +32,13 @@ class RateMeasurer(object):
         self._rate = 0
         self.sample_size = sample_size
 
-    def send_request(self):
+    def request_sent(self):
         """
         Increase the number of sent requests.
         """
         self.sent += 1
 
-    def receive_request(self, result):
+    def response_received(self, result):
         """
         Increase the number of received requests.
         """
@@ -119,10 +119,13 @@ class ReadRequestLoadScenario(object):
         for i in range(count):
             self.rate_measurer.update_rate()
 
+        def handle_request_error():
+            pass
+
         for i in range(self.request_rate):
             d = self.control_service.list_nodes()
-            self.rate_measurer.send_request()
-            d.addCallbacks(self.rate_measurer.receive_request,
+            self.rate_measurer.request_sent()
+            d.addCallbacks(self.rate_measurer.response_received,
                            errback=eliot.write_failure)
 
     def _fail(self, exception):
