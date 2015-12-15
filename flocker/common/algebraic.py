@@ -154,3 +154,35 @@ def tagged_union_strategy(type, attr_strategies):
         return fixed_dictionaries(args).map(lambda kwargs: type(**kwargs))
 
     return sampled_from(invariant._allowed_tags).flatmap(build)
+
+
+def merge_tagged_unions(type, src, target):
+    """
+    Merge all applicable attributes from src into target.
+
+    :param type: Type of src and target, must have a ``TaggedUnionInvariant``
+        for __invariant__.
+    :param src: Instance of ``type`` with attributes to be merged into
+        ``target``.
+    :param target: Instance of ``type`` to be merged into from src.
+    """
+    invariant = type.__invariant__
+
+    src_tag = getattr(src, invariant.tag_attribute)
+    target_tag = getattr(target, invariant.tag_attribute)
+
+    remove_attributes = invariant.attributes_for_tag[src_tag].difference(
+        invariant.attributes_for_tag[target_tag])
+
+    add_attributes = invariant.attributes_for_tag[target_tag].difference(
+        invariant.attributes_for_tag[src_tag]).union({invariant.tag_attribute})
+
+    returned = src.evolver()
+
+    for a in remove_attributes:
+        returned.remove(a)
+
+    for a in add_attributes:
+        returned.set(a, getattr(target, a))
+
+    return returned.persistent()
