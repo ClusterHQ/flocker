@@ -15,8 +15,6 @@ from benchmark.scenarios import (
     RequestRateNotReached, RequestOverload
 )
 
-from benchmark.scenarios.read_request_load import DEFAULT_SAMPLE_SIZE
-
 from benchmark.cluster import BenchmarkCluster
 
 
@@ -171,16 +169,16 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         """
         c = Clock()
         cluster = self.make_cluster(FakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster, 5, sample_size=3)
+        sample_size = 5
+        s = ReadRequestLoadScenario(c, cluster, sample_size=sample_size)
 
         d = s.start()
 
-        # Request rate samples are taken at most every second and by
-        # default, 5 samples are required to establish the rate.
-        # The sample recorded at nth second is the sample for the
-        # (n - 1)th second, therefore we need to advance the clock by
-        # n + 1 seconds to obtain a rate for n samples.
-        c.pump(repeat(1, DEFAULT_SAMPLE_SIZE + 1))
+        # Request rate samples are recorded every second and we need to
+        # collect enough samples to establish the rate which is defined
+        # by `sample_size`. Therefore, advance the clock by
+        # `sample_size` seconds to obtain enough samples.
+        c.pump(repeat(1, sample_size))
         s.maintained().addBoth(lambda x: self.fail())
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
@@ -197,19 +195,20 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         """
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster, 5, sample_size=1)
+        sample_size = 5
+        s = ReadRequestLoadScenario(c, cluster, sample_size=sample_size)
 
         s.start()
 
-        # Advance the clock by DEFAULT_SAMPLE_SIZE + 1 seconds to
-        # establish the requested rate.
-        c.pump(repeat(1, DEFAULT_SAMPLE_SIZE + 1))
+        # Advance the clock by `sample_size` seconds to establish the
+        # requested rate.
+        c.pump(repeat(1, sample_size))
 
         cluster.get_control_service(c).drop_requests = True
 
-        # Advance the clock by 3 seconds so that a request is dropped
+        # Advance the clock by 2 seconds so that a request is dropped
         # and a new rate which is below the target can be established.
-        c.pump(repeat(1, 3))
+        c.pump(repeat(1, 2))
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestRateTooLow)
@@ -221,7 +220,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         """
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster, 5, sample_size=1)
+        s = ReadRequestLoadScenario(c, cluster)
         cluster.get_control_service(c).drop_requests = True
         d = s.start()
 
@@ -234,9 +233,9 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
     def test_scenario_throws_exception_if_overloaded(self):
         """
-        `ReadRequestLoadScenarioTest` raises `RequestOverload` if,
-        once we start monitoring the scenario, we go over the max
-        tolerated difference between sent requests and received requests.
+        `ReadRequestLoadScenario` raises `RequestOverload` if the
+        difference between sent requests and received requests exceeds
+        the tolerated difference once we start monitoring the scenario.
 
         Note that, right now, the only way to make it fail is to generate
         this difference before we start monitoring the scenario.
@@ -247,12 +246,12 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         # XXX Update this test when we add tolerance for rate fluctuations.
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        req_per_second = 2
+        target_rate = 10
         sample_size = 20
-        s = ReadRequestLoadScenario(c, cluster, req_per_second,
+        s = ReadRequestLoadScenario(c, cluster, request_rate=target_rate,
                                     sample_size=sample_size)
-        dropped_req_per_sec = req_per_second / 2
-        seconds_to_overload = s.max_outstanding / dropped_req_per_sec
+        dropped_rate = target_rate / 2
+        seconds_to_overload = s.max_outstanding / dropped_rate
 
         s.start()
         # Reach initial rate
