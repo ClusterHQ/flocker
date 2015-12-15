@@ -1181,9 +1181,19 @@ class _WriteVerifyingExternalClient(object):
     used to try to write to paths on the system and verify that the writes are
     persisted to the underlying blockdevice.
 
-    :ivar _known_mountpoints: Known mountpoints of the dataset.
+    :ivar _known_mountpoints: Known mountpoints of the dataset. Once flocker
+        has returned a path to an external agent, there is no promising how
+        long that agent might cache that information before it tries to write
+        to that location. This agent keeps track of all mountpoints it has ever
+        seen and tries to write to all of them.
     :ivar _device_path: The device path of the blockdevice that backs the
-        dataset.
+        dataset. This is used to verify that writes are persisted to the
+        underlying blockdevice.
+    :ivar _dataset_id: The dataset_id of the dataset under test.
+    :ivar _node_uuid: The node_uuid of the node that is being tested.
+    :ivar _testing_mountroot: A mountroot to construct moutpoints under.
+    :ivar _blockdevice_manager: An ``IBlockDeviceManager`` provider that can be
+        used to mount block devices.
     """
 
     def __init__(self, dataset_id, node_uuid, mountroot, blockdevice_manager):
@@ -1193,7 +1203,6 @@ class _WriteVerifyingExternalClient(object):
         self._node_uuid = node_uuid
         self._testing_mountroot = mountroot
         self._blockdevice_manager = blockdevice_manager
-        self._busy = False
 
     def _has_file_named(self, filename):
         """
@@ -1208,27 +1217,32 @@ class _WriteVerifyingExternalClient(object):
         test_mountpoint.remove()
         return result
 
-    def invariant(self, case, current_cluster_state, when_description):
+    def invariant(self, case, current_cluster_state):
         """
         An invariant that should always hold. Specifically, after the path
         to a dataset is known by the cluster then writes to that path
         should either succeed and be persisted to the underlying block
         device, or the write should fail.
 
-        Returns False if none of the known paths of the dataset can be
-        written to.
+        :param case: A ``TestCase`` to use for making assertions.
+        :param current_cluster_state: A callable that returns the current state
+            of the cluster.
+
+        :returns: False if none of the known paths of the dataset can be
+            written to.
         """
-        if self._busy:
-            return False
-        self._busy = True
         write_success = []
 
+        # First poll the cluster state to see if there is a new mountpoint that
+        # we should try to use to attempt to write to the dataset.
         [node] = list(n for n in current_cluster_state().nodes
                       if n.uuid == self._node_uuid)
-        path = node.paths.get(unicode(self._dataset_id))
+        paths = node.paths or {}
+        path = paths.get(unicode(self._dataset_id))
         if path:
             self._known_mountpoints.add(path)
-        device = node.devices.get(self._dataset_id)
+        devices = node.devices or {}
+        device = devices.get(self._dataset_id)
         if device:
             self._device_path = device
 
@@ -1249,8 +1263,7 @@ class _WriteVerifyingExternalClient(object):
                     self._has_file_named(filename),
                     "Successfully wrote to a path gotten from flocker, "
                     "but the write was not persisted to the backing block "
-                    "device at: %s." % when_description)
-        self._busy = False
+                    "device.")
         return any(write_success)
 
 
@@ -1260,6 +1273,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
     """
     def setUp(self):
         self._deployer = None
+        self._cluster_state = DeploymentState(nodes=[self._empty_node_state()])
 
     @property
     def deployer(self):
@@ -1272,14 +1286,14 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         return self._deployer
 
     def _empty_node_state(self):
+        """
+        Returns an empty node state for the node the deployer is created on.
+        """
         return NodeState(
             uuid=self.deployer.node_uuid,
             hostname=self.deployer.hostname,
             applications=[],
         )
-
-    def _blank_cluster_state(self):
-        return DeploymentState(nodes=[self._empty_node_state()])
 
     def teardown_example(self, token):
         """
@@ -1291,9 +1305,14 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         """
         Return the current ``BlockDeviceDeployerLocalState`` from the deployer.
         """
-        return self.successResultOf(self.deployer.discover_state(
+        local_state = self.successResultOf(self.deployer.discover_state(
             self._empty_node_state()
         ))
+
+        for change in local_state.shared_state_changes():
+            self._cluster_state = change.update_cluster_state(
+                self._cluster_state)
+        return local_state
 
     def current_datasets(self):
         """
@@ -1302,10 +1321,10 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         return self.current_local_state().datasets
 
     def current_cluster_state(self):
-        cluster_state = self._blank_cluster_state()
-        for change in self.current_local_state().shared_state_changes():
-            cluster_state = change.update_cluster_state(cluster_state)
-        return cluster_state
+        """
+        Return the current state of the cluster.
+        """
+        return self._cluster_state
 
     def run_convergence_step(self, desired_datasets):
         """
@@ -1390,22 +1409,24 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         """
         Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
-        dataset. During that time, it will never be the case that an external
-        agent (for instance, docker) can successfully write to a mount path
-        that has been sent to the control agent, but the write not be persisted
-        to the backing volume.
+        dataset. During that time, it will never be the case that a
+        successfully write to a mount path that has been sent to the control
+        agent will not be persisted to the backing volume.
+
+        This would represent an agent like docker attempting to use a path
+        before or after flocker was ready for it to use the path.
         """
         dataset_id = initial_dataset.dataset_id
 
         evaluate_function = None
 
-        def callback(when_description):
+        def nullable_callback():
             if evaluate_function:
-                evaluate_function(when_description)
+                evaluate_function()
 
         actual_blockdevice_manager = BlockDeviceManager()
         proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
-            actual_blockdevice_manager, callback)
+            actual_blockdevice_manager, nullable_callback)
 
         self._deployer = create_blockdevicedeployer(
             self, block_device_manager=proxy_blockdevice_manager)
@@ -1418,6 +1439,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
 
         evaluate_function = partial(external_agent.invariant, self,
                                     self.current_cluster_state)
+        print evaluate_function
 
         # Set the mountpoint to a real mountpoint in desired dataset states
         # that have a mount point attribute.
@@ -5496,9 +5518,9 @@ def _surround_with_callbacks_decorator(method_name, callback, proxy_object):
 
     def proxied_function(self, *args, **kwargs):
         method = getattr(proxy_object, method_name)
-        callback('Before %s' % method_name)
+        callback()  # Before method call.
         result = method(*args, **kwargs)
-        callback('After %s' % method_name)
+        callback()  # After method call.
         return result
 
     return proxied_function
