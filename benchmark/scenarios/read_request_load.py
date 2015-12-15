@@ -22,8 +22,7 @@ class RateMeasurer(object):
     """
     Measures the rate of requests in requests per second.
 
-    :ivar sample_size: size of the sample we request - how many samples,
-    or counts, do we want to consider we have reached the rate.
+    :ivar sample_size: The number of samples to collect.
     """
 
     def __init__(self, sample_size=DEFAULT_SAMPLE_SIZE):
@@ -35,13 +34,13 @@ class RateMeasurer(object):
 
     def send_request(self):
         """
-        Increase the counter of sent requests
+        Increase the number of sent requests.
         """
         self.sent += 1
 
     def receive_request(self, result):
         """
-        Increase the counter of sent requests
+        Increase the number of received requests.
         """
         self.received += 1
 

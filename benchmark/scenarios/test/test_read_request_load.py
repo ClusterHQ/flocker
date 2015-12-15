@@ -233,20 +233,19 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, RequestRateNotReached)
 
-    def test_scenario_throws_exceptions_if_overloads(self):
+    def test_scenario_throws_exception_if_overloaded(self):
         """
         `ReadRequestLoadScenarioTest` raises `RequestOverload` if,
         once we start monitoring the scenario, we go over the max
         tolerated difference between sent requests and received requests.
 
         Note that, right now, the only way to make it fail is to generate
-        this different before we start monitoring the scenario.
-        Once we implement some kind of tolerance, to allow small highs/ups
-        on the rates, we can update this tests to trigger the exception
+        this difference before we start monitoring the scenario.
+        Once we implement some kind of tolerance, to allow fluctuations
+        in the rate, we can update this tests to trigger the exception
         in a more realistic manner.
         """
-        # XXX update this tests when we add tolerance to the rate going
-        # a bit up and down.
+        # XXX Update this test when we add tolerance for rate fluctuations.
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
         req_per_second = 2
@@ -259,15 +258,15 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         s.start()
         # Reach initial rate
         cluster.get_control_service(c).drop_requests = True
-        # Initially, we generate enough dropped request to make it crash once
-        # we start monitoring the scenario
+        # Initially, we generate enough dropped requests so that the scenario
+        # is overloaded when we start monitoring.
         c.pump(repeat(1, seconds_to_overload+1))
         # We stop dropping requests
         cluster.get_control_service(c).drop_requests = False
         # Now we generate the initial rate to start monitoring the scenario
         c.pump(repeat(1, sample_size))
         # We only need to advance one more second (first loop in the monitoring
-        # loop) to make it crash with RequestOverload
+        # loop) to trigger RequestOverload
         c.pump(repeat(1, 1))
 
         failure = self.failureResultOf(s.maintained())
