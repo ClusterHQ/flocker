@@ -217,9 +217,9 @@ class MergeTaggedUnionsTests(SynchronousTestCase):
         """
         Merging only takes fields in the target from the source.
         """
-        target  = AlgebraicType(state=States.WITH_ATTRIBUTE,
-                                extra=False,
-                                one=False)
+        target = AlgebraicType(state=States.WITH_ATTRIBUTE,
+                               extra=False,
+                               one=False)
 
         src = AlgebraicType(state=States.WITH_TWO_ATTRIBUTES,
                             extra=True,
