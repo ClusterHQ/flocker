@@ -1176,8 +1176,7 @@ class EBSBlockDeviceAPI(object):
         ignore_devices = pset([])
         for attach_attempt in range(3):
             with self.lock:
-                volumes = self._list_ebs_volumes()
-                device = self._next_device(attach_to, volumes, ignore_devices)
+                device = self._next_device(ignore_devices)
                 if device is None:
                     # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
                     # (https://clusterhq.atlassian.net/browse/FLOC-1887).
