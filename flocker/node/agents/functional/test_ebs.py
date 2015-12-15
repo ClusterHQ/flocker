@@ -107,7 +107,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         # Attach manual volume.
         # self.api.attach_volume(unicode(created_volume.id), instance_id)
         all_volumes = self.api._list_ebs_volumes()
-        device_name = self.api._next_device(instance_id, all_volumes, set())
+        device_name = self.api._next_device(set())
         device_name = device_name.replace('/sd', '/xvd')
         self.api._attach_ebs_volume(
             created_volume.id, instance_id, device_name)
