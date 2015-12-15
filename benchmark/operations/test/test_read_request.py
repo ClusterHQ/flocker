@@ -106,7 +106,10 @@ class ReadRequestTests(SynchronousTestCase):
         # Get the probe to read the state of the cluster
         def start_read_request(result):
             cluster = BenchmarkCluster(
-                IPAddress('10.0.0.1'), lambda reactor: control_service, {}
+                IPAddress('10.0.0.1'),
+                lambda reactor: control_service,
+                {},
+                None,
             )
             request = ReadRequest(Clock(), cluster, 'list_datasets_state')
             return request.get_probe()
