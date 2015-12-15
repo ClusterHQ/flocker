@@ -2,7 +2,7 @@
 #
 # build.yaml
 #
-# This file contains the Jenkins job defintions for the Flocker project.
+# This file contains the Jenkins job definitions for the Flocker project.
 #
 # We add new or reconfigure existing jobs in Jenkins using the Job DSL plugin.
 # https://github.com/jenkinsci/job-dsl-plugin
@@ -30,6 +30,7 @@
 #
 # We pass the branch name as a parameter to the setup_clusterhq_flocker job,
 # the parameter is shown as 'RECONFIGURE_BRANCH'.
+#
 # The setup job only produces jobs for a single branch . We don't produce jobs
 # for every branch due to the large number of branches in the repository, which
 # would generate over 16000 jobs and take over an hour to run.
@@ -45,8 +46,10 @@
 # she/he can see a job called '_main_multijob'. This job is responsible for
 # executing all other jobs in parallel and collecting the produced artifacts
 # from each job after its execution.
+#
 # The artifacts in this case are trial logs, coverage xml reports, subunit
 # reports.
+#
 # Those artifacts are consumed by the _main_multijob to produce an overall
 # coverage report, and an aggregated summary of all the executed tests and
 # their failures/skips/successes.
