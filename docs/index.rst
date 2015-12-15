@@ -14,13 +14,11 @@ Flocker is an open-source project, and in our :ref:`Getting Involved section<get
    :maxdepth: 2
 
    introduction/index
-   install/index
-   config/index
-   control/index
-   concepts/index
-   reference/index
+   integration-swarm/index
+   integration-kubernetes/index
+   integration-mesos/index
+   integration-other/index
    releasenotes/index
-   labs/index
    faq/index
    gettinginvolved/index
 
