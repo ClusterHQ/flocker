@@ -998,23 +998,16 @@ class EBSBlockDeviceAPI(object):
         return volume.attach_to_instance(
             InstanceId=instance_id, Device=device)
 
-    def _next_device(self, instance_id, volumes, devices_in_use):
+    def _next_device(self, devices_in_use):
         """
-        Get the next available EBS device name for a given EC2 instance.
+        Get the next available EBS device name for this EC2 instance.
 
-        Algorithm:
-        1. Get all ``Block devices`` currently in use by given instance:
-            a) List all volumes visible to this instance.
-            b) Gather device IDs of all devices attached to (a).
-        2. Devices available for EBS volume usage are ``/dev/sd[f-p]``.
-           Find the first device from this set that is currently not
-           in use.
+        Devices available for EBS volume usage are ``/dev/sd[f-p]``.
+        Find the first device from this set that is currently not
+        in use.
         XXX: Handle lack of free devices in ``/dev/sd[f-p]`` range
         (see https://clusterhq.atlassian.net/browse/FLOC-1887).
 
-        :param unicode instance_id: EC2 instance ID.
-        :param volumes: Collection of currently known
-            ``BlockDeviceVolume`` instances.
         :param set devices_in_use: Unicode names of devices that are
             probably in use based on observed behavior.
 
@@ -1023,21 +1016,21 @@ class EBSBlockDeviceAPI(object):
         :returns ``None`` if suitable EBS device names on this EC2
             instance are currently occupied.
         """
-        volume_devices = []
-        for v in volumes:
-            volume_attachments = v.attachments
-            for attachment in volume_attachments:
-                if attachment['InstanceId'] == instance_id:
-                    volume_devices.append(attachment['Device'])
-        devices = pset(volume_devices)
-        devices = devices | devices_in_use
+
+        command = [b"/bin/lsblk", b"--output", b"KNAME"]
+        command_result = check_output(command)
+        local_devices = pset(filter(
+            lambda d: d.startswith(b"xvd"),
+            command_result.split("\n")[1:]
+        ))
+        devices = local_devices | devices_in_use
         sorted_devices = sorted(list(thaw(devices)))
         IN_USE_DEVICES(devices=sorted_devices).write()
 
         for suffix in b"fghijklmonp":
-            # check for /dev/xvdX here too.
+            next_local_device = b'xvd' + suffix
             file_name = u'/dev/sd' + suffix
-            if file_name not in devices:
+            if next_local_device not in devices:
                 return file_name
 
         # Could not find any suitable device that is available
