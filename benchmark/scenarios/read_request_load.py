@@ -97,7 +97,7 @@ class ReadRequestLoadScenario(object):
     """
 
     def __init__(
-        self, reactor, cluster, request_rate=10, interval=DEFAULT_SAMPLE_SIZE,
+        self, reactor, cluster, request_rate=10, sample_size=DEFAULT_SAMPLE_SIZE,
         timeout=45
     ):
         self._maintained = Deferred()
@@ -105,7 +105,7 @@ class ReadRequestLoadScenario(object):
         self.control_service = cluster.get_control_service(reactor)
         self.request_rate = request_rate
         self.timeout = timeout
-        self.rate_measurer = RateMeasurer(interval)
+        self.rate_measurer = RateMeasurer(sample_size)
         self.max_outstanding = 10 * request_rate
         # Send requests per second
         self.loop = LoopingCall.withCount(self._request_and_measure)

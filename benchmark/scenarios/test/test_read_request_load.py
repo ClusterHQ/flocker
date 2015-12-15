@@ -172,7 +172,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         """
         c = Clock()
         cluster = self.make_cluster(FakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster, 5, interval=3)
+        s = ReadRequestLoadScenario(c, cluster, 5, sample_size=3)
 
         d = s.start()
 
@@ -198,7 +198,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         """
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
+        s = ReadRequestLoadScenario(c, cluster, 5, sample_size=1)
 
         s.start()
 
@@ -222,7 +222,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         """
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
+        s = ReadRequestLoadScenario(c, cluster, 5, sample_size=1)
         cluster.get_control_service(c).drop_requests = True
         d = s.start()
 
@@ -252,7 +252,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         req_per_second = 2
         sample_size = 20
         s = ReadRequestLoadScenario(c, cluster, req_per_second,
-                                    interval=sample_size)
+                                    sample_size=sample_size)
         dropped_req_per_sec = req_per_second / 2
         seconds_to_overload = s.max_outstanding / dropped_req_per_sec
 
