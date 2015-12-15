@@ -1023,7 +1023,7 @@ class EBSBlockDeviceAPI(object):
             lambda d: d.startswith(b"xvd") or d.startswith('sd'),
             command_result.split("\n")[1:]
         ))
-        devices_in_use = pset(devices_in_use + [
+        devices_in_use = pset(list(devices_in_use) + [
             device.replace('/dev/sd', 'xvd') for device in devices_in_use
         ])
         devices = local_devices | devices_in_use
