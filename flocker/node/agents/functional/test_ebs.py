@@ -240,8 +240,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         only occurs if we hit eventually consistent ignorance in the AWS
         servers so it's hard to trigger deterministically.
         """
-        result = self.api._next_device(self.api.compute_instance_id(), [],
-                                       {u"/dev/sdf"})
+        result = self.api._next_device({u"/dev/sdf"})
         self.assertEqual(result, u"/dev/sdg")
 
     def test_next_device_in_use_end(self):
@@ -252,9 +251,7 @@ class EBSBlockDeviceAPIInterfaceTests(
             u'/dev/sd{}'.format(d)
             for d in u'fghijklmnop'
         }
-        result = self.api._next_device(
-            self.api.compute_instance_id(), [], devices_in_use
-        )
+        result = self.api._next_device(devices_in_use)
         self.assertIs(result, None)
 
     def test_create_volume_gold_profile(self):
