@@ -70,19 +70,18 @@ class RateMeasurerTest(SynchronousTestCase):
         r = RateMeasurer()
         self.assertEqual(r.rate(), 0, "Expected initial rate to be zero")
 
-    def test_rate_is_small_when_not_enough_samples(self):
+    def test_rate_is_lower_than_target_when_not_enough_samples(self):
         """
         When the number of samples collected is less than the sample
-        size, the rate should be smaller than `req_per_second`.
+        size, the rate should be lower than `target_rate`.
         """
         r = RateMeasurer()
-        req_per_second = 5
+        target_rate = 5
+        num_samples = r.sample_size - 1
 
-        self.increase_rate(r, req_per_second, (r.sample_size / 2))
+        self.increase_rate(r, target_rate, num_samples)
 
-        self.assertEqual((req_per_second * (r.sample_size / 2)) /
-                         r.sample_size,
-                         r.rate())
+        self.assertTrue(r.rate() < target_rate)
 
     def test_rate_is_correct_when_enough_samples(self):
         """
@@ -90,11 +89,11 @@ class RateMeasurerTest(SynchronousTestCase):
         samples have been collected.
         """
         r = RateMeasurer()
-        req_per_second = 5
+        target_rate = 5
 
-        self.increase_rate(r, req_per_second, r.sample_size)
+        self.increase_rate(r, target_rate, r.sample_size)
 
-        self.assertEqual(req_per_second, r.rate())
+        self.assertEqual(target_rate, r.rate())
 
     def test_old_samples_are_not_considered(self):
         """
@@ -103,29 +102,29 @@ class RateMeasurerTest(SynchronousTestCase):
         a new sample, the oldest one is discarded.
         """
         r = RateMeasurer()
-        req_per_second = 5
-        # generate samples that should get lost
-        self.increase_rate(r, 100, r.sample_size/2)
+        target_rate = 5
 
-        # generate r.sample_size samples that will make the initial
-        # ones not count
-        self.increase_rate(r, req_per_second, r.sample_size)
+        # Generate samples that will achieve a high request rate
+        self.increase_rate(r, target_rate * 2, r.sample_size)
 
-        self.assertEqual(req_per_second, r.rate())
+        # Generate samples to lower the request rate to the target rate
+        self.increase_rate(r, target_rate, r.sample_size)
 
-    def test_only_received_samples_considered_in_rate(self):
+        self.assertEqual(target_rate, r.rate())
+
+    def test_only_received_samples_considered(self):
         """
         The rate should be based on the number of received requests,
         not the number of sent requests.
         """
         r = RateMeasurer()
-        send_per_second = 100
-        rec_per_second = 5
+        send_request_rate = 100
+        receive_request_rate = 5
 
-        self.send_requests(r, send_per_second, r.sample_size)
-        self.receive_requests(r, rec_per_second, r.sample_size)
+        self.send_requests(r, send_request_rate, r.sample_size)
+        self.receive_requests(r, receive_request_rate, r.sample_size)
 
-        self.assertEqual(rec_per_second, r.rate())
+        self.assertEqual(receive_request_rate, r.rate())
 
 
 class RequestDroppingFakeFlockerClient(
@@ -228,7 +227,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
         # Continue the clock for one second longer than the timeout
         # value to allow the timeout to be triggered.
-        c.pump(repeat(1, s.timeout + 15))
+        c.pump(repeat(1, s.timeout + 1))
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, RequestRateNotReached)
