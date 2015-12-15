@@ -16,7 +16,9 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.constants import Names, NamedConstant
 
 
-from ..algebraic import TaggedUnionInvariant, tagged_union_strategy
+from ..algebraic import (
+    TaggedUnionInvariant, tagged_union_strategy, merge_tagged_unions
+)
 
 
 class States(Names):
@@ -185,3 +187,46 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
             'can only be in states',
             exc.invariant_errors[0],
         )
+
+
+class MergeTaggedUnionsTests(SynchronousTestCase):
+    """
+    Tests for merge_tagged_unions.
+    """
+
+    def test_simple_merge(self):
+        """
+        Merging takes all attributes form the src.
+        """
+        src = AlgebraicType(state=States.WITH_ATTRIBUTE,
+                            extra=False,
+                            one=False)
+
+        target = AlgebraicType(state=States.WITH_TWO_ATTRIBUTES,
+                               extra=True,
+                               one=True,
+                               two=True)
+
+        self.assertEqual(merge_tagged_unions(AlgebraicType, src, target),
+                         AlgebraicType(state=States.WITH_TWO_ATTRIBUTES,
+                                       extra=False,
+                                       one=False,
+                                       two=True))
+
+    def test_subset_merge(self):
+        """
+        Merging only takes fields in the target from the source.
+        """
+        target  = AlgebraicType(state=States.WITH_ATTRIBUTE,
+                                extra=False,
+                                one=False)
+
+        src = AlgebraicType(state=States.WITH_TWO_ATTRIBUTES,
+                            extra=True,
+                            one=True,
+                            two=True)
+
+        self.assertEqual(merge_tagged_unions(AlgebraicType, src, target),
+                         AlgebraicType(state=States.WITH_ATTRIBUTE,
+                                       extra=True,
+                                       one=True))

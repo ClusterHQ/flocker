@@ -69,8 +69,6 @@ class PrettyOptions(Options):
         pass them to the executed file.
         """
 
-        default = "%s%s" % (os.path.basename(sys.argv[0]),
-                            (self.longOpt and " [options]") or '')
         if self.parent is None:
             default = "Usage: %s%s" % (os.path.basename(sys.argv[0]),
                                        (self.longOpt and " [options]") or '')

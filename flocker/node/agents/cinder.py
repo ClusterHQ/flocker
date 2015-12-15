@@ -37,7 +37,7 @@ from ...common import (
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, UnknownInstanceID, get_blockdevice_volume,
+    UnattachedVolume, UnknownInstanceID, get_blockdevice_volume, ICloudAPI,
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
@@ -378,6 +378,7 @@ def _extract_nova_server_addresses(addresses):
 
 
 @implementer(IBlockDeviceAPI)
+@implementer(ICloudAPI)
 class CinderBlockDeviceAPI(object):
     """
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
@@ -684,6 +685,10 @@ class CinderBlockDeviceAPI(object):
             device_path = self._get_device_path_virtio_blk(cinder_volume)
 
         return device_path
+
+    # ICloudAPI:
+    def list_live_nodes(self):
+        return list(server.id for server in self.nova_server_manager.list())
 
 
 def _is_virtio_blk(device_path):

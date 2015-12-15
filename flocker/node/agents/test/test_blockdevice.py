@@ -19,6 +19,8 @@ from pytz import UTC
 
 import psutil
 
+from characteristic import attributes
+
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
@@ -37,7 +39,7 @@ from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase, SkipTest
+from twisted.trial.unittest import SynchronousTestCase, SkipTest, TestCase
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
@@ -78,7 +80,11 @@ from ..blockdevice import (
     FilesystemExists,
     UnknownInstanceID,
     get_blockdevice_volume,
+
+    ICloudAPI,
+    _SyncToThreadedAsyncCloudAPIAdapter,
 )
+from ..blockdevice_manager import BlockDeviceManager, IBlockDeviceManager
 
 from ..loopback import (
     check_allocatable_size,
@@ -87,7 +93,7 @@ from ..loopback import (
     _losetup_list, _blockdevicevolume_from_dataset_id,
     _backing_file_name,
 )
-from ....common.algebraic import tagged_union_strategy
+from ....common.algebraic import tagged_union_strategy, merge_tagged_unions
 
 
 from ... import run_state_change, in_parallel, ILocalState, NoOp, IStateChange
@@ -98,6 +104,7 @@ from ...testtools import (
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
+    AsyncTestCase
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
@@ -108,7 +115,8 @@ from ....control._model import Leases
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
 from ....common import (
-    retry_failure, gather_deferreds, RACKSPACE_MINIMUM_VOLUME_SIZE
+    retry_failure, gather_deferreds, interface_decorator,
+    RACKSPACE_MINIMUM_VOLUME_SIZE
 )
 
 CLEANUP_RETRY_LIMIT = 10
@@ -266,7 +274,8 @@ def mount(device, mountpoint):
 
 
 def create_blockdevicedeployer(
-        test_case, hostname=u"192.0.2.1", node_uuid=uuid4()
+    test_case, hostname=u"192.0.2.1", node_uuid=uuid4(),
+    block_device_manager=BlockDeviceManager()
 ):
     """
     Create a new ``BlockDeviceDeployer``.
@@ -274,6 +283,8 @@ def create_blockdevicedeployer(
     :param unicode hostname: The hostname to assign the deployer.
     :param UUID node_uuid: The unique identifier of the node to assign the
         deployer.
+    :param block_device_manager: The ``IBlockDeviceManager`` provider to use to
+        interact with the OS when manipulating block devices.
 
     :return: The newly created ``BlockDeviceDeployer``.
     """
@@ -287,6 +298,7 @@ def create_blockdevicedeployer(
         block_device_api=api,
         _async_block_device_api=async_api,
         mountroot=mountroot_for_test(test_case),
+        block_device_manager=block_device_manager,
     )
 
 
@@ -1156,11 +1168,106 @@ def compare_dataset_states(discovered_datasets, desired_datasets):
     return True
 
 
+@attributes(["iteration_count"])
 class DidNotConverge(Exception):
     """
     Raised if running convergence with an ``ICalculator`` does not converge
     in the specified number of iterations.
+
+    :ivar iteration_count: The count of iterations before this was raised.
     """
+
+
+class _WriteVerifyingExternalClient(object):
+    """
+    Representation of an external client of the Flocker API. This client can be
+    used to try to write to paths on the system and verify that the writes are
+    persisted to the underlying blockdevice.
+
+    :ivar _known_mountpoints: Known mountpoints of the dataset. Once flocker
+        has returned a path to an external agent, there is no promising how
+        long that agent might cache that information before it tries to write
+        to that location. This agent keeps track of all mountpoints it has ever
+        seen and tries to write to all of them.
+    :ivar _device_path: The device path of the blockdevice that backs the
+        dataset. This is used to verify that writes are persisted to the
+        underlying blockdevice.
+    :ivar _dataset_id: The dataset_id of the dataset under test.
+    :ivar _node_uuid: The node_uuid of the node that is being tested.
+    :ivar _testing_mountroot: A mountroot to construct moutpoints under.
+    :ivar _blockdevice_manager: An ``IBlockDeviceManager`` provider that can be
+        used to mount block devices.
+    """
+
+    def __init__(self, dataset_id, node_uuid, mountroot, blockdevice_manager):
+        self._known_mountpoints = set()
+        self._device_path = None
+        self._dataset_id = dataset_id
+        self._node_uuid = node_uuid
+        self._testing_mountroot = mountroot
+        self._blockdevice_manager = blockdevice_manager
+
+    def _has_file_named(self, filename):
+        """
+        Returns whether the blockdevice at self._device_path has a file with
+        the given name.
+        """
+        test_mountpoint = self._testing_mountroot.child(str(uuid4()))
+        test_mountpoint.makedirs()
+        self._blockdevice_manager.mount(self._device_path, test_mountpoint)
+        result = test_mountpoint.child(filename).exists()
+        self._blockdevice_manager.unmount(self._device_path)
+        test_mountpoint.remove()
+        return result
+
+    def invariant(self, case, current_cluster_state):
+        """
+        An invariant that should always hold. Specifically, after the path
+        to a dataset is known by the cluster then writes to that path
+        should either succeed and be persisted to the underlying block
+        device, or the write should fail.
+
+        :param case: A ``TestCase`` to use for making assertions.
+        :param current_cluster_state: A callable that returns the current state
+            of the cluster.
+
+        :returns: False if none of the known paths of the dataset can be
+            written to.
+        """
+        write_success = []
+
+        # First poll the cluster state to see if there is a new mountpoint that
+        # we should try to use to attempt to write to the dataset.
+        [node] = list(n for n in current_cluster_state().nodes
+                      if n.uuid == self._node_uuid)
+        paths = node.paths or {}
+        path = paths.get(unicode(self._dataset_id))
+        if path:
+            self._known_mountpoints.add(path)
+        devices = node.devices or {}
+        device = devices.get(self._dataset_id)
+        if device:
+            self._device_path = device
+
+        for path in self._known_mountpoints:
+            device = self._device_path
+            filename = str(uuid4())
+            try:
+                path.child(filename).touch()
+            except OSError:
+                # If we failed to write, that is okay in many scenarios. At
+                # least the failing write won't lead to the end user
+                # thinking that they have an actually persisted data. Note
+                # the failure, but don't immediately fail the test.
+                write_success.append(False)
+            else:
+                write_success.append(True)
+                case.assertTrue(
+                    self._has_file_named(filename),
+                    "Successfully wrote to a path gotten from flocker, "
+                    "but the write was not persisted to the backing block "
+                    "device.")
+        return any(write_success)
 
 
 class BlockDeviceCalculatorTests(SynchronousTestCase):
@@ -1168,7 +1275,28 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
     Tests for ``BlockDeviceCalculator``.
     """
     def setUp(self):
-        self.deployer = create_blockdevicedeployer(self)
+        self._deployer = None
+        self._cluster_state = DeploymentState(nodes=[self._empty_node_state()])
+
+    @property
+    def deployer(self):
+        """
+        Lazily created ``BlockDeviceDeployer``. Tests that want to initialize
+        their own can do so by initializing self._deployer.
+        """
+        if self._deployer is None:
+            self._deployer = create_blockdevicedeployer(self)
+        return self._deployer
+
+    def _empty_node_state(self):
+        """
+        Returns an empty node state for the node the deployer is created on.
+        """
+        return NodeState(
+            uuid=self.deployer.node_uuid,
+            hostname=self.deployer.hostname,
+            applications=[],
+        )
 
     def teardown_example(self, token):
         """
@@ -1176,16 +1304,30 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         """
         detach_destroy_volumes(self.deployer.block_device_api)
 
+    def current_local_state(self):
+        """
+        Return the current ``BlockDeviceDeployerLocalState`` from the deployer.
+        """
+        local_state = self.successResultOf(self.deployer.discover_state(
+            self._empty_node_state()
+        ))
+
+        for change in local_state.shared_state_changes():
+            self._cluster_state = change.update_cluster_state(
+                self._cluster_state)
+        return local_state
+
     def current_datasets(self):
         """
         Return the current state of datasets from the deployer.
         """
-        return self.successResultOf(self.deployer.discover_state(
-            NodeState(
-                uuid=self.deployer.node_uuid,
-                hostname=self.deployer.hostname,
-            ),
-        )).datasets
+        return self.current_local_state().datasets
+
+    def current_cluster_state(self):
+        """
+        Return the current state of the cluster.
+        """
+        return self._cluster_state
 
     def run_convergence_step(self, desired_datasets):
         """
@@ -1202,7 +1344,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         note("Running changes: {changes}".format(changes=changes))
         self.successResultOf(run_state_change(changes, self.deployer))
 
-    def run_to_convergence(self, desired_datasets, max_iterations=4):
+    def run_to_convergence(self, desired_datasets, max_iterations=6):
         """
         Run the calculator until it converges on the desired state.
 
@@ -1220,41 +1362,121 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
             ):
                 break
         else:
-            raise DidNotConverge()
+            raise DidNotConverge(iteration_count=max_iterations)
 
     @given(
         initial_dataset=DESIRED_DATASET_STRATEGY,
-        next_state=sampled_from([
-            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
-            DatasetStates.DELETED]),
+        next_dataset=DESIRED_DATASET_STRATEGY,
     )
-    def test_simple_transitions(self, initial_dataset, next_state):
+    def test_simple_transitions(self, initial_dataset, next_dataset):
         """
         Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
         dataset.
         """
         dataset_id = initial_dataset.dataset_id
-        initial_dataset = initial_dataset.set(
-            mount_point=self.deployer._mountpath_for_dataset_id(
-                unicode(dataset_id)),
-        )
+
+        # Set the mountpoint to a real mountpoint in desired dataset states
+        # that have a mount point attribute.
+        mount_point = self.deployer._mountpath_for_dataset_id(
+            unicode(dataset_id))
+        if hasattr(initial_dataset, 'mount_point'):
+            initial_dataset = initial_dataset.set(mount_point=mount_point)
+        if hasattr(next_dataset, 'mount_point'):
+            next_dataset = next_dataset.set(mount_point=mount_point)
+
+        # Merge fields from initial_dataset into next_dataset (such as
+        # dataset_id) so that we are changing the desired state of the same
+        # dataset.
+        next_dataset = merge_tagged_unions(DesiredDataset,
+                                           initial_dataset,
+                                           next_dataset)
 
         # Converge to the initial state.
         try:
             self.run_to_convergence([initial_dataset])
-        except DidNotConverge:
-            self.fail("Did not converge to initial state after 10 iterations")
+        except DidNotConverge as e:
+            self.fail(
+                "Did not converge to initial state after %d iterations." %
+                e.iteration_count)
 
         # Converge from the initial state to the next state.
         try:
-            self.run_to_convergence([initial_dataset.set(state=next_state)])
-        except DidNotConverge:
-            self.fail("Did not converge to next state after 10 iterations")
+            self.run_to_convergence([next_dataset])
+        except DidNotConverge as e:
+            self.fail("Did not converge to next state after %d iterations." %
+                      e.iteration_count)
 
-    test_simple_transitions.skip = (
-        "This test sometimes fails in a way that cause a failure cascade."
+    @given(
+        initial_dataset=DESIRED_DATASET_STRATEGY,
+        next_dataset=DESIRED_DATASET_STRATEGY,
     )
+    def test_docker_protection(self, initial_dataset, next_dataset):
+        """
+        Given an initial empty state, ``BlockDeviceCalculator`` will converge
+        to any ``DesiredDataset``, followed by any other state of the same
+        dataset. During that time, it will never be the case that a
+        successfully write to a mount path that has been sent to the control
+        agent will not be persisted to the backing volume.
+
+        This would represent an agent like docker attempting to use a path
+        before or after flocker was ready for it to use the path.
+        """
+        dataset_id = initial_dataset.dataset_id
+
+        evaluate_function = None
+
+        def nullable_callback():
+            if evaluate_function:
+                evaluate_function()
+
+        actual_blockdevice_manager = BlockDeviceManager()
+        proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
+            actual_blockdevice_manager, nullable_callback)
+
+        self._deployer = create_blockdevicedeployer(
+            self, block_device_manager=proxy_blockdevice_manager)
+
+        external_agent = _WriteVerifyingExternalClient(
+            dataset_id,
+            self.deployer.node_uuid,
+            mountroot_for_test(self),
+            actual_blockdevice_manager)
+
+        evaluate_function = partial(external_agent.invariant, self,
+                                    self.current_cluster_state)
+        print evaluate_function
+
+        # Set the mountpoint to a real mountpoint in desired dataset states
+        # that have a mount point attribute.
+        mount_point = self.deployer._mountpath_for_dataset_id(
+            unicode(dataset_id))
+        if hasattr(initial_dataset, 'mount_point'):
+            initial_dataset = initial_dataset.set(mount_point=mount_point)
+        if hasattr(next_dataset, 'mount_point'):
+            next_dataset = next_dataset.set(mount_point=mount_point)
+
+        # Merge fields from initial_dataset into next_dataset (such as
+        # dataset_id) so that we are changing the desired state of the same
+        # dataset.
+        next_dataset = merge_tagged_unions(DesiredDataset,
+                                           initial_dataset,
+                                           next_dataset)
+
+        # Converge to the initial state.
+        try:
+            self.run_to_convergence([initial_dataset])
+        except DidNotConverge as e:
+            self.fail(
+                "Did not converge to initial state after %d iterations." %
+                e.iteration_count)
+
+        # Converge from the initial state to the next state.
+        try:
+            self.run_to_convergence([next_dataset])
+        except DidNotConverge as e:
+            self.fail("Did not converge to next state after %d iterations." %
+                      e.iteration_count)
 
     @given(
         desired_state=sampled_from([
@@ -2563,7 +2785,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             in_parallel(
                 changes=[
                     CreateBlockDeviceDataset(
-                        dataset=dataset,
+                        dataset_id=UUID(dataset_id),
+                        maximum_size=int(GiB(1).bytes)
                     )
                 ]),
             changes
@@ -2748,7 +2971,9 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             in_parallel(
                 changes=[
                     CreateBlockDeviceDataset(
-                        dataset=requested_dataset,
+                        dataset_id=UUID(dataset_id),
+                        maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                        metadata={u"some": u"metadata"},
                     )
                 ]),
             changes
@@ -2809,9 +3034,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             in_parallel(
                 changes=[
                     CreateBlockDeviceDataset(
-                        dataset=requested_dataset.set(
-                            'maximum_size', expected_size
-                        ),
+                        dataset_id=UUID(dataset_id),
+                        maximum_size=expected_size,
                     )
                 ]),
             changes
@@ -4106,13 +4330,14 @@ class FakeProfiledLoopbackBlockDeviceIProfiledBlockDeviceTests(
     """
 
 
-def umount(device_file):
+def umount(unmount_target):
     """
     Unmount a filesystem.
 
-    :param FilePath device_file: The device file that is mounted.
+    :param FilePath unmount_target: The device file that is mounted or
+        mountpoint directory.
     """
-    check_output(['umount', device_file.path])
+    check_output(['umount', unmount_target.path])
 
 
 def umount_all(root_path):
@@ -4129,7 +4354,7 @@ def umount_all(root_path):
         return True
 
     def create_umount_callable(partition):
-        return lambda: umount(FilePath(partition.device))
+        return lambda: umount(FilePath(partition.mountpoint))
 
     deferreds = list(
         retry_failure(reactor,
@@ -4692,9 +4917,11 @@ class CreateBlockDeviceDatasetInitTests(
     make_with_init_tests(
         CreateBlockDeviceDataset,
         dict(
-            dataset=Dataset(dataset_id=unicode(uuid4())),
+            dataset_id=uuid4(),
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            metadata={u"meta": u"data"},
         ),
-        dict(),
+        dict(metadata={}),
     )
 ):
     """
@@ -4706,10 +4933,12 @@ class CreateBlockDeviceDatasetInterfaceTests(
     make_istatechange_tests(
         CreateBlockDeviceDataset,
         lambda _uuid=uuid4(): dict(
-            dataset=Dataset(dataset_id=unicode(_uuid)),
+            dataset_id=_uuid,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         ),
         lambda _uuid=uuid4(): dict(
-            dataset=Dataset(dataset_id=unicode(uuid4())),
+            dataset_id=uuid4(),
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         ),
     )
 ):
@@ -4736,13 +4965,11 @@ class CreateBlockDeviceDatasetImplementationMixin(object):
 
         :returns: A ``BlockDeviceVolume`` for the created volume.
         """
-        dataset = Dataset(
-            dataset_id=unicode(dataset_id),
+        change = CreateBlockDeviceDataset(
+            dataset_id=dataset_id,
             maximum_size=maximum_size,
             metadata=metadata
         )
-
-        change = CreateBlockDeviceDataset(dataset=dataset)
 
         run_state_change(change, self.deployer)
 
@@ -4819,12 +5046,10 @@ class CreateBlockDeviceDatasetImplementationTests(
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
-        dataset = Dataset(
-            dataset_id=unicode(dataset_id),
+        change = CreateBlockDeviceDataset(
+            dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
-
-        change = CreateBlockDeviceDataset(dataset=dataset)
 
         changing = run_state_change(change, self.deployer)
 
@@ -5249,3 +5474,83 @@ class ProcessLifetimeCacheTests(SynchronousTestCase):
 
         self.assertRaises(UnattachedVolume,
                           self.cache.get_device_path, attached_id1)
+
+
+def make_icloudapi_tests(
+        blockdevice_api_factory,
+):
+    """
+    :param blockdevice_api_factory: A factory which will be called
+        with the generated ``TestCase`` during the ``setUp`` for each
+        test and which should return a provider of both ``IBlockDeviceAPI``
+        and ``ICloudAPI`` to be tested.
+
+    :returns: A ``TestCase`` with tests that will be performed on the
+       supplied ``IBlockDeviceAPI``/``ICloudAPI`` provider.
+    """
+    class Tests(TestCase):
+        def setUp(self):
+            self.api = blockdevice_api_factory(test_case=self)
+            self.this_node = self.api.compute_instance_id()
+            self.async_cloud_api = _SyncToThreadedAsyncCloudAPIAdapter(
+                _reactor=reactor, _sync=self.api,
+                _threadpool=reactor.getThreadPool())
+
+        def test_interface(self):
+            """
+            The result of the factory provides ``ICloudAPI``.
+            """
+            self.assertTrue(verifyObject(ICloudAPI, self.api))
+
+        def test_current_machine_is_live(self):
+            """
+            The machine running the test is reported as alive.
+            """
+            d = self.async_cloud_api.list_live_nodes()
+            d.addCallback(lambda live:
+                          self.assertIn(self.api.compute_instance_id(), live))
+            return d
+    return Tests
+
+
+def _surround_with_callbacks_decorator(method_name, callback, proxy_object):
+    """
+    Creates a method that proxies to ``getattr(proxy_object, method_name)`` and
+    calls callback before and after.
+
+    :param method_name: The name of the method that should be called.
+    :param callback: The callback to call before and after calling the method.
+    :param proxy_object: The object to proxy the invocation to.
+    """
+
+    def proxied_function(self, *args, **kwargs):
+        method = getattr(proxy_object, method_name)
+        callback()  # Before method call.
+        result = method(*args, **kwargs)
+        callback()  # After method call.
+        return result
+
+    return proxied_function
+
+
+def create_callback_blockdevice_manager_proxy(proxy_object, callback):
+    """
+    Creates a provider of ``IBlockDeviceManager`` that proxies to another
+    ``IBlockDeviceManager`` privider and calls a callback before and after
+    each call to the underlying object. This enables tests where you want to
+    inject code before or after any calls to the underlying API.
+
+    :param proxy_object: The ``IBlockDeviceManager`` provider that is being
+        proxied to.
+    :param callback: The callback to be called before and after every call to a
+        method of ``proxy_object``.
+    """
+    @interface_decorator("callback_blockdevice_manager",
+                         IBlockDeviceManager,
+                         _surround_with_callbacks_decorator,
+                         callback,
+                         proxy_object)
+    class BlockDeviceManagerCallbackProxy(object):
+        pass
+
+    return BlockDeviceManagerCallbackProxy()

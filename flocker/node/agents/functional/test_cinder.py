@@ -33,7 +33,7 @@ from flocker.ca import (
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests,
+    make_iblockdeviceapi_tests, make_icloudapi_tests,
 )
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
@@ -95,8 +95,6 @@ def cinderblockdeviceapi_for_test(test_case):
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
 
 
-# ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
-# ``IBlockDeviceAPI``. Skip the rest of the tests for now.
 class CinderBlockDeviceAPIInterfaceTests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=(
@@ -181,6 +179,20 @@ class CinderBlockDeviceAPIInterfaceTests(
         return super(
             CinderBlockDeviceAPIInterfaceTests,
             self).test_get_device_path_device()
+
+
+class CinderCloudAPIInterfaceTests(
+        make_icloudapi_tests(
+            blockdevice_api_factory=(
+                lambda test_case: cinderblockdeviceapi_for_test(
+                    test_case=test_case,
+                )
+            ),
+        )
+):
+    """
+    ``ICloudAPI`` adherence tests for ``CinderBlockDeviceAPI``.
+    """
 
 
 class CinderHttpsTests(SynchronousTestCase):
