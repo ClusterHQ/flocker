@@ -7,7 +7,7 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 
 OWNER = u"richardw"
-NUM_NODES = 2
+NUM_NODES = 1
 NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 
 AGENT_YAML_TEMPLATE = """\
@@ -31,6 +31,7 @@ keyname_param = template.add_parameter(Parameter(
                 "access to the instance",
     Type="String",
 ))
+
 
 access_key_id_param = template.add_parameter(Parameter(
     "AccessKeyID",
@@ -63,6 +64,7 @@ for i in range(NUM_NODES):
         ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "AMI"),
         InstanceType="m3.large",
         KeyName=Ref(keyname_param),
+        # TODO: create and use unique SecurityGroup for this install.
         SecurityGroups=["acceptance"],
         AvailabilityZone=zone,
     )
@@ -76,9 +78,12 @@ for i in range(NUM_NODES):
             'aws_zone="', zone, '"\n',
             'access_key_id="', Ref(access_key_id_param), '"\n',
             'secret_access_key="', Ref(secret_access_key_param), '"\n',
+            'num_nodes="{}"\n'.format(NUM_NODES),
+            's3_bucket="', Ref(s3bucket), '"\n',
             'cat <<EOF >/etc/flocker/agent.yml\n',
             AGENT_YAML_TEMPLATE,
-            'EOF\n'
+            'EOF\n',
+            open('flocker-certificate-generator.sh').read()
             ]))
     else:
         control_service_ip = GetAtt(control_service_instance, "PublicIp")
