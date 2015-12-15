@@ -10,19 +10,6 @@ OWNER = u"richardw"
 NUM_NODES = 1
 NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 
-AGENT_YAML_TEMPLATE = """\
-control-service:
-    hostname: "${control_service_ip}"
-    port: 4524
-dataset:
-    backend: "aws"
-    region: "${aws_region}"
-    zone: "${aws_zone}"
-    access_key_id: "${access_key_id}"
-    secret_access_key: "${secret_access_key}"
-version: 1
-"""
-
 template = Template()
 
 keyname_param = template.add_parameter(Parameter(
@@ -69,35 +56,27 @@ for i in range(NUM_NODES):
         AvailabilityZone=zone,
     )
     if i == 0:
-        control_service_ip = '127.0.0.1'
         control_service_instance = ec2_instance
         ec2_instance.UserData = Base64(Join("", [
             '#!/bin/bash\n',
-            'control_service_ip="', control_service_ip, '"\n',
             'aws_region="', Ref("AWS::Region"), '"\n',
             'aws_zone="', zone, '"\n',
             'access_key_id="', Ref(access_key_id_param), '"\n',
             'secret_access_key="', Ref(secret_access_key_param), '"\n',
             'num_nodes="{}"\n'.format(NUM_NODES),
             's3_bucket="', Ref(s3bucket), '"\n',
-            'cat <<EOF >/etc/flocker/agent.yml\n',
-            AGENT_YAML_TEMPLATE,
-            'EOF\n',
-            open('flocker-certificate-generator.sh').read()
+            open('flocker-configuration-generator.sh').read()
             ]))
     else:
-        control_service_ip = GetAtt(control_service_instance, "PublicIp")
         ec2_instance.UserData = Base64(Join("", [
             '#!/bin/bash\n',
-            'control_service_ip="', control_service_ip, '"\n',
-            'aws_region="', Ref("AWS::Region"), '"\n',
-            'aws_zone="', zone, '"\n',
             'access_key_id="', Ref(access_key_id_param), '"\n',
             'secret_access_key="', Ref(secret_access_key_param), '"\n',
-            'cat <<EOF >/etc/flocker/agent.yml\n',
-            AGENT_YAML_TEMPLATE,
-            'EOF\n'
+            'node_number="{}"\n'.format(i),
+            's3_bucket="', Ref(s3bucket), '"\n',
+            open('flocker-configuration-getter.sh').read()
             ]))
+
     template.add_resource(ec2_instance)
     template.add_output([
         Output(
