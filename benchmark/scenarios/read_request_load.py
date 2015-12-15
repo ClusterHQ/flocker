@@ -20,7 +20,7 @@ DEFAULT_SAMPLE_SIZE = 5
 
 class RateMeasurer(object):
     """
-    Measures the rate of requests in requests per second
+    Measures the rate of requests in requests per second.
 
     :ivar sample_size: size of the sample we request - how many samples,
     or counts, do we want to consider we have reached the rate.
@@ -77,7 +77,7 @@ class RequestRateNotReached(Exception):
 
 class RequestOverload(Exception):
     """
-    There are too many outstanding requests
+    There are too many outstanding requests.
     """
 
 
@@ -87,13 +87,13 @@ class ReadRequestLoadScenario(object):
     A scenario that places load on the cluster by performing read
     requests at a specified rate.
 
-    :ivar reactor: reactor we are using
+    :ivar reactor: Reactor to use.
     :ivar cluster: `BenchmarkCluster` containing the control service.
-    :ivar request_rate: number requests per second do we want
-    :ivar interval: number of samples we want.
-    :ivar timeout: how long we want to wait to reach the requested load
-        before timing out.
-
+    :ivar request_rate: The target number of requests per second.
+    :ivar sample_size: The number of samples to collect when measuring
+        the rate.
+    :ivar timeout: Maximum time in seconds to wait for the requested
+        rate to be reached.
     """
 
     def __init__(
@@ -120,6 +120,7 @@ class ReadRequestLoadScenario(object):
         """
         for i in range(count):
             self.rate_measurer.update_rate()
+
         for i in range(self.request_rate):
             d = self.control_service.list_nodes()
             self.rate_measurer.send_request()
@@ -136,12 +137,12 @@ class ReadRequestLoadScenario(object):
 
     def check_rate(self):
         """
-        Meassures rate and verifies that the rate haven't decreased
-        and that the scenario is not overloaded - an scenario would be
-        overloaded if there were too many outstanding requests.
+        Verify that the rate hasn't decreased and that the scenario is
+        not overloaded. A scenario is overloaded if there are too many
+        outstanding requests.
 
-        :raise: `RequestRateTooLow` if the rate has dropped
-        :raise: `RequestOverload` if the scenario is overloaded
+        :raise: `RequestRateTooLow` if the rate has dropped.
+        :raise: `RequestOverload` if the scenario is overloaded.
         """
         rate = self.rate_measurer.rate()
         if rate < self.request_rate:
@@ -201,4 +202,3 @@ class ReadRequestLoadScenario(object):
             self.loop.stop()
 
         return succeed(None)
-

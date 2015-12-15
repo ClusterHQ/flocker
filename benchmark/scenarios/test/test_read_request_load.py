@@ -25,44 +25,43 @@ class RateMeasurerTest(SynchronousTestCase):
     RateMeasurer tests
     """
 
-    def send_requests(self, r_measurer, num_req, num_samples):
+    def send_requests(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will send the desired number of request.
 
-        :param r_measurer: `rate_measurer` we are testing
-        :param num_req: number of request we want to send.
-        :param num_samples: numbe of samples (interval)
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_requests: The number of request we want to send.
+        :param num_samples: The number of samples to collect.
         """
-        for i in range(num_samples):
-            for i in range(num_req):
-                r_measurer.send_request()
+        for i in range(num_samples * num_requests):
+            rate_measurer.send_request()
 
-    def receive_requests(self, r_measurer, num_req, num_samples):
+    def receive_requests(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will receive the desired number of requests.
 
-        :param r_measurer: `rate_measurer` we are testing
-        :param num_req: number of request we want to receive.
-        :param num_samples: numbe of samples (interval)
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_requests: The number of request we want to receive.
+        :param num_samples: The number of samples to collect.
         """
         ignored = ""
         for i in range(num_samples):
-            for i in range(num_req):
-                r_measurer.receive_request(ignored)
-            r_measurer.update_rate()
+            for i in range(num_requests):
+                rate_measurer.receive_request(ignored)
+            rate_measurer.update_rate()
 
-    def increase_rate(self, r_measurer, num_req, num_samples):
+    def increase_rate(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will increase the rate, sending the
         desired number of request, and receiving the same
         amount of them.
 
-        :param r_measurer: `rate_measurer` we are testing
-        :param num_req: number of request we want to make.
-        :param num_samples: numbe of samples (interval)
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_requests: The number of request we want to make.
+        :param num_samples: The number of samples to collect.
         """
-        self.send_requests(r_measurer, num_req, num_samples)
-        self.receive_requests(r_measurer, num_req, num_samples)
+        self.send_requests(rate_measurer, num_requests, num_samples)
+        self.receive_requests(rate_measurer, num_requests, num_samples)
 
     def test_rate_is_zero_when_no_samples(self):
         """
@@ -187,7 +186,6 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
 
-
     def test_scenario_throws_exception_when_rate_drops(self):
         """
         ReadRequestLoadScenario raises RequestRateTooLow if rate
@@ -195,7 +193,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
         Establish the requested rate by having the FakeFlockerClient
         respond to all requests, then lower the rate by dropping
-        alternate requeeas. This should result in RequestRateTooLow
+        alternate requests. This should result in RequestRateTooLow
         being raised.
         """
         c = Clock()
@@ -274,4 +272,3 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestOverload)
-
