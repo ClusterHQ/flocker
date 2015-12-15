@@ -271,14 +271,14 @@ common_cli:
       --no-passthrough --output-to=results.xml
 
   run_sphinx: &run_sphinx |
-    parse_logs python setup.py --version
+    parse_logs \${venv}/bin/python setup.py --version
     cd docs
     # check spelling
-    parse_logs sphinx-build -d _build/doctree -b spelling . _build/spelling
+    parse_logs \${venv}/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
     # check links
-    parse_logs sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
+    parse_logs \${venv}/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
     # build html pages
-    parse_logs sphinx-build -d _build/doctree -b html . _build/html
+    parse_logs \${venv}/bin/sphinx-build -d _build/doctree -b html . _build/html
 
   # flocker artifacts contains the list of files we want to collect from our
   # _main_multijob. These are used to produce the coverage, test reports.
