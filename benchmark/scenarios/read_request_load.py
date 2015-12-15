@@ -46,15 +46,14 @@ class RateMeasurer(object):
 
     def update_rate(self):
         """
-        Updates the current rate and stores a new count in the counts list
+        Update the current rate and record a new sample.
         """
         self._rate = (self.received - self.counts[0]) / float(self.sample_size)
         self.counts.append(self.received)
 
     def outstanding(self):
         """
-        returns the number of outstanding requests; requests that have been
-        sent but haven't been received yet
+        Return the number of outstanding requests.
         """
         return self.sent - self.received
 
@@ -96,8 +95,8 @@ class ReadRequestLoadScenario(object):
     """
 
     def __init__(
-        self, reactor, cluster, request_rate=10, sample_size=DEFAULT_SAMPLE_SIZE,
-        timeout=45
+        self, reactor, cluster, request_rate=10,
+        sample_size=DEFAULT_SAMPLE_SIZE, timeout=45
     ):
         self._maintained = Deferred()
         self.reactor = reactor
@@ -114,7 +113,7 @@ class ReadRequestLoadScenario(object):
 
     def _request_and_measure(self, count):
         """
-        Updates the rate with the current value and sends `request_rate`
+        Update the rate with the current value and send `request_rate`
         number of new requests.
         """
         for i in range(count):
@@ -128,7 +127,7 @@ class ReadRequestLoadScenario(object):
 
     def _fail(self, exception):
         """
-        Fail the scenario. Stops the monitor loop and throws the
+        Fail the scenario. Stop the monitor loop and throw the
         error.
         """
         self.monitor_loop.stop()
@@ -188,11 +187,8 @@ class ReadRequestLoadScenario(object):
 
     def stop(self):
         """
-        Stop the scenario from being maintained, stopping all the loops
-        that may be executing.
-
-        :return: A Deferred that fires when the desired scenario is
-            stopped.
+        Stop the scenario from being maintained by stopping all the
+        loops that may be executing.
         """
         if self.monitor_loop.running:
             self.monitor_loop.stop()
