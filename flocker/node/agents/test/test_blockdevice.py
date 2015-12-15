@@ -26,6 +26,8 @@ from pyrsistent import (
     PClass, field, discard, pmap, pvector,
 )
 
+from characteristic import attributes
+
 from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
@@ -1159,10 +1161,13 @@ def compare_dataset_states(discovered_datasets, desired_datasets):
     return True
 
 
+@attributes(["iteration_count"])
 class DidNotConverge(Exception):
     """
     Raised if running convergence with an ``ICalculator`` does not converge
     in the specified number of iterations.
+
+    :ivar iteration_count: The count of iterations before this was raised.
     """
 
 
@@ -1223,7 +1228,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
             ):
                 break
         else:
-            raise DidNotConverge()
+            raise DidNotConverge(iteration_count=max_iterations)
 
     @given(
         initial_dataset=DESIRED_DATASET_STRATEGY,
@@ -1256,14 +1261,17 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         # Converge to the initial state.
         try:
             self.run_to_convergence([initial_dataset])
-        except DidNotConverge:
-            self.fail("Did not converge to initial state after 10 iterations")
+        except DidNotConverge as e:
+            self.fail(
+                "Did not converge to initial state after %d iterations." %
+                e.iteration_count)
 
         # Converge from the initial state to the next state.
         try:
             self.run_to_convergence([next_dataset])
-        except DidNotConverge:
-            self.fail("Did not converge to next state after 10 iterations")
+        except DidNotConverge as e:
+            self.fail("Did not converge to next state after %d iterations." %
+                      e.iteration_count)
 
     @given(
         desired_state=sampled_from([

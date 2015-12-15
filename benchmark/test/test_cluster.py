@@ -78,6 +78,8 @@ class ValidationTests(SynchronousTestCase):
 CONTROL_SERVICE_PUBLIC_IP = IPAddress('10.0.0.1')
 CONTROL_SERVICE_PRIVATE_IP = IPAddress('10.1.0.1')
 
+DEFAULT_VOLUME_SIZE = 1073741824
+
 
 class BenchmarkClusterTests(SynchronousTestCase):
 
@@ -88,9 +90,12 @@ class BenchmarkClusterTests(SynchronousTestCase):
         )
         self.control_service = FakeFlockerClient([node])
         self.cluster = BenchmarkCluster(
-            CONTROL_SERVICE_PUBLIC_IP, lambda reactor: self.control_service, {
+            CONTROL_SERVICE_PUBLIC_IP,
+            lambda reactor: self.control_service,
+            {
                 CONTROL_SERVICE_PRIVATE_IP: CONTROL_SERVICE_PUBLIC_IP,
-            }
+            },
+            DEFAULT_VOLUME_SIZE,
         )
 
     def test_control_node_address(self):
@@ -115,3 +120,10 @@ class BenchmarkClusterTests(SynchronousTestCase):
             self.cluster.public_address(CONTROL_SERVICE_PRIVATE_IP),
             CONTROL_SERVICE_PUBLIC_IP
         )
+
+    def test_default_volume_size(self):
+        """
+        The ``default_volume_size`` method gives expected results.
+        """
+        self.assertEqual(
+            self.cluster.default_volume_size(), DEFAULT_VOLUME_SIZE)

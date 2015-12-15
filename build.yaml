@@ -2,7 +2,7 @@
 #
 # build.yaml
 #
-# This file contains the Jenkins job defintions for the Flocker project.
+# This file contains the Jenkins job definitions for the Flocker project.
 #
 # We add new or reconfigure existing jobs in Jenkins using the Job DSL plugin.
 # https://github.com/jenkinsci/job-dsl-plugin
@@ -30,6 +30,7 @@
 #
 # We pass the branch name as a parameter to the setup_clusterhq_flocker job,
 # the parameter is shown as 'RECONFIGURE_BRANCH'.
+#
 # The setup job only produces jobs for a single branch . We don't produce jobs
 # for every branch due to the large number of branches in the repository, which
 # would generate over 16000 jobs and take over an hour to run.
@@ -45,8 +46,10 @@
 # she/he can see a job called '_main_multijob'. This job is responsible for
 # executing all other jobs in parallel and collecting the produced artifacts
 # from each job after its execution.
+#
 # The artifacts in this case are trial logs, coverage xml reports, subunit
 # reports.
+#
 # Those artifacts are consumed by the _main_multijob to produce an overall
 # coverage report, and an aggregated summary of all the executed tests and
 # their failures/skips/successes.
@@ -182,9 +185,11 @@ common_cli:
     rm -rf \${venv}
 
   setup_venv: &setup_venv |
-    # setup the new venv
+    # Set up the new venv.
     virtualenv -p python2.7 --clear \${venv}
     . \${venv}/bin/activate
+    # Report the version of Python we're using, to aid debugging.
+    \${venv}/bin/python --version
 
   setup_pip_cache: &setup_pip_cache |
     # exports the PIP_INDEX_URL, TRUSTED_HOST variables to the environment.
@@ -268,14 +273,14 @@ common_cli:
       --no-passthrough --output-to=results.xml
 
   run_sphinx: &run_sphinx |
-    parse_logs python setup.py --version
+    parse_logs \${venv}/bin/python setup.py --version
     cd docs
     # check spelling
-    parse_logs sphinx-build -d _build/doctree -b spelling . _build/spelling
+    parse_logs \${venv}/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
     # check links
-    parse_logs sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
+    parse_logs \${venv}/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
     # build html pages
-    parse_logs sphinx-build -d _build/doctree -b html . _build/html
+    parse_logs \${venv}/bin/sphinx-build -d _build/doctree -b html . _build/html
 
   # flocker artifacts contains the list of files we want to collect from our
   # _main_multijob. These are used to produce the coverage, test reports.
