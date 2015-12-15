@@ -1175,12 +1175,111 @@ class DidNotConverge(Exception):
     """
 
 
+class _WriteVerifyingExternalClient(object):
+    """
+    Representation of an external client of the Flocker API. This client can be
+    used to try to write to paths on the system and verify that the writes are
+    persisted to the underlying blockdevice.
+
+    :ivar _known_mountpoints: Known mountpoints of the dataset.
+    :ivar _device_path: The device path of the blockdevice that backs the
+        dataset.
+    """
+
+    def __init__(self, dataset_id, node_uuid, mountroot, blockdevice_manager):
+        self._known_mountpoints = set()
+        self._device_path = None
+        self._dataset_id = dataset_id
+        self._node_uuid = node_uuid
+        self._testing_mountroot = mountroot
+        self._blockdevice_manager = blockdevice_manager
+        self._busy = False
+
+    def _has_file_named(self, filename):
+        """
+        Returns whether the blockdevice at self._device_path has a file with
+        the given name.
+        """
+        test_mountpoint = self._testing_mountroot.child(str(uuid4()))
+        test_mountpoint.makedirs()
+        self._blockdevice_manager.mount(self._device_path, test_mountpoint)
+        result = test_mountpoint.child(filename).exists()
+        self._blockdevice_manager.unmount(self._device_path)
+        test_mountpoint.remove()
+        return result
+
+    def invariant(self, case, current_cluster_state, when_description):
+        """
+        An invariant that should always hold. Specifically, after the path
+        to a dataset is known by the cluster then writes to that path
+        should either succeed and be persisted to the underlying block
+        device, or the write should fail.
+
+        Returns False if none of the known paths of the dataset can be
+        written to.
+        """
+        if self._busy:
+            return True
+        self._busy = True
+        write_success = []
+
+        [node] = list(n for n in current_cluster_state().nodes
+                      if n.uuid == self._node_uuid)
+        path = node.paths.get(unicode(self._dataset_id))
+        if path:
+            self._known_mountpoints.add(path)
+        device = node.devices.get(self._dataset_id)
+        if device:
+            self._device_path = device
+
+        for path in self._known_mountpoints:
+            device = self._device_path
+            filename = str(uuid4())
+            try:
+                path.child(filename).touch()
+            except OSError:
+                # If we failed to write, that is okay in many scenarios. At
+                # least the failing write won't lead to the end user
+                # thinking that they have an actually persisted data. Note
+                # the failure, but don't immediately fail the test.
+                write_success.append(False)
+            else:
+                write_success.append(True)
+                case.assertTrue(
+                    self._has_file_named(filename),
+                    "Successfully wrote to a path gotten from flocker, "
+                    "but the write was not persisted to the backing block "
+                    "device at: %s." % when_description)
+        self._busy = False
+        return any(write_success)
+
+
 class BlockDeviceCalculatorTests(SynchronousTestCase):
     """
     Tests for ``BlockDeviceCalculator``.
     """
     def setUp(self):
-        self.deployer = create_blockdevicedeployer(self)
+        self._deployer = None
+
+    @property
+    def deployer(self):
+        """
+        Lazily created ``BlockDeviceDeployer``. Tests that want to initialize
+        their own can do so by initializing self._deployer.
+        """
+        if self._deployer is None:
+            self._deployer = create_blockdevicedeployer(self)
+        return self._deployer
+
+    def _empty_node_state(self):
+        return NodeState(
+            uuid=self.deployer.node_uuid,
+            hostname=self.deployer.hostname,
+            applications=[],
+        )
+
+    def _blank_cluster_state(self):
+        return DeploymentState(nodes=[self._empty_node_state()])
 
     def teardown_example(self, token):
         """
@@ -1188,16 +1287,25 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         """
         detach_destroy_volumes(self.deployer.block_device_api)
 
+    def current_local_state(self):
+        """
+        Return the current ``BlockDeviceDeployerLocalState`` from the deployer.
+        """
+        return self.successResultOf(self.deployer.discover_state(
+            self._empty_node_state()
+        ))
+
     def current_datasets(self):
         """
         Return the current state of datasets from the deployer.
         """
-        return self.successResultOf(self.deployer.discover_state(
-            NodeState(
-                uuid=self.deployer.node_uuid,
-                hostname=self.deployer.hostname,
-            ),
-        )).datasets
+        return self.current_local_state().datasets
+
+    def current_cluster_state(self):
+        cluster_state = self._blank_cluster_state()
+        for change in self.current_local_state().shared_state_changes():
+            cluster_state = change.update_cluster_state(cluster_state)
+        return cluster_state
 
     def run_convergence_step(self, desired_datasets):
         """
@@ -1273,6 +1381,74 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
             self.run_to_convergence([next_dataset])
         except DidNotConverge:
             self.fail("Did not converge to next state after 10 iterations")
+
+    @given(
+        initial_dataset=DESIRED_DATASET_STRATEGY,
+        next_dataset=DESIRED_DATASET_STRATEGY,
+    )
+    def test_docker_protection(self, initial_dataset, next_dataset):
+        """
+        Given an initial empty state, ``BlockDeviceCalculator`` will converge
+        to any ``DesiredDataset``, followed by any other state of the same
+        dataset. During that time, it will never be the case that an external
+        agent (for instance, docker) can successfully write to a mount path
+        that has been sent to the control agent, but the write not be persisted
+        to the backing volume.
+        """
+        dataset_id = initial_dataset.dataset_id
+
+        evaluate_function = None
+
+        def callback(when_description):
+            if evaluate_function:
+                evaluate_function(when_description)
+
+        actual_blockdevice_manager = BlockDeviceManager()
+        proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
+            actual_blockdevice_manager, callback)
+
+        self._deployer = create_blockdevicedeployer(
+            self, block_device_manager=proxy_blockdevice_manager)
+
+        external_agent = _WriteVerifyingExternalClient(
+            dataset_id,
+            self.deployer.node_uuid,
+            mountroot_for_test(self),
+            actual_blockdevice_manager)
+
+        evaluate_function = partial(external_agent.invariant, self,
+                                    self.current_cluster_state)
+
+        # Set the mountpoint to a real mountpoint in desired dataset states
+        # that have a mount point attribute.
+        mount_point = self.deployer._mountpath_for_dataset_id(
+            unicode(dataset_id))
+        if hasattr(initial_dataset, 'mount_point'):
+            initial_dataset = initial_dataset.set(mount_point=mount_point)
+        if hasattr(next_dataset, 'mount_point'):
+            next_dataset = next_dataset.set(mount_point=mount_point)
+
+        # Merge fields from initial_dataset into next_dataset (such as
+        # dataset_id) so that we are changing the desired state of the same
+        # dataset.
+        next_dataset = merge_tagged_unions(DesiredDataset,
+                                           initial_dataset,
+                                           next_dataset)
+
+        # Converge to the initial state.
+        try:
+            self.run_to_convergence([initial_dataset])
+        except DidNotConverge as e:
+            self.fail(
+                "Did not converge to initial state after %d iterations." %
+                e.iteration_count)
+
+        # Converge from the initial state to the next state.
+        try:
+            self.run_to_convergence([next_dataset])
+        except DidNotConverge as e:
+            self.fail("Did not converge to next state after %d iterations." %
+                      e.iteration_count)
 
     @given(
         desired_state=sampled_from([
@@ -5464,7 +5640,7 @@ class EndToEndBlockdeviceDeployerTests(AsyncTestCase, ScenarioMixin):
         # This is information about the dataset that is intentionally only
         # populated once the path of the dataset is known by the cluster and
         # thus could be known by an API client.
-        dataset_info_from_cluster = {
+        external_agent_knowledge = {
             # The path of the dataset.
             'paths': set(),
             # The blockdevice of the dataset. This is used for back door
