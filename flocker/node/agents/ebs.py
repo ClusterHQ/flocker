@@ -1033,7 +1033,7 @@ class EBSBlockDeviceAPI(object):
         for suffix in b"fghijklmonp":
             next_local_device = b'xvd' + suffix
             file_name = u'/dev/sd' + suffix
-            if next_local_device not in devices:
+            if next_local_device not in devices and file_name not in devices:
                 return file_name
 
         # Could not find any suitable device that is available
