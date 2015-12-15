@@ -185,9 +185,11 @@ common_cli:
     rm -rf \${venv}
 
   setup_venv: &setup_venv |
-    # setup the new venv
+    # Set up the new venv.
     virtualenv -p python2.7 --clear \${venv}
     . \${venv}/bin/activate
+    # Report the version of Python we're using, to aid debugging.
+    \${venv}/bin/python --version
 
   setup_pip_cache: &setup_pip_cache |
     # exports the PIP_INDEX_URL, TRUSTED_HOST variables to the environment.
