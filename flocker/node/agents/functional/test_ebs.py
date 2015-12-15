@@ -21,7 +21,7 @@ from ..ebs import (
     _wait_for_volume_state_change,
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
-    EBSMandatoryProfileAttributes, _get_volume_tag, AttachedUnexpectedDevice,
+    EBSMandatoryProfileAttributes, _get_volume_tag,
 )
 from ....testtools import flaky
 
@@ -69,11 +69,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         """
         ``attach_volume`` does not attempt to use device paths that are already
         assigned to volumes that have been attached outside of Flocker.
-
-        _next_device only attempts to find free /dev/sd? devices.
-        It does not consider the /dev/xvd? devices.
-        Problem is that /dev/sd? gets translated to /dev/xvd? on certain AWS
-        hypervisors.
         """
         try:
             config = get_blockdevice_config(ProviderType.aws)
@@ -104,9 +99,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         # Get this instance ID.
         instance_id = self.api.compute_instance_id()
 
-        # Attach manual volume.
-        # self.api.attach_volume(unicode(created_volume.id), instance_id)
-        all_volumes = self.api._list_ebs_volumes()
+        # Attach manual volume using /xvd* device.
         device_name = self.api._next_device(set())
         device_name = device_name.replace('/sd', '/xvd')
         self.api._attach_ebs_volume(
@@ -119,15 +112,15 @@ class EBSBlockDeviceAPIInterfaceTests(
 
         flocker_volume = ec2_client.connection.Volume(
             blockdevice_volume.blockdevice_id)
+        self.addCleanup(clean_volume, flocker_volume)
         _wait_for_volume_state_change(VolumeOperations.CREATE, flocker_volume)
 
-        # Attempt to attach the blockdevice volume to this instance.
-        self.assertRaises(
-            AttachedUnexpectedDevice, self.api.attach_volume,
-            blockdevice_volume.blockdevice_id, instance_id
-        )
-        # xxx the above should fail
-        # import pdb;pdb.set_trace()
+        # Attach the blockdevice volume to this instance.
+        # The assertion in this test is that this operation does not
+        # raise an ``AttachedUnexpectedDevice`` error.
+        self.api.attach_volume(
+            blockdevice_volume.blockdevice_id, instance_id)
+        _wait_for_volume_state_change(VolumeOperations.ATTACH, flocker_volume)
 
     def test_foreign_volume(self):
         """
