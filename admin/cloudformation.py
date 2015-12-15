@@ -3,13 +3,13 @@
 
 from troposphere import FindInMap, GetAtt, Base64, Join
 from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
+from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 
 OWNER = u"richardw"
 NUM_NODES = 2
 NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 
-# TODO: Fix control-service IP
 AGENT_YAML_TEMPLATE = """\
 control-service:
     hostname: "${control_service_ip}"
@@ -52,6 +52,10 @@ template.add_mapping('RegionMap', {
 instances = []
 zone = Select(0, GetAZs(""))
 
+s3bucket = Bucket('FlockerConfig',
+                  DeletionPolicy='Delete')
+template.add_resource(s3bucket)
+
 for i in range(NUM_NODES):
     node_name = NODE_NAME_TEMPLATE.format(owner=OWNER, index=i)
     ec2_instance = ec2.Instance(
@@ -65,19 +69,30 @@ for i in range(NUM_NODES):
     if i == 0:
         control_service_ip = '127.0.0.1'
         control_service_instance = ec2_instance
+        ec2_instance.UserData = Base64(Join("", [
+            '#!/bin/bash\n',
+            'control_service_ip="', control_service_ip, '"\n',
+            'aws_region="', Ref("AWS::Region"), '"\n',
+            'aws_zone="', zone, '"\n',
+            'access_key_id="', Ref(access_key_id_param), '"\n',
+            'secret_access_key="', Ref(secret_access_key_param), '"\n',
+            'cat <<EOF >/etc/flocker/agent.yml\n',
+            AGENT_YAML_TEMPLATE,
+            'EOF\n'
+            ]))
     else:
         control_service_ip = GetAtt(control_service_instance, "PublicIp")
-    ec2_instance.UserData = Base64(Join("", [
-        '#!/bin/bash\n',
-        'control_service_ip="', control_service_ip, '"\n',
-        'aws_region="', Ref("AWS::Region"), '"\n',
-        'aws_zone="', zone, '"\n',
-        'access_key_id="', Ref(access_key_id_param), '"\n',
-        'secret_access_key="', Ref(secret_access_key_param), '"\n',
-        'cat <<EOF >/etc/flocker/agent.yml\n',
-        AGENT_YAML_TEMPLATE,
-        'EOF\n'
-        ]))
+        ec2_instance.UserData = Base64(Join("", [
+            '#!/bin/bash\n',
+            'control_service_ip="', control_service_ip, '"\n',
+            'aws_region="', Ref("AWS::Region"), '"\n',
+            'aws_zone="', zone, '"\n',
+            'access_key_id="', Ref(access_key_id_param), '"\n',
+            'secret_access_key="', Ref(secret_access_key_param), '"\n',
+            'cat <<EOF >/etc/flocker/agent.yml\n',
+            AGENT_YAML_TEMPLATE,
+            'EOF\n'
+            ]))
     template.add_resource(ec2_instance)
     template.add_output([
         Output(
@@ -96,8 +111,21 @@ template.add_output([
     Output(
         "AvailabilityZone",
         Description="Availability Zone of the newly created EC2 instance",
-        Value=Ref("AWS::Region"),
+        Value=zone,
     ),
 ])
+template.add_output(Output(
+    "ClusterCert",
+    Description="Flocker cluster cert",
+    Value=Join("", ["ssh -i ", Ref(keyname_param), ".pem ubuntu@",
+               GetAtt(control_service_instance, "PublicDnsName"),
+               " sudo cat /etc/flocker/cluster.crt"])
+    )
+)
+template.add_output(Output(
+    "BucketName",
+    Value=Ref(s3bucket),
+    Description="Name of S3 bucket to hold Flocker certs"
+))
 
 print(template.to_json())
