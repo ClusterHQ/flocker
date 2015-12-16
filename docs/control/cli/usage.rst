@@ -14,7 +14,7 @@ Command Line Arguments
 
 ``flocker-deploy`` takes three arguments:
 
-1. The hostname of the machine where the control service (including the Flocker REST API) is running.
+1. The hostname of the machine where the Flocker control service (including the Flocker REST API) is running.
 2. The path to a deployment configuration file.
 3. The path to an application configuration file.
 
@@ -42,9 +42,9 @@ Before ``flocker-deploy`` can do this it needs to be able to authenticate itself
 
 Flocker uses TLS mutual authentication to communicate with the control service you specify as the first command line argument.
 
-To authenticate with the control service, you will need a copy of the public cluster certificate created when you first :ref:`installed flocker on your nodes <authentication>` and an API user certificate, which you can :ref:`generate <generate-api>` using the ``flocker-ca`` tool.
+To authenticate with the control service, you will need a copy of the public cluster certificate created when you first :ref:`installed flocker on your nodes <authentication>` and an API client certificate, which you can :ref:`generate <generate-api>` using the ``flocker-ca`` tool.
 
-By default, ``flocker-deploy`` will look for these certificate files in the current working directory and expect them to be named :file:`cluster.crt` (the public cluster certificate), :file:`user.crt` (the API user certificate) and :file:`user.key` (the API user's private key).
+By default, ``flocker-deploy`` will look for these certificate files in the current working directory and expect them to be named :file:`cluster.crt` (the public cluster certificate), :file:`user.crt` (the API client certificate) and :file:`user.key` (the API client's private key).
 
 You can override these defaults with the ``--cacert`` (cluster certificate), ``--cert`` (user certificate) and ``--key`` (user private key) options, specifying the full path to each file.
 
@@ -52,7 +52,4 @@ You can override these defaults with the ``--cacert`` (cluster certificate), ``-
 
    flocker-deploy --cacert=/home/alice/credentials/mycluster.crt --cert=/home/alice/credentials/alice.crt --key=/home/alice/credentials/alice.key 172.16.255.250 clusterhq_deployment.yml clusterhq_app.yml
 
-.. note::
-	When you have set up your authentication you may want to perform the steps in :ref:`the MongoDB tutorial <movingapps>` to ensure that your nodes are correctly configured.
-
-	You can replace the IP addresses in the sample :file:`deployment.yml` files with the IP addresses of your own nodes, but keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
+	You can replace the IP addresses in the sample :file:`deployment.yml` files with the IP addresses of your own nodes.

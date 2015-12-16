@@ -1,6 +1,6 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Run the control service benchmarks.
+Run the Flocker benchmarks.
 """
 
 from datetime import datetime
@@ -10,17 +10,19 @@ import os
 from platform import node, platform
 import sys
 
-from jsonschema import FormatChecker, Draft4Validator
+from jsonschema import FormatChecker, Draft4Validator, ValidationError
 import yaml
 
 from eliot import to_file
 
 from twisted.internet.task import react
+from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
 from flocker import __version__ as flocker_client_version
 
 from benchmark import metrics, operations, scenarios
+from benchmark.cluster import BenchmarkCluster
 from benchmark._driver import driver
 
 
@@ -69,10 +71,9 @@ class BenchmarkOptions(Options):
     description = "Run benchmark tests."
 
     optParameters = [
-        ['control', None, None,
-         'IP address for a Flocker cluster control server.'],
-        ['certs', None, 'certs',
-         'Directory containing client certificates'],
+        ['cluster', None, None,
+         'Directory containing cluster configuration files.  '
+         'If not set, use acceptance test environment variables.'],
         ['config', None, 'benchmark.yml',
          'YAML file describing benchmark options.'],
         ['scenario', None, 'default',
@@ -168,6 +169,38 @@ def get_config_by_name(section, name):
     return None
 
 
+def get_cluster(options, env):
+    """
+    Obtain a cluster from the command line options and environment.
+
+    :param BenchmarkOption options: Parsed command line options.
+    :param dict env: Dictionary of environment variables.
+    :return BenchmarkCluster: Cluster to benchmark.
+    """
+    cluster_option = options['cluster']
+    if cluster_option:
+        try:
+            cluster = BenchmarkCluster.from_cluster_yaml(
+                FilePath(cluster_option)
+            )
+        except IOError as e:
+            usage(
+                options, 'Cluster file {!r} not found.'.format(e.filename)
+            )
+    else:
+        try:
+            cluster = BenchmarkCluster.from_acceptance_test_env(env)
+        except KeyError as e:
+            usage(
+                options, 'Environment variable {!r} not set.'.format(e.args[0])
+            )
+        except ValueError as e:
+            usage(options, e.args[0])
+        except ValidationError as e:
+            usage(options, e.message)
+    return cluster
+
+
 def main():
     options = BenchmarkOptions()
 
@@ -176,9 +209,7 @@ def main():
     except UsageError as e:
         usage(options, e.args[0])
 
-    if not options['control'] and options['operation'] != 'no-op':
-        # No-op is OK with no control service
-        usage(options, 'Control service required')
+    cluster = get_cluster(options, os.environ)
 
     with open(options['config'], 'rt') as f:
         config = yaml.safe_load(f)
@@ -236,7 +267,7 @@ def main():
 
     react(
         driver, (
-            options, scenario_factory, operation_factory, metric_factory,
+            cluster, scenario_factory, operation_factory, metric_factory,
             result, partial(json.dump, fp=sys.stdout, indent=2)
         )
     )

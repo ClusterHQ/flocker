@@ -3,8 +3,9 @@
 Operations tests for the control service benchmarks.
 """
 from uuid import uuid4
+from ipaddr import IPAddress
 
-from zope.interface.verify import verifyObject
+from zope.interface.verify import verifyClass
 
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
@@ -12,32 +13,11 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient import IFlockerAPIV1Client, FakeFlockerClient
 
-from benchmark.operations import NoOperation, ReadRequest
-from benchmark._interfaces import IProbe, IOperation
-
-
-def check_interfaces(factory):
-    """
-    Check interfaces for IOperation/IProbe pairs.
-
-    Check that an IOperation factory produces an IOperation, whose
-    ``get_probe`` method creates an IProbe.
-    """
-
-    class OperationTests(SynchronousTestCase):
-
-        def test_interfaces(self):
-            operation = factory(clock=Clock(), control_service=None)
-            verifyObject(IOperation, operation)
-            probe = operation.get_probe()
-            verifyObject(IProbe, probe)
-
-    testname = '{}InterfaceTests'.format(factory.__name__)
-    OperationTests.__name__ = testname
-    globals()[testname] = OperationTests
-
-for factory in (NoOperation, ReadRequest):
-    check_interfaces(factory)
+from benchmark.cluster import BenchmarkCluster
+from benchmark._interfaces import IOperation
+from benchmark.operations.read_request import (
+    ReadRequest, InvalidMethod, validate_method_name
+)
 
 
 class FastConvergingFakeFlockerClient(
@@ -73,10 +53,45 @@ class FastConvergingFakeFlockerClient(
         return result
 
 
+class ValidMethodNameTests(SynchronousTestCase):
+    """
+    Check that method name validation works.
+    """
+
+    def test_no_parameter_method(self):
+        name = 'version'
+        self.assertIn(name, IFlockerAPIV1Client.names())
+        validate_method_name(IFlockerAPIV1Client, name)
+
+    def test_method_with_parameters(self):
+        """
+        Rejects method that requires parameters.
+        """
+        name = 'create_dataset'
+        self.assertIn(name, IFlockerAPIV1Client.names())
+        with self.assertRaises(InvalidMethod):
+            validate_method_name(IFlockerAPIV1Client, name)
+
+    def test_not_found_method(self):
+        """
+        Rejects name not found in interface.
+        """
+        name = 'non_existent'
+        self.assertNotIn(name, IFlockerAPIV1Client.names())
+        with self.assertRaises(InvalidMethod):
+            validate_method_name(IFlockerAPIV1Client, name)
+
+
 class ReadRequestTests(SynchronousTestCase):
     """
     ReadRequest operation tests.
     """
+
+    def test_implements_IOperation(self):
+        """
+        ReadRequest provides the IOperation interface.
+        """
+        verifyClass(IOperation, ReadRequest)
 
     def test_read_request(self):
         """
@@ -90,8 +105,13 @@ class ReadRequestTests(SynchronousTestCase):
 
         # Get the probe to read the state of the cluster
         def start_read_request(result):
-            request = ReadRequest(
-                clock=Clock(), control_service=control_service)
+            cluster = BenchmarkCluster(
+                IPAddress('10.0.0.1'),
+                lambda reactor: control_service,
+                {},
+                None,
+            )
+            request = ReadRequest(Clock(), cluster, 'list_datasets_state')
             return request.get_probe()
         d.addCallback(start_read_request)
 

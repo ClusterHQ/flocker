@@ -1,5 +1,5 @@
 # -*- test-case-name: flocker.node.agents.functional.test_ebs -*-
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 An EBS implementation of the ``IBlockDeviceAPI``.
@@ -10,6 +10,24 @@ from subprocess import check_output
 import threading
 import time
 import logging
+import itertools
+
+# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
+# exception when we try an API call on an idled persistent connection.
+# See https://github.com/boto/boto3/issues/220
+from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
+    extract_from_urllib3,
+)
+extract_from_urllib3()
+
+import boto3
+
+from botocore.exceptions import ClientError, EndpointConnectionError
+
+# There is no boto3 equivalent of this yet.
+# See https://github.com/boto/boto3/issues/313
+from boto.utils import get_instance_metadata
+
 from uuid import UUID
 
 from bitmath import Byte, GiB
@@ -17,27 +35,25 @@ from bitmath import Byte, GiB
 from characteristic import with_cmp
 from pyrsistent import PClass, field, pset, pmap, thaw
 from zope.interface import implementer
-from boto import ec2
-from boto import config
-from boto.ec2.connection import EC2Connection
-from boto.utils import get_instance_metadata
-from boto.exception import EC2ResponseError
 from twisted.python.constants import (
     Names, NamedConstant, Values, ValueConstant
 )
 from twisted.python.filepath import FilePath
 
-from eliot import Message
+from eliot import Message, register_exception_extractor
 
 from .blockdevice import (
     IBlockDeviceAPI, IProfiledBlockDeviceAPI, BlockDeviceVolume, UnknownVolume,
     AlreadyAttachedVolume, UnattachedVolume, UnknownInstanceID,
-    MandatoryProfiles
+    MandatoryProfiles, ICloudAPI,
 )
+
+from ..script import StorageInitializationError
+
 from ...control import pmap_field
 
 from ._logging import (
-    AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
+    AWS_ACTION, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
     BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE,
     BOTO_LOG_RESULT
@@ -46,14 +62,30 @@ from ._logging import (
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
-BOTO_NUM_RETRIES = u'20'
+BOTO_NUM_RETRIES = 20
 VOLUME_STATE_CHANGE_TIMEOUT = 300
 MAX_ATTACH_RETRIES = 3
+
+# Minimum IOPS per second for a provisioned IOPS volume.
+IOPS_MIN_IOPS = 100
+# Minimum size in GiB for a provisioned IPS volume.
+IOPS_MIN_SIZE = 4
 
 # http://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
 # for error details:
 NOT_FOUND = u'InvalidVolume.NotFound'
 INVALID_PARAMETER_VALUE = u'InvalidParameterValue'
+
+
+# Register Eliot field extractor for ClientError responses.
+register_exception_extractor(
+    ClientError,
+    lambda e: {
+        "aws_code": e.response['Error']['Code'],
+        "aws_message": unicode(e.response['Error']['Message']),
+        "aws_request_id": e.response['ResponseMetadata']['RequestId'],
+    }
+)
 
 
 class EBSVolumeTypes(Values):
@@ -244,6 +276,59 @@ class AttachFailed(Exception):
     """
 
 
+class InvalidRegionError(Exception):
+    """
+    The supplied region is not a valid AWS endpoint.
+    """
+    def __init__(self, region):
+        message = u"The specified AWS region is not valid."
+        Exception.__init__(self, message, region)
+        self.region = region
+
+
+class InvalidZoneError(Exception):
+    """
+    The supplied zone is not valid for the given AWS region.
+    """
+    def __init__(self, zone, available_zones):
+        message = u"The specified AWS zone is not valid."
+        Exception.__init__(
+            self, message, zone, u"Available zones:", available_zones)
+        self.zone = zone
+        self.available_zones = available_zones
+
+
+class InvalidStateException(Exception):
+    """
+    A volume is not in an appropriate state to perform an operation.
+
+    :param boto3.resources.factory.ec2.Volume volume: The volume.
+    :param str state: The known volume state at the time of the exception.
+    :param list valid_states: A ``list`` of ``str`` representing states
+        that would have been valid for this operation.
+    """
+    def __init__(self, volume, state, valid_states):
+        Exception.__init__(self, volume, state, valid_states)
+        self.volume = volume
+        self.state = state
+        self.valid_states = valid_states
+
+
+class TagNotFound(Exception):
+    """
+    A named tag could not be found an a volume.
+
+    :param str volume_id: The ID of the volume.
+    :param str tag: The name of the tag that could not be found.
+    :param list existing_tags: The tags that do exist on the volume.
+    """
+    def __init__(self, volume_id, tag, existing_tags):
+        Exception.__init__(self, volume_id, tag, existing_tags)
+        self.volume_id = volume_id
+        self.tag = tag
+        self.existing_tags = existing_tags
+
+
 class TimeoutException(Exception):
     """
     A timeout on waiting for volume to reach destination end state.
@@ -289,30 +374,19 @@ class UnexpectedStateException(Exception):
 
 
 class EliotLogHandler(logging.Handler):
-    # Whitelist ``"msg": "Params:`` field for logging.
-    _to_log = {"Params"}
-
     def emit(self, record):
-        fields = vars(record)
-        # Only log certain things.  The log is massively too verbose
-        # otherwise.
-        if fields.get("msg", ":").split(":")[0] in self._to_log:
-            Message.new(
-                message_type=BOTO_LOG_HEADER, **fields
-            ).write()
+        Message.new(
+            message_type=BOTO_LOG_HEADER, message=record.getMessage()
+        ).write()
 
 
 def _enable_boto_logging():
     """
     Make boto log activity using Eliot.
     """
-    logger = logging.getLogger("boto")
+    logger = logging.getLogger("boto3")
+    logger.setLevel(logging.INFO)
     logger.addHandler(EliotLogHandler())
-
-    # It seems as though basically all boto log messages are at the same
-    # level.  Either we can see all of them or we can see none of them.
-    # We'll do some extra filtering in the handler.
-    logger.setLevel(logging.DEBUG)
 
 _enable_boto_logging()
 
@@ -378,7 +452,8 @@ def _expected_device(requested_device):
     )
 
 
-def ec2_client(region, zone, access_key_id, secret_access_key):
+def ec2_client(region, zone, access_key_id,
+               secret_access_key, validate_region=True):
     """
     Establish connection to EC2 client.
 
@@ -386,107 +461,80 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     :param str zone: The zone for the EC2 region to connect to.
     :param str access_key_id: "aws_access_key_id" credential for EC2.
     :param str secret_access_key: "aws_secret_access_key" EC2 credential.
+    :param bool validate_region: Flag indicating whether to validate the
+        region and zone by calling out to AWS.
 
     :return: An ``_EC2`` giving information about EC2 client connection
         and EC2 instance zone.
     """
-    # Set 2 retry knobs in Boto to BOTO_NUM_RETRIES:
-    # 1. ``num_retries``:
-    # Request automatic exponential backoff and retry
-    # attempts by Boto if an EC2 API call fails with
-    # ``RequestLimitExceeded`` due to system load.
-    # 2. ``metadata_service_num_attempts``:
+    # Set a retry option in Botocore to BOTO_NUM_RETRIES:
+    # ``metadata_service_num_attempts``:
     # Request for retry attempts by Boto to
     # retrieve data from Metadata Service used to retrieve
     # credentials for IAM roles on EC2 instances.
-    if not config.has_section('Boto'):
-        config.add_section('Boto')
-    config.set('Boto', 'num_retries', BOTO_NUM_RETRIES)
-    config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
+    # Exponential backoff and retry for ``RequestLimitExceeded``
+    # errors is already set in botocore.
+    connection = boto3.session.Session(
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key
+    )
+    connection._session.set_config_variable(
+        'metadata_service_num_attempts', BOTO_NUM_RETRIES)
+    ec2_resource = connection.resource("ec2", region_name=region)
+    if validate_region:
+        try:
+            zones = ec2_resource.meta.client.describe_availability_zones()
+        except EndpointConnectionError:
+            raise InvalidRegionError(region)
+        available_zones = [
+            available_zone['ZoneName']
+            for available_zone in zones['AvailabilityZones']
+        ]
+        if zone not in available_zones:
+            raise InvalidZoneError(zone, available_zones)
+    return _EC2(zone=zone, connection=ec2_resource)
 
-    # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
-    connection = ec2.connect_to_region(region,
-                                       aws_access_key_id=access_key_id,
-                                       aws_secret_access_key=secret_access_key)
-    return _EC2(zone=zone,
-                connection=_LoggedBotoConnection(connection=connection))
 
-
-def _boto_logged_method(method_name, original_name):
+def boto3_log(method):
     """
-    Run a boto.ec2.connection.EC2Connection method and
+    Decorator to run a boto3.ec2.ServiceResource method and
     log additional information about any exceptions that are raised.
 
-    :param str method_name: The name of the method of the wrapped object to
-        call.
-    :param str original_name: The name of the attribute of self where the
-        wrapped object can be found.
+    :param func method_name: The method to call.
 
-    :return: A function which will call the method of the wrapped object and do
+    :return: A function which will call the method and do
         the extra exception logging.
     """
-    def _run_with_logging(self, *args, **kwargs):
+    def _run_with_logging(*args, **kwargs):
         """
-        Run given boto.ec2.connection.EC2Connection method with exception
-        logging for ``EC2ResponseError``.
+        Run given boto3.ec2.ServiceResource method with exception
+        logging for ``ClientError``.
         """
-        original = getattr(self, original_name)
-        method = getattr(original, method_name)
-
-        # Trace IBlockDeviceAPI ``method`` as Eliot Action.
-        # See https://clusterhq.atlassian.net/browse/FLOC-2054
-        # for ensuring all method arguments are serializable.
-        with AWS_ACTION(operation=[method_name, args, kwargs]):
-            try:
-                return method(*args, **kwargs)
-            except EC2ResponseError as e:
-                BOTO_EC2RESPONSE_ERROR(
-                    aws_code=e.code,
-                    aws_message=e.message,
-                    aws_request_id=e.request_id,
-                ).write()
-                raise
+        with AWS_ACTION(operation=[method.__name__, args[1:], kwargs]):
+            return method(*args, **kwargs)
     return _run_with_logging
 
 
-def boto_logger(*args, **kwargs):
+def _get_volume_tag(volume, name):
     """
-    Decorator to log all callable boto.ec2.connection.EC2Connection
-    methods.
+    Retrieve the tag from the specified volume with the specified name.
 
-    :return: A function that will decorate all methods of the given
-        class with Boto exception logging.
+    :param Volume volume: The volume.
+    :param unicode name: The tag name.
+
+    :return: A ``str`` representing the value of the tag.
     """
-    def _class_decorator(cls):
-        for attr in EC2Connection.__dict__:
-            # Log wrap all callable methods except `__init__`.
-            if attr != '__init__':
-                attribute = getattr(EC2Connection, attr)
-                if callable(attribute):
-                    setattr(cls, attr,
-                            _boto_logged_method(attr, *args, **kwargs))
-        return cls
-    return _class_decorator
-
-
-@boto_logger("connection")
-class _LoggedBotoConnection(PClass):
-    """
-    Wrapper ``PClass`` around ``boto.ec2.connection.EC2Connection``
-    to facilitate logging of exceptions from Boto APIs.
-
-    :ivar boto.ec2.connection.EC2Connection connection: Object
-        representing connection to an EC2 instance with logged
-        ``EC2ConnectionError``.
-    """
-    connection = field(mandatory=True)
+    for tag in volume.tags:
+        if tag['Key'] == name:
+            return tag['Value']
+    raise TagNotFound(volume.id, name, volume.tags)
 
 
 class _EC2(PClass):
     """
     :ivar str zone: The name of the zone for the connection.
-    :ivar boto.ec2.connection.EC2Connection connection: Object
-        representing connection to an EC2 instance.
+    :ivar boto3.resources.factory.ec2.ServiceResource: Object
+        representing an EC2 resource.
     """
     zone = field(mandatory=True)
     connection = field(mandatory=True)
@@ -497,15 +545,23 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     Helper function to convert Volume information from
     EBS format to Flocker block device format.
 
-    :param boto.ec2.volume ebs_volume: Volume in EC2 format.
+    :param boto3.resources.factory.ec2.Volume ebs_volume:
+        Volume in EC2 format.
 
     :return: Input volume in BlockDeviceVolume format.
     """
+    if ebs_volume.attachments:
+        attached_to = unicode(ebs_volume.attachments[0]['InstanceId'])
+    else:
+        attached_to = None
+
+    volume_dataset_id = _get_volume_tag(ebs_volume, DATASET_ID_LABEL)
+
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GiB(ebs_volume.size).to_Byte().value),
-        attached_to=ebs_volume.attach_data.instance_id,
-        dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
+        attached_to=attached_to,
+        dataset_id=UUID(volume_dataset_id)
     )
 
 
@@ -513,13 +569,14 @@ def _get_ebs_volume_state(volume):
     """
     Fetch input EBS volume's latest state from backend.
 
-    :param boto.ec2.volume volume: Volume that needs state update.
+    :param boto3.resources.factory.ec2.Volume: Volume that needs state update.
 
     :returns: EBS volume with latest state known to backend.
-    :rtype: boto.ec2.volume
+    :rtype: boto3.resources.factory.ec2.Volume
 
     """
-    return volume.update()
+    volume.reload()
+    return volume
 
 
 def _should_finish(operation, volume, update, start_time,
@@ -532,7 +589,8 @@ def _should_finish(operation, volume, update, start_time,
     reach expected end state.
 
     :param NamedConstant operation: Operation performed on given volume.
-    :param boto.ec2.volume volume: Target volume of given operation.
+    :param boto3.resources.factory.ec2.Volume: Target volume of given
+        operation.
     :param method update: Method to use to check volume state.
     :param float start_time: Time when operation was executed on volume.
     :param int timeout: Time, in seconds, to wait for volume to reach expected
@@ -556,32 +614,36 @@ def _should_finish(operation, volume, update, start_time,
         #    attach data, and we timed out waiting for attach data.
         # Raise a ``TimeoutException`` in all cases.
         raise TimeoutException(unicode(volume.id), operation, start_state,
-                               transient_state, end_state, volume.status)
+                               transient_state, end_state, volume.state)
 
     try:
         update(volume)
-    except EC2ResponseError as e:
+    except ClientError as e:
         # If AWS cannot find the volume, raise ``UnknownVolume``.
-        if e.code == NOT_FOUND:
+        if e.response['Error']['Code'] == NOT_FOUND:
             raise UnknownVolume(volume.id)
 
-    if volume.status not in [start_state, transient_state, end_state]:
+    if volume.state not in [start_state, transient_state, end_state]:
         raise UnexpectedStateException(unicode(volume.id), operation,
                                        start_state, transient_state, end_state,
-                                       volume.status)
-    if volume.status != end_state:
+                                       volume.state)
+    if volume.state != end_state:
         return False
 
     # If end state for the volume comes with attach data,
     # declare success only upon discovering attach data.
+    if volume.attachments:
+        volume_attach_data = volume.attachments[0]
+    else:
+        volume_attach_data = None
     if sets_attach:
-        return (volume.attach_data is not None and
-                (volume.attach_data.device != '' and
-                 volume.attach_data.instance_id != ''))
+        return (volume_attach_data is not None and
+                (volume_attach_data['Device'] != '' and
+                 volume_attach_data['InstanceId'] != ''))
     elif unsets_attach:
-        return (volume.attach_data is None or
-                (volume.attach_data.device is None and
-                 volume.attach_data.instance_id is None))
+        return (volume_attach_data is None or
+                (volume_attach_data['Device'] == '' and
+                 volume_attach_data['InstanceId'] == ''))
     else:
         return True
 
@@ -596,7 +658,7 @@ def _wait_for_volume_state_change(operation,
 
     :param NamedConstant operation: Operation triggering volume state change.
         A value from ``VolumeOperations``.
-    :param boto.ec2.volume volume: Volume to check status for.
+    :param boto3.resources.factory.ec2.Volume: Volume to check status for.
     :param update: Method to use to fetch EBS volume's latest state.
     :param int timeout: Seconds to wait for volume operation to succeed.
 
@@ -615,7 +677,7 @@ def _wait_for_volume_state_change(operation,
     while not _should_finish(operation, volume, update, start_time, timeout):
         time.sleep(1.0)
         WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
-                                         status=volume.status,
+                                         status=volume.state,
                                          wait_time=(time.time() - start_time))
 
 
@@ -702,17 +764,21 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 
     :param UUID cluster_id: UUID of Flocker cluster to check for
         membership.
-    :param boto.ec2.volume ebs_volume: EBS volume to check for
-        input cluster membership.
+    :param boto3.resources.factory.ec2.Volume ebs_volume: EBS volume to check
+        for input cluster membership.
 
     :return bool: True if input volume belongs to input
         Flocker cluster. False otherwise.
     """
-    actual_cluster_id = ebs_volume.tags.get(CLUSTER_ID_LABEL)
-    if actual_cluster_id is not None:
-        actual_cluster_id = UUID(actual_cluster_id)
-        if actual_cluster_id == cluster_id:
-            return True
+    if ebs_volume.tags is not None:
+        actual_cluster_id = [
+            tag['Value'] for tag in ebs_volume.tags
+            if tag['Key'] == CLUSTER_ID_LABEL
+        ]
+        if actual_cluster_id:
+            actual_cluster_id = UUID(actual_cluster_id.pop())
+            if actual_cluster_id == cluster_id:
+                return True
     return False
 
 
@@ -744,11 +810,11 @@ def _attach_volume_and_wait_for_device(
     """
     try:
         attach_volume(volume.blockdevice_id, attach_to, device)
-    except EC2ResponseError as e:
+    except ClientError as e:
         # If attach failed that is often because of eventual
         # consistency in AWS, so let's ignore this one if it
         # fails:
-        if e.code == u'InvalidParameterValue':
+        if e.response['Error']['Code'] == u'InvalidParameterValue':
             return False
         raise
     else:
@@ -794,6 +860,7 @@ def _get_blockdevices():
 
 @implementer(IBlockDeviceAPI)
 @implementer(IProfiledBlockDeviceAPI)
+@implementer(ICloudAPI)
 class EBSBlockDeviceAPI(object):
     """
     An EBS implementation of ``IBlockDeviceAPI`` which creates
@@ -819,6 +886,7 @@ class EBSBlockDeviceAPI(object):
         """
         return int(GiB(1).to_Byte().value)
 
+    @boto3_log
     def compute_instance_id(self):
         """
         Look up the EC2 instance ID for this node.
@@ -828,6 +896,69 @@ class EBSBlockDeviceAPI(object):
             raise UnknownInstanceID(self)
         return instance_id.decode("ascii")
 
+    @boto3_log
+    def _create_ebs_volume(
+        self, size=1, volume_type=EBSVolumeTypes.STANDARD.value,
+        zone=None, iops=None
+    ):
+        """
+        Create a new EC2 volume with the specified parameters.
+
+        :param int size: Volume size in GiB. For provisioned IOPS volumes,
+            this is a minimum of 4.
+        :param str volume_type: The type of volume to create.
+            This can be 'gp2' for General Purpose (SSD) volumes,
+            'io1' for Provisioned IOPS (SSD) volumes, or 'standard'
+            for Magnetic volumes.
+        :param str zone: The availability zone where this volume will be
+            created. If not specified, the default zone of this client.
+        :param int iops: If creating a provisioned IOPS volume, the
+            The number of I/O operations per second to provision,
+            with a maximum ratio of 30 IOPS/GiB.
+
+        :return: The ``Volume`` representation of the created volume.
+        """
+        if zone is None:
+            zone = self.zone
+        client = self.connection.meta.client
+        if volume_type == EBSVolumeTypes.IO1.value:
+            if iops is None:
+                iops = IOPS_MIN_IOPS
+            if size < IOPS_MIN_SIZE:
+                size = IOPS_MIN_SIZE
+            volume_data = client.create_volume(
+                Size=size,
+                AvailabilityZone=zone,
+                VolumeType=volume_type,
+                Iops=iops
+            )
+        else:
+            volume_data = client.create_volume(
+                Size=size,
+                AvailabilityZone=zone,
+                VolumeType=volume_type
+            )
+        volume = self.connection.Volume(volume_data['VolumeId'])
+        volume.load()
+        return volume
+
+    @boto3_log
+    def _list_ebs_volumes(self, page_size=100):
+        """
+        List all the volumes associated with this client's region.
+        Volumes are retrieved in lists limited to the specified page size,
+        then amalgamated to return a single list of all volumes.
+
+        :param int page_size: Maximum page size of each list of volumes.
+
+        :return: A ``list`` of ``Volume`` objects.
+        """
+        return list(itertools.chain.from_iterable(list(
+            volumes for volumes in
+            self.connection.volumes.page_size(page_size).pages()
+        )))
+
+    @boto3_log
     def _get_ebs_volume(self, blockdevice_id):
         """
         Lookup EBS Volume information for a given blockdevice_id.
@@ -840,18 +971,41 @@ class EBSBlockDeviceAPI(object):
              found.
         """
         try:
-            all_volumes = self.connection.get_all_volumes(
-                volume_ids=[blockdevice_id])
-        except EC2ResponseError as e:
-            if e.error_code == NOT_FOUND:
+            volume = self.connection.Volume(blockdevice_id)
+            volume.load()
+            return volume
+        except ClientError as e:
+            if e.response['Error']['Code'] == NOT_FOUND:
                 raise UnknownVolume(blockdevice_id)
             else:
                 raise
 
-        for volume in all_volumes:
-            if volume.id == blockdevice_id:
-                return volume
-        raise UnknownVolume(blockdevice_id)
+    @boto3_log
+    def _detach_ebs_volume(self, volume_id):
+        """
+        Detach the specified volume ID from an instance.
+
+        :param str volume_id: The volume ID.
+        :return: A ``dict`` containing the EC2 response data.
+        """
+        volume = self.connection.Volume(volume_id)
+        return volume.detach_from_instance()
+
+    @boto3_log
+    def _attach_ebs_volume(self, volume_id, instance_id, device):
+        """
+        Attach a volume to an instance.
+
+        :param str volume_id: The volume ID.
+        :param str instance_id: The instance ID.
+        :param unicode device: The OS device path to which to attach
+            the device.
+
+        :return: A ``dict`` containing the EC2 response data.
+        """
+        volume = self.connection.Volume(volume_id)
+        return volume.attach_to_instance(
+            InstanceId=instance_id, Device=device)
 
     def _next_device(self, instance_id, volumes, devices_in_use):
         """
@@ -878,8 +1032,13 @@ class EBSBlockDeviceAPI(object):
         :returns ``None`` if suitable EBS device names on this EC2
             instance are currently occupied.
         """
-        devices = pset({v.attach_data.device for v in volumes
-                       if v.attach_data.instance_id == instance_id})
+        volume_devices = []
+        for v in volumes:
+            volume_attachments = v.attachments
+            for attachment in volume_attachments:
+                if attachment['InstanceId'] == instance_id:
+                    volume_devices.append(attachment['Device'])
+        devices = pset(volume_devices)
         devices = devices | devices_in_use
         sorted_devices = sorted(list(thaw(devices)))
         IN_USE_DEVICES(devices=sorted_devices).write()
@@ -912,25 +1071,27 @@ class EBSBlockDeviceAPI(object):
         try:
             volume_type, iops = _volume_type_and_iops_for_profile_name(
                 profile_name, requested_size)
-            requested_volume = self.connection.create_volume(
+            requested_volume = self._create_ebs_volume(
                 size=requested_size,
                 zone=self.zone,
                 volume_type=volume_type,
                 iops=iops)
-        except EC2ResponseError as e:
+        except ClientError as e:
             # If we failed to create a volume with attributes complying
             # with requested profile, make a second attempt at volume
             # creation with default profile.
             # Compliance violation of the volume's requested profile
             # will be detected and remediated in a future release (FLOC-3275).
-            if e.code != INVALID_PARAMETER_VALUE:
+            if e.response['Error']['Code'] != INVALID_PARAMETER_VALUE:
                 raise e
-            CREATE_VOLUME_FAILURE(dataset_id=dataset_id,
-                                  aws_code=e.code,
-                                  aws_message=e.message).write()
+            CREATE_VOLUME_FAILURE(
+                dataset_id=unicode(dataset_id),
+                aws_code=e.response['Error']['Code'],
+                aws_message=unicode(e.response['Error']['Message'])
+            ).write()
             volume_type, iops = _volume_type_and_iops_for_profile_name(
                 MandatoryProfiles.DEFAULT.value, requested_size)
-            requested_volume = self.connection.create_volume(
+            requested_volume = self._create_ebs_volume(
                 size=requested_size,
                 zone=self.zone,
                 volume_type=volume_type,
@@ -951,8 +1112,10 @@ class EBSBlockDeviceAPI(object):
             # console (http://stackoverflow.com/a/12798180).
             "Name": u"flocker-{}".format(dataset_id),
         }
-        self.connection.create_tags([requested_volume.id],
-                                    metadata)
+        tags_list = []
+        for key, value in metadata.items():
+            tags_list.append(dict(Key=key, Value=value))
+        requested_volume.create_tags(Tags=tags_list)
 
         message_type = BOTO_LOG_RESULT + u':created_tags'
         Message.new(
@@ -973,16 +1136,16 @@ class EBSBlockDeviceAPI(object):
         Return all volumes that belong to this Flocker cluster.
         """
         try:
-            ebs_volumes = self.connection.get_all_volumes()
+            ebs_volumes = self._list_ebs_volumes()
             message_type = BOTO_LOG_RESULT + u':listed_volumes'
             Message.new(
                 message_type=message_type,
                 volume_ids=list(volume.id for volume in ebs_volumes),
             ).write()
-        except EC2ResponseError as e:
+        except ClientError as e:
             # Work around some internal race-condition in EBS by retrying,
             # since this error makes no sense:
-            if e.code == NOT_FOUND:
+            if e.response['Error']['Code'] == NOT_FOUND:
                 return self.list_volumes()
             else:
                 raise
@@ -1021,14 +1184,14 @@ class EBSBlockDeviceAPI(object):
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is not None or
-                ebs_volume.status != VolumeStates.AVAILABLE.value):
+                ebs_volume.state != VolumeStates.AVAILABLE.value):
             raise AlreadyAttachedVolume(blockdevice_id)
 
         attached = False
         ignore_devices = pset([])
         for attach_attempt in range(3):
             with self.lock:
-                volumes = self.connection.get_all_volumes()
+                volumes = self._list_ebs_volumes()
                 device = self._next_device(attach_to, volumes, ignore_devices)
                 if device is None:
                     # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
@@ -1038,8 +1201,8 @@ class EBSBlockDeviceAPI(object):
                 blockdevices = _get_blockdevices()
                 attached = _attach_volume_and_wait_for_device(
                     volume, attach_to,
-                    self.connection.attach_volume,
-                    self.connection.detach_volume,
+                    self._attach_ebs_volume,
+                    self._detach_ebs_volume,
                     device, blockdevices,
                 )
                 if attached:
@@ -1065,13 +1228,14 @@ class EBSBlockDeviceAPI(object):
             blockdevice_id is not currently 'in-use'.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
-        if ebs_volume.status != VolumeStates.IN_USE.value:
+        if ebs_volume.state != VolumeStates.IN_USE.value:
             raise UnattachedVolume(blockdevice_id)
 
-        self.connection.detach_volume(blockdevice_id)
+        self._detach_ebs_volume(blockdevice_id)
 
         _wait_for_volume_state_change(VolumeOperations.DETACH, ebs_volume)
 
+    @boto3_log
     def destroy_volume(self, blockdevice_id):
         """
         Destroy EBS volume identified by blockdevice_id.
@@ -1083,8 +1247,14 @@ class EBSBlockDeviceAPI(object):
         :raises Exception: If we failed to destroy Flocker cluster volume
             corresponding to input blockdevice_id.
         """
+        destroy_result = None
         ebs_volume = self._get_ebs_volume(blockdevice_id)
-        destroy_result = self.connection.delete_volume(blockdevice_id)
+        ebs_volume.load()
+        if ebs_volume.state == 'available':
+            destroy_result = ebs_volume.delete()
+        else:
+            raise InvalidStateException(
+                ebs_volume, ebs_volume.state, ['available'])
         if destroy_result:
             try:
                 _wait_for_volume_state_change(VolumeOperations.DESTROY,
@@ -1111,7 +1281,7 @@ class EBSBlockDeviceAPI(object):
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
-        if volume.attached_to is None:
+        if not volume.attached_to:
             raise UnattachedVolume(blockdevice_id)
 
         compute_instance_id = self.compute_instance_id()
@@ -1123,11 +1293,18 @@ class EBSBlockDeviceAPI(object):
                 )
             )
 
-        return _expected_device(ebs_volume.attach_data.device)
+        return _expected_device(ebs_volume.attachments[0]['Device'])
+
+    # ICloudAPI:
+    @boto3_log
+    def list_live_nodes(self):
+        instances = self.connection.instances.filter(
+            Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
+        return list(instance.id for instance in instances)
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
-                           cluster_id):
+                           cluster_id, validate_region=True):
     """
     Build an ``EBSBlockDeviceAPI`` instance using configuration and
     credentials.
@@ -1142,15 +1319,22 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
     :param UUID cluster_id: The unique identifier of the cluster with which to
         associate the resulting object.  It will only manipulate volumes
         belonging to this cluster.
+    :param bool validate_region: If False, do not attempt to validate the
+        region and zone by calling out to AWS. Useful for testing.
 
     :return: A ``EBSBlockDeviceAPI`` instance using the given parameters.
     """
-    return EBSBlockDeviceAPI(
-        ec2_client=ec2_client(
-            region=region,
-            zone=zone,
-            access_key_id=access_key_id,
-            secret_access_key=secret_access_key,
-        ),
-        cluster_id=cluster_id,
-    )
+    try:
+        return EBSBlockDeviceAPI(
+            ec2_client=ec2_client(
+                region=region,
+                zone=zone,
+                access_key_id=access_key_id,
+                secret_access_key=secret_access_key,
+                validate_region=validate_region,
+            ),
+            cluster_id=cluster_id,
+        )
+    except (InvalidRegionError, InvalidZoneError) as e:
+        raise StorageInitializationError(
+            StorageInitializationError.CONFIGURATION_ERROR, *e.args)
