@@ -37,10 +37,37 @@ from twisted.trial import unittest
 from ._flaky import retry_flaky
 
 
-class TestCase(unittest.SynchronousTestCase):
+class _MktempMixin(object):
+    """
+    ``mktemp`` support for testtools TestCases.
+    """
+
+    def mktemp(self):
+        """
+        Create a temporary directory that will be deleted on test completion.
+
+        Provided for compatibility with Twisted's ``TestCase``.
+
+        :return: Path to the newly-created temporary directory.
+        """
+        # XXX: Should we provide a cleaner interface for people to use? One
+        # that returns FilePath? One that returns a directory?
+        return make_temporary_directory(self).child('temp').path
+
+
+class TestCase(testtools.TestCase, _MktempMixin):
     """
     Base class for synchronous test cases.
     """
+
+    def __init__(self, *args, **kwargs):
+        super(TestCase, self).__init__(*args, **kwargs)
+        # XXX: Work around testing-cabal/unittest-ext#60
+        self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
+
+    def setUp(self):
+        super(TestCase, self).setUp()
+        self.useFixture(_SplitEliotLogs())
 
 
 def async_runner(timeout, flaky_output=None):
@@ -77,7 +104,7 @@ def _test_skipped(case, result, exception):
     result.addSkip(case, details={'reason': text_content(unicode(exception))})
 
 
-class AsyncTestCase(testtools.TestCase):
+class AsyncTestCase(testtools.TestCase, _MktempMixin):
     """
     Base class for asynchronous test cases.
     """
@@ -91,24 +118,7 @@ class AsyncTestCase(testtools.TestCase):
 
     def setUp(self):
         super(AsyncTestCase, self).setUp()
-        # XXX: Would also be useful for synchronous test cases once they're
-        # migrated over to testtools.
         self.useFixture(_SplitEliotLogs())
-
-    def mktemp(self):
-        """
-        Create a temporary directory that will be deleted on test completion.
-
-        Provided for compatibility with Twisted's ``TestCase``.
-
-        :return: Path to the newly-created temporary directory.
-        """
-        # XXX: Should we provide a cleaner interface for people to use? One
-        # that returns FilePath? One that returns a directory?
-
-        # XXX: Actually belongs in a mixin or something, not actually specific
-        # to async.
-        return make_temporary_directory(self).child('temp').path
 
 
 class _SplitEliotLogs(Fixture):

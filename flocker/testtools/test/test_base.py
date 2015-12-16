@@ -11,7 +11,8 @@ import unittest
 from eliot import MessageType, fields
 from hypothesis import assume, given
 from hypothesis.strategies import binary, integers, lists, sampled_from, text
-from testtools import PlaceHolder, TestCase, TestResult
+from testtools import PlaceHolder, TestResult
+from testtools import TestCase as TesttoolsTestCase
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
@@ -37,6 +38,7 @@ from twisted.python.filepath import FilePath
 
 from .._base import (
     AsyncTestCase,
+    TestCase,
     make_temporary_directory,
     _SplitEliotLogs,
     _get_eliot_data,
@@ -50,10 +52,10 @@ from .._testhelpers import (
 )
 
 
-base_test_cases = sampled_from([AsyncTestCase])
+base_test_cases = sampled_from([AsyncTestCase, TestCase])
 
 
-class BaseTestCaseTests(TestCase):
+class BaseTestCaseTests(TesttoolsTestCase):
     """
     Tests for our base test cases.
     """
@@ -191,7 +193,7 @@ def match_text_content(matcher):
     return AfterPreprocessing(lambda content: content.as_text(), matcher)
 
 
-class IterLinesTests(TestCase):
+class IterLinesTests(TesttoolsTestCase):
     """
     Tests for ``_iter_lines``.
     """
@@ -226,7 +228,7 @@ class IterLinesTests(TestCase):
         self.assertThat(observed[-1], Not(EndsWith(separator)))
 
 
-class GetEliotDataTests(TestCase):
+class GetEliotDataTests(TesttoolsTestCase):
     """
     Tests for ``_get_eliot_data``.
     """
@@ -269,7 +271,7 @@ tests = lists(identifiers, min_size=3, average_size=5).map(
     lambda xs: PlaceHolder('.'.join(xs)))
 
 
-class MakeTemporaryTests(TestCase):
+class MakeTemporaryTests(TesttoolsTestCase):
     """
     Tests for code for making temporary files and directories for tests.
     """
