@@ -10,15 +10,16 @@ import troposphere.ec2 as ec2
 OWNER = u"richardw"
 NUM_NODES = 2
 NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
+S3_SETUP = 'setup_s3.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
 FLOCKER_CONFIGURATION_GETTER = 'flocker-configuration-getter.sh'
 
 
-def read_sibling_file(filename):
+def sibling_lines(filename):
     dirname = os.path.dirname(__file__)
     path = os.path.join(dirname, filename)
     with open(path, 'r') as f:
-        return f.read()
+        return f.readlines()
 
 template = Template()
 
@@ -65,28 +66,26 @@ for i in range(NUM_NODES):
         SecurityGroups=["acceptance"],
         AvailabilityZone=zone,
     )
+    user_data = [
+        '#!/bin/bash\n',
+        'aws_region="', Ref("AWS::Region"), '"\n',
+        'aws_zone="', zone, '"\n',
+        'access_key_id="', Ref(access_key_id_param), '"\n',
+        'secret_access_key="', Ref(secret_access_key_param), '"\n',
+        's3_bucket="', Ref(s3bucket), '"\n',
+        'node_count="{}"\n'.format(NUM_NODES),
+        'node_number="{}"\n'.format(i),
+    ]
+    user_data += sibling_lines(S3_SETUP)
+
     if i == 0:
         control_service_instance = ec2_instance
-        ec2_instance.UserData = Base64(Join("", [
-            '#!/bin/bash\n',
-            'aws_region="', Ref("AWS::Region"), '"\n',
-            'aws_zone="', zone, '"\n',
-            'access_key_id="', Ref(access_key_id_param), '"\n',
-            'secret_access_key="', Ref(secret_access_key_param), '"\n',
-            'num_nodes="{}"\n'.format(NUM_NODES),
-            's3_bucket="', Ref(s3bucket), '"\n',
-            read_sibling_file(FLOCKER_CONFIGURATION_GENERATOR)
-            ]))
+        user_data += sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
     else:
-        ec2_instance.UserData = Base64(Join("", [
-            '#!/bin/bash\n',
-            'access_key_id="', Ref(access_key_id_param), '"\n',
-            'secret_access_key="', Ref(secret_access_key_param), '"\n',
-            'node_number="{}"\n'.format(i),
-            's3_bucket="', Ref(s3bucket), '"\n',
-            read_sibling_file(FLOCKER_CONFIGURATION_GETTER)
-            ]))
         ec2_instance.DependsOn = control_service_instance.name
+
+    user_data += sibling_lines(FLOCKER_CONFIGURATION_GETTER)
+    ec2_instance.UserData = Base64(Join("", user_data))
 
     template.add_resource(ec2_instance)
     template.add_output([
