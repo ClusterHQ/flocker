@@ -39,7 +39,7 @@ from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase, SkipTest, TestCase
+from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
@@ -103,6 +103,7 @@ from ...testtools import (
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
+    AsyncTestCase, TestCase,
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
@@ -3627,8 +3628,9 @@ def make_iblockdeviceapi_tests(
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
-    class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
+    class Tests(IBlockDeviceAPITestsMixin, TestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.api = blockdevice_api_factory(test_case=self)
             self.unknown_blockdevice_id = unknown_blockdevice_id_factory(self)
             check_allocatable_size(
@@ -3711,6 +3713,7 @@ def make_iblockdeviceasyncapi_tests(blockdeviceasync_api_factory):
     """
     class Tests(IBlockDeviceAsyncAPITestsMixin, SynchronousTestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.api = blockdeviceasync_api_factory(test_case=self)
 
     return Tests
@@ -5276,8 +5279,9 @@ def make_icloudapi_tests(
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI``/``ICloudAPI`` provider.
     """
-    class Tests(TestCase):
+    class Tests(AsyncTestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.api = blockdevice_api_factory(test_case=self)
             self.this_node = self.api.compute_instance_id()
             self.async_cloud_api = _SyncToThreadedAsyncCloudAPIAdapter(
