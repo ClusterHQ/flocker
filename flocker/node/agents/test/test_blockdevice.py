@@ -148,13 +148,19 @@ DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
     blockdevice_id=_create_blockdevice_id_for_test(dataset.dataset_id),
 ))
 
+# Text generation is slow, in order to speed up tests and make the output more
+# readable, use short strings and a small legible alphabet. Given the way
+# metadata is used in the code this should not be detrimental to test coverage.
+_METADATA_STRATEGY = text(average_size=3, min_size=1, alphabet="CGAT")
+
 DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
     'dataset_id': uuids(),
     'maximum_size': integers(min_value=0).map(
         lambda n:
         LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         + n*LOOPBACK_ALLOCATION_UNIT),
-    'metadata': dictionaries(keys=text(), values=text()),
+    'metadata': dictionaries(keys=_METADATA_STRATEGY,
+                             values=_METADATA_STRATEGY),
     'mount_point': builds(FilePath, sampled_from([
         '/flocker/abc', '/flocker/xyz',
     ])),
