@@ -13,7 +13,7 @@ Next Release
 ============
 
 * The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
-* The :ref:`Flocker Plugin for Docker<docker-plugin>` now solely relies on the metadata key ``"name"`` to find datasets.
+* The :ref:`Flocker Plugin for Docker<plugin>` now solely relies on the metadata key ``"name"`` to find datasets.
 * Now supporting Ubuntu-15.10 instead of Ubuntu-15.04 for the flocker client.
   See :ref:`installing-flocker-cli-ubuntu-15.10`.
 * Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they
@@ -25,7 +25,7 @@ This Release
 v1.8.0
 ------
 
-* The :ref:`Flocker Plugin for Docker<docker-plugin>` is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
+* The :ref:`Flocker Plugin for Docker<plugin>` is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
 * Better error reporting for the Flocker Plugin for Docker.
 * Added a new REST API for :http:get:`looking up node identity by era</v1/state/nodes/by_era/(era)>`; eras are reset after every reboot.
   This allows robust interaction with Flocker across reboots without getting stale data.
@@ -65,14 +65,14 @@ v1.6.1
 v1.6.0
 ------
 
-* The :ref:`Flocker plugin for Docker<docker-plugin>` is now compatible with Docker 1.9.
+* The :ref:`Flocker plugin for Docker<plugin>` is now compatible with Docker 1.9.
 * New EBS and OpenStack Cinder volumes created by Flocker will now have ``flocker-<dataset ID>`` as their name, to make it easier to find them in their respective cloud administration UIs.
   Existing volumes created by older versions of Flocker will continue to have no name.
 
 v1.5.0
 ------
 
-* The :ref:`Flocker plugin for Docker<docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
+* The :ref:`Flocker plugin for Docker<plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
 * Unexpected errors in agent state discovery no longer break the agent convergence loop.
 * journald logs are now easier to filter and read.
   See the :ref:`documentation <flocker-logging>` for more information.
