@@ -1,2 +1,2 @@
-Docker / Swarm / Compose
-========================
+Flocker with Docker, Swarm, and Compose
+=======================================

@@ -1,2 +1,2 @@
-Mesos
-=====
+Flocker with Mesos
+==================
