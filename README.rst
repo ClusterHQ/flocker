@@ -52,17 +52,84 @@ Flocker is also tested using `continuous integration`_.
 Cloudformation Deployment
 -------------------------
 
+* Generate a Cloudformation template:
+
 ```
-$ aws cloudformation validate-template \
-      --template-body file://flocker-cloudformation-template.json
+$ python ./admin/installer/cloudformation.py > flocker-cloudformation-template.json
+```
+
+* Validate the template:
+
+```
+$ aws cloudformation validate-template --template-body file://flocker-cloudformation-template.json
+```
+
+* Boot the cluster:
+
+```
+$ cfn \
+    --region us-east-1 \
+    --create flocker-cloudformation-template.json \
+    --parameter KeyName=<aws_ssh_keyname> \
+    --parameter AccessKeyID=<aws_key_id> \
+    --parameter SecretAccessKey=<aws_secret_access_key> \
+    flocker-stack-$RANDOM
+```
+
+* Monitor progress:
+
+```
+$ cfn \
+    --region us-east-1 \
+    --tail arn:aws:cloudformation:<aws_stack_id>
+```
+
+* Log in
+
+The IP address of the servers are available in the "Output" tab of the Cloudformation web interface.
+
+* Use the Docker Flocker Volume Plugin
+
+```
+# On node 0
+$ docker run -it --rm \
+    --volume-driver=flocker \
+    --volume=richardw_demo_volume3:/data ubuntu touch /data/node0
 ```
 
 ```
-$ aws cloudformation create-stack  \
-      --stack-name "richardw-stack-$(date +%s)" \
-      --template-body file://flocker-cloudformation-template.json \
-      --parameters ParameterKey=KeyName,ParameterValue=richardw-testing
+# The move it to node 1
+$ docker run -it --rm \
+    --volume-driver=flocker \
+    --volume=richardw_demo_volume3:/data ubuntu ls -l /data
 ```
+
+* Manage volumes using Flocker volumes CLI on the control service node
+
+```
+$ # List
+$ docker run \
+    --rm \
+    --volume /etc/flocker:/pwd \
+    --net host \
+    clusterhq/uft flocker-volumes \
+    --control-service 127.0.0.1 \
+    --user plugin \
+    list
+
+$ # Destroy
+$ docker run \
+    --rm \
+    --volume /etc/flocker:/pwd \
+    --net host \
+    clusterhq/uft flocker-volumes \
+    --control-service 127.0.0.1 \
+    --user plugin \
+    destroy --dataset 1a02ab35-04c8-458c-94c6-1bcd7fd536c1
+```
+
+
+
 
 .. _ClusterHQ: https://clusterhq.com/
 .. _Twisted: https://twistedmatrix.com/trac/
