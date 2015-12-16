@@ -63,7 +63,6 @@ class RunOptions(CommonOptions):
         self['dataset-backend'] = self.defaults['dataset-backend'] = 'aws'
 
     def postOptions(self):
-        super(RunOptions, self).postOptions()
         if self['app-template'] is not None:
             template_file = FilePath(self['app-template'])
             self['template'] = yaml.safe_load(template_file.getContent())
@@ -78,6 +77,9 @@ class RunOptions(CommonOptions):
                 "Purpose may have only alphanumeric symbols and dash. " +
                 "Found {!r}".format('purpose')
             )
+        # This is run last as it creates the actual "runner" object
+        # based on the provided parameters.
+        super(RunOptions, self).postOptions()
 
 
 @inlineCallbacks
