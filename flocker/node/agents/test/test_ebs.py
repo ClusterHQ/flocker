@@ -15,11 +15,14 @@ from bitmath import GiB
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
+from eliot.testing import capture_logging, assertHasMessage
+
 from ..ebs import (
     AttachedUnexpectedDevice, _expected_device,
     _attach_volume_and_wait_for_device, _get_blockdevices,
     _get_device_size,
 )
+from .._logging import NO_NEW_DEVICE_IN_OS
 from ..blockdevice import BlockDeviceVolume
 
 from ....testtools import CustomException
@@ -187,6 +190,23 @@ class AttachVolumeAndWaitTests(SynchronousTestCase):
                 discovered=FilePath(b"/dev/").child(wrong_device.basename()),
             ),
             exception,
+        )
+
+    @capture_logging(assertHasMessage, NO_NEW_DEVICE_IN_OS)
+    def test_no_new_device_logged(self, logger):
+        """
+        ``NO_NEW_DEVICE_IN_OS`` is logged if a new device does not appear.
+        """
+        self.assertRaises(
+            AttachedUnexpectedDevice,
+            _attach_volume_and_wait_for_device,
+            volume=self.volume,
+            attach_to=self.compute_id,
+            attach_volume=lambda *a, **kw: None,
+            detach_volume=lambda *a, **kw: None,
+            device=b'/dev/sdh',
+            blockdevices=[],
+            time_limit=0,
         )
 
 

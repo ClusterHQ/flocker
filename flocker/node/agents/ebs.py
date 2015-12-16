@@ -648,7 +648,7 @@ def _get_device_size(device):
     return device_size
 
 
-def _wait_for_new_device(base, expected_size, time_limit=60):
+def _wait_for_new_device(base, expected_size, time_limit):
     """
     Helper function to wait for up to 60s for new
     EBS block device (`/dev/sd*` or `/dev/xvd*`) to
@@ -660,7 +660,7 @@ def _wait_for_new_device(base, expected_size, time_limit=60):
     :param int expected_size: Size of the block device we are expected to
         manifest in the OS.
     :param int time_limit: Time, in seconds, to wait for
-        new device to manifest. Defaults to 60s.
+        new device to manifest.
 
     :returns: The path of the new block device file.
     :rtype: ``FilePath``
@@ -670,7 +670,7 @@ def _wait_for_new_device(base, expected_size, time_limit=60):
     while elapsed_time < time_limit:
         for device in list(set(FilePath(b"/sys/block").children()) -
                            set(base)):
-            device_name = FilePath.basename(device)
+            device_name = device.basename()
             if (device_name.startswith((b"sd", b"xvd")) and
                     _get_device_size(device_name) == expected_size):
                 return FilePath(b"/dev").child(device_name)
@@ -680,8 +680,14 @@ def _wait_for_new_device(base, expected_size, time_limit=60):
     # If we failed to find a new device of expected size,
     # log sizes of all new devices on this compute instance,
     # for debuggability.
-    new_devices = list(set(FilePath(b"/sys/block").children()) - set(base))
-    new_devices_size = [_get_device_size(device) for device in new_devices]
+    new_devices = list(
+        device.basename()
+        for device in set(FilePath(b"/sys/block").children()) - set(base)
+    )
+    new_devices_size = list(
+        _get_device_size(device_name)
+        for device_name in new_devices
+    )
     NO_NEW_DEVICE_IN_OS(new_devices=new_devices,
                         new_devices_size=new_devices_size,
                         expected_size=expected_size,
@@ -712,6 +718,7 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 
 def _attach_volume_and_wait_for_device(
     volume, attach_to, attach_volume, detach_volume, device, blockdevices,
+    time_limit=60
 ):
     """
     Attempt to attach an EBS volume to an EC2 instance and wait for the
@@ -726,7 +733,8 @@ def _attach_volume_and_wait_for_device(
     :param list blockdevices: The OS device paths (as ``FilePath``) which are
         already present on the system before this operation is attempted
         (primarily useful to make testing easier).
-
+    :param int time_limit: Time, in seconds, to wait for
+        new device to manifest. Defaults to 60s.
     :raise: Anything ``attach_volume`` can raise.  Or
         ``AttachedUnexpectedDevice`` if the volume appears to become attached
         to the wrong OS device file.
@@ -754,6 +762,7 @@ def _attach_volume_and_wait_for_device(
         device_path = _wait_for_new_device(
             base=blockdevices,
             expected_size=volume.size,
+            time_limit=time_limit,
         )
         # We do, however, expect the attached device name to follow
         # a certain simple pattern.  Verify that now and signal an
