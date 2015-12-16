@@ -19,14 +19,15 @@ from hypothesis.strategies import (
 )
 import testtools
 from testtools.matchers import (
+    AfterPreprocessing,
     Contains,
     Equals,
     HasLength,
     MatchesAll,
+    MatchesListwise,
 )
 from testtools.testresult.doubles import ExtendedTestResult
 
-from .. import AsyncTestCase
 from .._flaky import (
     _FLAKY_ATTRIBUTE,
     _get_flaky_annotation,
@@ -329,3 +330,36 @@ class FlakyIntegrationTests(testtools.TestCase):
         test = SkippingTest('test_skip')
         self.assertThat(run_test(test), only_skips(1, observed_reasons))
 
+    @given(base_test_cases, jira_keys, num_runs, num_runs)
+    def test_retry_by_default(self, base_test_case, jira_keys, max_runs,
+                              min_passes):
+        """
+        Tests that inherit from our base test cases and use @flaky are retried
+        by default.
+        """
+        [min_passes, max_runs] = sorted([min_passes, max_runs])
+
+        class ErroringTest(base_test_case):
+            @flaky(jira_keys, max_runs, min_passes)
+            def test_error(self):
+                1/0
+
+        test = ErroringTest('test_error')
+        self.assertThat(
+            run_test(test),
+            has_results(
+                tests_run=Equals(1),
+                errors=MatchesListwise([
+                    MatchesListwise([
+                        Equals(test),
+                        AfterPreprocessing(
+                            str,
+                            MatchesAll(
+                                Contains('flaky:'),
+                                Contains('ZeroDivisionError'),
+                            ),
+                        ),
+                    ])
+                ]),
+            ),
+        )
