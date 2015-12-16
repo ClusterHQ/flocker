@@ -114,33 +114,7 @@ Note that all application instances will have exactly the same configuration.
 Configuration File
 ==================
 
-.. This is pretty messy.
-   FLOC-2090
-
-The configuration file given for the ``--config-file`` parameter contains information about compute-resource providers and dataset configurations.
-The contents and structure of the file are explained here.
-:ref:`An example containing all of the sections<acceptance-testing-configuration>` is also provided.
-
-The top-level object in the file is a mapping.
-It may optionally contain a ``metadata`` key.
-If it does and if the provider supports it,
-the value should be a mapping and the contents will be added as metadata of the created nodes.
-
-The top-level mapping must contain a ``storage-drivers`` item.
-The value should be another mapping from names to dataset backend configuration mappings.
-The names are primarily human-readable and meant for easy use with the ``--dataset-backend`` option.
-In some cases,
-the name may exactly match the name of one of the dataset backend implementations supported by Flocker.
-If this is not the case,
-the configuration mapping must exactly match the ``dataset`` configuration described for :ref:`enabling the Flocker agent service<agent-yml>`.
-
-Any number of dataset backend configurations may be present.
-The configuration with a key matching the value of the ``--dataset-backend`` parameter is used.
-Nodes in the testing cluster are given this configuration.
-
-The top-level mapping may also contain any number of computer-resource provider configurations.
-These are used to provide required parameters to the cluster runner selected by the ``--provider`` option.
-Configuration is loaded from the item in the top-level mapping with a key matching the value given to ``--provider``.
+For the description of the configuration file format, see :ref:`acceptance-testing-configuration-file`.
 
 .. _cluster-setup-rackspace-config:
 
