@@ -3,6 +3,7 @@
 Set up a Flocker cluster.
 """
 
+import string
 import sys
 import yaml
 from copy import deepcopy
@@ -69,6 +70,13 @@ class RunOptions(CommonOptions):
         elif self['apps-per-node'] > 0:
             raise UsageError(
                 "app-template parameter must be provided if apps-per-node > 0"
+            )
+
+        if any(x not in string.ascii_letters + string.digits + '-'
+               for x in self['purpose']):
+            raise UsageError(
+                "Purpose may have only alphanumeric symbols and dash. " +
+                "Found {!r}".format('purpose')
             )
 
 

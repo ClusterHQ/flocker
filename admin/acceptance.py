@@ -593,13 +593,6 @@ class LibcloudRunner(object):
             )
         self.creator = creator
 
-        if any(x not in string.ascii_letters + string.digits + '-'
-               for x in self.purpose):
-            raise UsageError(
-                "Purpose may have only alphanumeric symbols and dash. " +
-                "Found {!r}".format(self.purpose)
-            )
-
     @inlineCallbacks
     def start_cluster(self, reactor):
         """
