@@ -5,7 +5,6 @@ HELLO
 
 .. toctree::
    :maxdepth: 2
-   :hidden:
 
    introduction/index
    docker-integration/index
