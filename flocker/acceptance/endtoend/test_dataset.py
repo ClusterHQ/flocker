@@ -6,7 +6,6 @@ Tests for the datasets REST API.
 
 from uuid import UUID
 from unittest import SkipTest
-from time import sleep
 from datetime import timedelta
 
 from testtools import run_test_with
@@ -19,7 +18,7 @@ from ...node.agents.blockdevice import ICloudAPI
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend,
-    get_backend_api,
+    get_backend_api, verify_socket
 )
 
 
@@ -137,9 +136,9 @@ class DatasetAPITests(AsyncTestCase):
 
         def startup_node(node_id):
             api.start_node(node_id)
-            # Give node some minimal amount of time to boot so next test
-            # is happier:
-            sleep(20)
+            # Wait for node to boot up:; we presume Flocker getting going after
+            # SSH is available will be pretty quick:
+            return loop_until(reactor, verify_socket(node.public_address, 22))
 
         # Once created, shut down origin node and then request to move the
         # dataset to node2:
