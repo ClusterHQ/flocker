@@ -16,12 +16,12 @@ fi
 chmod --recursive a-rwx,u+rwX "${TMP_DIR}"
 mv "${TMP_DIR}" "${FLOCKER_CONFIG_DIRECTORY}"
 
-if test "${NODE_NUMBER}" -eq "0"; then
+if test "${node_number}" -eq "0"; then
     service flocker-control restart
 else
     service flocker-control stop
 fi
 
-for service_name in flocker-{container,dataset]-agent flocker-docker-plugin; do
+for service_name in flocker-{container,dataset}-agent flocker-docker-plugin; do
     service "${service_name}" restart
 done
