@@ -34,6 +34,7 @@ from .._flaky import (
     retry_flaky,
 )
 from .._testhelpers import (
+    base_test_cases,
     has_results,
     only_skips,
     run_test,
@@ -299,11 +300,15 @@ class FlakyTests(testtools.TestCase):
 
 
 class FlakyIntegrationTests(testtools.TestCase):
+    """
+    Tests that @flaky and retry_flaky interact well with our standard base
+    test cases.
+    """
 
-    @given(jira_keys, num_runs, num_runs,
+    @given(base_test_cases, jira_keys, num_runs, num_runs,
            streaming(text(average_size=10)).map(iter))
-    def test_flaky_skipped_test(self, jira_keys, max_runs, min_passes,
-                                reasons):
+    def test_flaky_skipped_test(self, base_test_case, jira_keys, max_runs,
+                                min_passes, reasons):
         """
         If a test is skipped and also marked @flaky, we report it as skipped.
 
@@ -313,7 +318,7 @@ class FlakyIntegrationTests(testtools.TestCase):
         [min_passes, max_runs] = sorted([min_passes, max_runs])
         observed_reasons = []
 
-        class SkippingTest(AsyncTestCase):
+        class SkippingTest(base_test_case):
             run_tests_with = retry_flaky(output=StringIO())
 
             @flaky(jira_keys, max_runs, min_passes)
