@@ -10,7 +10,7 @@ import unittest
 
 from eliot import MessageType, fields
 from hypothesis import assume, given
-from hypothesis.strategies import binary, integers, lists, sampled_from, text
+from hypothesis.strategies import binary, integers, lists, text
 from testtools import PlaceHolder, TestResult
 from testtools import TestCase as TesttoolsTestCase
 from testtools.matchers import (
@@ -37,8 +37,6 @@ from testtools.matchers import (
 from twisted.python.filepath import FilePath
 
 from .._base import (
-    AsyncTestCase,
-    TestCase,
     make_temporary_directory,
     _SplitEliotLogs,
     _get_eliot_data,
@@ -46,13 +44,11 @@ from .._base import (
     _path_for_test_id,
 )
 from .._testhelpers import (
+    base_test_cases,
     has_results,
     only_skips,
     run_test,
 )
-
-
-base_test_cases = sampled_from([AsyncTestCase, TestCase])
 
 
 class BaseTestCaseTests(TesttoolsTestCase):
