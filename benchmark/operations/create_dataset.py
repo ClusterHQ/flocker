@@ -45,6 +45,7 @@ class CreateDatasetConvergenceProbe(PClass):
         """
         d = control_service.list_nodes()
 
+        # Select an arbitrary node to be the primary for the dataset.
         def pick_primary(nodes):
             for node in nodes:
                 return node
@@ -52,6 +53,7 @@ class CreateDatasetConvergenceProbe(PClass):
             raise EmptyClusterError("Cluster contains no nodes.")
         d.addCallback(pick_primary)
 
+        # Create the CreateDatasetConvergenceProbe instance.
         def create_probe(node):
             return cls(
                 reactor=reactor,
