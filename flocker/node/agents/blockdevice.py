@@ -1318,7 +1318,8 @@ class RawState(PClass):
     The raw state of a node.
 
     :param unicode compute_instance_id: The identifier for this node.
-    :param unicode live_instances: The identifiers of live nodes.
+    :param _live_instances: ``pset`` of the identifiers of live nodes, or
+        ``None`` if unknown.
     :param volumes: List of all volumes in the cluster.
     :type volumes: ``pvector`` of ``BlockDeviceVolume``
     :param devices: Mapping from dataset UUID to block device path containing
@@ -1331,11 +1332,23 @@ class RawState(PClass):
         those devices that have filesystems on this node.
     """
     compute_instance_id = field(unicode, mandatory=True)
-    live_instances = pset_field(unicode)
+    _live_instances = pset_field(unicode, optional=True)
     volumes = pvector_field(BlockDeviceVolume)
     devices = pmap_field(UUID, FilePath)
     system_mounts = pmap_field(FilePath, FilePath)
     devices_with_filesystems = pset_field(FilePath)
+
+    def is_known_dead_instance(self, instance_id):
+        """
+        If the node identified by given ID is dead, return ``True``. If it's
+        alive or unknown, return ``False``.
+
+        @param unicode instance_id: Node identifier.
+        @return: Whether instance is known to be dead.
+        """
+        if self._live_instances is None:
+            return False
+        return instance_id not in self._live_instances
 
 
 @implementer(ILocalState)
@@ -1624,12 +1637,11 @@ class BlockDeviceDeployer(PClass):
         if ICloudAPI.providedBy(api):
             live_instances = api.list_live_nodes()
         else:
-            # Assume everything is alive:
-            live_instances = [volume.attached_to for volume in volumes
-                              if volume.attached_to is not None]
+            # Can't know accurately who is alive and who is dead:
+            live_instances = None
         result = RawState(
             compute_instance_id=compute_instance_id,
-            live_instances=live_instances,
+            _live_instances=live_instances,
             volumes=volumes,
             devices=devices,
             system_mounts=system_mounts,
@@ -1692,10 +1704,10 @@ class BlockDeviceDeployer(PClass):
                         blockdevice_id=volume.blockdevice_id,
                     )
                 else:
-                    if volume.attached_to in raw_state.live_instances:
-                        state = DatasetStates.ATTACHED_ELSEWHERE
-                    else:
+                    if raw_state.is_known_dead_instance(volume.attached_to):
                         state = DatasetStates.ATTACHED_TO_DEAD_NODE
+                    else:
+                        state = DatasetStates.ATTACHED_ELSEWHERE
                     datasets[dataset_id] = DiscoveredDataset(
                         state=state,
                         dataset_id=dataset_id,
