@@ -11,6 +11,7 @@ OWNER = u"richardw"
 NUM_NODES = 2
 NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 S3_SETUP = 'setup_s3.sh'
+DOCKER_SETUP = 'setup_docker.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
 FLOCKER_CONFIGURATION_GETTER = 'flocker-configuration-getter.sh'
 
@@ -76,6 +77,8 @@ for i in range(NUM_NODES):
         'node_count="{}"\n'.format(NUM_NODES),
         'node_number="{}"\n'.format(i),
     ]
+
+    user_data += sibling_lines(DOCKER_SETUP)
     user_data += sibling_lines(S3_SETUP)
 
     if i == 0:
