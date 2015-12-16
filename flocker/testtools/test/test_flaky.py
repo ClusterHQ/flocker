@@ -4,7 +4,6 @@
 Tests for ``flocker.testtools._flaky``.
 """
 
-from datetime import timedelta
 from itertools import repeat
 from pprint import pformat
 from StringIO import StringIO
@@ -27,7 +26,7 @@ from testtools.matchers import (
 )
 from testtools.testresult.doubles import ExtendedTestResult
 
-from .. import AsyncTestCase, async_runner
+from .. import AsyncTestCase
 from .._flaky import (
     _FLAKY_ATTRIBUTE,
     _get_flaky_annotation,
@@ -47,10 +46,6 @@ jira_keys = text(average_size=5)
 
 # Don't really want to run anything more than 5 times.
 num_runs = integers(min_value=1, max_value=5)
-
-# Used to run tests without emitting to stdout.
-silent_async_runner = async_runner(
-    timedelta(seconds=1), flaky_output=StringIO())
 
 
 class FlakyTests(testtools.TestCase):
@@ -134,9 +129,9 @@ class FlakyTests(testtools.TestCase):
 
         # We use 'unittest' here to avoid accidentally depending on Twisted
         # TestCase features, thus increasing complexity.
-        class SomeTest(AsyncTestCase):
+        class SomeTest(testtools.TestCase):
 
-            run_tests_with = silent_async_runner
+            run_tests_with = retry_flaky(output=StringIO())
 
             @flaky(u'FLOC-XXXX')
             def test_something(self):
@@ -154,9 +149,9 @@ class FlakyTests(testtools.TestCase):
 
         executions = repeat(lambda: throw(ValueError('failure')))
 
-        class SomeTest(AsyncTestCase):
+        class SomeTest(testtools.TestCase):
 
-            run_tests_with = silent_async_runner
+            run_tests_with = retry_flaky(output=StringIO())
 
             @flaky(jira_keys, max_runs=max_runs, min_passes=min_passes)
             def test_something(self):
@@ -193,9 +188,9 @@ class FlakyTests(testtools.TestCase):
         # XXX: We could create an "exceptions" strategy.
         executions = iter(test_methods)
 
-        class SomeTest(AsyncTestCase):
+        class SomeTest(testtools.TestCase):
 
-            run_tests_with = silent_async_runner
+            run_tests_with = retry_flaky(output=StringIO())
 
             @flaky(u'FLOC-XXXX', max_runs=len(test_methods), min_passes=1)
             def test_something(self):
@@ -259,27 +254,6 @@ class FlakyTests(testtools.TestCase):
 
     @given(jira_keys, num_runs, num_runs,
            streaming(text(average_size=10)).map(iter))
-    def test_flaky_skipped_test(self, jira_keys, max_runs, min_passes,
-                                reasons):
-        """
-        If a test is skipped and also marked @flaky, we report it as skipped.
-        """
-        [min_passes, max_runs] = sorted([min_passes, max_runs])
-        observed_reasons = []
-
-        class SkippingTest(AsyncTestCase):
-            run_tests_with = retry_flaky(output=StringIO())
-
-            @flaky(jira_keys, max_runs, min_passes)
-            def test_skip(self):
-                observed_reasons.append(reasons.next())
-                raise unittest.SkipTest(observed_reasons[-1])
-
-        test = SkippingTest('test_skip')
-        self.assertThat(run_test(test), only_skips(1, observed_reasons))
-
-    @given(jira_keys, num_runs, num_runs,
-           streaming(text(average_size=10)).map(iter))
     def test_flaky_testtools_skipped_test(self, jira_keys, max_runs,
                                           min_passes, reasons):
         """
@@ -288,7 +262,7 @@ class FlakyTests(testtools.TestCase):
         [min_passes, max_runs] = sorted([min_passes, max_runs])
         observed_reasons = []
 
-        class SkippingTest(AsyncTestCase):
+        class SkippingTest(testtools.TestCase):
             run_tests_with = retry_flaky(output=StringIO())
 
             @flaky(jira_keys, max_runs, min_passes)
@@ -310,7 +284,7 @@ class FlakyTests(testtools.TestCase):
         """
         log = []
 
-        class FlakyTest(AsyncTestCase):
+        class FlakyTest(testtools.TestCase):
             run_tests_with = retry_flaky(output=StringIO())
 
             @flaky(jira_keys, 1, 1)
@@ -322,3 +296,31 @@ class FlakyTests(testtools.TestCase):
         result = ExtendedTestResult(log)
         test.run(result)
         self.assertThat(test.log, Equals([('startTest', test)]))
+
+
+class FlakyIntegrationTests(testtools.TestCase):
+
+    @given(jira_keys, num_runs, num_runs,
+           streaming(text(average_size=10)).map(iter))
+    def test_flaky_skipped_test(self, jira_keys, max_runs, min_passes,
+                                reasons):
+        """
+        If a test is skipped and also marked @flaky, we report it as skipped.
+
+        Ensures that our workarounds for testing-cabal/unittest-ext#60
+        work with @flaky support.
+        """
+        [min_passes, max_runs] = sorted([min_passes, max_runs])
+        observed_reasons = []
+
+        class SkippingTest(AsyncTestCase):
+            run_tests_with = retry_flaky(output=StringIO())
+
+            @flaky(jira_keys, max_runs, min_passes)
+            def test_skip(self):
+                observed_reasons.append(reasons.next())
+                raise unittest.SkipTest(observed_reasons[-1])
+
+        test = SkippingTest('test_skip')
+        self.assertThat(run_test(test), only_skips(1, observed_reasons))
+
