@@ -60,3 +60,24 @@ For example, the following will occur if the control service notifies the agent 
 #. The agent tells the control service that dataset D exists on the node.
 #. The agent sees that the node state matches the desired configuration, and knows that no action is required.
 #. Starts the loop again.
+
+.. _plugin:
+
+Flocker Plugin for Docker
+=========================
+
+The Flocker plugin for Docker enables you to run containers with named volumes without worrying which server your data is on.
+
+The plugin will create or move the volumes in place as necessary.
+
+The Flocker plugin for Docker operates on the ``name`` passed to Docker in the ``docker run`` command and associates it with a Flocker dataset with the same name (i.e. with metadata ``name=foo``).
+
+There are three main cases which the plugin handles:
+
+* If the volume does not exist at all on the Flocker cluster, it is created on the host which requested it.
+* If the volume exists on a different host, it is moved in-place before the container is started.
+* If the volume exists on the current host, the container is started straight away.
+
+Multiple containers can use the same Flocker volume (by referencing the same volume name, or by using Docker's ``--volumes-from``) so long as they are running on the same host.
+
+The plugin is installed on each node in your cluster, and depends on Docker 1.8 or later.

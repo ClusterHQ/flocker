@@ -9,7 +9,7 @@ Leases prevent multiple applications from requesting the same dataset on differe
 Requesting Leases
 =================
 
-Leases are accessed via the :ref:`api` exposed by the Flocker control service, however most users will interact with leases through the :ref:`docker-plugin`, which will handle requesting leases for you.
+Leases are accessed via the :ref:`api` exposed by the Flocker control service, however most users will interact with leases through the :ref:`plugin`, which will handle requesting leases for you.
 
 Acquiring and Releasing Leases
 ==============================
