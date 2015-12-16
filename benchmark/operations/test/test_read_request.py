@@ -15,7 +15,9 @@ from flocker.apiclient import IFlockerAPIV1Client, FakeFlockerClient
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IOperation
-from benchmark.operations import ReadRequest
+from benchmark.operations.read_request import (
+    ReadRequest, InvalidMethod, validate_method_name
+)
 
 
 class FastConvergingFakeFlockerClient(
@@ -51,6 +53,35 @@ class FastConvergingFakeFlockerClient(
         return result
 
 
+class ValidMethodNameTests(SynchronousTestCase):
+    """
+    Check that method name validation works.
+    """
+
+    def test_no_parameter_method(self):
+        name = 'version'
+        self.assertIn(name, IFlockerAPIV1Client.names())
+        validate_method_name(IFlockerAPIV1Client, name)
+
+    def test_method_with_parameters(self):
+        """
+        Rejects method that requires parameters.
+        """
+        name = 'create_dataset'
+        self.assertIn(name, IFlockerAPIV1Client.names())
+        with self.assertRaises(InvalidMethod):
+            validate_method_name(IFlockerAPIV1Client, name)
+
+    def test_not_found_method(self):
+        """
+        Rejects name not found in interface.
+        """
+        name = 'non_existent'
+        self.assertNotIn(name, IFlockerAPIV1Client.names())
+        with self.assertRaises(InvalidMethod):
+            validate_method_name(IFlockerAPIV1Client, name)
+
+
 class ReadRequestTests(SynchronousTestCase):
     """
     ReadRequest operation tests.
@@ -75,9 +106,12 @@ class ReadRequestTests(SynchronousTestCase):
         # Get the probe to read the state of the cluster
         def start_read_request(result):
             cluster = BenchmarkCluster(
-                IPAddress('10.0.0.1'), lambda reactor: control_service, {}
+                IPAddress('10.0.0.1'),
+                lambda reactor: control_service,
+                {},
+                None,
             )
-            request = ReadRequest(Clock(), cluster)
+            request = ReadRequest(Clock(), cluster, 'list_datasets_state')
             return request.get_probe()
         d.addCallback(start_read_request)
 

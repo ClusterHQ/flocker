@@ -37,8 +37,6 @@ from ._model import (
 
 from .._effect import dispatcher as base_dispatcher
 
-from ._monkeypatch import patch_twisted_7672
-
 RUN_OUTPUT_MESSAGE = MessageType(
     message_type="flocker.provision.ssh:run:output",
     fields=[
@@ -186,7 +184,6 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
 
 
 def make_dispatcher(reactor):
-    patch_twisted_7672()
     return ComposedDispatcher([
         TypeDispatcher({
             RunRemotely: partial(perform_run_remotely, reactor),

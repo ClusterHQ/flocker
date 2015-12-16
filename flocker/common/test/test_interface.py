@@ -10,10 +10,11 @@ from eliot.testing import (
     assertHasMessage, capture_logging
 )
 from eliot import Field, MessageType
+from pyrsistent import PClass, field, InvariantException
 
 from zope.interface import Interface, implementer
 
-from .. import interface_decorator
+from .. import interface_decorator, provides
 
 
 # Eliot structures for testing ``interface_decorator``.
@@ -132,3 +133,59 @@ class InterfaceDecoratorTests(SynchronousTestCase):
         logging_dummy = LoggingDummy(Dummy(result))
         exception = self.assertRaises(ValueError, logging_dummy.raise_method)
         self.assertIs(result, exception)
+
+
+class InterfaceHolder(PClass):
+    """
+    ``PClass`` that has a field with a ``provides`` invariant.
+    """
+    value = field(invariant=provides(IDummy), mandatory=True)
+
+
+class ProvidesTests(SynchronousTestCase):
+    """
+    Tests for ``provides``.
+    """
+
+    def test_interface_accepted(self):
+        """
+        When an object providing the given interface is provided,
+        no invariant exception is raised.
+        """
+        InterfaceHolder(value=Dummy(object()))
+
+    def test_other_rejected(self):
+        """
+        When an object not providing the given interface is provided,
+        an ``InvariantException`` is raised.
+        """
+        self.assertRaises(
+            InvariantException,
+            InterfaceHolder, value=object(),
+        )
+
+    def test_invariant_message(self):
+        """
+        When an object not providing the given interface is provided,
+        the message contains both the value and the interface it
+        doesn't provide.
+        """
+        exception = self.assertRaises(
+            InvariantException,
+            InterfaceHolder, value=True,
+        )
+        self.assertEqual(
+            exception.invariant_errors,
+            ("True doesn't provide IDummy",),
+        )
+
+    def test_invariant_name(self):
+        """
+        The invariant functions name includes the interface being
+        required.
+        """
+        invariant = provides(IDummy)
+        self.assertEqual(
+            invariant.__name__,
+            'provides_IDummy_invariant',
+        )

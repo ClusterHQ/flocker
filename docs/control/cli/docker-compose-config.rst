@@ -129,5 +129,5 @@ Here's a complete example of a ``docker-compose`` compatible application configu
      volumes:
        - "/var/lib/mysql"
 
-.. _`Docker-compose`: http://docs.docker.com/compose/yml/
+.. _`Docker-compose`: https://docs.docker.com/compose/yml/
 .. _`Fig`: http://www.fig.sh/yml.html

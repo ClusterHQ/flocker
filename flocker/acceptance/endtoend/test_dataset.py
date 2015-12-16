@@ -161,7 +161,7 @@ class DatasetAPITests(AsyncTestCase):
                 if volume.dataset_id == dataset.dataset_id:
                     break
             ebs_volume = backend._get_ebs_volume(volume.blockdevice_id)
-            self.assertEqual('io1', ebs_volume.type)
+            self.assertEqual('io1', ebs_volume.volume_type)
 
         waiting_for_create.addCallback(confirm_gold)
         return waiting_for_create

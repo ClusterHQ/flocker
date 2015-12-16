@@ -795,7 +795,20 @@ class Cluster(PClass):
                 )
                 return get_items.addActionFinish()
 
-        def cleanup_containers(_):
+        def cleanup_all_containers(_):
+            """
+            Clean-up any containers run by Docker directly that are unmanaged
+            by Flocker.
+            """
+            for node in self.nodes:
+                client = get_docker_client(self, node.public_address)
+                # Remove all existing containers on the node, in case
+                # they're left over from previous test; they might e.g.
+                # have a volume bind-mounted, preventing its destruction.
+                for container in client.containers():
+                    client.remove_container(container["Id"], force=True)
+
+        def cleanup_flocker_containers(_):
             return api_clean_state(
                 u"containers",
                 self.configured_containers,
@@ -827,7 +840,8 @@ class Cluster(PClass):
                 return get_items.addActionFinish()
 
         d = DeferredContext(cleanup_leases())
-        d.addCallback(cleanup_containers)
+        d.addCallback(cleanup_flocker_containers)
+        d.addCallback(cleanup_all_containers)
         d.addCallback(cleanup_datasets)
         return d.result
 
@@ -848,11 +862,9 @@ class Cluster(PClass):
         return d
 
 
-def _get_test_cluster(reactor, node_count):
+def _get_test_cluster(reactor):
     """
-    Build a ``Cluster`` instance with at least ``node_count`` nodes.
-
-    :param int node_count: The number of nodes to ensure in the cluster.
+    Build a ``Cluster`` instance.
 
     :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
     """
@@ -871,11 +883,6 @@ def _get_test_cluster(reactor, node_count):
             "FLOCKER_ACCEPTANCE_NUM_AGENT_NODES environment variable.")
 
     num_agent_nodes = int(agent_nodes_env_var)
-
-    if num_agent_nodes < node_count:
-        raise SkipTest("This test requires a minimum of {necessary} nodes, "
-                       "{existing} node(s) are set.".format(
-                           necessary=node_count, existing=num_agent_nodes))
 
     certificates_path = FilePath(
         environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
@@ -916,7 +923,7 @@ def _get_test_cluster(reactor, node_count):
                     write_failure(reason, logger=None)
             return False
         d = cluster.current_nodes()
-        d.addCallbacks(lambda nodes: len(nodes) >= node_count,
+        d.addCallbacks(lambda nodes: len(nodes) >= num_agent_nodes,
                        # Control service may not be up yet, keep trying:
                        failed_query)
         return d
@@ -937,7 +944,7 @@ def _get_test_cluster(reactor, node_count):
             reported_hostname=reported_hostname.encode("ascii"),
         )
     agents_connected.addCallback(lambda nodes: cluster.set(
-        "nodes", map(node_from_dict, nodes[:node_count])))
+        "nodes", map(node_from_dict, nodes)))
     return agents_connected
 
 
@@ -978,15 +985,23 @@ def require_cluster(num_nodes, required_backend=None):
 
         @wraps(test_method)
         def wrapper(test_case, *args, **kwargs):
-            # get_clean_nodes will check that the required number of nodes are
-            # reachable and clean them up prior to the test.
-            # The nodes must already have been started and their flocker
-            # services started.
-            waiting_for_cluster = _get_test_cluster(
-                reactor, node_count=num_nodes)
+            # Check that the required number of nodes are reachable and
+            # clean them up prior to the test.  The nodes must already
+            # have been started and their flocker services started before
+            # we clean them.
+            waiting_for_cluster = _get_test_cluster(reactor)
 
             def clean(cluster):
-                return cluster.clean_nodes().addCallback(lambda _: cluster)
+                existing = len(cluster.nodes)
+                if num_nodes > existing:
+                    raise SkipTest(
+                        "This test requires a minimum of {necessary} nodes, "
+                        "{existing} node(s) are set.".format(
+                            necessary=num_nodes, existing=existing))
+                return cluster.clean_nodes().addCallback(
+                    # Limit nodes in Cluster to requested number:
+                    lambda _: cluster.transform(
+                        ["nodes"], lambda nodes: nodes[:num_nodes]))
 
             waiting_for_cluster.addCallback(clean)
             calling_test_method = waiting_for_cluster.addCallback(
