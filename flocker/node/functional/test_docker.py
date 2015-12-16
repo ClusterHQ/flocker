@@ -64,7 +64,7 @@ class IDockerClientTests(make_idockerclient_tests(
     """
     @if_docker_configured
     def setUp(self):
-        pass
+        super(IDockerClientTests, self).setUp()
 
 
 class IDockerClientNamespacedTests(make_idockerclient_tests(
@@ -77,7 +77,7 @@ class IDockerClientNamespacedTests(make_idockerclient_tests(
     """
     @if_docker_configured
     def setUp(self):
-        pass
+        super(IDockerClientNamespacedTests, self).setUp()
 
     @flaky([u'FLOC-2628', u'FLOC-2874'])
     def test_added_is_listed(self):

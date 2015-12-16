@@ -11,7 +11,6 @@ from pyrsistent import pmap, pvector, pset
 from eliot import Message
 
 from twisted.internet import reactor
-from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
@@ -25,7 +24,9 @@ from ...control._model import (
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
-    random_name, DockerImageBuilder, assertContainsAll, flaky)
+    random_name, DockerImageBuilder, assertContainsAll, flaky,
+    AsyncTestCase,
+)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 from .. import run_state_change
@@ -129,10 +130,11 @@ def find_unit(units, unit_name):
             return unit
 
 
-class DeployerTests(TestCase):
+class DeployerTests(AsyncTestCase):
     """
     Functional tests for ``Deployer``.
     """
+
     @if_docker_configured
     def test_environment(self):
         """
