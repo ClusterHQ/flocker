@@ -1,11 +1,104 @@
-Flocker Documentation
-=====================
+Flocker: Volume Management For Containers
+=========================================
 
-HELLO
+.. raw:: html
+
+    <!-- This is obviously a horrible hack, and we need a better way of
+         disabling the toctree on the front page. -->
+    <style>
+        .toctree-wrapper { display:none; }
+        .big-box {
+            border:1px solid black;
+            width:10em;
+            height:10em;
+            float:left;
+            margin:0.5em;
+        }
+        .small-box {
+            border:1px solid black;
+            width:7em;
+            height:7em;
+            float:left;
+            margin:0.5em;
+        }
+    </style>
+
+
+Flocker integrates storage with container orchestration frameworks.
+
+This means you can run *stateful containers* like *databases* in production and have the volumes follow the containers around as they get moved or rescheduled.
+
+==================================
+Supported Orchestration Frameworks
+==================================
+
+.. raw:: html
+
+    <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
+    <div class="big-box">
+        Docker Engine, Swarm and/or Compose
+    </div>
+    <div class="big-box">
+        Kubernetes
+    </div>
+    <div class="big-box">
+        Mesos
+    </div>
+    <div class="big-box">
+        Flocker Standalone
+    </div>
+    <div style="clear:both;"></div>
+
+=================
+Supported Storage
+=================
+
+.. raw:: html
+
+    <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
+    <div class="small-box">
+        AWS - EBS
+    </div>
+    <div class="small-box">
+        GCE - PD
+    </div>
+    <div class="small-box">
+        OpenStack - Cinder
+    </div>
+    <div class="small-box">
+        vSphere - vSphere
+    </div>
+    <div class="small-box">
+        Storage hardware e.g. Dell, EMC, NetApp (SAN) <link>
+    </div>
+    <div class="small-box">
+        Storage software e.g. Ceph, ScaleIO (SDS) <link>
+    </div>
+    <div style="clear:both;"></div>
+
+===========================
+Supported Operating Systems
+===========================
+
+.. raw:: html
+
+    <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
+    <div class="small-box">
+        Ubuntu LTS
+    </div>
+    <div class="small-box">
+        CentOS 7
+    </div>
+    <div class="small-box">
+        RHEL 7 (coming soon)
+    </div>
+    <div class="small-box">
+        CoreOS (beta)
+    </div>
+    <div style="clear:both;"></div>
 
 .. toctree::
    :maxdepth: 2
-   :hidden:
 
    introduction/index
    docker-integration/index
