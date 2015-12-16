@@ -47,16 +47,20 @@ class CreateDatasetConvergenceProbe(PClass):
 
         def pick_primary(nodes):
             for node in nodes:
-                return cls(
-                    reactor=reactor,
-                    control_service=control_service,
-                    primary=node,
-                    dataset_id=dataset_id,
-                    volume_size=volume_size,
-                )
+                return node
             # Cannot proceed if there are no nodes in the cluster!
             raise EmptyClusterError("Cluster contains no nodes.")
         d.addCallback(pick_primary)
+
+        def create_probe(node):
+            return cls(
+                reactor=reactor,
+                control_service=control_service,
+                primary=node,
+                dataset_id=dataset_id,
+                volume_size=volume_size,
+            )
+        d.addCallback(create_probe)
 
         return d
 
@@ -96,10 +100,7 @@ class CreateDatasetConvergenceProbe(PClass):
         )
 
         def loop_until_converged(expected):
-            return loop_until(
-                self.reactor,
-                partial(self._converged, expected)
-            )
+            return loop_until(self.reactor, partial(self._converged, expected))
         d.addCallback(loop_until_converged)
 
         return d
