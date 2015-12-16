@@ -28,15 +28,10 @@ If you want to install the :ref:`Flocker plugin for Docker <docker-plugin>`, thi
 .. XXX this introduction could be improved with an image. See FLOC-2077
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
    install-client
    install-node
-
-Post Installation
-=================
-
-Once you have Flocker installed, you will need to complete the :ref:`post-installation-configuration`, starting with setting up authentication so the different parts of Flocker can communicate.
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
@@ -45,3 +40,21 @@ Once you have Flocker installed, you will need to complete the :ref:`post-instal
 
    setup-aws
    setup-rackspace
+
+.. _post-installation-configuration:
+
+Configuring Flocker
+===================
+
+Once you have installed Flocker you will need to complete the following configuration steps in order to start using your cluster:
+
+.. toctree::
+   :maxdepth: 2
+
+   configuring-authentication
+   generate-api-certificates
+   generate-api-plugin
+   enabling-control-service
+   configuring-nodes-storage
+   enabling-agent-service
+
