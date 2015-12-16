@@ -10,7 +10,7 @@ import unittest
 
 from eliot import MessageType, fields
 from hypothesis import assume, given
-from hypothesis.strategies import binary, integers, lists, text
+from hypothesis.strategies import binary, integers, lists, sampled_from, text
 from testtools import PlaceHolder, TestCase, TestResult
 from testtools.matchers import (
     AllMatch,
@@ -50,19 +50,22 @@ from .._testhelpers import (
 )
 
 
-class AsyncTestCaseTests(TestCase):
+base_test_cases = sampled_from([AsyncTestCase])
+
+
+class BaseTestCaseTests(TestCase):
     """
-    Tests for `AsyncTestCase`.
+    Tests for our base test cases.
     """
 
-    @given(text(average_size=30))
-    def test_trial_skip_exception(self, reason):
+    @given(base_test_cases, text(average_size=30))
+    def test_trial_skip_exception(self, base_test_case, reason):
         """
         If tests raise the ``SkipTest`` exported by Trial, then that's
         recorded as a skip.
         """
 
-        class SkippingTest(AsyncTestCase):
+        class SkippingTest(base_test_case):
             def test_skip(self):
                 raise unittest.SkipTest(reason)
 
@@ -70,13 +73,14 @@ class AsyncTestCaseTests(TestCase):
         result = run_test(test)
         self.assertThat(result, only_skips(1, [reason]))
 
-    def test_mktemp_doesnt_exist(self):
+    @given(base_test_cases)
+    def test_mktemp_doesnt_exist(self, base_test_case):
         """
         ``mktemp`` returns a path that doesn't exist inside a directory that
         does.
         """
 
-        class SomeTest(AsyncTestCase):
+        class SomeTest(base_test_case):
             def test_pass(self):
                 pass
 
@@ -88,13 +92,14 @@ class AsyncTestCaseTests(TestCase):
         self.expectThat(temp_path.path, Not(PathExists()))
         self.assertThat(temp_path, BelowPath(FilePath(os.getcwd())))
 
-    def test_mktemp_not_deleted(self):
+    @given(base_test_cases)
+    def test_mktemp_not_deleted(self, base_test_case):
         """
         ``mktemp`` returns a path that's not deleted after the test is run.
         """
         created_files = []
 
-        class SomeTest(AsyncTestCase):
+        class SomeTest(base_test_case):
             def test_create_file(self):
                 path = self.mktemp()
                 created_files.append(path)
@@ -105,7 +110,8 @@ class AsyncTestCaseTests(TestCase):
         self.addCleanup(os.unlink, path)
         self.assertThat(path, FileContains('hello'))
 
-    def test_run_twice(self):
+    @given(base_test_cases)
+    def test_run_twice(self, base_test_case):
         """
         Tests can be run twice without errors.
 
@@ -115,7 +121,7 @@ class AsyncTestCaseTests(TestCase):
         enough to let us use ``trial -u`` (see FLOC-3462).
         """
 
-        class SomeTest(AsyncTestCase):
+        class SomeTest(base_test_case):
             def test_something(self):
                 pass
 
@@ -129,11 +135,12 @@ class AsyncTestCaseTests(TestCase):
             )
         )
 
-    def test_attaches_twisted_log(self):
+    @given(base_test_cases)
+    def test_attaches_twisted_log(self, base_test_case):
         """
-        AsyncTestCases attach the Twisted log as a detail.
+        Flocker base test cases attach the Twisted log as a detail.
         """
-        class SomeTest(AsyncTestCase):
+        class SomeTest(base_test_case):
             def test_something(self):
                 from twisted.python import log
                 log.msg('foo')
@@ -148,14 +155,15 @@ class AsyncTestCaseTests(TestCase):
                 )),
             }))
 
-    def test_separate_eliot_log(self):
+    @given(base_test_cases)
+    def test_separate_eliot_log(self, base_test_case):
         """
-        AsyncTestCases attach the eliot log as a detail separate from the
-        Twisted log.
+        Flocker base test cases attach the eliot log as a detail separate from
+        the Twisted log.
         """
         message_type = MessageType(u'foo', fields(name=str), u'test message')
 
-        class SomeTest(AsyncTestCase):
+        class SomeTest(base_test_case):
             def test_something(self):
                 from twisted.python import log
                 log.msg('foo')
