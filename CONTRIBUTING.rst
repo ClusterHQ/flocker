@@ -124,16 +124,16 @@ You can build it individually by running:
 
    tox -e sphinx
 
-Alternatively, without needing to set up a Flocker development environment, you can run:
+Alternatively, without needing to set up a Flocker development environment, you can build the docs in Docker by running:
 
 .. prompt:: bash $
 
     docker build -t clusterhq/flocker-docs-builder -f Dockerfile.docs .
     docker run -v ${PWD}/docs/:/app/docs/ clusterhq/flocker-docs-builder
 
-You can then run the second command multiple times if you are editing the docs: because we bind-mount the docs directory, there's no need to rebuild the image each time.
+You can then run the second command multiple times as you are editing the docs: because we bind-mount the docs directory, there's no need to rebuild the image each time.
 
-You can view the result by opening ``docs/_build/html/index.html`` in your browser.
+Either way, you can then view the result by opening ``docs/_build/html/index.html`` in your browser.
 
 .. _Sphinx: http://sphinx-doc.org/
 
