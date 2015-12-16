@@ -2,7 +2,7 @@
 # -*- test-case-name: flocker.node.test.test_deploy -*-
 
 """
-Deploy applications on nodes.
+Base interfaces for convergence agents.
 """
 
 from uuid import UUID
