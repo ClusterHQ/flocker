@@ -208,7 +208,8 @@ class CPUTimeTests(TestCase):
             BenchmarkCluster(
                 IPAddress('10.0.0.1'),
                 lambda reactor: FakeFlockerClient([node1, node2]),
-                {}
+                {},
+                None,
             ),
             _LocalRunner(),
             processes=[_standard_process]
