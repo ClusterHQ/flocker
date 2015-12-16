@@ -1,5 +1,6 @@
 # Converted from EC2InstanceSample.template located at:
 # http://aws.amazon.com/cloudformation/aws-cloudformation-templates/
+import os
 
 from troposphere import FindInMap, GetAtt, Base64, Join
 from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
@@ -9,6 +10,15 @@ import troposphere.ec2 as ec2
 OWNER = u"richardw"
 NUM_NODES = 2
 NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
+FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
+FLOCKER_CONFIGURATION_GETTER = 'flocker-configuration-getter.sh'
+
+
+def read_sibling_file(filename):
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, filename)
+    with open(path, 'r') as f:
+        return f.read()
 
 template = Template()
 
@@ -65,7 +75,7 @@ for i in range(NUM_NODES):
             'secret_access_key="', Ref(secret_access_key_param), '"\n',
             'num_nodes="{}"\n'.format(NUM_NODES),
             's3_bucket="', Ref(s3bucket), '"\n',
-            open('flocker-configuration-generator.sh').read()
+            read_sibling_file(FLOCKER_CONFIGURATION_GENERATOR)
             ]))
     else:
         ec2_instance.UserData = Base64(Join("", [
@@ -74,7 +84,7 @@ for i in range(NUM_NODES):
             'secret_access_key="', Ref(secret_access_key_param), '"\n',
             'node_number="{}"\n'.format(i),
             's3_bucket="', Ref(s3bucket), '"\n',
-            open('flocker-configuration-getter.sh').read()
+            read_sibling_file(FLOCKER_CONFIGURATION_GETTER)
             ]))
         ec2_instance.DependsOn = control_service_instance.name
 
