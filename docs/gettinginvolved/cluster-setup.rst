@@ -87,7 +87,7 @@ To see the supported values for each option, run:
 Application Template
 ====================
 
-The configuration file given for the ``--app-template`` parameter describe a single application.
+The configuration file given for the ``--app-template`` parameter describes a single application.
 At the very least it should specify a name of a Docker image to use for an application container.
 
 .. code-block:: yaml
