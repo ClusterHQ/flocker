@@ -11,6 +11,7 @@ HELLO
    kubernetes-integration/index
    mesos-integration/index
    flocker-standalone/index
+   labs/index
    releasenotes/index
    faq/index
    gettinginvolved/index
