@@ -1455,6 +1455,7 @@ DATASET_TRANSITIONS = {
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
+        Discovered.ATTACHED_TO_DEAD_NODE: DoNothing,
     },
     Desired.DELETED: {
         Discovered.NON_EXISTENT: DoNothing,
@@ -1465,6 +1466,7 @@ DATASET_TRANSITIONS = {
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
+        Discovered.ATTACHED_TO_DEAD_NODE: DetachVolume,
     },
 }
 del Desired, Discovered

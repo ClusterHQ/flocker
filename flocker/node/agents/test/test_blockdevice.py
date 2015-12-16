@@ -3011,6 +3011,46 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
             ])
         )
 
+    def test_detach_remote_volume_attached_to_dead_node_for_deletion(self):
+        """
+        ``BlockDeviceDeployer.calculate_changes`` recognizes a volume that is
+        attached to a remote dead node and is supposed to be deleted.  The
+        result ensures the volume is detached from the remote node so it
+        can later be deleted.
+        """
+        # Local node has no manifestations:
+        node_state = NodeState(
+            uuid=self.NODE_UUID, hostname=self.NODE,
+            applications={},
+            manifestations={},
+            devices={},
+            paths={},
+        )
+
+        # Give it a configuration suggesting the dataset should be
+        # deleted:
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset",
+             "deleted"], True)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID),
+                     maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()))},
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.ATTACHED_TO_DEAD_NODE,
+                    dataset_id=self.DATASET_ID,
+                    blockdevice_id=self.BLOCKDEVICE_ID,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
+                ),
+            ],
+            expected_changes=in_parallel(changes=[
+                DetachVolume(dataset_id=self.DATASET_ID,
+                             blockdevice_id=self.BLOCKDEVICE_ID)
+            ])
+        )
+
 
 class BlockDeviceInterfaceTests(SynchronousTestCase):
     """
