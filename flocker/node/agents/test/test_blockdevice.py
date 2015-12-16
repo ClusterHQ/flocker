@@ -1661,7 +1661,7 @@ class CalculateDesiredStateTests(SynchronousTestCase):
 def assert_calculated_changes(
         case, node_state, node_config, nonmanifest_datasets, expected_changes,
         additional_node_states=frozenset(), leases=Leases(),
-        discovered_datasets=None, api=UnusableAPI(),
+        discovered_datasets=None,
 ):
     """
     Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
@@ -1669,10 +1669,10 @@ def assert_calculated_changes(
 
     :param discovered_datasets: Collection of ``DiscoveredDataset`` to
         expose as local state.
-    :param api: ``IBlockDeviceAPI`` provider to use; by default a
-        ``UnusableAPI``.
     :see: ``assert_calculated_changes_for_deployer``.
     """
+    api = UnusableAPI()
+
     deployer = BlockDeviceDeployer(
         node_uuid=node_state.uuid,
         hostname=node_state.hostname,
