@@ -60,14 +60,3 @@ For example, the following will occur if the control service notifies the agent 
 #. The agent tells the control service that dataset D exists on the node.
 #. The agent sees that the node state matches the desired configuration, and knows that no action is required.
 #. Starts the loop again.
-
-.. _plugin:
-
-Flocker Plugin for Docker
-=========================
-
-.. include:: ../introduction/flocker-plugin.rst
-   :start-after: .. begin-body
-   :end-before: .. end-body
-
-The plugin is installed on each node in your cluster, and depends on Docker 1.8 or later.
