@@ -37,4 +37,7 @@ ADD . /app
 RUN cd /app; pip install --process-dependency-links -e .[dev]
 
 WORKDIR /app
-ENTRYPOINT ["tox", "-e", "sphinx"]
+RUN tox -e sphinx
+
+WORKDIR /app/docs
+ENTRYPOINT ["make", "html"]
