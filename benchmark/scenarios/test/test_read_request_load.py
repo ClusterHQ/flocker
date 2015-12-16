@@ -48,6 +48,21 @@ class RateMeasurerTest(SynchronousTestCase):
                 rate_measurer.response_received(ignored)
             rate_measurer.update_rate()
 
+    def failed_requests(self, rate_measurer, num_failures, num_samples):
+        """
+        Helper function that will result the desired number of response
+        failures.
+
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_failures: The number of requests we want to fail.
+        :param num_samples: The number of samples to collect.
+        """
+        result = None
+        for i in range(num_samples):
+            for i in range(num_failures):
+                rate_measurer.request_failed(result)
+            rate_measurer.update_rate()
+
     def increase_rate(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will increase the rate, sending the
@@ -110,19 +125,40 @@ class RateMeasurerTest(SynchronousTestCase):
 
         self.assertEqual(target_rate, r.rate())
 
-    def test_only_received_samples_considered(self):
+    def test_rate_only_considers_received_samples(self):
         """
         The rate should be based on the number of received requests,
-        not the number of sent requests.
+        not the number of sent or failed requests.
         """
         r = RateMeasurer()
         send_request_rate = 100
+        failed_request_rate = 10
         receive_request_rate = 5
 
         self.send_requests(r, send_request_rate, r.sample_size)
+        self.failed_requests(r, failed_request_rate, r.sample_size)
         self.receive_requests(r, receive_request_rate, r.sample_size)
 
         self.assertEqual(receive_request_rate, r.rate())
+
+    def test_outstanding_considers_all_responses(self):
+        """
+        Requests that fail are considered to be completed requests and
+        should be included when calculating the number of outstanding
+        requests.
+        """
+        r = RateMeasurer()
+
+        # Send 25 requests
+        self.send_requests(r, 5, r.sample_size)
+
+        # Receive successful responses for 20 of those requests
+        self.receive_requests(r, 4, r.sample_size)
+
+        # Mark 5 of the requests as failed
+        self.failed_requests(r, 1, r.sample_size)
+
+        self.assertEqual(0, r.outstanding())
 
 
 class RequestDroppingFakeFlockerClient(

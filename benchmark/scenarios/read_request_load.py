@@ -29,6 +29,7 @@ class RateMeasurer(object):
         self.counts = deque([0] * sample_size, sample_size)
         self.sent = 0
         self.received = 0
+        self.errors = 0
         self._rate = 0
         self.sample_size = sample_size
 
@@ -44,6 +45,12 @@ class RateMeasurer(object):
         """
         self.received += 1
 
+    def request_failed(self, result):
+        """
+        Increase the error count for failed requests.
+        """
+        self.errors += 1
+
     def update_rate(self):
         """
         Update the current rate and record a new sample.
@@ -55,7 +62,7 @@ class RateMeasurer(object):
         """
         Return the number of outstanding requests.
         """
-        return self.sent - self.received
+        return self.sent - self.received - self.errors
 
     def rate(self):
         return self._rate
