@@ -129,7 +129,10 @@ Alternatively, without needing to set up a Flocker development environment, you 
 .. prompt:: bash $
 
     docker build -t clusterhq/flocker-docs-builder -f Dockerfile.docs .
-    docker run -v ${PWD}/docs/:/app/docs/ clusterhq/flocker-docs-builder
+    docker run -v ${PWD}/AUTHORS.rst:/app/AUTHORS.rst \
+        -v ${PWD}/CONTRIBUTING.rst:/app/CONTRIBUTING.rst \
+        -v ${PWD}/README.rst:/app/README.rst \
+        -v ${PWD}/docs/:/app/docs/ clusterhq/flocker-docs-builder
 
 You can then run the second command multiple times as you are editing the docs: because we bind-mount the docs directory, there's no need to rebuild the image each time.
 
