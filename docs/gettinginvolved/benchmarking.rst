@@ -115,6 +115,14 @@ Scenario Types
 Operation Types
 ~~~~~~~~~~~~~~~
 
+.. option:: create-dataset
+
+   Create a dataset and wait for cluster to converge.
+
+   Specify the size of the dataset using an additional ``volume_size`` property.
+   If specifying a cluster using environment variables, this defaults to the value of the ``FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE`` environment variable.
+   Otherwise, it defaults to a platform-specific value.
+
 .. option:: no-op
 
    A no-op operation that performs no action.
@@ -129,6 +137,7 @@ Operation Types
 .. option:: wait
 
    Wait for a number of seconds between measurements.
+
    Specify the number of seconds to wait using an additional ``wait_seconds`` property.
    The default is 10 seconds.
 
