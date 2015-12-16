@@ -34,6 +34,8 @@ from hypothesis.strategies import (
     dictionaries
 )
 
+from testtools.matchers import Equals
+
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
@@ -46,6 +48,8 @@ from eliot.testing import (
     validate_logging, capture_logging,
     LoggedAction, assertHasMessage, assertHasAction
 )
+
+from .strategies import blockdevice_volumes
 
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
@@ -5303,3 +5307,27 @@ def make_icloudapi_tests(
                           self.assertIn(self.api.compute_instance_id(), live))
             return d
     return Tests
+
+
+class BlockDeviceVolumeTests(TestCase):
+    """
+    Tests for ``BlockDeviceVolume``.
+    """
+
+    @given(blockdevice_volumes, blockdevice_volumes)
+    def test_stable_sort_order(self, one, another):
+        """
+        Instances of ``BlockDeviceVolume`` sort in the same order as a tuple
+        made up of the ``blockdevice_id``, ``dataset_id``, ``size``, and
+        ``attached_to`` fields would sort.
+        """
+        self.assertThat(
+            sorted([one, another]),
+            Equals(sorted(
+                [one, another],
+                key=lambda volume: (
+                    volume.blockdevice_id, volume.dataset_id,
+                    volume.size, volume.attached_to
+                ),
+            ))
+        )
