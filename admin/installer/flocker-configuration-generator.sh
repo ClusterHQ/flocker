@@ -41,6 +41,7 @@ for i in $(seq 0 $((${node_count}-1))); do
     cp ../cluster.crt .
     cp ../agent.yml .
     popd
+    /opt/flocker/bin/flocker-ca create-api-certificate "--outputpath=${i}" plugin
 done
 
 mkdir -p 0

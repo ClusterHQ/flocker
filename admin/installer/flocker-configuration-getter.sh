@@ -19,7 +19,7 @@ mv "${TMP_DIR}" "${FLOCKER_CONFIG_DIRECTORY}"
 if test "${node_number}" -eq "0"; then
     service flocker-control restart
 else
-    service flocker-control stop
+    service flocker-control stop || true
 fi
 
 for service_name in flocker-{container,dataset}-agent flocker-docker-plugin; do
