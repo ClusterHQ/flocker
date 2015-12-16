@@ -30,7 +30,8 @@ RUN sudo apt-get -y --force-yes install \
       python-dev \
       python-pip \
       libffi-dev \
-      libssl-dev
+      libssl-dev \
+      enchant
 
 ADD . /app
 RUN cd /app; pip install --process-dependency-links -e .[dev]
