@@ -1615,7 +1615,7 @@ class BlockDeviceDeployer(PClass):
         DISCOVERED_RAW_STATE(raw_state=result).write()
         return result
 
-    def discover_state(self, node_state):
+    def discover_state(self, cluster_state):
         """
         Find all datasets that are currently associated with this host and
         return a ``BlockDeviceDeployerLocalState`` containing all the datasets
