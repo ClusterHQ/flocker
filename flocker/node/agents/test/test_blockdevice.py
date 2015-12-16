@@ -719,6 +719,9 @@ class FakeCloudAPI(proxyForInterface(IBlockDeviceAPI)):
     def list_live_nodes(self):
         return [self.compute_instance_id()] + list(self.live_nodes)
 
+    def start_node(self, node_id):
+        return
+
 
 class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
     """
