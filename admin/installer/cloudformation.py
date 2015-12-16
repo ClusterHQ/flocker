@@ -7,7 +7,7 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 
 OWNER = u"richardw"
-NUM_NODES = 1
+NUM_NODES = 2
 NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 
 template = Template()
@@ -76,6 +76,7 @@ for i in range(NUM_NODES):
             's3_bucket="', Ref(s3bucket), '"\n',
             open('flocker-configuration-getter.sh').read()
             ]))
+        ec2_instance.DependsOn = control_service_instance.name
 
     template.add_resource(ec2_instance)
     template.add_output([
