@@ -103,8 +103,7 @@ from ...testtools import (
     ControllableAction,
 )
 from ....testtools import (
-    REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
-    AsyncTestCase
+    REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
@@ -1273,7 +1272,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
     """
     def setUp(self):
         self._deployer = None
-        self._cluster_state = DeploymentState(nodes=[self._empty_node_state()])
+        self._cluster_state = None
 
     @property
     def deployer(self):
@@ -1284,6 +1283,17 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         if self._deployer is None:
             self._deployer = create_blockdevicedeployer(self)
         return self._deployer
+
+    @property
+    def cluster_state(self):
+        """
+        Lazily created ``DeploymentState``. Created lazily as it is created
+        based on ``self.deployer``.
+        """
+        if self._cluster_state is None:
+            self._cluster_state = DeploymentState(
+                nodes=[self._empty_node_state()])
+        return self._cluster_state
 
     def _empty_node_state(self):
         """
@@ -1311,7 +1321,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
 
         for change in local_state.shared_state_changes():
             self._cluster_state = change.update_cluster_state(
-                self._cluster_state)
+                self.cluster_state)
         return local_state
 
     def current_datasets(self):
@@ -1324,7 +1334,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         """
         Return the current state of the cluster.
         """
-        return self._cluster_state
+        return self.cluster_state
 
     def run_convergence_step(self, desired_datasets):
         """
@@ -5505,6 +5515,7 @@ def make_icloudapi_tests(
                           self.assertIn(self.api.compute_instance_id(), live))
             return d
     return Tests
+
 
 def _surround_with_callbacks_decorator(method_name, callback, proxy_object):
     """
