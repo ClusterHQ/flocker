@@ -696,7 +696,7 @@ common_cli:
 
 
   source_git_commit: &source_git_commit |
-    # we use a script 'git-commit.sh' to pass any variables from the host
+    # we use a script 'git-commit.sh' to pass any the git commit sha1
     # to our vagrant machine. This file is copied and sourced as part of our
     # build.sh run inside the virtual machine.
     chmod 755 git-commit.sh
