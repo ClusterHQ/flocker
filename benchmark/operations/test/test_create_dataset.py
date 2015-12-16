@@ -65,12 +65,16 @@ class CreateDatasetTests(SynchronousTestCase):
             return d
         d.addCallback(run_probe)
 
+        # Advance the clock because probe periodically polls the state.
+
+        # The Deferred does not fire before the dataset has been created.
         clock.advance(1)
         self.assertNoResult(d)
 
+        # Trigger convergence of the fake Flocker cluster.
         control_service.synchronize_state()
 
-        # Advance the clock, because probe periodically polls the state.
+        # The Deferred fires once the dataset has been created.
         clock.advance(1)
         self.successResultOf(d)
 

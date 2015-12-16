@@ -22,6 +22,9 @@ class EmptyClusterError(Exception):
 
 @implementer(IProbe)
 class CreateDatasetConvergenceProbe(PClass):
+    """
+    Probe to create a dataset and wait for cluster to converge.
+    """
 
     reactor = field(mandatory=True)
     control_service = field(mandatory=True)
@@ -30,9 +33,16 @@ class CreateDatasetConvergenceProbe(PClass):
     volume_size = field(mandatory=True)
 
     @classmethod
-    def from_control_service(
-        cls, reactor, control_service, dataset_id, volume_size
-    ):
+    def setup(cls, reactor, control_service, dataset_id, volume_size):
+        """
+        Create a probe.
+
+        :param reactor: Twisted Reactor.
+        :param control_service: Benchmark control service.
+        :param UUID dataset_id: UUID for created dataset.
+        :param int volume_size: Size of created volume, in bytes.
+        :return: Deferred firing with a new probe.
+        """
         d = control_service.list_nodes()
 
         def pick_primary(nodes):
@@ -51,6 +61,14 @@ class CreateDatasetConvergenceProbe(PClass):
         return d
 
     def _converged(self, expected):
+        """
+        Check whether a dataset has been created.
+
+        :param expected: A dataset dictionary to match against the results of
+            ``list_datasets_state``.
+        :return: a Deferred that fires True if the expected dataset exists in
+            the cluster, or False otherwise.
+        """
         d = self.control_service.list_datasets_state()
 
         def dataset_matches(inspecting, expected):
@@ -68,6 +86,9 @@ class CreateDatasetConvergenceProbe(PClass):
         return d
 
     def run(self):
+        """
+        Create a dataset, then wait for convergence.
+        """
         d = self.control_service.create_dataset(
             primary=self.primary.uuid,
             maximum_size=self.volume_size,
@@ -84,6 +105,9 @@ class CreateDatasetConvergenceProbe(PClass):
         return d
 
     def cleanup(self):
+        """
+        Delete the dataset created by the probe.
+        """
         return self.control_service.delete_dataset(dataset_id=self.dataset_id)
 
 
@@ -99,6 +123,6 @@ class CreateDatasetConvergence(object):
             self.volume_size = volume_size
 
     def get_probe(self):
-        return CreateDatasetConvergenceProbe.from_control_service(
+        return CreateDatasetConvergenceProbe.setup(
             self.reactor, self.control_service, uuid4(), self.volume_size
         )
