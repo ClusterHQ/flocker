@@ -44,7 +44,7 @@ from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
 from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
-from ..node.agents.ebs import aws_from_configuration
+from ..node.script import AgentService
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
@@ -206,12 +206,6 @@ def get_backend_api(test_case, cluster_id):
     :param cluster_id: The unique cluster_id, used for backend APIs that
         require this in order to be constructed.
     """
-    backend_type = get_dataset_backend(test_case)
-    if backend_type != DatasetBackend.aws:
-        raise SkipTest(
-            'This test is asking for backend type {} but only constructing '
-            'aws backends is currently supported'.format(backend_type.name))
-    backend_name = backend_type.name
     backend_config_filename = environ.get(
         "FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG")
     if backend_config_filename is None:
@@ -223,10 +217,8 @@ def get_backend_api(test_case, cluster_id):
     backend_config_filepath = FilePath(backend_config_filename)
     full_backend_config = yaml.safe_load(
         backend_config_filepath.getContent())
-    backend_config = full_backend_config.get(backend_name)
-    if 'backend' in backend_config:
-        backend_config.pop('backend')
-    return aws_from_configuration(cluster_id=cluster_id, **backend_config)
+    agent_service = AgentService.from_configuration(full_backend_config)
+    return agent_service.get_api()
 
 
 def skip_backend(unsupported, reason):
