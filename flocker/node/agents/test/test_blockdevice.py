@@ -432,7 +432,7 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
 
     def attached_dataset_test(self, state, pass_device_path=True):
         """
-        When there is a a dataset in the given attached state,
+        When there is a dataset in the given attached state,
         it is reported as a non-manifest dataset.
 
         :param state: Either ``DatasetStates.ATTACHED``,
