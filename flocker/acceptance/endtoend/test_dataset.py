@@ -114,7 +114,7 @@ class DatasetAPITests(AsyncTestCase):
     @require_cluster(2)
     def test_dataset_move_from_dead_node(self, cluster):
         """
-        A dataset can be moved from one node to another.
+        A dataset can be moved from a dead node to a live node.
 
         All attributes, including the maximum size, are preserved.
         """
