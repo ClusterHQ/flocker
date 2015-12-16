@@ -51,7 +51,7 @@ All nodes must be configured to use the same dataset backend.
 Storage Profiles
 ================
 
-.. include:: ../concepts/storage-profiles.rst
+.. include:: storage-profiles.rst
    :start-after: .. begin-body
    :end-before: .. end-body
 

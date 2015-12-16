@@ -97,6 +97,7 @@ Supported Operating Systems
     </div>
     <div style="clear:both;"></div>
 
+
 .. toctree::
    :maxdepth: 2
 
@@ -105,6 +106,7 @@ Supported Operating Systems
    kubernetes-integration/index
    mesos-integration/index
    flocker-standalone/index
+   labs/index
    releasenotes/index
    faq/index
    gettinginvolved/index
@@ -115,5 +117,3 @@ Supported Operating Systems
    :hidden:
 
    version
-
-.. _Getting Started with Flocker: https://clusterhq.com/flocker/getting-started/

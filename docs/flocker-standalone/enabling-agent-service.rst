@@ -6,7 +6,7 @@ Enabling the Flocker Agent Service
 
 The Flocker agents, the ``flocker-dataset-agent`` and the ``flocker-container-agent``, are the workhorses of Flocker; you have them on each node in your cluster, and enabling them is an essential step in setting up your cluster.
 
-:ref:`docker-plugin` (``flocker-docker-plugin``) is also installed on each node in the cluster.
+:ref:`plugin` (``flocker-docker-plugin``) is also installed on each node in the cluster.
 The instructions below include enabling and testing the plugin, which allows Flocker to manage your data volumes while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers.
 
 .. note::
