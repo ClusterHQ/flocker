@@ -13,6 +13,7 @@ NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 S3_SETUP = 'setup_s3.sh'
 DOCKER_SETUP = 'setup_docker.sh'
 SWARM_MANAGER_SETUP = 'setup_swarm_manager.sh'
+SWARM_NODE_SETUP = 'setup_swarm_node.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
 FLOCKER_CONFIGURATION_GETTER = 'flocker-configuration-getter.sh'
 
@@ -90,6 +91,7 @@ for i in range(NUM_NODES):
         ec2_instance.DependsOn = control_service_instance.name
 
     user_data += sibling_lines(FLOCKER_CONFIGURATION_GETTER)
+    user_data += sibling_lines(SWARM_NODE_SETUP)
     ec2_instance.UserData = Base64(Join("", user_data))
 
     template.add_resource(ec2_instance)
