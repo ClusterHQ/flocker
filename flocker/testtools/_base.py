@@ -16,7 +16,7 @@ import testtools
 from testtools.content import Content, text_content
 from testtools.content_type import UTF8_TEXT
 from testtools.deferredruntest import (
-    AsynchronousDeferredRunTestForBrokenTwisted,
+    AsynchronousDeferredRunTestForBrokenTwisted, assert_fails_with,
 )
 
 try:
@@ -131,6 +131,15 @@ class AsyncTestCase(testtools.TestCase, _MktempMixin):
     def setUp(self):
         super(AsyncTestCase, self).setUp()
         self.useFixture(_SplitEliotLogs())
+
+    def assertFailure(self, deferred, exception):
+        """
+        ``twisted.trial.unittest.TestCase.assertFailure``-alike.
+
+        This is not completely compatible.  ``assert_fails_with`` should be
+        preferred for new code.
+        """
+        return assert_fails_with(deferred, exception)
 
 
 class _SplitEliotLogs(Fixture):

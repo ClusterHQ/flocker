@@ -34,8 +34,10 @@ from testtools.matchers import (
     PathExists,
     StartsWith,
 )
+from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 
+from .. import CustomException, AsyncTestCase
 from .._base import (
     make_temporary_directory,
     _SplitEliotLogs,
@@ -348,3 +350,41 @@ class BelowPath(Matcher):
         return Annotate(
             "%s in not beneath %s" % (child, self._parent),
             Contains(self._parent)).match(child.parents())
+
+
+class AssertFailureTests(TesttoolsTestCase):
+    """
+    Tests for the Twisted-compatibility ``AsyncTestCase.assertFailure`` method.
+    """
+    def test_success(self):
+        """
+        ``assertFailure`` fails if the deferred succeeds.
+        """
+
+        class Tests(AsyncTestCase):
+            def test_success(self):
+                return self.assertFailure(succeed(None), ValueError)
+
+        result = run_test(Tests('test_success'))
+        self.assertThat(
+            result,
+            has_results(failures=HasLength(1), tests_run=Equals(1)))
+
+    def test_failure(self):
+        """
+        ``assertFailure`` returns the exception if the deferred fires with a
+        failure.
+        """
+        class Tests(AsyncTestCase):
+            def test_success(self):
+                exc = CustomException()
+                d = self.assertFailure(fail(exc), type(exc))
+                d.addCallback(
+                    lambda exception: self.assertThat(exception, Equals(exc))
+                )
+                return d
+
+        result = run_test(Tests('test_success'))
+        self.assertThat(
+            result,
+            has_results(tests_run=Equals(1)))
