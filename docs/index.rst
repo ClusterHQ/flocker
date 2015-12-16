@@ -14,10 +14,10 @@ Flocker is an open-source project, and in our :ref:`Getting Involved section<get
    :maxdepth: 2
 
    introduction/index
-   integration-swarm/index
-   integration-kubernetes/index
-   integration-mesos/index
-   integration-other/index
+   docker-integration/index
+   kubernetes-integration/index
+   mesos-integration/index
+   flocker-standalone/index
    releasenotes/index
    faq/index
    gettinginvolved/index
