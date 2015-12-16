@@ -389,55 +389,16 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
             expected_changes,
         )
 
-    def test_non_manifest_dataset(self):
+    def non_manifest_dataset_test(self, state, pass_device_path=True):
         """
-        When there is a dataset in the ``NON_MANIFEST`` state,
-        it is reported as a non-manifest dataset.
-        """
-        dataset_id = uuid4()
-        local_state = BlockDeviceDeployerLocalState(
-            node_uuid=self.node_uuid,
-            hostname=self.hostname,
-            datasets={
-                dataset_id: DiscoveredDataset(
-                    state=DatasetStates.NON_MANIFEST,
-                    dataset_id=dataset_id,
-                    blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
-                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                ),
-            },
-        )
-        expected_changes = (
-            NodeState(
-                uuid=self.node_uuid,
-                hostname=self.hostname,
-                manifestations={},
-                paths={},
-                devices={},
-                applications=None
-            ),
-            NonManifestDatasets(
-                datasets={
-                    unicode(dataset_id): Dataset(
-                        dataset_id=dataset_id,
-                        maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-                    ),
-                },
-            )
-        )
-        self.assertEqual(
-            local_state.shared_state_changes(),
-            expected_changes,
-        )
+        When there is a dataset that exists but is not manifest locally, it is
+        reported as a non-manifest dataset.
 
-    def attached_dataset_test(self, state, pass_device_path=True):
-        """
-        When there is a dataset in the given attached state,
-        it is reported as a non-manifest dataset.
-
-        :param state: Either ``DatasetStates.ATTACHED``,
+        :param state: Either ``DatasetStates.NOT_MANIFEST``,
+            ``DatasetStates.ATTACHED``,
             ``DatasetStates.ATTACHED_NO_FILESYSTEM`` or
             ``DatasetStates.ATTACHED_TO_DEAD_NODE``.
+
         :param pass_device_path: If false don't create
             ``DiscoveredDataset`` with device path.
         """
@@ -484,27 +445,35 @@ class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
             expected_changes,
         )
 
+    def test_non_manifest_dataset(self):
+        """
+        When there is a dataset in the ``NON_MANIFEST`` state,
+        it is reported as a non-manifest dataset.
+        """
+        self.non_manifest_dataset_test(DatasetStates.NON_MANIFEST,
+                                       pass_device_path=False)
+
     def test_attached_dataset(self):
         """
         When there is a a dataset in the ``ATTACHED`` state,
         it is reported as a non-manifest dataset.
         """
-        self.attached_dataset_test(DatasetStates.ATTACHED)
+        self.non_manifest_dataset_test(DatasetStates.ATTACHED)
 
     def test_attached_no_filesystem_dataset(self):
         """
         When there is a a dataset in the ``ATTACHED_NO_FILESYSTEM`` state,
         it is reported as a non-manifest dataset.
         """
-        self.attached_dataset_test(DatasetStates.ATTACHED_NO_FILESYSTEM)
+        self.non_manifest_dataset_test(DatasetStates.ATTACHED_NO_FILESYSTEM)
 
     def test_attached_to_dead_node_dataset(self):
         """
         When there is a a dataset in the ``ATTACHED_TO_DEAD_NODE`` state,
         it is reported as a non-manifest dataset.
         """
-        self.attached_dataset_test(DatasetStates.ATTACHED_TO_DEAD_NODE,
-                                   pass_device_path=False)
+        self.non_manifest_dataset_test(DatasetStates.ATTACHED_TO_DEAD_NODE,
+                                       pass_device_path=False)
 
     def test_mounted_dataset(self):
         """
