@@ -1,2 +1,2 @@
-Flocker with Docker
-===================
+Flocker with Docker Swarm
+=========================
