@@ -28,10 +28,12 @@ from pyrsistent import (
     PClass, field, discard, pmap, pvector,
 )
 
+from characteristic import attributes
+
 from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
-    dictionaries
+    dictionaries, tuples
 )
 
 from twisted.internet import reactor
@@ -93,7 +95,7 @@ from ..loopback import (
     _losetup_list, _blockdevicevolume_from_dataset_id,
     _backing_file_name,
 )
-from ....common.algebraic import tagged_union_strategy, merge_tagged_unions
+from ....common.algebraic import tagged_union_strategy
 
 
 from ... import run_state_change, in_parallel, ILocalState, NoOp, IStateChange
@@ -150,19 +152,43 @@ DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
     blockdevice_id=_create_blockdevice_id_for_test(dataset.dataset_id),
 ))
 
+# Text generation is slow, in order to speed up tests and make the output more
+# readable, use short strings and a small legible alphabet. Given the way
+# metadata is used in the code this should not be detrimental to test coverage.
+_METADATA_STRATEGY = text(average_size=3, min_size=1, alphabet="CGAT")
+
+DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
+    'dataset_id': uuids(),
+    'maximum_size': integers(min_value=0).map(
+        lambda n:
+        LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        + n*LOOPBACK_ALLOCATION_UNIT),
+    'metadata': dictionaries(keys=_METADATA_STRATEGY,
+                             values=_METADATA_STRATEGY),
+    'mount_point': builds(FilePath, sampled_from([
+        '/flocker/abc', '/flocker/xyz',
+    ])),
+}
+
 DESIRED_DATASET_STRATEGY = tagged_union_strategy(
     DesiredDataset,
-    {
-        'dataset_id': uuids(),
-        'maximum_size': integers(min_value=0).map(
-            lambda n:
-            LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-            + n*LOOPBACK_ALLOCATION_UNIT),
-        'metadata': dictionaries(keys=text(), values=text()),
-        'mount_point': builds(FilePath, sampled_from([
-            '/flocker/abc', '/flocker/xyz',
-        ])),
-    }
+    DESIRED_DATASET_ATTRIBUTE_STRATEGIES
+)
+
+_NoSuchThing = object()
+
+# This strategy creates two `DESIRED_DATASET_STRATEGY`s with as much in common
+# as possible. This is supposed to approximate two potentially different
+# `DesiredDataset` states for the same dataset.
+TWO_DESIRED_DATASET_STRATEGY = DESIRED_DATASET_STRATEGY.flatmap(
+    lambda x: tuples(just(x), tagged_union_strategy(
+        DesiredDataset,
+        dict(DESIRED_DATASET_ATTRIBUTE_STRATEGIES, **{
+            attribute: just(getattr(x, attribute))
+            for attribute in DESIRED_DATASET_ATTRIBUTE_STRATEGIES
+            if getattr(x, attribute, _NoSuchThing) is not _NoSuchThing
+        })
+    ))
 )
 
 
@@ -1167,10 +1193,13 @@ def compare_dataset_states(discovered_datasets, desired_datasets):
     return True
 
 
+@attributes(["iteration_count"])
 class DidNotConverge(Exception):
     """
     Raised if running convergence with an ``ICalculator`` does not converge
     in the specified number of iterations.
+
+    :ivar iteration_count: The count of iterations before this was raised.
     """
 
 
@@ -1351,13 +1380,16 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         note("Running changes: {changes}".format(changes=changes))
         self.successResultOf(run_state_change(changes, self.deployer))
 
-    def run_to_convergence(self, desired_datasets, max_iterations=6):
+    def run_to_convergence(self, desired_datasets, max_iterations=20):
         """
         Run the calculator until it converges on the desired state.
 
         :param desired_datasets: The dataset state to converge to.
         :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
         :param int max_iterations: The maximum number of steps to iterate.
+            Defaults to 20 on the assumption that iterations are cheap, and
+            that there will always be fewer than 20 steps to transition from
+            one desired state to another if there are no bugs.
         """
         for i in range(max_iterations):
             self.run_convergence_step(
@@ -1369,18 +1401,19 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
             ):
                 break
         else:
-            raise DidNotConverge()
+            raise DidNotConverge(iteration_count=max_iterations)
 
     @given(
-        initial_dataset=DESIRED_DATASET_STRATEGY,
-        next_dataset=DESIRED_DATASET_STRATEGY,
+        two_dataset_states=TWO_DESIRED_DATASET_STRATEGY
     )
-    def test_simple_transitions(self, initial_dataset, next_dataset):
+    def test_simple_transitions(self, two_dataset_states):
         """
         Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
         dataset.
         """
+        initial_dataset, next_dataset = two_dataset_states
+
         dataset_id = initial_dataset.dataset_id
 
         # Set the mountpoint to a real mountpoint in desired dataset states
@@ -1392,24 +1425,20 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         if hasattr(next_dataset, 'mount_point'):
             next_dataset = next_dataset.set(mount_point=mount_point)
 
-        # Merge fields from initial_dataset into next_dataset (such as
-        # dataset_id) so that we are changing the desired state of the same
-        # dataset.
-        next_dataset = merge_tagged_unions(DesiredDataset,
-                                           initial_dataset,
-                                           next_dataset)
-
         # Converge to the initial state.
         try:
             self.run_to_convergence([initial_dataset])
-        except DidNotConverge:
-            self.fail("Did not converge to initial state after 10 iterations")
+        except DidNotConverge as e:
+            self.fail(
+                "Did not converge to initial state after %d iterations." %
+                e.iteration_count)
 
         # Converge from the initial state to the next state.
         try:
             self.run_to_convergence([next_dataset])
-        except DidNotConverge:
-            self.fail("Did not converge to next state after 10 iterations")
+        except DidNotConverge as e:
+            self.fail("Did not converge to next state after %d iterations." %
+                      e.iteration_count)
 
     @given(
         initial_dataset=DESIRED_DATASET_STRATEGY,
