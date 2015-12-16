@@ -36,6 +36,7 @@ _SCENARIOS = {
 }
 
 _OPERATIONS = {
+    'create-dataset': operations.CreateDatasetConvergence,
     'no-op': operations.NoOperation,
     'read-request': operations.ReadRequest,
     'wait': operations.Wait,
