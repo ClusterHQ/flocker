@@ -10,6 +10,7 @@ set -ex
 : ${access_key_id:?}
 : ${secret_access_key:?}
 : ${node_count:?}
+: ${s3_bucket:?}
 
 control_service_ip=$(/usr/bin/ec2metadata --public-ipv4)
 rm -rf /tmp/flocker-config
@@ -29,6 +30,7 @@ version: 1
 EOF
 
 pushd /tmp/flocker-config
+
 /opt/flocker/bin/flocker-ca initialize flocker-cluster
 /opt/flocker/bin/flocker-ca create-api-certificate user1
 
@@ -53,4 +55,4 @@ popd
 
 popd
 
-/usr/bin/s3cmd put --config=/root/.s3cfg --recursive /tmp/flocker-config/ s3://${s3_bucket}
+/usr/bin/s3cmd put --config=/root/.s3cfg --recursive /tmp/flocker-config/ s3://${s3_bucket}/flocker-config

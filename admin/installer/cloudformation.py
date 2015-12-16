@@ -12,6 +12,7 @@ NUM_NODES = 2
 NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 S3_SETUP = 'setup_s3.sh'
 DOCKER_SETUP = 'setup_docker.sh'
+SWARM_MANAGER_SETUP = 'setup_swarm_manager.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
 FLOCKER_CONFIGURATION_GETTER = 'flocker-configuration-getter.sh'
 
@@ -84,6 +85,7 @@ for i in range(NUM_NODES):
     if i == 0:
         control_service_instance = ec2_instance
         user_data += sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
+        user_data += sibling_lines(SWARM_MANAGER_SETUP)
     else:
         ec2_instance.DependsOn = control_service_instance.name
 

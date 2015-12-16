@@ -9,7 +9,7 @@ set -ex
 
 FLOCKER_CONFIG_DIRECTORY="/etc/flocker"
 TMP_DIR="$(mktemp --directory '/etc/flocker.XXXXXXXXXX')"
-/usr/bin/s3cmd get --config=/root/.s3cfg s3://${s3_bucket}/${node_number}/* "${TMP_DIR}"
+/usr/bin/s3cmd get --config=/root/.s3cfg s3://${s3_bucket}/flocker-config/${node_number}/* "${TMP_DIR}"
 if test -d "${FLOCKER_CONFIG_DIRECTORY}"; then
     mv "${FLOCKER_CONFIG_DIRECTORY}"{,.backup.$(date +%s)}
 fi
