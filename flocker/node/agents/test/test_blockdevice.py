@@ -165,6 +165,8 @@ DESIRED_DATASET_STRATEGY = tagged_union_strategy(
     DESIRED_DATASET_ATTRIBUTE_STRATEGIES
 )
 
+_NoSuchThing = object()
+
 # This strategy creates two `DESIRED_DATASET_STRATEGY`s with as much in common
 # as possible. This is supposed to approximate two potentially different
 # `DesiredDataset` states for the same dataset.
@@ -174,7 +176,7 @@ TWO_DESIRED_DATASET_STRATEGY = DESIRED_DATASET_STRATEGY.flatmap(
         dict(DESIRED_DATASET_ATTRIBUTE_STRATEGIES, **{
             attribute: just(getattr(x, attribute))
             for attribute in DESIRED_DATASET_ATTRIBUTE_STRATEGIES
-            if hasattr(x, attribute)
+            if getattr(x, attribute, _NoSuchThing) is not _NoSuchThing
         })
     ))
 )
