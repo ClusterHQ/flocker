@@ -98,7 +98,7 @@ for i in range(NUM_NODES):
         ec2_instance.DependsOn = control_service_instance.name
     template.add_output([
         Output(
-            "FlockerNodeIP",
+            "FlockerNode{}IP".format(i),
             Description="Public IP address of a Flocker Agent node.",
             Value=GetAtt(ec2_instance, "PublicIp"),
         )

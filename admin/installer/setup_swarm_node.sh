@@ -5,7 +5,7 @@ set -ex
 : ${s3_bucket:?}
 
 # Gather Swarm cluster id from S3 bucket.
-swarm_cluster_id=$(/usr/bin/s3cmd get --config=/root/.s3cfg s3://${s3_bucket}/swarm-config/swarm_cluster_id -) 
+swarm_cluster_id=$(s3cmd_wrapper get --config=/root/.s3cfg s3://${s3_bucket}/swarm-config/swarm_cluster_id -) 
 
 # Start the Swarm node.
 docker pull swarm:1.0.1
