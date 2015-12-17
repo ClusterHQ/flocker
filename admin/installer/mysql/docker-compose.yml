@@ -1,0 +1,10 @@
+database10:
+  image: mysql:latest
+  environment:
+     - "MYSQL_ROOT_PASSWORD=secret"
+     - "constraint:flocker-node==0"
+  ports:
+    - "3306:3306"
+  volume_driver: flocker
+  volumes:
+     - 'database10:/var/lib/mysql'

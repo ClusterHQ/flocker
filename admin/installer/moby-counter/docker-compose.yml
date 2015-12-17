@@ -1,0 +1,16 @@
+web:
+  image: binocarlos/moby-counter:latest
+  environment:
+     - "USE_REDIS_HOST=redis"
+     - "constraint:node==ip-10-138-109-210"
+  links:
+    - redis
+  ports:
+    - "80:80"
+redis:
+  image: redis:latest
+  environment:
+     - "constraint:node==ip-10-138-109-210"
+  volume_driver: flocker
+  volumes:
+     - 'm12:/m12data'
