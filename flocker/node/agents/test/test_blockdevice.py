@@ -1294,61 +1294,51 @@ class _WriteVerifyingExternalClient(object):
         return thing
 
 
-class BlockDeviceCalculatorTests(SynchronousTestCase):
+def _empty_node_state(deployer):
     """
-    Tests for ``BlockDeviceCalculator``.
+    Returns an empty node state for the node the deployer is created on.
     """
-    def setUp(self):
-        self._deployer = None
-        self._cluster_state = None
+    return NodeState(
+        uuid=deployer.node_uuid,
+        hostname=deployer.hostname,
+        applications=[],
+    )
 
-    @property
-    def deployer(self):
-        """
-        Lazily created ``BlockDeviceDeployer``. Tests that want to initialize
-        their own can do so by initializing self._deployer.
-        """
-        if self._deployer is None:
-            self._deployer = create_blockdevicedeployer(self)
-        return self._deployer
 
-    @property
-    def cluster_state(self):
-        """
-        Lazily created ``DeploymentState``. Created lazily as it is created
-        based on ``self.deployer``.
-        """
-        if self._cluster_state is None:
-            self._cluster_state = DeploymentState(
-                nodes=[self._empty_node_state()])
-        return self._cluster_state
+@attributes(["test_case", "deployer", "cluster_state"], apply_with_init=False)
+class BlockDeviceCalculatorTestObjects(object):
+    """
+    Object to house all test objects for the tests in
+    ``BlockDeviceCalculatorInterfaceTests`` that use hypothesis. hypothesis
+    does not call setUp and tearDown before and after each example is run, so
+    it is sometimes more convenient just to construct objects for the duration
+    of the function to prevent leaking state from one run to the next.
 
-    def _empty_node_state(self):
-        """
-        Returns an empty node state for the node the deployer is created on.
-        """
-        return NodeState(
-            uuid=self.deployer.node_uuid,
-            hostname=self.deployer.hostname,
-            applications=[],
+    :ivar test_case: The TestCase to use for assertions and cleanup callbacks.
+    :ivar deployer: The ``IDeployer`` that will be used to run changes.
+    :ivar cluster_state: The current cluster state, updated everytime
+        ``discover_state`` is run on the deployer.
+    """
+
+    def __init__(self, test_case, deployer=None):
+        if deployer is None:
+            deployer = create_blockdevicedeployer(test_case)
+        self.test_case = test_case
+        self.deployer = deployer
+        self.cluster_state = DeploymentState(
+            nodes=[_empty_node_state(deployer)]
         )
-
-    def teardown_example(self, token):
-        """
-        Cleanup after running a hypothesis example.
-        """
-        detach_destroy_volumes(self.deployer.block_device_api)
 
     def current_local_state(self):
         """
         Return the current ``BlockDeviceDeployerLocalState`` from the deployer.
         """
-        local_state = self.successResultOf(self.deployer.discover_state(
-            self._empty_node_state()
-        ))
+        local_state = self.test_case.successResultOf(
+            self.deployer.discover_state(_empty_node_state(self.deployer))
+        )
 
         for change in local_state.shared_state_changes():
-            self._cluster_state = change.update_cluster_state(
+            self.cluster_state = change.update_cluster_state(
                 self.cluster_state)
         return local_state
 
@@ -1377,7 +1367,8 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
             desired_datasets=desired_datasets,
         )
         note("Running changes: {changes}".format(changes=changes))
-        self.successResultOf(run_state_change(changes, self.deployer))
+        self.test_case.successResultOf(
+            run_state_change(changes, self.deployer))
 
     def run_to_convergence(self, desired_datasets, max_iterations=20):
         """
@@ -1402,6 +1393,11 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         else:
             raise DidNotConverge(iteration_count=max_iterations)
 
+
+class BlockDeviceCalculatorTests(SynchronousTestCase):
+    """
+    Tests for ``BlockDeviceCalculator``.
+    """
     @given(
         two_dataset_states=TWO_DESIRED_DATASET_STRATEGY
     )
@@ -1411,13 +1407,15 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         to any ``DesiredDataset``, followed by any other state of the same
         dataset.
         """
+        test_objects = BlockDeviceCalculatorTestObjects(self)
+
         initial_dataset, next_dataset = two_dataset_states
 
         dataset_id = initial_dataset.dataset_id
 
         # Set the mountpoint to a real mountpoint in desired dataset states
         # that have a mount point attribute.
-        mount_point = self.deployer._mountpath_for_dataset_id(
+        mount_point = test_objects.deployer._mountpath_for_dataset_id(
             unicode(dataset_id))
         if hasattr(initial_dataset, 'mount_point'):
             initial_dataset = initial_dataset.set(mount_point=mount_point)
@@ -1426,7 +1424,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
 
         # Converge to the initial state.
         try:
-            self.run_to_convergence([initial_dataset])
+            test_objects.run_to_convergence([initial_dataset])
         except DidNotConverge as e:
             self.fail(
                 "Did not converge to initial state after %d iterations." %
@@ -1434,7 +1432,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
 
         # Converge from the initial state to the next state.
         try:
-            self.run_to_convergence([next_dataset])
+            test_objects.run_to_convergence([next_dataset])
         except DidNotConverge as e:
             self.fail("Did not converge to next state after %d iterations." %
                       e.iteration_count)
@@ -1453,8 +1451,6 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         This would represent an agent like docker attempting to use a path
         before or after flocker was ready for it to use the path.
         """
-        self._deployer = None
-        self._cluster_state = None
         initial_dataset, next_dataset = two_dataset_states
 
         dataset_id = initial_dataset.dataset_id
@@ -1469,21 +1465,24 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
             actual_blockdevice_manager, nullable_callback)
 
-        self._deployer = create_blockdevicedeployer(
-            self, block_device_manager=proxy_blockdevice_manager)
+        test_objects = BlockDeviceCalculatorTestObjects(
+            self,
+            create_blockdevicedeployer(
+                self, block_device_manager=proxy_blockdevice_manager)
+        )
 
         external_agent = _WriteVerifyingExternalClient(
             dataset_id,
-            self.deployer.node_uuid,
+            test_objects.deployer.node_uuid,
             mountroot_for_test(self),
             actual_blockdevice_manager)
 
         evaluate_function = partial(external_agent.invariant, self,
-                                    self.current_cluster_state)
+                                    test_objects.current_cluster_state)
 
         # Set the mountpoint to a real mountpoint in desired dataset states
         # that have a mount point attribute.
-        mount_point = self.deployer._mountpath_for_dataset_id(
+        mount_point = test_objects.deployer._mountpath_for_dataset_id(
             unicode(dataset_id))
         if hasattr(initial_dataset, 'mount_point'):
             initial_dataset = initial_dataset.set(mount_point=mount_point)
@@ -1492,7 +1491,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
 
         # Converge to the initial state.
         try:
-            self.run_to_convergence([initial_dataset])
+            test_objects.run_to_convergence([initial_dataset])
         except DidNotConverge as e:
             self.fail(
                 "Did not converge to initial state after %d iterations." %
@@ -1500,7 +1499,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
 
         # Converge from the initial state to the next state.
         try:
-            self.run_to_convergence([next_dataset])
+            test_objects.run_to_convergence([next_dataset])
         except DidNotConverge as e:
             self.fail("Did not converge to next state after %d iterations." %
                       e.iteration_count)
