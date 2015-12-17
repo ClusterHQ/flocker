@@ -8,6 +8,7 @@ from errno import ENOTDIR
 from functools import partial
 from os import getuid
 import time
+from time import sleep
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output, check_call
 from stat import S_IRWXU
@@ -40,6 +41,7 @@ from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest, TestCase
+from twisted.internet.task import Clock
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
@@ -1206,7 +1208,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         """
         Cleanup after running a hypothesis example.
         """
-        umount_all(self.deployer.mountroot)
+        umount_all(self.deployer.mountroot, self)
         detach_destroy_volumes(self.deployer.block_device_api)
 
     def current_datasets(self):
@@ -4157,11 +4159,13 @@ def umount(unmount_target):
     check_output(['umount', unmount_target.path])
 
 
-def umount_all(root_path):
+def umount_all(root_path, test_case):
     """
     Unmount all devices with mount points contained in ``root_path``.
 
     :param FilePath root_path: A directory in which to search for mount points.
+    :param TestCase test_case: A Twisted ``TestCase`` with a
+        ``successResultOf`` method.
     """
     def is_under_root(path):
         try:
@@ -4173,14 +4177,26 @@ def umount_all(root_path):
     def create_umount_callable(partition):
         return lambda: umount(FilePath(partition.mountpoint))
 
+    clock = Clock()
+
     deferreds = list(
-        retry_failure(reactor,
+        retry_failure(clock,
                       create_umount_callable(partition),
                       steps=[0.1] * CLEANUP_RETRY_LIMIT)
         for partition in psutil.disk_partitions()
         if is_under_root(partition.mountpoint))
 
-    return gather_deferreds(deferreds)
+    # Block until all delayed calls are no longer active.
+    delayed_calls = list(d for d in clock.getDelayedCalls() if d.active())
+    while delayed_calls:
+        next_call = next(sorted(x.getTime() for x in delayed_calls))
+        seconds_til_next = max(0, next_call - clock.seconds())
+        sleep(seconds_til_next)
+        clock.advance(seconds_til_next)
+        delayed_calls = list(d for d in clock.getDelayedCalls() if d.active())
+
+    # Verify that all deferred have concluded at this point.
+    test_case.successResultOf(gather_deferreds(deferreds))
 
 
 def mountroot_for_test(test_case):
@@ -4193,7 +4209,7 @@ def mountroot_for_test(test_case):
     """
     mountroot = FilePath(test_case.mktemp())
     mountroot.makedirs()
-    test_case.addCleanup(umount_all, mountroot)
+    test_case.addCleanup(umount_all, mountroot, test_case)
     return mountroot
 
 
