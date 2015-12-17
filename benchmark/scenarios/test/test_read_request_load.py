@@ -367,8 +367,8 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         c.pump(repeat(1, sample_size))
 
         # Force the control service to fail requests for one second.
-		# These requests will fail after the delay period set in the
-		# control service.
+        # These requests will fail after the delay period set in the
+        # control service.
         cluster.get_control_service(c).fail_requests = True
         c.advance(1)
         cluster.get_control_service(c).fail_requests = False
