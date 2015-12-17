@@ -6,6 +6,10 @@ scenarios:
     type: read-request-load
     request_rate: 5
 
+  - name: write-request-5
+    type: write-request-load
+    request_rate: 5
+
 operations:
   - name: default
     type: read-request
