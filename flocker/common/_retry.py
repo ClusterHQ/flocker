@@ -43,6 +43,16 @@ def function_serializer(function):
         return {
             "function": str(function),
         }
+    except TypeError:
+        # Callable not supported by inspect module
+        if isinstance(function, partial):
+            return {
+                'partial': function_serializer(function.func)
+            }
+        else:
+            return {
+                "function": str(function),
+            }
 
 
 class LoopExceeded(Exception):

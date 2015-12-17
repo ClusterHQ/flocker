@@ -5,6 +5,7 @@ Tests for ``flocker.common._retry``.
 """
 
 from datetime import timedelta
+from functools import partial
 from itertools import repeat
 
 from eliot import MessageType, fields
@@ -192,6 +193,32 @@ class LoopUntilTests(SynchronousTestCase):
         self.assertEqual(
             str(self.failureResultOf(d).value),
             str(LoopExceeded(predicate, False)))
+
+    @capture_logging(None)
+    def test_partial_predicate(self, logger):
+        """
+        Predicate can be a functools.partial function.
+        """
+        result = object()
+
+        def check():
+            return result
+        predicate = partial(check)
+
+        clock = Clock()
+        d = loop_until(clock, predicate)
+        self.assertEqual(
+            self.successResultOf(d),
+            result)
+
+        action = LoggedAction.of_type(logger.messages, LOOP_UNTIL_ACTION)[0]
+        assertContainsFields(self, action.start_message, {
+            'predicate': predicate,
+        })
+        assertContainsFields(self, action.end_message, {
+            'action_status': 'succeeded',
+            'result': result,
+        })
 
 
 class TimeoutTests(SynchronousTestCase):
