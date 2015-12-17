@@ -450,21 +450,6 @@ def _ensure_encodeable(value):
     return value
 
 
-def _propagate_reason(original_reason, reactor, deadline, propagation_reason):
-    if reactor.seconds() >= deadline:
-        # A rough heuristic for determining if this cancellation is due to the
-        # timeout instead of caused by something else.  Would be nicer if
-        # ``timeout`` had support for specifying an exception.
-        raise propagation_reason
-    return original_reason
-
-
-def _timeout_with_reason(reactor, deferred, timeout_sec, reason):
-    deadline = reactor.seconds() + timeout_sec
-    timeout(reactor, deferred, timeout_sec)
-    deferred.addErrback(_propagate_reason, reactor, deadline, reason)
-
-
 class Cluster(PClass):
     """
     A record of the control service and the nodes in a cluster for acceptance
@@ -765,11 +750,10 @@ class Cluster(PClass):
                 self.current_containers,
                 lambda item: self.remove_container(item[u"name"]),
             )
-            _timeout_with_reason(
+            return timeout(
                 reactor, cleaning_containers, 30,
                 Exception("Timed out cleaning up Flocker containers"),
             )
-            return cleaning_containers
 
         def cleanup_datasets(_):
             cleaning_datasets = api_clean_state(
@@ -778,11 +762,10 @@ class Cluster(PClass):
                 self.client.list_datasets_state,
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
-            _timeout_with_reason(
+            return timeout(
                 reactor, cleaning_datasets, 60,
                 Exception("Timed out cleaning up datasets"),
             )
-            return cleaning_datasets
 
         def cleanup_leases():
             context = start_action(action_type="acceptance:cleanup_leases")
@@ -798,11 +781,10 @@ class Cluster(PClass):
 
                 get_items.addCallback(release_all)
                 releasing_leases = get_items.addActionFinish()
-                _timeout_with_reason(
+                return timeout(
                     reactor, releasing_leases, 20,
                     Exception("Timed out cleaning up leases"),
                 )
-                return releasing_leases
 
         d = DeferredContext(cleanup_leases())
         d.addCallback(cleanup_flocker_containers)
