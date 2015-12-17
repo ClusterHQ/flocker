@@ -34,8 +34,8 @@
 
    </div>
 
-Build your Container Stack with Flocker
-=======================================
+How to include Flocker in your Container Stack
+==============================================
 
 **Flocker integrates container orchestration frameworks with storage systems.**
 
