@@ -4,6 +4,7 @@ Operation to create a dataset.
 """
 
 from functools import partial
+import random
 from uuid import uuid4
 
 from pyrsistent import PClass, field
@@ -47,10 +48,11 @@ class CreateDatasetProbe(PClass):
 
         # Select an arbitrary node to be the primary for the dataset.
         def pick_primary(nodes):
-            for node in nodes:
-                return node
-            # Cannot proceed if there are no nodes in the cluster!
-            raise EmptyClusterError("Cluster contains no nodes.")
+            if nodes:
+                return random.choice(nodes)
+            else:
+                # Cannot proceed if there are no nodes in the cluster!
+                raise EmptyClusterError("Cluster contains no nodes.")
         d.addCallback(pick_primary)
 
         # Create the CreateDatasetProbe instance.
