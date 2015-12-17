@@ -210,38 +210,38 @@ class TimeoutTests(TestCase):
         A deferred that has not fired by some short while prior to the timeout
         interval is not made to fire with a timeout failure.
         """
-        timeout(self.clock, self.deferred, self.timeout)
+        deferred = timeout(self.clock, self.deferred, self.timeout)
         self.clock.advance(self.timeout - 1.0)
-        self.assertNoResult(self.deferred)
+        self.assertNoResult(deferred)
 
     def test_times_out(self):
         """
         A deferred that does not fire within the timeout interval is made to
         fire with ``CancelledError`` once the timeout interval elapses.
         """
-        timeout(self.clock, self.deferred, self.timeout)
+        deferred = timeout(self.clock, self.deferred, self.timeout)
         self.clock.advance(self.timeout)
-        self.failureResultOf(self.deferred, CancelledError)
+        self.failureResultOf(deferred, CancelledError)
 
     def test_doesnt_time_out(self):
         """
         A deferred that fires before the timeout is not cancelled by the
         timeout.
         """
-        timeout(self.clock, self.deferred, self.timeout)
+        deferred = timeout(self.clock, self.deferred, self.timeout)
         self.clock.advance(self.timeout - 1.0)
         self.deferred.callback('Success')
-        self.assertEqual(self.successResultOf(self.deferred), 'Success')
+        self.assertEqual(self.successResultOf(deferred), 'Success')
 
     def test_doesnt_time_out_failure(self):
         """
         A Deferred that fails before the timeout is not cancelled by the
         timeout.
         """
-        timeout(self.clock, self.deferred, self.timeout)
+        deferred = timeout(self.clock, self.deferred, self.timeout)
         self.clock.advance(self.timeout - 1.0)
         self.deferred.errback(CustomException())
-        self.failureResultOf(self.deferred, CustomException)
+        self.failureResultOf(deferred, CustomException)
 
     def test_advancing_after_success(self):
         """
