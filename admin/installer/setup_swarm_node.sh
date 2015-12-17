@@ -8,4 +8,5 @@ set -ex
 swarm_cluster_id=$(/usr/bin/s3cmd get --config=/root/.s3cfg s3://${s3_bucket}/swarm-config/swarm_cluster_id -) 
 
 # Start the Swarm node.
+docker pull swarm:1.0.1
 docker run -d swarm join --addr=$(/usr/bin/ec2metadata --local-ipv4):2375 token://$swarm_cluster_id

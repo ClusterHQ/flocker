@@ -7,7 +7,7 @@ set -ex
 rm -rf /tmp/swarm-config
 mkdir -p /tmp/swarm-config
 # Create a new swarm cluster
-docker pull swarm
+docker pull swarm:1.0.1
 docker run --rm swarm create > /tmp/swarm-config/swarm_cluster_id
 /usr/bin/s3cmd put --config=/root/.s3cfg --recursive /tmp/swarm-config/ s3://${s3_bucket}/swarm-config/
 
