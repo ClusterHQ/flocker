@@ -7,7 +7,6 @@ Base classes for unit tests.
 from datetime import timedelta
 from itertools import tee
 import json
-import sys
 import tempfile
 
 from eliot.prettyprint import pretty_format

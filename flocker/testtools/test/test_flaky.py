@@ -6,7 +6,6 @@ Tests for ``flocker.testtools._flaky``.
 
 from itertools import repeat
 from pprint import pformat
-from StringIO import StringIO
 import unittest
 
 from hypothesis import given
