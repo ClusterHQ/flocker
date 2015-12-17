@@ -28,8 +28,6 @@ from pyrsistent import (
     PClass, field, discard, pmap, pvector,
 )
 
-from characteristic import attributes
-
 from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
@@ -86,7 +84,9 @@ from ..blockdevice import (
     ICloudAPI,
     _SyncToThreadedAsyncCloudAPIAdapter,
 )
-from ..blockdevice_manager import BlockDeviceManager, IBlockDeviceManager
+from ..blockdevice_manager import (
+    BlockDeviceManager, IBlockDeviceManager, MountError
+)
 
 from ..loopback import (
     check_allocatable_size,
@@ -1239,10 +1239,15 @@ class _WriteVerifyingExternalClient(object):
         """
         test_mountpoint = self._testing_mountroot.child(str(uuid4()))
         test_mountpoint.makedirs()
-        self._blockdevice_manager.mount(self._device_path, test_mountpoint)
-        result = test_mountpoint.child(filename).exists()
-        self._blockdevice_manager.unmount(self._device_path)
-        test_mountpoint.remove()
+        try:
+            self._blockdevice_manager.mount(self._device_path, test_mountpoint)
+            result = test_mountpoint.child(filename).exists()
+            self._blockdevice_manager.unmount(self._device_path)
+            test_mountpoint.remove()
+        except MountError:
+            # We might not be able to mount if we do not have a filesystem on
+            # the blockdevice.
+            return False
         return result
 
     def invariant(self, case, current_cluster_state):
@@ -1255,12 +1260,8 @@ class _WriteVerifyingExternalClient(object):
         :param case: A ``TestCase`` to use for making assertions.
         :param current_cluster_state: A callable that returns the current state
             of the cluster.
-
-        :returns: False if none of the known paths of the dataset can be
-            written to.
         """
-        write_success = []
-
+        thing = False
         # First poll the cluster state to see if there is a new mountpoint that
         # we should try to use to attempt to write to the dataset.
         [node] = list(n for n in current_cluster_state().nodes
@@ -1282,17 +1283,15 @@ class _WriteVerifyingExternalClient(object):
             except OSError:
                 # If we failed to write, that is okay in many scenarios. At
                 # least the failing write won't lead to the end user
-                # thinking that they have an actually persisted data. Note
-                # the failure, but don't immediately fail the test.
-                write_success.append(False)
+                # thinking that they have an actually persisted data.
+                thing = True
             else:
-                write_success.append(True)
                 case.assertTrue(
                     self._has_file_named(filename),
                     "Successfully wrote to a path gotten from flocker, "
                     "but the write was not persisted to the backing block "
                     "device.")
-        return any(write_success)
+        return thing
 
 
 class BlockDeviceCalculatorTests(SynchronousTestCase):
@@ -1441,10 +1440,9 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
                       e.iteration_count)
 
     @given(
-        initial_dataset=DESIRED_DATASET_STRATEGY,
-        next_dataset=DESIRED_DATASET_STRATEGY,
+        two_dataset_states=TWO_DESIRED_DATASET_STRATEGY
     )
-    def test_docker_protection(self, initial_dataset, next_dataset):
+    def test_docker_protection(self, two_dataset_states):
         """
         Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
@@ -1455,6 +1453,10 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         This would represent an agent like docker attempting to use a path
         before or after flocker was ready for it to use the path.
         """
+        self._deployer = None
+        self._cluster_state = None
+        initial_dataset, next_dataset = two_dataset_states
+
         dataset_id = initial_dataset.dataset_id
 
         evaluate_function = None
@@ -1478,7 +1480,6 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
 
         evaluate_function = partial(external_agent.invariant, self,
                                     self.current_cluster_state)
-        print evaluate_function
 
         # Set the mountpoint to a real mountpoint in desired dataset states
         # that have a mount point attribute.
@@ -1488,13 +1489,6 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
             initial_dataset = initial_dataset.set(mount_point=mount_point)
         if hasattr(next_dataset, 'mount_point'):
             next_dataset = next_dataset.set(mount_point=mount_point)
-
-        # Merge fields from initial_dataset into next_dataset (such as
-        # dataset_id) so that we are changing the desired state of the same
-        # dataset.
-        next_dataset = merge_tagged_unions(DesiredDataset,
-                                           initial_dataset,
-                                           next_dataset)
 
         # Converge to the initial state.
         try:
@@ -1510,6 +1504,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         except DidNotConverge as e:
             self.fail("Did not converge to next state after %d iterations." %
                       e.iteration_count)
+        evaluate_function = None
 
     @given(
         desired_state=sampled_from([
