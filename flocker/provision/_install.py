@@ -730,11 +730,13 @@ def task_install_control_certificates(ca_cert, control_cert, control_key):
         ])
 
 
-def task_install_node_certificates(ca_cert, node_cert, node_key):
+def task_install_node_certificates(ca_cert, install_ca_cert,
+                                   node_cert, node_key):
     """
     Install certificates and private key required by a node.
 
     :param FilePath ca_cert: Path to CA certificate on local machine.
+    :param bool install_ca_cert: Install the CA certificate if ``True``.
     :param FilePath node_cert: Path to node certificate on
         local machine.
     :param FilePath node_key: Path to node private key
@@ -742,16 +744,22 @@ def task_install_node_certificates(ca_cert, node_cert, node_key):
     """
     # Be better if permissions were correct from the start.
     # https://clusterhq.atlassian.net/browse/FLOC-1922
-    return sequence([
+    commands = [
         run('mkdir -p /etc/flocker'),
         run('chmod u=rwX,g=,o= /etc/flocker'),
-        put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
+    ]
+    if install_ca_cert:
+        commands.append(
+            put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
+        )
+    commands.extend([
         put(path="/etc/flocker/node.crt",
             content=node_cert.getContent()),
         put(path="/etc/flocker/node.key",
             content=node_key.getContent(),
             log_content_filter=_remove_private_key),
-        ])
+    ])
+    return sequence(commands)
 
 
 def task_install_api_certificates(api_cert, api_key):
@@ -1528,6 +1536,7 @@ def configure_cluster(cluster, dataset_backend_configuration, provider):
                     commands=sequence([
                         task_install_node_certificates(
                             cluster.certificates.cluster.certificate,
+                            node.address != cluster.control_node.address,
                             certnkey.certificate,
                             certnkey.key),
                         task_install_api_certificates(
