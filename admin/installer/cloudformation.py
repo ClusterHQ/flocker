@@ -89,20 +89,20 @@ for i in range(NUM_NODES):
         user_data += sibling_lines(SWARM_MANAGER_SETUP)
         template.add_output([
             Output(
-                "{}FlockerControlIP".format(node_name),
+                "FlockerControlIP",
                 Description="Public IP address of the Flocker Control node.",
                 Value=GetAtt(ec2_instance, "PublicIp"),
             )
         ])
     else:
         ec2_instance.DependsOn = control_service_instance.name
-        template.add_output([
-            Output(
-                "{}FlockerNodeIP".format(node_name),
-                Description="Public IP address of a Flocker Agent node.",
-                Value=GetAtt(ec2_instance, "PublicIp"),
-            )
-        ])
+    template.add_output([
+        Output(
+            "FlockerNodeIP",
+            Description="Public IP address of a Flocker Agent node.",
+            Value=GetAtt(ec2_instance, "PublicIp"),
+        )
+    ])
 
     user_data += sibling_lines(FLOCKER_CONFIGURATION_GETTER)
     user_data += sibling_lines(SWARM_NODE_SETUP)
