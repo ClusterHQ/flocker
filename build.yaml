@@ -2,7 +2,7 @@
 #
 # build.yaml
 #
-# This file contains the Jenkins job defintions for the Flocker project.
+# This file contains the Jenkins job definitions for the Flocker project.
 #
 # We add new or reconfigure existing jobs in Jenkins using the Job DSL plugin.
 # https://github.com/jenkinsci/job-dsl-plugin
@@ -30,6 +30,7 @@
 #
 # We pass the branch name as a parameter to the setup_clusterhq_flocker job,
 # the parameter is shown as 'RECONFIGURE_BRANCH'.
+#
 # The setup job only produces jobs for a single branch . We don't produce jobs
 # for every branch due to the large number of branches in the repository, which
 # would generate over 16000 jobs and take over an hour to run.
@@ -45,8 +46,10 @@
 # she/he can see a job called '_main_multijob'. This job is responsible for
 # executing all other jobs in parallel and collecting the produced artifacts
 # from each job after its execution.
+#
 # The artifacts in this case are trial logs, coverage xml reports, subunit
 # reports.
+#
 # Those artifacts are consumed by the _main_multijob to produce an overall
 # coverage report, and an aggregated summary of all the executed tests and
 # their failures/skips/successes.
@@ -179,31 +182,14 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
     #
-    if is_osx; then
-      # OSX doesn't allow us to sudo (no tty)
-      # we can't be certain that cloudbees will always gives us a new OSX slave
-      # so we make sure we remove any old files
-      rm -f results.xml
-      rm -f trial.log
-      rm -rf _trial_temp/
-      rm -rf \${venv}
-      rm -f "Flocker*.rb"
-      rm -f "dist/Flocker-*.tar.gz"
-    fi
-    if is_centos || is_ubuntu; then
-      # some of our tests (which run as root), leave some files behind when
-      # they abort or fail to complete.
-      # We use 'sudo' so that we can remove those files before a next job run.
-      sudo rm -rf \${venv}
-      sudo rm -f results.xml
-      sudo rm -f trial.log
-      sudo rm -rf _trial_temp/
-    fi
+    rm -rf \${venv}
 
   setup_venv: &setup_venv |
-    # setup the new venv
+    # Set up the new venv.
     virtualenv -p python2.7 --clear \${venv}
     . \${venv}/bin/activate
+    # Report the version of Python we're using, to aid debugging.
+    \${venv}/bin/python --version
 
   setup_pip_cache: &setup_pip_cache |
     # exports the PIP_INDEX_URL, TRUSTED_HOST variables to the environment.
@@ -242,8 +228,9 @@ common_cli:
     # using the caching-layer, install all the dependencies
     \${PARSE_LOGS} pip install --upgrade pip
     \${PARSE_LOGS} pip install . \${PIP_ADDITIONAL_OPTIONS}
-    # install Flocker
-    \${PARSE_LOGS} pip install  "Flocker[dev]" \${PIP_ADDITIONAL_OPTIONS}
+    # Install Flocker. Use --process-dependency-links so we can temporarily use
+    # testtools fork. See FLOC-3498.
+    \${PARSE_LOGS} pip install --process-dependency-links  ".[dev]" \${PIP_ADDITIONAL_OPTIONS}
     # install junix for our coverage report
     \${PARSE_LOGS} pip install python-subunit junitxml \${PIP_ADDITIONAL_OPTIONS}
 
@@ -286,14 +273,14 @@ common_cli:
       --no-passthrough --output-to=results.xml
 
   run_sphinx: &run_sphinx |
-    parse_logs python setup.py --version
+    parse_logs \${venv}/bin/python setup.py --version
     cd docs
     # check spelling
-    parse_logs sphinx-build -d _build/doctree -b spelling . _build/spelling
+    parse_logs \${venv}/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
     # check links
-    parse_logs sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
+    parse_logs \${venv}/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
     # build html pages
-    parse_logs sphinx-build -d _build/doctree -b html . _build/html
+    parse_logs \${venv}/bin/sphinx-build -d _build/doctree -b html . _build/html
 
   # flocker artifacts contains the list of files we want to collect from our
   # _main_multijob. These are used to produce the coverage, test reports.
@@ -379,6 +366,23 @@ common_cli:
     parse_logs \${venv}/bin/python admin/run-acceptance-tests \
     --distribution \${DISTRIBUTION_NAME} \
     --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --config-file /tmp/acceptance.yaml \
+    \${ACCEPTANCE_TEST_MODULE}
+    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+
+  run_acceptance_loopback_tests: &run_acceptance_loopback_tests |
+    # We gather the return code but make sure we come out of these tests with 0
+    # we store that code and pass it to the end of the job execution,
+    # as part of the JOB_EXIT_STATUS variable.
+    #
+    # The admin/run-acceptance-tests will provision a flocker cluster with a
+    # single node since the loopback backend doesn't support moving data across
+    # hosts.
+    parse_logs \${venv}/bin/python admin/run-acceptance-tests \
+    --distribution \${DISTRIBUTION_NAME} --number-of-nodes 1 \
+    --provider aws --dataset-backend loopback --branch \${TRIGGERED_BRANCH} \
     --build-server  \
     http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
     --config-file /tmp/acceptance.yaml \
@@ -741,7 +745,6 @@ run_trial_modules: &run_trial_modules
   - flocker.restapi
   - flocker.docs
   - flocker.dockerplugin
-  - flocker.node.agents
   - flocker.node.test
   - flocker.node.functional.test_docker.GenericDockerClientTests
   - flocker.node.functional.test_docker.IDockerClientNamespacedTests
@@ -753,9 +756,13 @@ run_trial_modules: &run_trial_modules
   - flocker.route
   - flocker.test
   - flocker.testtools
+run_trial_as_root_modules: &run_trial_as_root_modules
   # flocker.volume needs to run as root due to ZFS calls
   # so we run it as part of the run_trial_on_<Cloud>_<OS>_as_root jobs
-  # - flocker.volume
+  - flocker.volume
+  # flocker.node.agent needs to run as root due to mounting filesystems
+  - flocker.node.agents
+
 
 # run_trial_cli contains a list of all the CLI yaml anchors we want to
 # execute as part of our run_trial_tasks
@@ -788,15 +795,14 @@ run_trial_cli_as_root: &run_trial_cli_as_root [
 # run_acceptance_modules contains the list of Flocker modules to be executed
 # during the acceptance tests
 run_acceptance_modules: &run_acceptance_modules
-  - flocker.acceptance.endtoend.test_dataset
-  - flocker.acceptance.endtoend.test_diagnostics
-  - flocker.acceptance.endtoend.test_dockerplugin
-  - flocker.acceptance.endtoend.test_leases
-  - flocker.acceptance.integration.test_mongodb
-  - flocker.acceptance.integration.test_platform
-  - flocker.acceptance.integration.test_postgres
-  - flocker.acceptance.obsolete.test_cli
-  - flocker.acceptance.obsolete.test_containers
+  - flocker.acceptance.endtoend
+  - flocker.acceptance.integration
+  - flocker.acceptance.obsolete
+
+# When we have acceptance tests that run quickly enough (as they do on loopback)
+# we just run them all in one builder:
+run_full_acceptance_modules: &run_full_acceptance_modules
+  - flocker.acceptance
 
 # flocker.node.functional is hanging, so we don't run it
 job_type:
@@ -815,8 +821,7 @@ job_type:
 
     run_trial_on_AWS_CentOS_7_as_root:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
-      with_modules:
-        - flocker.volume
+      with_modules: *run_trial_as_root_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
@@ -840,8 +845,7 @@ job_type:
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
-      with_modules:
-        - flocker.volume
+      with_modules: *run_trial_as_root_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
       archive_artifacts: *flocker_artifacts
@@ -1030,6 +1034,46 @@ job_type:
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
       timeout: 45
+    run_acceptance_loopback_on_AWS_CentOS_7_for:
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_modules: *run_full_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_loopback_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts
+      timeout: 45
+    run_acceptance_loopback_on_AWS_Ubuntu_Trusty_for:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_modules: *run_full_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_loopback_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      timeout: 45
 
 
   run_client:
@@ -1097,7 +1141,11 @@ job_type:
                    *destroy_vagrant_box]
           }
       clean_repo: false
-      timeout: 30
+      # FLOC-3597: Importing base box 'jenkins-osx-yosemite' step can
+      # sometimes take ~20 minutes, leaving us not quite enough time to
+      # actually run the tests. Also has to be less than the timeout for the
+      # main multijob, see jobs.groovy.j2:545.
+      timeout: 50
 
 
   run_lint:

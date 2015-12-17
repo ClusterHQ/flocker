@@ -1,4 +1,4 @@
-# Copyright ClusterHQ Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.testtools._flaky``.
@@ -25,6 +25,7 @@ from testtools.matchers import (
     HasLength,
     MatchesAll,
 )
+from testtools.testresult.doubles import ExtendedTestResult
 
 from .. import AsyncTestCase, async_runner
 from .._flaky import (
@@ -297,3 +298,27 @@ class FlakyTests(testtools.TestCase):
 
         test = SkippingTest('test_skip')
         self.assertThat(run_test(test), only_skips(1, observed_reasons))
+
+    @given(jira_keys)
+    def test_sends_start_on_start(self, jira_keys):
+        """
+        Flaky tests send ``startTest`` as soon as they start.
+
+        This means that we see the name of the test in the trial reporter
+        (FLOC-3511) and that the recorded duration of the test is more-or-less
+        accurate (FLOC-3499)
+        """
+        log = []
+
+        class FlakyTest(AsyncTestCase):
+            run_tests_with = retry_flaky(output=StringIO())
+
+            @flaky(jira_keys, 1, 1)
+            def test_delayed(self):
+                # Get a copy of the event log at this point of the test.
+                self.log = list(log)
+
+        test = FlakyTest('test_delayed')
+        result = ExtendedTestResult(log)
+        test.run(result)
+        self.assertThat(test.log, Equals([('startTest', test)]))

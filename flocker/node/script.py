@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 # -*- test-case-name: flocker.node.test.test_script,flocker.node.functional.test_script -*- # noqa
 
 """
@@ -55,6 +55,22 @@ __all__ = [
     "flocker_container_agent_main",
     "flocker_diagnostics_main",
 ]
+
+
+class StorageInitializationError(Exception):
+    """
+    Exception raised by a storage API factory in the event that
+    the backend could not be successfully initialized.
+
+    :param NamedConstant code: The ``StorageInitializationError`` constant
+        indicating the type of failure.
+    """
+    CONFIGURATION_ERROR = NamedConstant()
+    OPERATIVE_ERROR = NamedConstant()
+
+    def __init__(self, code, *args):
+        Exception.__init__(self, *args)
+        self.code = code
 
 
 def flocker_dataset_agent_main():
@@ -600,7 +616,13 @@ class AgentService(PClass):
         if backend.needs_reactor:
             api_args = api_args.set("reactor", self.reactor)
 
-        return backend.api_factory(**api_args)
+        try:
+            return backend.api_factory(**api_args)
+        except StorageInitializationError as e:
+            if e.code == StorageInitializationError.CONFIGURATION_ERROR:
+                raise UsageError(u"Configuration error", *e.args)
+            else:
+                raise
 
     def get_deployer(self, api):
         """

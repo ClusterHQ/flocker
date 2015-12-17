@@ -7,7 +7,7 @@ Upgrading
 A Flocker cluster can be upgraded to a newer version of Flocker while preserving all data and configuration of the Flocker cluster provided certain steps are followed.
 The correct steps to follow may vary depending on the versions of Flocker being upgraded from and to.
 
-.. note:: A common requirement for all currently supported upgrade paths is that all nodes and the control service must be running the same version of Flocker.
+.. note:: A common requirement for all currently supported upgrade paths is that all nodes and the Flocker control service must be running the same version of Flocker.
 
 Flocker v1.0.2
 --------------
@@ -15,7 +15,7 @@ Flocker v1.0.2
 Recommended Steps
 ^^^^^^^^^^^^^^^^^
 
-#. Stop the agent services on all nodes, and then stop control service.
+#. Stop the agent services on all nodes, and then stop the control service.
 #. Install Flocker v1.0.2 on all nodes in the Flocker cluster.
 #. If you are running on CentOS, run ``systemctl restart rsyslog`` on all machines running Flocker services.
 #. Restart the Docker service.
@@ -32,7 +32,7 @@ Flocker v1.0.1
 Recommended Steps
 ^^^^^^^^^^^^^^^^^
 
-#. Stop the agent services on all nodes, and then stop control service.
+#. Stop the agent services on all nodes, and then stop the control service.
 #. Install Flocker v1.0.1 on all nodes in the Flocker cluster.
 #. Restart the control service.
 #. If you are using the EBS storage backend, reboot each of the agent nodes.

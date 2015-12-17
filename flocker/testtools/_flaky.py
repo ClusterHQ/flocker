@@ -135,6 +135,7 @@ class _RetryFlaky(testtools.RunTest):
     # https://bugs.launchpad.net/testtools/+bug/1515933
 
     def __init__(self, output, run_test_factory, case, *args, **kwargs):
+        super(_RetryFlaky, self).__init__(case)
         self._output = output
         self._run_test_factory = run_test_factory
         self._case = case
@@ -180,6 +181,7 @@ class _RetryFlaky(testtools.RunTest):
 
         :return: A ``TestResult`` with the result of running the flaky test.
         """
+        result.startTest(case)
         successes = 0
         results = []
 
@@ -202,7 +204,6 @@ class _RetryFlaky(testtools.RunTest):
         combined_details = _combine_details(
             [flaky_details] + list(r[1] for r in results))
 
-        result.startTest(case)
         if successful:
             skip_reported = False
             for result_type, details in results:
@@ -238,8 +239,20 @@ class _RetryFlaky(testtools.RunTest):
             result was and ``details`` is a dictionary of testtools details.
         """
         tmp_result = testtools.TestResult()
-        # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879
-        _reset_case(case)
+        # XXX: Still using internal API of testtools despite improvements in
+        # #165. Will need to do follow-up work on testtools to ensure that
+        # RunTest.run(case); RunTest.run(case) is supported.
+        try:
+            case._reset()
+        except AttributeError:
+            # We are using a fork of testtools, which unfortunately means that
+            # we need to do special things to make sure we're using the latest
+            # version. Raise an error message that will help people figure out
+            # what they need to do.
+            raise Exception(
+                "Could not reset TestCase. Maybe upgrade your version of "
+                "testtools: pip install --upgrade --process-dependency-links "
+                ".[dev]")
         self._run_test(case, tmp_result)
         result_type = _get_result_type(tmp_result)
         details = pmap(case.getDetails())
@@ -311,14 +324,3 @@ def _combine_details(detailses):
     for details in detailses:
         gather_details(details, result)
     return pmap(result)
-
-
-def _reset_case(case):
-    """
-    Reset ``case`` so it can be run again.
-    """
-    # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879
-    # Don't want details from last run.
-    case.getDetails().clear()
-    case._TestCase__setup_called = False
-    case._TestCase__teardown_called = False
