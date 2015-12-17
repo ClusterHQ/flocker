@@ -7,7 +7,7 @@ from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
 from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 
-OWNER = u"richardw"
+OWNER = u"clusterhq"
 NUM_NODES = 2
 NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
 S3_SETUP = 'setup_s3.sh'
@@ -55,7 +55,7 @@ instances = []
 zone = Select(0, GetAZs(""))
 
 s3bucket = Bucket('FlockerConfig',
-                  DeletionPolicy='Delete')
+                  DeletionPolicy='Retain')
 template.add_resource(s3bucket)
 
 for i in range(NUM_NODES):
@@ -87,46 +87,40 @@ for i in range(NUM_NODES):
         control_service_instance = ec2_instance
         user_data += sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
         user_data += sibling_lines(SWARM_MANAGER_SETUP)
+        template.add_output([
+            Output(
+                "{}FlockerControlIP".format(node_name),
+                Description="Public IP address of the Flocker Control node.",
+                Value=GetAtt(ec2_instance, "PublicIp"),
+            )
+        ])
     else:
         ec2_instance.DependsOn = control_service_instance.name
+        template.add_output([
+            Output(
+                "{}FlockerNodeIP".format(node_name),
+                Description="Public IP address of a Flocker Agent node.",
+                Value=GetAtt(ec2_instance, "PublicIp"),
+            )
+        ])
 
     user_data += sibling_lines(FLOCKER_CONFIGURATION_GETTER)
     user_data += sibling_lines(SWARM_NODE_SETUP)
     ec2_instance.UserData = Base64(Join("", user_data))
 
     template.add_resource(ec2_instance)
-    template.add_output([
-        Output(
-            "{}PublicIP".format(node_name),
-            Description="Public IP address of the newly created EC2 instance",
-            Value=GetAtt(ec2_instance, "PublicIp"),
-        ),
-        Output(
-            "{}PublicDNS".format(node_name),
-            Description="Public DNSName of the newly created EC2 instance",
-            Value=GetAtt(ec2_instance, "PublicDnsName"),
-        ),
-    ])
 
 template.add_output([
     Output(
         "AvailabilityZone",
-        Description="Availability Zone of the newly created EC2 instance",
+        Description="Availability Zone of the newly created EC2 instances.",
         Value=zone,
     ),
 ])
 template.add_output(Output(
-    "ClusterCert",
-    Description="Flocker cluster cert",
-    Value=Join("", ["ssh -i ", Ref(keyname_param), ".pem ubuntu@",
-               GetAtt(control_service_instance, "PublicDnsName"),
-               " sudo cat /etc/flocker/cluster.crt"])
-    )
-)
-template.add_output(Output(
     "BucketName",
     Value=Ref(s3bucket),
-    Description="Name of S3 bucket to hold Flocker certs"
+    Description="Name of S3 bucket to hold cluster configuration files."
 ))
 
 print(template.to_json())
