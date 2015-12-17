@@ -1,12 +1,11 @@
-Flocker: Volume Management For Containers
-=========================================
-
 .. raw:: html
 
-    <!-- This is obviously a horrible hack, and we need a better way of
-         disabling the toctree on the front page. -->
+    <!-- This toctree-wrapper and next button override is obviously a horrible
+         hack, and we need a better way of disabling the toctree on the front
+         page. -->
     <style>
         .toctree-wrapper { display:none; }
+        a.button.rel { display:none; }
         .big-box {
             border:1px solid black;
             width:10em;
@@ -24,9 +23,29 @@ Flocker: Volume Management For Containers
     </style>
 
 
-Flocker integrates storage with container orchestration frameworks.
+.. raw:: html
+
+   <div style="float:right">
+
+.. image:: images/puzzle_pieces.png
+   :width: 150px
+
+.. raw:: html
+
+   </div>
+
+Build your Container Stack with Flocker
+=======================================
+
+**Flocker integrates container orchestration frameworks with storage systems.**
 
 This means you can run *stateful containers* like *databases* in production and have the volumes follow the containers around as they get moved or rescheduled.
+
+Flocker is filesystem-based, so it works with any container image that stores its data in a volume.
+
+.. raw:: html
+
+   <div style="clear:both;"></div>
 
 ==================================
 Supported Orchestration Frameworks
