@@ -201,13 +201,13 @@ class TimeoutTests(TestCase):
 
     def setUp(self):
         """Initialize testing helper variables."""
-        self._deferred = Deferred()
-        self._timeout = 10.0
-        self._clock = Clock()
+        self.deferred = Deferred()
+        self.timeout = 10.0
+        self.clock = Clock()
 
     def _execute_timeout(self):
         """Execute the timeout."""
-        timeout(self._clock, self._deferred, self._timeout)
+        timeout(self.clock, self.deferred, self.timeout)
 
     def test_times_out(self):
         """
@@ -215,11 +215,11 @@ class TimeoutTests(TestCase):
         timeout function, and concludes with a CancelledError failure.
         """
         self._execute_timeout()
-        self._clock.advance(self._timeout - 1.0)
-        self.assertFalse(self._deferred.called)
-        self._clock.advance(1.0)
-        self.assertTrue(self._deferred.called)
-        self.failureResultOf(self._deferred, CancelledError)
+        self.clock.advance(self.timeout - 1.0)
+        self.assertFalse(self.deferred.called)
+        self.clock.advance(1.0)
+        self.assertTrue(self.deferred.called)
+        self.failureResultOf(self.deferred, CancelledError)
 
     def test_doesnt_time_out(self):
         """
@@ -227,14 +227,14 @@ class TimeoutTests(TestCase):
         timeout.
         """
         self._execute_timeout()
-        self._clock.advance(self._timeout - 1.0)
-        self.assertFalse(self._deferred.called)
-        self._deferred.callback('Success')
-        self.assertTrue(self._deferred.called)
-        self.assertEqual(self._deferred.result, 'Success')
-        self._clock.advance(1.0)
-        self.assertTrue(self._deferred.called)
-        self.assertEqual(self._deferred.result, 'Success')
+        self.clock.advance(self.timeout - 1.0)
+        self.assertFalse(self.deferred.called)
+        self.deferred.callback('Success')
+        self.assertTrue(self.deferred.called)
+        self.assertEqual(self.deferred.result, 'Success')
+        self.clock.advance(1.0)
+        self.assertTrue(self.deferred.called)
+        self.assertEqual(self.deferred.result, 'Success')
 
     def test_timeout_cleaned_up_on_success(self):
         """
@@ -242,10 +242,10 @@ class TimeoutTests(TestCase):
         timeout is not still pending on the reactor.
         """
         self._execute_timeout()
-        self._clock.advance(self._timeout - 1.0)
-        self._deferred.callback('Success')
-        self.assertEqual(self._clock.getDelayedCalls(), [])
-        self.assertEqual(self._deferred.result, 'Success')
+        self.clock.advance(self.timeout - 1.0)
+        self.deferred.callback('Success')
+        self.assertEqual(self.clock.getDelayedCalls(), [])
+        self.assertEqual(self.deferred.result, 'Success')
 
     def test_timeout_cleaned_up_on_failure(self):
         """
@@ -253,11 +253,11 @@ class TimeoutTests(TestCase):
         pending on the reactor.
         """
         self._execute_timeout()
-        self._clock.advance(self._timeout - 1.0)
-        self._deferred.errback(Exception('ErrorXYZ'))
-        self.assertEqual(self._clock.getDelayedCalls(), [])
-        self.assertEqual(self._deferred.result.getErrorMessage(), 'ErrorXYZ')
-        self.failureResultOf(self._deferred, Exception)
+        self.clock.advance(self.timeout - 1.0)
+        self.deferred.errback(Exception('ErrorXYZ'))
+        self.assertEqual(self.clock.getDelayedCalls(), [])
+        self.assertEqual(self.deferred.result.getErrorMessage(), 'ErrorXYZ')
+        self.failureResultOf(self.deferred, Exception)
 
 
 ITERATION_MESSAGE = MessageType("iteration_message", fields(iteration=int))
