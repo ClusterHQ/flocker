@@ -391,6 +391,27 @@ def _enable_boto_logging():
 _enable_boto_logging()
 
 
+class AttachUnexpectedInstance(Exception):
+    """
+    An attempt was made to attach a volume to an instance other than the
+    one this ``IBlockDeviceAPI`` implementation is running on.
+    """
+    def __init__(self, blockdevice_id, instance_id, local_instance_id):
+        """
+        :param unicode blockdevice_id: The identity of the block device we
+            are attempting to attach.
+        :param unicode instance_id: The identity of the instance we are
+            attempting to attach the block device to.
+        :param unicode local_instance_id: The identity of the instance this
+            API is running on.
+        """
+        Exception.__init__(
+            self, blockdevice_id, instance_id, local_instance_id)
+        self.blockdevice_id = blockdevice_id
+        self.instance_id = instance_id
+        self.local_instance_id = local_instance_id
+
+
 @with_cmp(["requested", "discovered"])
 class AttachedUnexpectedDevice(Exception):
     """
@@ -1023,11 +1044,8 @@ class EBSBlockDeviceAPI(object):
             lambda d: d.startswith(b"xvd") or d.startswith('sd'),
             command_result.split("\n")[1:]
         ))
-        devices_in_use = pset(list(devices_in_use) + list(
-            device.replace('/dev/sd', 'xvd') for device in devices_in_use
-        ))
-        devices = local_devices | devices_in_use
-        sorted_devices = sorted(list(thaw(devices)))
+        existing_devices = local_devices | devices_in_use
+        sorted_devices = sorted(list(thaw(existing_devices)))
         IN_USE_DEVICES(devices=sorted_devices).write()
 
         for suffix in b"fghijklmonp":
@@ -1035,10 +1053,10 @@ class EBSBlockDeviceAPI(object):
             next_local_sd_device = b'sd' + suffix
             file_name = u'/dev/sd' + suffix
             possible_devices = [
-                next_local_device, next_local_sd_device, file_name
+                next_local_device, next_local_sd_device
             ]
             if not any(
-                list(device in devices for device in possible_devices)
+                list(device in existing_devices for device in possible_devices)
             ):
                 return file_name
 
@@ -1175,6 +1193,10 @@ class EBSBlockDeviceAPI(object):
             indicates use on an unsupported OS, a misunderstanding of the EBS
             device assignment rules, or some other bug in this implementation.
         """
+        local_instance_id = self.compute_instance_id()
+        if blockdevice_id != local_instance_id:
+            raise AttachUnexpectedInstance(
+                blockdevice_id, attach_to, local_instance_id)
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is not None or

@@ -22,6 +22,7 @@ from ..ebs import (
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
     EBSMandatoryProfileAttributes, _get_volume_tag,
+    AttachUnexpectedInstance,
 )
 from ....testtools import flaky
 
@@ -40,6 +41,7 @@ from ..test.blockdevicefactory import (
 )
 
 TIMEOUT = 5
+ONE_GIB = 1073741824
 
 
 def ebsblockdeviceapi_for_test(test_case):
@@ -65,6 +67,31 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    def test_attach_foreign_instance_error(self):
+        """
+        Attempting to attach a volume to a non-local instance will
+        raise an ``AttachUnexpectedInstance`` error.
+        """
+        try:
+            config = get_blockdevice_config(ProviderType.aws)
+        except InvalidConfig as e:
+            raise SkipTest(str(e))
+        ec2_client = get_ec2_client_for_test(config)
+        dataset_id = uuid4()
+        volume = self.api.create_volume(dataset_id=dataset_id, size=ONE_GIB)
+
+        flocker_volume = ec2_client.connection.Volume(volume.blockdevice_id)
+        self.addCleanup(flocker_volume.delete)
+
+        bad_instance_id = u'i-12345678'
+
+        self.assertRaises(
+            AttachUnexpectedInstance,
+            self.api.attach_volume,
+            volume.blockdevice_id,
+            bad_instance_id
+        )
+
     def test_attach_when_foreign_device_has_next_device(self):
         """
         ``attach_volume`` does not attempt to use device paths that are already
@@ -75,15 +102,13 @@ class EBSBlockDeviceAPIInterfaceTests(
         except InvalidConfig as e:
             raise SkipTest(str(e))
 
-        ONE_GIB = 1073741824
         dataset_id = uuid4()
         ec2_client = get_ec2_client_for_test(config)
         meta_client = ec2_client.connection.meta.client
 
         # Create a volume directly using boto.
         requested_volume = meta_client.create_volume(
-            Size=int(Byte(ONE_GIB).to_GiB().value),
-            AvailabilityZone=ec2_client.zone)
+            Size=1, AvailabilityZone=ec2_client.zone)
         created_volume = ec2_client.connection.Volume(
             requested_volume['VolumeId'])
 
@@ -113,14 +138,12 @@ class EBSBlockDeviceAPIInterfaceTests(
         flocker_volume = ec2_client.connection.Volume(
             blockdevice_volume.blockdevice_id)
         self.addCleanup(clean_volume, flocker_volume)
-        _wait_for_volume_state_change(VolumeOperations.CREATE, flocker_volume)
 
         # Attach the blockdevice volume to this instance.
         # The assertion in this test is that this operation does not
         # raise an ``AttachedUnexpectedDevice`` error.
         self.api.attach_volume(
             blockdevice_volume.blockdevice_id, instance_id)
-        _wait_for_volume_state_change(VolumeOperations.ATTACH, flocker_volume)
 
     def test_foreign_volume(self):
         """
