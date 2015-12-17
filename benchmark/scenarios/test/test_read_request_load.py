@@ -18,6 +18,8 @@ from benchmark.scenarios import (
 
 from benchmark.cluster import BenchmarkCluster
 
+DEFAULT_VOLUME_SIZE=1073741824
+
 
 class RateMeasurerTest(SynchronousTestCase):
     """
@@ -225,6 +227,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
                 FakeFlockerClient([node1, node2]), reactor
             ),
             {node1.public_address, node2.public_address},
+            default_volume_size=DEFAULT_VOLUME_SIZE,
         )
 
     def test_read_request_load_succeeds(self):
@@ -239,6 +242,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
             node1.public_address,
             lambda reactor: FakeFlockerClient([node1, node2]),
             {node1.public_address, node2.public_address},
+            default_volume_size=DEFAULT_VOLUME_SIZE
         )
 
         sample_size = 5
