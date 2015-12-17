@@ -55,26 +55,12 @@ class _MktempMixin(object):
         return make_temporary_directory(self).child('temp').path
 
 
-def _retry_runner(runner_factory, flaky_output=None):
-    """
-    Take a standard testtools RunFactory and make it retry @flaky tests.
-
-    :param runner_factory: A RunTest factory.
-    :param file flaky_output: A file-like object to which we'll send output
-        about flaky tests. This is a temporary measure until we fix FLOC-3469,
-        at which point we will just use standard logging.
-    """
-    if flaky_output is None:
-        flaky_output = sys.stdout
-    return retry_flaky(runner_factory, output=flaky_output)
-
-
 class TestCase(testtools.TestCase, _MktempMixin):
     """
     Base class for synchronous test cases.
     """
 
-    run_tests_with = _retry_runner(testtools.RunTest)
+    run_tests_with = retry_flaky(testtools.RunTest)
 
     def __init__(self, *args, **kwargs):
         super(TestCase, self).__init__(*args, **kwargs)
@@ -86,15 +72,12 @@ class TestCase(testtools.TestCase, _MktempMixin):
         self.useFixture(_SplitEliotLogs())
 
 
-def async_runner(timeout, flaky_output=None):
+def async_runner(timeout):
     """
     Make a ``RunTest`` instance for asynchronous tests.
 
     :param timedelta timeout: The maximum length of time that a test is allowed
         to take.
-    :param file flaky_output: A file-like object to which we'll send output
-        about flaky tests. This is a temporary measure until we fix FLOC-3469,
-        at which point we will just use standard logging.
     """
     # XXX: The acceptance tests (which were the first tests that we tried to
     # migrate) aren't cleaning up after themselves even in the successful
@@ -105,7 +88,7 @@ def async_runner(timeout, flaky_output=None):
         suppress_twisted_logging=False,
         store_twisted_logs=False,
     )
-    return _retry_runner(async_factory, flaky_output)
+    return retry_flaky(async_factory)
 
 
 # By default, asynchronous tests are timed out after 2 minutes.

@@ -6,7 +6,6 @@ Logic for handling flaky tests.
 
 from functools import partial
 from pprint import pformat
-import sys
 
 from eliot import Message
 from pyrsistent import PClass, field, pmap, pset, pset_field
@@ -110,22 +109,17 @@ def _combine_flaky_annotation(flaky1, flaky2):
     )
 
 
-def retry_flaky(run_test_factory=None, output=None):
+def retry_flaky(run_test_factory=None):
     """
     Wrap a ``RunTest`` object so that flaky tests are retried.
 
     :param run_test_factory: A callable that takes a `TestCase` and returns
         something that behaves like `testtools.RunTest`.
-    :param file output: A file-like object to which we'll send output about
-        flaky tests. This is a temporary measure until we fix FLOC-3469, at
-        which point we will just use standard logging.
     """
     if run_test_factory is None:
         run_test_factory = testtools.RunTest
-    if output is None:
-        output = sys.stdout
 
-    return partial(_RetryFlaky, output, run_test_factory)
+    return partial(_RetryFlaky, run_test_factory)
 
 
 class _RetryFlaky(testtools.RunTest):
@@ -135,9 +129,8 @@ class _RetryFlaky(testtools.RunTest):
     # XXX: This should probably become a part of testtools:
     # https://bugs.launchpad.net/testtools/+bug/1515933
 
-    def __init__(self, output, run_test_factory, case, *args, **kwargs):
+    def __init__(self, run_test_factory, case, *args, **kwargs):
         super(_RetryFlaky, self).__init__(case)
-        self._output = output
         self._run_test_factory = run_test_factory
         self._case = case
         self._args = args

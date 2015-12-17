@@ -133,7 +133,7 @@ class FlakyTests(testtools.TestCase):
         # TestCase features, thus increasing complexity.
         class SomeTest(testtools.TestCase):
 
-            run_tests_with = retry_flaky(output=StringIO())
+            run_tests_with = retry_flaky()
 
             @flaky(u'FLOC-XXXX')
             def test_something(self):
@@ -153,7 +153,7 @@ class FlakyTests(testtools.TestCase):
 
         class SomeTest(testtools.TestCase):
 
-            run_tests_with = retry_flaky(output=StringIO())
+            run_tests_with = retry_flaky()
 
             @flaky(jira_keys, max_runs=max_runs, min_passes=min_passes)
             def test_something(self):
@@ -192,7 +192,7 @@ class FlakyTests(testtools.TestCase):
 
         class SomeTest(testtools.TestCase):
 
-            run_tests_with = retry_flaky(output=StringIO())
+            run_tests_with = retry_flaky()
 
             @flaky(u'FLOC-XXXX', max_runs=len(test_methods), min_passes=1)
             def test_something(self):
@@ -214,7 +214,7 @@ class FlakyTests(testtools.TestCase):
         executions = iter(test_methods)
 
         class SomeTest(testtools.TestCase):
-            run_tests_with = retry_flaky(output=StringIO())
+            run_tests_with = retry_flaky()
 
             @flaky(u'FLOC-XXXX', max_runs=len(test_methods), min_passes=2)
             def test_something(self):
@@ -240,7 +240,7 @@ class FlakyTests(testtools.TestCase):
         executions = iter(test_methods)
 
         class SomeTest(testtools.TestCase):
-            run_tests_with = retry_flaky(output=StringIO())
+            run_tests_with = retry_flaky()
 
             def test_something(self):
                 next(executions)()
@@ -265,7 +265,7 @@ class FlakyTests(testtools.TestCase):
         observed_reasons = []
 
         class SkippingTest(testtools.TestCase):
-            run_tests_with = retry_flaky(output=StringIO())
+            run_tests_with = retry_flaky()
 
             @flaky(jira_keys, max_runs, min_passes)
             def test_skip(self):
@@ -287,7 +287,7 @@ class FlakyTests(testtools.TestCase):
         log = []
 
         class FlakyTest(testtools.TestCase):
-            run_tests_with = retry_flaky(output=StringIO())
+            run_tests_with = retry_flaky()
 
             @flaky(jira_keys, 1, 1)
             def test_delayed(self):
@@ -320,7 +320,7 @@ class FlakyIntegrationTests(testtools.TestCase):
         observed_reasons = []
 
         class SkippingTest(base_test_case):
-            run_tests_with = retry_flaky(output=StringIO())
+            run_tests_with = retry_flaky()
 
             @flaky(jira_keys, max_runs, min_passes)
             def test_skip(self):
