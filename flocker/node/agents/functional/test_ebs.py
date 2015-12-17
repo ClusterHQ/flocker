@@ -72,16 +72,10 @@ class EBSBlockDeviceAPIInterfaceTests(
         Attempting to attach a volume to a non-local instance will
         raise an ``AttachUnexpectedInstance`` error.
         """
-        try:
-            config = get_blockdevice_config(ProviderType.aws)
-        except InvalidConfig as e:
-            raise SkipTest(str(e))
-        ec2_client = get_ec2_client_for_test(config)
         dataset_id = uuid4()
         volume = self.api.create_volume(dataset_id=dataset_id, size=ONE_GIB)
 
-        flocker_volume = ec2_client.connection.Volume(volume.blockdevice_id)
-        self.addCleanup(flocker_volume.delete)
+        self.addCleanup(self.api.destroy_volume, volume.blockdevice_id)
 
         bad_instance_id = u'i-12345678'
 
