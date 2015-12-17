@@ -110,6 +110,7 @@ The ``--apps-per-node`` parameter specifies how many applications to start on ea
     --apps-per-node 5
 
 Note that all application instances will have exactly the same configuration.
+In particular, multiple containers may fail to start if they use a common host resource (e.g. host ports).
 
 Configuration File
 ==================
