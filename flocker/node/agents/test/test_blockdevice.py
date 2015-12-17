@@ -1503,7 +1503,6 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         except DidNotConverge as e:
             self.fail("Did not converge to next state after %d iterations." %
                       e.iteration_count)
-        evaluate_function = None
 
     @given(
         desired_state=sampled_from([
