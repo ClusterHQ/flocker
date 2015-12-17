@@ -55,4 +55,4 @@ popd
 
 popd
 
-/usr/bin/s3cmd put --config=/root/.s3cfg --recursive /tmp/flocker-config/ s3://${s3_bucket}/flocker-config
+/usr/bin/s3cmd put --config=/root/.s3cfg --recursive /tmp/flocker-config/ s3://${s3_bucket}/flocker-config/
