@@ -798,7 +798,7 @@ common_cli:
     EOF_VAGRANTFILE
 
     (
-      retry_n_times_with_timeout 3 600 \
+      retry_n_times_with_timeout 3 1200 \
         vagrant up
     ) || abort_build
 
