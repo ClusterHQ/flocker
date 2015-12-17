@@ -263,15 +263,15 @@ class EBSBlockDeviceAPIInterfaceTests(
         only occurs if we hit eventually consistent ignorance in the AWS
         servers so it's hard to trigger deterministically.
         """
-        result = self.api._next_device({u"/dev/sdf"})
-        self.assertEqual(result, u"/dev/sdg")
+        result = self.api._next_device({u"sdf"})
+        self.assertEqual(result, u"sdg")
 
     def test_next_device_in_use_end(self):
         """
         ``_next_device`` returns ``None`` if all devices are in use.
         """
         devices_in_use = {
-            u'/dev/sd{}'.format(d)
+            u'sd{}'.format(d)
             for d in u'fghijklmnop'
         }
         result = self.api._next_device(devices_in_use)
