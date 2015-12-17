@@ -202,7 +202,7 @@ class TimeoutTests(TestCase):
     def setUp(self):
         """Initialize testing helper variables."""
         self._deferred = Deferred()
-        self._timeout = 1.0
+        self._timeout = 10.0
         self._clock = Clock()
 
     def _execute_timeout(self):
@@ -215,9 +215,9 @@ class TimeoutTests(TestCase):
         timeout function, and concludes with a CancelledError failure.
         """
         self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
+        self._clock.advance(self._timeout - 1.0)
         self.assertFalse(self._deferred.called)
-        self._clock.advance(0.1)
+        self._clock.advance(1.0)
         self.assertTrue(self._deferred.called)
         self.failureResultOf(self._deferred, CancelledError)
 
@@ -227,12 +227,12 @@ class TimeoutTests(TestCase):
         timeout.
         """
         self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
+        self._clock.advance(self._timeout - 1.0)
         self.assertFalse(self._deferred.called)
         self._deferred.callback('Success')
         self.assertTrue(self._deferred.called)
         self.assertEqual(self._deferred.result, 'Success')
-        self._clock.advance(0.1)
+        self._clock.advance(1.0)
         self.assertTrue(self._deferred.called)
         self.assertEqual(self._deferred.result, 'Success')
 
@@ -242,7 +242,7 @@ class TimeoutTests(TestCase):
         timeout is not still pending on the reactor.
         """
         self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
+        self._clock.advance(self._timeout - 1.0)
         self._deferred.callback('Success')
         self.assertEqual(self._clock.getDelayedCalls(), [])
         self.assertEqual(self._deferred.result, 'Success')
@@ -253,7 +253,7 @@ class TimeoutTests(TestCase):
         pending on the reactor.
         """
         self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
+        self._clock.advance(self._timeout - 1.0)
         self._deferred.errback(Exception('ErrorXYZ'))
         self.assertEqual(self._clock.getDelayedCalls(), [])
         self.assertEqual(self._deferred.result.getErrorMessage(), 'ErrorXYZ')
