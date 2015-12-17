@@ -44,7 +44,7 @@ def function_serializer(function):
             "function": str(function),
         }
     except TypeError:
-        # Callable not supported by inspect module
+        # Callable not supported by inspect.getfile
         if isinstance(function, partial):
             return {
                 'partial': function_serializer(function.func)
