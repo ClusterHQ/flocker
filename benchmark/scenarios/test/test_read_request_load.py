@@ -4,6 +4,7 @@ from ipaddr import IPAddress
 from twisted.internet.defer import succeed, Deferred
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
+from twisted.python.failure import Failure
 from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient._client import (
@@ -167,8 +168,8 @@ class RequestDroppingFakeFlockerClient(
     """
     A FakeFlockerClient that can drop alternating requests.
     """
-    def __init__(self, nodes):
-        super(RequestDroppingFakeFlockerClient, self).__init__(nodes)
+    def __init__(self, client, reactor):
+        super(RequestDroppingFakeFlockerClient, self).__init__(client)
         self.drop_requests = False
         self._dropped_last_request = False
 
@@ -183,6 +184,31 @@ class RequestDroppingFakeFlockerClient(
         return Deferred()
 
 
+class RequestErrorFakeFlockerClient(
+    proxyForInterface(IFlockerAPIV1Client)
+):
+    """
+    A FakeFlockerClient that can result in failured requests.
+    """
+    def __init__(self, client, reactor):
+        super(RequestErrorFakeFlockerClient, self).__init__(client)
+        self.fail_requests = False
+        self.reactor = reactor
+        self.delay = 1
+
+    def list_nodes(self):
+        if not self.fail_requests:
+            return succeed(True)
+        else:
+            def fail_later(secs):
+                d = Deferred()
+                self.reactor.callLater(
+                    secs, d.errback, Failure(Exception())
+                )
+                return d
+            return fail_later(self.delay)
+
+
 class ReadRequestLoadScenarioTest(SynchronousTestCase):
     """
     ReadRequestLoadScenario tests
@@ -195,7 +221,9 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
         return BenchmarkCluster(
             node1.public_address,
-            lambda reactor: FlockerClient(FakeFlockerClient([node1, node2])),
+            lambda reactor: FlockerClient(
+                FakeFlockerClient([node1, node2]), reactor
+            ),
             {node1.public_address, node2.public_address},
         )
 
@@ -204,7 +232,15 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         ReadRequestLoadScenario starts and stops without collapsing.
         """
         c = Clock()
-        cluster = self.make_cluster(FakeFlockerClient)
+
+        node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
+        node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
+        cluster = BenchmarkCluster(
+            node1.public_address,
+            lambda reactor: FakeFlockerClient([node1, node2]),
+            {node1.public_address, node2.public_address},
+        )
+
         sample_size = 5
         s = ReadRequestLoadScenario(c, cluster, sample_size=sample_size)
 
@@ -230,6 +266,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         being raised.
         """
         c = Clock()
+
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
         sample_size = 5
         s = ReadRequestLoadScenario(c, cluster, sample_size=sample_size)
@@ -244,7 +281,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
         # Advance the clock by 2 seconds so that a request is dropped
         # and a new rate which is below the target can be established.
-        c.pump(repeat(1, 2))
+        c.advance(2)
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestRateTooLow)
@@ -262,7 +299,7 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
         # Continue the clock for one second longer than the timeout
         # value to allow the timeout to be triggered.
-        c.pump(repeat(1, s.timeout + 1))
+        c.advance(s.timeout + 1)
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, RequestRateNotReached)
@@ -301,7 +338,83 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         c.pump(repeat(1, sample_size))
         # We only need to advance one more second (first loop in the monitoring
         # loop) to trigger RequestOverload
-        c.pump(repeat(1, 1))
+        c.advance(1)
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestOverload)
+
+    def test_scenario_stops_only_when_no_outstanding_requests(self):
+        """
+        `ReadRequestLoadScenario` should only be considered as stopped
+        when all outstanding requests made by it have completed.
+        """
+        c = Clock()
+
+        cluster = self.make_cluster(RequestErrorFakeFlockerClient)
+        delay = 1
+
+        cluster.get_control_service(c).delay = delay
+        sample_size = 5
+        s = ReadRequestLoadScenario(
+            c, cluster, request_rate=10, sample_size=sample_size
+        )
+
+        d = s.start()
+        s.maintained().addBoth(lambda x: self.fail())
+
+        # Advance the clock by `sample_size` seconds to establish the
+        # requested rate.
+        c.pump(repeat(1, sample_size))
+
+        # Force the control service to fail requests for one second.
+		# These requests will fail after the delay period set in the
+		# control service.
+        cluster.get_control_service(c).fail_requests = True
+        c.advance(1)
+        cluster.get_control_service(c).fail_requests = False
+
+        d.addCallback(lambda ignored: s.stop())
+
+        # The scenario should not successfully stop until after the
+        # delay period for the failed requests.
+        self.assertNoResult(d)
+        c.advance(delay)
+        self.successResultOf(d)
+
+    def test_scenario_timeouts_if_requests_not_completed(self):
+        """
+        `ReadRequestLoadScenario` should timeout if the outstanding
+        requests for the scenarion do not complete within the specified
+        time.
+        """
+        c = Clock()
+
+        cluster = self.make_cluster(RequestErrorFakeFlockerClient)
+        sample_size = 5
+        s = ReadRequestLoadScenario(
+            c, cluster, request_rate=10, sample_size=sample_size
+        )
+
+        # Set the delay for the requests to be longer than the scenario
+        # timeout
+        cluster.get_control_service(c).delay = s.timeout + 10
+
+        d = s.start()
+        s.maintained().addBoth(lambda x: self.fail())
+
+        # Advance the clock by `sample_size` seconds to establish the
+        # requested rate.
+        c.pump(repeat(1, sample_size))
+
+        cluster.get_control_service(c).fail_requests = True
+        c.advance(1)
+        cluster.get_control_service(c).fail_requests = False
+
+        d.addCallback(lambda ignored: s.stop())
+
+        # Advance the clock by the timeout value so it is triggered
+        # before the requests complete.
+        self.assertNoResult(d)
+        c.advance(s.timeout + 1)
+        self.assertTrue(s.rate_measurer.outstanding() > 0)
+        self.successResultOf(d)
