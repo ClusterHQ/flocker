@@ -119,7 +119,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         instance_id = self.api.compute_instance_id()
 
         # Attach manual volume using /xvd* device.
-        device_name = self.api._next_device(set())
+        device_name = self.api._next_device()
         device_name = device_name.replace('/sd', '/xvd')
         self.api._attach_ebs_volume(
             created_volume.id, instance_id, device_name)
@@ -248,28 +248,6 @@ class EBSBlockDeviceAPIInterfaceTests(
                 messages
             )
         )
-
-    def test_next_device_in_use(self):
-        """
-        ``_next_device`` skips devices indicated as being in use.
-
-        Ideally we'd have a test for this using the public API, but this
-        only occurs if we hit eventually consistent ignorance in the AWS
-        servers so it's hard to trigger deterministically.
-        """
-        result = self.api._next_device({u"sdf"})
-        self.assertEqual(result, u"/dev/sdg")
-
-    def test_next_device_in_use_end(self):
-        """
-        ``_next_device`` returns ``None`` if all devices are in use.
-        """
-        devices_in_use = {
-            u'sd{}'.format(d)
-            for d in u'fghijklmnop'
-        }
-        result = self.api._next_device(devices_in_use)
-        self.assertIs(result, None)
 
     def test_create_volume_gold_profile(self):
         """
