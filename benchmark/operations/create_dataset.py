@@ -21,9 +21,9 @@ class EmptyClusterError(Exception):
 
 
 @implementer(IProbe)
-class CreateDatasetConvergenceProbe(PClass):
+class CreateDatasetProbe(PClass):
     """
-    Probe to create a dataset and wait for cluster to converge.
+    Probe to create a dataset and wait for it to be mounted.
     """
 
     reactor = field(mandatory=True)
@@ -53,7 +53,7 @@ class CreateDatasetConvergenceProbe(PClass):
             raise EmptyClusterError("Cluster contains no nodes.")
         d.addCallback(pick_primary)
 
-        # Create the CreateDatasetConvergenceProbe instance.
+        # Create the CreateDatasetProbe instance.
         def create_probe(node):
             return cls(
                 reactor=reactor,
@@ -115,7 +115,7 @@ class CreateDatasetConvergenceProbe(PClass):
 
 
 @implementer(IOperation)
-class CreateDatasetConvergence(object):
+class CreateDataset(object):
 
     def __init__(self, reactor, cluster, volume_size=None):
         self.reactor = reactor
@@ -126,6 +126,6 @@ class CreateDatasetConvergence(object):
             self.volume_size = volume_size
 
     def get_probe(self):
-        return CreateDatasetConvergenceProbe.setup(
+        return CreateDatasetProbe.setup(
             self.reactor, self.control_service, uuid4(), self.volume_size
         )

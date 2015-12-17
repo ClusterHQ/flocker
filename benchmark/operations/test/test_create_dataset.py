@@ -15,7 +15,7 @@ from flocker.apiclient import FakeFlockerClient, Node
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IOperation, IProbe
 from benchmark.operations.create_dataset import (
-    CreateDatasetConvergence, CreateDatasetConvergenceProbe, EmptyClusterError,
+    CreateDataset, CreateDatasetProbe, EmptyClusterError,
 )
 
 
@@ -26,15 +26,15 @@ class CreateDatasetTests(SynchronousTestCase):
 
     def test_implements_IOperation(self):
         """
-        CreateDatasetConvergence provides the IOperation interface.
+        CreateDataset provides the IOperation interface.
         """
-        verifyClass(IOperation, CreateDatasetConvergence)
+        verifyClass(IOperation, CreateDataset)
 
     def test_implements_IProbe(self):
         """
-        CreateDatasetConvergenceProbe provides the IProbe interface.
+        CreateDatasetProbe provides the IProbe interface.
         """
-        verifyClass(IProbe, CreateDatasetConvergenceProbe)
+        verifyClass(IProbe, CreateDatasetProbe)
 
     def test_create_dataset(self):
         """
@@ -52,7 +52,7 @@ class CreateDatasetTests(SynchronousTestCase):
             {},
             None,
         )
-        operation = CreateDatasetConvergence(clock, cluster)
+        operation = CreateDataset(clock, cluster)
         d = operation.get_probe()
 
         def run_probe(probe):
@@ -91,6 +91,6 @@ class CreateDatasetTests(SynchronousTestCase):
             None,
         )
 
-        d = CreateDatasetConvergence(Clock(), cluster).get_probe()
+        d = CreateDataset(Clock(), cluster).get_probe()
 
         self.failureResultOf(d, EmptyClusterError)

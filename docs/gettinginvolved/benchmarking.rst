@@ -117,7 +117,7 @@ Operation Types
 
 .. option:: create-dataset
 
-   Create a dataset and wait for cluster to converge.
+   Create a dataset and wait for it to be mounted.
 
    Specify the size of the dataset using an additional ``volume_size`` property.
    If specifying a cluster using environment variables, this defaults to the value of the ``FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE`` environment variable.
