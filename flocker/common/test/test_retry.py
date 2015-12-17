@@ -211,7 +211,7 @@ class LoopUntilTests(SynchronousTestCase):
             self.successResultOf(d),
             result)
 
-        action = LoggedAction.of_type(logger.messages, LOOP_UNTIL_ACTION)[0]
+        [action] = LoggedAction.of_type(logger.messages, LOOP_UNTIL_ACTION)
         assertContainsFields(self, action.start_message, {
             'predicate': predicate,
         })
