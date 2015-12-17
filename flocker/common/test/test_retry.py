@@ -205,16 +205,12 @@ class TimeoutTests(TestCase):
         self.timeout = 10.0
         self.clock = Clock()
 
-    def _execute_timeout(self):
-        """Execute the timeout."""
-        timeout(self.clock, self.deferred, self.timeout)
-
     def test_times_out(self):
         """
         A deferred that never fires is timed out at the correct time using the
         timeout function, and concludes with a CancelledError failure.
         """
-        self._execute_timeout()
+        timeout(self.clock, self.deferred, self.timeout)
         self.clock.advance(self.timeout - 1.0)
         self.assertFalse(self.deferred.called)
         self.clock.advance(1.0)
@@ -226,7 +222,7 @@ class TimeoutTests(TestCase):
         A deferred that fires before the timeout is not cancelled by the
         timeout.
         """
-        self._execute_timeout()
+        timeout(self.clock, self.deferred, self.timeout)
         self.clock.advance(self.timeout - 1.0)
         self.assertFalse(self.deferred.called)
         self.deferred.callback('Success')
@@ -241,7 +237,7 @@ class TimeoutTests(TestCase):
         If the deferred is successfully completed before the timeout, the
         timeout is not still pending on the reactor.
         """
-        self._execute_timeout()
+        timeout(self.clock, self.deferred, self.timeout)
         self.clock.advance(self.timeout - 1.0)
         self.deferred.callback('Success')
         self.assertEqual(self.clock.getDelayedCalls(), [])
@@ -252,7 +248,7 @@ class TimeoutTests(TestCase):
         If the deferred is failed before the timeout, the timeout is not still
         pending on the reactor.
         """
-        self._execute_timeout()
+        timeout(self.clock, self.deferred, self.timeout)
         self.clock.advance(self.timeout - 1.0)
         self.deferred.errback(Exception('ErrorXYZ'))
         self.assertEqual(self.clock.getDelayedCalls(), [])
