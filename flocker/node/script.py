@@ -654,7 +654,7 @@ class AgentService(PClass):
         if backend.needs_cluster_id:
             cluster_id = self.node_credential.cluster_uuid
 
-        return get_api(backend, self.api_args, reactor, cluster_id)
+        return get_api(backend, self.api_args, self.reactor, cluster_id)
 
     def get_deployer(self, api):
         """
