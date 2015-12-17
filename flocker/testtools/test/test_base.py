@@ -8,21 +8,26 @@ import shutil
 import string
 import unittest
 
+from eliot import MessageType, fields
 from hypothesis import assume, given
-from hypothesis.strategies import integers, lists, text
+from hypothesis.strategies import binary, integers, lists, text
 from testtools import PlaceHolder, TestCase, TestResult
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
     Annotate,
     Contains,
+    ContainsDict,
     DirExists,
     HasLength,
+    EndsWith,
     Equals,
     FileContains,
+    Is,
     Matcher,
     MatchesAny,
     MatchesDict,
+    MatchesRegex,
     LessThan,
     Not,
     PathExists,
@@ -33,6 +38,9 @@ from twisted.python.filepath import FilePath
 from .._base import (
     AsyncTestCase,
     make_temporary_directory,
+    _SplitEliotLogs,
+    _get_eliot_data,
+    _iter_lines,
     _path_for_test_id,
 )
 from .._testhelpers import (
@@ -134,10 +142,115 @@ class AsyncTestCaseTests(TestCase):
         test.run()
         self.assertThat(
             test.getDetails(),
-            MatchesDict({
-                'twisted-log': AfterPreprocessing(
-                    lambda c: c.as_text(), Contains('foo')),
+            ContainsDict({
+                'twisted-log': match_text_content(MatchesRegex(
+                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\+\d{4} \[-\] foo$'
+                )),
             }))
+
+    def test_separate_eliot_log(self):
+        """
+        AsyncTestCases attach the eliot log as a detail separate from the
+        Twisted log.
+        """
+        message_type = MessageType(u'foo', fields(name=str), u'test message')
+
+        class SomeTest(AsyncTestCase):
+            def test_something(self):
+                from twisted.python import log
+                log.msg('foo')
+                message_type(name='qux').write()
+
+        test = SomeTest('test_something')
+        test.run()
+        self.assertThat(
+            test.getDetails(),
+            MatchesDict({
+                'twisted-log': match_text_content(MatchesRegex(
+                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\+\d{4} \[-\] foo$'
+                )),
+                _SplitEliotLogs._ELIOT_LOG_DETAIL_NAME: match_text_content(
+                    Contains("  message_type: 'foo'\n"
+                             "  name: 'qux'\n")
+                ),
+            }))
+
+
+def match_text_content(matcher):
+    """
+    Match the text of a ``Content`` instance.
+    """
+    return AfterPreprocessing(lambda content: content.as_text(), matcher)
+
+
+class IterLinesTests(TestCase):
+    """
+    Tests for ``_iter_lines``.
+    """
+
+    @given(lists(binary()), binary(min_size=1))
+    def test_preserves_data(self, data, separator):
+        """
+        Splitting into lines loses no data.
+        """
+        observed = _iter_lines(iter(data), separator)
+        self.assertThat(''.join(observed), Equals(''.join(data)))
+
+    @given(lists(binary()), binary(min_size=1))
+    def test_separator_terminates(self, data, separator):
+        """
+        After splitting into lines, each line ends with the separator.
+        """
+        # Make sure data ends with the separator.
+        data.append(separator)
+        observed = list(_iter_lines(iter(data), separator))
+        self.assertThat(observed, AllMatch(EndsWith(separator)))
+
+    @given(lists(binary(min_size=1), min_size=1), binary(min_size=1))
+    def test_nonterminated_line(self, data, separator):
+        """
+        If the input data does not end with a separator, then every line ends
+        with a separator *except* the last line.
+        """
+        assume(not data[-1].endswith(separator))
+        observed = list(_iter_lines(iter(data), separator))
+        self.expectThat(observed[:-1], AllMatch(EndsWith(separator)))
+        self.assertThat(observed[-1], Not(EndsWith(separator)))
+
+
+class GetEliotDataTests(TestCase):
+    """
+    Tests for ``_get_eliot_data``.
+    """
+
+    def test_twisted_line(self):
+        """
+        When given a line logged by Twisted, _get_eliot_data returns ``None``.
+        """
+        line = '2015-12-11 11:59:48+0000 [-] foo\n'
+        self.assertThat(_get_eliot_data(line), Is(None))
+
+    def test_eliot_line(self):
+        """
+        When given a line logged by Eliot, _get_eliot_data returns the bytes
+        that were logged by Eliot.
+        """
+        logged_line = (
+            '2015-12-11 11:59:48+0000 [-] ELIOT: '
+            '{"timestamp": 1449835188.575052, '
+            '"task_uuid": "6c579710-1b95-4604-b5a1-36b56f8ceb53", '
+            '"message_type": "foo", '
+            '"name": "qux", '
+            '"task_level": [1]}\n'
+        )
+        expected = (
+            '{"timestamp": 1449835188.575052, '
+            '"task_uuid": "6c579710-1b95-4604-b5a1-36b56f8ceb53", '
+            '"message_type": "foo", '
+            '"name": "qux", '
+            '"task_level": [1]}'
+        )
+        self.assertThat(_get_eliot_data(logged_line), Equals(expected))
 
 
 identifier_characters = string.ascii_letters + string.digits + '_'
