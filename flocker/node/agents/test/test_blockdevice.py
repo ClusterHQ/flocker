@@ -1210,6 +1210,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         """
         Cleanup after running a hypothesis example.
         """
+        umount_all(self.deployer.mountroot)
         detach_destroy_volumes(self.deployer.block_device_api)
 
     def current_datasets(self):
