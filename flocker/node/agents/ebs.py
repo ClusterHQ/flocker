@@ -1193,15 +1193,16 @@ class EBSBlockDeviceAPI(object):
             indicates use on an unsupported OS, a misunderstanding of the EBS
             device assignment rules, or some other bug in this implementation.
         """
-        local_instance_id = self.compute_instance_id()
-        if attach_to != local_instance_id:
-            raise AttachUnexpectedInstance(
-                blockdevice_id, attach_to, local_instance_id)
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is not None or
                 ebs_volume.state != VolumeStates.AVAILABLE.value):
             raise AlreadyAttachedVolume(blockdevice_id)
+
+        local_instance_id = self.compute_instance_id()
+        if attach_to != local_instance_id:
+            raise AttachUnexpectedInstance(
+                blockdevice_id, attach_to, local_instance_id)
 
         attached = False
         ignore_devices = pset([])
