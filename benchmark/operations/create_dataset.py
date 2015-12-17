@@ -72,8 +72,8 @@ class CreateDatasetProbe(PClass):
         """
         Check whether a dataset has been created.
 
-        :param expected: A dataset dictionary to match against the results of
-            ``list_datasets_state``.
+        :param flocker.apiclient.Dataset expected: A dataset to match against
+            the results of ``list_datasets_state``.
         :return: a Deferred that fires True if the expected dataset exists in
             the cluster, or False otherwise.
         """
