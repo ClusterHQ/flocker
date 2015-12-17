@@ -1201,6 +1201,10 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
     """
     def setUp(self):
         self.deployer = create_blockdevicedeployer(self)
+        self._loopdevices = set()
+
+    def tearDown(self):
+        print "LOOPDevs", len(self._loopdevices), self._loopdevices
 
     def teardown_example(self, token):
         """
@@ -1227,6 +1231,9 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
         """
         local_datasets = self.current_datasets()
+        for d in local_datasets.itervalues():
+            if hasattr(d, 'device_path'):
+                self._loopdevices.add(d.device_path)
         changes = self.deployer.calculator.calculate_changes_for_datasets(
             discovered_datasets=local_datasets,
             desired_datasets=desired_datasets,
