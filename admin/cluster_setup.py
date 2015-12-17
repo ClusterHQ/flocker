@@ -21,6 +21,7 @@ from twisted.python.usage import UsageError
 from twisted.web.http import OK
 
 from .acceptance import (
+    ClusterIdentity,
     CommonOptions,
     capture_journal,
     capture_upstart,
@@ -71,6 +72,7 @@ class RunOptions(CommonOptions):
                 "app-template parameter must be provided if apps-per-node > 0"
             )
 
+        self['purpose'] = unicode(self['purpose'])
         if any(x not in string.ascii_letters + string.digits + '-'
                for x in self['purpose']):
             raise UsageError(
@@ -80,6 +82,13 @@ class RunOptions(CommonOptions):
         # This is run last as it creates the actual "runner" object
         # based on the provided parameters.
         super(RunOptions, self).postOptions()
+
+    def _make_cluster_identity(self, dataset_backend):
+        purpose = self['purpose']
+        return ClusterIdentity(
+            purpose=purpose,
+            name='{}-cluster'.format(purpose).encode("ascii"),
+        )
 
 
 @inlineCallbacks
