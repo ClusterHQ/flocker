@@ -264,7 +264,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         servers so it's hard to trigger deterministically.
         """
         result = self.api._next_device({u"sdf"})
-        self.assertEqual(result, u"sdg")
+        self.assertEqual(result, u"/dev/sdg")
 
     def test_next_device_in_use_end(self):
         """
