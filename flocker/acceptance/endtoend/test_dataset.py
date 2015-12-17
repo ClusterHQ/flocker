@@ -174,3 +174,6 @@ class DatasetAPITests(AsyncTestCase):
 
         waiting_for_shutdown.addCallback(move_dataset)
         return waiting_for_shutdown
+    test_dataset_move_from_dead_node.skip = (
+        "Shutting down a node invalidates a public IP, which breaks all "
+        "kinds of things. So skip for now.")
