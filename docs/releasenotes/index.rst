@@ -12,7 +12,6 @@ You can learn more about where we might be going with future releases by:
 Next release
 ============
 
-* On EBS and OpenStack if a volume is attached to a dead node Flocker will now be able to move it to a different node.
 * The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
 * The :ref:`Flocker Plugin for Docker<docker-plugin>` now solely relies on the metadata key ``"name"`` to find datasets.
 * Now supporting Ubuntu-15.10 instead of Ubuntu-15.04 for the flocker client.
