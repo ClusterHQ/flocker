@@ -122,5 +122,11 @@ template.add_output(Output(
     Value=Ref(s3bucket),
     Description="Name of S3 bucket to hold cluster configuration files."
 ))
+template.add_output(Output(
+    "SwarmDockerHost",
+    Value=Join("", ["export DOCKER_HOST=",
+               GetAtt(control_service_instance, "PublicIp"), ":2376"]),
+    Description="Please point DOCKER_HOST at Swarm Manager."
+))
 
 print(template.to_json())
