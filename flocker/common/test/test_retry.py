@@ -38,7 +38,7 @@ from .._retry import (
     poll_until,
     timeout,
 )
-from ...testtools import CustomException
+from ...testtools import TestCase, CustomException
 
 
 class LoopUntilTests(SynchronousTestCase):
@@ -194,7 +194,7 @@ class LoopUntilTests(SynchronousTestCase):
             str(LoopExceeded(predicate, False)))
 
 
-class TimeoutTests(SynchronousTestCase):
+class TimeoutTests(TestCase):
     """
     Tests for :py:func:`timeout`.
     """
