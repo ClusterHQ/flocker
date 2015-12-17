@@ -3505,12 +3505,15 @@ class IBlockDeviceAPITestsMixin(object):
             mountpoint = FilePath(self.mktemp())
             mountpoint.makedirs()
             process = Popen(
-                [b"mount", device_path.path, mountpoint.path],
+                [b"mount", device.path, mountpoint.path],
                 stdout=PIPE,
                 stderr=STDOUT
             )
             output = process.stdout.read()
-            process.wait()
+            exit_code = process.wait()
+            Message.log(message_type="mount_result", output=output,
+                        exit_code=exit_code, device=device.path)
+            self.assertNotEqual(exit_code, 0, "Mount unexpectedly succeeded!")
             return output
 
         # Create an unrelated, attached volume that should be undisturbed.
