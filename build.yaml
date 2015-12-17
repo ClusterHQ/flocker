@@ -655,7 +655,7 @@ common_cli:
   build_vagrant_tutorial_basebox: &build_vagrant_tutorial_basebox |
     vagrant destroy -f
     (
-      retry_n_times_with_timeout 3 1800 \
+      retry_n_times_with_timeout 3 2400 \
         \$venv/bin/python admin/build-vagrant-box \
           --box tutorial \
           --branch \${TRIGGERED_BRANCH} \
