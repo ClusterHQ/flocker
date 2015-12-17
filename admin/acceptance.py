@@ -143,11 +143,13 @@ class ClusterIdentity(PClass):
     """
     The information that is used to identify a cluster.
 
-    :ivar str purpose: The intended purpose of the cluster.
-    :ivar str name: The name of the cluster.
+    :ivar unicode purpose: The intended purpose of the cluster.
+    :ivar unicode prefix: The prefix to use for names of the cluster nodes.
+    :ivar bytes name: The name of the cluster.
     :ivar UUID id: The UUID of the cluster, ``None`` means a random ID.
     """
     purpose = field(mandatory=True, type=unicode)
+    prefix = field(mandatory=True, type=unicode)
     name = field(mandatory=True, type=bytes)
     id = field(mandatory=False, type=(UUID, type(None)), initial=None)
 
@@ -618,7 +620,7 @@ class LibcloudRunner(object):
 
         for index in range(self.num_nodes):
             name = "%s-%s-%s-%d" % (
-                self.identity.purpose, self.creator, random_tag, index,
+                self.identity.prefix, self.creator, random_tag, index,
             )
             try:
                 print "Creating node %d: %s" % (index, name)
@@ -821,6 +823,7 @@ class CommonOptions(Options):
         )
         return ClusterIdentity(
             purpose=u'acceptance-testing',
+            prefix=u'acceptance-test',
             name=b'acceptance-cluster',
             id=cluster_id,
         )
