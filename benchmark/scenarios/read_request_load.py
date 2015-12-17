@@ -228,12 +228,13 @@ class ReadRequestLoadScenario(object):
         ):
             def handle_timeout(failure):
                 failure.trap(CancelledError)
-                print (
+                msg = (
                     "Force stopping the scenario. "
-                    "There are {num_requests} outstanding requests".format(
-                        num_requests=outstanding_requests
-                    )
+                    "There are {num_requests} outstanding requests"
+                ).format(
+                    num_requests=outstanding_requests
                 )
+                Message.log(key='force_stop_request', value=msg)
 
             def no_outstanding_requests():
                 return self.rate_measurer.outstanding() == 0
