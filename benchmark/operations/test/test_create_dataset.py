@@ -4,6 +4,7 @@ Create Dataset operation tests for the control service benchmarks.
 """
 from uuid import uuid4
 
+from eliot.testing import capture_logging
 from ipaddr import IPAddress
 from zope.interface.verify import verifyClass
 
@@ -36,7 +37,8 @@ class CreateDatasetTests(SynchronousTestCase):
         """
         verifyClass(IProbe, CreateDatasetProbe)
 
-    def test_create_dataset(self):
+    @capture_logging(None)
+    def test_create_dataset(self, logger):
         """
         CreateDataset probe waits for cluster to converge.
         """
