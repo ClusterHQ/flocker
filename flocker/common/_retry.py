@@ -18,6 +18,7 @@ from eliot.twisted import DeferredContext
 from twisted.python.reflect import safe_repr
 from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
+from twisted.python.failure import Failure
 
 from effect import Effect, Constant, Delay
 from effect.retry import retry
@@ -112,7 +113,7 @@ def loop_until(reactor, predicate, steps=None):
     return d.addActionFinish()
 
 
-def timeout(reactor, deferred, timeout_sec):
+def timeout(reactor, deferred, timeout_sec, reason=None):
     """
     Adds a timeout to an existing deferred.  If the timeout expires before the
     deferred expires, then the deferred is cancelled.
@@ -122,6 +123,9 @@ def timeout(reactor, deferred, timeout_sec):
     :param Deferred deferred: The deferred to cancel at a later point in time.
     :param float timeout_sec: The number of seconds to wait before the deferred
         should time out.
+    :param Exception reason: An exception used to create a Failure with which
+        to fire the Deferred if the timeout is encountered.  If not given,
+        ``deferred`` retains its original failure behavior.
 
     :return: The updated deferred.
     """
@@ -130,11 +134,19 @@ def timeout(reactor, deferred, timeout_sec):
 
     delayed_timeout = reactor.callLater(timeout_sec, _timeout)
 
+    if reason is not None:
+        def maybe_replace_reason(passthrough):
+            if delayed_timeout.active():
+                return passthrough
+            return Failure(reason)
+        deferred.addErrback(maybe_replace_reason)
+
     def abort_timeout(passthrough):
         if delayed_timeout.active():
             delayed_timeout.cancel()
         return passthrough
     deferred.addBoth(abort_timeout)
+
     return deferred
 
 

@@ -223,6 +223,20 @@ class TimeoutTests(TestCase):
         self.clock.advance(self.timeout)
         self.failureResultOf(deferred, CancelledError)
 
+    def test_times_out_with_reason(self):
+        """
+        If a custom reason is passed to ``timeout`` and the Deferred does not
+        fire within the timeout interval, it is made to fire with the custom
+        reason once the timeout interval elapses.
+        """
+        reason = CustomException("Custom timeout reason")
+        deferred = timeout(self.clock, self.deferred, self.timeout, reason)
+        self.clock.advance(self.timeout)
+        self.assertEqual(
+            reason,
+            self.failureResultOf(deferred, CustomException).value,
+        )
+
     def test_doesnt_time_out(self):
         """
         A deferred that fires before the timeout is not cancelled by the
@@ -239,6 +253,19 @@ class TimeoutTests(TestCase):
         timeout.
         """
         deferred = timeout(self.clock, self.deferred, self.timeout)
+        self.clock.advance(self.timeout - 1.0)
+        self.deferred.errback(CustomException())
+        self.failureResultOf(deferred, CustomException)
+
+    def test_doesnt_time_out_failure_custom_reason(self):
+        """
+        A Deferred that fails before the timeout is not cancelled by the
+        timeout.
+        """
+        deferred = timeout(
+            self.clock, self.deferred, self.timeout,
+            ValueError("This should not appear.")
+        )
         self.clock.advance(self.timeout - 1.0)
         self.deferred.errback(CustomException())
         self.failureResultOf(deferred, CustomException)
