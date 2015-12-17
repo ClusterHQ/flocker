@@ -158,6 +158,7 @@ def main(reactor, args, base_path, top_level):
         else:
             if cluster is None:
                 print("Didn't finish creating the cluster.")
+                runner.stop_cluster(reactor)
             else:
                 print("The following variables describe the cluster:")
                 environment_variables = get_trial_environment(cluster)
