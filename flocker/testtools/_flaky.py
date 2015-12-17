@@ -8,6 +8,7 @@ from functools import partial
 from pprint import pformat
 import sys
 
+from eliot import Message
 from pyrsistent import PClass, field, pmap, pset, pset_field
 import testtools
 from testtools.content import text_content
@@ -212,13 +213,14 @@ class _RetryFlaky(testtools.RunTest):
                     skip_reported = True
 
             if not skip_reported:
-                self._output.write(
-                    '@flaky(%s): passed %d out of %d runs '
-                    '(min passes: %d; max runs: %d)'
-                    % (case.id(), successes, len(results), flaky.min_passes,
-                       flaky.max_runs)
-                )
-
+                Message.new(
+                    message_type=u"flocker:test:flaky",
+                    id=case.id(),
+                    successes=successes,
+                    passes=len(results),
+                    min_passes=flaky.min_passes,
+                    max_runs=flaky.max_runs,
+                ).write()
                 result.addSuccess(case, details=combined_details)
         else:
             # XXX: How are we going to report on tests that sometimes fail,
