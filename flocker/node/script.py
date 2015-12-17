@@ -495,6 +495,57 @@ _DEFAULT_DEPLOYERS = {
 }
 
 
+def get_backend(backend_name, backends=_DEFAULT_BACKENDS):
+    """
+    Find the backend in ``backends`` that matches the one named by
+    ``backend_name``. If not found then attempt is made to load it as
+    plugin.
+
+    :param backend_name: The name of the backend.
+    :param backends: Collection of `BackendDescription`` instances.
+
+    :raise ValueError: If ``backend_name`` doesn't match any known backend.
+    :return: The matching ``BackendDescription``.
+    """
+    for backend in backends:
+        if backend.name == backend_name:
+            return backend
+    try:
+        return namedAny(backend_name + ".FLOCKER_BACKEND")
+    except (AttributeError, ValueError):
+        raise ValueError(
+            "'{!s}' is neither a built-in backend nor a 3rd party "
+            "module.".format(backend_name),
+        )
+
+
+def get_api(backend, api_args, reactor, cluster_id):
+    """
+    Get an storage driver which can be used to create an ``IDeployer``.
+
+    :param BackendDescription backend: Backend to use.
+    :param PMap api_args: Parameters to pass the API factory.
+    :param reactor: The reactor to use.
+    :param cluster_id: The cluster's unique ID.
+
+    :return: An object created by one of the factories in ``self.backends``
+        using the configuration from ``self.api_args`` and other useful
+        state on ``self``.
+    """
+    if backend.needs_cluster_id:
+        api_args = api_args.set("cluster_id", cluster_id)
+    if backend.needs_reactor:
+        api_args = api_args.set("reactor", reactor)
+
+    try:
+        return backend.api_factory(**api_args)
+    except StorageInitializationError as e:
+        if e.code == StorageInitializationError.CONFIGURATION_ERROR:
+            raise UsageError(u"Configuration error", *e.args)
+        else:
+            raise
+
+
 class AgentService(PClass):
     """
     :ivar backends: ``BackendDescription`` instances describing how to use each
@@ -571,16 +622,7 @@ class AgentService(PClass):
         :raise ValueError: If ``backend_name`` doesn't match any known backend.
         :return: The matching ``BackendDescription``.
         """
-        for backend in self.backends:
-            if backend.name == self.backend_name:
-                return backend
-        try:
-            return namedAny(self.backend_name + ".FLOCKER_BACKEND")
-        except (AttributeError, ValueError):
-            raise ValueError(
-                "'{!s}' is neither a built-in backend nor a 3rd party "
-                "module.".format(self.backend_name),
-            )
+        return get_backend(self.backend_name, self.backends)
 
     # Needs tests: FLOC-1964.
     def get_tls_context(self):
@@ -608,21 +650,11 @@ class AgentService(PClass):
             state on ``self``.
         """
         backend = self.get_backend()
-
-        api_args = self.api_args
+        cluster_id = None
         if backend.needs_cluster_id:
             cluster_id = self.node_credential.cluster_uuid
-            api_args = api_args.set("cluster_id", cluster_id)
-        if backend.needs_reactor:
-            api_args = api_args.set("reactor", self.reactor)
 
-        try:
-            return backend.api_factory(**api_args)
-        except StorageInitializationError as e:
-            if e.code == StorageInitializationError.CONFIGURATION_ERROR:
-                raise UsageError(u"Configuration error", *e.args)
-            else:
-                raise
+        return get_api(backend, self.api_args, reactor, cluster_id)
 
     def get_deployer(self, api):
         """

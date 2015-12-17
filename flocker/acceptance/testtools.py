@@ -44,7 +44,7 @@ from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
 from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
-from ..node.script import AgentService
+from ..node.script import get_backend, get_api
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
@@ -214,11 +214,19 @@ def get_backend_api(test_case, cluster_id):
             'in order to verify construction. Please set '
             'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG to a yaml filepath '
             'with the dataset configuration.')
+    backend_name = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
+    if backend_name is None:
+        raise SkipTest(
+            "Set acceptance testing volume backend using the " +
+            "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
     backend_config_filepath = FilePath(backend_config_filename)
     full_backend_config = yaml.safe_load(
         backend_config_filepath.getContent())
-    agent_service = AgentService.from_configuration(full_backend_config)
-    return agent_service.get_api()
+    backend_config = full_backend_config.get(backend_name)
+    if 'backend' in backend_config:
+        backend_config.pop('backend')
+    backend = get_backend(backend_name)
+    return get_api(backend, pmap(backend_config), reactor, cluster_id)
 
 
 def skip_backend(unsupported, reason):
