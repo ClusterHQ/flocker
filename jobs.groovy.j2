@@ -357,70 +357,55 @@ def build_tabs(dashBranchName) {
     }
 }
 
-// Iterate over every branch, and create folders, jobs
-branches.each {
-    println("iterating over branch... ${it}")
 
-    //  swap '/' with '-'
-    branchName = "${it}"
-    dashBranchName = "${branchName}".replace("/","-")
-    println("found branch... ${it}")
-
-    // create a folder for every branch: /git-username/git-repo/branch
-    folder("${dashProject}/${dashBranchName}") { displayName("${branchName}") }
-
-    // create tabs
-    build_tabs(dashBranchName)
-
-{# ------------------------------------------------------------------------- #}
-{# JOB DEFINITIONS BELOW - THESE WILL BE ADDED TO A MULTIJOB PHASE           #}
-{# --------------------------------------------------------------------------#}
-
-{# iterate over every job_type  #}
-{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
-{%  for job_name, job_values  in job_type_values.iteritems()                -%}
-
-{# apply config related to 'run_trial' jobs                                  #}
-{%    if job_type == 'run_trial'                                            -%}
-{%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters {
-{# we pass the 'MODULE' parameter as the flocker module to test with trial   #}
-        textParam("MODULE", "{{ _module }}", "Module to test" )
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
+    // apply config related to 'run_trial' jobs
+    if (job_type == 'run_trial') {
+        for (_module in job_values.with_modules) {
+            _job_name = job_name + '_' + _module
+            job("${dashProject}/${dashBranchName}/${_job_name}") {
+                parameters {
+                    // we pass the 'MODULE' parameter as the flocker module to test with trial
+                    textParam("MODULE", _module, "Module to test" )
+                    textParam("TRIGGERED_BRANCH", branchName,
+                              "Branch that triggered this job" )
+                }
+                // limit execution to jenkins slaves with a particular label
+                label(job_values.on_nodes_with_labels)
+                directories_to_delete = ["${WORKSPACE}/_trial_temp",
+                                         "${WORKSPACE}/.hypothesis"]
+                wrappers build_wrappers(job_values, directories_to_delete)
+                scm build_scm(git_url, branchName)
+                steps build_steps(job_values.with_steps)
+                publishers build_publishers(job_values)
+            }
+        }
     }
-{# limit execution to jenkins slaves with a particular label                 #}
-    label("{{ job_values.on_nodes_with_labels }}")
-{% set directories_to_delete = ["${WORKSPACE}/_trial_temp", "${WORKSPACE}/.hypothesis"] %}
-    {{ wrappers(job_values, directories_to_delete) }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-    {{ publishers(job_values) }}
-  }
-{%      endfor                                                               %}
-{%    endif                                                                  %}
 
-{# apply config related to 'run_trial_storage_driver' jobs                   #}
-{%    if job_type == 'run_trial_for_storage_driver'                         -%}
-{%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module.replace('/', '_')        -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters {
-{# we pass the 'MODULE' parameter as the flocker module to test with trial   #}
-        textParam("MODULE", "{{ _module }}", "Module to test" )
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    // XXX duplicate of run_trial jobs? if so we should combine::
+
+    // apply config related to 'run_trial_storage_driver' jobs
+    if (job_type == 'run_trial_for_storage_driver') {
+        for (_module in job_values.with_modules) {
+            _job_name = job_name + '_' + _module.replace('/', '_')
+            job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+                parameters {
+                    // we pass the 'MODULE' parameter as the flocker module to test with trial
+                    textParam("MODULE", "{{ _module }}", "Module to test" )
+                    textParam("TRIGGERED_BRANCH", branchName,
+                              "Branch that triggered this job" )
+                }
+                // limit execution to jenkins slaves with a particular label
+                label(job_values.on_nodes_with_labels)
+                directories_to_delete = ["${WORKSPACE}/_trial_temp",
+                                         "${WORKSPACE}/.hypothesis"]
+                wrappers build_wrappers(job_values, directories_to_delete)
+                scm build_scm(git_url, branchName)
+                steps build_steps(job_values.with_steps)
+                publishers build_publishers(job_values)
+            }
+        }
     }
-{# limit execution to jenkins slaves with a particular label                 #}
-    label("{{ job_values.on_nodes_with_labels }}")
-{% set directories_to_delete = ["${WORKSPACE}/_trial_temp", "${WORKSPACE}/.hypothesis"] %}
-    {{ wrappers(job_values, directories_to_delete) }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-    {{ publishers(job_values) }}
-  }
-{%      endfor                                                               %}
-{%    endif                                                                  %}
 
 {# apply config related to 'run_sphinx' jobs                                 #}
 {%    if job_type == 'run_sphinx'                                           -%}
@@ -507,6 +492,36 @@ branches.each {
     {{ steps(job_values.with_steps) }}
   }
 {%    endif                                                                  %}
+}
+
+/* --------------------
+   MAIN ACTION:
+   --------------------
+*/
+// Iterate over every branch, and create folders, jobs
+branches.each {
+    println("iterating over branch... ${it}")
+
+    //  swap '/' with '-'
+    branchName = "${it}"
+    dashBranchName = "${branchName}".replace("/","-")
+    println("found branch... ${it}")
+
+    // create a folder for every branch: /git-username/git-repo/branch
+    folder("${dashProject}/${dashBranchName}") { displayName("${branchName}") }
+
+    // create tabs
+    build_tabs(dashBranchName)
+
+{# ------------------------------------------------------------------------- #}
+{# JOB DEFINITIONS BELOW - THESE WILL BE ADDED TO A MULTIJOB PHASE           #}
+{# --------------------------------------------------------------------------#}
+
+{# iterate over every job_type  #}
+{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
+{%  for job_name, job_values  in job_type_values.iteritems()                -%}
+
+
 
 {%  endfor                                                                   %}
 {% endfor                                                                    %}
