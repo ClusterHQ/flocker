@@ -30,7 +30,7 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python.filepath import FilePath
 import os
 
-from ...common import loop_until
+from ...common import loop_until, timeout
 from ._model import (
     Run, Sudo, Put, Comment, RunRemotely, perform_comment, perform_put,
     perform_sudo)
@@ -154,6 +154,7 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
     def connect():
         connection = connection_helper.secureConnection()
         connection.addErrback(write_failure)
+        timeout(reactor, connection, 30)
         return connection
 
     connection = yield loop_until(reactor, connect)
