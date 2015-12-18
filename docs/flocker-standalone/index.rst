@@ -1,8 +1,8 @@
 .. _installing-flocker:
 
-===================
-Stand-alone Flocker
-===================
+=================
+Flocker with ....
+=================
 
 There are several installation options with which you can get up and running with Flocker.
 

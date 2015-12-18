@@ -41,9 +41,9 @@
 
    <div style="display:none;">
 
-.. image:: _images/docker.png
-.. image:: _images/kubernetes.png
-.. image:: _images/mesos.png
+.. image:: images/docker.png
+.. image:: images/kubernetes.png
+.. image:: images/mesos.png
    
 .. raw:: html
 
