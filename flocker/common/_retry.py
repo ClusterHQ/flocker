@@ -20,6 +20,7 @@ from eliot import (
 from eliot.twisted import DeferredContext
 
 from twisted.python.reflect import fullyQualifiedName, safe_repr
+from twisted.python.failure import Failure
 from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
 
