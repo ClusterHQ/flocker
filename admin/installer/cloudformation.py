@@ -7,9 +7,8 @@ from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
 from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 
-OWNER = u"clusterhq"
-NUM_NODES = 2
-NODE_NAME_TEMPLATE = u"{owner}flockerdemo{index}"
+NUM_NODES = 3
+NODE_NAME_TEMPLATE = u"Flocker{index}"
 S3_SETUP = 'setup_s3.sh'
 DOCKER_SETUP = 'setup_docker.sh'
 SWARM_MANAGER_SETUP = 'setup_swarm_manager.sh'
@@ -48,7 +47,9 @@ secret_access_key_param = template.add_parameter(Parameter(
 
 template.add_mapping('RegionMap', {
     # richardw-test1 AMI generated from a running acceptance test node.
-    "us-east-1":      {"AMI": "ami-6cabe306"},
+    "us-east-1":      {"FlockerAMI": "ami-6cabe306"},
+    "us-west-1":      {"FlockerAMI": "ami-2e81ea4e"},
+    "us-west-2":      {"FlockerAMI": "ami-7e99861f"}
 })
 
 instances = []
@@ -59,10 +60,10 @@ s3bucket = Bucket('FlockerConfig',
 template.add_resource(s3bucket)
 
 for i in range(NUM_NODES):
-    node_name = NODE_NAME_TEMPLATE.format(owner=OWNER, index=i)
+    node_name = NODE_NAME_TEMPLATE.format(index=i)
     ec2_instance = ec2.Instance(
         node_name,
-        ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "AMI"),
+        ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "FlockerAMI"),
         InstanceType="m3.large",
         KeyName=Ref(keyname_param),
         # TODO: create and use unique SecurityGroup for this install.
@@ -109,6 +110,7 @@ for i in range(NUM_NODES):
     ec2_instance.UserData = Base64(Join("", user_data))
 
     template.add_resource(ec2_instance)
+
 
 template.add_output([
     Output(
