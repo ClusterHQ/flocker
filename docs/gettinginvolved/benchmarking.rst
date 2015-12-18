@@ -115,18 +115,31 @@ Scenario Types
 Operation Types
 ~~~~~~~~~~~~~~~
 
+.. option:: create-dataset
+
+   Create a dataset and wait for it to be mounted.
+
+   Specify the size of the dataset using an additional ``volume_size`` property.
+   If specifying a cluster using environment variables, this defaults to the value of the ``FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE`` environment variable.
+   Otherwise, it defaults to a platform-specific value.
+
 .. option:: no-op
 
    A no-op operation that performs no action.
 
 .. option:: read-request
 
-   Read the current cluster state from the control service.
+   Perform a read operation on the control service.
+
+   Specify the operation to be performed using an additional ``method`` property.
+   The value must be the name of a zero-parameter method in the ``flocker.apiclient.IFlockerAPIV1Client`` interface, and defaults to ``version``.
 
 .. option:: wait
 
    Wait for a number of seconds between measurements.
-   The number of seconds to wait must be provided as an additional ``wait_seconds`` property.
+
+   Specify the number of seconds to wait using an additional ``wait_seconds`` property.
+   The default is 10 seconds.
 
 Metric Types
 ~~~~~~~~~~~~
@@ -134,6 +147,8 @@ Metric Types
 .. option:: cputime
 
    CPU time elapsed.
+   Specify the process names to be monitored using an additional ``processes`` property.
+   The value must be a list of process name strings, and defaults to the names of the Flocker services.
 
 .. option:: wallclock
 

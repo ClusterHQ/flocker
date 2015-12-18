@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for :module:`flocker.node.script`.
@@ -356,6 +356,7 @@ class AgentServiceGetAPITests(SynchronousTestCase):
                 "access_key_id": "XXXXXXXXXX",
                 "secret_access_key": "YYYYYYYYYY",
                 "cluster_id": "123456789",
+                "validate_region": False,
             }
         )
         ebs = agent_service.get_api()

@@ -19,10 +19,9 @@ from eliot import (
 )
 from eliot.twisted import DeferredContext
 
-from twisted.python.reflect import safe_repr
+from twisted.python.reflect import fullyQualifiedName, safe_repr
 from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
-from twisted.python.reflect import fullyQualifiedName
 
 from effect import Effect, Constant, Delay
 from effect.retry import retry
@@ -48,6 +47,16 @@ def function_serializer(function):
         return {
             "function": str(function),
         }
+    except TypeError:
+        # Callable not supported by inspect.getfile
+        if isinstance(function, partial):
+            return {
+                'partial': function_serializer(function.func)
+            }
+        else:
+            return {
+                "function": str(function),
+            }
 
 
 class LoopExceeded(Exception):
@@ -117,28 +126,41 @@ def loop_until(reactor, predicate, steps=None):
     return d.addActionFinish()
 
 
-def timeout(reactor, deferred, timeout_sec):
-    """Adds a timeout to an existing deferred. If the timeout expires before
-    the deferred expires, then the deferred is cancelled.
+def timeout(reactor, deferred, timeout_sec, reason=None):
+    """
+    Adds a timeout to an existing deferred.  If the timeout expires before the
+    deferred expires, then the deferred is cancelled.
 
     :param IReactorTime reactor: The reactor implementation to schedule the
         timeout.
-
     :param Deferred deferred: The deferred to cancel at a later point in time.
-
     :param float timeout_sec: The number of seconds to wait before the deferred
         should time out.
+    :param Exception reason: An exception used to create a Failure with which
+        to fire the Deferred if the timeout is encountered.  If not given,
+        ``deferred`` retains its original failure behavior.
+
+    :return: The updated deferred.
     """
     def _timeout():
         deferred.cancel()
 
     delayed_timeout = reactor.callLater(timeout_sec, _timeout)
 
+    if reason is not None:
+        def maybe_replace_reason(passthrough):
+            if delayed_timeout.active():
+                return passthrough
+            return Failure(reason)
+        deferred.addErrback(maybe_replace_reason)
+
     def abort_timeout(passthrough):
         if delayed_timeout.active():
             delayed_timeout.cancel()
         return passthrough
     deferred.addBoth(abort_timeout)
+
+    return deferred
 
 
 def retry_failure(reactor, function, expected=None, steps=None):
@@ -161,7 +183,9 @@ def retry_failure(reactor, function, expected=None, steps=None):
         steps = repeat(0.1)
     steps = iter(steps)
 
-    d = maybeDeferred(function)
+    action = LOOP_UNTIL_ACTION(predicate=function)
+    with action.context():
+        d = DeferredContext(maybeDeferred(function))
 
     def loop(failure):
         if expected and not failure.check(*expected):
@@ -172,13 +196,18 @@ def retry_failure(reactor, function, expected=None, steps=None):
         except StopIteration:
             return failure
 
-        d = deferLater(reactor, interval, function)
+        d = deferLater(reactor, interval, action.run, function)
         d.addErrback(loop)
         return d
 
     d.addErrback(loop)
 
-    return d
+    def got_result(result):
+        action.add_success_fields(result=result)
+        return result
+    d.addCallback(got_result)
+    d.addActionFinish()
+    return d.result
 
 
 def poll_until(predicate, steps, sleep=None):

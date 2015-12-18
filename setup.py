@@ -1,4 +1,4 @@
-# Copyright ClusterHQ Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Generate a Flocker package that can be deployed onto cluster nodes.
@@ -107,6 +107,16 @@ setup(
         },
 
     cmdclass=versioneer.get_cmdclass(),
+
+    dependency_links = [
+        # Use our fork of testtools until #165, #171, and #172 are merged and
+        # released. See FLOC-3498.
+        #
+        # "git+https" weirdness is due to setuptools expecting:
+        #     vcs+proto://host/path@revision#egg=project-version
+        # See https://setuptools.readthedocs.org/en/latest/setuptools.html
+        "git+https://github.com/ClusterHQ/testtools@clusterhq-fork#egg=testtools-1.8.2chq2",  # noqa
+    ],
 
     # Some "trove classifiers" which are relevant.
     classifiers=[

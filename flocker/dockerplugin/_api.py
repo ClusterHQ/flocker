@@ -10,10 +10,12 @@ from itertools import repeat
 from functools import wraps
 
 import yaml
+import re
 
-from bitmath import GiB
+from bitmath import TiB, GiB, MiB, KiB, Byte
 
 from eliot import writeFailure
+from eliot.twisted import DeferredContext
 
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import CancelledError
@@ -49,6 +51,45 @@ SCHEMAS = {
 DEFAULT_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
 if DEFAULT_SIZE == DEVICEMAPPER_LOOPBACK_SIZE:
     DEFAULT_SIZE = DEFAULT_SIZE + GiB(1)
+
+
+# A function to help parse size expressions for size opt
+def parse_num(expression):
+    """
+    Parse a string of a dataset size 10g, 100kib etc into
+    a usable integer.
+    If user doesn't submit a correct size, give back
+    the default size.
+
+    :param expression: the dataset expression to parse.
+    """
+    if not expression:
+        return DEFAULT_SIZE
+    if type(expression) is unicode:
+        expression = str(expression)
+
+    def _match(exp, search=re.compile(
+            r'^(\d+){1}([KMGTkmgt][IiBb]){0,1}([Bb]){0,1}').search):
+        return bool(search(exp))
+
+    if _match(expression):
+        unit = expression.translate(None, "1234567890.")
+        num = int(expression.replace(unit, ""))
+        unit = unit.lower()
+        if unit == 'tb' or unit == 't' or unit == 'tib':
+            return TiB(num)
+        elif unit == 'gb' or unit == 'g' or unit == 'gib':
+            return GiB(num)
+        elif unit == 'mb' or unit == 'm' or unit == 'mib':
+            return MiB(num)
+        elif unit == 'kb' or unit == 'k' or unit == 'kib':
+            return KiB(num)
+        elif unit == '':
+            return Byte(num)
+        else:
+            return DEFAULT_SIZE
+    else:
+        return DEFAULT_SIZE
 
 
 def _endpoint(name, ignore_body=False):
@@ -229,6 +270,13 @@ class VolumePlugin(object):
         if profile:
             metadata[PROFILE_METADATA_KEY] = profile
 
+        size_from_opts = opts.get(u"size")
+        if size_from_opts:
+            size = parse_num(size_from_opts)
+            metadata[u"maximum_size"] = unicode(int(size.to_Byte()))
+        else:
+            size = DEFAULT_SIZE
+
         def ensure_unique_name(configured):
             for dataset in configured:
                 if dataset.metadata.get(u"name") == Name:
@@ -236,7 +284,7 @@ class VolumePlugin(object):
 
         creating = conditional_create(
             self._flocker_client, self._reactor, ensure_unique_name,
-            self._node_id, int(DEFAULT_SIZE.to_Byte()), metadata=metadata)
+            self._node_id, int(size.to_Byte()), metadata=metadata)
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
         creating.addCallback(lambda _: {u"Err": None})
         return creating
@@ -276,7 +324,7 @@ class VolumePlugin(object):
 
         :return: Result that includes the mountpoint.
         """
-        d = self._dataset_id_for_name(Name)
+        d = DeferredContext(self._dataset_id_for_name(Name))
         d.addCallback(lambda dataset_id:
                       self._flocker_client.move_dataset(self._node_id,
                                                         dataset_id))
@@ -288,15 +336,14 @@ class VolumePlugin(object):
             repeat(self._POLL_INTERVAL)))
         d.addCallback(lambda p: {u"Err": None, u"Mountpoint": p.path})
 
-        timeout(self._reactor, d, self._MOUNT_TIMEOUT)
+        timeout(self._reactor, d.result, self._MOUNT_TIMEOUT)
 
         def handleCancel(failure):
             failure.trap(CancelledError)
             return {u"Err": u"Timed out waiting for dataset to mount.",
                     u"Mountpoint": u""}
         d.addErrback(handleCancel)
-
-        return d
+        return d.result
 
     @app.route("/VolumeDriver.Path", methods=["POST"])
     @_endpoint(u"Path")
@@ -312,7 +359,7 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        d = self._dataset_id_for_name(Name)
+        d = DeferredContext(self._dataset_id_for_name(Name))
         d.addCallback(self._get_path_from_dataset_id)
 
         def got_path(path):
@@ -323,4 +370,4 @@ class VolumePlugin(object):
                 return {u"Err": None,
                         u"Mountpoint": path.path}
         d.addCallback(got_path)
-        return d
+        return d.result

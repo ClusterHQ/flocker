@@ -1,4 +1,4 @@
-# Copyright ClusterHQ Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Functional tests for :module:`flocker.node._docker`.
@@ -14,7 +14,7 @@ from eliot.testing import capture_logging, assertHasMessage
 from requests.exceptions import ReadTimeout
 from docker.errors import APIError
 
-from twisted.trial.unittest import TestCase
+from twisted.python.monkey import MonkeyPatcher
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.internet.defer import succeed, gatherResults
@@ -29,6 +29,7 @@ from ...common import loop_until
 from ...testtools import (
     find_free_port, flaky, DockerImageBuilder, assertContainsAll,
     random_name,
+    TestCase, AsyncTestCase,
 )
 
 from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
@@ -60,7 +61,7 @@ class IDockerClientTests(make_idockerclient_tests(
     """
     @if_docker_configured
     def setUp(self):
-        pass
+        super(IDockerClientTests, self).setUp()
 
 
 class IDockerClientNamespacedTests(make_idockerclient_tests(
@@ -73,7 +74,7 @@ class IDockerClientNamespacedTests(make_idockerclient_tests(
     """
     @if_docker_configured
     def setUp(self):
-        pass
+        super(IDockerClientNamespacedTests, self).setUp()
 
     @flaky([u'FLOC-2628', u'FLOC-2874'])
     def test_added_is_listed(self):
@@ -101,7 +102,7 @@ class Registry(PClass):
         return "{host}:{port}".format(host=self.host, port=self.port)
 
 
-class GenericDockerClientTests(TestCase):
+class GenericDockerClientTests(AsyncTestCase):
     """
     Functional tests for ``DockerClient`` and other clients that talk to
     real Docker.
@@ -110,6 +111,7 @@ class GenericDockerClientTests(TestCase):
 
     @if_docker_configured
     def setUp(self):
+        super(GenericDockerClientTests, self).setUp()
         self.namespacing_prefix = namespace_for_test(self)
 
     def make_client(self):
@@ -1161,13 +1163,13 @@ class MakeResponseTests(TestCase):
         )
 
 
-class DockerClientTests(TestCase):
+class DockerClientTests(AsyncTestCase):
     """
     Tests for ``DockerClient`` specifically.
     """
     @if_docker_configured
     def setUp(self):
-        pass
+        super(DockerClientTests, self).setUp()
 
     def test_default_namespace(self):
         """
@@ -1187,6 +1189,8 @@ class DockerClientTests(TestCase):
         ``DockerClient.list`` does not list containers which are removed,
         during its operation, from another thread.
         """
+        patcher = MonkeyPatcher()
+
         namespace = namespace_for_test(self)
         flocker_docker_client = DockerClient(namespace=namespace)
 
@@ -1212,22 +1216,20 @@ class DockerClientTests(TestCase):
             return containers
 
         adding_units = gatherResults([adding_unit1, adding_unit2])
-        patches = []
 
         def get_list(ignored):
-            patch = self.patch(
+            patcher.addPatch(
                 docker_client,
                 'containers',
                 simulate_missing_containers
             )
-            patches.append(patch)
+            patcher.patch()
             return flocker_docker_client.list()
 
         listing_units = adding_units.addCallback(get_list)
 
         def check_list(units):
-            for patch in patches:
-                patch.restore()
+            patcher.restore()
             self.assertEqual(
                 [name2], sorted([unit.name for unit in units])
             )
@@ -1280,6 +1282,7 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
     """
     @if_docker_configured
     def setUp(self):
+        super(NamespacedDockerClientTests, self).setUp()
         self.namespace = namespace_for_test(self)
         self.namespacing_prefix = BASE_NAMESPACE + self.namespace + u"--"
 

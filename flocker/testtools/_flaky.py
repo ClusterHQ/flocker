@@ -6,8 +6,8 @@ Logic for handling flaky tests.
 
 from functools import partial
 from pprint import pformat
-import sys
 
+from eliot import Message
 from pyrsistent import PClass, field, pmap, pset, pset_field
 import testtools
 from testtools.content import text_content
@@ -109,22 +109,17 @@ def _combine_flaky_annotation(flaky1, flaky2):
     )
 
 
-def retry_flaky(run_test_factory=None, output=None):
+def retry_flaky(run_test_factory=None):
     """
     Wrap a ``RunTest`` object so that flaky tests are retried.
 
     :param run_test_factory: A callable that takes a `TestCase` and returns
         something that behaves like `testtools.RunTest`.
-    :param file output: A file-like object to which we'll send output about
-        flaky tests. This is a temporary measure until we fix FLOC-3469, at
-        which point we will just use standard logging.
     """
     if run_test_factory is None:
         run_test_factory = testtools.RunTest
-    if output is None:
-        output = sys.stdout
 
-    return partial(_RetryFlaky, output, run_test_factory)
+    return partial(_RetryFlaky, run_test_factory)
 
 
 class _RetryFlaky(testtools.RunTest):
@@ -134,8 +129,8 @@ class _RetryFlaky(testtools.RunTest):
     # XXX: This should probably become a part of testtools:
     # https://bugs.launchpad.net/testtools/+bug/1515933
 
-    def __init__(self, output, run_test_factory, case, *args, **kwargs):
-        self._output = output
+    def __init__(self, run_test_factory, case, *args, **kwargs):
+        super(_RetryFlaky, self).__init__(case)
         self._run_test_factory = run_test_factory
         self._case = case
         self._args = args
@@ -180,6 +175,7 @@ class _RetryFlaky(testtools.RunTest):
 
         :return: A ``TestResult`` with the result of running the flaky test.
         """
+        result.startTest(case)
         successes = 0
         results = []
 
@@ -202,7 +198,6 @@ class _RetryFlaky(testtools.RunTest):
         combined_details = _combine_details(
             [flaky_details] + list(r[1] for r in results))
 
-        result.startTest(case)
         if successful:
             skip_reported = False
             for result_type, details in results:
@@ -211,13 +206,14 @@ class _RetryFlaky(testtools.RunTest):
                     skip_reported = True
 
             if not skip_reported:
-                self._output.write(
-                    '@flaky(%s): passed %d out of %d runs '
-                    '(min passes: %d; max runs: %d)'
-                    % (case.id(), successes, len(results), flaky.min_passes,
-                       flaky.max_runs)
-                )
-
+                Message.new(
+                    message_type=u"flocker:test:flaky",
+                    id=case.id(),
+                    successes=successes,
+                    passes=len(results),
+                    min_passes=flaky.min_passes,
+                    max_runs=flaky.max_runs,
+                ).write()
                 result.addSuccess(case, details=combined_details)
         else:
             # XXX: How are we going to report on tests that sometimes fail,
@@ -238,8 +234,20 @@ class _RetryFlaky(testtools.RunTest):
             result was and ``details`` is a dictionary of testtools details.
         """
         tmp_result = testtools.TestResult()
-        # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879
-        _reset_case(case)
+        # XXX: Still using internal API of testtools despite improvements in
+        # #165. Will need to do follow-up work on testtools to ensure that
+        # RunTest.run(case); RunTest.run(case) is supported.
+        try:
+            case._reset()
+        except AttributeError:
+            # We are using a fork of testtools, which unfortunately means that
+            # we need to do special things to make sure we're using the latest
+            # version. Raise an error message that will help people figure out
+            # what they need to do.
+            raise Exception(
+                "Could not reset TestCase. Maybe upgrade your version of "
+                "testtools: pip install --upgrade --process-dependency-links "
+                ".[dev]")
         self._run_test(case, tmp_result)
         result_type = _get_result_type(tmp_result)
         details = pmap(case.getDetails())
@@ -311,14 +319,3 @@ def _combine_details(detailses):
     for details in detailses:
         gather_details(details, result)
     return pmap(result)
-
-
-def _reset_case(case):
-    """
-    Reset ``case`` so it can be run again.
-    """
-    # XXX: Work around https://bugs.launchpad.net/testtools/+bug/1517879
-    # Don't want details from last run.
-    case.getDetails().clear()
-    case._TestCase__setup_called = False
-    case._TestCase__teardown_called = False

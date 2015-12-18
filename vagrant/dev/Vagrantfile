@@ -34,7 +34,7 @@ unless Vagrant.has_plugin?("vagrant-vbguest")
 end
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "box-cutter/centos70"
+  config.vm.box = "box-cutter/centos71"
   # Update kernel and start to configure base system
   config.vm.provision :shell, :path => "bootstrap.sh", :privileged => true
   config.vm.provision :reload

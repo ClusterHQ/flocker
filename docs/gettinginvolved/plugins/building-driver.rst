@@ -72,10 +72,6 @@ Testing Your Driver
 #. Setup a Continuous Integration environment for tests.
 
    After your acceptance tests pass, we recommend you set up a CI environment for functional and acceptance tests for your driver.
-   For example:
-   
-   * `EBS functional tests <http://build.clusterhq.com/builders/flocker%2Ffunctional%2Faws%2Fubuntu-14.04%2Fstorage-driver>`_
-   * `EBS acceptance tests <http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fubuntu-14.04%2Faws>`_
 
 
 Enabling Flocker Users to Install Your Storage Driver
@@ -164,6 +160,4 @@ What's Next?
 
 We recommend a demo to show off your hard work!
 
-After driver development clears all tests and you've published great getting-started instructions for your users, we recommend :ref:`running through an end-to-end demo using MongoDB <tutorial-mongo>`.
-
-This demo makes a great video which you can use to share with others how they can build a Dockerized application using your storage backend.
+After driver development clears all tests and you've published getting-started instructions for your users, we recommend a video which you can use to share with others how they can build a Dockerized application using your storage backend.
