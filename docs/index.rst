@@ -7,7 +7,7 @@
         .toctree-wrapper { display:none; }
         a.button.rel { display:none; }
         .big-box {
-            border:1px solid black;
+            border:1px solid #777;
             width:10em;
             height:10em;
             float:left;
@@ -15,7 +15,7 @@
             padding:0.5em;
         }
         .small-box {
-            border:1px solid black;
+            border:1px solid #777;
             width:7em;
             height:7em;
             float:left;
@@ -136,11 +136,11 @@ Supported Storage
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="big-box storage">
-        AWS Elastic Block Store
+        AWS EBS
 		<img src="_images/AWS.png" style="width:120px;"/>
     </div>
     <div class="big-box storage">
-        GCE Persistent Disk
+        GCE PD
         <br />
 		<img src="_images/GCE.png" style="width:80px;"/>
         <img src="_images/coming-soon.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Coming soon">
