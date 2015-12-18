@@ -56,6 +56,14 @@
 .. image:: images/GCE.png
 .. image:: images/vmware.png
 .. image:: images/openstack.png
+.. image:: images/ceph.png
+.. image:: images/emc.jpeg
+.. image:: images/hedvig.png
+.. image:: images/nexenta.png
+.. image:: images/convergeio.png
+.. image:: images/dell.png
+.. image:: images/netapp.png
+.. image:: images/saratoga.png
    
 .. raw:: html
 
@@ -145,19 +153,30 @@ Supported Storage
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="small-box storage">
-        Ceph (coming soon; experimental)
+        Ceph 
+		<img src="_images/ceph.png" style="width:50px;"/>
+		(coming soon)
+		(experimental)
     </div>
     <div class="small-box storage">
-        EMC ScaleIO (3rd party)
+        EMC ScaleIO
+		<img src="_images/emc.png" style="width:50px;"/>
+		(3rd party)
     </div>
     <div class="small-box storage">
-        Hedvig (3rd party)
+        Hedvig
+		<img src="_images/hedvig.png" style="width:50px;"/>
+		(3rd party)
     </div>
     <div class="small-box storage">
-        NexentaEdge (3rd party)
+        NexentaEdge
+		<img src="_images/nexenta.png" style="width:50px;"/>
+		(3rd party)
     </div>
     <div class="small-box storage">
-        ConvergeIO (3rd party)
+        ConvergeIO
+		<img src="_images/convergeio.png" style="width:50px;"/>
+		(3rd party)
     </div>
     <div style="clear:both;"></div>
 	
@@ -167,16 +186,24 @@ Supported Storage
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="small-box storage">
-        Dell SC Series (3rd party)
+        Dell SC Series
+		<img src="_images/dell.png" style="width:50px;"/>
+		(3rd party)
     </div>
     <div class="small-box storage">
-        EMC XtremIO (3rd party)
+        EMC XtremIO
+		<img src="_images/emc.png" style="width:50px;"/>
+		(3rd party)
     </div>
     <div class="small-box storage">
-        NetApp OnTap (3rd party)
+        NetApp OnTap
+		<img src="_images/netapp.png" style="width:50px;"/>
+		(3rd party)
     </div>
     <div class="small-box storage">
-        Saratoga Speed (3rd party)
+        Saratoga Speed
+		<img src="_images/saratoga.png" style="width:50px;"/>
+		(3rd party)
     </div>
     <div style="clear:both;"></div>
 	
