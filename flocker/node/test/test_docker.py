@@ -10,10 +10,11 @@ from pyrsistent import pset, pvector
 
 from docker.errors import APIError
 
-from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from ...testtools import random_name, make_with_init_tests
+from ...testtools import (
+    AsyncTestCase, TestCase, random_name, make_with_init_tests,
+)
 from ..testtools import add_with_port_collision_retry
 
 from .._docker import (
@@ -39,7 +40,7 @@ def make_idockerclient_tests(fixture):
     :param fixture: A fixture that returns a :class:`IDockerClient`
         provider.
     """
-    class IDockerClientTests(TestCase):
+    class IDockerClientTests(AsyncTestCase):
         """
         Tests for :class:`IDockerClientTests`.
 

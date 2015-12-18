@@ -23,7 +23,7 @@ class FlockerNodeEraTests(make_script_tests(EXECUTABLE)):
     @skipUnless(which(EXECUTABLE), EXECUTABLE + " not installed")
     @skipUnless(platform.isLinux(), "flocker-node-era only works on Linux")
     def setUp(self):
-        pass
+        super(FlockerNodeEraTests, self).setUp()
 
     def test_output(self):
         """

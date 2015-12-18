@@ -34,18 +34,22 @@ from hypothesis.strategies import (
     dictionaries
 )
 
+from testtools.matchers import Equals
+
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase, SkipTest, TestCase
+from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
     LoggedAction, assertHasMessage, assertHasAction
 )
+
+from .strategies import blockdevice_volumes
 
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
@@ -103,6 +107,7 @@ from ...testtools import (
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
+    AsyncTestCase, TestCase,
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
@@ -3627,8 +3632,9 @@ def make_iblockdeviceapi_tests(
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
-    class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
+    class Tests(IBlockDeviceAPITestsMixin, TestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.api = blockdevice_api_factory(test_case=self)
             self.unknown_blockdevice_id = unknown_blockdevice_id_factory(self)
             check_allocatable_size(
@@ -3711,6 +3717,7 @@ def make_iblockdeviceasyncapi_tests(blockdeviceasync_api_factory):
     """
     class Tests(IBlockDeviceAsyncAPITestsMixin, SynchronousTestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.api = blockdeviceasync_api_factory(test_case=self)
 
     return Tests
@@ -5276,8 +5283,9 @@ def make_icloudapi_tests(
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI``/``ICloudAPI`` provider.
     """
-    class Tests(TestCase):
+    class Tests(AsyncTestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.api = blockdevice_api_factory(test_case=self)
             self.this_node = self.api.compute_instance_id()
             self.async_cloud_api = _SyncToThreadedAsyncCloudAPIAdapter(
@@ -5299,3 +5307,27 @@ def make_icloudapi_tests(
                           self.assertIn(self.api.compute_instance_id(), live))
             return d
     return Tests
+
+
+class BlockDeviceVolumeTests(TestCase):
+    """
+    Tests for ``BlockDeviceVolume``.
+    """
+
+    @given(blockdevice_volumes, blockdevice_volumes)
+    def test_stable_sort_order(self, one, another):
+        """
+        Instances of ``BlockDeviceVolume`` sort in the same order as a tuple
+        made up of the ``blockdevice_id``, ``dataset_id``, ``size``, and
+        ``attached_to`` fields would sort.
+        """
+        self.assertThat(
+            sorted([one, another]),
+            Equals(sorted(
+                [one, another],
+                key=lambda volume: (
+                    volume.blockdevice_id, volume.dataset_id,
+                    volume.size, volume.attached_to
+                ),
+            ))
+        )

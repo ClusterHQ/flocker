@@ -4,14 +4,12 @@
 
 from __future__ import absolute_import
 
-from twisted.trial.unittest import TestCase
-
 from ..service import VolumeName
 from ..testtools import create_realistic_servicepair
-from ...testtools import flaky
+from ...testtools import AsyncTestCase, flaky
 
 
-class RealisticTests(TestCase):
+class RealisticTests(AsyncTestCase):
     """
     Tests for realistic scenarios, used to catch integration issues.
     """
