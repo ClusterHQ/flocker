@@ -950,90 +950,6 @@ job_type:
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
-    run_acceptance_on_AWS_CentOS_7_for:
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-      with_modules: *run_acceptance_modules
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   'export DISTRIBUTION_NAME=centos-7',
-                   *setup_aws_env_vars, *check_version,
-                   *build_sdist, *build_package,
-                   *build_repo_metadata,
-                   *setup_authentication,
-                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
-                   *run_acceptance_aws_tests,
-                   *clean_packages,
-                   *exit_with_return_code_from_test ]
-          }
-      clean_repo: true
-      archive_artifacts: *acceptance_tests_artifacts
-      timeout: 45
-    run_acceptance_on_AWS_Ubuntu_Trusty_for:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_modules: *run_acceptance_modules
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_aws_env_vars, *check_version,
-                   'export DISTRIBUTION_NAME=ubuntu-14.04',
-                   *build_sdist, *build_package,
-                   *build_repo_metadata,
-                   *setup_authentication,
-                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
-                   *run_acceptance_aws_tests,
-                   *clean_packages,
-                   *exit_with_return_code_from_test ]
-          }
-      clean_repo: true
-      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
-      timeout: 45
-    run_acceptance_on_Rackspace_CentOS_7_for:
-      # flocker.provision is responsible for creating the test nodes on
-      # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-      with_modules: *run_acceptance_modules
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   'export DISTRIBUTION_NAME=centos-7',
-                   *setup_aws_env_vars, *check_version,
-                   *build_sdist, *build_package,
-                   *build_repo_metadata,
-                   *setup_authentication,
-                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
-                   *run_acceptance_rackspace_tests,
-                   *clean_packages,
-                   *exit_with_return_code_from_test ]
-          }
-      clean_repo: true
-      archive_artifacts: *acceptance_tests_artifacts
-      timeout: 45
-    run_acceptance_on_Rackspace_Ubuntu_Trusty_for:
-      # flocker.provision is responsible for creating the test nodes on
-      # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_modules: *run_acceptance_modules
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_aws_env_vars, *check_version,
-                   'export DISTRIBUTION_NAME=ubuntu-14.04',
-                   *build_sdist, *build_package,
-                   *build_repo_metadata,
-                   *setup_authentication,
-                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
-                   *run_acceptance_rackspace_tests,
-                   *clean_packages,
-                   *exit_with_return_code_from_test ]
-          }
-      clean_repo: true
-      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
-      timeout: 45
     run_acceptance_loopback_on_AWS_CentOS_7_for:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_modules: *run_full_acceptance_modules
@@ -1232,6 +1148,98 @@ job_type:
                    *package_jenkins_osx_yosemite_box ]
           }
       timeout: 120
+
+    run_acceptance_on_AWS_CentOS_7_for:
+      at: '0 5 * * *'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_modules: *run_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_aws_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts
+      timeout: 45
+
+    run_acceptance_on_AWS_Ubuntu_Trusty_for:
+      at: '0 6 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_modules: *run_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_aws_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      timeout: 45
+
+    run_acceptance_on_Rackspace_CentOS_7_for:
+      at: '0 5 * * *'
+      # flocker.provision is responsible for creating the test nodes on
+      # Rackspace, so we can actually run run-acceptance-tests from AWS
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_modules: *run_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_rackspace_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts
+      timeout: 45
+
+    run_acceptance_on_Rackspace_Ubuntu_Trusty_for:
+      at: '0 6 * * *'
+      # flocker.provision is responsible for creating the test nodes on
+      # Rackspace, so we can actually run run-acceptance-tests from AWS
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_modules: *run_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   *run_acceptance_rackspace_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      timeout: 45
 
 #-----------------------------------------------------------------------------#
 # View definitions below this point
