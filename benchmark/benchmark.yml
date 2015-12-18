@@ -21,6 +21,9 @@ operations:
     type: wait
     wait_seconds: 100
 
+  - name: create-dataset
+    type: create-dataset
+
 metrics:
   - name: default
     type: wallclock

@@ -8,7 +8,7 @@ from jsonschema.exceptions import ValidationError
 from twisted.internet.task import Clock
 from twisted.trial.unittest import SynchronousTestCase
 
-from flocker.apiclient._client import FakeFlockerClient, Node
+from flocker.apiclient import FakeFlockerClient, Node
 
 from benchmark.cluster import BenchmarkCluster, validate_cluster_configuration
 

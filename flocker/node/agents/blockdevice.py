@@ -19,6 +19,8 @@ from zope.interface import implementer, Interface, provider
 
 from pyrsistent import PClass, field, pmap_field, pset_field, thaw
 
+from characteristic import with_cmp
+
 from twisted.python.reflect import safe_repr
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
@@ -433,6 +435,7 @@ def _volume_field():
     )
 
 
+@with_cmp(["blockdevice_id", "dataset_id", "size", "attached_to"])
 class BlockDeviceVolume(PClass):
     """
     A block device that may be attached to a host.
