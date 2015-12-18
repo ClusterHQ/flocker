@@ -1173,6 +1173,20 @@ def main(reactor, args, base_path, top_level):
 
     cluster = None
     results = []
+
+    setup_succeeded = False
+    reached_finally = False
+    stop_cluster = True
+
+    def cluster_cleanup():
+        if not reached_finally:
+            print "interrupted..."
+        if stop_cluster:
+            print "stopping cluster"
+            return runner.stop_cluster(reactor)
+
+    reactor.addSystemEventTrigger('before', 'shutdown', cluster_cleanup)
+
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
@@ -1204,6 +1218,7 @@ def main(reactor, args, base_path, top_level):
                 ]),
             )
 
+        setup_succeeded = True
         result = yield run_tests(
             reactor=reactor,
             cluster=cluster,
@@ -1212,25 +1227,27 @@ def main(reactor, args, base_path, top_level):
         result = 1
         raise
     finally:
-        # Unless the tests failed, and the user asked to keep the nodes, we
-        # delete them.
-        if not options['keep']:
-            runner.stop_cluster(reactor)
+        reached_finally = True
+        # We delete the nodes if the user hasn't asked to keep them
+        # or if we failed to provision the cluster.
+        if not setup_succeeded:
+            print "cluster provisioning failed"
+        elif not options['keep']:
+            print "not keeping cluster"
         else:
             print "--keep specified, not destroying nodes."
-            if cluster is None:
-                print ("Didn't finish creating the cluster.")
-            else:
-                print ("To run acceptance tests against these nodes, "
-                       "set the following environment variables: ")
+            assert cluster is not None
+            print ("To run acceptance tests against these nodes, "
+                   "set the following environment variables: ")
 
-                environment_variables = get_trial_environment(cluster)
+            environment_variables = get_trial_environment(cluster)
 
-                for environment_variable in environment_variables:
-                    print "export {name}={value};".format(
-                        name=environment_variable,
-                        value=shell_quote(
-                            environment_variables[environment_variable]),
-                    )
+            for environment_variable in environment_variables:
+                print "export {name}={value};".format(
+                    name=environment_variable,
+                    value=shell_quote(
+                        environment_variables[environment_variable]),
+                )
+            stop_cluster = False
 
     raise SystemExit(result)
