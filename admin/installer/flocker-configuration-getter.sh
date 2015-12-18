@@ -9,7 +9,7 @@ set -ex
 
 FLOCKER_CONFIG_DIRECTORY="/etc/flocker"
 TMP_DIR="$(mktemp --directory '/etc/flocker.XXXXXXXXXX')"
-archive_path="/tmp/flocker-config.${i}.tar.gz"
+archive_path="/tmp/flocker-config.${node_number}.tar.gz"
 s3cmd_wrapper get --config=/root/.s3cfg s3://${s3_bucket}/flocker-config/${node_number}.tar.gz "${archive_path}"
 
 pushd "${TMP_DIR}"
