@@ -12,6 +12,7 @@
             height:10em;
             float:left;
             margin:0.5em;
+            padding:0.5em;
         }
         .small-box {
             border:1px solid black;
@@ -19,9 +20,15 @@
             height:7em;
             float:left;
             margin:0.5em;
+            padding:0.5em;
+        }
+        .orchestration {
+            border-color: #80B164;
+        }
+        .storage {
+            border-color: #D69A00;
         }
     </style>
-
 
 .. raw:: html
 
@@ -44,6 +51,10 @@
 .. image:: images/docker.png
 .. image:: images/kubernetes.png
 .. image:: images/mesos.png
+.. image:: images/questionmark.png
+.. image:: images/AWS.png
+.. image:: images/GCE.png
+.. image:: images/vmware.png
    
 .. raw:: html
 
@@ -71,24 +82,27 @@ Supported Orchestration Frameworks
 .. raw:: html
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
-    <div class="big-box">
-	    Docker Engine, Swarm and/or Compose
-		<img src="_images/docker.png" style="width:150px;"/>
+    <div class="big-box orchestration">
+	    Docker, Swarm, Compose
+		<img src="_images/docker.png" style="width:50px;"/>
 		<br />
 	<a href="docker-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
-    <div class="big-box">
-		<img src="_images/kubernetes.png" style="width:150px;"/>
+    <div class="big-box orchestation">
+		Kubernetes
+		<img src="_images/kubernetes.png" style="width:50px;"/>
         <br />
 	<a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
-    <div class="big-box">
-		<img src="_images/mesos.png" style="width:150px;"/>
+    <div class="big-box orchestation">
+		Mesos
+		<img src="_images/mesos.png" style="width:50px;"/>
         <br />
 	<a href="mesos-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
-    <div class="big-box">
-		Stand-alone Flocker
+    <div class="big-box orchestation">
+		Other
+	 	<img src="_images/questionmark.png" style="width:50px;"/>
         <br />
 	<a href="flocker-standalone/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
@@ -104,17 +118,20 @@ Supported Storage
 .. raw:: html
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
-    <div class="big-box">
+    <div class="big-box storage">
         AWS - EBS
+		<img src="_images/AWS.png" style="width:50px;"/>
     </div>
-    <div class="big-box">
-        GCE - PD
+    <div class="big-box storage">
+        GCE - PD (coming soon)
+		<img src="_images/GCE.png" style="width:50px;"/>
     </div>
-    <div class="big-box">
+    <div class="big-box storage">
         OpenStack - Cinder
     </div>
-    <div class="big-box">
+    <div class="big-box storage">
         VMware vSphere (3rd party)
+		<img src="_images/vmware.png" style="width:50px;"/>
     </div>
     <div style="clear:both;"></div>
 
@@ -123,19 +140,19 @@ Supported Storage
 .. raw:: html
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
-    <div class="small-box">
+    <div class="small-box storage">
         Ceph (coming soon; experimental)
     </div>
-    <div class="small-box">
+    <div class="small-box storage">
         EMC ScaleIO (3rd party)
     </div>
-    <div class="small-box">
+    <div class="small-box storage">
         Hedvig (3rd party)
     </div>
-    <div class="small-box">
+    <div class="small-box storage">
         NexentaEdge (3rd party)
     </div>
-    <div class="small-box">
+    <div class="small-box storage">
         ConvergeIO (3rd party)
     </div>
     <div style="clear:both;"></div>
@@ -145,16 +162,16 @@ Supported Storage
 .. raw:: html
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
-    <div class="small-box">
+    <div class="small-box storage">
         Dell SC Series (3rd party)
     </div>
-    <div class="small-box">
+    <div class="small-box storage">
         EMC XtremIO (3rd party)
     </div>
-    <div class="small-box">
+    <div class="small-box storage">
         NetApp OnTap (3rd party)
     </div>
-    <div class="small-box">
+    <div class="small-box storage">
         Saratoga Speed (3rd party)
     </div>
     <div style="clear:both;"></div>
