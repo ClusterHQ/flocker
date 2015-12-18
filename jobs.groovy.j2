@@ -89,14 +89,19 @@
     section specifying an daily schedulle.
 */
 
+// Load the build.yaml, which is encoded into JSON by Jinja2; this should be the
+// only usage of Jinja2 in this file.
+def jsonSlurper = new JsonSlurper()
+def GLOBAL_CONFIG = jsonSlurper.parseText('{{json_cfg}}')
+
+
 // --------------------------------------------------------------------------
 // UTILITIES DEFINED BELOW
 // --------------------------------------------------------------------------
 
 def updateGitHubStatus(status, description, branch, dashProject,
                        dashBranchName) {
-    return """
-#!/bin/bash
+    return """#!/bin/bash
 # Jenkins jobs are usually run using 'set -x' however we use 'set +x' here
 # to avoid leaking credentials into the build logs.
 set +x
@@ -117,18 +122,6 @@ echo "Updating commit \$REMOTE_GIT_COMMIT with ${status} status."
 """
 }
 
-/* creates a folder structure to group jobs, these are the Jenkins folder views
-   in the Jenkins UI.
-
-   param folder:  '<clusterhq-flocker/branchname>'
-   param displayName: Name displayed in the jenkins view for this folder
-*/
-// XXX unnecessary
-def folder(folder, display_name) {
-    println("creating ${folder}...")
-    folder(folder) { displayName(display_name) }
-}
-
 /* creates a tab view structure to group jobs inside a branch folder
 
    param name:  '/clusterhq-flocker/branchname/myView1'
@@ -138,11 +131,11 @@ def build_view(dashProject, dashBranchName, name, regex, description) {
     println("creating tab ${name}...")
     // XXX the listView bit should probably be in caller, and we should just return a closure
     listView("${dashProject}/${dashBranchName}/${name}") {
-        description("${description}")
+        description(description)
         filterBuildQueue()
         filterExecutors()
         jobs {
-            regex("${regex}")
+            regex(regex)
         }
         columns {
             status()
@@ -229,112 +222,107 @@ def build_triggers(_type, _value, _branch ) {
 }
 
 
-{% macro scm(git_url, branch) -%}
-{# configures a remote git repository, and merges 'branch' before build
+/* configures a remote git repository, and merges 'branch' before build
 
     param: git_url - example: https://github.com/clusterhq/flocker
     param: branch - remote branch name to configure
-#}
-    scm {
-      git {
-        remote {
-{#  our remote will be called 'upstream'                                     #}
-          name("upstream")
-{#  the project name from the build yaml 'ClusterHQ/Flocker'                 #}
-          github("{{cfg.project}}")
+*/
+def build_scm(git_url, branch) {
+    return {
+        git {
+            remote {
+                // our remote will be called 'upstream'
+                name("upstream")
+                // the project name from the build yaml 'ClusterHQ/Flocker'
+                github(GLOBAL_CONFIG.project)
+            }
+            //  configure the git user merging the branches.
+            // the job dsl scm/git doesn't contain a method to specify the local git user
+            // or email address, so we use a configure/node block to insert the XML block
+            // into the jenkins job config
+            configure { node ->
+                node / gitConfigName('Jenkins')
+                node / gitConfigEmail('jenkins@clusterhq.com')
+            }
+            // the branch to be built
+            branch(branch)
+            // clean the repository before merging (git reset --hard)
+            clean(true)
+            createTag(false)
+            // merge our branch with the master branch
+            mergeOptions {
+                remote('upstream')
+                branch('master')
+                // there are a few merge strategies available, recursive is the default one
+                strategy('recursive')
+            }
         }
-{#  configure the git user merging the branches.
-    the job dsl scm/git doesn't contain a method to specify the local git user
-    or email address, so we use a configure/node block to insert the XML block
-    into the jenkins job config
-#}
-        configure { node ->
-            node / gitConfigName('Jenkins')
-            node / gitConfigEmail('jenkins@clusterhq.com')
-        }
-{#  the branch to be built                                                   #}
-        branch("{{branch}}")
-{#  clean the repository before merging (git reset --hard)                   #}
-        clean(true)
-        createTag(false)
-{#  merge our branch with the master branch                                  #}
-        mergeOptions {
-            remote('upstream')
-            branch('master')
-{#  there are a few merge strategies available, recursive is the default one #}
-            strategy('recursive')
-        }
-      }
     }
-{%- endmacro                                                                -%}
+}
 
 
-{% macro publishers(v)                                                      -%}
-{# adds a publishers block to the jenkins job configuration, containing:
+/* adds a publishers block to the jenkins job configuration, containing:
    an action for archiving artifacts
    an action for archiving junit results
    an action for publishing coverate reports
 
    param v: dictionary containing the job keys
-#}
-    publishers {
-{% if v.archive_artifacts                                                   -%}
-{%        for artifact in v.archive_artifacts                                %}
-{# v.archive_artifacts typically contain:
-   'results.xml', 'coverage.xml', '_trial_temp/trial.log'                    #}
-      archiveArtifacts("{{artifact}}")
-{%        endfor                                                             %}
-{%      endif                                                               -%}
+*/
+def build_publishers(v) {
+    return {
+        if (v.archive_artifacts) {
+            for (artifact in v.archive_artifacts) {
+                // v.archive_artifacts typically contain:
+                // 'results.xml', 'coverage.xml', '_trial_temp/trial.log'
+                archiveArtifacts(artifact)
+            }
+        }
 
-{% if v.publish_test_results                                                -%}
-{# archives the junit results and publish the test results                   #}
-      archiveJunit('results.xml') {
-        retainLongStdout(true)
-        testDataPublishers {
-             allowClaimingOfFailedTests()
-             publishTestAttachments()
-             publishTestStabilityData()
-             publishFlakyTestsReport()
+        if (v.publish_test_results) {
+            // archives the junit results and publish the test results
+            archiveJunit('results.xml') {
+                retainLongStdout(true)
+                testDataPublishers {
+                    allowClaimingOfFailedTests()
+                    publishTestAttachments()
+                    publishTestStabilityData()
+                    publishFlakyTestsReport()
+                }
+            }
         }
-      }
-{%      endif                                                               -%}
-{%      if v.coverage_report                                                 %}
-{# publishes a coverage report, using junit and the cobertura plugin         #}
-        cobertura('coverage.xml') {
-{# don't publish coverage reports if the build is not stable.                #}
-           onlyStable(false)
-           failUnhealthy(true)
-           failUnstable(true)
-{# fail the build if we were expecting a coverage report from a build and
-   that report is not available                                              #}
-           failNoReports(true)
+        if (v.coverage_report) {
+            // publishes a coverage report, using junit and the cobertura plugin
+            cobertura('coverage.xml') {
+                // don't publish coverage reports if the build is not stable.
+                onlyStable(false)
+                failUnhealthy(true)
+                failUnstable(true)
+                // fail the build if we were expecating a coverage report from a build and
+                // that report is not available
+                failNoReports(true)
+            }
         }
-{%      endif                                                               -%}
     }
-{%- endmacro                                                                -%}
+}
 
 
-{% macro steps(v)                                                           -%}
-{#  builds a list of job steps based on the type of the job:
+/*  builds a list of job steps based on the type of the job:
     ( 'shell', others )
     currently only shell has been implemented.
 
-    params v: dictionary containing the job values                           #}
-    steps {
-{%  for _step in v                                                          -%}
-{%    if _step.type=='shell'                                                 %}
-    shell("""
-{%      for line in _step.cli                                               -%}
-      {{ line }}
-{%      endfor                                                              -%}
-    """)
-{%    endif                                                                 -%}
-{%  endfor                                                                   %}
+    params v: dictionary containing the job values */
+def build_steps(v) {
+    return {
+        for (_step in v) {
+            if (_step.type == 'shell') {
+                shell(_step.cli.join("\n") + "\n")
+            }
+        }
     }
-{%- endmacro                                                                -%}
+}
 
 
-{# groov lacks a loop...until ...                                            #}
+// groovy lacks a loop...until ...
 class Looper {
    private Closure code
 
@@ -350,27 +338,28 @@ class Looper {
    }
 }
 
-{#  the project name from the build yaml 'ClusterHQ/Flocker'                 #}
-def project = "{{ cfg.project }}"
-{#  the github https url for the project                                     #}
-def git_url = "{{ cfg.git_url }}"
+// the project name from the build yaml 'ClusterHQ/Flocker'
+def project = GLOBAL_CONFIG.project
+// the github https url for the project
+def git_url = GLOBAL_CONFIG.git_url
 branches = []
-{# grab the GitHub token from the jenkins homedir.
+/* grab the GitHub token from the jenkins homedir.
    this is the github api token for jenkins. We need to authenticate as github
-   limits the number of API calls that can be done withouth authenticating   #}
+   limits the number of API calls that can be done withouth authenticating   */
 String token = new File('/var/lib/jenkins/.github_token').text.trim()
 
-{# Lets's call it ClusterHQ-Flocker instead of ClusterHQ/Flocker             #}
-def dashProject = "{{ cfg.project }}".replace('/', '-')
+// Lets's call it ClusterHQ-Flocker instead of ClusterHQ/Flocker
+def dashProject = project.replace('/', '-')
 
-{# Create a basefolder for our project, it should look like:
-   '<github username>-<git repository>'                                      #}
-{{ folder("${dashProject}","${dashProject}") }}
+// Create a basefolder for our project, it should look like:
+//   '<github username>-<git repository>'
+println("Creating folder ${dashProject}...")
+folder(dashProject) { displayName(dashProject) }
 
-{# branches contains the passed parameter RECONFIGURE_BRANCH from jenkins    #}
+// branches contains the passed parameter RECONFIGURE_BRANCH from jenkins
 branches.add("${RECONFIGURE_BRANCH}")
 
-{# Iterate over every branch, and create folders, jobs                       #}
+// Iterate over every branch, and create folders, jobs
 branches.each {
   println("iterating over branch... ${it}")
 
