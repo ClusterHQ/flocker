@@ -25,11 +25,26 @@
 
 .. raw:: html
 
-   <div style="float:right">
+   <div style="float:right; margin:2em;">
 
-.. image:: images/puzzle_pieces.png
+.. image:: images/high-level-flocker-architecture.png
    :width: 150px
 
+.. raw:: html
+
+   </div>
+
+
+.. what follows is a terrible hack to force sphinx to drag images into the build
+
+.. raw:: html
+
+   <div style="display:none;">
+
+.. image:: _images/docker.png
+.. image:: _images/kubernetes.png
+.. image:: _images/mesos.png
+   
 .. raw:: html
 
    </div>
@@ -57,16 +72,25 @@ Supported Orchestration Frameworks
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="big-box">
-        Docker Engine, Swarm and/or Compose
+	    Docker Engine, Swarm and/or Compose
+		<img src="_images/docker.png" style="width:150px;"/>
+		<br />
+	<a href="docker-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
     <div class="big-box">
-        Kubernetes
+		<img src="_images/kubernetes.png" style="width:150px;"/>
+        <br />
+	<a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
     <div class="big-box">
-        Mesos
+		<img src="_images/mesos.png" style="width:150px;"/>
+        <br />
+	<a href="mesos-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
     <div class="big-box">
-        Flocker Standalone
+		Stand-alone Flocker
+        <br />
+	<a href="flocker-standalone/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
     <div style="clear:both;"></div>
 
@@ -75,11 +99,7 @@ Supported Orchestration Frameworks
 Supported Storage
 =================
 
-Flocker allows you to use either shared storage, like Amazon EBS or EMC ScaleIO, or local storage for your application’s storage layer.
-The best option for you depends on a combination of factors including where you run your application and the capabilities you are trying to achieve.
-
-For help determining which storage option is right for you, you will find a useful table in the `storage section of our About Flocker`_ page. 
-
+**IaaS block storage**
 
 .. raw:: html
 
@@ -94,44 +114,55 @@ For help determining which storage option is right for you, you will find a usef
         OpenStack - Cinder
     </div>
     <div class="big-box">
-        VMware vSphere
+        VMware vSphere (3rd party)
     </div>
     <div style="clear:both;"></div>
 
+**Software defined storage**
 
 .. raw:: html
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="small-box">
-        ConvergeIO
+        Ceph (coming soon; experimental)
     </div>
     <div class="small-box">
-        Dell SC Series
+        EMC ScaleIO (3rd party)
     </div>
     <div class="small-box">
-        EMC ScaleIO
+        Hedvig (3rd party)
     </div>
     <div class="small-box">
-        EMC XtremIO
+        NexentaEdge (3rd party)
     </div>
     <div class="small-box">
-        Hedvig
-    </div>
-    <div class="small-box">
-        NetApp OnTap
-    </div>
-    <div class="small-box">
-        NexentaEdge
-    </div>
-    <div class="small-box">
-        Saratoga Speed
-    </div>
-    <div class="small-box">
-        VMware vSphere
+        ConvergeIO (3rd party)
     </div>
     <div style="clear:both;"></div>
 	
-Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
+**Hardware devices**
+
+.. raw:: html
+
+    <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
+    <div class="small-box">
+        Dell SC Series (3rd party)
+    </div>
+    <div class="small-box">
+        EMC XtremIO (3rd party)
+    </div>
+    <div class="small-box">
+        NetApp OnTap (3rd party)
+    </div>
+    <div class="small-box">
+        Saratoga Speed (3rd party)
+    </div>
+    <div style="clear:both;"></div>
+	
+.. XXX This link probably needs to go somewhere, but not here: Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
+
+.. note:: If you wish to use a storage device that is not supported by Flocker or an existing plugin, you can implement this support yourself.
+          For more information, see :ref:`contribute-flocker-driver`.
 
 .. _supported-operating-systems:
 
@@ -154,11 +185,6 @@ Supported Operating Systems
         CoreOS (beta)
     </div>
     <div style="clear:both;"></div>
-
-.. note:: If you wish to use a storage device that is not supported by Flocker or an existing plugin, you can implement this support yourself.
-          For more information, see :ref:`contribute-flocker-driver`.
-
-.. _storage section of our About Flocker: https://clusterhq.com/flocker/introduction/#storage-options
 
 .. toctree::
    :maxdepth: 2
