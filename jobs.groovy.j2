@@ -422,76 +422,83 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
         }
     }
 
-{# apply config related to 'run_acceptance' jobs                             #}
-{%    if job_type == 'run_acceptance'                                       -%}
-{%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters {
-{# we pass the 'MODULE' parameter as the flocker module to test with trial   #}
-        textParam("MODULE", "{{ _module }}", "Module to test" )
-{# the run_acceptance job produces a rpm/deb package which is made available
-   to the node/docker instance running in the at a particular address on the
-   jenkins slave (ex: http://jenkins_slave/$RECONFIGURE_BRANCH/repo)         #}
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    // XXX possibly this is effectively the same as run_trial too?
+
+    // apply config related to 'run_acceptance' jobs
+    if (job_type == 'run_acceptance') {
+        for (_module in job_values.with_modules) {
+            _job_name = job_name + '_' + _module
+            job("${dashProject}/${dashBranchName}/${_job_name}") {
+                parameters {
+                    // we pass the 'MODULE' parameter as the flocker module to test with trial
+                    textParam("MODULE", _module, "Module to test")
+                    // the run_acceptance job produces a rpm/deb package which
+                    // is made available to the node/docker instance running in
+                    // the at a particular address on the jenkins slave (ex:
+                    // http://jenkins_slave/$RECONFIGURE_BRANCH/repo)
+                    textParam("TRIGGERED_BRANCH", branchName,
+                              "Branch that triggered this job" )
+                }
+                // limit execution to jenkins slaves with a particular label
+                label(job_values.on_nodes_with_labels)
+
+                directories_to_delete = ["${WORKSPACE}/repo" ]
+                wrappers build_wrappers(job_values, directories_to_delete)
+                scm build_scm(git_url, branchName)
+                steps build_steps(job_values.with_steps)
+                publishers build_publishers(job_values)
+            }
+        }
     }
-{# limit execution to jenkins slaves with a particular label                 #}
-    label("{{ job_values.on_nodes_with_labels }}")
 
-{% set directories_to_delete = ["${WORKSPACE}/repo" ] %}
-    {{ wrappers(job_values, directories_to_delete) }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-    {{ publishers(job_values) }}
-  }
-{%      endfor                                                              -%}
-{%    endif                                                                  %}
+    // XXX possibly the same as one of previous jobs?
 
-{# apply config related to 'run_client' jobs                                 #}
-{%    if job_type == 'run_client'                                           -%}
-{%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters {
-{# the run_acceptance job produces a rpm/deb package which is made available
-   to the node/docker instance running in the at a particular address on the
-   jenkins slave (ex: http://jenkins_slave/$RECONFIGURE_BRANCH/repo)         #}
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    // apply config related to 'run_client' jobs
+    if (job_type == 'run_client') {
+        job("${dashProject}/${dashBranchName}/${job_name}") {
+            parameters {
+                // the run_acceptance job produces a rpm/deb package which is
+                // made available to the node/docker instance running in the at
+                // a particular address on the jenkins slave (ex:
+                // http://jenkins_slave/$RECONFIGURE_BRANCH/repo)
+                textParam("TRIGGERED_BRANCH", branchName,
+                          "Branch that triggered this job" )
+            }
+            // limit execution to jenkins slaves with a particular label
+            label(job_values.on_nodes_with_labels)
+
+            directories_to_delete = ["${WORKSPACE}/repo"]
+            wrappers build_wrappers(job_values, directories_to_delete)
+            scm build_scm(git_url, branchName)
+            steps build_steps(job_values.with_steps)
+            publishers build_publishers(job_values)
+        }
     }
-{# limit execution to jenkins slaves with a particular label                 #}
-    label("{{ job_values.on_nodes_with_labels }}")
-
-{% set directories_to_delete = ["${WORKSPACE}/repo"] %}
-    {{ wrappers(job_values, directories_to_delete) }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-    {{ publishers(job_values) }}
-  }
-{%    endif                                                                  %}
 
 
-{# apply config related to 'omnbibus' jobs                                   #}
-{%    if job_type == 'omnibus'                                              -%}
-{%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-{# limit execution to jenkins slaves with a particular label                 #}
-    label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, []) }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-  }
-{%    endif                                                                  %}
+    // apply config related to 'omnibus' jobs
+    if (job_type == 'omnibus') {
+        job("${dashProject}/${dashBranchName}/${job_name}") {
+            // limit execution to jenkins slaves with a particular label
+            label(job_values.on_nodes_with_labels)
+            wrappers build_wrappers(job_values, [])
+            scm build_scm("${git_url}", "${branchName}")
+            steps build_steps(job_values.with_steps)
+        }
+    }
 
-{# apply config related to 'run_lint' jobs                                   #}
-{%    if job_type == 'run_lint'                                             -%}
-{%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-{# limit execution to jenkins slaves with a particular label                 #}
-    label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, []) }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-  }
-{%    endif                                                                  %}
+    // XXX duplicate of 'omnibus', merge in later pass
+
+    // apply config related to 'run_lint' jobs
+    if (job_type == 'run_lint') {
+        job("${dashProject}/${dashBranchName}/${job_name}") {
+            // limit execution to jenkins slaves with a particular label
+            label(job_values.on_nodes_with_labels)
+            wrappers build_wrappers(job_values, [])
+            scm build_scm(git_url, branchName)
+            steps build_steps(job_values.with_steps)
+        }
+    }
 }
 
 /* --------------------
@@ -503,28 +510,29 @@ branches.each {
     println("iterating over branch... ${it}")
 
     //  swap '/' with '-'
-    branchName = "${it}"
-    dashBranchName = "${branchName}".replace("/","-")
+    branchName = it
+    dashBranchName = branchName.replace("/","-")
     println("found branch... ${it}")
 
     // create a folder for every branch: /git-username/git-repo/branch
-    folder("${dashProject}/${dashBranchName}") { displayName("${branchName}") }
+    folder("${dashProject}/${dashBranchName}") { displayName(branchName) }
 
     // create tabs
     build_tabs(dashBranchName)
 
-{# ------------------------------------------------------------------------- #}
-{# JOB DEFINITIONS BELOW - THESE WILL BE ADDED TO A MULTIJOB PHASE           #}
-{# --------------------------------------------------------------------------#}
+    // -------------------------------------------------------------------------
+    // JOB DEFINITIONS - THESE WILL BE ADDED TO A MULTIJOB PHASE
+    // -------------------------------------------------------------------------
 
-{# iterate over every job_type  #}
-{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
-{%  for job_name, job_values  in job_type_values.iteritems()                -%}
-
-
-
-{%  endfor                                                                   %}
-{% endfor                                                                    %}
+    // iterate over every job_type
+    for (job_type_entry in cfg.job_type.iteritems()) {
+        job_type = job_type_entry.key
+        for (job_entry in job_type_entry.value) {
+            job_name = job_entry.key
+            job_values = job_entry.value
+            define_job(dashBranchName, branchName, job_type, job_name, job_values)
+        }
+    }
 
 {# ------------------------------------------------------------------------- #}
 {# MULTIJOB CONFIGURATION BELOW                                              #}
