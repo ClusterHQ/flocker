@@ -1150,7 +1150,7 @@ job_type:
           }
       timeout: 120
 
-    run_acceptance_on_AWS_CentOS_7_for:
+    run_acceptance_on_AWS_CentOS_7_with_EBS:
       at: '0 5 * * *'
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_steps:
@@ -1171,7 +1171,7 @@ job_type:
       archive_artifacts: *acceptance_tests_artifacts
       timeout: 45
 
-    run_acceptance_on_AWS_Ubuntu_Trusty_for:
+    run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
@@ -1192,7 +1192,7 @@ job_type:
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
       timeout: 45
 
-    run_acceptance_on_Rackspace_CentOS_7_for:
+    run_acceptance_on_Rackspace_CentOS_7_with_Cinder:
       at: '0 5 * * *'
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
@@ -1215,7 +1215,7 @@ job_type:
       archive_artifacts: *acceptance_tests_artifacts
       timeout: 45
 
-    run_acceptance_on_Rackspace_Ubuntu_Trusty_for:
+    run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
