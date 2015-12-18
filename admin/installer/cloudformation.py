@@ -1,6 +1,9 @@
 # Converted from EC2InstanceSample.template located at:
 # http://aws.amazon.com/cloudformation/aws-cloudformation-templates/
+import json
 import os
+import re
+import urllib
 
 from troposphere import FindInMap, GetAtt, Base64, Join
 from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
@@ -145,6 +148,43 @@ template.add_output(Output(
     Value=Join("", ["export DOCKER_HOST=",
                GetAtt(control_service_instance, "PublicIp"), ":2376"]),
     Description="Please point DOCKER_HOST at Swarm Manager."
+))
+
+base_url = "https://resources.console.aws.amazon.com/r/group#sharedgroup="
+parameters = {
+    "name": "%STACK_NAME%",
+    "regions": "all",
+    "resourceTypes": "all",
+    "tagFilters": [
+        {
+            "key": "aws:cloudformation:stack-name",
+            "values": [
+                "%STACK_NAME%"
+            ]
+        }
+    ]
+}
+
+parameter_string = json.dumps(parameters, separators=(',', ':'))
+
+variables = {
+    "STACK_NAME": Ref('AWS::StackName')
+}
+
+pattern = r'%([A-Z_]+)%'
+parts = re.split(pattern, parameter_string)
+iparts = iter(parts)
+new_parts = [base_url]
+for part in iparts:
+    new_parts.append(urllib.quote_plus(part))
+    key = next(iparts, None)
+    if key is not None:
+        new_parts.append(variables[key])
+
+template.add_output(Output(
+    "ResourceGroup",
+    Value=Join("", new_parts),
+    Description="A view of all the resources in this stack."
 ))
 
 print(template.to_json())
