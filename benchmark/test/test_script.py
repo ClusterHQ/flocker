@@ -192,6 +192,21 @@ class ClusterConfigurationTests(SynchronousTestCase):
             self.assertIn('notanipaddress', e.exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
+    def test_environment_invalid_volume_size(self):
+        """
+        Rejects configuration if volume size is invalid.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions([])
+        self.environ['FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE'] = 'A'
+        with capture_stderr() as captured_stderr:
+            with self.assertRaises(SystemExit) as e:
+                get_cluster(options, self.environ)
+            self.assertIn(
+                'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE', e.exception.args[0]
+            )
+            self.assertIn(options.getUsage(), captured_stderr())
+
 
 class ValidationTests(SynchronousTestCase):
     """

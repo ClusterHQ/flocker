@@ -77,14 +77,17 @@ class BenchmarkCluster(object):
         and returning a IFlockerAPIV1Client.
     :ivar dict[IPAddress: IPAddress] public_addresses: mapping of
         internal cluster IP addresses to public IP addresses.
+    :ivar Optional[int] default_volume_size: Size for volume creation.
     """
 
     def __init__(
-        self, control_node_address, control_service_factory, public_addresses
+        self, control_node_address, control_service_factory, public_addresses,
+        default_volume_size,
     ):
         self._control_node_address = control_node_address
         self._control_service_factory = control_service_factory
         self._public_addresses = public_addresses
+        self._default_volume_size = default_volume_size
         self._control_service = None
 
     @classmethod
@@ -132,7 +135,20 @@ class BenchmarkCluster(object):
             raise type(e)(
                 ': '.join(('FLOCKER_ACCEPTANCE_CONTROL_NODE',) + e.args)
             )
-        return cls(control_node_ip, control_service, public_addresses)
+
+        try:
+            default_volume_size = int(
+                env['FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE']
+            )
+        except ValueError as e:
+            raise type(e)(
+                ': '.join(('FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE',) + e.args)
+            )
+
+        return cls(
+            control_node_ip, control_service, public_addresses,
+            default_volume_size,
+        )
 
     @classmethod
     def from_cluster_yaml(cls, path):
@@ -160,7 +176,9 @@ class BenchmarkCluster(object):
             key_path=path.child('user.key')
         )
         return cls(
-            IPAddress(control_node_address), control_service, public_addresses)
+            IPAddress(control_node_address), control_service, public_addresses,
+            None,
+        )
 
     def control_node_address(self):
         """
@@ -188,3 +206,9 @@ class BenchmarkCluster(object):
         :return IPAddress: Public IP address for node.
         """
         return self._public_addresses.get(hostname, hostname)
+
+    def default_volume_size(self):
+        """
+        Return the cluster default volume size.
+        """
+        return self._default_volume_size
