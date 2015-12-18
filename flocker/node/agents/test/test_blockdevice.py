@@ -31,7 +31,7 @@ from characteristic import attributes
 from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
-    dictionaries
+    dictionaries, tuples
 )
 
 from testtools.matchers import Equals
@@ -117,9 +117,7 @@ from ....control._model import Leases
 
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
-from ....common import (
-    retry_failure, gather_deferreds, RACKSPACE_MINIMUM_VOLUME_SIZE
-)
+from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
@@ -153,19 +151,43 @@ DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
     blockdevice_id=_create_blockdevice_id_for_test(dataset.dataset_id),
 ))
 
+# Text generation is slow, in order to speed up tests and make the output more
+# readable, use short strings and a small legible alphabet. Given the way
+# metadata is used in the code this should not be detrimental to test coverage.
+_METADATA_STRATEGY = text(average_size=3, min_size=1, alphabet="CGAT")
+
+DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
+    'dataset_id': uuids(),
+    'maximum_size': integers(min_value=0).map(
+        lambda n:
+        LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        + n*LOOPBACK_ALLOCATION_UNIT),
+    'metadata': dictionaries(keys=_METADATA_STRATEGY,
+                             values=_METADATA_STRATEGY),
+    'mount_point': builds(FilePath, sampled_from([
+        '/flocker/abc', '/flocker/xyz',
+    ])),
+}
+
 DESIRED_DATASET_STRATEGY = tagged_union_strategy(
     DesiredDataset,
-    {
-        'dataset_id': uuids(),
-        'maximum_size': integers(min_value=0).map(
-            lambda n:
-            LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-            + n*LOOPBACK_ALLOCATION_UNIT),
-        'metadata': dictionaries(keys=text(), values=text()),
-        'mount_point': builds(FilePath, sampled_from([
-            '/flocker/abc', '/flocker/xyz',
-        ])),
-    }
+    DESIRED_DATASET_ATTRIBUTE_STRATEGIES
+)
+
+_NoSuchThing = object()
+
+# This strategy creates two `DESIRED_DATASET_STRATEGY`s with as much in common
+# as possible. This is supposed to approximate two potentially different
+# `DesiredDataset` states for the same dataset.
+TWO_DESIRED_DATASET_STRATEGY = DESIRED_DATASET_STRATEGY.flatmap(
+    lambda x: tuples(just(x), tagged_union_strategy(
+        DesiredDataset,
+        dict(DESIRED_DATASET_ATTRIBUTE_STRATEGIES, **{
+            attribute: just(getattr(x, attribute))
+            for attribute in DESIRED_DATASET_ATTRIBUTE_STRATEGIES
+            if getattr(x, attribute, _NoSuchThing) is not _NoSuchThing
+        })
+    ))
 )
 
 
@@ -1187,6 +1209,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         """
         Cleanup after running a hypothesis example.
         """
+        umount_all(self.deployer.mountroot)
         detach_destroy_volumes(self.deployer.block_device_api)
 
     def current_datasets(self):
@@ -1215,13 +1238,16 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         note("Running changes: {changes}".format(changes=changes))
         self.successResultOf(run_state_change(changes, self.deployer))
 
-    def run_to_convergence(self, desired_datasets, max_iterations=4):
+    def run_to_convergence(self, desired_datasets, max_iterations=20):
         """
         Run the calculator until it converges on the desired state.
 
         :param desired_datasets: The dataset state to converge to.
         :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
         :param int max_iterations: The maximum number of steps to iterate.
+            Defaults to 20 on the assumption that iterations are cheap, and
+            that there will always be fewer than 20 steps to transition from
+            one desired state to another if there are no bugs.
         """
         for i in range(max_iterations):
             self.run_convergence_step(
@@ -1236,22 +1262,30 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
             raise DidNotConverge(iteration_count=max_iterations)
 
     @given(
-        initial_dataset=DESIRED_DATASET_STRATEGY,
-        next_state=sampled_from([
-            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
-            DatasetStates.DELETED]),
+        two_dataset_states=TWO_DESIRED_DATASET_STRATEGY
     )
-    def test_simple_transitions(self, initial_dataset, next_state):
+    def test_simple_transitions(self, two_dataset_states):
         """
         Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
         dataset.
         """
+        initial_dataset, next_dataset = two_dataset_states
+
         dataset_id = initial_dataset.dataset_id
-        initial_dataset = initial_dataset.set(
-            mount_point=self.deployer._mountpath_for_dataset_id(
-                unicode(dataset_id)),
-        )
+
+        # Set the mountpoint to a real mountpoint in desired dataset states
+        # that have a mount point attribute.
+        mount_point = self.deployer._mountpath_for_dataset_id(
+            unicode(dataset_id))
+        if getattr(initial_dataset,
+                   'mount_point',
+                   _NoSuchThing) is not _NoSuchThing:
+            initial_dataset = initial_dataset.set(mount_point=mount_point)
+        if getattr(next_dataset,
+                   'mount_point',
+                   _NoSuchThing) is not _NoSuchThing:
+            next_dataset = next_dataset.set(mount_point=mount_point)
 
         # Converge to the initial state.
         try:
@@ -1263,14 +1297,10 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
 
         # Converge from the initial state to the next state.
         try:
-            self.run_to_convergence([initial_dataset.set(state=next_state)])
+            self.run_to_convergence([next_dataset])
         except DidNotConverge as e:
             self.fail("Did not converge to next state after %d iterations." %
                       e.iteration_count)
-
-    test_simple_transitions.skip = (
-        "This test sometimes fails in a way that cause a failure cascade."
-    )
 
     @given(
         desired_state=sampled_from([
@@ -4126,13 +4156,14 @@ class FakeProfiledLoopbackBlockDeviceIProfiledBlockDeviceTests(
     """
 
 
-def umount(device_file):
+def umount(unmount_target):
     """
     Unmount a filesystem.
 
-    :param FilePath device_file: The device file that is mounted.
+    :param FilePath unmount_target: The device file that is mounted or
+        mountpoint directory.
     """
-    check_output(['umount', device_file.path])
+    check_output(['umount', unmount_target.path])
 
 
 def umount_all(root_path):
@@ -4148,17 +4179,10 @@ def umount_all(root_path):
             return False
         return True
 
-    def create_umount_callable(partition):
-        return lambda: umount(FilePath(partition.device))
-
-    deferreds = list(
-        retry_failure(reactor,
-                      create_umount_callable(partition),
-                      steps=[0.1] * CLEANUP_RETRY_LIMIT)
-        for partition in psutil.disk_partitions()
-        if is_under_root(partition.mountpoint))
-
-    return gather_deferreds(deferreds)
+    partitions_under_root = list(p for p in psutil.disk_partitions()
+                                 if is_under_root(p.mountpoint))
+    for partition in partitions_under_root:
+        umount(FilePath(partition.mountpoint))
 
 
 def mountroot_for_test(test_case):
