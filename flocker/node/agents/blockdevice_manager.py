@@ -124,6 +124,22 @@ class IBlockDeviceManager(Interface):
         :returns: An iterable of ``MountInfo``s of all known mounts.
         """
 
+    def symlink(existing_path, link_path):
+        """
+        Creates a symlink from ``existing_path`` to the given ``link_path``.
+
+        :param FilePath existing_path: The existing path the link should link
+            to.
+        :param FilePath link_path: The path of the newly created link.
+        """
+
+    def unlink(link_path):
+        """
+        Unlinks a symlink.
+
+        :param FilePath link_path: The link to remove.
+        """
+
 
 @implementer(IBlockDeviceManager)
 class BlockDeviceManager(PClass):
@@ -190,3 +206,10 @@ class BlockDeviceManager(PClass):
         return (MountInfo(blockdevice=FilePath(mount.device),
                           mountpoint=FilePath(mount.mountpoint))
                 for mount in mounts)
+
+    def symlink(self, existing_path, link_path):
+        existing_path.linkTo(link_path)
+
+    def unlink(self, link_path):
+        if link_path.islink():
+            link_path.remove()

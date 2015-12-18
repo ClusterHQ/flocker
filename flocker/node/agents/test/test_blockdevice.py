@@ -325,6 +325,7 @@ def create_blockdevicedeployer(
         block_device_api=api,
         _async_block_device_api=async_api,
         mountroot=mountroot_for_test(test_case),
+        sharedroot=sharedroot_for_test(test_case),
         block_device_manager=block_device_manager,
     )
 
@@ -4495,6 +4496,33 @@ def mountroot_for_test(test_case):
     mountroot.makedirs()
     test_case.addCleanup(umount_all, mountroot)
     return mountroot
+
+
+def unlink_all(root):
+    """
+    Unlinks all symlinks that are in the passed in root.
+
+    :param FilePath root: the directory under which all symlinks should be
+        unlinked.
+    """
+    for child_name in root.listdir():
+        child_path = root.child(child_name)
+        if child_path.islink():
+            child_path.remove()
+
+
+def sharedroot_for_test(test_case):
+    """
+    Create a shared root directory and unlink any symlinks beneath that
+    directory when the test exits.
+
+    :param TestCase test_case: The ``TestCase`` which is being run.
+    :returns: A ``FilePath`` for the newly created mount root.
+    """
+    sharedroot = FilePath(test_case.mktemp())
+    sharedroot.makedirs()
+    test_case.addCleanup(unlink_all, sharedroot)
+    return sharedroot
 
 
 _ARBITRARY_VOLUME = BlockDeviceVolume(

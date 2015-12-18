@@ -74,8 +74,15 @@ class DatasetStates(Names):
     ATTACHED = NamedConstant()
     # Mounted on this node
     MOUNTED = NamedConstant()
+    # Symlinked to the mountpoint created, ready to be shared
+    SYMLINKED = NamedConstant()
     # Deleted from the driver
     DELETED = NamedConstant()
+
+
+# The DatasetState that corresponds to a dataset that is manifest and ready for
+# use.
+DatasetStates.MANIFEST = DatasetStates.SYMLINKED
 
 
 class DiscoveredDataset(PClass):
@@ -101,6 +108,7 @@ class DiscoveredDataset(PClass):
     blockdevice_id = field(type=unicode, mandatory=True)
     device_path = field(FilePath)
     mount_point = field(FilePath)
+    shared_path = field(FilePath)
 
     __invariant__ = TaggedUnionInvariant(
         tag_attribute='state',
@@ -110,6 +118,8 @@ class DiscoveredDataset(PClass):
             DatasetStates.ATTACHED_NO_FILESYSTEM: {'device_path'},
             DatasetStates.ATTACHED: {'device_path'},
             DatasetStates.MOUNTED: {'device_path', 'mount_point'},
+            DatasetStates.SYMLINKED: {'device_path', 'mount_point',
+                                      'shared_path'},
         },
     )
 
@@ -130,6 +140,7 @@ class DesiredDataset(PClass):
         value_type=unicode,
     )
     mount_point = field(FilePath)
+    shared_path = field(FilePath)
     filesystem = field(unicode, initial=u"ext4", mandatory=True,
                        invariant=lambda v: (v == "ext4", "Must be 'ext4'."))
 
@@ -137,7 +148,8 @@ class DesiredDataset(PClass):
         tag_attribute='state',
         attributes_for_tag={
             DatasetStates.NON_MANIFEST: {"maximum_size"},
-            DatasetStates.MOUNTED: {"maximum_size", "mount_point"},
+            DatasetStates.MANIFEST: {
+                "maximum_size", "mount_point", "shared_path"},
             DatasetStates.DELETED: set(),
         },
     )
@@ -337,6 +349,20 @@ DESTROY_BLOCK_DEVICE_DATASET = ActionType(
     [DATASET_ID],
     [],
     u"A block-device-backed dataset is being destroyed.",
+)
+
+CREATE_MOUNT_SYMLINK = ActionType(
+    u"agent:blockdevice:symlink",
+    [DATASET_ID],
+    [],
+    u"A dataset is being symlinked.",
+)
+
+REMOVE_MOUNT_SYMLINK = ActionType(
+    u"agent:blockdevice:symlink",
+    [DATASET_ID],
+    [],
+    u"The symlink to a dataset is being unlinked.",
 )
 
 UNMOUNT_BLOCK_DEVICE = ActionType(
@@ -539,6 +565,79 @@ def _valid_size(size):
     return (
         False, "Filesystem size must be multiple of 1024, not %d" % (size,)
     )
+
+
+@implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
+class CreateMountSymlink(PClass):
+    """
+    Create a Symlink to the mount at the specified shared path location that we
+    will share with external agents using Flocker.
+
+    :ivar UUID dataset_id: The unique identifier of the dataset.
+    :ivar FilePath mountpoint: The filesystem location at which the backing
+        volume is mounted.
+    :ivar FilePath link_path: The path that will be created linking to the
+        mountpoint.
+    """
+    dataset_id = field(type=UUID, mandatory=True)
+    mountpoint = field(type=FilePath, mandatory=True)
+    link_path = field(type=FilePath, mandatory=True)
+
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=desired_dataset.dataset_id,
+            mountpoint=desired_dataset.mount_point,
+            link_path=desired_dataset.shared_path,
+        )
+
+    @property
+    def eliot_action(self):
+        return CREATE_MOUNT_SYMLINK(_logger, dataset_id=self.dataset_id)
+
+    def run(self, deployer):
+        """
+        Create a symlink from the mounted blockdevice to a path that will given
+        to flocker clients. This layer of indirection is added so that we can
+        atomically create a mounted directory path.
+        """
+        deployer.block_device_manager.symlink(self.mountpoint, self.link_path)
+
+        return succeed(None)
+
+
+@implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
+class RemoveMountSymlink(PClass):
+    """
+    Remove the symlink to the underlying flocker mount.
+
+    :ivar UUID dataset_id: The unique identifier of the dataset.
+    :ivar FilePath link_path: The path that will be unlinked.
+    """
+    dataset_id = field(type=UUID, mandatory=True)
+    link_path = field(type=FilePath, mandatory=True)
+
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=desired_dataset.dataset_id,
+            link_path=desired_dataset.shared_path,
+        )
+
+    @property
+    def eliot_action(self):
+        return CREATE_MOUNT_SYMLINK(_logger, dataset_id=self.dataset_id)
+
+    def run(self, deployer):
+        """
+        Atomically unlink a symlink to a dataset so that the path no longer
+        exists.
+        """
+        deployer.block_device_manager.unlink(self.mountpoint, self.link_path)
+
+        return succeed(None)
 
 
 @implementer(IStateChange)
@@ -1349,7 +1448,7 @@ class BlockDeviceDeployerLocalState(PClass):
 
         for dataset in self.datasets.values():
             dataset_id = dataset.dataset_id
-            if dataset.state == DatasetStates.MOUNTED:
+            if dataset.state == DatasetStates.MANIFEST:
                 manifestations[unicode(dataset_id)] = Manifestation(
                     dataset=Dataset(
                         dataset_id=dataset_id,
@@ -1357,18 +1456,18 @@ class BlockDeviceDeployerLocalState(PClass):
                     ),
                     primary=True,
                 )
-                paths[unicode(dataset_id)] = dataset.mount_point
+                paths[unicode(dataset_id)] = dataset.shared_path
             elif dataset.state in (
                 DatasetStates.NON_MANIFEST, DatasetStates.ATTACHED,
-                DatasetStates.ATTACHED_NO_FILESYSTEM,
+                DatasetStates.ATTACHED_NO_FILESYSTEM, DatasetStates.MOUNTED
             ):
                 nonmanifest_datasets[unicode(dataset_id)] = Dataset(
                     dataset_id=dataset_id,
                     maximum_size=dataset.maximum_size,
                 )
             if dataset.state in (
-                DatasetStates.MOUNTED, DatasetStates.ATTACHED,
-                DatasetStates.ATTACHED_NO_FILESYSTEM,
+                DatasetStates.SYMLINKED, DatasetStates.MOUNTED,
+                DatasetStates.ATTACHED, DatasetStates.ATTACHED_NO_FILESYSTEM,
             ):
                 devices[dataset_id] = dataset.device_path
 
@@ -1413,7 +1512,7 @@ class DoNothing(PClass):
 # ``desired_dataset`` and ``discovered_dataset``.
 Desired = Discovered = DatasetStates
 DATASET_TRANSITIONS = TransitionTable.create({
-    Desired.MOUNTED: {
+    Desired.MANIFEST: {
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
         # Other node will need to deatch first, but we we need to
         # wake up to notice that it has detached.
@@ -1421,6 +1520,7 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
         Discovered.NON_MANIFEST: AttachVolume,
         DatasetStates.ATTACHED: MountBlockDevice,
+        Discovered.MOUNTED: CreateMountSymlink,
     },
     Desired.NON_MANIFEST: {
         # XXX FLOC-2206
@@ -1431,6 +1531,7 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
+        Discovered.SYMLINKED: RemoveMountSymlink,
     },
     Desired.DELETED: {
         Discovered.NON_EXISTENT: DoNothing,
@@ -1441,6 +1542,7 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
+        Discovered.SYMLINKED: RemoveMountSymlink,
     },
 })
 del Desired, Discovered
@@ -1517,6 +1619,8 @@ class BlockDeviceDeployer(PClass):
         profiles.
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
+    :ivar FilePath sharedroot: The directory that will be shared with external
+        users of the flocker API.
     :ivar _async_block_device_api: An object to override the value of the
         ``async_block_device_api`` property.  Used by tests.  Should be
         ``None`` in real-world use.
@@ -1530,7 +1634,9 @@ class BlockDeviceDeployer(PClass):
     block_device_api = field(mandatory=True)
     _profiled_blockdevice_api = field(mandatory=True, initial=None)
     _async_block_device_api = field(mandatory=True, initial=None)
-    mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
+    mountroot = field(type=FilePath,
+                      initial=FilePath(b"/var/lib/flocker/mounts"))
+    sharedroot = field(type=FilePath, initial=FilePath(b"/flocker/v2"))
     poll_interval = timedelta(seconds=60.0)
     block_device_manager = field(initial=BlockDeviceManager())
     calculator = field(
@@ -1648,6 +1754,7 @@ class BlockDeviceDeployer(PClass):
                     device_path in raw_state.system_mounts and
                     raw_state.system_mounts[device_path] == mount_point
                 ):
+                    # TODO(mewert): Add detection for SYMLINKED.
                     datasets[dataset_id] = DiscoveredDataset(
                         state=DatasetStates.MOUNTED,
                         dataset_id=dataset_id,
@@ -1706,6 +1813,17 @@ class BlockDeviceDeployer(PClass):
         """
         return self.mountroot.child(dataset_id.encode("ascii"))
 
+    def _sharedpath_for_dataset_id(self, dataset_id):
+        """
+        Calculate the shared path for a dataset.
+
+        :param unicode dataset_id: The unique identifier of the dataset for
+            which to calculate a shared path.
+
+        :returns: A ``FilePath`` of the shared path.
+        """
+        return self.sharedroot.child(dataset_id.encode("ascii"))
+
     def _calculate_desired_for_manifestation(self, manifestation):
         """
         Get the ``DesiredDataset`` corresponding to a given manifestation.
@@ -1732,9 +1850,12 @@ class BlockDeviceDeployer(PClass):
             )
         else:
             return DesiredDataset(
-                state=DatasetStates.MOUNTED,
+                state=DatasetStates.MANIFEST,
                 maximum_size=maximum_size,
                 mount_point=self._mountpath_for_dataset_id(
+                    unicode(dataset_id)
+                ),
+                shared_path=self._sharedpath_for_dataset_id(
                     unicode(dataset_id)
                 ),
                 **common_args
@@ -1771,19 +1892,22 @@ class BlockDeviceDeployer(PClass):
         for dataset_id, dataset in local_datasets.items():
             if dataset in not_in_use_datasets:
                 continue
-            if dataset.state != DatasetStates.MOUNTED:
-                # A lease doesn't force a mount.
+            if dataset.state != DatasetStates.MANIFEST:
+                # A lease doesn't force manifestation.
                 continue
             # This may override something from above, if there is a
             # lease or application using a dataset.
             desired_datasets[dataset_id] = DesiredDataset(
                 dataset_id=dataset_id,
-                state=DatasetStates.MOUNTED,
+                state=DatasetStates.MANIFEST,
                 maximum_size=dataset.maximum_size,
                 # XXX We don't populate metadata here, but it isn't necessary
                 # until we want to update it.
                 metadata={},
                 mount_point=self._mountpath_for_dataset_id(
+                    unicode(dataset_id)
+                ),
+                shared_path=self._sharedpath_for_dataset_id(
                     unicode(dataset_id)
                 ),
             )
