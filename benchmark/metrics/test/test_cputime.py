@@ -10,7 +10,7 @@ from twisted.internet.task import Clock
 from twisted.internet.threads import deferToThread
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 
-from flocker.apiclient._client import FakeFlockerClient, Node
+from flocker.apiclient import FakeFlockerClient, Node
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IMetric
@@ -208,7 +208,8 @@ class CPUTimeTests(TestCase):
             BenchmarkCluster(
                 IPAddress('10.0.0.1'),
                 lambda reactor: FakeFlockerClient([node1, node2]),
-                {}
+                {},
+                None,
             ),
             _LocalRunner(),
             processes=[_standard_process]
