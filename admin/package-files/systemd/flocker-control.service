@@ -7,7 +7,6 @@ Restart=always
 
 PrivateTmp=true
 PrivateDev=true
-PrivateNetwork=true
 ProtectSystem=true
 ProtectHome=true
 ReadonlyDirectories=/
