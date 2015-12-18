@@ -13,8 +13,11 @@ import unittest
 from eliot import MessageType, fields
 from hypothesis import assume, given
 from hypothesis.strategies import binary, integers, lists, text
-from testtools import PlaceHolder, TestResult
+
+# Use testtools' TestCase for most of these tests so that bugs in our base test
+# case classes don't invalidate the tests for those classes.
 from testtools import TestCase as TesttoolsTestCase
+from testtools import PlaceHolder, TestResult
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
