@@ -990,7 +990,7 @@ def capture_upstart(reactor, host, output_file):
         username='root',
         command=[
             b'tail',
-            b'-F'
+            b'-F',
             b'/var/log/flocker/flocker-control.log',
             b'/var/log/flocker/flocker-dataset-agent.log',
             b'/var/log/flocker/flocker-container-agent.log',
