@@ -7,7 +7,7 @@
         .toctree-wrapper { display:none; }
         a.button.rel { display:none; }
         .big-box {
-            border:1px solid #777;
+            border:2px solid #777;
             width:10em;
             height:10em;
             float:left;
@@ -15,7 +15,7 @@
             padding:0.5em;
         }
         .small-box {
-            border:1px solid #777;
+            border:2px solid #777;
             width:7em;
             height:7em;
             float:left;
@@ -77,12 +77,13 @@
 
    </div>
 
-==============================================
-How to include Flocker in your Container Stack
-==============================================
+================
+What is Flocker?
+================
 
-**Flocker integrates container orchestration frameworks with storage systems.**
+**Flocker consists of a control service which runs on a master server, plus agents which you install on the same servers as a container orchestration system.**
 
+Flocker integrates container orchestration with storage systems.
 This means you can run *stateful containers* like *databases* in production and have the volumes follow the containers around as they get moved or rescheduled.
 
 Flocker is filesystem-based, so it works with any container image that stores its data in a volume.
@@ -90,6 +91,12 @@ Flocker is filesystem-based, so it works with any container image that stores it
 .. raw:: html
 
    <div style="clear:both;"></div>
+
+==============================================
+How to include Flocker in your Container Stack
+==============================================
+
+Choose one of the following Orchestration Frameworks to get started.
 
 .. _supported-orchestration-frameworks:
 
@@ -153,7 +160,7 @@ Supported Storage
         VMware vSphere
 		<img src="_images/vmware.png" style="width:100px;"/>
 		<br />
-        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
     </div>
     <div style="clear:both;"></div>
 
@@ -173,25 +180,25 @@ Supported Storage
 		<img src="_images/emc.png" style="width:50px;" title="EMC" />
         ScaleIO
         <br />
-        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
     </div>
     <div class="small-box storage">
 		<img src="_images/hedvig.png" style="width:80px;" title="Hedvig" />
         Hedvig
         <br />
-        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
     </div>
     <div class="small-box storage">
 		<img src="_images/nexenta.png" style="width:60px;" title="Nexenta" />
         NexentaEdge
         <br />
-        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
     </div>
     <div class="small-box storage">
 		<img src="_images/convergeio.png" style="width:60px;" title="ConvergeIO" />
         ConvergeIO
         <br />
-        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
     </div>
     <div style="clear:both;"></div>
 
@@ -202,36 +209,36 @@ Supported Storage
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="small-box storage">
 		<img src="_images/dell.png" style="height:35px;"/><br />SC Series
-        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
     </div>
     <div class="small-box storage">
 		<img src="_images/emc.png" style="width:50px;"/> XtremIO
         <br />
-        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
     </div>
     <div class="small-box storage">
 		<img src="_images/netapp.png" style="width:20px;"/> NetApp OnTap
         <br />
-        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
     </div>
     <div class="small-box storage">
 		<img src="_images/saratoga.png" style="width:50px;"/>
         Saratoga Speed
         <br />
-        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
     </div>
     <div class="small-box storage">
 		<img src="_images/huawei.png" style="width:50px;"/>
         Huawei
         <br />
-        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
     </div>
     <div style="clear:both;"></div>
     <div style="clear:both; margin-top:20px;"></div>
 
-    <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)"> = Community developed (3rd party)
-    <img src="_images/experimental.png" style="height:25px; padding:2px 4px; border:1px solid #ddd;" title="Experimental (labs project)"> = Experimental
-    <img src="_images/coming-soon.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Coming soon"> = Coming soon
+    <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed"> = Community developed
+    <img src="_images/experimental.png" style="height:25px; padding:2px 4px; margin-left:20px; border:1px solid #ddd;" title="Experimental (labs project)"> = Experimental
+    <img src="_images/coming-soon.png" style="height:25px; margin:2px; margin-left:20px; border:1px solid #ddd;" title="Coming soon"> = Coming soon
     <div style="clear:both; margin-top:20px;"></div>
 
 .. XXX This link probably needs to go somewhere, but not here: Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
@@ -263,11 +270,16 @@ Supported Operating Systems
     </div>
     <div class="small-box">
         CoreOS
-		<img src="_images/coreos.png" style="width:50px;"/>
+		<img src="_images/coreos.png" style="width:40px;"/>
         <br />
         <img src="_images/experimental.png" style="height:25px; padding:2px 4px; border:1px solid #ddd;" title="Experimental (labs project)">
     </div>
     <div style="clear:both;"></div>
+
+Getting Started
+===============
+
+*Scroll up and click "Deploy" for your Orchestration Framework of choice.*
 
 .. toctree::
    :maxdepth: 2
