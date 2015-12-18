@@ -1273,9 +1273,13 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         # that have a mount point attribute.
         mount_point = self.deployer._mountpath_for_dataset_id(
             unicode(dataset_id))
-        if hasattr(initial_dataset, 'mount_point'):
+        if getattr(initial_dataset,
+                   'mount_point',
+                   _NoSuchThing) is not _NoSuchThing:
             initial_dataset = initial_dataset.set(mount_point=mount_point)
-        if hasattr(next_dataset, 'mount_point'):
+        if getattr(next_dataset,
+                   'mount_point',
+                   _NoSuchThing) is not _NoSuchThing:
             next_dataset = next_dataset.set(mount_point=mount_point)
 
         # Converge to the initial state.
