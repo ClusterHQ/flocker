@@ -150,11 +150,11 @@ def main(reactor, args, base_path, top_level):
 
         result = 0
 
-    except Exception:
+    except BaseException:
         result = 1
         raise
     finally:
-        if options['no-keep']:
+        if options['no-keep'] or result == 1:
             runner.stop_cluster(reactor)
         else:
             if cluster is None:
