@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from functools import partial
 from characteristic import attributes
 
-from eliot import Message, MessageType, Field
+from eliot import write_failure, Message, MessageType, Field
 
 from effect import TypeDispatcher, ComposedDispatcher
 from txeffect import (
@@ -153,7 +153,7 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
 
     def connect():
         connection = connection_helper.secureConnection()
-        connection.addErrback(lambda _: False)
+        connection.addErrback(write_failure)
         return connection
 
     connection = yield loop_until(reactor, connect)
