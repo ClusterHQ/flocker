@@ -53,6 +53,13 @@ mv control-{*,service}.key
 mv control-{*,service}.crt
 popd
 
+for i in $(seq 0 $((${node_count}-1))); do
+    pushd "${i}"
+    tar -cvf "../${i}.tar.gz" *
+    popd
+    rm -rf "${i}"
+done
+
 popd
 
 /usr/bin/s3cmd put --config=/root/.s3cfg --recursive /tmp/flocker-config/ s3://${s3_bucket}/flocker-config/
