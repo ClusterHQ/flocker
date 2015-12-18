@@ -24,14 +24,18 @@ The definition for each profile should be documented in the storage providers do
 
 Currently, the following community supported drivers support Flocker Storage Profiles:
 
-* :ref:`Dell SC Series <dell-dataset-backend>`
-* :ref:`ConvergeIO <convergeio-backend>`
-* :ref:`Hedvig <hedvig-backend>`
+* `Dell SC Series`_
+* `ConvergeIO`_
+* `Hedvig`_
 
 More information about support for profiles can be found in the :ref:`configuration documentation for each backend <supported-backends>`.
 
 .. note::
 	Flocker Storage Profiles is a new Flocker feature, and we're hoping to iterate on the functionality in future releases.
 	If you use a Storage Profile, it would be great to :ref:`hear from you <talk-to-us>` about how it is being used and what features you would like to see in the future.
+
+.. _Dell SC Series: https://github.com/dellstorage/storagecenter-flocker-driver/blob/master/dell_storagecenter_driver/dell_storagecenter_blockdevice.py
+.. _ConvergeIO: https://github.com/ConvergeIO/cio-flocker-driver/blob/gh-pages/driver/cio.py#L133
+.. _Hedvig: http://www.hedviginc.com/blog/flocker-storage-profiles-for-docker
 
 .. end-body
