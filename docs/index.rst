@@ -62,11 +62,11 @@ Let us know with the form below!
 .. toctree::
    :maxdepth: 2
 
-   supported
    docker-integration/index
    kubernetes-integration/index
    mesos-integration/index
    flocker-standalone/index
+   supported
    labs/index
    releasenotes/index
    faq/index
