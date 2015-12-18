@@ -56,11 +56,9 @@
 .. image:: images/GCE.png
 .. image:: images/vmware.png
 .. image:: images/openstack.png
-
 .. image:: images/3rd-party.png
 .. image:: images/coming-soon.png
 .. image:: images/experimental.png
-
 .. image:: images/ceph.png
 .. image:: images/emc.png
 .. image:: images/hedvig.png
@@ -71,6 +69,9 @@
 .. image:: images/saratoga.png
 .. image:: images/huawei.png
 .. image:: images/ubuntu.png
+.. image:: images/centos.png
+.. image:: images/rhel.png
+.. image:: images/coreos.png
 
 .. raw:: html
 
