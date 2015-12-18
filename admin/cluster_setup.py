@@ -265,7 +265,6 @@ def _configure(reactor, cluster, configuration):
 
         def got_response(response):
             if response.code != OK:
-                sys.stderr.write("Got response %d\n" % (response.code,))
                 d = json_content(response)
 
                 def got_error(error):
@@ -273,7 +272,6 @@ def _configure(reactor, cluster, configuration):
                         error = error[u"description"] + u"\n"
                     else:
                         error = u"Unknown error: " + unicode(error) + "\n"
-                    sys.stderr.write(error)
                     raise ResponseError(response.code, error)
 
                 d.addCallback(got_error)
