@@ -1,16 +1,9 @@
+===================================
 Flocker with Docker, Swarm, Compose
 ===================================
 
-Flocker integrates with the Docker Engine, Docker Swarm and/or Docker Compose via the Flocker Plugin for Docker.
-
-The Flocker Plugin for Docker is a Docker volumes plugin.
-
-It allows you to control Flocker directly from the Docker CLI or a Docker Compose file.
-
-It also works in multi-host environments where you're using Docker Swarm.
-
 Deployment options
-------------------
+==================
 
 .. raw:: html
 
@@ -30,10 +23,25 @@ Deployment options
         }
     </style>
 
-    <div class="wide-box" style="background-color:orange;">
-    HELLO!
+    <div class="wide-box" style="background-color:yellow;">
+        CloudFormation is the easiest way to get started with Flocker and Swarm on AWS.
+        <br />
+        <br />
+        <a href="cloudformation.html" class="button">Install</a>
     </div>
-    <div class="wide-box" style="background-color:blue;">
-    HELLO!
+    <div class="wide-box">
+        &lt;other installation options go here...&gt;
     </div>
+
+
+About the integration
+=====================
+
+Flocker integrates with the Docker Engine, Docker Swarm and/or Docker Compose via the Flocker Plugin for Docker.
+
+The Flocker Plugin for Docker is a Docker volumes plugin.
+
+It allows you to control Flocker directly from the Docker CLI or a Docker Compose file.
+
+It also works in multi-host environments where you're using Docker Swarm.
 
