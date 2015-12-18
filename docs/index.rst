@@ -9,8 +9,8 @@
         h1 { display:none; }
         .big-box {
             border:2px solid #777;
-            width:12em;
-            height:12em;
+            width:11em;
+            height:11em;
             float:left;
             margin:0.5em;
             padding:0.5em;
@@ -32,25 +32,25 @@ Installing Flocker
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="big-box orchestration">
 	    Docker, Swarm, Compose
-		<img src="_images/docker.png" style="width:100px;"/>
+		<img src="_images/docker.png" style="width:80px;"/>
 		<br />
 	<a href="docker-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Kubernetes
-		<img src="_images/kubernetes.png" style="width:100px;"/>
+		<img src="_images/kubernetes.png" style="width:70px;"/>
         <br />
 	<a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Mesos
-		<img src="_images/mesos.png" style="width:100px;"/>
+		<img src="_images/mesos.png" style="width:80px;"/>
         <br />
 	<a href="mesos-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Other
-	 	<img src="_images/questionmark.png" style="width:100px;"/>
+	 	<img src="_images/questionmark.png" style="width:80px;"/>
         <br />
 	<a href="flocker-standalone/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
