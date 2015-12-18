@@ -59,6 +59,22 @@ s3bucket = Bucket('ClusterConfig',
                   DeletionPolicy='Retain')
 template.add_resource(s3bucket)
 
+# Create SecurityGroup for cluster instances
+instance_sg = template.add_resource(
+    ec2.SecurityGroup(
+        "InstanceSecurityGroup",
+        GroupDescription="Enable ingress access on all protocols and ports.",
+        SecurityGroupIngress=[
+            ec2.SecurityGroupRule(
+                IpProtocol="-1",
+                FromPort="0",
+                ToPort="65535",
+                CidrIp="0.0.0.0/0",
+            )
+        ]
+    )
+)
+
 for i in range(NUM_NODES):
     node_name = NODE_NAME_TEMPLATE.format(index=i)
     ec2_instance = ec2.Instance(
@@ -66,8 +82,7 @@ for i in range(NUM_NODES):
         ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "FlockerAMI"),
         InstanceType="m3.large",
         KeyName=Ref(keyname_param),
-        # TODO: create and use unique SecurityGroup for this install.
-        SecurityGroups=["acceptance"],
+        SecurityGroups=[Ref(instance_sg)],
         AvailabilityZone=zone,
     )
     user_data = [
@@ -79,6 +94,7 @@ for i in range(NUM_NODES):
         's3_bucket="', Ref(s3bucket), '"\n',
         'node_count="{}"\n'.format(NUM_NODES),
         'node_number="{}"\n'.format(i),
+        'apt-get update\n',
     ]
 
     user_data += sibling_lines(DOCKER_SETUP)
