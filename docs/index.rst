@@ -92,7 +92,6 @@ Flocker is filesystem-based, so it works with any container image that stores it
 
    <div style="clear:both;"></div>
 
-==============================================
 How to include Flocker in your Container Stack
 ==============================================
 
@@ -110,25 +109,25 @@ Supported Orchestration Frameworks
 	    Docker, Swarm, Compose
 		<img src="_images/docker.png" style="width:50px;"/>
 		<br />
-	<a href="docker-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
+	<a href="docker-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Kubernetes
 		<img src="_images/kubernetes.png" style="width:50px;"/>
         <br />
-	<a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
+	<a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Mesos
 		<img src="_images/mesos.png" style="width:50px;"/>
         <br />
-	<a href="mesos-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
+	<a href="mesos-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Other
 	 	<img src="_images/questionmark.png" style="width:50px;"/>
         <br />
-	<a href="flocker-standalone/" class="button" style="position:relative; top: 2em">Deploy</a>
+	<a href="flocker-standalone/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div style="clear:both;"></div>
 
@@ -279,7 +278,7 @@ Supported Operating Systems
 Getting Started
 ===============
 
-*Scroll up and click "Deploy" for your Orchestration Framework of choice.*
+Choose one of the :ref:`supported-orchestration-frameworks` to get started.
 
 .. toctree::
    :maxdepth: 2
