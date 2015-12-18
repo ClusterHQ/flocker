@@ -136,21 +136,21 @@ Supported Storage
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="big-box storage">
-        AWS - EBS
-		<img src="_images/AWS.png" style="width:50px;"/>
+        AWS Elastic Block Store
+		<img src="_images/AWS.png" style="width:120px;"/>
     </div>
     <div class="big-box storage">
-        GCE - PD
-		<img src="_images/GCE.png" style="width:50px;"/>
-		(coming soon)
+        GCE Persistent Disk
+		<img src="_images/GCE.png" style="width:100px;"/>
+        <img src="_images/coming-soon.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Coming soon">
     </div>
     <div class="big-box storage">
-        OpenStack - Cinder
-		<img src="_images/openstack.png" style="width:50px;"/>
+        OpenStack Cinder
+		<img src="_images/openstack.png" style="width:100px;"/>
     </div>
     <div class="big-box storage">
         VMware vSphere
-		<img src="_images/vmware.png" style="width:50px;"/>
+		<img src="_images/vmware.png" style="width:100px;"/>
 		<br />
     </div>
     <div style="clear:both;"></div>
@@ -161,30 +161,35 @@ Supported Storage
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="small-box storage">
-        Ceph 
-		<img src="_images/ceph.png" style="width:50px;"/>
-		(coming soon)
-		(experimental)
+		<img src="_images/ceph.png" style="width:30px; "/>
+        Ceph
+        <br />
+        <img src="_images/coming-soon.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Coming soon">
+        <img src="_images/experimental.png" style="height:25px; padding:2px 4px; border:1px solid #ddd;" title="Experimental (labs project)">
     </div>
     <div class="small-box storage">
-        EMC ScaleIO
-		<img src="_images/emc.png" style="width:50px;"/>
-		(3rd party)
+		<img src="_images/emc.png" style="width:50px;" title="EMC" />
+        ScaleIO
+        <br />
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div class="small-box storage">
+		<img src="_images/hedvig.png" style="width:80px;" title="Hedvig" />
         Hedvig
-		<img src="_images/hedvig.png" style="width:50px;"/>
-		(3rd party)
+        <br />
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div class="small-box storage">
+		<img src="_images/nexenta.png" style="width:60px;" title="Nexenta" />
         NexentaEdge
-		<img src="_images/nexenta.png" style="width:50px;"/>
-		(3rd party)
+        <br />
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div class="small-box storage">
+		<img src="_images/convergeio.png" style="width:60px;" title="ConvergeIO" />
         ConvergeIO
-		<img src="_images/convergeio.png" style="width:50px;"/>
-		(3rd party)
+        <br />
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div style="clear:both;"></div>
 
@@ -194,29 +199,30 @@ Supported Storage
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="small-box storage">
-        Dell SC Series
-		<img src="_images/dell.png" style="width:50px;"/>
-		(3rd party)
+		<img src="_images/dell.png" style="height:35px;"/><br />SC Series
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div class="small-box storage">
-        EMC XtremIO
-		<img src="_images/emc.png" style="width:50px;"/>
-		(3rd party)
+		<img src="_images/emc.png" style="width:50px;"/> XtremIO
+        <br />
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div class="small-box storage">
-        NetApp OnTap
-		<img src="_images/netapp.png" style="width:50px;"/>
-		(3rd party)
+		<img src="_images/netapp.png" style="width:40px;"/> NetApp OnTap
+        <br />
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div class="small-box storage">
         Saratoga Speed
 		<img src="_images/saratoga.png" style="width:50px;"/>
-		(3rd party)
+        <br />
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div class="small-box storage">
         Huawei
 		<img src="_images/huawei.png" style="width:50px;"/>
-		(3rd party)
+        <br />
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div style="clear:both;"></div>
     <div style="clear:both; margin-top:20px;"></div>
@@ -250,12 +256,14 @@ Supported Operating Systems
     <div class="small-box">
         RHEL 7
 		<img src="_images/rhel.png" style="width:50px;"/>
-		(coming soon)
+        <br />
+        <img src="_images/coming-soon.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Coming soon">
     </div>
     <div class="small-box">
         CoreOS
 		<img src="_images/coreos.png" style="width:50px;"/>
-		(beta)
+        <br />
+        <img src="_images/experimental.png" style="height:25px; padding:2px 4px; border:1px solid #ddd;" title="Experimental (labs project)">
     </div>
     <div style="clear:both;"></div>
 
