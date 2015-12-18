@@ -68,7 +68,6 @@ class CommandProtocol(LineOnlyReceiver, object):
     delimiter = b'\n'
 
     def connectionMade(self):
-        from functools import partial
         self.transport.disconnecting = False
         # SSHCommandClientEndpoint doesn't support capturing stderr.
         # We patch the SSHChannel to interleave it.
