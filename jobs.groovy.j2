@@ -122,33 +122,6 @@ echo "Updating commit \$REMOTE_GIT_COMMIT with ${status} status."
 """
 }
 
-/* creates a tab view structure to group jobs inside a branch folder
-
-   param name:  '/clusterhq-flocker/branchname/myView1'
-   param regex: '.*ubuntu.*r'
-*/
-def build_view(dashProject, dashBranchName, name, regex, description) {
-    println("creating tab ${name}...")
-    // XXX the listView bit should probably be in caller, and we should just return a closure
-    listView("${dashProject}/${dashBranchName}/${name}") {
-        description(description)
-        filterBuildQueue()
-        filterExecutors()
-        jobs {
-            regex(regex)
-        }
-        columns {
-            status()
-            weather()
-            name()
-            lastSuccess()
-            lastFailure()
-            lastDuration()
-            buildButton()
-        }
-    }
-}
-
 
 /* adds a list of common wrappers to the build jobs.
 
@@ -359,22 +332,45 @@ folder(dashProject) { displayName(dashProject) }
 // branches contains the passed parameter RECONFIGURE_BRANCH from jenkins
 branches.add("${RECONFIGURE_BRANCH}")
 
+// create tabs inside the branch folder
+def build_tabs(dashBranchName) {
+    for (entry in GLOBAL_CONFIG.views) {
+        name = "${dashProject}/${dashBranchName}/${entry.key}"
+        println("creating tab ${name}...")
+        listView(name) {
+            description(entry.value.description)
+            filterBuildQueue()
+            filterExecutors()
+            jobs {
+                regex(entry.value.regex)
+            }
+            columns {
+                status()
+                weather()
+                name()
+                lastSuccess()
+                lastFailure()
+                lastDuration()
+                buildButton()
+            }
+        }
+    }
+}
+
 // Iterate over every branch, and create folders, jobs
 branches.each {
-  println("iterating over branch... ${it}")
+    println("iterating over branch... ${it}")
 
-{#  swap '/' with '-'                                                        #}
-  branchName = "${it}"
-  dashBranchName = "${branchName}".replace("/","-")
-  println("found branch... ${it}")
+    //  swap '/' with '-'
+    branchName = "${it}"
+    dashBranchName = "${branchName}".replace("/","-")
+    println("found branch... ${it}")
 
-{# create a folder for every branch: /git-username/git-repo/branch           #}
-  {{ folder("${dashProject}/${dashBranchName}","${branchName}") }}
+    // create a folder for every branch: /git-username/git-repo/branch
+    folder("${dashProject}/${dashBranchName}") { displayName("${branchName}") }
 
-{# create tabs inside the branch folder                                      #}
-{% for name, v  in cfg.views.iteritems()                                    -%}
-  {{ view(name, v.regex, v.description) }}
-{% endfor                                                                    %}
+    // create tabs
+    build_tabs(dashBranchName)
 
 {# ------------------------------------------------------------------------- #}
 {# JOB DEFINITIONS BELOW - THESE WILL BE ADDED TO A MULTIJOB PHASE           #}
