@@ -16,11 +16,9 @@ You can find the relevant Docker Hub images here:
 * `Control Service <https://hub.docker.com/r/clusterhq/flocker-control-service/>`_
 * `Docker Plugin <https://hub.docker.com/r/clusterhq/flocker-docker-plugin/>`_
 
-Before you install Flocker in containers, all authentication must be completed.
-This means that you will have generated the cluster certificate and key, the  node certificates and keys, and the API certificates and keys.
+Before you install Flocker in containers, you must have generated the cluster certificate and key, any node certificates and keys, and API certificates and keys for the Docker plugin.
 
-In the example commands below, certificates are assumed to live in :file:`/etc/flocker` but other environments may choose to create containers that hold certificates and configuration, and share them amongst the Flocker service containers.
-The latter is not documented.
+In the example commands below, certificates are assumed to live in :file:`/etc/flocker` on each node.
 
 For more information on generating certificates, please see  :ref:`authentication`. 
 
@@ -42,13 +40,11 @@ Use the following steps to install Flocker using Docker containers:
 
         docker run --restart=always -d --net=host -v /etc/flocker:/etc/flocker --volumes-from=flocker-control-volume --name=flocker-control-service clusterhq/flocker-control-service
 
-#. Run the Container agent:
+#. Run the following commands to enable the agent service:
 
    .. prompt:: bash $
 
       docker run --restart=always -d --net=host --privileged -v /etc/flocker:/etc/flocker -v /var/run/docker.sock:/var/run/docker.sock --name=flocker-container-agent clusterhq/flocker-container-agent
-
-#. Run the Dataset agent:
 
    .. prompt:: bash $
 
@@ -87,11 +83,15 @@ Run the following to get the logs of the Flocker services:
 .. prompt:: bash $
 
     docker logs flocker-control-service
-
+    docker logs flocker-container-agent
+    docker logs flocker-dataset-agent
+    docker logs flocker-docker-plugin
 
 Conclusion
 ==========
 
 This should help those interested in running Flocker in environments where it is only suitable for containers to run services.
 
-Again, this is experimental so you may run into issues.
+Again, this is experimental so you may run into issues. If you do, get in touch on our Freenode IRC ``#clusterhq`` or `the Flocker Google group`_.
+
+.. _the Flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
