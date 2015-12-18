@@ -239,7 +239,10 @@ class TimeoutTests(TestCase):
     """
 
     def setUp(self):
-        """Initialize testing helper variables."""
+        """
+        Initialize testing helper variables.
+        """
+        super(TimeoutTests, self).setUp()
         self.deferred = Deferred()
         self.timeout = 10.0
         self.clock = Clock()
