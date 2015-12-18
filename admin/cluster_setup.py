@@ -146,9 +146,9 @@ def main(reactor, args, base_path, top_level):
         if options['apps-per-node'] > 0:
             config = _build_config(cluster, options['template'],
                                    options['apps-per-node'])
-            result = yield _configure(reactor, cluster, config)
-        else:
-            result = 0
+            yield _configure(reactor, cluster, config)
+
+        result = 0
 
     except Exception:
         result = 1
@@ -211,6 +211,16 @@ def _build_config(cluster, application_template, per_node):
             "deployment": deployment_root}
 
 
+class ResponseError(Exception):
+    """
+    An unexpected response from the REST API.
+    """
+    def __init__(self, code, message):
+        Exception.__init__(self, "Unexpected response code {}:\n{}\n".format(
+            code, message))
+        self.code = code
+
+
 def _configure(reactor, cluster, configuration):
     """
     Configure the cluster with the given deployment configuration.
@@ -246,10 +256,7 @@ def _configure(reactor, cluster, configuration):
 
     got_nodes = loop_until(reactor, got_all_nodes, repeat(1, 300))
 
-    def do_configure(success):
-        if not success:
-            return 1
-
+    def do_configure(_):
         posted = treq_client.post(
             base_url + b"/configuration/_compose", data=body,
             headers={b"content-type": b"application/json"},
@@ -267,11 +274,11 @@ def _configure(reactor, cluster, configuration):
                     else:
                         error = u"Unknown error: " + unicode(error) + "\n"
                     sys.stderr.write(error)
-                    return 1
-                d.addCallbacks(got_error, lambda _: 1)
+                    raise ResponseError(response.code, error)
+
+                d.addCallback(got_error)
                 return d
-            else:
-                return 0
+
         posted.addCallback(got_response)
         return posted
 
