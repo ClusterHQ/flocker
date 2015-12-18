@@ -1,3 +1,5 @@
+.. begin-body
+
 .. raw:: html
 
     <!-- This toctree-wrapper and next button override is obviously a horrible
@@ -34,6 +36,7 @@
 
    </div>
 
+==============================================
 How to include Flocker in your Container Stack
 ==============================================
 
@@ -47,7 +50,8 @@ Flocker is filesystem-based, so it works with any container image that stores it
 
    <div style="clear:both;"></div>
 
-==================================
+.. _supported-orchestration-frameworks:
+
 Supported Orchestration Frameworks
 ==================================
 
@@ -68,9 +72,17 @@ Supported Orchestration Frameworks
     </div>
     <div style="clear:both;"></div>
 
-=================
+.. _storage-backends:
+
 Supported Storage
 =================
+
+Flocker allows you to use either shared storage, like Amazon EBS or EMC ScaleIO, or local storage for your application’s storage layer.
+The best option for you depends on a combination of factors including where you run your application and the capabilities you are trying to achieve.
+
+For help determining which storage option is right for you, you will find a useful table in the `storage section of our About Flocker`_ page. 
+
+ClusterHQ supported drivers:
 
 .. raw:: html
 
@@ -84,18 +96,44 @@ Supported Storage
     <div class="small-box">
         OpenStack - Cinder
     </div>
+    <div style="clear:both;"></div>
+
+Community supported drivers:
+
+.. raw:: html
+
+    <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="small-box">
-        vSphere - vSphere
+        ConvergeIO
     </div>
     <div class="small-box">
-        Storage hardware e.g. Dell, EMC, NetApp (SAN) <link>
+        Dell SC Series
     </div>
     <div class="small-box">
-        Storage software e.g. Ceph, ScaleIO (SDS) <link>
+        EMC ScaleIO
+    </div>
+    <div class="small-box">
+        EMC XtremIO
+    </div>
+    <div class="small-box">
+        Hedvig
+    </div>
+    <div class="small-box">
+        NetApp OnTap
+    </div>
+    <div class="small-box">
+        NexentaEdge
+    </div>
+    <div class="small-box">
+        Saratoga Speed
+    </div>
+    <div class="small-box">
+        VMware
     </div>
     <div style="clear:both;"></div>
 
-===========================
+.. _supported-operating-systems:
+
 Supported Operating Systems
 ===========================
 
@@ -116,11 +154,19 @@ Supported Operating Systems
     </div>
     <div style="clear:both;"></div>
 
+Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
+
+.. note:: If you wish to use a storage device that is not supported by Flocker or an existing plugin, you can implement this support yourself.
+          For more information, see :ref:`contribute-flocker-driver`.
+
+.. _storage section of our About Flocker: https://clusterhq.com/flocker/introduction/#storage-options
+
+.. end-body
 
 .. toctree::
    :maxdepth: 2
 
-   introduction/index
+   index
    docker-integration/index
    kubernetes-integration/index
    mesos-integration/index
