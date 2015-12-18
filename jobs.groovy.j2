@@ -1,22 +1,24 @@
 // vim: ai ts=2 sts=2 et sw=2 ft=jinja fdm=indent et foldlevel=0
-{# jobs.groovy.j2
+/* jobs.groovy.j2
 
   This jinja2 template is used to produce a jobs.groovy file containing the
   jenkins job DSL plugin code to build all the required views, folders, and
   jobs for a particular project in the Jenkins interface.
 
-   The full Jenkins job DSL reference can be found on the URL below:
-   https://github.com/jenkinsci/job-dsl-plugin/wiki/Job-reference
+  The full Jenkins job DSL reference can be found on the URL below:
+  https://github.com/jenkinsci/job-dsl-plugin/wiki/Job-reference
 
-   The file is consumed by the Jenkins job setup_ClusterHQ_Flocker. That job
-   contains two build steps, the first executes a python file 'render.py' which
-   reads the build.yaml file and expands this jobs.groovy.j2 template using
-   the contents of that yaml dictionary. The resulting jobs.groovy file is then
-   read by a second build step of type 'Process Job DSL' which produces all
-   the jenkins objects.
+  The file is consumed by the Jenkins job setup_ClusterHQ_Flocker. That job
+  contains two build steps, the first executes a python file 'render.py' which
+  reads the build.yaml file and expands this jobs.groovy.j2 template using
+  the contents of that yaml dictionary. The resulting jobs.groovy file is then
+  read by a second build step of type 'Process Job DSL' which produces all
+  the jenkins objects.
 
-   A typical jenkins job contains the following sections, this is just an
-   example of possible actions within a particular section:
+  jinja2 is only used to populate the config, which is loaded from build.yaml.
+
+  A typical jenkins job contains the following sections, this is just an
+  example of possible actions within a particular section:
 
    * Parameters:
         - parameters can be added to a job, these are used to pass environment
@@ -47,10 +49,10 @@
         - Triggering other jobs
 
 
-    The structure of this jinja2 file is as follows:
+    The structure of this file is as follows:
 
-    A set of Jinja2 macro definitions which produce job dsl text for the
-    different sections of the job:
+    A set of functions which implement the different sections of the job:
+
         - folder (creates a folder view in Jenkins to store the jobs)
         - wrappers
         - triggers
@@ -59,9 +61,10 @@
         - steps (consumes the contentes of the build.yaml build steps, and
             expands those as shell cli text'
 
-    A full set of job blocks follows the macro definitions, these iterate
-    over the build.yaml file for each job definition of a particular
-    'job_type' and create all the jobs related to that 'job_type':
+    A full set of job blocks follows, these iterate over the build.yaml file for
+    each job definition of a particular 'job_type' and create all the jobs
+    related to that 'job_type':
+
         - run_trial
         - run_trial_for_storage_driver
         - run_sphinx
@@ -80,148 +83,150 @@
     So that a aggregated view of all the results is made available within the
     multijob details page for a completed job.
 
-    The last section in this file is a definition block for cron style job
-    type jobs which are not executed as part of the main multijob.
-    These follow a similar structure to the common 'job_type' definitions
-    above, except they include a trigger section specifying an daily schedulle.
-#}
+    The last section in this file defines cron style type jobs which are not
+    executed as part of the main multijob.  These follow a similar structure to
+    the common 'job_type' definitions above, except they include a trigger
+    section specifying an daily schedulle.
+*/
 
-{# ------------------------------------------------------------------------- #}
-{# JINJA2 MACROS DEFINED BELOW                                               #}
-{# --------------------------------------------------------------------------#}
+// --------------------------------------------------------------------------
+// UTILITIES DEFINED BELOW
+// --------------------------------------------------------------------------
 
-{% macro updateGitHubStatus(status, description, branch, dashProject,
-                            dashBranchName)                                 -%}
-"""
+def updateGitHubStatus(status, description, branch, dashProject,
+                       dashBranchName) {
+    return """
 #!/bin/bash
-{# Jenkins jobs are usually run using 'set -x' however we use 'set +x' here  #}
-{# to avoid leaking credentials into the build logs.                         #}
+# Jenkins jobs are usually run using 'set -x' however we use 'set +x' here
+# to avoid leaking credentials into the build logs.
 set +x
-{# Read the GitHub credentials                                               #}
+# Read the GitHub credentials
 . /etc/slave_config/github_status.sh
 
-{# Send a request to Github to update the commit with the build status       #}
-REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/{{branch}}`
-BUILD_URL="\$JENKINS_URL/job/{{dashProject}}/job/{{dashBranchName}}/"
-PAYLOAD="{\\"state\\": \\"{{ status }}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"{{ description }}\\", \\"context\\": \\"jenkins-multijob\\" }"
+# Send a request to Github to update the commit with the build status
+REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/${branch}`
+BUILD_URL="\$JENKINS_URL/job/${dashProject}/job/${dashBranchName}/"
+PAYLOAD="{\\"state\\": \\"${status}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"${description}\\", \\"context\\": \\"jenkins-multijob\\" }"
 curl \\
   -H "Content-Type: application/json" \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
   -X POST \\
   --data "\$PAYLOAD" \\
-  https://api.github.com/repos/{{ cfg.project }}/statuses/\$REMOTE_GIT_COMMIT
-echo "Updating commit \$REMOTE_GIT_COMMIT with {{ status }} status."
+  https://api.github.com/repos/${cfg.project}/statuses/\$REMOTE_GIT_COMMIT
+echo "Updating commit \$REMOTE_GIT_COMMIT with ${status} status."
 """
-{%- endmacro -%}
+}
 
-{% macro folder(folder, display_name)                                       -%}
-{# creates a folder structure to group jobs, these are the Jenkins folder views
+/* creates a folder structure to group jobs, these are the Jenkins folder views
    in the Jenkins UI.
 
    param folder:  '<clusterhq-flocker/branchname>'
-   param displayName: Name displayed in the jenkins view for this folder     #}
+   param displayName: Name displayed in the jenkins view for this folder
+*/
+// XXX unnecessary
+def folder(folder, display_name) {
+    println("creating ${folder}...")
+    folder(folder) { displayName(display_name) }
+}
 
-println("creating {{folder}}...")
-folder("{{folder}}") { displayName("{{display_name}}") }
-{%- endmacro                                                                -%}
-
-{% macro view(name, regex, description)                                     -%}
-{# creates a tab view structure to group jobs inside a branch folder         %}
+/* creates a tab view structure to group jobs inside a branch folder
 
    param name:  '/clusterhq-flocker/branchname/myView1'
-   param regex: '.*ubuntu.*r'                                                #}
-
-println("creating tab {{name}}...")
-listView("${dashProject}/${dashBranchName}/{{name}}") {
-  description("{{description}}")
-  filterBuildQueue()
-  filterExecutors()
-  jobs {
-    regex("{{regex}}")
-  }
-  columns {
-    status()
-    weather()
-    name()
-    lastSuccess()
-    lastFailure()
-    lastDuration()
-    buildButton()
-  }
+   param regex: '.*ubuntu.*r'
+*/
+def build_view(dashProject, dashBranchName, name, regex, description) {
+    println("creating tab ${name}...")
+    // XXX the listView bit should probably be in caller, and we should just return a closure
+    listView("${dashProject}/${dashBranchName}/${name}") {
+        description("${description}")
+        filterBuildQueue()
+        filterExecutors()
+        jobs {
+            regex("${regex}")
+        }
+        columns {
+            status()
+            weather()
+            name()
+            lastSuccess()
+            lastFailure()
+            lastDuration()
+            buildButton()
+        }
+    }
 }
-{%- endmacro                                                                -%}
 
-{% macro wrappers(v, directories_to_delete)                                 -%}
-{# adds a list of common wrappers to the build jobs.
+
+/* adds a list of common wrappers to the build jobs.
 
    param v:  dictionary containing the values from the job
    param list directories_to_delete: directory to clean up
-#}
-    wrappers {
-{#    adds timestamps to the job log output                                  #}
-      timestamps()
-{#    colorizeOuptut allows for ascii coloured output in the logs of a job   #}
-      colorizeOutput()
-{#    define the max duration a running job should take, this prevents stuck
-      jobs for reserving jenkins slaves and preventing other jobs from running.
-      These timeouts will have to be adjusted as we work on improving the
-      execution time of the tests so that we can enforce a SLA of a maximum of
-      'n' minutes.
-      An improvement here (TODO) would be to receibe the timeout as a parameter
-      so that we can have different timeouts for different job types.        #}
-      timeout {
-          absolute({{v.timeout}})
-          failBuild()
-      }
-{#    Jobs that are executed with sudo can leave files behind that prevents
-      Jenkins from cleaning the git repository before a git merge.
-      The git cleanup process is run as the jenkins execution user which lacks
-      the priviledges to remove the root owned files created by the sudo tests.
-      To fix this issue, we use a preSCM plugin which allows us to execute a
-      step before cloning/checking the git reposity.
-      if the build.yaml contains a 'clean_repo' flag, then we will clean up
-      old root files from the repo.                                          #}
-{% if v.clean_repo %}
-      preScmSteps {
-          steps {
-          {#- Use single-quotes to avoid groovy interploation for ${}      -#}
-          shell('sudo rm -rf {{ directories_to_delete | join(' ') }}')
-          }
-      }
-{% endif %}
-    }
-{%- endmacro                                                                -%}
-
-
-{% macro triggers(_type, _value, _branch )                                 -%}
-{# adds a list of triggers to the build job
-
-   param  _type: type of job
-   _value: the cron string
-
-#}
-    triggers {
-{#  the job_type 'cron' is used by the docker_build jobs running every 24h
-    but we only configure the scheduler if the jobs is for the master branch.
-    If we were to schedule the job on every branch we would have multiple jobs
-    running at the same time                                                 #}
-        if ("{{_type}}" == "cron" && "{{_branch}}" == "master") {
-{#  the cron  string below is a common crontab style string                  #}
-            cron("{{_value}}")
+*/
+def build_wrappers(v, directories_to_delete) {
+    directories_to_delete = directories_to_delete.join(" ")
+    return {
+        //    adds timestamps to the job log output
+        timestamps()
+        // colorizeOuptut allows for ascii coloured output in the logs of a job
+        colorizeOutput()
+        /* define the max duration a running job should take, this prevents stuck
+           jobs for reserving jenkins slaves and preventing other jobs from running.
+           These timeouts will have to be adjusted as we work on improving the
+           execution time of the tests so that we can enforce a SLA of a maximum of
+           'n' minutes.
+           An improvement here (TODO) would be to receibe the timeout as a parameter
+           so that we can have different timeouts for different job types. */
+        timeout {
+            absolute(v.timeout)
+            failBuild()
         }
-{#  the job_type 'githubPush' is used by the multijob, we use it to
-    configure that job so that builds on master are triggered automatically
-    this block enables 'Build when a change is pushed to GitHub'
-#}
-        if ("{{_type}}" == "githubPush" && "{{_branch}}" == "master") {
-            configure { node ->
-                node / 'triggers' / 'com.cloudbees.jenkins.GitHubPushTrigger' {
-                spec ''
+        /* Jobs that are executed with sudo can leave files behind that prevents
+           Jenkins from cleaning the git repository before a git merge.
+           The git cleanup process is run as the jenkins execution user which lacks
+           the priviledges to remove the root owned files created by the sudo tests.
+           To fix this issue, we use a preSCM plugin which allows us to execute a
+           step before cloning/checking the git reposity.
+           if the build.yaml contains a 'clean_repo' flag, then we will clean up
+           old root files from the repo. */
+        if (v.clean_repo) {
+            preScmSteps {
+                steps {
+                    shell("sudo rm -rf ${directories_to_delete}")
                 }
             }
         }
     }
-{%- endmacro                                                                -%}
+}
+
+
+/* adds a list of triggers to the build job
+
+   param  _type: type of job
+   param _value: the cron string
+
+*/
+def build_triggers(_type, _value, _branch ) {
+    return {
+        /* the job_type 'cron' is used by the docker_build jobs running every 24h
+           but we only configure the scheduler if the jobs is for the master branch.
+           If we were to schedule the job on every branch we would have multiple jobs
+           running at the same time. */
+        if (_type == "cron" && _branch == "master") {
+            //  the cron  string below is a common crontab style string
+            cron(_value)
+        }
+        /*  the job_type 'githubPush' is used by the multijob, we use it to
+            configure that job so that builds on master are triggered automatically
+            this block enables 'Build when a change is pushed to GitHub' */
+        if (_type == "githubPush" && _branch == "master") {
+            configure { node ->
+                node / 'triggers' / 'com.cloudbees.jenkins.GitHubPushTrigger' {
+                    spec ''
+                }
+            }
+        }
+    }
+}
 
 
 {% macro scm(git_url, branch) -%}
