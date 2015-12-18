@@ -66,11 +66,11 @@ instance_sg = template.add_resource(
         GroupDescription="Enable ingress access on all protocols and ports.",
         SecurityGroupIngress=[
             ec2.SecurityGroupRule(
-                IpProtocol="-1",
+                IpProtocol=protocol,
                 FromPort="0",
                 ToPort="65535",
                 CidrIp="0.0.0.0/0",
-            )
+            ) for protocol in ('tcp', 'udp')
         ]
     )
 )
