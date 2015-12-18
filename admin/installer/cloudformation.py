@@ -55,7 +55,7 @@ template.add_mapping('RegionMap', {
 instances = []
 zone = Select(0, GetAZs(""))
 
-s3bucket = Bucket('FlockerConfig',
+s3bucket = Bucket('ClusterConfig',
                   DeletionPolicy='Retain')
 template.add_resource(s3bucket)
 
@@ -120,7 +120,7 @@ template.add_output([
     ),
 ])
 template.add_output(Output(
-    "BucketName",
+    "S3BucketName",
     Value=Ref(s3bucket),
     Description="Name of S3 bucket to hold cluster configuration files."
 ))
