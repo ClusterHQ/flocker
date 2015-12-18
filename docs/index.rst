@@ -65,6 +65,7 @@
 .. image:: images/netapp.png
 .. image:: images/saratoga.png
 .. image:: images/huawei.png
+.. image:: images/ubuntu.png
    
 .. raw:: html
 
@@ -228,15 +229,21 @@ Supported Operating Systems
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="small-box">
         Ubuntu LTS
+		<img src="_images/ubuntu.png" style="width:50px;"/>
     </div>
     <div class="small-box">
         CentOS 7
+		<img src="_images/centos.png" style="width:50px;"/>
     </div>
     <div class="small-box">
-        RHEL 7 (coming soon)
+        RHEL 7
+		<img src="_images/rhel.png" style="width:50px;"/>
+		(coming soon)
     </div>
     <div class="small-box">
-        CoreOS (beta)
+        CoreOS
+		<img src="_images/coreos.png" style="width:50px;"/>
+		(beta)
     </div>
     <div style="clear:both;"></div>
 
