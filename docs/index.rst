@@ -141,7 +141,8 @@ Supported Storage
     </div>
     <div class="big-box storage">
         GCE Persistent Disk
-		<img src="_images/GCE.png" style="width:100px;"/>
+        <br />
+		<img src="_images/GCE.png" style="width:80px;"/>
         <img src="_images/coming-soon.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Coming soon">
     </div>
     <div class="big-box storage">
@@ -152,6 +153,7 @@ Supported Storage
         VMware vSphere
 		<img src="_images/vmware.png" style="width:100px;"/>
 		<br />
+        <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div style="clear:both;"></div>
 
@@ -208,19 +210,19 @@ Supported Storage
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div class="small-box storage">
-		<img src="_images/netapp.png" style="width:40px;"/> NetApp OnTap
+		<img src="_images/netapp.png" style="width:20px;"/> NetApp OnTap
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div class="small-box storage">
-        Saratoga Speed
 		<img src="_images/saratoga.png" style="width:50px;"/>
+        Saratoga Speed
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
     <div class="small-box storage">
-        Huawei
 		<img src="_images/huawei.png" style="width:50px;"/>
+        Huawei
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)">
     </div>
@@ -251,11 +253,11 @@ Supported Operating Systems
     </div>
     <div class="small-box">
         CentOS 7
-		<img src="_images/centos.png" style="width:50px;"/>
+		<img src="_images/centos.png" style="width:60px;"/>
     </div>
     <div class="small-box">
         RHEL 7
-		<img src="_images/rhel.png" style="width:50px;"/>
+		<img src="_images/rhel.png" style="width:40px;"/>
         <br />
         <img src="_images/coming-soon.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Coming soon">
     </div>
