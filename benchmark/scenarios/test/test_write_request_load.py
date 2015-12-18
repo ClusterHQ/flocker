@@ -17,6 +17,7 @@ from benchmark.scenarios import (
     WRequestRateNotReached, WRequestOverload, WDataseCreationTimeout
 )
 from benchmark.scenarios.read_request_load import DEFAULT_SAMPLE_SIZE
+DEFAULT_VOLUME_SIZE=1073741824
 
 class WRateMeasurerTest(SynchronousTestCase):
     """
@@ -184,6 +185,7 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
             self.node1.public_address,
             lambda reactor: FlockerClientInstance,
             {self.node1.public_address, self.node2.public_address},
+            default_volume_size=DEFAULT_VOLUME_SIZE,
         )
 
     def get_fake_flocker_client_instance(self):
