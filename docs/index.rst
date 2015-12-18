@@ -1,5 +1,3 @@
-.. begin-body
-
 .. raw:: html
 
     <!-- This toctree-wrapper and next button override is obviously a horrible
@@ -82,23 +80,24 @@ The best option for you depends on a combination of factors including where you 
 
 For help determining which storage option is right for you, you will find a useful table in the `storage section of our About Flocker`_ page. 
 
-ClusterHQ supported drivers:
 
 .. raw:: html
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
-    <div class="small-box">
+    <div class="big-box">
         AWS - EBS
     </div>
-    <div class="small-box">
+    <div class="big-box">
         GCE - PD
     </div>
-    <div class="small-box">
+    <div class="big-box">
         OpenStack - Cinder
+    </div>
+    <div class="big-box">
+        VMware vSphere
     </div>
     <div style="clear:both;"></div>
 
-Community supported drivers:
 
 .. raw:: html
 
@@ -128,9 +127,11 @@ Community supported drivers:
         Saratoga Speed
     </div>
     <div class="small-box">
-        VMware
+        VMware vSphere
     </div>
     <div style="clear:both;"></div>
+	
+Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
 
 .. _supported-operating-systems:
 
@@ -154,14 +155,10 @@ Supported Operating Systems
     </div>
     <div style="clear:both;"></div>
 
-Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
-
 .. note:: If you wish to use a storage device that is not supported by Flocker or an existing plugin, you can implement this support yourself.
           For more information, see :ref:`contribute-flocker-driver`.
 
 .. _storage section of our About Flocker: https://clusterhq.com/flocker/introduction/#storage-options
-
-.. end-body
 
 .. toctree::
    :maxdepth: 2
