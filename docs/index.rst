@@ -9,25 +9,14 @@
         h1 { display:none; }
         .big-box {
             border:2px solid #777;
-            width:10em;
-            height:10em;
-            float:left;
-            margin:0.5em;
-            padding:0.5em;
-        }
-        .small-box {
-            border:2px solid #777;
-            width:7em;
-            height:7em;
+            width:12em;
+            height:12em;
             float:left;
             margin:0.5em;
             padding:0.5em;
         }
         .orchestration {
             border-color: #80B164;
-        }
-        .storage {
-            border-color: #D69A00;
         }
     </style>
 
@@ -43,25 +32,25 @@ Installing Flocker
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="big-box orchestration">
 	    Docker, Swarm, Compose
-		<img src="_images/docker.png" style="width:50px;"/>
+		<img src="_images/docker.png" style="width:100px;"/>
 		<br />
 	<a href="docker-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Kubernetes
-		<img src="_images/kubernetes.png" style="width:50px;"/>
+		<img src="_images/kubernetes.png" style="width:100px;"/>
         <br />
 	<a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Mesos
-		<img src="_images/mesos.png" style="width:50px;"/>
+		<img src="_images/mesos.png" style="width:100px;"/>
         <br />
 	<a href="mesos-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Other
-	 	<img src="_images/questionmark.png" style="width:50px;"/>
+	 	<img src="_images/questionmark.png" style="width:100px;"/>
         <br />
 	<a href="flocker-standalone/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
@@ -100,26 +89,6 @@ Let us know with the form below!
 .. image:: images/kubernetes.png
 .. image:: images/mesos.png
 .. image:: images/questionmark.png
-.. image:: images/AWS.png
-.. image:: images/GCE.png
-.. image:: images/vmware.png
-.. image:: images/openstack.png
-.. image:: images/3rd-party.png
-.. image:: images/coming-soon.png
-.. image:: images/experimental.png
-.. image:: images/ceph.png
-.. image:: images/emc.png
-.. image:: images/hedvig.png
-.. image:: images/nexenta.png
-.. image:: images/convergeio.png
-.. image:: images/dell.png
-.. image:: images/netapp.png
-.. image:: images/saratoga.png
-.. image:: images/huawei.png
-.. image:: images/ubuntu.png
-.. image:: images/centos.png
-.. image:: images/rhel.png
-.. image:: images/coreos.png
 
 .. raw:: html
 
