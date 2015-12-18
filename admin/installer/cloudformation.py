@@ -49,10 +49,9 @@ secret_access_key_param = template.add_parameter(Parameter(
 ))
 
 template.add_mapping('RegionMap', {
-    # richardw-test1 AMI generated from a running acceptance test node.
-    "us-east-1":      {"FlockerAMI": "ami-6cabe306"},
-    "us-west-1":      {"FlockerAMI": "ami-2e81ea4e"},
-    "us-west-2":      {"FlockerAMI": "ami-7e99861f"}
+    'us-east-1':      {"FlockerAMI": 'ami-dc4410b6'},
+    'us-west-1':      {"FlockerAMI": 'ami-e098f380'},
+    'us-west-2':      {"FlockerAMI": 'ami-8c8f90ed'},
 })
 
 instances = []
