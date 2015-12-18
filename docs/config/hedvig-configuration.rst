@@ -13,4 +13,4 @@ Hedvig also support `Flocker Storage Profiles`_.
 .. XXX FLOC 2443 to expand this Backend storage section
 
 .. _Hedvig Flocker driver on GitHub: https://github.com/hedvig/hedvig-flocker-driver
-.. _Flocker Storage Profiles: http://www.hedviginc.com/blog/flocker-storage-profiles-for-docker
+.. _Flocker Storage Profiles: http://hedviginc.com/blog/flocker-storage-profiles-for-docker

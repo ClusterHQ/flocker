@@ -34,7 +34,7 @@ Currently, the following community supported drivers support Flocker Storage Pro
 
 .. _Dell SC Series: https://github.com/dellstorage/storagecenter-flocker-driver/blob/master/dell_storagecenter_driver/dell_storagecenter_blockdevice.py
 .. _ConvergeIO: https://github.com/ConvergeIO/cio-flocker-driver/blob/gh-pages/driver/cio.py#L133
-.. _Hedvig: http://www.hedviginc.com/blog/flocker-storage-profiles-for-docker
+.. _Hedvig: http://hedviginc.com/blog/flocker-storage-profiles-for-docker
 
 .. end-body
 
