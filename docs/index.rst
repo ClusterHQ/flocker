@@ -56,7 +56,11 @@
 .. image:: images/GCE.png
 .. image:: images/vmware.png
 .. image:: images/openstack.png
-   
+
+.. image:: images/3rd-party.png
+.. image:: images/coming-soon.png
+.. image:: images/experimental.png
+
 .. raw:: html
 
    </div>
@@ -133,9 +137,9 @@ Supported Storage
 		<img src="_images/openstack.png" style="width:50px;"/>
     </div>
     <div class="big-box storage">
-        VMware vSphere 
+        VMware vSphere
 		<img src="_images/vmware.png" style="width:50px;"/>
-		(3rd party)
+		<br />
     </div>
     <div style="clear:both;"></div>
 
@@ -160,7 +164,7 @@ Supported Storage
         ConvergeIO (3rd party)
     </div>
     <div style="clear:both;"></div>
-	
+
 **Hardware devices**
 
 .. raw:: html
@@ -179,7 +183,13 @@ Supported Storage
         Saratoga Speed (3rd party)
     </div>
     <div style="clear:both;"></div>
-	
+    <div style="clear:both; margin-top:20px;"></div>
+
+    <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed (3rd party)"> = Community developed (3rd party)
+    <img src="_images/experimental.png" style="height:25px; padding:2px 4px; border:1px solid #ddd;" title="Experimental (labs project)"> = Experimental
+    <img src="_images/coming-soon.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Coming soon"> = Coming soon
+    <div style="clear:both; margin-top:20px;"></div>
+
 .. XXX This link probably needs to go somewhere, but not here: Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
 
 .. note:: If you wish to use a storage device that is not supported by Flocker or an existing plugin, you can implement this support yourself.
