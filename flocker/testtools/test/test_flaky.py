@@ -341,9 +341,17 @@ class FlakyIntegrationTests(testtools.TestCase):
         class ErroringTest(base_test_case):
             @flaky(jira_keys, max_runs, min_passes)
             def test_error(self):
-                1/0
+                1 / 0
 
         test = ErroringTest('test_error')
+
+        # We expect the result of the run to be that one test was run and that
+        # it produced an error that includes a traceback with the strings
+        # "flaky:" (which comes from the flaky decorator) and
+        # "ZeroDivisionError" which describes the exception the test actually
+        # fails with.  Something like:
+        #
+        #  [(test, "error report including the two strings")]
         self.assertThat(
             run_test(test),
             has_results(
@@ -351,12 +359,9 @@ class FlakyIntegrationTests(testtools.TestCase):
                 errors=MatchesListwise([
                     MatchesListwise([
                         Equals(test),
-                        AfterPreprocessing(
-                            str,
-                            MatchesAll(
-                                Contains('flaky:'),
-                                Contains('ZeroDivisionError'),
-                            ),
+                        MatchesAll(
+                            Contains('flaky:'),
+                            Contains('ZeroDivisionError'),
                         ),
                     ])
                 ]),
