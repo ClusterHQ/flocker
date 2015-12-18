@@ -93,7 +93,7 @@ An example file:
      - name: read-request-10
        type: read-request-load
        request_rate: 10
-       interval: 5
+       sample_size: 10
        timeout: 60
 
    operations:
@@ -128,8 +128,8 @@ Scenario Types
    Specify the rate of requests to perform per second using an additional ``request_rate`` property.
    The default is 10 requests per second.
 
-   Specify the interval to be used when sampling the request rate using an additional ``interval`` property.
-   The default is 10 seconds.
+   Specify the number of samples to be collected when sampling the request rate using an additional ``sample_size`` property.
+   The default is 5 samples.
 
    Specify a timeout for establishing the scenario using an additional ``timeout`` property.
    The default is 45 seconds.

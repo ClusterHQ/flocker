@@ -4,6 +4,7 @@ from ipaddr import IPAddress
 from twisted.internet.defer import succeed, Deferred
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
+from twisted.python.failure import Failure
 from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient._client import (
@@ -15,9 +16,9 @@ from benchmark.scenarios import (
     RequestRateNotReached, RequestOverload
 )
 
-from benchmark.scenarios.read_request_load import DEFAULT_SAMPLE_SIZE
-
 from benchmark.cluster import BenchmarkCluster
+
+DEFAULT_VOLUME_SIZE=1073741824
 
 
 class RateMeasurerTest(SynchronousTestCase):
@@ -25,44 +26,58 @@ class RateMeasurerTest(SynchronousTestCase):
     RateMeasurer tests
     """
 
-    def send_requests(self, r_measurer, num_req, num_samples):
+    def send_requests(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will send the desired number of request.
 
-        :param r_measurer: `rate_measurer` we are testing
-        :param num_req: number of request we want to send.
-        :param num_samples: numbe of samples (interval)
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_requests: The number of request we want to send.
+        :param num_samples: The number of samples to collect.
         """
-        for i in range(num_samples):
-            for i in range(num_req):
-                r_measurer.send_request()
+        for i in range(num_samples * num_requests):
+            rate_measurer.request_sent()
 
-    def receive_requests(self, r_measurer, num_req, num_samples):
+    def receive_requests(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will receive the desired number of requests.
 
-        :param r_measurer: `rate_measurer` we are testing
-        :param num_req: number of request we want to receive.
-        :param num_samples: numbe of samples (interval)
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_requests: The number of request we want to receive.
+        :param num_samples: The number of samples to collect.
         """
         ignored = ""
         for i in range(num_samples):
-            for i in range(num_req):
-                r_measurer.receive_request(ignored)
-            r_measurer.update_rate()
+            for i in range(num_requests):
+                rate_measurer.response_received(ignored)
+            rate_measurer.update_rate()
 
-    def increase_rate(self, r_measurer, num_req, num_samples):
+    def failed_requests(self, rate_measurer, num_failures, num_samples):
+        """
+        Helper function that will result the desired number of response
+        failures.
+
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_failures: The number of requests we want to fail.
+        :param num_samples: The number of samples to collect.
+        """
+        result = None
+        for i in range(num_samples):
+            for i in range(num_failures):
+                rate_measurer.request_failed(result)
+            rate_measurer.update_rate()
+
+    def increase_rate(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will increase the rate, sending the
         desired number of request, and receiving the same
         amount of them.
 
-        :param r_measurer: `rate_measurer` we are testing
-        :param num_req: number of request we want to make.
-        :param num_samples: numbe of samples (interval)
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_requests: The number of request we want to make.
+        :param num_samples: The number of samples to collect.
         """
-        self.send_requests(r_measurer, num_req, num_samples)
-        self.receive_requests(r_measurer, num_req, num_samples)
+        self.send_requests(rate_measurer, num_requests, num_samples)
+        self.receive_requests(rate_measurer, num_requests, num_samples)
 
     def test_rate_is_zero_when_no_samples(self):
         """
@@ -71,19 +86,18 @@ class RateMeasurerTest(SynchronousTestCase):
         r = RateMeasurer()
         self.assertEqual(r.rate(), 0, "Expected initial rate to be zero")
 
-    def test_rate_is_small_when_not_enough_samples(self):
+    def test_rate_is_lower_than_target_when_not_enough_samples(self):
         """
         When the number of samples collected is less than the sample
-        size, the rate should be smaller than `req_per_second`.
+        size, the rate should be lower than `target_rate`.
         """
         r = RateMeasurer()
-        req_per_second = 5
+        target_rate = 5
+        num_samples = r.sample_size - 1
 
-        self.increase_rate(r, req_per_second, (r.sample_size / 2))
+        self.increase_rate(r, target_rate, num_samples)
 
-        self.assertEqual((req_per_second * (r.sample_size / 2)) /
-                         r.sample_size,
-                         r.rate())
+        self.assertTrue(r.rate() < target_rate)
 
     def test_rate_is_correct_when_enough_samples(self):
         """
@@ -91,11 +105,11 @@ class RateMeasurerTest(SynchronousTestCase):
         samples have been collected.
         """
         r = RateMeasurer()
-        req_per_second = 5
+        target_rate = 5
 
-        self.increase_rate(r, req_per_second, r.sample_size)
+        self.increase_rate(r, target_rate, r.sample_size)
 
-        self.assertEqual(req_per_second, r.rate())
+        self.assertEqual(target_rate, r.rate())
 
     def test_old_samples_are_not_considered(self):
         """
@@ -104,29 +118,50 @@ class RateMeasurerTest(SynchronousTestCase):
         a new sample, the oldest one is discarded.
         """
         r = RateMeasurer()
-        req_per_second = 5
-        # generate samples that should get lost
-        self.increase_rate(r, 100, r.sample_size/2)
+        target_rate = 5
 
-        # generate r.sample_size samples that will make the initial
-        # ones not count
-        self.increase_rate(r, req_per_second, r.sample_size)
+        # Generate samples that will achieve a high request rate
+        self.increase_rate(r, target_rate * 2, r.sample_size)
 
-        self.assertEqual(req_per_second, r.rate())
+        # Generate samples to lower the request rate to the target rate
+        self.increase_rate(r, target_rate, r.sample_size)
 
-    def test_only_received_samples_considered_in_rate(self):
+        self.assertEqual(target_rate, r.rate())
+
+    def test_rate_only_considers_received_samples(self):
         """
         The rate should be based on the number of received requests,
-        not the number of sent requests.
+        not the number of sent or failed requests.
         """
         r = RateMeasurer()
-        send_per_second = 100
-        rec_per_second = 5
+        send_request_rate = 100
+        failed_request_rate = 10
+        receive_request_rate = 5
 
-        self.send_requests(r, send_per_second, r.sample_size)
-        self.receive_requests(r, rec_per_second, r.sample_size)
+        self.send_requests(r, send_request_rate, r.sample_size)
+        self.failed_requests(r, failed_request_rate, r.sample_size)
+        self.receive_requests(r, receive_request_rate, r.sample_size)
 
-        self.assertEqual(rec_per_second, r.rate())
+        self.assertEqual(receive_request_rate, r.rate())
+
+    def test_outstanding_considers_all_responses(self):
+        """
+        Requests that fail are considered to be completed requests and
+        should be included when calculating the number of outstanding
+        requests.
+        """
+        r = RateMeasurer()
+
+        # Send 25 requests
+        self.send_requests(r, 5, r.sample_size)
+
+        # Receive successful responses for 20 of those requests
+        self.receive_requests(r, 4, r.sample_size)
+
+        # Mark 5 of the requests as failed
+        self.failed_requests(r, 1, r.sample_size)
+
+        self.assertEqual(0, r.outstanding())
 
 
 class RequestDroppingFakeFlockerClient(
@@ -135,8 +170,8 @@ class RequestDroppingFakeFlockerClient(
     """
     A FakeFlockerClient that can drop alternating requests.
     """
-    def __init__(self, nodes):
-        super(RequestDroppingFakeFlockerClient, self).__init__(nodes)
+    def __init__(self, client, reactor):
+        super(RequestDroppingFakeFlockerClient, self).__init__(client)
         self.drop_requests = False
         self._dropped_last_request = False
 
@@ -151,6 +186,31 @@ class RequestDroppingFakeFlockerClient(
         return Deferred()
 
 
+class RequestErrorFakeFlockerClient(
+    proxyForInterface(IFlockerAPIV1Client)
+):
+    """
+    A FakeFlockerClient that can result in failured requests.
+    """
+    def __init__(self, client, reactor):
+        super(RequestErrorFakeFlockerClient, self).__init__(client)
+        self.fail_requests = False
+        self.reactor = reactor
+        self.delay = 1
+
+    def list_nodes(self):
+        if not self.fail_requests:
+            return succeed(True)
+        else:
+            def fail_later(secs):
+                d = Deferred()
+                self.reactor.callLater(
+                    secs, d.errback, Failure(Exception())
+                )
+                return d
+            return fail_later(self.delay)
+
+
 class ReadRequestLoadScenarioTest(SynchronousTestCase):
     """
     ReadRequestLoadScenario tests
@@ -163,8 +223,11 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
         return BenchmarkCluster(
             node1.public_address,
-            lambda reactor: FlockerClient(FakeFlockerClient([node1, node2])),
+            lambda reactor: FlockerClient(
+                FakeFlockerClient([node1, node2]), reactor
+            ),
             {node1.public_address, node2.public_address},
+            default_volume_size=DEFAULT_VOLUME_SIZE,
         )
 
     def test_read_request_load_succeeds(self):
@@ -172,21 +235,29 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         ReadRequestLoadScenario starts and stops without collapsing.
         """
         c = Clock()
-        cluster = self.make_cluster(FakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster, 5, interval=3)
+
+        node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
+        node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
+        cluster = BenchmarkCluster(
+            node1.public_address,
+            lambda reactor: FakeFlockerClient([node1, node2]),
+            {node1.public_address, node2.public_address},
+            default_volume_size=DEFAULT_VOLUME_SIZE
+        )
+
+        sample_size = 5
+        s = ReadRequestLoadScenario(c, cluster, sample_size=sample_size)
 
         d = s.start()
 
-        # Request rate samples are taken at most every second and by
-        # default, 5 samples are required to establish the rate.
-        # The sample recorded at nth second is the sample for the
-        # (n - 1)th second, therefore we need to advance the clock by
-        # n + 1 seconds to obtain a rate for n samples.
-        c.pump(repeat(1, DEFAULT_SAMPLE_SIZE + 1))
+        # Request rate samples are recorded every second and we need to
+        # collect enough samples to establish the rate which is defined
+        # by `sample_size`. Therefore, advance the clock by
+        # `sample_size` seconds to obtain enough samples.
+        c.pump(repeat(1, sample_size))
         s.maintained().addBoth(lambda x: self.fail())
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
-
 
     def test_scenario_throws_exception_when_rate_drops(self):
         """
@@ -195,24 +266,26 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
 
         Establish the requested rate by having the FakeFlockerClient
         respond to all requests, then lower the rate by dropping
-        alternate requeeas. This should result in RequestRateTooLow
+        alternate requests. This should result in RequestRateTooLow
         being raised.
         """
         c = Clock()
+
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
+        sample_size = 5
+        s = ReadRequestLoadScenario(c, cluster, sample_size=sample_size)
 
         s.start()
 
-        # Advance the clock by DEFAULT_SAMPLE_SIZE + 1 seconds to
-        # establish the requested rate.
-        c.pump(repeat(1, DEFAULT_SAMPLE_SIZE + 1))
+        # Advance the clock by `sample_size` seconds to establish the
+        # requested rate.
+        c.pump(repeat(1, sample_size))
 
         cluster.get_control_service(c).drop_requests = True
 
-        # Advance the clock by 3 seconds so that a request is dropped
+        # Advance the clock by 2 seconds so that a request is dropped
         # and a new rate which is below the target can be established.
-        c.pump(repeat(1, 3))
+        c.advance(2)
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestRateTooLow)
@@ -224,54 +297,128 @@ class ReadRequestLoadScenarioTest(SynchronousTestCase):
         """
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster, 5, interval=1)
+        s = ReadRequestLoadScenario(c, cluster)
         cluster.get_control_service(c).drop_requests = True
         d = s.start()
 
         # Continue the clock for one second longer than the timeout
         # value to allow the timeout to be triggered.
-        c.pump(repeat(1, s.timeout + 15))
+        c.advance(s.timeout + 1)
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, RequestRateNotReached)
 
-    def test_scenario_throws_exceptions_if_overloads(self):
+    def test_scenario_throws_exception_if_overloaded(self):
         """
-        `ReadRequestLoadScenarioTest` raises `RequestOverload` if,
-        once we start monitoring the scenario, we go over the max
-        tolerated difference between sent requests and received requests.
+        `ReadRequestLoadScenario` raises `RequestOverload` if the
+        difference between sent requests and received requests exceeds
+        the tolerated difference once we start monitoring the scenario.
 
         Note that, right now, the only way to make it fail is to generate
-        this different before we start monitoring the scenario.
-        Once we implement some kind of tolerance, to allow small highs/ups
-        on the rates, we can update this tests to trigger the exception
+        this difference before we start monitoring the scenario.
+        Once we implement some kind of tolerance, to allow fluctuations
+        in the rate, we can update this tests to trigger the exception
         in a more realistic manner.
         """
-        # XXX update this tests when we add tolerance to the rate going
-        # a bit up and down.
+        # XXX Update this test when we add tolerance for rate fluctuations.
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        req_per_second = 2
+        target_rate = 10
         sample_size = 20
-        s = ReadRequestLoadScenario(c, cluster, req_per_second,
-                                    interval=sample_size)
-        dropped_req_per_sec = req_per_second / 2
-        seconds_to_overload = s.max_outstanding / dropped_req_per_sec
+        s = ReadRequestLoadScenario(c, cluster, request_rate=target_rate,
+                                    sample_size=sample_size)
+        dropped_rate = target_rate / 2
+        seconds_to_overload = s.max_outstanding / dropped_rate
 
         s.start()
         # Reach initial rate
         cluster.get_control_service(c).drop_requests = True
-        # Initially, we generate enough dropped request to make it crash once
-        # we start monitoring the scenario
+        # Initially, we generate enough dropped requests so that the scenario
+        # is overloaded when we start monitoring.
         c.pump(repeat(1, seconds_to_overload+1))
         # We stop dropping requests
         cluster.get_control_service(c).drop_requests = False
         # Now we generate the initial rate to start monitoring the scenario
         c.pump(repeat(1, sample_size))
         # We only need to advance one more second (first loop in the monitoring
-        # loop) to make it crash with RequestOverload
-        c.pump(repeat(1, 1))
+        # loop) to trigger RequestOverload
+        c.advance(1)
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestOverload)
 
+    def test_scenario_stops_only_when_no_outstanding_requests(self):
+        """
+        `ReadRequestLoadScenario` should only be considered as stopped
+        when all outstanding requests made by it have completed.
+        """
+        c = Clock()
+
+        cluster = self.make_cluster(RequestErrorFakeFlockerClient)
+        delay = 1
+
+        cluster.get_control_service(c).delay = delay
+        sample_size = 5
+        s = ReadRequestLoadScenario(
+            c, cluster, request_rate=10, sample_size=sample_size
+        )
+
+        d = s.start()
+        s.maintained().addBoth(lambda x: self.fail())
+
+        # Advance the clock by `sample_size` seconds to establish the
+        # requested rate.
+        c.pump(repeat(1, sample_size))
+
+        # Force the control service to fail requests for one second.
+        # These requests will fail after the delay period set in the
+        # control service.
+        cluster.get_control_service(c).fail_requests = True
+        c.advance(1)
+        cluster.get_control_service(c).fail_requests = False
+
+        d.addCallback(lambda ignored: s.stop())
+
+        # The scenario should not successfully stop until after the
+        # delay period for the failed requests.
+        self.assertNoResult(d)
+        c.advance(delay)
+        self.successResultOf(d)
+
+    def test_scenario_timeouts_if_requests_not_completed(self):
+        """
+        `ReadRequestLoadScenario` should timeout if the outstanding
+        requests for the scenarion do not complete within the specified
+        time.
+        """
+        c = Clock()
+
+        cluster = self.make_cluster(RequestErrorFakeFlockerClient)
+        sample_size = 5
+        s = ReadRequestLoadScenario(
+            c, cluster, request_rate=10, sample_size=sample_size
+        )
+
+        # Set the delay for the requests to be longer than the scenario
+        # timeout
+        cluster.get_control_service(c).delay = s.timeout + 10
+
+        d = s.start()
+        s.maintained().addBoth(lambda x: self.fail())
+
+        # Advance the clock by `sample_size` seconds to establish the
+        # requested rate.
+        c.pump(repeat(1, sample_size))
+
+        cluster.get_control_service(c).fail_requests = True
+        c.advance(1)
+        cluster.get_control_service(c).fail_requests = False
+
+        d.addCallback(lambda ignored: s.stop())
+
+        # Advance the clock by the timeout value so it is triggered
+        # before the requests complete.
+        self.assertNoResult(d)
+        c.advance(s.timeout + 1)
+        self.assertTrue(s.rate_measurer.outstanding() > 0)
+        self.successResultOf(d)
