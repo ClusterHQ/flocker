@@ -28,8 +28,6 @@ Currently, the following community supported drivers support Flocker Storage Pro
 * `ConvergeIO`_
 * `Hedvig`_
 
-More information about support for profiles can be found in the :ref:`configuration documentation for each backend <supported-backends>`.
-
 .. note::
 	Flocker Storage Profiles is a new Flocker feature, and we're hoping to iterate on the functionality in future releases.
 	If you use a Storage Profile, it would be great to :ref:`hear from you <talk-to-us>` about how it is being used and what features you would like to see in the future.
@@ -39,3 +37,5 @@ More information about support for profiles can be found in the :ref:`configurat
 .. _Hedvig: http://www.hedviginc.com/blog/flocker-storage-profiles-for-docker
 
 .. end-body
+
+More information about support for profiles can be found in the :ref:`configuration documentation for each backend <supported-backends>`.
