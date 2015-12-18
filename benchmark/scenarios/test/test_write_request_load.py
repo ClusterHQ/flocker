@@ -1,39 +1,35 @@
-from twisted.trial.unittest import SynchronousTestCase
-
 from itertools import repeat
 from uuid import uuid4
 from ipaddr import IPAddress
-from twisted.internet.defer import succeed, Deferred
+
+from twisted.trial.unittest import SynchronousTestCase
+from twisted.internet.defer import Deferred
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
-from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Node
 )
 
+from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
     WriteRequestLoadScenario, WRateMeasurer, WRequestRateTooLow,
     WRequestRateNotReached, WRequestOverload, WDataseCreationTimeout
 )
-
 from benchmark.scenarios.read_request_load import DEFAULT_SAMPLE_SIZE
-
-from benchmark.cluster import BenchmarkCluster
-
 
 class WRateMeasurerTest(SynchronousTestCase):
     """
-    WRateMeasurer tests
+    WRateMeasurer tests.
     """
 
     def send_requests(self, r_measurer, num_req, num_samples):
         """
         Helper function that will send the desired number of request.
 
-        :param r_measurer: `rate_measurer` we are testing
+        :param r_measurer: `rate_measurer` we are testing.
         :param num_req: number of request we want to send.
-        :param num_samples: numbe of samples (interval)
+        :param num_samples: numbe of samples (interval).
         """
         for i in range(num_samples):
             for i in range(num_req):
@@ -43,9 +39,9 @@ class WRateMeasurerTest(SynchronousTestCase):
         """
         Helper function that will receive the desired number of requests.
 
-        :param r_measurer: `rate_measurer` we are testing
+        :param r_measurer: `rate_measurer` we are testing.
         :param num_req: number of request we want to receive.
-        :param num_samples: numbe of samples (interval)
+        :param num_samples: numbe of samples (interval).
         """
         ignored = ""
         for i in range(num_samples):
@@ -59,9 +55,9 @@ class WRateMeasurerTest(SynchronousTestCase):
         desired number of request, and receiving the same
         amount of them.
 
-        :param r_measurer: `rate_measurer` we are testing
+        :param r_measurer: `rate_measurer` we are testin.
         :param num_req: number of request we want to make.
-        :param num_samples: numbe of samples (interval)
+        :param num_samples: numbe of samples (interval).
         """
         self.send_requests(r_measurer, num_req, num_samples)
         self.receive_requests(r_measurer, num_req, num_samples)
@@ -174,7 +170,7 @@ class UnresponsiveDatasetCreationFakeFlockerClient(
 
 class WriteRequestLoadScenarioTest(SynchronousTestCase):
     """
-    WriteRequestLoadScenario tests
+    WriteRequestLoadScenario tests.
     """
     def setUp(self):
         self.node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
@@ -193,14 +189,14 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
     def get_fake_flocker_client_instance(self):
         """
         Returns a `FakeFlockerClient` instance with the nodes
-        defined in the init
+        defined in the init.
         """
         return FakeFlockerClient([self.node1, self.node2])
 
     def get_dropping_flocker_client_instance(self):
         """
         Returns a `FakeFlockerClient` instance with the nodes
-        defined in the init
+        defined in the init.
         """
         return RequestDroppingFakeFlockerClient(
             self.get_fake_flocker_client_instance())
@@ -208,14 +204,14 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
     def get_unresponsive_flocker_client_instance(self):
         """
         Returns a `RequestDroppingFakeFlockerClient` instance
-        unsing the nodes defined in the init
+        unsing the nodes defined in the init.
         """
         return UnresponsiveDatasetCreationFakeFlockerClient(
             self.get_fake_flocker_client_instance())
 
     def test_setup_generates_dataset(self):
         """
-        WriteRequestLoadScenario starts and stops without collapsing.
+        `WriteRequestLoadScenario` starts and stops without collapsing.
         """
         c = Clock()
         cluster = self.make_cluster(self.get_fake_flocker_client_instance())
@@ -239,6 +235,10 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         pass
 
     def test_setup_timeout_when_datasat_not_created(self):
+        """
+        `WriteRequestLoadScenario` should timeout if the setup the dataset
+        creation does not complete within the given time.
+        """
         c = Clock()
         cluster = self.make_cluster(
             self.get_unresponsive_flocker_client_instance())
@@ -269,7 +269,6 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         s.maintained().addBoth(lambda x: self.fail())
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
-
 
     def test_scenario_throws_exception_when_rate_drops(self):
         """
@@ -358,5 +357,4 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, WRequestOverload)
-
 
