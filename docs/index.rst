@@ -57,13 +57,14 @@
 .. image:: images/vmware.png
 .. image:: images/openstack.png
 .. image:: images/ceph.png
-.. image:: images/emc.jpeg
+.. image:: images/emc.png
 .. image:: images/hedvig.png
 .. image:: images/nexenta.png
 .. image:: images/convergeio.png
 .. image:: images/dell.png
 .. image:: images/netapp.png
 .. image:: images/saratoga.png
+.. image:: images/huawei.png
    
 .. raw:: html
 
@@ -203,6 +204,11 @@ Supported Storage
     <div class="small-box storage">
         Saratoga Speed
 		<img src="_images/saratoga.png" style="width:50px;"/>
+		(3rd party)
+    </div>
+    <div class="small-box storage">
+        Huawei
+		<img src="_images/huawei.png" style="width:50px;"/>
 		(3rd party)
     </div>
     <div style="clear:both;"></div>
