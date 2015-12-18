@@ -128,7 +128,7 @@ class FlakyTests(testtools.TestCase):
         A successful flaky test is considered successful.
         """
 
-        # We use 'unittest' here to avoid accidentally depending on Twisted
+        # We use 'testtools' here to avoid accidentally depending on Twisted
         # TestCase features, thus increasing complexity.
         class SomeTest(testtools.TestCase):
 
