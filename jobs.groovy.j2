@@ -407,20 +407,20 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
         }
     }
 
-{# apply config related to 'run_sphinx' jobs                                 #}
-{%    if job_type == 'run_sphinx'                                           -%}
-{%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
-    parameters {
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+    // apply config related to 'run_sphinx' jobs
+    if (job_type == 'run_sphinx') {
+        job("${dashProject}/${dashBranchName}/${job_name}") {
+            parameters {
+                textParam("TRIGGERED_BRANCH", branchName,
+                          "Branch that triggered this job" )
+            }
+            // limit execution to jenkins slaves with a particular label
+            label(job_values.on_nodes_with_labels)
+            wrappers build_wrappers(job_values, [])
+            scm build_scm(git_url, branchName)
+            steps build_steps(job_values.with_steps)
+        }
     }
-{# limit execution to jenkins slaves with a particular label                 #}
-    label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, []) }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-  }
-{%    endif                                                                  %}
 
 {# apply config related to 'run_acceptance' jobs                             #}
 {%    if job_type == 'run_acceptance'                                       -%}
