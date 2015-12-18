@@ -55,6 +55,7 @@
 .. image:: images/AWS.png
 .. image:: images/GCE.png
 .. image:: images/vmware.png
+.. image:: images/openstack.png
    
 .. raw:: html
 
@@ -88,19 +89,19 @@ Supported Orchestration Frameworks
 		<br />
 	<a href="docker-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
-    <div class="big-box orchestation">
+    <div class="big-box orchestration">
 		Kubernetes
 		<img src="_images/kubernetes.png" style="width:50px;"/>
         <br />
 	<a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
-    <div class="big-box orchestation">
+    <div class="big-box orchestration">
 		Mesos
 		<img src="_images/mesos.png" style="width:50px;"/>
         <br />
 	<a href="mesos-integration/" class="button" style="position:relative; top: 2em">Deploy</a>
     </div>
-    <div class="big-box orchestation">
+    <div class="big-box orchestration">
 		Other
 	 	<img src="_images/questionmark.png" style="width:50px;"/>
         <br />
@@ -123,15 +124,18 @@ Supported Storage
 		<img src="_images/AWS.png" style="width:50px;"/>
     </div>
     <div class="big-box storage">
-        GCE - PD (coming soon)
+        GCE - PD
 		<img src="_images/GCE.png" style="width:50px;"/>
+		(coming soon)
     </div>
     <div class="big-box storage">
         OpenStack - Cinder
+		<img src="_images/openstack.png" style="width:50px;"/>
     </div>
     <div class="big-box storage">
-        VMware vSphere (3rd party)
+        VMware vSphere 
 		<img src="_images/vmware.png" style="width:50px;"/>
+		(3rd party)
     </div>
     <div style="clear:both;"></div>
 
