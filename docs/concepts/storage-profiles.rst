@@ -22,7 +22,12 @@ Flocker Storage Profiles require support from your storage driver, and you are a
 Please be aware that the actual specification of these profiles may differ between each storage provider.
 The definition for each profile should be documented in the storage providers documentation.
 
-Currently, only a selection of :ref:`backends supported by Flocker <supported-backends>` support Flocker Storage Profiles.
+Currently, the following community supported drivers support Flocker Storage Profiles:
+
+* :ref:`Dell SC Series <dell-dataset-backend>`
+* :ref:`ConvergeIO <convergeio-backend>`
+* :ref:`Hedvig <hedvig-backend>`
+
 More information about support for profiles can be found in the :ref:`configuration documentation for each backend <supported-backends>`.
 
 .. note::
