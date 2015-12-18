@@ -37,27 +37,26 @@ class WRateMeasurer(object):
 
     def send_request(self):
         """
-        Increase the counter of sent requests
+        Increase the counter of sent requests.
         """
         self.sent += 1
 
     def receive_request(self, result):
         """
-        Increase the counter of sent requests
+        Increase the counter of sent requests.
         """
         self.received += 1
 
     def update_rate(self):
         """
-        Updates the current rate and stores a new count in the counts list
+        Update the current rate and stores a new count in the counts list.
         """
         self._rate = (self.received - self.counts[0]) / float(self.sample_size)
         self.counts.append(self.received)
 
     def outstanding(self):
         """
-        returns the number of outstanding requests; requests that have been
-        sent but haven't been received yet
+        Return the number of outstanding requests.
         """
         return self.sent - self.received
 
@@ -81,17 +80,17 @@ class WRequestRateNotReached(Exception):
 
 class WRequestOverload(Exception):
     """
-    There are too many outstanding request
+    There are too many outstanding request.
     """
 
 class WDataseCreationTimeout(Exception):
     """
-    The dataset could not be created
+    The dataset could not be created.
     """
 
 class WNoNodesFound(Exception):
     """
-    The dataset could not be created
+    No existent nodes were found.
     """
 
 @implementer(IScenario)
@@ -100,9 +99,9 @@ class WriteRequestLoadScenario(object):
     A scenario that places load on the cluster by performing write
     requests at a specified rate.
 
-    :ivar reactor: reactor we are using
+    :ivar reactor: reactor we are using.
     :ivar cluster: `BenchmarkCluster` containing the control service.
-    :ivar request_rate: number requests per second do we want
+    :ivar request_rate: number requests per second do we want.
     :ivar interval: number of samples we want.
     :ivar timeout: how long we want to wait to reach the requested load
         before timing out.
@@ -153,7 +152,7 @@ class WriteRequestLoadScenario(object):
 
         :param node: node where we want the dataset.
 
-        :return: A Deferred that fires when the dataset has been created
+        :return: A Deferred that fires when the dataset has been created.
 
         :raises: `WDataseCreationTimeout` if the creation goes wrong.
         """
@@ -191,7 +190,7 @@ class WriteRequestLoadScenario(object):
         number of new requests.
 
         :param count: the number of seconds passed since the last time
-            `_request_and_measure` was called
+            `_request_and_measure` was called.
         """
         for i in range(count):
             self.rate_measurer.update_rate()
@@ -208,8 +207,8 @@ class WriteRequestLoadScenario(object):
         and that the scenario is not overloaded - an scenario would be
         overloaded if there were too many outstanding requests.
 
-        :raise: `RequestRateTooLow` if the rate has dropped
-        :raise: `RequestOverload` if the scenario is overloaded
+        :raise: `RequestRateTooLow` if the rate has dropped.
+        :raise: `RequestOverload` if the scenario is overloaded.
         """
         rate = self.rate_measurer.rate()
         if rate < self.request_rate:
