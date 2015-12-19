@@ -588,7 +588,7 @@ class CreateMountSymlink(PClass):
     def from_state_and_config(cls, discovered_dataset, desired_dataset):
         return cls(
             dataset_id=desired_dataset.dataset_id,
-            mountpoint=desired_dataset.mount_point,
+            mountpoint=discovered_dataset.mount_point,
             link_path=desired_dataset.shared_path,
         )
 
@@ -623,7 +623,7 @@ class RemoveMountSymlink(PClass):
     def from_state_and_config(cls, discovered_dataset, desired_dataset):
         return cls(
             dataset_id=desired_dataset.dataset_id,
-            link_path=desired_dataset.shared_path,
+            link_path=discovered_dataset.shared_path,
         )
 
     @property
@@ -635,7 +635,7 @@ class RemoveMountSymlink(PClass):
         Atomically unlink a symlink to a dataset so that the path no longer
         exists.
         """
-        deployer.block_device_manager.unlink(self.mountpoint, self.link_path)
+        deployer.block_device_manager.unlink(self.link_path)
 
         return succeed(None)
 
@@ -1408,12 +1408,15 @@ class RawState(PClass):
     :type system_mounts: ``pmap`` of ``FilePath`` to ``FilePath``.
     :param devices_with_filesystems: ``PSet`` of ``FilePath`` including
         those devices that have filesystems on this node.
+    :param symlinks: ``pmap`` of ``FilePath`` to ``FilePath`` where keys are
+        symlinks in the sharedroot and values are the corresponding mountpoint.
     """
     compute_instance_id = field(unicode, mandatory=True)
     volumes = pvector_field(BlockDeviceVolume)
     devices = pmap_field(UUID, FilePath)
     system_mounts = pmap_field(FilePath, FilePath)
     devices_with_filesystems = pset_field(FilePath)
+    symlinks = pmap_field(FilePath, FilePath)
 
 
 @implementer(ILocalState)
@@ -1722,6 +1725,13 @@ class BlockDeviceDeployer(PClass):
                     # in the filesystem yet.
                     pass
 
+        symlinks = {
+            link: link.realpath()
+            for link in iter(self.sharedroot.child(f)
+                             for f in self.sharedroot.listdir())
+            if link.islink()
+        }
+
         result = RawState(
             compute_instance_id=compute_instance_id,
             volumes=volumes,
@@ -1730,6 +1740,7 @@ class BlockDeviceDeployer(PClass):
             devices_with_filesystems=[
                 device for device in devices.values()
                 if self.block_device_manager.has_filesystem(device)],
+            symlinks=symlinks,
         )
         DISCOVERED_RAW_STATE(raw_state=result).write()
         return result
@@ -1750,19 +1761,35 @@ class BlockDeviceDeployer(PClass):
                 mount_point = self._mountpath_for_dataset_id(
                     unicode(dataset_id)
                 )
+                shared_path = self._sharedpath_for_dataset_id(
+                    unicode(dataset_id)
+                )
                 if (
                     device_path in raw_state.system_mounts and
                     raw_state.system_mounts[device_path] == mount_point
                 ):
-                    # TODO(mewert): Add detection for SYMLINKED.
-                    datasets[dataset_id] = DiscoveredDataset(
-                        state=DatasetStates.MOUNTED,
-                        dataset_id=dataset_id,
-                        maximum_size=volume.size,
-                        blockdevice_id=volume.blockdevice_id,
-                        device_path=device_path,
-                        mount_point=mount_point,
-                    )
+                    if (
+                        shared_path in raw_state.symlinks and
+                        raw_state.symlinks[shared_path] == mount_point
+                    ):
+                        datasets[dataset_id] = DiscoveredDataset(
+                            state=DatasetStates.SYMLINKED,
+                            dataset_id=dataset_id,
+                            maximum_size=volume.size,
+                            blockdevice_id=volume.blockdevice_id,
+                            device_path=device_path,
+                            mount_point=mount_point,
+                            shared_path=shared_path,
+                        )
+                    else:
+                        datasets[dataset_id] = DiscoveredDataset(
+                            state=DatasetStates.MOUNTED,
+                            dataset_id=dataset_id,
+                            maximum_size=volume.size,
+                            blockdevice_id=volume.blockdevice_id,
+                            device_path=device_path,
+                            mount_point=mount_point,
+                        )
                 else:
                     if device_path in raw_state.devices_with_filesystems:
                         state = DatasetStates.ATTACHED

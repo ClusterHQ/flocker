@@ -142,8 +142,11 @@ DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
     {
         'dataset_id': uuids(),
         'maximum_size': integers(min_value=1),
-        'mount_point': builds(FilePath, sampled_from([
+        'shared_path': builds(FilePath, sampled_from([
             '/flocker/abc', '/flocker/xyz',
+        ])),
+        'mount_point': builds(FilePath, sampled_from([
+            '/var/flocker/mounts/abc', '/var/flocker/mounts/xyz',
         ])),
         'blockdevice_id': just(u''),  # This gets overriden below.
         'device_path': builds(FilePath, sampled_from([
@@ -167,8 +170,11 @@ DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
         + n*LOOPBACK_ALLOCATION_UNIT),
     'metadata': dictionaries(keys=_METADATA_STRATEGY,
                              values=_METADATA_STRATEGY),
-    'mount_point': builds(FilePath, sampled_from([
+    'shared_path': builds(FilePath, sampled_from([
         '/flocker/abc', '/flocker/xyz',
+    ])),
+    'mount_point': builds(FilePath, sampled_from([
+        '/var/flocker/mounts/abc', '/var/flocker/mounts/xyz',
     ])),
 }
 
@@ -529,23 +535,25 @@ class BlockDeviceDeployerLocalStateTests(TestCase):
 
     def test_mounted_dataset(self):
         """
-        When there is a a dataset in the ``MOUNTED`` state,
+        When there is a dataset in the ``MANIFEST`` state,
         it is reported as a manifest dataset.
         """
         dataset_id = uuid4()
         mount_point = FilePath('/mount/point')
+        shared_path = FilePath('/shared/path')
         device_path = FilePath('/dev/xvdf')
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=self.node_uuid,
             hostname=self.hostname,
             datasets={
                 dataset_id: DiscoveredDataset(
-                    state=DatasetStates.MOUNTED,
+                    state=DatasetStates.MANIFEST,
                     dataset_id=dataset_id,
                     blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device_path,
                     mount_point=mount_point,
+                    shared_path=shared_path,
                 ),
             },
         )
@@ -563,7 +571,7 @@ class BlockDeviceDeployerLocalStateTests(TestCase):
                     )
                 },
                 paths={
-                    unicode(dataset_id): mount_point
+                    unicode(dataset_id): shared_path
                 },
                 devices={
                     dataset_id: device_path,
@@ -1171,8 +1179,11 @@ def compare_dataset_state(discovered_dataset, desired_dataset):
         return discovered_dataset.state == DatasetStates.NON_MANIFEST
     if discovered_dataset.state != desired_dataset.state:
         return False
-    if discovered_dataset.state == DatasetStates.MOUNTED:
-        return discovered_dataset.mount_point == desired_dataset.mount_point
+    if discovered_dataset.state == DatasetStates.MANIFEST:
+        return (
+            discovered_dataset.mount_point == desired_dataset.mount_point and
+            discovered_dataset.shared_path == desired_dataset.shared_path
+        )
     elif discovered_dataset.state == DatasetStates.NON_MANIFEST:
         return True
     elif discovered_dataset.state == DatasetStates.DELETED:
@@ -1398,6 +1409,8 @@ class BlockDeviceCalculatorTestObjects(object):
 
         - Set the mountpoint to a real mountpoint in desired dataset states
           that have a mount point attribute.
+        - Set the shared path to a real shared path in desired dataset states
+          that have a shared_path attribute.
 
         :param DesiredDataset dataset_state: The state to fix up for this test
             run.
@@ -1410,6 +1423,13 @@ class BlockDeviceCalculatorTestObjects(object):
                    'mount_point',
                    _NoSuchThing) is not _NoSuchThing:
             dataset_state = dataset_state.set(mount_point=mount_point)
+
+        shared_path = self.deployer._sharedpath_for_dataset_id(
+            unicode(self.dataset_id))
+        if getattr(dataset_state,
+                   'shared_path',
+                   _NoSuchThing) is not _NoSuchThing:
+            dataset_state = dataset_state.set(shared_path=shared_path)
         return dataset_state
 
     def discover_state(self):
@@ -1426,6 +1446,7 @@ class BlockDeviceCalculatorTestObjects(object):
         """
         Cleanup the mountpoints and the volumes used in an example.
         """
+        unlink_all(self.deployer.sharedroot)
         umount_all(self.deployer.mountroot)
         detach_destroy_volumes(self.deployer.block_device_api)
 
@@ -1599,7 +1620,7 @@ class BlockDeviceCalculatorTests(TestCase):
 
     @given(
         desired_state=sampled_from([
-            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
+            DatasetStates.MANIFEST, DatasetStates.NON_MANIFEST,
             DatasetStates.DELETED,
         ]),
         discovered_state=sampled_from(
@@ -1718,12 +1739,12 @@ class CalculateDesiredStateTests(TestCase):
     def test_manifestation(self):
         """
         If there is a manifesation configured on this node, then the
-        corresponding desired dataset has a state of ``MOUNTED``.
+        corresponding desired dataset has a state of ``MANIFEST``.
         """
         assert_desired_datasets(
             self, self.deployer,
             desired_manifestations=[ScenarioMixin.MANIFESTATION],
-            expected_datasets=[ScenarioMixin.MOUNTED_DESIRED_DATASET],
+            expected_datasets=[ScenarioMixin.MANIFEST_DESIRED_DATASET],
         )
 
     def test_manifestation_metadata(self):
@@ -1736,9 +1757,11 @@ class CalculateDesiredStateTests(TestCase):
             desired_manifestations=[ScenarioMixin.MANIFESTATION.transform(
                 ['dataset', 'metadata'], ScenarioMixin.METADATA,
             )],
-            expected_datasets=[ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
-                ['metadata'], ScenarioMixin.METADATA,
-            )],
+            expected_datasets=[
+                ScenarioMixin.MANIFEST_DESIRED_DATASET.transform(
+                    ['metadata'], ScenarioMixin.METADATA,
+                )
+            ],
         )
 
     def test_manifestation_default_size(self):
@@ -1758,7 +1781,7 @@ class CalculateDesiredStateTests(TestCase):
                 ),
             ],
             expected_datasets=[
-                ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
+                ScenarioMixin.MANIFEST_DESIRED_DATASET.transform(
                     ['maximum_size'], expected_size,
                 ),
             ],
@@ -1793,19 +1816,19 @@ class CalculateDesiredStateTests(TestCase):
     def test_leased_mounted_manifestation(self, expected_size):
         """
         If there is a lease for a mounted dataset present on node, there is a
-        corresponding desired dataset that has a state of ``MOUNTED`` even if
+        corresponding desired dataset that has a state of ``MANIFEST`` even if
         the configuration of the node doesn't mention the dataset.
         """
         assert_desired_datasets(
             self, self.deployer,
             desired_manifestations=[],
             local_datasets=[
-                ScenarioMixin.MOUNTED_DISCOVERED_DATASET.transform(
+                ScenarioMixin.MANIFEST_DISCOVERED_DATASET.transform(
                     ['maximum_size'], expected_size,
                 ),
             ],
             expected_datasets=[
-                ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
+                ScenarioMixin.MANIFEST_DESIRED_DATASET.transform(
                     ['maximum_size'], expected_size,
                 ),
             ],
@@ -1818,7 +1841,7 @@ class CalculateDesiredStateTests(TestCase):
 
     @given(
         local_dataset=DISCOVERED_DATASET_STRATEGY.filter(
-            lambda dataset: dataset.state != DatasetStates.MOUNTED,
+            lambda dataset: dataset.state != DatasetStates.MANIFEST,
         ),
     )
     def test_leased_not_mounted(self, local_dataset):
@@ -1847,7 +1870,7 @@ class CalculateDesiredStateTests(TestCase):
         assert_desired_datasets(
             self, self.deployer,
             local_datasets=[
-                ScenarioMixin.MOUNTED_DISCOVERED_DATASET,
+                ScenarioMixin.MANIFEST_DISCOVERED_DATASET,
             ],
             expected_datasets=[],
             leases=Leases().acquire(
@@ -1857,16 +1880,16 @@ class CalculateDesiredStateTests(TestCase):
             )
         )
 
-    def test_application_mounted_manifestation(self):
+    def test_application_manifest_manifestation(self):
         """
         If there is an application with attached volume, there is a
-        corresponding desired dataset that has a state of ``MOUNTED``.
+        corresponding desired dataset that has a state of ``MANIFEST``.
         """
         assert_desired_datasets(
             self, self.deployer,
             desired_manifestations=[],
             local_datasets=[
-                ScenarioMixin.MOUNTED_DISCOVERED_DATASET,
+                ScenarioMixin.MANIFEST_DISCOVERED_DATASET,
             ],
             local_applications=[
                 Application(
@@ -1879,7 +1902,7 @@ class CalculateDesiredStateTests(TestCase):
                 ),
             ],
             expected_datasets=[
-                ScenarioMixin.MOUNTED_DESIRED_DATASET,
+                ScenarioMixin.MANIFEST_DESIRED_DATASET,
             ],
         )
 
@@ -1897,12 +1920,12 @@ class CalculateDesiredStateTests(TestCase):
             self, self.deployer,
             desired_manifestations=[ScenarioMixin.MANIFESTATION],
             local_datasets=[
-                ScenarioMixin.MOUNTED_DISCOVERED_DATASET.transform(
+                ScenarioMixin.MANIFEST_DISCOVERED_DATASET.transform(
                     ['maximum_size'], expected_size,
                 ),
             ],
             expected_datasets=[
-                ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
+                ScenarioMixin.MANIFEST_DESIRED_DATASET.transform(
                     ['maximum_size'], expected_size,
                 ),
             ],
@@ -1927,10 +1950,10 @@ class CalculateDesiredStateTests(TestCase):
                 ),
             ],
             local_datasets=[
-                ScenarioMixin.MOUNTED_DISCOVERED_DATASET,
+                ScenarioMixin.MANIFEST_DISCOVERED_DATASET,
             ],
             expected_datasets=[
-                ScenarioMixin.MOUNTED_DESIRED_DATASET,
+                ScenarioMixin.MANIFEST_DESIRED_DATASET,
             ],
             leases=Leases().acquire(
                 now=datetime.now(tz=UTC),
@@ -2037,22 +2060,25 @@ class ScenarioMixin(object):
         applications=[],
     )
 
-    MOUNT_ROOT = FilePath('/flocker')
-    MOUNTED_DISCOVERED_DATASET = DiscoveredDataset(
+    MOUNT_ROOT = FilePath('/var/flocker/mounts')
+    SHARED_ROOT = FilePath('/flocker')
+    MOUNT_POINT = MOUNT_ROOT.child(unicode(DATASET_ID))
+    SHARED_PATH = SHARED_ROOT.child(unicode(DATASET_ID))
+    MANIFEST_DISCOVERED_DATASET = DiscoveredDataset(
         dataset_id=DATASET_ID,
         blockdevice_id=BLOCKDEVICE_ID,
-        state=DatasetStates.MOUNTED,
+        state=DatasetStates.MANIFEST,
         maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
         device_path=FilePath('/dev/xvdf'),
-        mount_point=MOUNT_ROOT,
+        mount_point=MOUNT_POINT,
+        shared_path=SHARED_PATH,
     )
-    MOUNTED_DESIRED_DATASET = DesiredDataset(
-        state=DatasetStates.MOUNTED,
+    MANIFEST_DESIRED_DATASET = DesiredDataset(
+        state=DatasetStates.MANIFEST,
         dataset_id=DATASET_ID,
         maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-        mount_point=MOUNT_ROOT.child(
-            unicode(DATASET_ID)
-        ),
+        mount_point=MOUNT_POINT,
+        shared_path=SHARED_PATH,
     )
 
 
@@ -4492,7 +4518,7 @@ def mountroot_for_test(test_case):
     :param TestCase test_case: The ``TestCase`` which is being run.
     :returns: A ``FilePath`` for the newly created mount root.
     """
-    mountroot = FilePath(test_case.mktemp())
+    mountroot = FilePath(test_case.mktemp()).child(unicode(uuid4()))
     mountroot.makedirs()
     test_case.addCleanup(umount_all, mountroot)
     return mountroot
@@ -4519,7 +4545,7 @@ def sharedroot_for_test(test_case):
     :param TestCase test_case: The ``TestCase`` which is being run.
     :returns: A ``FilePath`` for the newly created mount root.
     """
-    sharedroot = FilePath(test_case.mktemp())
+    sharedroot = FilePath(test_case.mktemp()).child(unicode(uuid4()))
     sharedroot.makedirs()
     test_case.addCleanup(unlink_all, sharedroot)
     return sharedroot
