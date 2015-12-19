@@ -1414,40 +1414,42 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         to any ``DesiredDataset``, followed by any other state of the same
         dataset.
         """
-        test_objects = BlockDeviceCalculatorTestObjects(self)
-
-        initial_dataset, next_dataset = two_dataset_states
-
-        dataset_id = initial_dataset.dataset_id
-
-        # Set the mountpoint to a real mountpoint in desired dataset states
-        # that have a mount point attribute.
-        mount_point = test_objects.deployer._mountpath_for_dataset_id(
-            unicode(dataset_id))
-        if getattr(initial_dataset,
-                   'mount_point',
-                   _NoSuchThing) is not _NoSuchThing:
-            initial_dataset = initial_dataset.set(mount_point=mount_point)
-        if getattr(next_dataset,
-                   'mount_point',
-                   _NoSuchThing) is not _NoSuchThing:
-            next_dataset = next_dataset.set(mount_point=mount_point)
-
-        # Converge to the initial state.
         try:
-            test_objects.run_to_convergence([initial_dataset])
-        except DidNotConverge as e:
-            self.fail(
-                "Did not converge to initial state after %d iterations." %
-                e.iteration_count)
+            test_objects = BlockDeviceCalculatorTestObjects(self)
 
-        # Converge from the initial state to the next state.
-        try:
-            test_objects.run_to_convergence([next_dataset])
-        except DidNotConverge as e:
-            self.fail("Did not converge to next state after %d iterations." %
-                      e.iteration_count)
-        test_objects.cleanup_example()
+            initial_dataset, next_dataset = two_dataset_states
+
+            dataset_id = initial_dataset.dataset_id
+
+            # Set the mountpoint to a real mountpoint in desired dataset states
+            # that have a mount point attribute.
+            mount_point = test_objects.deployer._mountpath_for_dataset_id(
+                unicode(dataset_id))
+            if getattr(initial_dataset,
+                       'mount_point',
+                       _NoSuchThing) is not _NoSuchThing:
+                initial_dataset = initial_dataset.set(mount_point=mount_point)
+            if getattr(next_dataset,
+                       'mount_point',
+                       _NoSuchThing) is not _NoSuchThing:
+                next_dataset = next_dataset.set(mount_point=mount_point)
+
+            # Converge to the initial state.
+            try:
+                test_objects.run_to_convergence([initial_dataset])
+            except DidNotConverge as e:
+                self.fail(
+                    "Did not converge to initial state after %d iterations." %
+                    e.iteration_count)
+
+            # Converge from the initial state to the next state.
+            try:
+                test_objects.run_to_convergence([next_dataset])
+            except DidNotConverge as e:
+                self.fail("Did not converge to next state after %d "
+                          "iterations." % e.iteration_count)
+        finally:
+            test_objects.cleanup_example()
 
     @given(
         two_dataset_states=TWO_DESIRED_DATASET_STRATEGY
@@ -1477,49 +1479,51 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
             actual_blockdevice_manager, nullable_callback)
 
-        test_objects = BlockDeviceCalculatorTestObjects(
-            self,
-            create_blockdevicedeployer(
-                self, block_device_manager=proxy_blockdevice_manager)
-        )
-
-        external_agent = _WriteVerifyingExternalClient(
-            dataset_id,
-            test_objects.deployer.node_uuid,
-            mountroot_for_test(self),
-            actual_blockdevice_manager)
-
-        evaluate_function = partial(external_agent.invariant, self,
-                                    test_objects.current_cluster_state)
-
-        # Set the mountpoint to a real mountpoint in desired dataset states
-        # that have a mount point attribute.
-        mount_point = test_objects.deployer._mountpath_for_dataset_id(
-            unicode(dataset_id))
-        if getattr(initial_dataset,
-                   'mount_point',
-                   _NoSuchThing) is not _NoSuchThing:
-            initial_dataset = initial_dataset.set(mount_point=mount_point)
-        if getattr(next_dataset,
-                   'mount_point',
-                   _NoSuchThing) is not _NoSuchThing:
-            next_dataset = next_dataset.set(mount_point=mount_point)
-
-        # Converge to the initial state.
         try:
-            test_objects.run_to_convergence([initial_dataset])
-        except DidNotConverge as e:
-            self.fail(
-                "Did not converge to initial state after %d iterations." %
-                e.iteration_count)
+            test_objects = BlockDeviceCalculatorTestObjects(
+                self,
+                create_blockdevicedeployer(
+                    self, block_device_manager=proxy_blockdevice_manager)
+            )
 
-        # Converge from the initial state to the next state.
-        try:
-            test_objects.run_to_convergence([next_dataset])
-        except DidNotConverge as e:
-            self.fail("Did not converge to next state after %d iterations." %
-                      e.iteration_count)
-        test_objects.cleanup_example()
+            external_agent = _WriteVerifyingExternalClient(
+                dataset_id,
+                test_objects.deployer.node_uuid,
+                mountroot_for_test(self),
+                actual_blockdevice_manager)
+
+            evaluate_function = partial(external_agent.invariant, self,
+                                        test_objects.current_cluster_state)
+
+            # Set the mountpoint to a real mountpoint in desired dataset states
+            # that have a mount point attribute.
+            mount_point = test_objects.deployer._mountpath_for_dataset_id(
+                unicode(dataset_id))
+            if getattr(initial_dataset,
+                       'mount_point',
+                       _NoSuchThing) is not _NoSuchThing:
+                initial_dataset = initial_dataset.set(mount_point=mount_point)
+            if getattr(next_dataset,
+                       'mount_point',
+                       _NoSuchThing) is not _NoSuchThing:
+                next_dataset = next_dataset.set(mount_point=mount_point)
+
+            # Converge to the initial state.
+            try:
+                test_objects.run_to_convergence([initial_dataset])
+            except DidNotConverge as e:
+                self.fail(
+                    "Did not converge to initial state after %d iterations." %
+                    e.iteration_count)
+
+            # Converge from the initial state to the next state.
+            try:
+                test_objects.run_to_convergence([next_dataset])
+            except DidNotConverge as e:
+                self.fail("Did not converge to next state after %d "
+                          "iterations." % e.iteration_count)
+        finally:
+            test_objects.cleanup_example()
 
     @given(
         desired_state=sampled_from([
