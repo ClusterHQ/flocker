@@ -1261,7 +1261,6 @@ class _WriteVerifyingExternalClient(object):
         :param current_cluster_state: A callable that returns the current state
             of the cluster.
         """
-        thing = False
         # First poll the cluster state to see if there is a new mountpoint that
         # we should try to use to attempt to write to the dataset.
         [node] = list(n for n in current_cluster_state().nodes
@@ -1284,14 +1283,13 @@ class _WriteVerifyingExternalClient(object):
                 # If we failed to write, that is okay in many scenarios. At
                 # least the failing write won't lead to the end user
                 # thinking that they have an actually persisted data.
-                thing = True
+                pass
             else:
                 case.assertTrue(
                     self._has_file_named(filename),
                     "Successfully wrote to a path gotten from flocker, "
                     "but the write was not persisted to the backing block "
                     "device.")
-        return thing
 
 
 def _empty_node_state(deployer):
