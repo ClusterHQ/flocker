@@ -10,7 +10,7 @@ from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
 from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 
-NUM_NODES = 3
+NUM_NODES = 1
 NODE_NAME_TEMPLATE = u"Flocker{index}"
 S3_SETUP = 'setup_s3.sh'
 DOCKER_SETUP = 'setup_docker.sh'
@@ -18,6 +18,7 @@ SWARM_MANAGER_SETUP = 'setup_swarm_manager.sh'
 SWARM_NODE_SETUP = 'setup_swarm_node.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
 FLOCKER_CONFIGURATION_GETTER = 'flocker-configuration-getter.sh'
+CLIENT_SETUP = 'setup_client.sh'
 
 
 def sibling_lines(filename):
@@ -48,11 +49,16 @@ secret_access_key_param = template.add_parameter(Parameter(
     Type="String",
 ))
 
-template.add_mapping('RegionMap', {
-    'us-east-1':      {"FlockerAMI": 'ami-dc4410b6'},
-    'us-west-1':      {"FlockerAMI": 'ami-e098f380'},
-    'us-west-2':      {"FlockerAMI": 'ami-8c8f90ed'},
-})
+template.add_mapping(
+    'RegionMap', {
+        'us-east-1':      {"FlockerAMI": 'ami-dc4410b6',
+                           "ClientAMI": 'ami-2f663245'},
+        'us-west-1':      {"FlockerAMI": 'ami-e098f380',
+                           "ClientAMI": 'ami-2a9df64a'},
+        'us-west-2':      {"FlockerAMI": 'ami-8c8f90ed',
+                           "ClientAMI": 'ami-5d87983c'},
+    }
+)
 
 instances = []
 zone = Select(0, GetAZs(""))
@@ -129,6 +135,27 @@ for i in range(NUM_NODES):
 
     template.add_resource(ec2_instance)
 
+client_instance = ec2.Instance(
+    'Client',
+    ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "ClientAMI"),
+    InstanceType="t2.micro",
+    KeyName=Ref(keyname_param),
+    SecurityGroups=[Ref(instance_sg)],
+    AvailabilityZone=zone,
+)
+user_data = sibling_lines(CLIENT_SETUP)
+
+client_instance.UserData = Base64(Join("", user_data))
+
+template.add_resource(client_instance)
+
+template.add_output([
+    Output(
+        "ClientIP",
+        Description="Public IP address of the client node.",
+        Value=GetAtt(client_instance, "PublicIp"),
+    )
+])
 
 template.add_output([
     Output(
