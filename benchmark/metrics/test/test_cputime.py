@@ -10,7 +10,7 @@ from twisted.internet.task import Clock
 from twisted.internet.threads import deferToThread
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 
-from flocker.apiclient._client import FakeFlockerClient, Node
+from flocker.apiclient import FakeFlockerClient, Node
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IMetric

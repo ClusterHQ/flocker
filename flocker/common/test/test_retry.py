@@ -5,6 +5,7 @@ Tests for ``flocker.common._retry``.
 """
 
 from datetime import timedelta
+from functools import partial
 from itertools import repeat
 
 from eliot import MessageType, fields
@@ -14,7 +15,7 @@ from eliot.testing import (
     assertContainsFields, assertHasAction,
 )
 
-from twisted.internet.defer import succeed, Deferred
+from twisted.internet.defer import succeed, fail, Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import CancelledError
 from twisted.internet.task import Clock
@@ -38,7 +39,7 @@ from .._retry import (
     poll_until,
     timeout,
 )
-from ...testtools import CustomException
+from ...testtools import TestCase, CustomException
 
 
 class LoopUntilTests(SynchronousTestCase):
@@ -193,71 +194,146 @@ class LoopUntilTests(SynchronousTestCase):
             str(self.failureResultOf(d).value),
             str(LoopExceeded(predicate, False)))
 
+    @capture_logging(None)
+    def test_partial_predicate(self, logger):
+        """
+        Predicate can be a functools.partial function.
+        """
+        result = object()
 
-class TimeoutTests(SynchronousTestCase):
+        def check():
+            return result
+        predicate = partial(check)
+
+        clock = Clock()
+        d = loop_until(clock, predicate)
+        self.assertEqual(
+            self.successResultOf(d),
+            result)
+
+        [action] = LoggedAction.of_type(logger.messages, LOOP_UNTIL_ACTION)
+        assertContainsFields(self, action.start_message, {
+            'predicate': predicate,
+        })
+        assertContainsFields(self, action.end_message, {
+            'action_status': 'succeeded',
+            'result': result,
+        })
+
+
+class TimeoutTests(TestCase):
     """
     Tests for :py:func:`timeout`.
     """
 
     def setUp(self):
         """Initialize testing helper variables."""
-        self._deferred = Deferred()
-        self._timeout = 1.0
-        self._clock = Clock()
+        self.deferred = Deferred()
+        self.timeout = 10.0
+        self.clock = Clock()
 
-    def _execute_timeout(self):
-        """Execute the timeout."""
-        timeout(self._clock, self._deferred, self._timeout)
+    def test_doesnt_time_out_early(self):
+        """
+        A deferred that has not fired by some short while prior to the timeout
+        interval is not made to fire with a timeout failure.
+        """
+        deferred = timeout(self.clock, self.deferred, self.timeout)
+        self.clock.advance(self.timeout - 1.0)
+        self.assertNoResult(deferred)
 
     def test_times_out(self):
         """
-        A deferred that never fires is timed out at the correct time using the
-        timeout function, and concludes with a CancelledError failure.
+        A deferred that does not fire within the timeout interval is made to
+        fire with ``CancelledError`` once the timeout interval elapses.
         """
-        self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
-        self.assertFalse(self._deferred.called)
-        self._clock.advance(0.1)
-        self.assertTrue(self._deferred.called)
-        self.failureResultOf(self._deferred, CancelledError)
+        deferred = timeout(self.clock, self.deferred, self.timeout)
+        self.clock.advance(self.timeout)
+        self.failureResultOf(deferred, CancelledError)
+
+    def test_times_out_with_reason(self):
+        """
+        If a custom reason is passed to ``timeout`` and the Deferred does not
+        fire within the timeout interval, it is made to fire with the custom
+        reason once the timeout interval elapses.
+        """
+        reason = CustomException("Custom timeout reason")
+        deferred = timeout(self.clock, self.deferred, self.timeout, reason)
+        self.clock.advance(self.timeout)
+        self.assertEqual(
+            reason,
+            self.failureResultOf(deferred, CustomException).value,
+        )
 
     def test_doesnt_time_out(self):
         """
         A deferred that fires before the timeout is not cancelled by the
         timeout.
         """
-        self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
-        self.assertFalse(self._deferred.called)
-        self._deferred.callback('Success')
-        self.assertTrue(self._deferred.called)
-        self.assertEqual(self._deferred.result, 'Success')
-        self._clock.advance(0.1)
-        self.assertTrue(self._deferred.called)
-        self.assertEqual(self._deferred.result, 'Success')
+        deferred = timeout(self.clock, self.deferred, self.timeout)
+        self.clock.advance(self.timeout - 1.0)
+        self.deferred.callback('Success')
+        self.assertEqual(self.successResultOf(deferred), 'Success')
+
+    def test_doesnt_time_out_failure(self):
+        """
+        A Deferred that fails before the timeout is not cancelled by the
+        timeout.
+        """
+        deferred = timeout(self.clock, self.deferred, self.timeout)
+        self.clock.advance(self.timeout - 1.0)
+        self.deferred.errback(CustomException())
+        self.failureResultOf(deferred, CustomException)
+
+    def test_doesnt_time_out_failure_custom_reason(self):
+        """
+        A Deferred that fails before the timeout is not cancelled by the
+        timeout.
+        """
+        deferred = timeout(
+            self.clock, self.deferred, self.timeout,
+            ValueError("This should not appear.")
+        )
+        self.clock.advance(self.timeout - 1.0)
+        self.deferred.errback(CustomException())
+        self.failureResultOf(deferred, CustomException)
+
+    def test_advancing_after_success(self):
+        """
+        A Deferred that fires before the timeout continues to succeed after the
+        timeout has elapsed.
+        """
+        deferred = succeed('Success')
+        timeout(self.clock, deferred, self.timeout)
+        self.clock.advance(self.timeout)
+        self.assertEqual(self.successResultOf(deferred), 'Success')
+
+    def test_advancing_after_failure(self):
+        """
+        A Deferred that fires with a failure before the timeout continues to
+        fail after the timeout has elapsed.
+        """
+        deferred = fail(CustomException())
+        timeout(self.clock, deferred, self.timeout)
+        self.clock.advance(self.timeout)
+        self.failureResultOf(deferred, CustomException)
 
     def test_timeout_cleaned_up_on_success(self):
         """
         If the deferred is successfully completed before the timeout, the
         timeout is not still pending on the reactor.
         """
-        self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
-        self._deferred.callback('Success')
-        self.assertEqual(self._clock.getDelayedCalls(), [])
-        self.assertEqual(self._deferred.result, 'Success')
+        timeout(self.clock, self.deferred, self.timeout)
+        self.deferred.callback('Success')
+        self.assertEqual(self.clock.getDelayedCalls(), [])
 
     def test_timeout_cleaned_up_on_failure(self):
         """
         If the deferred is failed before the timeout, the timeout is not still
         pending on the reactor.
         """
-        self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
-        self._deferred.errback(Exception('ErrorXYZ'))
-        self.assertEqual(self._clock.getDelayedCalls(), [])
-        self.assertEqual(self._deferred.result.getErrorMessage(), 'ErrorXYZ')
-        self.failureResultOf(self._deferred, Exception)
+        timeout(self.clock, self.deferred, self.timeout)
+        self.deferred.errback(CustomException())
+        self.assertEqual(self.clock.getDelayedCalls(), [])
 
 
 ITERATION_MESSAGE = MessageType("iteration_message", fields(iteration=int))

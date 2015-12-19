@@ -6,6 +6,7 @@ Helpers for testing our test code.
 Only put stuff here that is specific to testing code about unit testing.
 """
 
+from hypothesis.strategies import sampled_from
 import unittest
 
 from testtools.matchers import (
@@ -13,6 +14,11 @@ from testtools.matchers import (
     Equals,
     MatchesStructure,
 )
+
+from ._base import AsyncTestCase, TestCase
+
+
+base_test_cases = sampled_from([AsyncTestCase, TestCase])
 
 
 def throw(exception):
