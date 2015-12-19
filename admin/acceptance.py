@@ -970,6 +970,7 @@ def eliot_output(message):
     sys.stdout.write(format % message)
     sys.stdout.flush()
 
+
 def capture_upstart(reactor, host, output_file):
     """
     SSH into given machine and capture relevant logs, writing them to
@@ -980,8 +981,8 @@ def capture_upstart(reactor, host, output_file):
     :param file output_file: File to write to.
     :return deferred: that will run the tail command
     """
-    # note that we are using tail -F to keep retrying and not to exit when we reach the end
-    # of the file, as we expect the logs to keep being generated
+    # note that we are using tail -F to keep retrying and not to exit when we
+    # reach the end of the file, as we expect the logs to keep being generated
     formatter = TailFormatter(output_file, host)
     ran = run_ssh(
         reactor=reactor,
@@ -989,7 +990,7 @@ def capture_upstart(reactor, host, output_file):
         username='root',
         command=[
             b'tail',
-            b'-F'
+            b'-F',
             b'/var/log/flocker/flocker-control.log',
             b'/var/log/flocker/flocker-dataset-agent.log',
             b'/var/log/flocker/flocker-container-agent.log',
