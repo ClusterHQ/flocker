@@ -26,7 +26,7 @@ class CertificatesGenerateTests(SynchronousTestCase):
         """
         output = FilePath(self.mktemp())
         output.makedirs()
-        Certificates.generate(output, b"some-service", 2)
+        Certificates.generate(output, b"some-service", 2, b"test-cluster")
 
         self.assertEqual(
             {
