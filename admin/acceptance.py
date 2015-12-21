@@ -1236,7 +1236,6 @@ def main(reactor, args, base_path, top_level):
             print "not keeping cluster"
         else:
             print "--keep specified, not destroying nodes."
-            assert cluster is not None
             print ("To run acceptance tests against these nodes, "
                    "set the following environment variables: ")
 
