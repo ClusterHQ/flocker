@@ -96,7 +96,7 @@ def stdin = new java.io.PrintWriter(process.getOutputStream())
 stdin.write(readFileFromWorkspace('build.yaml'))
 stdin.flush()
 def jsonSlurper = new groovy.json.JsonSlurper()
-def GLOBAL_CONFIG = jsonSlurper.parse(process.getInputStream())
+def GLOBAL_CONFIG = jsonSlurper.parse((java.io.InputStream) process.getInputStream())
 
 // --------------------------------------------------------------------------
 // UTILITIES DEFINED BELOW
