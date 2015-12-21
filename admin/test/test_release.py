@@ -22,7 +22,6 @@ from requests.exceptions import HTTPError
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.python.usage import UsageError
-from twisted.trial.unittest import SynchronousTestCase
 
 from .. import release
 
@@ -41,6 +40,8 @@ from ..release import (
 from ..packaging import Distribution
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
+
+from flocker.testtools import TestCase
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
@@ -62,7 +63,7 @@ def hard_linking_possible():
         scratch_directory.remove()
 
 
-class PublishDocsTests(SynchronousTestCase):
+class PublishDocsTests(TestCase):
     """
     Tests for :func:``publish_docs``.
     """
@@ -841,11 +842,12 @@ class PublishDocsTests(SynchronousTestCase):
         )
 
 
-class UpdateRepoTests(SynchronousTestCase):
+class UpdateRepoTests(TestCase):
     """
     Tests for :func:``update_repo``.
     """
     def setUp(self):
+        super(UpdateRepoTests, self).setUp()
         self.target_bucket = 'test-target-bucket'
         self.target_key = 'test/target/key'
         self.package_directory = FilePath(self.mktemp())
@@ -1044,21 +1046,22 @@ class UpdateRepoTests(SynchronousTestCase):
             },
         )
 
-        with self.assertRaises(HTTPError) as exception:
-            self.update_repo(
-                aws=aws,
-                yum=FakeYum(),
-                package_directory=self.package_directory,
-                target_bucket=self.target_bucket,
-                target_key=self.target_key,
-                source_repo=create_fake_repository(
-                    self, files={}),
-                packages=self.packages,
-                flocker_version='0.3.3.dev7',
-                distribution=Distribution(name="centos", version="7"),
-            )
+        exception = self.assertRaises(
+            HTTPError,
+            self.update_repo,
+            aws=aws,
+            yum=FakeYum(),
+            package_directory=self.package_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo=create_fake_repository(
+                self, files={}),
+            packages=self.packages,
+            flocker_version='0.3.3.dev7',
+            distribution=Distribution(name="centos", version="7"),
+        )
 
-        self.assertEqual(404, exception.exception.response.status_code)
+        self.assertEqual(404, exception.response.status_code)
 
     @skipUnless(which('createrepo'),
                 "Tests require the ``createrepo`` command.")
@@ -1204,7 +1207,7 @@ class UpdateRepoTests(SynchronousTestCase):
         self.assertNotIn(self.package_directory.path, packages_metadata)
 
 
-class UploadPackagesTests(SynchronousTestCase):
+class UploadPackagesTests(TestCase):
     """
     Tests for :func:``upload_packages``.
     """
@@ -1234,6 +1237,7 @@ class UploadPackagesTests(SynchronousTestCase):
         )
 
     def setUp(self):
+        super(UploadPackagesTests, self).setUp()
         self.scratch_directory = FilePath(self.mktemp())
         self.scratch_directory.createDirectory()
         self.target_bucket = 'test-target-bucket'
@@ -1360,12 +1364,13 @@ def create_fake_repository(test_case, files):
     return 'file://' + source_repo.path
 
 
-class UploadPythonPackagesTests(SynchronousTestCase):
+class UploadPythonPackagesTests(TestCase):
     """
     Tests for :func:``upload_python_packages``.
     """
 
     def setUp(self):
+        super(UploadPythonPackagesTests, self).setUp()
         self.target_bucket = 'test-target-bucket'
         self.scratch_directory = FilePath(self.mktemp())
         self.top_level = FilePath(self.mktemp())
@@ -1425,7 +1430,7 @@ class UploadPythonPackagesTests(SynchronousTestCase):
              'python/Flocker-0.3.0.tar.gz'])
 
 
-class UploadOptionsTests(SynchronousTestCase):
+class UploadOptionsTests(TestCase):
     """
     Tests for :class:`UploadOptions`.
     """
@@ -1452,7 +1457,7 @@ class UploadOptionsTests(SynchronousTestCase):
             ['--flocker-version', '0.3.0.post1'])
 
 
-class CreateReleaseBranchOptionsTests(SynchronousTestCase):
+class CreateReleaseBranchOptionsTests(TestCase):
     """
     Tests for :class:`CreateReleaseBranchOptions`.
     """
@@ -1485,11 +1490,12 @@ def create_git_repository(test_case, bare=False):
     return repository
 
 
-class CreateReleaseBranchTests(SynchronousTestCase):
+class CreateReleaseBranchTests(TestCase):
     """
     Tests for :func:`create_release_branch`.
     """
     def setUp(self):
+        super(CreateReleaseBranchTests, self).setUp()
         self.repo = create_git_repository(test_case=self)
 
     def test_branch_exists_fails(self):
@@ -1530,11 +1536,12 @@ class CreateReleaseBranchTests(SynchronousTestCase):
         self.assertIn((u'NEW_FILE', 0), self.repo.index.entries)
 
 
-class CreatePipIndexTests(SynchronousTestCase):
+class CreatePipIndexTests(TestCase):
     """
     Tests for :func:`create_pip_index`.
     """
     def setUp(self):
+        super(CreatePipIndexTests, self).setUp()
         self.scratch_directory = FilePath(self.mktemp())
         self.scratch_directory.makedirs()
 
@@ -1618,7 +1625,7 @@ class CreatePipIndexTests(SynchronousTestCase):
         self.assertEqual(expected, index.getContent())
 
 
-class UploadPipIndexTests(SynchronousTestCase):
+class UploadPipIndexTests(TestCase):
     """
     Tests for :func:`upload_pip_index`.
     """
@@ -1653,12 +1660,13 @@ class UploadPipIndexTests(SynchronousTestCase):
             ))
 
 
-class CalculateBaseBranchTests(SynchronousTestCase):
+class CalculateBaseBranchTests(TestCase):
     """
     Tests for :func:`calculate_base_branch`.
     """
 
     def setUp(self):
+        super(CalculateBaseBranchTests, self).setUp()
         self.repo = create_git_repository(test_case=self)
 
     def calculate_base_branch(self, version):
@@ -1743,12 +1751,13 @@ class CalculateBaseBranchTests(SynchronousTestCase):
             "master")
 
 
-class PublishVagrantMetadataTests(SynchronousTestCase):
+class PublishVagrantMetadataTests(TestCase):
     """
     Tests for :func:`publish_vagrant_metadata`.
     """
 
     def setUp(self):
+        super(PublishVagrantMetadataTests, self).setUp()
         self.target_bucket = 'clusterhq-archive'
         self.metadata_key = 'vagrant/flocker-tutorial.json'
 
@@ -1969,12 +1978,13 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.assertEqual(metadata_versions, [expected_version])
 
 
-class PublishHomebrewRecipeTests(SynchronousTestCase):
+class PublishHomebrewRecipeTests(TestCase):
     """
     Tests for :func:`publish_homebrew_recipe`.
     """
 
     def setUp(self):
+        super(PublishHomebrewRecipeTests, self).setUp()
         self.source_repo = create_git_repository(test_case=self, bare=True)
         # Making a recipe involves interacting with PyPI, this should be
         # a parameter, not a patch. See:
@@ -2058,7 +2068,8 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), 'New content')
 
-class GetExpectedRedirectsTests(SynchronousTestCase):
+
+class GetExpectedRedirectsTests(TestCase):
     """
     Tests for :func:`get_expected_redirects`.
     """
@@ -2107,7 +2118,7 @@ class GetExpectedRedirectsTests(SynchronousTestCase):
         )
 
 
-class TestRedirectsOptionsTests(SynchronousTestCase):
+class TestRedirectsOptionsTests(TestCase):
     """
     Tests for :class:`TestRedirectsOptions`.
     """
@@ -2128,7 +2139,8 @@ class TestRedirectsOptionsTests(SynchronousTestCase):
         options.parseOptions(['--production'])
         self.assertEqual(options.environment, Environments.PRODUCTION)
 
-class UpdateLicenseFileTests(SynchronousTestCase):
+
+class UpdateLicenseFileTests(TestCase):
     """
     Tests for :func:`update_license_file`.
     """
