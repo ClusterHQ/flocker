@@ -574,6 +574,58 @@ def build_multijob(dashBranchName, branchName) {
                 }
             } /* ends parallel phase */
         }
+
+        /* do an aggregation of all the test results */
+        publishers {
+            archiveJunit('**/results.xml') {
+                retainLongStdout(true)
+                testDataPublishers {
+                    /* allows a jenkins user to 'claim' a failed test, indicating
+                       that user is 'looking into it' */
+                    allowClaimingOfFailedTests()
+                    publishTestAttachments()
+                    /* publish a percentage of failures for a particular test */
+                    publishTestStabilityData()
+                    /* publish a report of tests that fail every so often */
+                    publishFlakyTestsReport()
+                }
+            }
+            /* do an aggregation of all the coverage results */
+            cobertura('**/coverage.xml') {
+                /* only produce coverage reports for stable builds */
+                onlyStable(false)
+                failUnhealthy(true)
+                failUnstable(true)
+                failNoReports(false)
+            }
+            /* Update the commit status on GitHub with the build result We use the
+               flexible-publish plugin combined with the the any-buildstep plugin to
+               allow us to run shell commands as part of a post-build step.  We also
+               use the run-condition plugin to inspect the status of the build
+               https://wiki.jenkins-ci.org/display/JENKINS/Flexible+Publish+Plugin
+               https://wiki.jenkins-ci.org/display/JENKINS/Any+Build+Step+Plugin
+               https://wiki.jenkins-ci.org/display/JENKINS/Run+Condition+Plugin */
+            flexiblePublish {
+                condition {
+                    status('SUCCESS', 'SUCCESS')
+                }
+                step {
+                    shell(updateGitHubStatus(
+                              'success', 'Build succeeded',
+                              "${branchName}", "${dashProject}", "${dashBranchName}"))
+                }
+            }
+            flexiblePublish {
+                condition {
+                    status('FAILURE', 'FAILURE')
+                }
+                step {
+                    shell(updateGitHubStatus(
+                          'failure', 'Build failed',
+                          "${branchName}", "${dashProject}", "${dashBranchName}"))
+                }
+            }
+        }
     }
 }
 
@@ -638,58 +690,6 @@ branches.each {
                         }
                     }
                 }
-            }
-        }
-    }
-
-    /* do an aggregation of all the test results */
-    publishers {
-        archiveJunit('**/results.xml') {
-            retainLongStdout(true)
-            testDataPublishers {
-                /* allows a jenkins user to 'claim' a failed test, indicating
-                   that user is 'looking into it' */
-                allowClaimingOfFailedTests()
-                publishTestAttachments()
-                /* publish a percentage of failures for a particular test */
-                publishTestStabilityData()
-                /* publish a report of tests that fail every so often */
-                publishFlakyTestsReport()
-            }
-        }
-        /* do an aggregation of all the coverage results */
-        cobertura('**/coverage.xml') {
-            /* only produce coverage reports for stable builds */
-            onlyStable(false)
-            failUnhealthy(true)
-            failUnstable(true)
-            failNoReports(false)
-        }
-        /* Update the commit status on GitHub with the build result We use the
-           flexible-publish plugin combined with the the any-buildstep plugin to
-           allow us to run shell commands as part of a post-build step.  We also
-           use the run-condition plugin to inspect the status of the build
-           https://wiki.jenkins-ci.org/display/JENKINS/Flexible+Publish+Plugin
-           https://wiki.jenkins-ci.org/display/JENKINS/Any+Build+Step+Plugin
-           https://wiki.jenkins-ci.org/display/JENKINS/Run+Condition+Plugin */
-        flexiblePublish {
-            condition {
-                status('SUCCESS', 'SUCCESS')
-                }
-            step {
-                shell(updateGitHubStatus(
-                          'success', 'Build succeeded',
-                          "${branchName}", "${dashProject}", "${dashBranchName}"))
-            }
-        }
-        flexiblePublish {
-            condition {
-                status('FAILURE', 'FAILURE')
-            }
-            step {
-                shell(updateGitHubStatus(
-                          'failure', 'Build failed',
-                          "${branchName}", "${dashProject}", "${dashBranchName}"))
             }
         }
     }
