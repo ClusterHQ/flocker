@@ -775,11 +775,11 @@ class DecorateMethodsTests(testtools.TestCase):
 
         original = Original()
         wrapper = decorate_methods(original, self.noop_wrapper)
-        self.assertThat(
+        self.expectThat(
             wrapper.class_attribute,
             Equals(original.class_attribute),
         )
-        self.assertThat(
+        self.expectThat(
             wrapper.instance_attribute,
             Equals(original.instance_attribute),
         )
@@ -798,7 +798,7 @@ class DecorateMethodsTests(testtools.TestCase):
         b = object()
 
         wrapper = decorate_methods(Original(), self.noop_wrapper)
-        self.assertThat(
+        self.expectThat(
             wrapper.some_method(a, b=b),
             Equals((b, a)),
         )
@@ -833,8 +833,8 @@ class WithRetryTests(testtools.TestCase):
         wrapper = with_retry(results.pop, sleep=sleep)
         actual = wrapper()
 
-        self.assertThat(actual, Equals(expected))
-        self.assertThat(results, Equals([another]))
+        self.expectThat(actual, Equals(expected))
+        self.expectThat(results, Equals([another]))
 
     def test_default_retry(self):
         """
@@ -853,13 +853,13 @@ class WithRetryTests(testtools.TestCase):
         # XXX testtools ``raises`` helper generates a crummy message when this
         # assertion fails
         self.assertRaises(CustomException, wrapper)
-        self.assertThat(
+        self.expectThat(
             next(counter),
             # The number of times we demonstrated (above) that retry_some_times
             # retries - plus one more for the initial call.
             Equals(EXPECTED_RETRY_SOME_TIMES_RETRIES + 1),
         )
-        self.assertThat(
+        self.expectThat(
             sum(time),
             # Floating point maths.  Allow for some slop.
             MatchesPredicate(
@@ -882,7 +882,7 @@ class WithRetryTests(testtools.TestCase):
             steps=[s * 1, s * 2, s * 3],
         )
         self.assertRaises(CustomException, wrapper)
-        self.assertThat(sleeps, Equals([1, 2, 3]))
+        self.expectThat(sleeps, Equals([1, 2, 3]))
 
     def test_custom_should_retry(self):
         """
@@ -902,5 +902,5 @@ class WithRetryTests(testtools.TestCase):
             sleep=lambda interval: None,
         )
 
-        self.assertThat(wrapped, raises(CustomException))
-        self.assertThat(next(counter), Equals(11))
+        self.expectThat(wrapped, raises(CustomException))
+        self.expectThat(next(counter), Equals(11))
