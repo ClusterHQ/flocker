@@ -356,8 +356,7 @@ def _poll_until_success_returning_result(
         the indicated interval, respectively).  If an exception is raised,
         further tries are not attempted and the exception is allowed to
         propagate.
-    :param steps: An iterator of delay intervals (as ``timedelta`` instances).
-        These intervals give the amount of time to wait between retries.
+    :param steps: See ``steps`` parameter of ``with_retry``.
     :param sleep: A function like ``time.sleep`` to use for the delays.
     :param function: The function to try calling.
     :param args: Position arguments to pass to the function.
@@ -412,12 +411,13 @@ def with_retry(method, should_retry=None, steps=None, sleep=None):
 
     :param callable method: A method to retry.
     :param callable should_retry: A one-argument callable which accepts a
-        three-tuple of exception state and returns a ``timedelta`` or raises
-        an exception. If the call should be retried, the ``timedelta`` gives a
-        time to delay before the retry. If an exception is raised, no further
+        three-tuple of exception state and returns a ``timedelta`` or raises an
+        exception.  If the call should be retried, the ``timedelta`` gives a
+        time to delay before the retry.  If an exception is raised, no further
         retries are attempted and the exception is propagated from the method
         call.
-    :param XXX steps: XXX
+    :param steps: An iterator of delay intervals (as ``timedelta`` instances).
+        These intervals give the amount of time to wait between retries.
     :param callable sleep: A replacement for ``time.sleep``.
 
     :return: A method that will retry.
