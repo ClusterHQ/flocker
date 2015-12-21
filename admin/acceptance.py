@@ -1222,9 +1222,7 @@ def main(reactor, args, base_path, top_level):
             reactor=reactor,
             cluster=cluster,
             trial_args=options['trial-args'])
-    except:
-        result = 1
-        raise
+
     finally:
         reached_finally = True
         # We delete the nodes if the user hasn't asked to keep them
