@@ -27,6 +27,7 @@ for factory in (NoLoadScenario,):
     check_interfaces(factory)
 
 
+# XXX FLOC-3281 Change to flocker.testtools.TestCase after FLOC-3077 is merged
 class NoLoadScenarioTests(SynchronousTestCase):
     """
     NoLoadScenario tests
