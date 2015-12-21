@@ -511,36 +511,6 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
 }
 
 
-/* Add a particular job type to the multi-job. */
-def register_in_multi_job(dashBranchname, job_type, job_type_values) {
-    /* add the 'run_trial' style jobs, where there is a job per module */
-    if (job_type in ['run_trial', 'run_trial_for_storage_driver',
-                     'run_acceptance', 'run_client']) {
-        for (job in job_type_values) {
-            for (_module in job.value.with_modules) {
-                _job_name = job.key + '_' + _module
-                job("${dashProject}/${dashBranchName}/${_job_name}")  {
-                    /* make sure we don't kill the parent multijob when we
-                       fail */
-                    killPhaseCondition("NEVER")
-                }
-            }
-        }
-    }
-
-    /* add the non-module style jobs */
-    if (job_type in ['run_sphinx', 'omnibus', 'run_lint']) {
-        for (job  in job_type_values) {
-              job("${dashProject}/${dashBranchName}/${job.key}")  {
-                  /* make sure we don't kill the parent multijob when we
-                     fail */
-                  killPhaseCondition("NEVER")
-              }
-        }
-    }
-}
-
-
 def build_multijob(dashBranchName, branchName) {
     // -------------------------------------------------------------------------
     // MULTIJOB CONFIGURATION BELOW
@@ -590,8 +560,33 @@ def build_multijob(dashBranchName, branchName) {
                   multijob configuration below.
                 */
                 for (job_type_entry in GLOBAL_CONFIG.job_type) {
-                  register_in_multi_job(dashBranchName, job_type_entry.key,
-                                        job_type_entry.value)
+                    job_type = job_type_entry.key
+                    job_type_values  job_type_entry.value
+
+                    /* add the 'run_trial' style jobs, where there is a job per module */
+                    if (job_type in ['run_trial', 'run_trial_for_storage_driver',
+                                     'run_acceptance', 'run_client']) {
+                        for (job in job_type_values) {
+                            for (_module in job.value.with_modules) {
+                                _job_name = job.key + '_' + _module
+                                job("${dashProject}/${dashBranchName}/${_job_name}")  {
+                                    /* make sure we don't kill the parent multijob when we
+                                       fail */
+                                    killPhaseCondition("NEVER")
+                                }
+                            }
+                        }
+                    }
+                    /* add the non-module style jobs */
+                    if (job_type in ['run_sphinx', 'omnibus', 'run_lint']) {
+                        for (job  in job_type_values) {
+                            job("${dashProject}/${dashBranchName}/${job.key}")  {
+                                /* make sure we don't kill the parent multijob when we
+                                   fail */
+                                killPhaseCondition("NEVER")
+                            }
+                        }
+                    }
                 }
             } /* ends parallel phase */
 
