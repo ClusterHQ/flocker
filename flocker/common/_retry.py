@@ -350,14 +350,9 @@ def _poll_until_success_returning_result(
     Call a function until it does not raise an exception or ``should_retry``
     says it shouldn't be tried anymore, whichever comes first.
 
-    :param should_retry: A three-argument callable which determines whether
-        further retries are attempted.  If ``None`` or a ``timedelta`` is
-        returned, another retry is attempted (immediately or after sleeping for
-        the indicated interval, respectively).  If an exception is raised,
-        further tries are not attempted and the exception is allowed to
-        propagate.
+    :param should_retry: See ``should_retry`` parameter of ``with_retry``.
     :param steps: See ``steps`` parameter of ``with_retry``.
-    :param sleep: A function like ``time.sleep`` to use for the delays.
+    :param sleep: See ``sleep`` parameter of ``with_retry``.
     :param function: The function to try calling.
     :param args: Position arguments to pass to the function.
     :param kwargs: Keyword arguments to pass to the function.
