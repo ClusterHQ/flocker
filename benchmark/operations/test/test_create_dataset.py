@@ -20,6 +20,7 @@ from benchmark.operations.create_dataset import (
 )
 
 
+# XXX FLOC-3281 Change to flocker.testtools.TestCase after FLOC-3077 is merged
 class CreateDatasetTests(SynchronousTestCase):
     """
     CreateDataset operation tests.
