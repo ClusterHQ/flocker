@@ -117,7 +117,7 @@ curl \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
   -X POST \\
   --data "\$PAYLOAD" \\
-  https://api.github.com/repos/${cfg.project}/statuses/\$REMOTE_GIT_COMMIT
+  https://api.github.com/repos/${GLOBAL_CONFIG.project}/statuses/\$REMOTE_GIT_COMMIT
 echo "Updating commit \$REMOTE_GIT_COMMIT with ${status} status."
 """
 }
@@ -501,31 +501,17 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
     }
 }
 
+
+/* Add a particular job type to the multi-job. */
 def add_to_multi_job(dashBranchname, job_type, job_type_values) {
-    /* add the 'run_trial' style jobs */
-    if (job_type == 'run_trial') {
+    /* add the 'run_trial' style jobs, where there is a job per module */
+    if (job_type in ['run_trial', 'run_trial_for_storage_driver',
+                     'run_acceptance', 'run_client']) {
         for (job in job_type_values) {
             for (_module in job.value.with_modules) {
                 _job_name = job.key + '_' + _module
-                job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-                    /* make sure we don't kill the parent multijob, when we fail*/
-                    killPhaseCondition("NEVER")
-                }
-            }
-        }
-    }
-
-    // XXX looks like duplicate
-
-    /* add the 'run_trial_for_storage_driver' style jobs */
-    if (job_type == 'run_trial_for_storage_driver') {
-        for (job in job_type_values.iteritems()) {
-            job_name = job.key
-            job_values = job.value
-            for (_module in job_values.with_modules) {
-                _job_name = job_name + '_' + _module.replace('/', '_')
-                job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-                    /* make sure we don't kill the parent multijob, when we
+                job("${dashProject}/${dashBranchName}/${_job_name}")  {
+                    /* make sure we don't kill the parent multijob when we
                        fail */
                     killPhaseCondition("NEVER")
                 }
@@ -533,66 +519,20 @@ def add_to_multi_job(dashBranchname, job_type, job_type_values) {
         }
     }
 
-/* add the 'run_sphinx' style jobs                                           */
-{%  if job_type == 'run_sphinx'                                             -%}
-{%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      set _job_name = job_name                                             %}
-              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-/* make sure we don't kill the parent multijob, when we fail                 */
-                killPhaseCondition("NEVER")
+    /* add the non-module style jobs */
+    if (job_type in ['run_sphinx', 'omnibus', 'run_lint']) {
+        for (job  in job_type_values) {
+              job("${dashProject}/${dashBranchName}/${job.key}")  {
+                  /* make sure we don't kill the parent multijob when we
+                     fail */
+                  killPhaseCondition("NEVER")
               }
-{%    endfor                                                                -%}
-{%  endif                                                                    %}
-
-/* add the 'run_acceptance' style jobs                                       */
-{%  if job_type == 'run_acceptance'                                         -%}
-{%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      for _module in job_values.with_modules                              -%}
-{%        set _job_name = job_name + '_' + _module                           %}
-              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-/* make sure we don't kill the parent multijob, when we fail                 */
-                killPhaseCondition("NEVER")
-              }
-{%      endfor                                                              -%}
-{%    endfor                                                                -%}
-{%  endif                                                                    %}
-
-/* add the 'run_client' style jobs                                           */
-{%  if job_type == 'run_client'                                             -%}
-{%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      set _job_name = job_name                                             %}
-              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-/* make sure we don't kill the parent multijob, when we fail                 */
-                killPhaseCondition("NEVER")
-              }
-{%    endfor                                                                -%}
-{%  endif                                                                    %}
-
-/* add the 'omnibus' style jobs                                              */
-{%  if job_type == 'omnibus'                                                -%}
-{%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      set _job_name = job_name                                             %}
-              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-/* make sure we don't kill the parent multijob, when we fail                 */
-                killPhaseCondition("NEVER")
-              }
-{%    endfor                                                                -%}
-{%  endif                                                                    %}
-
-/* add the 'run_lint' style jobs                                             */
-{%  if job_type == 'run_lint'                                               -%}
-{%    for job_name, job_values  in job_type_values.iteritems()              -%}
-{%      set _job_name = job_name                                             %}
-              job("${dashProject}/${dashBranchName}/{{_job_name }}")  {
-/* make sure we don't kill the parent multijob, when we fail                 */
-                killPhaseCondition("NEVER")
-              }
-{%    endfor                                                                -%}
-{%  endif                                                                    %}
+        }
+    }
 }
 
 
-def build_multijob(dashBranchName) {
+def build_multijob(dashBranchName, branchName) {
     // -------------------------------------------------------------------------
     // MULTIJOB CONFIGURATION BELOW
     // --------------------------------------------------------------------------
@@ -648,7 +588,7 @@ def build_multijob(dashBranchName) {
 
             /* we've added the jobs to the multijob, we now need to fetch and archive all
                the artifacts produced by the different jobs  */
-            for (job_type_entry in GLOBAL_CFG.job_type) {
+            for (job_type_entry in GLOBAL_CONFIG.job_type) {
                 job_type = job_type_entry.key
                 for (job in job_type_values) {
                     job_name = job.key
@@ -679,31 +619,30 @@ def build_multijob(dashBranchName) {
                 }
             }
         }
-    }
 
-    /* do an aggregation of all the test results */
-    publishers {
-        archiveJunit('**/results.xml') {
-            retainLongStdout(true)
-            testDataPublishers {
-                /* allows a jenkins user to 'claim' a failed test, indicating
-                   that user is 'looking into it' */
-                allowClaimingOfFailedTests()
-                publishTestAttachments()
-                /* publish a percentage of failures for a particular test */
-                publishTestStabilityData()
-                /* publish a report of tests that fail every so often */
-                publishFlakyTestsReport()
+        /* do an aggregation of all the test results */
+        publishers {
+            archiveJunit('**/results.xml') {
+                retainLongStdout(true)
+                testDataPublishers {
+                    /* allows a jenkins user to 'claim' a failed test, indicating
+                       that user is 'looking into it' */
+                    allowClaimingOfFailedTests()
+                    publishTestAttachments()
+                    /* publish a percentage of failures for a particular test */
+                    publishTestStabilityData()
+                    /* publish a report of tests that fail every so often */
+                    publishFlakyTestsReport()
+                }
             }
-        }
         /* do an aggregation of all the coverage results */
-        cobertura('**/coverage.xml') {
+            cobertura('**/coverage.xml') {
             /* only produce coverage reports for stable builds */
-            onlyStable(false)
-            failUnhealthy(true)
-            failUnstable(true)
-            failNoReports(false)
-        }
+                onlyStable(false)
+                failUnhealthy(true)
+                failUnstable(true)
+                failNoReports(false)
+            }
         /* Update the commit status on GitHub with the build result We use the
            flexible-publish plugin combined with the the any-buildstep plugin to
            allow us to run shell commands as part of a post-build step.  We also
@@ -711,24 +650,25 @@ def build_multijob(dashBranchName) {
            https://wiki.jenkins-ci.org/display/JENKINS/Flexible+Publish+Plugin
            https://wiki.jenkins-ci.org/display/JENKINS/Any+Build+Step+Plugin
            https://wiki.jenkins-ci.org/display/JENKINS/Run+Condition+Plugin */
-        flexiblePublish {
-            condition {
-                status('SUCCESS', 'SUCCESS')
+            flexiblePublish {
+                condition {
+                    status('SUCCESS', 'SUCCESS')
+                }
+                step {
+                    shell(updateGitHubStatus(
+                              'success', 'Build succeeded',
+                              "${branchName}", "${dashProject}", "${dashBranchName}"))
+                }
             }
-            step {
-                shell(updateGitHubStatus(
-                          'success', 'Build succeeded',
-                          "${branchName}", "${dashProject}", "${dashBranchName}"))
-            }
-        }
-        flexiblePublish {
-            condition {
-                status('FAILURE', 'FAILURE')
-            }
-            step {
-                shell(updateGitHubStatus(
-                          'failure', 'Build failed',
-                          "${branchName}", "${dashProject}", "${dashBranchName}"))
+            flexiblePublish {
+                condition {
+                    status('FAILURE', 'FAILURE')
+                }
+                step {
+                    shell(updateGitHubStatus(
+                              'failure', 'Build failed',
+                              "${branchName}", "${dashProject}", "${dashBranchName}"))
+                }
             }
         }
     }
@@ -742,24 +682,19 @@ def build_multijob(dashBranchName) {
 // Iterate over every branch, and create folders, jobs
 branches.each {
     println("iterating over branch... ${it}")
-
-    //  swap '/' with '-'
     branchName = it
     dashBranchName = branchName.replace("/","-")
-    println("found branch... ${it}")
 
     // create a folder for every branch: /git-username/git-repo/branch
-    folder("${dashProject}/${dashBranchName}") { displayName(branchName) }
+    folder("${dashProject}/${dashBranchName}") {
+        displayName(branchName)
+    }
 
     // create tabs
     build_tabs(dashBranchName)
 
-    // -------------------------------------------------------------------------
-    // JOB DEFINITIONS - THESE WILL BE ADDED TO A MULTIJOB PHASE
-    // -------------------------------------------------------------------------
-
-    // iterate over every job_type
-    for (job_type_entry in cfg.job_type.iteritems()) {
+    // create individual jobs
+    for (job_type_entry in GLOBAL_CONFIG.job_type) {
         job_type = job_type_entry.key
         for (job_entry in job_type_entry.value) {
             job_name = job_entry.key
@@ -768,8 +703,8 @@ branches.each {
         }
     }
 
-    // create multijob
-    build_multijob(dashBranchName)
+    // create multijob that aggregates the individual jobs
+    build_multijob(dashBranchName, branchName)
 }
 
 
@@ -781,22 +716,23 @@ branches.each {
 /* As we only run them from the master branch, they get executed a few       */
 /* times a day based on a cron type schedule.                                */
 
-{% for job_type, job_type_values  in cfg.job_type.iteritems()               -%}
-{%  for job_name, job_values  in job_type_values.iteritems()                -%}
-
-/* apply config related to 'cronly_jobs' jobs                                */
-{%    if job_type == 'cronly_jobs'                                          -%}
-{%        set _job_name = job_name                                          -%}
-  job("${dashProject}/${dashBranchName}/_{{ _job_name }}") {
-    parameters {
-        textParam("TRIGGERED_BRANCH", "${branchName}", "Branch that triggered this job" )
+for (job_type_entry GLOBAL_CONFIG.job_type) {
+    job_type = job_type_entry.key
+    for (job in job_type_entry.value) {
+        job_values = job.value
+        /* apply config related to 'cronly_jobs' jobs */
+        if (job_type == 'cronly_jobs') {
+            job("${dashProject}/${dashBranchName}/_{job.key}") {
+                parameters {
+                    textParam("TRIGGERED_BRANCH", "${branchName}",
+                              "Branch that triggered this job" )
+                }
+                label(job_values.on_nodes_with_labels)
+                wrappers build_wrappers(job_values, [])
+                triggers build_triggers('cron', job_values.at, "${branchName}")
+                scm build_scm("${git_url}", "${branchName}")
+                steps build_steps(job_values.with_steps)
+            }
+        }
     }
-    label("{{ job_values.on_nodes_with_labels }}")
-    {{ wrappers(job_values, []) }}
-    {{ triggers('cron', job_values.at, "${branchName}") }}
-    {{ scm("${git_url}", "${branchName}") }}
-    {{ steps(job_values.with_steps) }}
-  }
-{%    endif                                                                  %}
-{%  endfor                                                                     %}
-{% endfor                                                                     %}
+}
