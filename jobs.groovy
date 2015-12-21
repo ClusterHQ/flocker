@@ -89,11 +89,14 @@
     section specifying an daily schedulle.
 */
 
-// Load the build.yaml, which is encoded into JSON by Jinja2; this should be the
-// only usage of Jinja2 in this file.
-def jsonSlurper = new JsonSlurper()
-def GLOBAL_CONFIG = jsonSlurper.parseText('{{json_cfg}}')
-
+// Load the build.yaml, convert to JSON:
+def process = '/usr/local/bin/python -c "import json, yaml, sys; print json.dumps(yaml.safe_load(sys.stdin.read()))"'.execute()
+// Aren't Java APIs awesome? Process.getOutputStream() is stdin.
+def stdin = process.getOutputStream()
+stdin.write(readFileFromWorkspace('build.yaml'))
+stdin.flush()
+def jsonSlurper = new groovy.json.JsonSlurper()
+def GLOBAL_CONFIG = jsonSlurper.parse(process.getInputStream())
 
 // --------------------------------------------------------------------------
 // UTILITIES DEFINED BELOW
