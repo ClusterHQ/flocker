@@ -560,7 +560,7 @@ def build_multijob(dashBranchName, branchName) {
            The logic that manages which branch is built automaticaly, is performed
            in the triggers jinja2 macro.
         */
-        triggers build_trigers('githubPush', 'none', branchName)
+        triggers build_triggers('githubPush', 'none', branchName)
         wrappers {
             timestamps()
             colorizeOutput()
