@@ -549,7 +549,7 @@ def build_multijob(dashBranchName, branchName) {
 
                     /* add the 'run_trial' style jobs, where there is a job per module */
                     if (job_type in ['run_trial', 'run_trial_for_storage_driver',
-                                     'run_acceptance', 'run_client']) {
+                                     'run_acceptance']) {
                         for (job_entry in job_type_values) {
                             for (_module in job_entry.value.with_modules) {
                                 _job_name = job_entry.key + '_' + _module
@@ -562,7 +562,7 @@ def build_multijob(dashBranchName, branchName) {
                         }
                     }
                     /* add the non-module style jobs */
-                    if (job_type in ['run_sphinx', 'omnibus', 'run_lint']) {
+                    if (job_type in ['run_sphinx', 'omnibus', 'run_lint', 'run_client']) {
                         for (job_entry  in job_type_values) {
                             job("${dashProject}/${dashBranchName}/${job_entry.key}")  {
                                 /* make sure we don't kill the parent multijob when we
