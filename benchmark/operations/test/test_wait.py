@@ -6,6 +6,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from benchmark.operations import Wait
 
 
+# XXX FLOC-3281 Change to flocker.testtools.TestCase after FLOC-3077 is merged
 class WaitOperationTests(SynchronousTestCase):
     """
     Test Wait operation
