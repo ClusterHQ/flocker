@@ -32,6 +32,8 @@ class NoLoadScenarioTests(SynchronousTestCase):
     NoLoadScenario tests
     """
 
+    # XXX This isn't a test since it doesn't start with "test_".  It never
+    # runs.  If this is fixed so that it runs, it fails.
     def no_load_happy(self):
         """
         NoLoadScenario starts and stops without collapsing.
