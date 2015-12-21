@@ -1508,11 +1508,15 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
 
         dataset_id = initial_dataset.dataset_id
 
-        evaluate_function = None
+        class NullableCallback():
+            def __init__(self):
+                self.callback = None
 
-        def nullable_callback():
-            if evaluate_function:
-                evaluate_function()
+            def __call__(self, *args, **kwargs):
+                if self.callback:
+                    self.callback(*args, **kwargs)
+
+        nullable_callback = NullableCallback()
 
         actual_blockdevice_manager = BlockDeviceManager()
         proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
@@ -1531,8 +1535,9 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
                 mountroot_for_test(self),
                 actual_blockdevice_manager)
 
-            evaluate_function = partial(external_agent.invariant, self,
-                                        test_objects.current_cluster_state)
+            nullable_callback.callback = partial(
+                external_agent.invariant, self,
+                test_objects.current_cluster_state)
 
             # Set the mountpoint to a real mountpoint in desired dataset states
             # that have a mount point attribute.
