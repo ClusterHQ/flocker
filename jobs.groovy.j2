@@ -716,7 +716,7 @@ branches.each {
 /* As we only run them from the master branch, they get executed a few       */
 /* times a day based on a cron type schedule.                                */
 
-for (job_type_entry GLOBAL_CONFIG.job_type) {
+for (job_type_entry in GLOBAL_CONFIG.job_type) {
     job_type = job_type_entry.key
     for (job in job_type_entry.value) {
         job_values = job.value
