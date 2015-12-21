@@ -95,8 +95,15 @@ def process = '/usr/local/bin/python -c "import json, yaml, sys; print json.dump
 def stdin = new java.io.PrintWriter(process.getOutputStream())
 stdin.write(readFileFromWorkspace('build.yaml'))
 stdin.flush()
+// I hate Java so much: this is how you read a String from an InputStream.
+def reader = new java.io.BufferedReader(
+    new java.io.InputStreamReader(process.getInputStream())));
+def out = new StringBuilder()
+while ((line = reader.readLine()) != null) {
+     out.append(line);
+}
 def jsonSlurper = new groovy.json.JsonSlurper()
-def GLOBAL_CONFIG = jsonSlurper.parse((java.io.InputStream) process.getInputStream())
+def GLOBAL_CONFIG = jsonSlurper.parseText(out.toString())
 
 // --------------------------------------------------------------------------
 // UTILITIES DEFINED BELOW
