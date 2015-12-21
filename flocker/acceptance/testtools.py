@@ -11,7 +11,6 @@ from uuid import uuid4, UUID
 from socket import socket
 from contextlib import closing
 from tempfile import mkstemp
-from datetime import timedelta
 
 import yaml
 import json
