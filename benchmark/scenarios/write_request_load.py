@@ -17,10 +17,12 @@ from .._interfaces import IScenario
 
 DEFAULT_SAMPLE_SIZE = 5
 
-# XXX make it a common class for Read and Write scenarios.
-# Note that the docstrings are not up-to-date because they are being updated
-# in the Read scenario
+
 class WRateMeasurer(object):
+    # XXX make it a common class for Read and Write scenarios.
+    # Note that the docstrings are not up-to-date because they are being
+    # updated in the Read scenario
+
     """
     Measures the rate of requests in requests per second.
 
@@ -97,15 +99,18 @@ class WRequestOverload(Exception):
     There are too many outstanding request.
     """
 
+
 class WDataseCreationTimeout(Exception):
     """
     The dataset could not be created.
     """
 
+
 class WNoNodesFound(Exception):
     """
     No existent nodes were found.
     """
+
 
 @implementer(IScenario)
 class WriteRequestLoadScenario(object):
@@ -137,8 +142,8 @@ class WriteRequestLoadScenario(object):
         # Send requests per second
         self.loop = LoopingCall.withCount(self._request_and_measure)
         self.loop.clock = self.reactor
-        # Once the expected rate is reached, we will start monitoring the scenario
-        # inside this loop
+        # Once the expected rate is reached, we will start monitoring
+        # the scenario inside this loop
         self.monitor_loop = LoopingCall(self.check_rate)
         self.monitor_loop.clock = self.reactor
 
@@ -172,6 +177,7 @@ class WriteRequestLoadScenario(object):
         """
         creating = self.control_service.create_dataset(
             primary=node.uuid)
+
         # Not sure about handling errors and timeout in the same errback.
         # How could I handle them differently?
         def handle_timeout_and_errors(failure):
@@ -194,9 +200,8 @@ class WriteRequestLoadScenario(object):
         :raise: `WNoNodesFound` if the given list of nodes was empty.
         """
         if not nodes:
-           raise WNoNodesFound()
+            raise WNoNodesFound()
         return nodes[0]
-
 
     def _request_and_measure(self, count):
         """
@@ -299,4 +304,3 @@ class WriteRequestLoadScenario(object):
             self.loop.stop()
 
         return succeed(None)
-

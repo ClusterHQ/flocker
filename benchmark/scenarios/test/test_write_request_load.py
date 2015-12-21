@@ -16,8 +16,9 @@ from benchmark.scenarios import (
     WriteRequestLoadScenario, WRateMeasurer, WRequestRateTooLow,
     WRequestRateNotReached, WRequestOverload, WDataseCreationTimeout
 )
-from benchmark.scenarios.read_request_load import DEFAULT_SAMPLE_SIZE
-DEFAULT_VOLUME_SIZE=1073741824
+
+DEFAULT_VOLUME_SIZE = 1073741824
+
 
 class WRateMeasurerTest(SynchronousTestCase):
     """
@@ -185,6 +186,7 @@ class RequestDroppingFakeFlockerClient(
             self._dropped_last_request = True
         return Deferred()
 
+
 class UnresponsiveDatasetCreationFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
@@ -192,7 +194,9 @@ class UnresponsiveDatasetCreationFakeFlockerClient(
     A FakeFlockerClient that can drop alternating requests.
     """
     def __init__(self, nodes):
-        super(UnresponsiveDatasetCreationFakeFlockerClient, self).__init__(nodes)
+        super(
+            UnresponsiveDatasetCreationFakeFlockerClient, self
+        ).__init__(nodes)
         self.drop_requests = False
         self._dropped_last_request = False
         self._real_nodes = nodes
@@ -200,7 +204,6 @@ class UnresponsiveDatasetCreationFakeFlockerClient(
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
                        metadata=None, configuration_tag=None):
         return Deferred()
-
 
 
 class WriteRequestLoadScenarioTest(SynchronousTestCase):
@@ -394,4 +397,3 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, WRequestOverload)
-
