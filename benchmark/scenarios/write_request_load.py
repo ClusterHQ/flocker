@@ -123,15 +123,15 @@ class WriteRequestLoadScenario(object):
     """
 
     def __init__(
-        self, reactor, cluster, request_rate=10, interval=DEFAULT_SAMPLE_SIZE,
-        timeout=45
+        self, reactor, cluster, request_rate=10,
+        sample_size=DEFAULT_SAMPLE_SIZE, timeout=45
     ):
         self._maintained = Deferred()
         self.reactor = reactor
         self.control_service = cluster.get_control_service(reactor)
         self.request_rate = request_rate
         self.timeout = timeout
-        self.rate_measurer = WRateMeasurer(interval)
+        self.rate_measurer = WRateMeasurer(sample_size)
         self.max_outstanding = 10 * request_rate
         self._dataset_id = ""
         # Send requests per second

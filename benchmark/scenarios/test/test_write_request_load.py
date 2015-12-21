@@ -251,7 +251,7 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         """
         c = Clock()
         cluster = self.make_cluster(self.get_fake_flocker_client_instance())
-        s = WriteRequestLoadScenario(c, cluster, 5, interval=3)
+        s = WriteRequestLoadScenario(c, cluster, 5, sample_size=3)
 
         def assert_created(returned_datasets):
             self.assertNotEqual(returned_datasets, [])
@@ -278,7 +278,7 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         c = Clock()
         cluster = self.make_cluster(
             self.get_unresponsive_flocker_client_instance())
-        s = WriteRequestLoadScenario(c, cluster, 5, interval=3)
+        s = WriteRequestLoadScenario(c, cluster, 5, sample_size=3)
 
         d = s.start()
         c.pump(repeat(1, s.timeout+1))
@@ -292,16 +292,16 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         """
         c = Clock()
         cluster = self.make_cluster(self.get_fake_flocker_client_instance())
-        s = WriteRequestLoadScenario(c, cluster, 5, interval=3)
+        sample_size = 5
+        s = WriteRequestLoadScenario(c, cluster, sample_size=sample_size)
 
         d = s.start()
 
-        # Request rate samples are taken at most every second and by
-        # default, 5 samples are required to establish the rate.
-        # The sample recorded at nth second is the sample for the
-        # (n - 1)th second, therefore we need to advance the clock by
-        # n + 1 seconds to obtain a rate for n samples.
-        c.pump(repeat(1, DEFAULT_SAMPLE_SIZE + 1))
+        # Request rate samples are recorded every second and we need to
+        # collect enough samples to establish the rate which is defined
+        # by `sample_size`. Therefore, advance the clock by
+        # `sample_size` seconds to obtain enough samples.
+        c.pump(repeat(1, sample_size))
         s.maintained().addBoth(lambda x: self.fail())
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
@@ -319,7 +319,7 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         c = Clock()
         cluster = self.make_cluster(
             self.get_dropping_flocker_client_instance())
-        s = WriteRequestLoadScenario(c, cluster, 5, interval=1)
+        s = WriteRequestLoadScenario(c, cluster, 5, sample_size=1)
 
         s.start()
 
@@ -343,7 +343,7 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         c = Clock()
         cluster = self.make_cluster(
             self.get_dropping_flocker_client_instance())
-        s = WriteRequestLoadScenario(c, cluster, 5, interval=1)
+        s = WriteRequestLoadScenario(c, cluster, 5, sample_size=1)
         cluster.get_control_service(c).drop_requests = True
         d = s.start()
 
@@ -373,7 +373,7 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         req_per_second = 2
         sample_size = 20
         s = WriteRequestLoadScenario(c, cluster, req_per_second,
-                                     interval=sample_size)
+                                     sample_size=sample_size)
         dropped_req_per_sec = req_per_second / 2
         seconds_to_overload = s.max_outstanding / dropped_req_per_sec
 
