@@ -313,24 +313,26 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
 
         Establish the requested rate by having the FakeFlockerClient
         respond to all requests, then lower the rate by dropping
-        alternate requeeas. This should result in RequestRateTooLow
+        alternate requests. This should result in RequestRateTooLow
         being raised.
         """
         c = Clock()
         cluster = self.make_cluster(
             self.get_dropping_flocker_client_instance())
-        s = WriteRequestLoadScenario(c, cluster, 5, sample_size=1)
+        sample_size = 5
+        s = WriteRequestLoadScenario(c, cluster, sample_size=sample_size)
 
         s.start()
 
-        # Advance the clock by DEFAULT_SAMPLE_SIZE + 1 seconds to
-        # establish the requested rate.
-        c.pump(repeat(1, DEFAULT_SAMPLE_SIZE + 1))
+        # Advance the clock by `sample_size` seconds to establish the
+        # requested rate.
+        c.pump(repeat(1, sample_size))
+
         cluster.get_control_service(c).drop_requests = True
 
-        # Advance the clock by 3 seconds so that a request is dropped
+        # Advance the clock by 2 seconds so that a request is dropped
         # and a new rate which is below the target can be established.
-        c.pump(repeat(1, 3))
+        c.advance(2)
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, WRequestRateTooLow)
@@ -343,53 +345,52 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         c = Clock()
         cluster = self.make_cluster(
             self.get_dropping_flocker_client_instance())
-        s = WriteRequestLoadScenario(c, cluster, 5, sample_size=1)
+        s = WriteRequestLoadScenario(c, cluster)
         cluster.get_control_service(c).drop_requests = True
         d = s.start()
 
         # Continue the clock for one second longer than the timeout
         # value to allow the timeout to be triggered.
-        c.pump(repeat(1, s.timeout + 15))
+        c.advance(s.timeout + 1)
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, WRequestRateNotReached)
 
-    def test_scenario_throws_exceptions_if_overloads(self):
+    def test_scenario_throws_exception_if_overloaded(self):
         """
-        `WriteRequestLoadScenarioTest` raises `RequestOverload` if,
-        once we start monitoring the scenario, we go over the max
-        tolerated difference between sent requests and received requests.
+        `WriteRequestLoadScenario` raises `RequestOverload` if the
+        difference between sent requests and received requests exceeds
+        the tolerated difference once we start monitoring the scenario.
 
         Note that, right now, the only way to make it fail is to generate
-        this different before we start monitoring the scenario.
-        Once we implement some kind of tolerance, to allow small highs/ups
-        on the rates, we can update this tests to trigger the exception
+        this difference before we start monitoring the scenario.
+        Once we implement some kind of tolerance, to allow fluctuations
+        in the rate, we can update this tests to trigger the exception
         in a more realistic manner.
         """
-        # XXX update this tests when we add tolerance to the rate going
-        # a bit up and down.
+        # XXX Update this test when we add tolerance for rate fluctuations.
         c = Clock()
         cluster = self.make_cluster(self.get_dropping_flocker_client_instance())
-        req_per_second = 2
+        target_rate = 10
         sample_size = 20
-        s = WriteRequestLoadScenario(c, cluster, req_per_second,
+        s = WriteRequestLoadScenario(c, cluster, request_rate=target_rate,
                                      sample_size=sample_size)
-        dropped_req_per_sec = req_per_second / 2
-        seconds_to_overload = s.max_outstanding / dropped_req_per_sec
+        dropped_rate = target_rate / 2
+        seconds_to_overload = s.max_outstanding / dropped_rate
 
         s.start()
         # Reach initial rate
         cluster.get_control_service(c).drop_requests = True
-        # Initially, we generate enough dropped request to make it crash once
-        # we start monitoring the scenario
+        # Initially, we generate enough dropped requests so that the scenario
+        # is overloaded when we start monitoring.
         c.pump(repeat(1, seconds_to_overload+1))
         # We stop dropping requests
         cluster.get_control_service(c).drop_requests = False
         # Now we generate the initial rate to start monitoring the scenario
-        c.pump(repeat(1, sample_size+1))
+        c.pump(repeat(1, sample_size))
         # We only need to advance one more second (first loop in the monitoring
-        # loop) to make it crash with RequestOverload
-        c.pump(repeat(1, 1))
+        # loop) to trigger RequestOverload
+        c.advance(1)
 
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, WRequestOverload)
