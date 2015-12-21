@@ -390,7 +390,7 @@ class TimeoutClient(Client):
         :param timedelta long_timeout: A timeout to use for any request that
             doesn't have any other timeout specified.
         """
-        self._long_timeout = kw.pop('long_timeout')
+        self._long_timeout = kw.pop('long_timeout', None)
         Client.__init__(self, *args, **kw)
 
     def _set_request_timeout(self, kwargs):
