@@ -34,7 +34,7 @@ from hypothesis.strategies import (
     dictionaries, tuples
 )
 
-from testtools.matchers import Equals
+from testtools.matchers import Equals, Is, Not
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
@@ -1272,14 +1272,27 @@ class _WriteVerifyingExternalClient(object):
         :param current_cluster_state: A callable that returns the current state
             of the cluster.
         """
+        dataset = unicode(self._dataset_id)
+
         # First poll the cluster state to see if there is a new mountpoint that
         # we should try to use to attempt to write to the dataset.
         [node] = list(n for n in current_cluster_state().nodes
                       if n.uuid == self._node_uuid)
+
+        # If this dataset is in the manifestations, then we should be able to
+        # write to the current path provided by flocker.
+        manifestations = node.manifestations or {}
+        write_to_current_path_should_succeed = dataset in manifestations
+
         paths = node.paths or {}
-        path = paths.get(unicode(self._dataset_id))
-        if path:
-            self._known_mountpoints.add(path)
+        current_path = paths.get(dataset)
+        if write_to_current_path_should_succeed:
+            case.assertIsNotNone(
+                current_path, "Despite being marked as manifested, dataset %s "
+                "did not have a path in the NodeState." % dataset)
+        if current_path:
+            self._known_mountpoints.add(current_path)
+
         devices = node.devices or {}
         device = devices.get(self._dataset_id)
         if device:
@@ -1289,13 +1302,18 @@ class _WriteVerifyingExternalClient(object):
             device = self._device_path
             filename = unicode(uuid4())
             random_string = unicode(uuid4())
+            path_to_write = path.child('fakefolder').child(filename)
             try:
-                path.child(filename).setContent(random_string)
+                path_to_write.setContent(random_string)
             except OSError:
-                # If we failed to write, that is okay in many scenarios. At
-                # least the failing write won't lead to the end user
-                # thinking that they have an actually persisted data.
-                pass
+                # This indicates that we failed to write to a path provided by
+                # flocker. Assert that this is not the path of a currently
+                # manifest dataset.
+                case.assertFalse(
+                    write_to_current_path_should_succeed and
+                    current_path == path,
+                    "Could not write to path %s despite dataset %s reporting "
+                    "as manifest." % (path_to_write, dataset))
             else:
                 case.assertTrue(
                     self._has_file_with_content(filename, random_string),
