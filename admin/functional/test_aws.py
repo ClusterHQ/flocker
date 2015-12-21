@@ -1,5 +1,9 @@
-import shutil
-import os
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
+"""
+Tests for ``admin.aws``.
+"""
+
 from unittest import skipIf
 
 import boto
