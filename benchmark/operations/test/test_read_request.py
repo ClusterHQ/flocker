@@ -12,6 +12,7 @@ from twisted.python.components import proxyForInterface
 from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient import IFlockerAPIV1Client, FakeFlockerClient
+from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IOperation
@@ -53,7 +54,7 @@ class FastConvergingFakeFlockerClient(
         return result
 
 
-class ValidMethodNameTests(SynchronousTestCase):
+class ValidMethodNameTests(TestCase):
     """
     Check that method name validation works.
     """
@@ -69,8 +70,11 @@ class ValidMethodNameTests(SynchronousTestCase):
         """
         name = 'create_dataset'
         self.assertIn(name, IFlockerAPIV1Client.names())
-        with self.assertRaises(InvalidMethod):
-            validate_method_name(IFlockerAPIV1Client, name)
+        self.assertRaises(
+            InvalidMethod,
+            validate_method_name,
+            IFlockerAPIV1Client, name,
+        )
 
     def test_not_found_method(self):
         """
@@ -78,10 +82,14 @@ class ValidMethodNameTests(SynchronousTestCase):
         """
         name = 'non_existent'
         self.assertNotIn(name, IFlockerAPIV1Client.names())
-        with self.assertRaises(InvalidMethod):
-            validate_method_name(IFlockerAPIV1Client, name)
+        self.assertRaises(
+            InvalidMethod,
+            validate_method_name,
+            IFlockerAPIV1Client, name,
+        )
 
 
+# XXX FLOC-3281 Change to flocker.testtools.TestCase after FLOC-3077 is merged
 class ReadRequestTests(SynchronousTestCase):
     """
     ReadRequest operation tests.
