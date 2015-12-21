@@ -9,11 +9,11 @@ from unittest import skipIf
 import boto
 from effect import Effect, sync_perform, ComposedDispatcher
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase
 
 from ..aws import boto_dispatcher, UploadToS3
+
 from flocker.provision._effect import dispatcher as base_dispatcher
-from flocker.testtools import random_name
+from flocker.testtools import TestCase, random_name
 
 # Bucket to use for testing
 bucket_name = 'clusterhq-archive-testing'
@@ -27,7 +27,7 @@ except:
 if_aws = skipIf(not _can_connect, "Requires boto AWS credentials")
 
 
-class AWSTest(SynchronousTestCase):
+class AWSTest(TestCase):
 
     @if_aws
     def test_upload_content_type(self):
