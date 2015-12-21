@@ -7,6 +7,7 @@ Tests for ``admin.release``.
 import json
 import os
 
+from hashlib import sha256
 from gzip import GzipFile
 from StringIO import StringIO
 import tempfile
@@ -14,7 +15,7 @@ from textwrap import dedent
 from unittest import skipUnless, skipIf
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
-from git import GitCommandError, Repo
+from git import Repo
 
 from requests.exceptions import HTTPError
 
@@ -31,7 +32,6 @@ from ..release import (
     DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
-    MissingPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
     publish_homebrew_recipe, PushFailed,
     publish_vagrant_metadata, TestRedirectsOptions, get_expected_redirects,
@@ -41,7 +41,6 @@ from ..release import (
 from ..packaging import Distribution
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
-from hashlib import sha256
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
