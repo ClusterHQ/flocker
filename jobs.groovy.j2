@@ -512,7 +512,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
 
 
 /* Add a particular job type to the multi-job. */
-def add_to_multi_job(dashBranchname, job_type, job_type_values) {
+def register_in_multi_job(dashBranchname, job_type, job_type_values) {
     /* add the 'run_trial' style jobs, where there is a job per module */
     if (job_type in ['run_trial', 'run_trial_for_storage_driver',
                      'run_acceptance', 'run_client']) {
@@ -590,8 +590,8 @@ def build_multijob(dashBranchName, branchName) {
                   multijob configuration below.
                 */
                 for (job_type_entry in GLOBAL_CONFIG.job_type) {
-                  add_to_multi_job(dashBranchName, job_type_entry.key,
-                                   job_type_entry.value)
+                  register_in_multi_job(dashBranchName, job_type_entry.key,
+                                        job_type_entry.value)
                 }
             } /* ends parallel phase */
 
