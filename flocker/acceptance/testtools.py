@@ -11,6 +11,7 @@ from uuid import uuid4, UUID
 from socket import socket
 from contextlib import closing
 from tempfile import mkstemp
+from datetime import timedelta
 
 import yaml
 import json
@@ -113,7 +114,7 @@ def get_docker_client(cluster, address):
 
     return dockerpy_client(
         base_url="https://{}:{}".format(address, DOCKER_PORT),
-        tls=tls, timeout=100, version='1.21',
+        tls=tls, timeout=timedelta(seconds=100), version='1.21',
     )
 
 

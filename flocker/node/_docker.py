@@ -7,6 +7,8 @@ Docker API client.
 
 from __future__ import absolute_import
 
+from datetime import timedelta
+
 from errno import ECONNREFUSED
 from socket import error as socket_error
 from functools import partial
@@ -384,7 +386,11 @@ class TimeoutClient(Client):
     """
 
     def __init__(self, *args, **kw):
-        self.long_timeout = kw.pop('long_timeout', None)
+        """
+        :param timedelta long_timeout: A timeout to use for any request that
+            doesn't have any other timeout specified.
+        """
+        self._long_timeout = kw.pop('long_timeout')
         Client.__init__(self, *args, **kw)
 
     def _set_request_timeout(self, kwargs):
@@ -394,8 +400,8 @@ class TimeoutClient(Client):
         set it to the ``long_timeout`` parameter.
         """
         kwargs = Client._set_request_timeout(self, kwargs)
-        if kwargs['timeout'] is None:
-            kwargs['timeout'] = self.long_timeout
+        if kwargs['timeout'] is None and self._long_timeout is not None:
+            kwargs['timeout'] = self._long_timeout.total_seconds()
         return kwargs
 
 
@@ -482,7 +488,8 @@ class DockerClient(object):
             long_timeout=600):
         self.namespace = namespace
         self._client = dockerpy_client(
-            version="1.15", base_url=base_url, long_timeout=long_timeout,
+            version="1.15", base_url=base_url,
+            long_timeout=timedelta(seconds=long_timeout),
         )
         self._image_cache = LRUCache(100)
 
