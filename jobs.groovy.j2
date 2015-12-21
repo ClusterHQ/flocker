@@ -365,8 +365,8 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
                 }
                 // limit execution to jenkins slaves with a particular label
                 label(job_values.on_nodes_with_labels)
-                directories_to_delete = ["${WORKSPACE}/_trial_temp",
-                                         "${WORKSPACE}/.hypothesis"]
+                directories_to_delete = ['${WORKSPACE}/_trial_temp',
+                                         '${WORKSPACE}/.hypothesis']
                 wrappers build_wrappers(job_values, directories_to_delete)
                 scm build_scm(git_url, branchName)
                 steps build_steps(job_values.with_steps)
@@ -390,8 +390,8 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
                 }
                 // limit execution to jenkins slaves with a particular label
                 label(job_values.on_nodes_with_labels)
-                directories_to_delete = ["${WORKSPACE}/_trial_temp",
-                                         "${WORKSPACE}/.hypothesis"]
+                directories_to_delete = ['${WORKSPACE}/_trial_temp',
+                                         '${WORKSPACE}/.hypothesis']
                 wrappers build_wrappers(job_values, directories_to_delete)
                 scm build_scm(git_url, branchName)
                 steps build_steps(job_values.with_steps)
@@ -435,7 +435,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
                 // limit execution to jenkins slaves with a particular label
                 label(job_values.on_nodes_with_labels)
 
-                directories_to_delete = ["${WORKSPACE}/repo" ]
+                directories_to_delete = ['${WORKSPACE}/repo' ]
                 wrappers build_wrappers(job_values, directories_to_delete)
                 scm build_scm(git_url, branchName)
                 steps build_steps(job_values.with_steps)
@@ -460,7 +460,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
 
-            directories_to_delete = ["${WORKSPACE}/repo"]
+            directories_to_delete = ['${WORKSPACE}/repo']
             wrappers build_wrappers(job_values, directories_to_delete)
             scm build_scm(git_url, branchName)
             steps build_steps(job_values.with_steps)
