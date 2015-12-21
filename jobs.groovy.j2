@@ -93,7 +93,7 @@
 def process = '/usr/local/bin/python -c "import json, yaml, sys; print json.dumps(yaml.safe_load(sys.stdin.read()))"'.execute()
 // Aren't Java APIs awesome? Process.getOutputStream() is stdin.
 def stdin = process.getOutputStream()
-stdin.write(readFileFromWorkspace('build.yaml'))
+stdin.write(readFileFromWorkspace('build.yaml').getBytes(Charset.forName("UTF-8")))
 stdin.flush()
 def jsonSlurper = new groovy.json.JsonSlurper()
 def GLOBAL_CONFIG = jsonSlurper.parse(process.getInputStream())
