@@ -34,7 +34,7 @@ from .._client import (
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
     Lease, LeaseAlreadyHeld, Node, Container, ContainerAlreadyExists,
     DatasetsConfiguration, ConfigurationChanged, conditional_create,
-    _LOG_CONDITIONAL_CREATE,
+    _LOG_CONDITIONAL_CREATE, ContainerState,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -345,7 +345,7 @@ def make_clientv1_tests():
                                          configuration_tag=u"willnotmatch")
             return self.assertFailure(d, ConfigurationChanged)
 
-        def test_list_state(self):
+        def test_dataset_state(self):
             """
             ``list_datasets_state`` returns information about state.
             """
@@ -494,6 +494,29 @@ def make_clientv1_tests():
                 )
                 return self.assertFailure(d, ContainerAlreadyExists)
             d.addCallback(got_result)
+            return d
+
+        def test_container_state(self):
+            """
+            ``list_containers_state`` returns information about state.
+            """
+            expected, d = create_container_for_test(self, self.client)
+
+            d.addCallback(lambda _ignored: self.synchronize_state())
+
+            d.addCallback(lambda _ignored: self.client.list_containers_state())
+
+            d.addCallback(
+                lambda containers: [(c.node_uuid, c.name) for c in containers]
+            )
+
+            d.addCallback(
+                lambda containers: self.assertIn(
+                    (expected.node_uuid, expected.name),
+                    containers
+                )
+            )
+
             return d
 
         def test_delete_container(self):
@@ -663,7 +686,9 @@ class FlockerClientTests(make_clientv1_tests()):
 
     def synchronize_state(self):
         deployment = self.persistence_service.get()
+        # No IP address known, so use UUID for hostname
         node_states = [NodeState(uuid=node.uuid, hostname=unicode(node.uuid),
+                                 applications=node.applications,
                                  manifestations=node.manifestations,
                                  paths={manifestation.dataset_id:
                                         FilePath(b"/flocker").child(bytes(
