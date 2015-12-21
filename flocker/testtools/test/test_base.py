@@ -403,7 +403,7 @@ class ResultOfAssertionsTests(TestCase):
     Bare minimum of testing for the Deferred result-related assertions borrowed
     from Twisted.
 
-    These tests aren't more thorough because we don't implementat of them in
+    These tests aren't more thorough because we don't implement them in
     Flocker.  We just want to verify we've glued in the Twisted implementation
     successfully.
     """
