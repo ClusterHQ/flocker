@@ -5618,7 +5618,7 @@ def _surround_with_callbacks_decorator(method_name, callback, proxy_object):
 def create_callback_blockdevice_manager_proxy(proxy_object, callback):
     """
     Creates a provider of ``IBlockDeviceManager`` that proxies to another
-    ``IBlockDeviceManager`` privider and calls a callback before and after
+    ``IBlockDeviceManager`` provider and calls a callback before and after
     each call to the underlying object. This enables tests where you want to
     inject code before or after any calls to the underlying API.
 
