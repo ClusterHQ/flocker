@@ -10,6 +10,7 @@ from twisted.internet.defer import maybeDeferred
 from benchmark.metrics import WallClock
 
 
+# XXX FLOC-3281 Change to flocker.testtools.TestCase after FLOC-3077 is merged
 class WallClockTests(SynchronousTestCase):
 
     def test_wallclock(self):
