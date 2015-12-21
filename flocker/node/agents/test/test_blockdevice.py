@@ -1234,22 +1234,31 @@ class _WriteVerifyingExternalClient(object):
         self._testing_mountroot = mountroot
         self._blockdevice_manager = blockdevice_manager
 
-    def _has_file_named(self, filename):
+    def _has_file_with_content(self, filename, content):
         """
         Returns whether the blockdevice at self._device_path has a file with
         the given name.
+
+        :param unicode filename: The name of the file to check for.
+        :param unicode content: The expected content of the file.
+
+        :returns: Whether the blockdevice that backs ``self._dataset_id`` has a
+            file with the given name that contains the given content.
         """
         test_mountpoint = self._testing_mountroot.child(str(uuid4()))
         test_mountpoint.makedirs()
         try:
             self._blockdevice_manager.mount(self._device_path, test_mountpoint)
-            result = test_mountpoint.child(filename).exists()
+            file_to_test = test_mountpoint.child(filename)
+            result = (file_to_test.exists() and
+                      file_to_test.getContent() == content)
             self._blockdevice_manager.unmount(self._device_path)
-            test_mountpoint.remove()
         except MountError:
             # We might not be able to mount if we do not have a filesystem on
             # the blockdevice.
             return False
+        finally:
+            test_mountpoint.remove()
         return result
 
     def invariant(self, case, current_cluster_state):
@@ -1278,9 +1287,10 @@ class _WriteVerifyingExternalClient(object):
 
         for path in self._known_mountpoints:
             device = self._device_path
-            filename = str(uuid4())
+            filename = unicode(uuid4())
+            random_string = unicode(uuid4())
             try:
-                path.child(filename).touch()
+                path.child(filename).setContent(random_string)
             except OSError:
                 # If we failed to write, that is okay in many scenarios. At
                 # least the failing write won't lead to the end user
@@ -1288,7 +1298,7 @@ class _WriteVerifyingExternalClient(object):
                 pass
             else:
                 case.assertTrue(
-                    self._has_file_named(filename),
+                    self._has_file_with_content(filename, random_string),
                     "Successfully wrote to a path gotten from flocker, "
                     "but the write was not persisted to the backing block "
                     "device.")
