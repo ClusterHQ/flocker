@@ -101,7 +101,7 @@ stdin.close()
 process.getOutputStream().close()
 def jsonSlurper = new groovy.json.JsonSlurper()
 // Java is the best! This is how you read file into a string:
-def GLOBAL_CONFIG = jsonSlurper.parseText(
+GLOBAL_CONFIG = jsonSlurper.parseText(
     new Scanner(process.getInputStream(),"UTF-8").useDelimiter("\\A").next())
 
 // --------------------------------------------------------------------------
@@ -321,9 +321,9 @@ class Looper {
 }
 
 // the project name from the build yaml 'ClusterHQ/Flocker'
-def project = GLOBAL_CONFIG.project
+project = GLOBAL_CONFIG.project
 // the github https url for the project
-def git_url = GLOBAL_CONFIG.git_url
+git_url = GLOBAL_CONFIG.git_url
 branches = []
 /* grab the GitHub token from the jenkins homedir.
    this is the github api token for jenkins. We need to authenticate as github
@@ -331,7 +331,7 @@ branches = []
 String token = new File('/var/lib/jenkins/.github_token').text.trim()
 
 // Lets's call it ClusterHQ-Flocker instead of ClusterHQ/Flocker
-def dashProject = project.replace('/', '-')
+dashProject = project.replace('/', '-')
 
 // Create a basefolder for our project, it should look like:
 //   '<github username>-<git repository>'
