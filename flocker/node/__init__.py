@@ -12,9 +12,9 @@ from ._deploy import (
     IDeployer,
     ILocalState,
     NodeLocalState,
-    P2PManifestationDeployer,
-    ApplicationNodeDeployer,
 )
+from ._container import ApplicationNodeDeployer
+from ._p2p import P2PManifestationDeployer
 
 from .script import BackendDescription, DeployerType
 
