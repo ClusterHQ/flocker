@@ -356,7 +356,8 @@ def _poll_until_success_returning_result(
         the indicated interval, respectively).  If an exception is raised,
         further tries are not attempted and the exception is allowed to
         propagate.
-    :param steps: XXX
+    :param steps: An iterator of delay intervals (as ``timedelta`` instances).
+        These intervals give the amount of time to wait between retries.
     :param sleep: A function like ``time.sleep`` to use for the delays.
     :param function: The function to try calling.
     :param args: Position arguments to pass to the function.
