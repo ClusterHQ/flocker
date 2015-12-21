@@ -12,7 +12,8 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from ..acceptance import (
     IClusterRunner, ManagedRunner, generate_certificates,
-    journald_json_formatter, DISTRIBUTIONS, TailFormatter
+    journald_json_formatter, DISTRIBUTIONS, TailFormatter,
+    ClusterIdentity
 )
 
 from flocker.ca import RootCredential
@@ -39,6 +40,11 @@ class ManagedRunnerTests(SynchronousTestCase):
             distribution=b'centos-7',
             dataset_backend=DatasetBackend.zfs,
             dataset_backend_configuration={},
+            identity=ClusterIdentity(
+                name=b'cluster',
+                purpose=u'test',
+                prefix=u'test',
+            ),
         )
         self.assertTrue(
             verifyObject(IClusterRunner, runner)
@@ -57,7 +63,7 @@ class GenerateCertificatesTests(SynchronousTestCase):
         node = ManagedNode(
             address=b"192.0.2.17", distribution=DISTRIBUTIONS[0],
         )
-        certificates = generate_certificates(cluster_id, [node])
+        certificates = generate_certificates(b'cluster', cluster_id, [node])
         root = RootCredential.from_path(certificates.directory)
         self.assertEqual(
             cluster_id,
