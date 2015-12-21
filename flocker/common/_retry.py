@@ -374,7 +374,6 @@ def _poll_until_success_returning_result(
         try:
             result = function(*args, **kwargs)
         except Exception as e:
-            # XXX: Should this return bool?
             saved_result[0] = exc_info()
             should_retry(*saved_result[0])
             Message.new(
