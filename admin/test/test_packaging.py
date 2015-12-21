@@ -14,11 +14,10 @@ from StringIO import StringIO
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.python.usage import UsageError
-from twisted.trial.unittest import TestCase
 
 from virtualenv import REQUIRED_MODULES as VIRTUALENV_REQUIRED_MODULES
 
-from flocker.testtools import FakeSysModule
+from flocker.testtools import TestCase, FakeSysModule
 
 from .. import packaging
 from ..packaging import (
@@ -1107,6 +1106,7 @@ class DockerBuildOptionsTests(TestCase):
         """
         Patch ``admin.packaging._native_package_type`` to return a fixed value.
         """
+        super(DockerBuildOptionsTests, self).setUp()
         self.patch(
             packaging, '_native_package_type',
             lambda: self.native_package_type)
