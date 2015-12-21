@@ -304,22 +304,6 @@ def build_steps(v) {
 }
 
 
-// groovy lacks a loop...until ...
-class Looper {
-   private Closure code
-
-   static Looper loop( Closure code ) {
-      new Looper(code:code)
-   }
-
-   void until( Closure test ) {
-      code()
-      while (!test()) {
-         code()
-      }
-   }
-}
-
 // the project name from the build yaml 'ClusterHQ/Flocker'
 project = GLOBAL_CONFIG.project
 // the github https url for the project
