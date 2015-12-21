@@ -40,15 +40,21 @@ class RateMeasurer(object):
         """
         self._sent += 1
 
-    def response_received(self, result):
+    def response_received(self, ignored):
         """
         Increase the number of received requests.
+
+        :param ignored: The result of a callback. This parameter is
+            not used.
         """
         self._received += 1
 
-    def request_failed(self, result):
+    def request_failed(self, ignored):
         """
         Increase the error count for failed requests.
+
+        :param ignored: The result of a callback. This parameter is
+            not used.
         """
         self._errors += 1
 
