@@ -19,7 +19,7 @@ from pytz import UTC
 
 import psutil
 
-from characteristic import attributes
+from characteristic import attributes, Attribute
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -1302,7 +1302,7 @@ class _WriteVerifyingExternalClient(object):
             device = self._device_path
             filename = unicode(uuid4())
             random_string = unicode(uuid4())
-            path_to_write = path.child('fakefolder').child(filename)
+            path_to_write = path.child(filename)
             try:
                 path_to_write.setContent(random_string)
             except OSError:
@@ -1429,6 +1429,28 @@ class BlockDeviceCalculatorTestObjects(object):
             raise DidNotConverge(iteration_count=max_iterations)
 
 
+@attributes([Attribute("callback", default_value=None)])
+class _NullableCallback(object):
+    """
+    A callable implementation that you can change after creation.
+
+    :ivar callback: The callable to call when this object's __call__ is called,
+        or ``None`` for the callback to do nothing.
+    :type callback: Any callable or ``type(None)``.
+    """
+
+    def __call__(self, *args, **kwargs):
+        """
+        Call the underlying callback if it is not ``None``, or do nothing if it
+        is ``None``.
+
+        :returns: The result of the underlying callback or ``None``.
+        """
+        if self.callback is not None:
+            return self.callback(*args, **kwargs)
+        return None
+
+
 class BlockDeviceCalculatorTests(SynchronousTestCase):
     """
     Tests for ``BlockDeviceCalculator``.
@@ -1508,15 +1530,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
 
         dataset_id = initial_dataset.dataset_id
 
-        class NullableCallback():
-            def __init__(self):
-                self.callback = None
-
-            def __call__(self, *args, **kwargs):
-                if self.callback:
-                    self.callback(*args, **kwargs)
-
-        nullable_callback = NullableCallback()
+        nullable_callback = _NullableCallback()
 
         actual_blockdevice_manager = BlockDeviceManager()
         proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
@@ -1567,6 +1581,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
                 self.fail("Did not converge to next state after %d "
                           "iterations." % e.iteration_count)
         finally:
+            nullable_callback.callback = None
             test_objects.cleanup_example()
 
     @given(
