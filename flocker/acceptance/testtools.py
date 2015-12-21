@@ -114,7 +114,7 @@ def get_docker_client(cluster, address):
 
     return dockerpy_client(
         base_url="https://{}:{}".format(address, DOCKER_PORT),
-        tls=tls, timeout=timedelta(seconds=100), version='1.21',
+        tls=tls, timeout=100, version='1.21',
     )
 
 
