@@ -22,43 +22,57 @@ DEFAULT_SAMPLE_SIZE = 5
 # in the Read scenario
 class WRateMeasurer(object):
     """
-    Measures the rate of requests in requests per second
+    Measures the rate of requests in requests per second.
 
-    :ivar sample_size: size of the sample we request - how many samples,
-    or counts, do we want to consider we have reached the rate.
+    :ivar sample_size: The number of samples to collect.
     """
 
     def __init__(self, sample_size=DEFAULT_SAMPLE_SIZE):
-        self.counts = deque([0] * sample_size, sample_size)
-        self.sent = 0
-        self.received = 0
-        self._rate = 0
         self.sample_size = sample_size
+        self._counts = deque([0] * sample_size, sample_size)
+        self._sent = 0
+        self._received = 0
+        self._errors = 0
+        self._rate = 0
 
-    def send_request(self):
+    def request_sent(self):
         """
-        Increase the counter of sent requests.
+        Increase the number of sent requests.
         """
-        self.sent += 1
+        self._sent += 1
 
-    def receive_request(self, result):
+    def response_received(self, ignored):
         """
-        Increase the counter of sent requests.
+        Increase the number of received requests.
+
+        :param ignored: The result of a callback. This parameter is
+            not used.
         """
-        self.received += 1
+        self._received += 1
+
+    def request_failed(self, ignored):
+        """
+        Increase the error count for failed requests.
+
+        :param ignored: The result of a callback. This parameter is
+            not used.
+        """
+        self._errors += 1
 
     def update_rate(self):
         """
-        Update the current rate and stores a new count in the counts list.
+        Update the current rate and record a new sample.
         """
-        self._rate = (self.received - self.counts[0]) / float(self.sample_size)
-        self.counts.append(self.received)
+        self._rate = (
+            (self._received - self._counts[0]) / float(self.sample_size)
+        )
+        self._counts.append(self._received)
 
     def outstanding(self):
         """
         Return the number of outstanding requests.
         """
-        return self.sent - self.received
+        return self._sent - self._received - self._errors
 
     def rate(self):
         return self._rate
@@ -197,8 +211,8 @@ class WriteRequestLoadScenario(object):
         for i in range(self.request_rate):
             d = self.control_service.move_dataset(self.dataset_id,
                                                   self.dataset_id)
-            self.rate_measurer.send_request()
-            d.addCallbacks(self.rate_measurer.receive_request,
+            self.rate_measurer.request_sent()
+            d.addCallbacks(self.rate_measurer.response_received,
                            errback=eliot.write_failure)
 
     def check_rate(self):

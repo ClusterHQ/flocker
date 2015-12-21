@@ -24,44 +24,58 @@ class WRateMeasurerTest(SynchronousTestCase):
     WRateMeasurer tests.
     """
 
-    def send_requests(self, r_measurer, num_req, num_samples):
+    def send_requests(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will send the desired number of request.
 
-        :param r_measurer: `rate_measurer` we are testing.
-        :param num_req: number of request we want to send.
-        :param num_samples: numbe of samples (interval).
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_requests: The number of request we want to send.
+        :param num_samples: The number of samples to collect.
         """
-        for i in range(num_samples):
-            for i in range(num_req):
-                r_measurer.send_request()
+        for i in range(num_samples * num_requests):
+            rate_measurer.request_sent()
 
-    def receive_requests(self, r_measurer, num_req, num_samples):
+    def receive_requests(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will receive the desired number of requests.
 
-        :param r_measurer: `rate_measurer` we are testing.
-        :param num_req: number of request we want to receive.
-        :param num_samples: numbe of samples (interval).
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_requests: The number of request we want to receive.
+        :param num_samples: The number of samples to collect.
         """
         ignored = ""
         for i in range(num_samples):
-            for i in range(num_req):
-                r_measurer.receive_request(ignored)
-            r_measurer.update_rate()
+            for i in range(num_requests):
+                rate_measurer.response_received(ignored)
+            rate_measurer.update_rate()
 
-    def increase_rate(self, r_measurer, num_req, num_samples):
+    def failed_requests(self, rate_measurer, num_failures, num_samples):
+        """
+        Helper function that will result the desired number of response
+        failures.
+
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_failures: The number of requests we want to fail.
+        :param num_samples: The number of samples to collect.
+        """
+        result = None
+        for i in range(num_samples):
+            for i in range(num_failures):
+                rate_measurer.request_failed(result)
+            rate_measurer.update_rate()
+
+    def increase_rate(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will increase the rate, sending the
         desired number of request, and receiving the same
         amount of them.
 
-        :param r_measurer: `rate_measurer` we are testin.
-        :param num_req: number of request we want to make.
-        :param num_samples: numbe of samples (interval).
+        :param rate_measurer: The `RateMeasurer` we are testing
+        :param num_requests: The number of request we want to make.
+        :param num_samples: The number of samples to collect.
         """
-        self.send_requests(r_measurer, num_req, num_samples)
-        self.receive_requests(r_measurer, num_req, num_samples)
+        self.send_requests(rate_measurer, num_requests, num_samples)
+        self.receive_requests(rate_measurer, num_requests, num_samples)
 
     def test_rate_is_zero_when_no_samples(self):
         """
@@ -70,19 +84,18 @@ class WRateMeasurerTest(SynchronousTestCase):
         r = WRateMeasurer()
         self.assertEqual(r.rate(), 0, "Expected initial rate to be zero")
 
-    def test_rate_is_small_when_not_enough_samples(self):
+    def test_rate_is_lower_than_target_when_not_enough_samples(self):
         """
         When the number of samples collected is less than the sample
-        size, the rate should be smaller than `req_per_second`.
+        size, the rate should be lower than `target_rate`.
         """
         r = WRateMeasurer()
-        req_per_second = 5
+        target_rate = 5
+        num_samples = r.sample_size - 1
 
-        self.increase_rate(r, req_per_second, (r.sample_size / 2))
+        self.increase_rate(r, target_rate, num_samples)
 
-        self.assertEqual((req_per_second * (r.sample_size / 2)) /
-                         r.sample_size,
-                         r.rate())
+        self.assertTrue(r.rate() < target_rate)
 
     def test_rate_is_correct_when_enough_samples(self):
         """
@@ -90,11 +103,11 @@ class WRateMeasurerTest(SynchronousTestCase):
         samples have been collected.
         """
         r = WRateMeasurer()
-        req_per_second = 5
+        target_rate = 5
 
-        self.increase_rate(r, req_per_second, r.sample_size)
+        self.increase_rate(r, target_rate, r.sample_size)
 
-        self.assertEqual(req_per_second, r.rate())
+        self.assertEqual(target_rate, r.rate())
 
     def test_old_samples_are_not_considered(self):
         """
@@ -103,29 +116,50 @@ class WRateMeasurerTest(SynchronousTestCase):
         a new sample, the oldest one is discarded.
         """
         r = WRateMeasurer()
-        req_per_second = 5
-        # generate samples that should get lost
-        self.increase_rate(r, 100, r.sample_size/2)
+        target_rate = 5
 
-        # generate r.sample_size samples that will make the initial
-        # ones not count
-        self.increase_rate(r, req_per_second, r.sample_size)
+        # Generate samples that will achieve a high request rate
+        self.increase_rate(r, target_rate * 2, r.sample_size)
 
-        self.assertEqual(req_per_second, r.rate())
+        # Generate samples to lower the request rate to the target rate
+        self.increase_rate(r, target_rate, r.sample_size)
 
-    def test_only_received_samples_considered_in_rate(self):
+        self.assertEqual(target_rate, r.rate())
+
+    def test_rate_only_considers_received_samples(self):
         """
         The rate should be based on the number of received requests,
-        not the number of sent requests.
+        not the number of sent or failed requests.
         """
         r = WRateMeasurer()
-        send_per_second = 100
-        rec_per_second = 5
+        send_request_rate = 100
+        failed_request_rate = 10
+        receive_request_rate = 5
 
-        self.send_requests(r, send_per_second, r.sample_size)
-        self.receive_requests(r, rec_per_second, r.sample_size)
+        self.send_requests(r, send_request_rate, r.sample_size)
+        self.failed_requests(r, failed_request_rate, r.sample_size)
+        self.receive_requests(r, receive_request_rate, r.sample_size)
 
-        self.assertEqual(rec_per_second, r.rate())
+        self.assertEqual(receive_request_rate, r.rate())
+
+    def test_outstanding_considers_all_responses(self):
+        """
+        Requests that fail are considered to be completed requests and
+        should be included when calculating the number of outstanding
+        requests.
+        """
+        r = WRateMeasurer()
+
+        # Send 25 requests
+        self.send_requests(r, 5, r.sample_size)
+
+        # Receive successful responses for 20 of those requests
+        self.receive_requests(r, 4, r.sample_size)
+
+        # Mark 5 of the requests as failed
+        self.failed_requests(r, 1, r.sample_size)
+
+        self.assertEqual(0, r.outstanding())
 
 
 class RequestDroppingFakeFlockerClient(
