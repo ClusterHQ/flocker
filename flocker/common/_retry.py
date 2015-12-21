@@ -318,6 +318,8 @@ def retry_if(predicate):
     return should_retry
 
 
+# TODO Move this helper to somewhere else in flocker.common.  It's not
+# particular to any retry logic.
 def decorate_methods(obj, decorator):
     """
     Return a wrapper around ``obj`` with ``decorator`` applied to all of its
