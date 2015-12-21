@@ -1486,9 +1486,20 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         """
         Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
-        dataset. During that time, it will never be the case that a
-        successfully write to a mount path that has been sent to the control
-        agent will not be persisted to the backing volume.
+        dataset. During that time we want to verify that an invariant holds.
+        The invariant is multipart:
+
+        - If the dataset is presently reported as manifest in the cluster
+          state, we should be able to write a file to the path reported in the
+          cluster state, and the write should be persisted to the backing
+          blockdevice.
+        - If the dataset is not presently reported as manifest, writes should
+          still be persisted to the backing blockdevice or they should fail.
+
+        Specifically, it should not be possible for a write to a path to
+        succeed, but have the write not be written to the blockdevice that
+        backs the dataset, even if the write comes after flocker has unmounted
+        a device.
 
         This would represent an agent like docker attempting to use a path
         before or after flocker was ready for it to use the path.
