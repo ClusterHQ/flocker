@@ -388,10 +388,10 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
     if (job_type == 'run_trial_for_storage_driver') {
         for (_module in job_values.with_modules) {
             _job_name = job_name + '_' + _module.replace('/', '_')
-            job("${dashProject}/${dashBranchName}/{{ _job_name }}") {
+            job("${dashProject}/${dashBranchName}/${_job_name}") {
                 parameters {
                     // we pass the 'MODULE' parameter as the flocker module to test with trial
-                    textParam("MODULE", "{{ _module }}", "Module to test" )
+                    textParam("MODULE", _module, "Module to test" )
                     textParam("TRIGGERED_BRANCH", branchName,
                               "Branch that triggered this job" )
                 }
