@@ -1176,16 +1176,15 @@ def main(reactor, args, base_path, top_level):
 
     setup_succeeded = False
     reached_finally = False
-    stop_cluster = True
 
     def cluster_cleanup():
         if not reached_finally:
             print "interrupted..."
-        if stop_cluster:
-            print "stopping cluster"
-            return runner.stop_cluster(reactor)
+        print "stopping cluster"
+        return runner.stop_cluster(reactor)
 
-    reactor.addSystemEventTrigger('before', 'shutdown', cluster_cleanup)
+    cleanup_trigger_id = reactor.addSystemEventTrigger('before', 'shutdown',
+                                                       cluster_cleanup)
 
     try:
         yield runner.ensure_keys(reactor)
@@ -1247,6 +1246,6 @@ def main(reactor, args, base_path, top_level):
                     value=shell_quote(
                         environment_variables[environment_variable]),
                 )
-            stop_cluster = False
+            reactor.removeSystemEventTrigger(cleanup_trigger_id)
 
     raise SystemExit(result)
