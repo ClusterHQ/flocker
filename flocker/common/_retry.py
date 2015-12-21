@@ -410,11 +410,11 @@ def with_retry(method, should_retry=None, steps=None, sleep=None):
 
     :param callable method: A method to retry.
     :param callable should_retry: A one-argument callable which accepts a
-        three-tuple of exception state and returns a ``timedelta`` or raises an
-        exception.  If the call should be retried, the ``timedelta`` gives a
-        time to delay before the retry.  If an exception is raised, no further
-        retries are attempted and the exception is propagated from the method
-        call.
+        three-tuple of exception state and returns ``None`` or raises an
+        exception.  If ``None`` is returned, the call will be retried after a
+        delay given by the next element of ``steps``.  If an exception is
+        raised, no further retries are attempted and the exception is
+        propagated from the method call.
     :param steps: An iterator of delay intervals (as ``timedelta`` instances).
         These intervals give the amount of time to wait between retries.
     :param callable sleep: A replacement for ``time.sleep``.
