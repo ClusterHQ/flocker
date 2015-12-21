@@ -561,7 +561,7 @@ def build_multijob(dashBranchName, branchName) {
                 */
                 for (job_type_entry in GLOBAL_CONFIG.job_type) {
                     job_type = job_type_entry.key
-                    job_type_values  job_type_entry.value
+                    job_type_values = job_type_entry.value
 
                     /* add the 'run_trial' style jobs, where there is a job per module */
                     if (job_type in ['run_trial', 'run_trial_for_storage_driver',
