@@ -209,7 +209,7 @@ def build_triggers(_type, _value, _branch ) {
     param: git_url - example: https://github.com/clusterhq/flocker
     param: branch - remote branch name to configure
 */
-def build_scm(git_url, branch) {
+def build_scm(git_url, branchName) {
     return {
         git {
             remote {
@@ -227,7 +227,7 @@ def build_scm(git_url, branch) {
                 node / gitConfigEmail('jenkins@clusterhq.com')
             }
             // the branch to be built
-            branch(branch)
+            branch(branchName)
             // clean the repository before merging (git reset --hard)
             clean(true)
             createTag(false)
