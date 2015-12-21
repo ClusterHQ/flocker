@@ -90,17 +90,22 @@
 */
 
 // Load the build.yaml, convert to JSON:
-def process = '/usr/local/bin/python -c "import json, yaml, sys; print json.dumps(yaml.safe_load(sys.stdin.read()))"'.execute()
+def processbuilder = new ProcessBuilder('/usr/local/bin/python', '-c', '''import json, yaml, sys; sys.stdout.write(json.dumps(yaml.safe_load(sys.stdin.read())) + '\n'); sys.stdout.flush()"''')
+def process = processbuilder.redirectInput(ProcessBuilder.Redirect.PIPE).redirectOutput(
+    ProcessBuilder.Redirect.PIPE).start()
 // Aren't Java APIs awesome? Process.getOutputStream() is stdin.
 def stdin = new java.io.PrintWriter(process.getOutputStream())
 stdin.write(readFileFromWorkspace('build.yaml'))
 stdin.flush()
+stdin.close()
+process.getOutputStream().close()
+process.waitFor()
 // I hate Java so much: this is how you read a String from an InputStream.
 def reader = new java.io.BufferedReader(
-    new java.io.InputStreamReader(process.getInputStream())));
+    new java.io.InputStreamReader(process.getInputStream(), java.nio.charset.Charset.forName("UTF-8")))
 def out = new StringBuilder()
 while ((line = reader.readLine()) != null) {
-     out.append(line);
+     out.append(line)
 }
 def jsonSlurper = new groovy.json.JsonSlurper()
 def GLOBAL_CONFIG = jsonSlurper.parseText(out.toString())
