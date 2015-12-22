@@ -6,7 +6,8 @@ from collections import deque
 from itertools import repeat
 
 from zope.interface import implementer
-import eliot
+from eliot import start_action, write_failure, Message
+from eliot.twisted import DeferredContext
 
 from twisted.internet.defer import CancelledError, Deferred, succeed
 from twisted.internet.task import LoopingCall
@@ -213,12 +214,17 @@ class WriteRequestLoadScenario(object):
         """
         for i in range(count):
             self.rate_measurer.update_rate()
+
+        def handle_request_error(result):
+            self.rate_measurer.request_failed(result)
+            write_failure(result)
+
         for i in range(self.request_rate):
             d = self.control_service.move_dataset(self.dataset_id,
                                                   self.dataset_id)
             self.rate_measurer.request_sent()
             d.addCallbacks(self.rate_measurer.response_received,
-                           errback=eliot.write_failure)
+                           errback=handle_request_error)
 
     def check_rate(self):
         """
@@ -303,4 +309,41 @@ class WriteRequestLoadScenario(object):
         if self.loop.running:
             self.loop.stop()
 
-        return succeed(None)
+        outstanding_requests = self.rate_measurer.outstanding()
+
+        if outstanding_requests > 0:
+            msg = (
+                "There are {num_requests} outstanding requests. "
+                "Waiting {num_seconds} seconds for them to complete."
+            ).format(
+                num_requests=outstanding_requests,
+                num_seconds=self.timeout
+            )
+            Message.log(key='outstanding_requests', value=msg)
+
+        with start_action(
+            action_type=u'flocker:benchmark:scenario:stop',
+            scenario='write_request_load'
+        ):
+            def handle_timeout(failure):
+                failure.trap(CancelledError)
+                msg = (
+                    "Force stopping the scenario. "
+                    "There are {num_requests} outstanding requests"
+                ).format(
+                    num_requests=outstanding_requests
+                )
+                Message.log(key='force_stop_request', value=msg)
+
+            def no_outstanding_requests():
+                return self.rate_measurer.outstanding() == 0
+
+            scenario_stopped = loop_until(self.reactor,
+                                          no_outstanding_requests,
+                                          repeat(1))
+            timeout(self.reactor, scenario_stopped, self.timeout)
+            scenario_stopped.addErrback(handle_timeout)
+
+            scenario = DeferredContext(scenario_stopped)
+            scenario.addActionFinish()
+            return scenario.result
