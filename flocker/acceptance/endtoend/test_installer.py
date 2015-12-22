@@ -25,6 +25,21 @@ INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
 
 
+def remote_docker(node, *args):
+    docker_output = []
+    d = run_ssh(
+        reactor,
+        'ubuntu',
+        node,
+        ('docker') + args,
+        handle_stdout=docker_output.append
+    )
+    d.addCallback(
+        lambda process_result: (process_result, docker_output)
+    )
+    return d
+
+
 def remote_docker_compose(compose_file_path, *args):
     docker_compose_output = []
     d = run_ssh(
@@ -66,20 +81,38 @@ class DockerComposeTests(AsyncTestCase):
         d = maybeDeferred(super(DockerComposeTests, self).setUp)
 
         def local_setup(ignored):
-            d_node1 = remote_docker_compose(COMPOSE_NODE0, 'stop')
-            d_node1.addCallback(
+            d_node1_compose = remote_docker_compose(COMPOSE_NODE0, 'stop')
+            d_node1_compose.addCallback(
                 lambda ignored: remote_docker_compose(
                     COMPOSE_NODE0, 'rm', '-f'
                 )
             )
 
-            d_node2 = remote_docker_compose(COMPOSE_NODE1, 'stop')
-            d_node2.addCallback(
+            d_node1_docker = remote_docker(NODE0, 'stop',
+                                           'postgres_postgres_1')
+            d_node1_docker.addCallback(
+                lambda ignored: remote_docker(
+                    NODE0, 'rmi', '-f', 'postgres_postgres_1'
+                )
+            )
+
+            d_node2_compose = remote_docker_compose(COMPOSE_NODE1, 'stop')
+            d_node2_compose.addCallback(
                 lambda ignored: remote_docker_compose(
                     COMPOSE_NODE1, 'rm', '-f'
                 )
             )
-            return gather_deferreds([d_node1, d_node2])
+
+            d_node2_docker = remote_docker(NODE1, 'stop',
+                                           'postgres_postgres_1')
+            d_node1_docker.addCallback(
+                lambda ignored: remote_docker(
+                    NODE1, 'rmi', '-f', 'postgres_postgres_1'
+                )
+            )
+
+            return gather_deferreds([d_node1_compose, d_node1_docker,
+                                     d_node2_compose, d_node2_docker])
         d.addCallback(local_setup)
         return d
 
