@@ -174,7 +174,6 @@ class RequestDroppingFakeFlockerClient(
         super(RequestDroppingFakeFlockerClient, self).__init__(nodes)
         self.drop_requests = False
         self._dropped_last_request = False
-        self._real_nodes = nodes
 
     def move_dataset(self, primary, dataset_id, configuration_tag=None):
         if not self.drop_requests:
@@ -225,7 +224,6 @@ class UnresponsiveDatasetCreationFakeFlockerClient(
         ).__init__(nodes)
         self.drop_requests = False
         self._dropped_last_request = False
-        self._real_nodes = nodes
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
                        metadata=None, configuration_tag=None):
