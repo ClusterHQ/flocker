@@ -1251,15 +1251,7 @@ class _WriteVerifyingExternalClient(object):
         test_mountpoint = self._testing_mountroot.child(str(uuid4()))
         test_mountpoint.makedirs()
 
-        # If the device is already mounted, read the file from the existing
-        # mountpoint.
-        for mount_info in self._blockdevice_manager.get_mounts():
-            if mount_info.blockdevice == self._device_path:
-                file_to_test = mount_info.mountpoint.child(filename)
-                return (file_to_test.exists() and
-                        file_to_test.getContent() == content)
-
-        # Otherwise mount the blockdevice and read the file from the new
+        # Mount the blockdevice in a fresh mount and read the file from the new
         # mountpoint.
         try:
             self._blockdevice_manager.mount(self._device_path, test_mountpoint)
