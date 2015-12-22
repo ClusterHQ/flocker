@@ -5,6 +5,7 @@ Tests for ``flocker.node.agents.ebs``.
 """
 
 from string import lowercase
+from subprocess import check_output
 from uuid import uuid4
 
 from hypothesis import given
@@ -208,6 +209,10 @@ class AttachVolumeAndWaitTests(SynchronousTestCase):
             blockdevices=[],
             time_limit=0,
         )
+
+    def test_where_does_stderr_go(self):
+        output = check_output(['bash', '-c', 'echo "RICHARDW_STDERR" >&2'])
+        self.assertEqual('', output)
 
 
 class ExpectedDeviceTests(SynchronousTestCase):
