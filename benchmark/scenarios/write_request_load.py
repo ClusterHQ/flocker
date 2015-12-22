@@ -176,6 +176,7 @@ class WriteRequestLoadScenario(object):
 
         :raises: `WDataseCreationTimeout` if the creation goes wrong.
         """
+        self.dataset_node = node
         creating = self.control_service.create_dataset(
             primary=node.uuid)
 
@@ -202,8 +203,7 @@ class WriteRequestLoadScenario(object):
         """
         if not nodes:
             raise WNoNodesFound()
-        self.dataset_node = nodes[0]
-        return self.dataset_node
+        return nodes[0]
 
     def _request_and_measure(self, count):
         """
