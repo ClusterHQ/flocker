@@ -20,7 +20,7 @@ NODE1 = os.environ['CLUSTER_NODE1']
 COMPOSE_NODE0 = '/home/ubuntu/postgres/docker-compose-node0.yml'
 COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
 
-RECREATE_STATEMENT = 'drop table test; create table test(i int);'
+RECREATE_STATEMENT = 'drop table if exists test; create table test(i int);'
 INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
 
@@ -157,7 +157,7 @@ class DockerComposeTests(AsyncTestCase):
 
         d.addCallback(
             lambda (process_status, process_output): self.assertEqual(
-                "", process_output
+                "1", process_output[2].strip()
             )
         )
 
