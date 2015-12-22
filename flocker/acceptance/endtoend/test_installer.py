@@ -17,8 +17,8 @@ CLIENT_IP = os.environ['CLIENT_IP']
 DOCKER_HOST = os.environ['DOCKER_HOST']
 NODE0 = os.environ['CLUSTER_NODE0']
 NODE1 = os.environ['CLUSTER_NODE1']
-COMPOSE_NODE0 = '/home/ubuntu/mysql/docker-compose-node0.yml'
-COMPOSE_NODE1 = '/home/ubuntu/mysql/docker-compose-node1.yml'
+COMPOSE_NODE0 = '/home/ubuntu/postgres/docker-compose-node0.yml'
+COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
 
 
 def remote_docker_compose(compose_file_path, *args):
@@ -37,20 +37,19 @@ def remote_docker_compose(compose_file_path, *args):
     return d
 
 
-def remote_mysql(host, command):
-    mysql_output = []
+def remote_postgres(host, command):
+    postgres_output = []
     d = run_ssh(
         reactor,
         'ubuntu',
         CLIENT_IP,
-        ('mysql', '--host=' + host, '--port=3306',
-         '--user=root', '--password=secret',
-         '--wait',
+        ('psql', '-h ' + host,
+         '--user=flocker', '--password=flocker',
          '--execute={}'.format(command)),
-        handle_stdout=mysql_output.append
+        handle_stdout=postgres_output.append
     )
     d.addCallback(
-        lambda process_result: (process_result, mysql_output)
+        lambda process_result: (process_result, postgres_output)
     )
     return d
 
@@ -81,14 +80,14 @@ class DockerComposeTests(AsyncTestCase):
         d.addCallback(local_setup)
         return d
 
-    def test_docker_compose_up_mysql(self):
+    def test_docker_compose_up_postgres(self):
         """
         """
-        database_name = 'test_docker_compose_up_mysql'
+        database_name = 'test_docker_compose_up_postgres'
         d = remote_docker_compose(COMPOSE_NODE0, 'up', '-d')
 
         d.addCallback(
-            lambda ignored: remote_mysql(
+            lambda ignored: remote_postgres(
                 NODE0, 'create database {}'.format(database_name)
             )
         )
@@ -106,7 +105,7 @@ class DockerComposeTests(AsyncTestCase):
         d = remote_docker_compose(COMPOSE_NODE1, 'up', '-d')
 
         d.addCallback(
-            lambda ignored: remote_mysql(
+            lambda ignored: remote_postgres(
                 NODE1, 'show databases'
             )
         )
