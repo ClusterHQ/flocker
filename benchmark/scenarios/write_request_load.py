@@ -255,7 +255,7 @@ class WriteRequestLoadScenario(object):
     def run_scenario(self, dataset):
         """
         :param dataset `Dataset` we will use to run the write scenario
-        :return: A D`eferred` that fires when the desired scenario is
+        :return: A `Deferred` that fires when the desired scenario is
             established (e.g. that a certain load is being applied).
         """
         # The fist thing we need to do before actually running the scenario
