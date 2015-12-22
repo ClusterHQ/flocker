@@ -9,7 +9,7 @@ cffi==1.1.2
 characteristic==14.3.0
 cryptography==1.1.2
 debtcollector==0.5.0
-docker-py==1.5.0
+docker-py==1.6.0
 effect==0.10
 eliot==0.11.0
 eliot-tree==15.3.0
