@@ -1,21 +1,22 @@
 // vim: ai ts=2 sts=2 et sw=2 ft=jinja fdm=indent et foldlevel=0
 /* jobs.groovy.j2
 
-  This jinja2 template is used to produce a jobs.groovy file containing the
-  jenkins job DSL plugin code to build all the required views, folders, and
-  jobs for a particular project in the Jenkins interface.
+  This Groovy file (pretending to be a jinja2 template) is used to produce a
+  jobs.groovy file containing the jenkins job DSL plugin code to build all the
+  required views, folders, and jobs for a particular project in the Jenkins
+  interface.
 
   The full Jenkins job DSL reference can be found on the URL below:
   https://github.com/jenkinsci/job-dsl-plugin/wiki/Job-reference
 
   The file is consumed by the Jenkins job setup_ClusterHQ_Flocker. That job
   contains two build steps, the first executes a python file 'render.py' which
-  reads the build.yaml file and expands this jobs.groovy.j2 template using
-  the contents of that yaml dictionary. The resulting jobs.groovy file is then
-  read by a second build step of type 'Process Job DSL' which produces all
-  the jenkins objects.
+  renders this file (for legacy reasons, this will be removed eventually). The
+  resulting jobs.groovy file is then read by a second build step of type
+  'Process Job DSL' which produces all the jenkins objects.
 
-  jinja2 is only used to populate the config, which is loaded from build.yaml.
+  https://clusterhq.atlassian.net/browse/FLOC-3762 covers getting rid of
+  remaining Jinja2 rendering, as it is no longer used.
 
   A typical jenkins job contains the following sections, this is just an
   example of possible actions within a particular section:
@@ -511,8 +512,6 @@ def build_multijob(dashBranchName, branchName) {
            changes are pushed to the repository.
            This however only happens for the master branch, no other branches are
            automatically built when new commits are pushed to those branches.
-           The logic that manages which branch is built automaticaly, is performed
-           in the triggers jinja2 macro.
         */
         triggers build_triggers('githubPush', 'none', branchName)
         wrappers {
