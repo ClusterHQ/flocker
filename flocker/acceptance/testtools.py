@@ -733,6 +733,10 @@ class Cluster(PClass):
 
         d = get_flocker_version()
 
+        # If we fail to get the current version, assume we must reinstall
+        # flocker.
+        d.addErrback(write_failure)
+
         def reinstall_if_needed(v):
             if v and v == package_source.version:
                 return v
