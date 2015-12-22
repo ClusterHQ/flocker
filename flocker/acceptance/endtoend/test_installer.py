@@ -88,11 +88,11 @@ class DockerComposeTests(AsyncTestCase):
                 )
             )
 
-            d_node1_docker = remote_command(NODE0, 'docker', 'stop',
+            d_node1_docker = remote_command(NODE0, 'sudo', 'docker', 'stop',
                                             'postgres_postgres_1')
             d_node1_docker.addCallback(
                 lambda ignored: remote_command(
-                    NODE0, 'docker', 'rmi', '-f', 'postgres_postgres_1'
+                    NODE0, 'sudo', 'docker', 'rmi', '-f', 'postgres_postgres_1'
                 )
             )
 
@@ -103,11 +103,11 @@ class DockerComposeTests(AsyncTestCase):
                 )
             )
 
-            d_node2_docker = remote_command(NODE1, 'docker', 'stop',
+            d_node2_docker = remote_command(NODE1, 'sudo', 'docker', 'stop',
                                             'postgres_postgres_1')
             d_node1_docker.addCallback(
                 lambda ignored: remote_command(
-                    NODE1, 'docker', 'rmi', '-f', 'postgres_postgres_1'
+                    NODE1, 'sudo', 'docker', 'rmi', '-f', 'postgres_postgres_1'
                 )
             )
 
