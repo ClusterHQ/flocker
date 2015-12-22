@@ -119,13 +119,13 @@ class WriteRequestLoadScenario(object):
     A scenario that places load on the cluster by performing write
     requests at a specified rate.
 
-    :ivar reactor: reactor we are using.
+    :ivar reactor: Reactor to use.
     :ivar cluster: `BenchmarkCluster` containing the control service.
-    :ivar request_rate: number requests per second do we want.
-    :ivar interval: number of samples we want.
-    :ivar timeout: how long we want to wait to reach the requested load
-        before timing out.
-
+    :ivar request_rate: The target number of requests per second.
+    :ivar sample_size: The number of samples to collect when measuring
+        the rate.
+    :ivar timeout: Maximum time in seconds to wait for the requested
+        rate to be reached.
     """
 
     def __init__(
@@ -297,11 +297,10 @@ class WriteRequestLoadScenario(object):
 
     def stop(self):
         """
-        Stop the scenario from being maintained, stopping all the loops
-        that may be executing.
+        Stop the scenario from being maintained by stopping all the
+        loops that may be executing.
 
-        :return: A `Deferred` that fires when the desired scenario is
-            stopped.
+        :return: A Deferred that fires when the scenario has stopped.
         """
         if self.monitor_loop.running:
             self.monitor_loop.stop()

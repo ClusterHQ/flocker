@@ -2,11 +2,11 @@ from itertools import repeat
 from uuid import uuid4
 from ipaddr import IPAddress
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
 from twisted.python.failure import Failure
+from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Node
@@ -30,7 +30,7 @@ class WRateMeasurerTest(SynchronousTestCase):
         """
         Helper function that will send the desired number of request.
 
-        :param rate_measurer: The `RateMeasurer` we are testing
+        :param rate_measurer: The `RateMeasurer` we are testing.
         :param num_requests: The number of request we want to send.
         :param num_samples: The number of samples to collect.
         """
@@ -41,7 +41,7 @@ class WRateMeasurerTest(SynchronousTestCase):
         """
         Helper function that will receive the desired number of requests.
 
-        :param rate_measurer: The `RateMeasurer` we are testing
+        :param rate_measurer: The `RateMeasurer` we are testing.
         :param num_requests: The number of request we want to receive.
         :param num_samples: The number of samples to collect.
         """
@@ -56,7 +56,7 @@ class WRateMeasurerTest(SynchronousTestCase):
         Helper function that will result the desired number of response
         failures.
 
-        :param rate_measurer: The `RateMeasurer` we are testing
+        :param rate_measurer: The `RateMeasurer` we are testing.
         :param num_failures: The number of requests we want to fail.
         :param num_samples: The number of samples to collect.
         """
@@ -72,7 +72,7 @@ class WRateMeasurerTest(SynchronousTestCase):
         desired number of request, and receiving the same
         amount of them.
 
-        :param rate_measurer: The `RateMeasurer` we are testing
+        :param rate_measurer: The `RateMeasurer` we are testing.
         :param num_requests: The number of request we want to make.
         :param num_samples: The number of samples to collect.
         """
