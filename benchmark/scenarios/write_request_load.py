@@ -21,9 +21,8 @@ DEFAULT_SAMPLE_SIZE = 5
 
 
 class RateMeasurer(object):
-    # XXX make it a common class for Read and Write scenarios.
-    # Note that the docstrings are not up-to-date because they are being
-    # updated in the Read scenario
+    # XXX This is duplicated from the read request load scenario. The
+    # two scenarios should share the same implementation. See FLOC-3756.
 
     """
     Measures the rate of requests in requests per second.
