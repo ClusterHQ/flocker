@@ -61,30 +61,29 @@ class DockerComposeTests(AsyncTestCase):
     """
 
     def setUp(self):
-        """
-        """
-        super(DockerComposeTests, self).setUp()
+        d = maybeDeferred(super(DockerComposeTests, self).setUp)
 
-        d_node1 = remote_docker_compose(COMPOSE_NODE0, 'stop')
-        d_node1.addCallback(
-            lambda ignored: remote_docker_compose(COMPOSE_NODE0, 'rm', '-f')
-        )
+        def local_setup(ignored):
+            d_node1 = remote_docker_compose(COMPOSE_NODE0, 'stop')
+            d_node1.addCallback(
+                lambda ignored: remote_docker_compose(
+                    COMPOSE_NODE0, 'rm', '-f'
+                )
+            )
 
-        d_node2 = remote_docker_compose(COMPOSE_NODE1, 'stop')
-        d_node2.addCallback(
-            lambda ignored: remote_docker_compose(COMPOSE_NODE1, 'rm', '-f')
-        )
-
-        def debug(results):
-            print "setUP", results
-            return results
-
-        return gather_deferreds([d_node1, d_node2]).addBoth(debug)
+            d_node2 = remote_docker_compose(COMPOSE_NODE1, 'stop')
+            d_node2.addCallback(
+                lambda ignored: remote_docker_compose(
+                    COMPOSE_NODE1, 'rm', '-f'
+                )
+            )
+            return gather_deferreds([d_node1, d_node2])
+        d.addCallback(local_setup)
+        return d
 
     def test_docker_compose_up_mysql(self):
         """
         """
-        # MySQL doesn't allow dashes.
         database_name = 'test_docker_compose_up_mysql'
         d = remote_docker_compose(COMPOSE_NODE0, 'up', '-d')
 
