@@ -25,17 +25,17 @@ INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
 
 
-def remote_docker(node, *args):
-    docker_output = []
+def remote_command(node, *args):
+    command_output = []
     d = run_ssh(
         reactor,
         'ubuntu',
         node,
-        ('docker') + args,
-        handle_stdout=docker_output.append
+        args,
+        handle_stdout=command_output.append
     )
     d.addCallback(
-        lambda process_result: (process_result, docker_output)
+        lambda process_result: (process_result, command_output)
     )
     return d
 
@@ -88,11 +88,11 @@ class DockerComposeTests(AsyncTestCase):
                 )
             )
 
-            d_node1_docker = remote_docker(NODE0, 'stop',
-                                           'postgres_postgres_1')
+            d_node1_docker = remote_command(NODE0, 'docker', 'stop',
+                                            'postgres_postgres_1')
             d_node1_docker.addCallback(
-                lambda ignored: remote_docker(
-                    NODE0, 'rmi', '-f', 'postgres_postgres_1'
+                lambda ignored: remote_command(
+                    NODE0, 'docker', 'rmi', '-f', 'postgres_postgres_1'
                 )
             )
 
@@ -103,11 +103,11 @@ class DockerComposeTests(AsyncTestCase):
                 )
             )
 
-            d_node2_docker = remote_docker(NODE1, 'stop',
-                                           'postgres_postgres_1')
+            d_node2_docker = remote_command(NODE1, 'docker', 'stop',
+                                            'postgres_postgres_1')
             d_node1_docker.addCallback(
-                lambda ignored: remote_docker(
-                    NODE1, 'rmi', '-f', 'postgres_postgres_1'
+                lambda ignored: remote_command(
+                    NODE1, 'docker', 'rmi', '-f', 'postgres_postgres_1'
                 )
             )
 
