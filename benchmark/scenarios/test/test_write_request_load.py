@@ -177,12 +177,11 @@ class RequestDroppingFakeFlockerClient(
 
     def move_dataset(self, primary, dataset_id, configuration_tag=None):
         if not self.drop_requests:
-            return super(RequestDroppingFakeFlockerClient, self).list_nodes()
+            return succeed(True)
         else:
             if self._dropped_last_request:
                 self._dropped_last_request = False
-                return super(RequestDroppingFakeFlockerClient,
-                             self).list_nodes()
+                return succeed(True)
             self._dropped_last_request = True
         return Deferred()
 
