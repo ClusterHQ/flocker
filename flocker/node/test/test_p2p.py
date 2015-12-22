@@ -13,7 +13,7 @@ from pytz import UTC
 from eliot.testing import validate_logging
 
 from twisted.internet.defer import fail, Deferred
-from twisted.trial.unittest import SynchronousTestCase, TestCase
+from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
@@ -33,7 +33,7 @@ from .._p2p import (
     CreateDataset, HandoffDataset, PushDataset, ResizeDataset,
     _to_volume_name, DeleteDataset
 )
-from ...testtools import CustomException
+from ...testtools import AsyncTestCase, CustomException
 from .. import _p2p
 from ...control._model import (
     AttachedVolume, Dataset, Manifestation, Leases
@@ -912,7 +912,7 @@ class DeleteDatasetTests(SynchronousTestCase):
         self.successResultOf(delete.run(self.deployer))
 
 
-class ResizeVolumeTests(TestCase):
+class ResizeVolumeTests(AsyncTestCase):
     """
     Tests for ``ResizeVolume``.
     """
