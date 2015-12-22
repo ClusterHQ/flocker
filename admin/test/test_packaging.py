@@ -581,7 +581,7 @@ class BuildPackageTests(TestCase):
     """
     @require_fpm
     def setUp(self):
-        pass
+        super(BuildPackageTests, self).setUp()
 
     @require_rpm
     def test_rpm(self):
@@ -737,7 +737,7 @@ class LintPackageTests(TestCase):
 
     @require_fpm
     def setUp(self):
-        pass
+        super(LintPackageTests, self).setUp()
 
     def assert_lint(self, package_type, expected_output):
         """
