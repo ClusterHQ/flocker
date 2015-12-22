@@ -12,9 +12,10 @@ from flocker.apiclient._client import (
 )
 
 from benchmark.scenarios import (
-    ReadRequestLoadScenario, RateMeasurer, RequestRateTooLow,
-    RequestRateNotReached, RequestOverload
+    ReadRequestLoadScenario, RequestRateTooLow, RequestRateNotReached,
+    RequestOverload
 )
+from benchmark.scenarios.read_request_load import RateMeasurer
 
 from benchmark.cluster import BenchmarkCluster
 
