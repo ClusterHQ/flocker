@@ -14,16 +14,17 @@ from flocker.apiclient._client import (
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
-    WriteRequestLoadScenario, WRateMeasurer, WRequestRateTooLow,
-    WRequestRateNotReached, WRequestOverload, WDataseCreationTimeout
+    WriteRequestLoadScenario, WRequestRateTooLow, WRequestRateNotReached,
+    WRequestOverload, WDataseCreationTimeout
 )
+from benchmark.scenarios.write_request_load import RateMeasurer
 
 DEFAULT_VOLUME_SIZE = 1073741824
 
 
-class WRateMeasurerTest(SynchronousTestCase):
+class RateMeasurerTest(SynchronousTestCase):
     """
-    WRateMeasurer tests.
+    RateMeasurer tests.
     """
 
     def send_requests(self, rate_measurer, num_requests, num_samples):
@@ -83,7 +84,7 @@ class WRateMeasurerTest(SynchronousTestCase):
         """
         When no samples have been collected, the rate should be 0.
         """
-        r = WRateMeasurer()
+        r = RateMeasurer()
         self.assertEqual(r.rate(), 0, "Expected initial rate to be zero")
 
     def test_rate_is_lower_than_target_when_not_enough_samples(self):
@@ -91,7 +92,7 @@ class WRateMeasurerTest(SynchronousTestCase):
         When the number of samples collected is less than the sample
         size, the rate should be lower than `target_rate`.
         """
-        r = WRateMeasurer()
+        r = RateMeasurer()
         target_rate = 5
         num_samples = r.sample_size - 1
 
@@ -101,10 +102,10 @@ class WRateMeasurerTest(SynchronousTestCase):
 
     def test_rate_is_correct_when_enough_samples(self):
         """
-        A WRateMeasurer should correctly report the rate when enough
+        A RateMeasurer should correctly report the rate when enough
         samples have been collected.
         """
-        r = WRateMeasurer()
+        r = RateMeasurer()
         target_rate = 5
 
         self.increase_rate(r, target_rate, r.sample_size)
@@ -117,7 +118,7 @@ class WRateMeasurerTest(SynchronousTestCase):
         number of requests are considered for the rate, and when receiving
         a new sample, the oldest one is discarded.
         """
-        r = WRateMeasurer()
+        r = RateMeasurer()
         target_rate = 5
 
         # Generate samples that will achieve a high request rate
@@ -133,7 +134,7 @@ class WRateMeasurerTest(SynchronousTestCase):
         The rate should be based on the number of received requests,
         not the number of sent or failed requests.
         """
-        r = WRateMeasurer()
+        r = RateMeasurer()
         send_request_rate = 100
         failed_request_rate = 10
         receive_request_rate = 5
@@ -150,7 +151,7 @@ class WRateMeasurerTest(SynchronousTestCase):
         should be included when calculating the number of outstanding
         requests.
         """
-        r = WRateMeasurer()
+        r = RateMeasurer()
 
         # Send 25 requests
         self.send_requests(r, 5, r.sample_size)

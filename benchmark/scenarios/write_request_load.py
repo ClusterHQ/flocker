@@ -19,7 +19,7 @@ from .._interfaces import IScenario
 DEFAULT_SAMPLE_SIZE = 5
 
 
-class WRateMeasurer(object):
+class RateMeasurer(object):
     # XXX make it a common class for Read and Write scenarios.
     # Note that the docstrings are not up-to-date because they are being
     # updated in the Read scenario
@@ -137,7 +137,7 @@ class WriteRequestLoadScenario(object):
         self.control_service = cluster.get_control_service(reactor)
         self.request_rate = request_rate
         self.timeout = timeout
-        self.rate_measurer = WRateMeasurer(sample_size)
+        self.rate_measurer = RateMeasurer(sample_size)
         self.max_outstanding = 10 * request_rate
         self._dataset_id = ""
         # Send requests per second

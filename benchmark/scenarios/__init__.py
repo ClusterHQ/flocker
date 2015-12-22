@@ -4,7 +4,6 @@ from .read_request_load import (
     RequestRateNotReached, RequestOverload
 )
 from .write_request_load import (
-    WriteRequestLoadScenario, WRateMeasurer, WRequestRateTooLow,
-    WRequestRateNotReached, WRequestOverload, WDataseCreationTimeout
+    WriteRequestLoadScenario, WRequestRateTooLow, WRequestRateNotReached,
+    WRequestOverload, WDataseCreationTimeout
 )
-
