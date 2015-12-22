@@ -1,6 +1,7 @@
 from itertools import repeat
 from uuid import uuid4
 from ipaddr import IPAddress
+
 from twisted.internet.defer import succeed, Deferred
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
@@ -11,15 +12,14 @@ from flocker.apiclient._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Node
 )
 
+from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
     ReadRequestLoadScenario, RequestRateTooLow, RequestRateNotReached,
     RequestOverload
 )
 from benchmark.scenarios.read_request_load import RateMeasurer
 
-from benchmark.cluster import BenchmarkCluster
-
-DEFAULT_VOLUME_SIZE=1073741824
+DEFAULT_VOLUME_SIZE = 1073741824
 
 
 class RateMeasurerTest(SynchronousTestCase):
