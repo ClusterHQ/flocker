@@ -29,10 +29,13 @@ def remote_docker_compose(compose_file_path, *args):
         CLIENT_IP,
         ('DOCKER_HOST={}'.format(DOCKER_HOST),
          'docker-compose', '--file', compose_file_path) + args,
-          handle_stdout=docker_compose_output.append
-        )
-    d.addCallback(lambda process_result: (process_result, docker_compose_output))
+        handle_stdout=docker_compose_output.append
+    )
+    d.addCallback(
+        lambda process_result: (process_result, docker_compose_output)
+    )
     return d
+
 
 def remote_mysql(host, command):
     mysql_output = []
@@ -40,14 +43,17 @@ def remote_mysql(host, command):
         reactor,
         'ubuntu',
         CLIENT_IP,
-        ['mysql', '--host=' + host, '--port=3306',
+        ('mysql', '--host=' + host, '--port=3306',
          '--user=root', '--password=secret',
          '--wait',
-         '--execute={}'.format(command)],
-         handle_stdout=mysql_output.append
+         '--execute={}'.format(command)),
+        handle_stdout=mysql_output.append
     )
-    d.addCallback(lambda process_result: (process_result, docker_compose_output))
+    d.addCallback(
+        lambda process_result: (process_result, mysql_output)
+    )
     return d
+
 
 class DockerComposeTests(AsyncTestCase):
     """
@@ -57,20 +63,29 @@ class DockerComposeTests(AsyncTestCase):
     def setUp(self):
         """
         """
-        d = maybeDeferred(super(DockerComposeTests, self).setUp)
+        super(DockerComposeTests, self).setUp()
+
         d_node1 = remote_docker_compose(COMPOSE_NODE0, 'stop')
-        d_node1.addCallback(lambda ignored: remote_docker_compose(COMPOSE_NODE0, 'rm', '-f'))
+        d_node1.addCallback(
+            lambda ignored: remote_docker_compose(COMPOSE_NODE0, 'rm', '-f')
+        )
+
         d_node2 = remote_docker_compose(COMPOSE_NODE1, 'stop')
-        d_node2.addCallback(lambda ignored: remote_docker_compose(COMPOSE_NODE1, 'rm', '-f'))
-        return gather_deferreds([d, d_node1, d_node2])
-	
+        d_node2.addCallback(
+            lambda ignored: remote_docker_compose(COMPOSE_NODE1, 'rm', '-f')
+        )
+
+        def debug(results):
+            print "setUP", results
+            return results
+
+        return gather_deferreds([d_node1, d_node2]).addBoth(debug)
+
     def test_docker_compose_up_mysql(self):
         """
         """
         # MySQL doesn't allow dashes.
         database_name = 'test_docker_compose_up_mysql'
-
-
         d = remote_docker_compose(COMPOSE_NODE0, 'up', '-d')
 
         d.addCallback(
@@ -98,7 +113,9 @@ class DockerComposeTests(AsyncTestCase):
         )
 
         d.addCallback(
-            lambda (process_status, process_output): self.assertEqual("", process_output)
+            lambda (process_status, process_output): self.assertEqual(
+                "", process_output
+            )
         )
 
         return d
