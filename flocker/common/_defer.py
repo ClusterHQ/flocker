@@ -6,7 +6,8 @@ Various helpers for dealing with Deferred APIs in flocker.
 """
 
 from twisted.internet.defer import gatherResults
-from twisted.python import log
+
+from eliot import write_failure
 
 
 def gather_deferreds(deferreds):
@@ -41,7 +42,7 @@ def gather_deferreds(deferreds):
 
         :param Failure failure: The ``Failure`` to be logged.
         """
-        log.err(failure)
+        write_failure(failure)
 
     for deferred in deferreds:
         deferred.addErrback(log_and_discard)
