@@ -258,16 +258,16 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
 
     def get_dropping_flocker_client_instance(self):
         """
-        Returns a `FakeFlockerClient` instance with the nodes
-        defined in the init.
+        Returns a `RequestDroppingFakeFlockerClient` instance
+        using the nodes defined in the init.
         """
         return RequestDroppingFakeFlockerClient(
             self.get_fake_flocker_client_instance())
 
     def get_unresponsive_flocker_client_instance(self):
         """
-        Returns a `RequestDroppingFakeFlockerClient` instance
-        unsing the nodes defined in the init.
+        Returns a `UnresponsiveDatasetCreationFakeFlockerClient`
+        instance using the nodes defined in the init.
         """
         return UnresponsiveDatasetCreationFakeFlockerClient(
             self.get_fake_flocker_client_instance())
