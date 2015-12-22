@@ -195,11 +195,7 @@ def build_triggers(_type, _value, _branch ) {
             configure that job so that builds on master are triggered automatically
             this block enables 'Build when a change is pushed to GitHub' */
         if (_type == "githubPush" && _branch == "master") {
-            configure { node ->
-                node / 'triggers' / 'com.cloudbees.jenkins.GitHubPushTrigger' {
-                    spec ''
-                }
-            }
+            githubPush()
         }
     }
 }
