@@ -20,7 +20,7 @@ NODE1 = os.environ['CLUSTER_NODE1']
 COMPOSE_NODE0 = '/home/ubuntu/postgres/docker-compose-node0.yml'
 COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
 
-CREATE_STATEMENT = 'create table test(i int);'
+RECREATE_STATEMENT = 'drop table test; create table test(i int);'
 INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
 
@@ -90,7 +90,7 @@ class DockerComposeTests(AsyncTestCase):
 
         d.addCallback(
             lambda ignored: remote_postgres(
-                NODE0, CREATE_STATEMENT + INSERT_STATEMENT
+                NODE0, RECREATE_STATEMENT + INSERT_STATEMENT
             )
         )
 
