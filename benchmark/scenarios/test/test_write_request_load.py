@@ -170,8 +170,8 @@ class RequestDroppingFakeFlockerClient(
     """
     A FakeFlockerClient that can drop alternating requests.
     """
-    def __init__(self, nodes):
-        super(RequestDroppingFakeFlockerClient, self).__init__(nodes)
+    def __init__(self, client):
+        super(RequestDroppingFakeFlockerClient, self).__init__(client)
         self.drop_requests = False
         self._dropped_last_request = False
 
@@ -218,10 +218,10 @@ class UnresponsiveDatasetCreationFakeFlockerClient(
     """
     A FakeFlockerClient that can drop alternating requests.
     """
-    def __init__(self, nodes):
+    def __init__(self, client):
         super(
             UnresponsiveDatasetCreationFakeFlockerClient, self
-        ).__init__(nodes)
+        ).__init__(client)
         self.drop_requests = False
         self._dropped_last_request = False
 
