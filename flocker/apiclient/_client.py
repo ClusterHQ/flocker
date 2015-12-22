@@ -53,6 +53,16 @@ _LOG_CONDITIONAL_CREATE = ActionType(
 NoneType = type(None)
 
 
+class ServerResponseMissingElementError(Exception):
+    """
+    Output the invalid server response if a response does not contain an
+    expected JSON object attribute.
+    """
+    def __init__(self, key, response):
+        message = u'{!r} not found in {!r}'.format(key, response)
+        Exception.__init__(self, message)
+
+
 class Dataset(PClass):
     """
     A dataset in the configuration.
@@ -783,12 +793,15 @@ class FlockerClient(object):
         d = self._request(b"GET", b"/state/containers", None, {OK})
 
         def parse(container):
-            return ContainerState(
-                node_uuid=UUID(container[u'node_uuid']),
-                name=container[u'name'],
-                image=DockerImage.from_string(container[u'image']),
-                running=container[u'running'],
-            )
+            try:
+                return ContainerState(
+                    node_uuid=UUID(container[u'node_uuid']),
+                    name=container[u'name'],
+                    image=DockerImage.from_string(container[u'image']),
+                    running=container[u'running'],
+                )
+            except KeyError as e:
+                raise ServerResponseMissingElementError(e.args[0], container)
         d.addCallback(
             lambda containers: [parse(container) for container in containers])
 
