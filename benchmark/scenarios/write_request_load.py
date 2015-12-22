@@ -9,7 +9,7 @@ from zope.interface import implementer
 from eliot import start_action, write_failure, Message
 from eliot.twisted import DeferredContext
 
-from twisted.internet.defer import CancelledError, Deferred, succeed
+from twisted.internet.defer import CancelledError, Deferred
 from twisted.internet.task import LoopingCall
 
 from flocker.common import loop_until, timeout
@@ -85,31 +85,31 @@ class WRateMeasurer(object):
 # the initial W preceding the name
 class WRequestRateTooLow(Exception):
     """
-    The RequestRate dropped below a threshold.
+    The request rate dropped below a threshold.
     """
 
 
 class WRequestRateNotReached(Exception):
     """
-    The RequestRate did not reach the target level.
+    The request rate did not reach the target level.
     """
 
 
 class WRequestOverload(Exception):
     """
-    There are too many outstanding request.
+    There are too many outstanding requests.
     """
 
 
 class WDataseCreationTimeout(Exception):
     """
-    The dataset could not be created.
+    The dataset could not be created within the specified time.
     """
 
 
 class WNoNodesFound(Exception):
     """
-    No existent nodes were found.
+    No nodes were provided by the control service.
     """
 
 

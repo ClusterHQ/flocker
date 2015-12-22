@@ -216,14 +216,12 @@ class UnresponsiveDatasetCreationFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
     """
-    A FakeFlockerClient that can drop alternating requests.
+    A FakeFlockerClient that does not respond to requests.
     """
     def __init__(self, client):
         super(
             UnresponsiveDatasetCreationFakeFlockerClient, self
         ).__init__(client)
-        self.drop_requests = False
-        self._dropped_last_request = False
 
     def create_dataset(self, primary, maximum_size=None, dataset_id=None,
                        metadata=None, configuration_tag=None):
@@ -274,8 +272,8 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
 
     def get_error_response_client(self, reactor):
         """
-        Returns a `UnresponsiveDatasetCreationFakeFlockerClient`
-        instance using the nodes defined in the init.
+        Returns a `RequestErrorFakeFlockerClient` instance using the
+        nodes defined in the init.
         """
         return RequestErrorFakeFlockerClient(
             self.get_fake_flocker_client_instance(),
