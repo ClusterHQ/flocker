@@ -72,48 +72,32 @@ def remote_postgres(host, command):
     return d
 
 
+def cleanup():
+    d_node1_compose = remote_docker_compose(COMPOSE_NODE0, 'stop')
+    d_node1_compose.addCallback(
+        lambda ignored: remote_docker_compose(
+            COMPOSE_NODE0, 'rm', '-f'
+        )
+    )
+
+    d_node2_compose = remote_docker_compose(COMPOSE_NODE1, 'stop')
+    d_node2_compose.addCallback(
+        lambda ignored: remote_docker_compose(
+            COMPOSE_NODE1, 'rm', '-f'
+        )
+    )
+    return gather_deferreds([d_node1_compose, d_node2_compose])
+
+
 class DockerComposeTests(AsyncTestCase):
     """
     Tests for AWS CloudFormation installer.
     """
 
     def setUp(self):
+        self.addCleanup(cleanup)
         d = maybeDeferred(super(DockerComposeTests, self).setUp)
-
-        def local_setup(ignored):
-            d_node1_compose = remote_docker_compose(COMPOSE_NODE0, 'stop')
-            d_node1_compose.addCallback(
-                lambda ignored: remote_docker_compose(
-                    COMPOSE_NODE0, 'rm', '-f'
-                )
-            )
-
-            d_node1_docker = remote_command(NODE0, 'sudo', 'docker', 'stop',
-                                            'postgres_postgres_1')
-            d_node1_docker.addCallback(
-                lambda ignored: remote_command(
-                    NODE0, 'sudo', 'docker', 'rmi', '-f', 'postgres_postgres_1'
-                )
-            )
-
-            d_node2_compose = remote_docker_compose(COMPOSE_NODE1, 'stop')
-            d_node2_compose.addCallback(
-                lambda ignored: remote_docker_compose(
-                    COMPOSE_NODE1, 'rm', '-f'
-                )
-            )
-
-            d_node2_docker = remote_command(NODE1, 'sudo', 'docker', 'stop',
-                                            'postgres_postgres_1')
-            d_node1_docker.addCallback(
-                lambda ignored: remote_command(
-                    NODE1, 'sudo', 'docker', 'rmi', '-f', 'postgres_postgres_1'
-                )
-            )
-
-            return gather_deferreds([d_node1_compose, d_node1_docker,
-                                     d_node2_compose, d_node2_docker])
-        # d.addCallback(local_setup)
+        d.addCallback(lambda ignored: cleanup)
         return d
 
     def test_docker_compose_up_postgres(self):
