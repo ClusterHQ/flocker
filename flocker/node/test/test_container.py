@@ -12,6 +12,8 @@ from pyrsistent import pset, pvector
 
 from bitmath import GiB
 
+from eliot.testing import capture_logging
+
 from twisted.internet.defer import FirstError
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -1924,7 +1926,8 @@ class SetProxiesTests(SynchronousTestCase):
             set(fake_network.enumerate_proxies())
         )
 
-    def test_delete_proxy_errors_as_errbacks(self):
+    @capture_logging(None)
+    def test_delete_proxy_errors_as_errbacks(self, logger):
         """
         Exceptions raised in `delete_proxy` operations are reported as
         failures in the returned deferred.
@@ -1943,7 +1946,7 @@ class SetProxiesTests(SynchronousTestCase):
             exception.value.subFailure.value,
             ZeroDivisionError
         )
-        self.flushLoggedErrors(ZeroDivisionError)
+        logger.flush_tracebacks(ZeroDivisionError)
 
     def test_create_proxy_errors_as_errbacks(self):
         """
@@ -1965,7 +1968,8 @@ class SetProxiesTests(SynchronousTestCase):
         )
         self.flushLoggedErrors(ZeroDivisionError)
 
-    def test_create_proxy_errors_all_logged(self):
+    @capture_logging(None)
+    def test_create_proxy_errors_all_logged(self, logger):
         """
         Exceptions raised in `create_proxy_to` operations are all logged.
         """
@@ -1984,7 +1988,7 @@ class SetProxiesTests(SynchronousTestCase):
 
         self.failureResultOf(d, FirstError)
 
-        failures = self.flushLoggedErrors(ZeroDivisionError)
+        failures = logger.flush_tracebacks(ZeroDivisionError)
         self.assertEqual(3, len(failures))
 
 
@@ -2094,7 +2098,8 @@ class OpenPortsTests(SynchronousTestCase):
         )
         self.flushLoggedErrors(ZeroDivisionError)
 
-    def test_open_ports_errors_all_logged(self):
+    @capture_logging(None)
+    def test_open_ports_errors_all_logged(self, logger):
         """
         Exceptions raised in `OpenPorts` operations are all logged.
         """
@@ -2113,5 +2118,5 @@ class OpenPortsTests(SynchronousTestCase):
 
         self.failureResultOf(d, FirstError)
 
-        failures = self.flushLoggedErrors(ZeroDivisionError)
+        failures = logger.flush_tracebacks(ZeroDivisionError)
         self.assertEqual(3, len(failures))
