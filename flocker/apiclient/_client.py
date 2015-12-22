@@ -784,10 +784,10 @@ class FlockerClient(object):
 
         def parse(container):
             return ContainerState(
-                node_uuid=UUID(container['node_uuid']),
-                name=container['name'],
-                image=container['image'],
-                running=container['running'],
+                node_uuid=UUID(container[u'node_uuid']),
+                name=container[u'name'],
+                image=container[u'image'],
+                running=container[u'running'],
             )
         d.addCallback(
             lambda containers: [parse(container) for container in containers])
