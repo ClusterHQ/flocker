@@ -704,8 +704,9 @@ def _get_device_size(device):
     # `lsblk` output. Ignore partition sizes.
     # XXX: Handle error cases during `check_output()` run
     # (https://clusterhq.atlassian.net/browse/FLOC-1886).
-    command_output = check_output(command).split(b'\n')[0]
-    device_size = int(command_output.strip().decode("ascii"))
+    command_output = check_output(command)
+    line_one = command_output.splitlines()[0]
+    device_size = int(line_one.rstrip().decode("ascii"))
 
     return device_size
 
