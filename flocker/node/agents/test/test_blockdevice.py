@@ -1509,7 +1509,7 @@ class BlockDeviceCalculatorTestObjects(object):
 
 
 @attributes([Attribute("callback", default_value=None)])
-class _NullableCallback(object):
+class _MutableCallback(object):
     """
     A callable implementation that you can change after creation.
 
@@ -1576,7 +1576,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         before or after flocker was ready for it to use the path.
         """
 
-        nullable_callback = _NullableCallback()
+        nullable_callback = _MutableCallback()
 
         actual_blockdevice_manager = BlockDeviceManager()
         proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
