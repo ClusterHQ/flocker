@@ -51,12 +51,12 @@ secret_access_key_param = template.add_parameter(Parameter(
 
 template.add_mapping(
     'RegionMap', {
-        'us-east-1':      {"FlockerAMI": 'ami-dc4410b6',
-                           "ClientAMI": 'ami-2f663245'},
-        'us-west-1':      {"FlockerAMI": 'ami-e098f380',
-                           "ClientAMI": 'ami-2a9df64a'},
-        'us-west-2':      {"FlockerAMI": 'ami-8c8f90ed',
-                           "ClientAMI": 'ami-5d87983c'},
+        'us-east-1':      {"FlockerAMI": "ami-5f401635",
+                           "ClientAMI": "ami-86590fec"},
+        'us-west-1':      {"FlockerAMI": "ami-e83a5088",
+                           "ClientAMI": "ami-0a254f6a"},
+        'us-west-2':      {"FlockerAMI": "ami-bd2b35dc",
+                           "ClientAMI": "ami-fa2b359b"},
     }
 )
 
