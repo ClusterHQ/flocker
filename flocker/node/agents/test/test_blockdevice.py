@@ -34,7 +34,7 @@ from hypothesis.strategies import (
     dictionaries, tuples
 )
 
-from testtools.matchers import Equals, Is, Not
+from testtools.matchers import Equals
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
@@ -1346,9 +1346,22 @@ class BlockDeviceCalculatorTestObjects(object):
     :ivar deployer: The ``IDeployer`` that will be used to run changes.
     :ivar cluster_state: The current cluster state, updated everytime
         ``discover_state`` is run on the deployer.
+    :ivar UUID _dataset_id: The dataset_id of the dataset under test.
+    :ivar DesiredDataset inial_dataset: The first dataset state to converge to.
+    :ivar DesiredDataset next_dataset: The second dataset state to converge to.
     """
 
-    def __init__(self, test_case, deployer=None):
+    def __init__(self, test_case, two_dataset_states, deployer=None):
+        """
+        Constructor for ``BlockDeviceCalculatorTestObjects``.
+
+        :param test_case: See instance variable ``test_case``.
+        :param two_datset_states: iterable of two ``DesiredDataset``s, such as
+            those generated from ``TWO_DESIRED_DATASET_STRATEGY``.
+        :param deployer: The ``IDeployer`` provider to use with the execution
+            of this test. Defaults to creating one using
+            ``create_blockdevicedeployer`` if none is specified.
+        """
         if deployer is None:
             deployer = create_blockdevicedeployer(test_case)
         self.test_case = test_case
@@ -1356,6 +1369,34 @@ class BlockDeviceCalculatorTestObjects(object):
         self.cluster_state = DeploymentState(
             nodes=[_empty_node_state(deployer)]
         )
+        self.dataset_id = two_dataset_states[0].dataset_id
+        self.initial_dataset, self.next_dataset = [
+            self._fixup_dataset_state(d)
+            for d in two_dataset_states
+        ]
+
+    def _fixup_dataset_state(self, dataset_state):
+        """
+        Modify a test dataset_state to a valid state for use with the given
+        deployer. Some parts of the sampled inputs created with the hypothesis
+        strategy are too fake for use with a real deployer. Currently this
+        entails:
+
+        - Set the mountpoint to a real mountpoint in desired dataset states
+          that have a mount point attribute.
+
+        :param DesiredDataset dataset_state: The state to fix up for this test
+            run.
+
+        :returns: A ``DesiredDataset`` modified for use in this test.
+        """
+        mount_point = self.deployer._mountpath_for_dataset_id(
+            unicode(self.dataset_id))
+        if getattr(dataset_state,
+                   'mount_point',
+                   _NoSuchThing) is not _NoSuchThing:
+            dataset_state = dataset_state.set(mount_point=mount_point)
+        return dataset_state
 
     def current_local_state(self):
         """
@@ -1428,6 +1469,28 @@ class BlockDeviceCalculatorTestObjects(object):
         else:
             raise DidNotConverge(iteration_count=max_iterations)
 
+    def run_sequential_convergence_test(self):
+        """
+        Converge first to ``self.initial_dataset``, and secondly to
+        ``self.next_dataset``, failing ``self.test_case`` if we ever fail to
+        converge to either of the ``DesiredDataset`` states.
+        """
+        # Converge to the initial state.
+        try:
+            self.run_to_convergence([self.initial_dataset])
+        except DidNotConverge as e:
+            self.test_case.fail(
+                "Did not converge to initial state after %d iterations." %
+                e.iteration_count)
+
+        # Converge from the initial state to the next state.
+        try:
+            self.run_to_convergence([self.next_dataset])
+        except DidNotConverge as e:
+            self.test_case.fail(
+                "Did not converge to next state after %d iterations." %
+                e.iteration_count)
+
 
 @attributes([Attribute("callback", default_value=None)])
 class _NullableCallback(object):
@@ -1464,40 +1527,10 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         to any ``DesiredDataset``, followed by any other state of the same
         dataset.
         """
+        test_objects = BlockDeviceCalculatorTestObjects(self,
+                                                        two_dataset_states)
         try:
-            test_objects = BlockDeviceCalculatorTestObjects(self)
-
-            initial_dataset, next_dataset = two_dataset_states
-
-            dataset_id = initial_dataset.dataset_id
-
-            # Set the mountpoint to a real mountpoint in desired dataset states
-            # that have a mount point attribute.
-            mount_point = test_objects.deployer._mountpath_for_dataset_id(
-                unicode(dataset_id))
-            if getattr(initial_dataset,
-                       'mount_point',
-                       _NoSuchThing) is not _NoSuchThing:
-                initial_dataset = initial_dataset.set(mount_point=mount_point)
-            if getattr(next_dataset,
-                       'mount_point',
-                       _NoSuchThing) is not _NoSuchThing:
-                next_dataset = next_dataset.set(mount_point=mount_point)
-
-            # Converge to the initial state.
-            try:
-                test_objects.run_to_convergence([initial_dataset])
-            except DidNotConverge as e:
-                self.fail(
-                    "Did not converge to initial state after %d iterations." %
-                    e.iteration_count)
-
-            # Converge from the initial state to the next state.
-            try:
-                test_objects.run_to_convergence([next_dataset])
-            except DidNotConverge as e:
-                self.fail("Did not converge to next state after %d "
-                          "iterations." % e.iteration_count)
+            test_objects.run_sequential_convergence_test()
         finally:
             test_objects.cleanup_example()
 
@@ -1526,9 +1559,6 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         This would represent an agent like docker attempting to use a path
         before or after flocker was ready for it to use the path.
         """
-        initial_dataset, next_dataset = two_dataset_states
-
-        dataset_id = initial_dataset.dataset_id
 
         nullable_callback = _NullableCallback()
 
@@ -1536,15 +1566,16 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
             actual_blockdevice_manager, nullable_callback)
 
-        try:
-            test_objects = BlockDeviceCalculatorTestObjects(
-                self,
-                create_blockdevicedeployer(
-                    self, block_device_manager=proxy_blockdevice_manager)
-            )
+        test_objects = BlockDeviceCalculatorTestObjects(
+            self,
+            two_dataset_states,
+            create_blockdevicedeployer(
+                self, block_device_manager=proxy_blockdevice_manager)
+        )
 
+        try:
             external_agent = _WriteVerifyingExternalClient(
-                dataset_id,
+                test_objects.dataset_id,
                 test_objects.deployer.node_uuid,
                 mountroot_for_test(self),
                 actual_blockdevice_manager)
@@ -1553,33 +1584,7 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
                 external_agent.invariant, self,
                 test_objects.current_cluster_state)
 
-            # Set the mountpoint to a real mountpoint in desired dataset states
-            # that have a mount point attribute.
-            mount_point = test_objects.deployer._mountpath_for_dataset_id(
-                unicode(dataset_id))
-            if getattr(initial_dataset,
-                       'mount_point',
-                       _NoSuchThing) is not _NoSuchThing:
-                initial_dataset = initial_dataset.set(mount_point=mount_point)
-            if getattr(next_dataset,
-                       'mount_point',
-                       _NoSuchThing) is not _NoSuchThing:
-                next_dataset = next_dataset.set(mount_point=mount_point)
-
-            # Converge to the initial state.
-            try:
-                test_objects.run_to_convergence([initial_dataset])
-            except DidNotConverge as e:
-                self.fail(
-                    "Did not converge to initial state after %d iterations." %
-                    e.iteration_count)
-
-            # Converge from the initial state to the next state.
-            try:
-                test_objects.run_to_convergence([next_dataset])
-            except DidNotConverge as e:
-                self.fail("Did not converge to next state after %d "
-                          "iterations." % e.iteration_count)
+            test_objects.run_sequential_convergence_test()
         finally:
             nullable_callback.callback = None
             test_objects.cleanup_example()
