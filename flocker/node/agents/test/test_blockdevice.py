@@ -1216,9 +1216,12 @@ class _WriteVerifyingExternalClient(object):
         long that agent might cache that information before it tries to write
         to that location. This agent keeps track of all mountpoints it has ever
         seen and tries to write to all of them.
-    :ivar _device_path: The device path of the blockdevice that backs the
-        dataset. This is used to verify that writes are persisted to the
-        underlying blockdevice.
+    :ivar _device_path: The most up-to-date device path of the blockdevice that
+        backs the dataset. This is a backdoor best-effort way to verify that
+        flocker has persisted writes to the underlying blockdevice. Stored in
+        an attribute so that the test harness can inspect the blockdevice even
+        after the blockdevice deployer stops reporting the blockdevice in the
+        ``NodeState``.
     :ivar _dataset_id: The dataset_id of the dataset under test.
     :ivar _node_uuid: The node_uuid of the node that is being tested.
     :ivar _testing_mountroot: A mountroot to construct moutpoints under.
@@ -1247,6 +1250,17 @@ class _WriteVerifyingExternalClient(object):
         """
         test_mountpoint = self._testing_mountroot.child(str(uuid4()))
         test_mountpoint.makedirs()
+
+        # If the device is already mounted, read the file from the existing
+        # mountpoint.
+        for mount_info in self._blockdevice_manager.get_mounts():
+            if mount_info.blockdevice == self._device_path:
+                file_to_test = mount_info.mountpoint.child(filename)
+                return (file_to_test.exists() and
+                        file_to_test.getContent() == content)
+
+        # Otherwise mount the blockdevice and read the file from the new
+        # mountpoint.
         try:
             self._blockdevice_manager.mount(self._device_path, test_mountpoint)
             file_to_test = test_mountpoint.child(filename)
@@ -1296,10 +1310,12 @@ class _WriteVerifyingExternalClient(object):
         devices = node.devices or {}
         device = devices.get(self._dataset_id)
         if device:
+            # Update the device_path that is backing the dataset_id just in
+            # case the volume has changed to a different device path since the
+            # last time we ran.
             self._device_path = device
 
         for path in self._known_mountpoints:
-            device = self._device_path
             filename = unicode(uuid4())
             random_string = unicode(uuid4())
             path_to_write = path.child(filename)
