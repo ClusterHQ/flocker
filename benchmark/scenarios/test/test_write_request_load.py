@@ -282,7 +282,6 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
             reactor
         )
 
-
     def test_setup_generates_dataset(self):
         """
         `WriteRequestLoadScenario` starts and stops without collapsing.
