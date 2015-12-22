@@ -54,7 +54,22 @@ class _MktempMixin(object):
         return make_temporary_directory(self).child('temp').path
 
 
-class TestCase(testtools.TestCase, _MktempMixin):
+class _DeferredAssertionMixin(object):
+    """
+    Synchronous Deferred-related assertions support for testtools TestCase.
+
+    This is provided for compatibility with Twisted's TestCase.  New code
+    should use matchers instead.
+    """
+    successResultOf = unittest.SynchronousTestCase.successResultOf.__func__
+    failureResultOf = unittest.SynchronousTestCase.failureResultOf.__func__
+    assertNoResult = unittest.SynchronousTestCase.assertNoResult.__func__
+
+    # Not related to Deferreds but required by the implementation of the above.
+    assertIdentical = unittest.SynchronousTestCase.assertIdentical.__func__
+
+
+class TestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
     """
     Base class for synchronous test cases.
     """
