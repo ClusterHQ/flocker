@@ -53,6 +53,16 @@ _LOG_CONDITIONAL_CREATE = ActionType(
 NoneType = type(None)
 
 
+class ServerResponseMissingElementError(Exception):
+    """
+    Output the invalid server response if a response does not contain an
+    expected JSON object attribute.
+    """
+    def __init__(self, key, response):
+        message = u'{!r} not found in {!r}'.format(key, response)
+        Exception.__init__(self, message)
+
+
 class Dataset(PClass):
     """
     A dataset in the configuration.
@@ -113,6 +123,22 @@ class Container(PClass):
     node_uuid = field(type=UUID, mandatory=True)
     name = field(type=unicode, mandatory=True)
     image = field(type=DockerImage, mandatory=True)
+
+
+class ContainerState(PClass):
+    """
+    The state of a container in the cluster.
+
+    :attr UUID node_uuid: The UUID of a node in the cluster where the container
+        will run.
+    :attr unicode name: The unique name of the container.
+    :attr DockerImage image: The name of the Docker image.
+    :attr bool running: Whether the container is running.
+    """
+    node_uuid = field(type=UUID, mandatory=True)
+    name = field(type=unicode, mandatory=True)
+    image = field(type=DockerImage, mandatory=True)
+    running = field(type=bool, mandatory=True)
 
 
 class Node(PClass):
@@ -307,6 +333,13 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with ``iterable`` of ``Container``.
         """
 
+    def list_containers_state():
+        """
+        Return the actual containers in the cluster.
+
+        :return: ``Deferred`` firing with ``iterable`` of ``ContainerState``.
+        """
+
     def delete_container(name):
         """
         :param unicode name: The name of the container to be deleted.
@@ -408,8 +441,17 @@ class FakeFlockerClient(object):
                 dataset_id=dataset.dataset_id,
                 primary=dataset.primary,
                 maximum_size=dataset.maximum_size,
-                path=FilePath(b"/flocker").child(bytes(dataset.dataset_id)))
-            for dataset in self._configured_datasets.values()]
+                path=FilePath(b"/flocker").child(bytes(dataset.dataset_id))
+            ) for dataset in self._configured_datasets.values()
+        ]
+        self._state_containers = [
+            ContainerState(
+                node_uuid=container.node_uuid,
+                name=container.name,
+                image=container.image,
+                running=True,
+            ) for container in self._configured_containers.values()
+        ]
 
     def acquire_lease(self, dataset_id, node_uuid, expires):
         try:
@@ -461,6 +503,9 @@ class FakeFlockerClient(object):
 
     def list_containers_configuration(self):
         return succeed(self._configured_containers.values())
+
+    def list_containers_state(self):
+        return succeed(self._state_containers)
 
     def delete_container(self, name):
         self._configured_containers = self._configured_containers.remove(name)
@@ -745,6 +790,24 @@ class FlockerClient(object):
                 for container_dict in containers
             )
         )
+        return d
+
+    def list_containers_state(self):
+        d = self._request(b"GET", b"/state/containers", None, {OK})
+
+        def parse(container):
+            try:
+                return ContainerState(
+                    node_uuid=UUID(container[u'node_uuid']),
+                    name=container[u'name'],
+                    image=DockerImage.from_string(container[u'image']),
+                    running=container[u'running'],
+                )
+            except KeyError as e:
+                raise ServerResponseMissingElementError(e.args[0], container)
+        d.addCallback(
+            lambda containers: [parse(container) for container in containers])
+
         return d
 
     def list_nodes(self):
