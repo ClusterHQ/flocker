@@ -1,8 +1,8 @@
 from zope.interface.verify import verifyObject
 
 from twisted.internet.task import Clock
-from twisted.trial.unittest import SynchronousTestCase
 
+from flocker.testtools import TestCase
 from benchmark.scenarios import NoLoadScenario
 
 from benchmark._interfaces import IScenario
@@ -13,7 +13,7 @@ def check_interfaces(factory):
     Check interface for IScenario implementation.
     """
 
-    class ScenarioTests(SynchronousTestCase):
+    class ScenarioTests(TestCase):
 
         def test_interfaces(self):
             scenario = factory(Clock(), None)
@@ -27,11 +27,13 @@ for factory in (NoLoadScenario,):
     check_interfaces(factory)
 
 
-class NoLoadScenarioTests(SynchronousTestCase):
+class NoLoadScenarioTests(TestCase):
     """
     NoLoadScenario tests
     """
 
+    # XXX: FLOC-3755: This isn't a test since it doesn't start with "test_".
+    # It never runs. If this is fixed so that it runs, it fails.
     def no_load_happy(self):
         """
         NoLoadScenario starts and stops without collapsing.

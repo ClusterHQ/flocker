@@ -6,11 +6,11 @@ from twisted.internet.defer import Deferred, succeed
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
 from twisted.python.failure import Failure
-from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Node
 )
+from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
@@ -22,7 +22,7 @@ from benchmark.scenarios.write_request_load import RateMeasurer
 DEFAULT_VOLUME_SIZE = 1073741824
 
 
-class RateMeasurerTest(SynchronousTestCase):
+class RateMeasurerTest(TestCase):
     """
     RateMeasurer tests.
     """
@@ -228,11 +228,12 @@ class UnresponsiveDatasetCreationFakeFlockerClient(
         return Deferred()
 
 
-class WriteRequestLoadScenarioTest(SynchronousTestCase):
+class WriteRequestLoadScenarioTest(TestCase):
     """
     WriteRequestLoadScenario tests.
     """
     def setUp(self):
+        super(WriteRequestLoadScenarioTest, self).setUp()
         self.node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
         self.node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
 

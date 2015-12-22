@@ -6,19 +6,20 @@ from uuid import uuid4
 from jsonschema.exceptions import ValidationError
 
 from twisted.internet.task import Clock
-from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient import FakeFlockerClient, Node
+from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster, validate_cluster_configuration
 
 
-class ValidationTests(SynchronousTestCase):
+class ValidationTests(TestCase):
     """
     Tests for configuration file validation.
     """
 
     def setUp(self):
+        super(TestCase, self).setUp()
         self.config = {
             'cluster_name': 'cluster',
             'agent_nodes': [
@@ -63,16 +64,20 @@ class ValidationTests(SynchronousTestCase):
         Rejects configuration with missing control_node property.
         """
         del self.config['control_node']
-        with self.assertRaises(ValidationError):
-            validate_cluster_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_cluster_configuration, self.config,
+        )
 
     def test_missing_agent_nodes(self):
         """
         Rejects configuration with missing agent_nodes property.
         """
         del self.config['agent_nodes']
-        with self.assertRaises(ValidationError):
-            validate_cluster_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_cluster_configuration, self.config,
+        )
 
 
 CONTROL_SERVICE_PUBLIC_IP = IPAddress('10.0.0.1')
@@ -81,9 +86,10 @@ CONTROL_SERVICE_PRIVATE_IP = IPAddress('10.1.0.1')
 DEFAULT_VOLUME_SIZE = 1073741824
 
 
-class BenchmarkClusterTests(SynchronousTestCase):
+class BenchmarkClusterTests(TestCase):
 
     def setUp(self):
+        super(BenchmarkClusterTests, self).setUp()
         node = Node(
             # Node public_address is actually the internal cluster address
             uuid=uuid4(), public_address=CONTROL_SERVICE_PRIVATE_IP

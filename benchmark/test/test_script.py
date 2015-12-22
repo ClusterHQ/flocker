@@ -10,7 +10,7 @@ import tempfile
 from ipaddr import IPAddress
 from jsonschema.exceptions import ValidationError
 
-from twisted.trial.unittest import SynchronousTestCase
+from flocker.testtools import TestCase
 
 from benchmark.script import (
     BenchmarkOptions, get_cluster, validate_configuration, get_config_by_name
@@ -41,12 +41,13 @@ agent_nodes: []
 ''' % _YAML_CONTROL_SERVICE_ADDRESS
 
 
-class ClusterConfigurationTests(SynchronousTestCase):
+class ClusterConfigurationTests(TestCase):
     """
     Tests for mapping cluster configuration to cluster.
     """
 
     def setUp(self):
+        super(ClusterConfigurationTests, self).setUp()
         self.environ = {
             'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': '107374182400',
             'FLOCKER_ACCEPTANCE_CONTROL_NODE': _ENV_CONTROL_SERVICE_ADDRESS,
@@ -114,9 +115,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options = BenchmarkOptions()
         options.parseOptions([])
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, {})
-            self.assertIn('not set', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, {},
+            )
+            self.assertIn('not set', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_missing_yaml_file(self):
@@ -131,9 +134,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options = BenchmarkOptions()
         options.parseOptions(['--cluster', tmpdir])
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
-            self.assertIn('not found', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
+            self.assertIn('not found', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_environment_invalid_control_node(self):
@@ -144,9 +149,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options.parseOptions([])
         self.environ['FLOCKER_ACCEPTANCE_CONTROL_NODE'] = 'notanipaddress'
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
-            self.assertIn('notanipaddress', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
+            self.assertIn('notanipaddress', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_environment_hostname_mapping_invalid_json(self):
@@ -157,9 +164,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options.parseOptions([])
         self.environ['FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS'] = '}'
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
-            self.assertIn('JSON', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
+            self.assertIn('JSON', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_environment_hostname_mapping_not_object(self):
@@ -172,9 +181,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
             '[{"notanipaddress": "notanipaddress"}]'
         )
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
-            self.assertIn('notanipaddress', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
+            self.assertIn('notanipaddress', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_environment_hostname_mapping_invalid_ipaddress(self):
@@ -187,9 +198,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
             '{"notanipaddress": "notanipaddress"}'
         )
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
-            self.assertIn('notanipaddress', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
+            self.assertIn('notanipaddress', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_environment_invalid_volume_size(self):
@@ -200,20 +213,23 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options.parseOptions([])
         self.environ['FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE'] = 'A'
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
             self.assertIn(
-                'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE', e.exception.args[0]
+                'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE', exception.args[0]
             )
             self.assertIn(options.getUsage(), captured_stderr())
 
 
-class ValidationTests(SynchronousTestCase):
+class ValidationTests(TestCase):
     """
     Tests for configuration file validation.
     """
 
     def setUp(self):
+        super(ValidationTests, self).setUp()
         self.config = {
             'scenarios': [
                 {
@@ -304,56 +320,69 @@ class ValidationTests(SynchronousTestCase):
         Rejects configuration file with missing scenarios attribute.
         """
         del self.config['scenarios']
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
     def test_missing_operations(self):
         """
         Rejects configuration file with missing operations attribute.
         """
         del self.config['operations']
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
     def test_missing_metrics(self):
         """
         Rejects configuration file with missing metrics attribute.
         """
         del self.config['metrics']
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
     def test_empty_scenarios(self):
         """
         Rejects configuration file with empty scenarios attribute.
         """
         self.config['scenarios'] = {}
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
     def test_empty_operations(self):
         """
         Rejects configuration file with empty operations attribute.
         """
         self.config['operations'] = {}
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
     def test_empty_metrics(self):
         """
         Rejects configuration file with empty metrics attribute.
         """
         self.config['metrics'] = {}
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
 
-class SubConfigurationTests(SynchronousTestCase):
+class SubConfigurationTests(TestCase):
     """
     Tests for getting sections from the configuration file.
     """
 
     def setUp(self):
+        super(SubConfigurationTests, self).setUp()
         self.config = {
             'scenarios': [
                 {
