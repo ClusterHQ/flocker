@@ -13,7 +13,6 @@ from pytz import UTC
 from eliot.testing import validate_logging
 
 from twisted.internet.defer import fail, Deferred
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
@@ -33,7 +32,7 @@ from .._p2p import (
     CreateDataset, HandoffDataset, PushDataset, ResizeDataset,
     _to_volume_name, DeleteDataset
 )
-from ...testtools import AsyncTestCase, CustomException
+from ...testtools import AsyncTestCase, TestCase, CustomException
 from .. import _p2p
 from ...control._model import (
     AttachedVolume, Dataset, Manifestation, Leases
@@ -116,11 +115,12 @@ EMPTY_NODESTATE = NodeState(hostname=u"example.com", uuid=uuid4(),
                             applications=[])
 
 
-class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
+class P2PManifestationDeployerDiscoveryTests(TestCase):
     """
     Tests for ``P2PManifestationDeployer`` discovery.
     """
     def setUp(self):
+        super(P2PManifestationDeployerDiscoveryTests, self).setUp()
         self.volume_service = create_volume_service(self)
         self.node_uuid = uuid4()
         # https://clusterhq.atlassian.net/browse/FLOC-1926
@@ -239,7 +239,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             manifestation)
 
 
-class P2PManifestationDeployerLeaseTests(SynchronousTestCase):
+class P2PManifestationDeployerLeaseTests(TestCase):
     """
     Tests for impact of leases on
     ``P2PManifestationDeployer.calculate_changes``.
@@ -342,7 +342,7 @@ class P2PManifestationDeployerLeaseTests(SynchronousTestCase):
         self.assertEqual(expected, changes)
 
 
-class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
+class P2PManifestationDeployerCalculateChangesTests(TestCase):
     """
     Tests for
     ``P2PManifestationDeployer.calculate_changes``.
@@ -810,7 +810,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         self.assertEqual(expected, changes)
 
 
-class CreateDatasetTests(SynchronousTestCase):
+class CreateDatasetTests(TestCase):
     """
     Tests for ``CreateDataset``.
     """
@@ -866,11 +866,12 @@ class CreateDatasetTests(SynchronousTestCase):
             _to_volume_name(volume.dataset.dataset_id)))
 
 
-class DeleteDatasetTests(SynchronousTestCase):
+class DeleteDatasetTests(TestCase):
     """
     Tests for ``DeleteDataset``.
     """
     def setUp(self):
+        super(DeleteDatasetTests, self).setUp()
         self.volume_service = create_volume_service(self)
         self.deployer = P2PManifestationDeployer(
             u'example.com', self.volume_service)
@@ -951,7 +952,7 @@ class ResizeVolumeTests(AsyncTestCase):
         return d
 
 
-class HandoffVolumeTests(SynchronousTestCase):
+class HandoffVolumeTests(TestCase):
     """
     Tests for ``HandoffVolume``.
     """
@@ -997,7 +998,7 @@ class HandoffVolumeTests(SynchronousTestCase):
         self.assertIs(handoff_result, result)
 
 
-class PushVolumeTests(SynchronousTestCase):
+class PushVolumeTests(TestCase):
     """
     Tests for ``PushVolume``.
     """
