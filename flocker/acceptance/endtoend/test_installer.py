@@ -47,7 +47,7 @@ def remote_postgres(host, command):
         reactor,
         'ubuntu',
         CLIENT_IP,
-        ('postgres://flocker:flocker@' + host + ':5432',
+        ('psql', 'postgres://flocker:flocker@' + host + ':5432',
          '--command={}'.format(command)),
         handle_stdout=postgres_output.append
     )
