@@ -6,7 +6,6 @@ An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
 from types import NoneType
-from subprocess import check_output
 import threading
 import time
 import logging
@@ -51,6 +50,7 @@ from .blockdevice import (
 from ..script import StorageInitializationError
 
 from ...control import pmap_field
+from ...testtools import run_process
 
 from ._logging import (
     AWS_ACTION, NO_AVAILABLE_DEVICE,
@@ -704,8 +704,8 @@ def _get_device_size(device):
     # `lsblk` output. Ignore partition sizes.
     # XXX: Handle error cases during `check_output()` run
     # (https://clusterhq.atlassian.net/browse/FLOC-1886).
-    command_output = check_output(command)
-    line_one = command_output.splitlines()[0]
+    result = run_process(command)
+    line_one = result.output.splitlines()[0]
     device_size = int(line_one.rstrip().decode("ascii"))
 
     return device_size
