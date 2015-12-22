@@ -16,7 +16,6 @@ import yaml
 import json
 import ssl
 
-from docker import Client
 from docker.tls import TLSConfig
 
 from twisted.web.http import OK, CREATED
@@ -45,6 +44,7 @@ from ..ca import treq_with_authentication, UserCredential
 from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.agents.ebs import aws_from_configuration
+from ..node import dockerpy_client
 from ..provision import reinstall_flocker_at_version
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
@@ -118,8 +118,11 @@ def get_docker_client(cluster, address):
         # do verify certificate authority signed the server certificate:
         assert_hostname=False,
         verify=get_path(b"cluster.crt"))
-    return Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
-                  tls=tls, timeout=100, version='1.21')
+
+    return dockerpy_client(
+        base_url="https://{}:{}".format(address, DOCKER_PORT),
+        tls=tls, timeout=100, version='1.21',
+    )
 
 
 def get_mongo_application():

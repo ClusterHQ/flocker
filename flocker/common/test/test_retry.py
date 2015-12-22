@@ -5,8 +5,13 @@ Tests for ``flocker.common._retry``.
 """
 
 from datetime import timedelta
+from itertools import repeat, count
 from functools import partial
-from itertools import repeat
+
+import testtools
+from testtools.matchers import (
+    MatchesPredicate, Equals, AllMatch, IsInstance, GreaterThan, raises
+)
 
 from eliot import MessageType, fields
 from eliot.testing import (
@@ -29,15 +34,21 @@ from effect import (
 )
 from effect.testing import perform_sequence
 
-from .._retry import (
-    LOOP_UNTIL_ACTION,
-    LOOP_UNTIL_ITERATION_MESSAGE,
-    LoopExceeded,
+from .. import (
     loop_until,
     retry_effect_with_timeout,
     retry_failure,
     poll_until,
     timeout,
+    retry_if,
+    get_default_retry_steps,
+    decorate_methods,
+    with_retry,
+)
+from .._retry import (
+    LOOP_UNTIL_ACTION,
+    LOOP_UNTIL_ITERATION_MESSAGE,
+    LoopExceeded,
 )
 from ...testtools import TestCase, CustomException
 
@@ -227,7 +238,10 @@ class TimeoutTests(TestCase):
     """
 
     def setUp(self):
-        """Initialize testing helper variables."""
+        """
+        Initialize testing helper variables.
+        """
+        super(TimeoutTests, self).setUp()
         self.deferred = Deferred()
         self.timeout = 10.0
         self.clock = Clock()
@@ -674,3 +688,218 @@ class RetryEffectTests(SynchronousTestCase):
             CustomException,
             perform_sequence, expected_intents, retrier
         )
+
+
+EXPECTED_RETRY_SOME_TIMES_RETRIES = 1200
+
+
+class GetDefaultRetryStepsTests(testtools.TestCase):
+    """
+    Tests for ``get_default_retry_steps``.
+    """
+    def test_steps(self):
+        """
+        ``get_default_retry_steps`` returns an iterator consisting of the given
+        delay repeated enough times to fill the given maximum time period.
+        """
+        delay = timedelta(seconds=3)
+        max_time = timedelta(minutes=3)
+        steps = list(get_default_retry_steps(delay, max_time))
+        self.assertThat(set(steps), Equals({delay}))
+        self.assertThat(sum(steps, timedelta()), Equals(max_time))
+
+    def test_default(self):
+        """
+        There are default values for the delay and maximum time parameters
+        accepted by ``get_default_retry_steps``.
+        """
+        steps = get_default_retry_steps()
+        self.assertThat(steps, AllMatch(IsInstance(timedelta)))
+        self.assertThat(steps, AllMatch(GreaterThan(timedelta())))
+
+
+class RetryIfTests(testtools.TestCase):
+    """
+    Tests for ``retry_if``.
+    """
+    def test_matches(self):
+        """
+        If the matching function returns ``True``, the retry predicate returned
+        by ``retry_if`` returns ``None``.
+        """
+        should_retry = retry_if(
+            lambda exception: isinstance(exception, CustomException)
+        )
+        self.assertThat(
+            should_retry(
+                CustomException, CustomException("hello, world"), None
+            ),
+            Equals(None),
+        )
+
+    def test_does_not_match(self):
+        """
+        If the matching function returns ``False``, the retry predicate
+        returned by ``retry_if`` re-raises the exception.
+        """
+        should_retry = retry_if(
+            lambda exception: not isinstance(exception, CustomException)
+        )
+        self.assertThat(
+            lambda: should_retry(
+                CustomException, CustomException("hello, world"), None
+            ),
+            raises(CustomException),
+        )
+
+
+class DecorateMethodsTests(testtools.TestCase):
+    """
+    Tests for ``decorate_methods``.
+    """
+    @staticmethod
+    def noop_wrapper(method):
+        return method
+
+    def test_data_descriptor(self):
+        """
+        Non-method attribute read access passes through to the wrapped object
+        and the result is the same as if no wrapping had taken place.
+        """
+        class Original(object):
+            class_attribute = object()
+
+            def __init__(self):
+                self.instance_attribute = object()
+
+        original = Original()
+        wrapper = decorate_methods(original, self.noop_wrapper)
+        self.expectThat(
+            wrapper.class_attribute,
+            Equals(original.class_attribute),
+        )
+        self.expectThat(
+            wrapper.instance_attribute,
+            Equals(original.instance_attribute),
+        )
+
+    def test_passthrough(self):
+        """
+        Methods called on the wrapper have the same arguments passed through to
+        the wrapped method and the result of the wrapped method returned if no
+        exception is raised.
+        """
+        class Original(object):
+            def some_method(self, a, b):
+                return (b, a)
+
+        a = object()
+        b = object()
+
+        wrapper = decorate_methods(Original(), self.noop_wrapper)
+        self.expectThat(
+            wrapper.some_method(a, b=b),
+            Equals((b, a)),
+        )
+
+
+class WithRetryTests(testtools.TestCase):
+    """
+    Tests for ``with_retry``.
+    """
+    class AlwaysFail(object):
+        failures = 0
+
+        def some_method(self):
+            self.failures += 1
+            raise CustomException(self.failures)
+
+    def always_failing(self, counter):
+        raise CustomException(next(counter))
+
+    def test_success(self):
+        """
+        If the wrapped method returns a value on the first call, the value is
+        returned and no retries are made.
+        """
+        time = []
+        sleep = time.append
+
+        expected = object()
+        another = object()
+        results = [another, expected]
+
+        wrapper = with_retry(results.pop, sleep=sleep)
+        actual = wrapper()
+
+        self.expectThat(actual, Equals(expected))
+        self.expectThat(results, Equals([another]))
+
+    def test_default_retry(self):
+        """
+        If no value is given for the ``should_retry`` parameter, if the wrapped
+        method raises an exception it is called again after a short delay.
+        This is repeated using the elements of ``retry_some_times`` as the
+        sleep times and stops when there are no more elements.
+        """
+        time = []
+        sleep = time.append
+
+        counter = iter(count())
+        wrapper = with_retry(
+            partial(self.always_failing, counter), sleep=sleep
+        )
+        # XXX testtools ``raises`` helper generates a crummy message when this
+        # assertion fails
+        self.assertRaises(CustomException, wrapper)
+        self.expectThat(
+            next(counter),
+            # The number of times we demonstrated (above) that retry_some_times
+            # retries - plus one more for the initial call.
+            Equals(EXPECTED_RETRY_SOME_TIMES_RETRIES + 1),
+        )
+        self.expectThat(
+            sum(time),
+            # Floating point maths.  Allow for some slop.
+            MatchesPredicate(
+                lambda t: 119.8 <= t <= 120.0,
+                "Time value %r too far from expected value 119.9",
+            ),
+        )
+
+    def test_steps(self):
+        """
+        If an iterator of steps is passed to ``with_retry``, it is used to
+        determine the number of retries and the duration of the sleeps between
+        retries.
+        """
+        s = timedelta(seconds=1)
+        sleeps = []
+        wrapper = with_retry(
+            partial(self.always_failing, count()),
+            sleep=sleeps.append,
+            steps=[s * 1, s * 2, s * 3],
+        )
+        self.assertRaises(CustomException, wrapper)
+        self.expectThat(sleeps, Equals([1, 2, 3]))
+
+    def test_custom_should_retry(self):
+        """
+        If a predicate is passed for ``should_retry``, it used to determine
+        whether a retry should be attempted any time an exception is raised.
+        """
+        counter = iter(count())
+        original = partial(self.always_failing, counter)
+        wrapped = with_retry(
+            original,
+            should_retry=retry_if(
+                lambda exception: (
+                    isinstance(exception, CustomException) and
+                    exception.args[0] < 10
+                ),
+            ),
+            sleep=lambda interval: None,
+        )
+
+        self.expectThat(wrapped, raises(CustomException))
+        self.expectThat(next(counter), Equals(11))
