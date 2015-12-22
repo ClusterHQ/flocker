@@ -82,6 +82,16 @@ instance_sg = template.add_resource(
         ]
     )
 )
+base_user_data = [
+    '#!/bin/bash\n',
+    'aws_region="', Ref("AWS::Region"), '"\n',
+    'aws_zone="', zone, '"\n',
+    'access_key_id="', Ref(access_key_id_param), '"\n',
+    'secret_access_key="', Ref(secret_access_key_param), '"\n',
+    's3_bucket="', Ref(s3bucket), '"\n',
+    'node_count="{}"\n'.format(NUM_NODES),
+    'apt-get update\n',
+]
 
 for i in range(NUM_NODES):
     node_name = NODE_NAME_TEMPLATE.format(index=i)
@@ -93,16 +103,9 @@ for i in range(NUM_NODES):
         SecurityGroups=[Ref(instance_sg)],
         AvailabilityZone=zone,
     )
-    user_data = [
-        '#!/bin/bash\n',
-        'aws_region="', Ref("AWS::Region"), '"\n',
-        'aws_zone="', zone, '"\n',
-        'access_key_id="', Ref(access_key_id_param), '"\n',
-        'secret_access_key="', Ref(secret_access_key_param), '"\n',
-        's3_bucket="', Ref(s3bucket), '"\n',
-        'node_count="{}"\n'.format(NUM_NODES),
+    user_data = base_user_data[:]
+    user_data += [
         'node_number="{}"\n'.format(i),
-        'apt-get update\n',
     ]
 
     user_data += sibling_lines(DOCKER_SETUP)
@@ -143,9 +146,12 @@ client_instance = ec2.Instance(
     SecurityGroups=[Ref(instance_sg)],
     AvailabilityZone=zone,
 )
-user_data = sibling_lines(CLIENT_SETUP)
+user_data = base_user_data[:]
+user_data += sibling_lines(S3_SETUP)
+user_data += sibling_lines(CLIENT_SETUP)
 
 client_instance.UserData = Base64(Join("", user_data))
+client_instance.DependsOn = control_service_instance.name
 
 template.add_resource(client_instance)
 

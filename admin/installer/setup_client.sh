@@ -16,3 +16,12 @@ curl https://raw.githubusercontent.com/ClusterHQ/flocker/flocker-cloudformation-
 curl https://raw.githubusercontent.com/ClusterHQ/flocker/flocker-cloudformation-FLOC-3709/admin/installer/postgres/docker-compose-node1.yml > /home/ubuntu/postgres/docker-compose-node1.yml
 
 chown --recursive ubuntu:ubuntu /home/ubuntu/postgres
+
+# Get uft-flocker-volumes
+curl -sSL https://get.flocker.io/ | sh
+uft-flocker-ca --version
+
+mkdir -p /etc/flocker
+s3cmd_wrapper get --recursive --config=/root/.s3cfg s3://${s3_bucket}/flocker-config/ /etc/flocker
+
+

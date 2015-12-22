@@ -24,6 +24,14 @@ RECREATE_STATEMENT = 'drop table if exists test; create table test(i int);'
 INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
 
+FLOCKER_VOLUMES_CLEANUP = 'docker run --rm \
+    --env FLOCKER_API_CERT_NAME=user1 \
+    --env FLOCKER_CONTROL_SERVICE_ENDPOINT={control_ip} \
+    --volume /etc/flocker:/etc/flocker \
+    clusterhq/volume-cli:1.8.0 \
+    delete \
+    --dataset-name=postgres'
+
 
 def remote_command(node, *args):
     command_output = []
@@ -86,7 +94,12 @@ def cleanup():
             COMPOSE_NODE1, 'rm', '-f'
         )
     )
-    return gather_deferreds([d_node1_compose, d_node2_compose])
+
+    d_cleanup_flocker_volumes = remote_command(NODE0,
+                                               FLOCKER_VOLUMES_CLEANUP.format(
+                                                   control_ip=NODE0))
+    return gather_deferreds([d_node1_compose, d_node2_compose,
+                             d_cleanup_flocker_volumes])
 
 
 class DockerComposeTests(AsyncTestCase):
