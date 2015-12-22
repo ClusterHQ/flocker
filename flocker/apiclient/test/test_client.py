@@ -507,12 +507,13 @@ def make_clientv1_tests():
             d.addCallback(lambda _ignored: self.client.list_containers_state())
 
             d.addCallback(
-                lambda containers: [(c.node_uuid, c.name) for c in containers]
-            )
-
-            d.addCallback(
                 lambda containers: self.assertIn(
-                    (expected.node_uuid, expected.name),
+                    ContainerState(
+                        node_uuid=expected.node_uuid,
+                        name=expected.name,
+                        image=expected.image,
+                        running=True,
+                    ),
                     containers
                 )
             )

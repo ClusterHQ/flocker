@@ -122,12 +122,12 @@ class ContainerState(PClass):
     :attr UUID node_uuid: The UUID of a node in the cluster where the container
         will run.
     :attr unicode name: The unique name of the container.
-    :attr unicode image: The name of the Docker image.
+    :attr DockerImage image: The name of the Docker image.
     :attr bool running: Whether the container is running.
     """
     node_uuid = field(type=UUID, mandatory=True)
     name = field(type=unicode, mandatory=True)
-    image = field(type=unicode, mandatory=True)
+    image = field(type=DockerImage, mandatory=True)
     running = field(type=bool, mandatory=True)
 
 
@@ -438,7 +438,7 @@ class FakeFlockerClient(object):
             ContainerState(
                 node_uuid=container.node_uuid,
                 name=container.name,
-                image=unicode(container.image.full_name),
+                image=container.image,
                 running=True,
             ) for container in self._configured_containers.values()
         ]
@@ -786,7 +786,7 @@ class FlockerClient(object):
             return ContainerState(
                 node_uuid=UUID(container[u'node_uuid']),
                 name=container[u'name'],
-                image=container[u'image'],
+                image=DockerImage.from_string(container[u'image']),
                 running=container[u'running'],
             )
         d.addCallback(
