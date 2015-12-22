@@ -5,5 +5,5 @@ from .read_request_load import (
 )
 from .write_request_load import (
     WriteRequestLoadScenario, WRequestRateTooLow, WRequestRateNotReached,
-    WRequestOverload, WDataseCreationTimeout
+    WRequestOverload, DatasetCreationTimeout
 )

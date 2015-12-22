@@ -101,7 +101,7 @@ class WRequestOverload(Exception):
     """
 
 
-class WDataseCreationTimeout(Exception):
+class DatasetCreationTimeout(Exception):
     """
     The dataset could not be created within the specified time.
     """
@@ -174,7 +174,7 @@ class WriteRequestLoadScenario(object):
 
         :return: A Deferred that fires when the dataset has been created.
 
-        :raises: `WDataseCreationTimeout` if the creation goes wrong.
+        :raises: `DatasetCreationTimeout` if the creation goes wrong.
         """
         self.dataset_node = node
         creating = self.control_service.create_dataset(
@@ -184,7 +184,7 @@ class WriteRequestLoadScenario(object):
         # How could I handle them differently?
         def handle_timeout_and_errors(failure):
             failure.trap(CancelledError)
-            raise WDataseCreationTimeout()
+            raise DatasetCreationTimeout()
 
         timeout(self.reactor, creating, self.timeout)
 

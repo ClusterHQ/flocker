@@ -15,7 +15,7 @@ from flocker.apiclient._client import (
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
     WriteRequestLoadScenario, WRequestRateTooLow, WRequestRateNotReached,
-    WRequestOverload, WDataseCreationTimeout
+    WRequestOverload, DatasetCreationTimeout
 )
 from benchmark.scenarios.write_request_load import RateMeasurer
 
@@ -319,7 +319,7 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         c.pump(repeat(1, s.timeout+1))
 
         failure = self.failureResultOf(d)
-        self.assertIsInstance(failure.value, WDataseCreationTimeout)
+        self.assertIsInstance(failure.value, DatasetCreationTimeout)
 
     def test_write_request_load_succeeds(self):
         """
