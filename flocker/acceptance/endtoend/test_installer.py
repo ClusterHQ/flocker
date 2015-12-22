@@ -20,6 +20,10 @@ NODE1 = os.environ['CLUSTER_NODE1']
 COMPOSE_NODE0 = '/home/ubuntu/postgres/docker-compose-node0.yml'
 COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
 
+CREATE_STATEMENT = 'create table test(i int);'
+INSERT_STATEMENT = 'insert into test values(1);'
+SELECT_STATEMENT = 'select count(*) from test;'
+
 
 def remote_docker_compose(compose_file_path, *args):
     docker_compose_output = []
@@ -43,9 +47,8 @@ def remote_postgres(host, command):
         reactor,
         'ubuntu',
         CLIENT_IP,
-        ('psql', '-h ' + host,
-         '--user=flocker', '--password=flocker',
-         '--execute={}'.format(command)),
+        ('postgres://flocker:flocker@' + host + ':5432',
+         '--command={}'.format(command)),
         handle_stdout=postgres_output.append
     )
     d.addCallback(
@@ -83,12 +86,17 @@ class DockerComposeTests(AsyncTestCase):
     def test_docker_compose_up_postgres(self):
         """
         """
-        database_name = 'test_docker_compose_up_postgres'
         d = remote_docker_compose(COMPOSE_NODE0, 'up', '-d')
 
         d.addCallback(
             lambda ignored: remote_postgres(
-                NODE0, 'create database {}'.format(database_name)
+                NODE0, CREATE_STATEMENT + INSERT_STATEMENT
+            )
+        )
+
+        d.addCallback(
+            lambda ignored: remote_postgres(
+                NODE0, SELECT_STATEMENT
             )
         )
 
@@ -106,7 +114,7 @@ class DockerComposeTests(AsyncTestCase):
 
         d.addCallback(
             lambda ignored: remote_postgres(
-                NODE1, 'show databases'
+                NODE1, SELECT_STATEMENT
             )
         )
 
