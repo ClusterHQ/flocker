@@ -113,7 +113,7 @@ class DockerComposeTests(AsyncTestCase):
 
             return gather_deferreds([d_node1_compose, d_node1_docker,
                                      d_node2_compose, d_node2_docker])
-        d.addCallback(local_setup)
+        # d.addCallback(local_setup)
         return d
 
     def test_docker_compose_up_postgres(self):
@@ -143,7 +143,11 @@ class DockerComposeTests(AsyncTestCase):
             )
         )
 
-        d = remote_docker_compose(COMPOSE_NODE1, 'up', '-d')
+        d.addCallback(
+            lambda ignored: remote_docker_compose(
+                COMPOSE_NODE1, 'up', '-d'
+            )
+        )
 
         d.addCallback(
             lambda ignored: remote_postgres(
