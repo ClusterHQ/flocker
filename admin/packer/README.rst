@@ -2,6 +2,10 @@ Building Flocker Demo Images Using Packer
 
 The templates and provisioning scripts in this directory are used to create Ubuntu AMI images for use in the Flocker Cloudformation demo environment.
 
+Suitable Ubuntu-14.04 base images can be found here:
+
+* https://cloud-images.ubuntu.com/locator/ec2/
+
 Usage:
 
 * Install Packer
