@@ -1275,45 +1275,42 @@ class _WriteVerifyingExternalClient(object):
             test_mountpoint.remove()
         return result
 
-    def invariant(self, case, current_cluster_state):
+    def invariant(self, case, current_local_state):
         """
-        An invariant that should always hold. Specifically, after the path
-        to a dataset is known by the cluster then writes to that path
-        should either succeed and be persisted to the underlying block
-        device, or the write should fail.
+        An invariant that should always hold. Specifically, after the path to a
+        dataset is known by the cluster then writes to that path should either
+        succeed and be persisted to the underlying block device, or the write
+        should fail.
 
         :param case: A ``TestCase`` to use for making assertions.
-        :param current_cluster_state: A callable that returns the current state
-            of the cluster.
+        :param current_local_state: A callable that returns the current local
+            state from the deployer.
         """
         dataset = unicode(self._dataset_id)
 
-        # First poll the cluster state to see if there is a new mountpoint that
-        # we should try to use to attempt to write to the dataset.
-        [node] = list(n for n in current_cluster_state().nodes
-                      if n.uuid == self._node_uuid)
+        # First inspect the local state to see if there is a new mountpoint
+        # that we should try to use to attempt to write to the dataset.
+        local_state = current_local_state()
+        write_to_current_path_should_succeed = False
 
-        # If this dataset is in the manifestations, then we should be able to
-        # write to the current path provided by flocker.
-        manifestations = node.manifestations or {}
-        write_to_current_path_should_succeed = dataset in manifestations
+        if local_state:
+            discovered_dataset = local_state.datasets.get(self._dataset_id)
 
-        paths = node.paths or {}
-        current_path = paths.get(dataset)
-        if write_to_current_path_should_succeed:
-            case.assertIsNotNone(
-                current_path, "Despite being marked as manifested, dataset %s "
-                "did not have a path in the NodeState." % dataset)
-        if current_path:
-            self._known_mountpoints.add(current_path)
+            if discovered_dataset:
+                # If the dataset is mounted, the write should succeed.
+                write_to_current_path_should_succeed = (
+                    discovered_dataset.state == DatasetStates.MOUNTED)
 
-        devices = node.devices or {}
-        device = devices.get(self._dataset_id)
-        if device:
-            # Update the device_path that is backing the dataset_id just in
-            # case the volume has changed to a different device path since the
-            # last time we ran.
-            self._device_path = device
+                current_path = getattr(discovered_dataset, 'mount_point', None)
+                if current_path:
+                    self._known_mountpoints.add(current_path)
+
+                device = getattr(discovered_dataset, 'device_path', None)
+                if device:
+                    # Update the device_path that is backing the dataset_id
+                    # just in case the volume has changed to a different device
+                    # path since the last time we ran.
+                    self._device_path = device
 
         for path in self._known_mountpoints:
             filename = unicode(uuid4())
@@ -1349,7 +1346,10 @@ def _empty_node_state(deployer):
     )
 
 
-@attributes(["test_case", "deployer", "cluster_state"], apply_with_init=False)
+@attributes([
+    "test_case", "deployer", "_local_state", "_dataset_id", "initial_dataset",
+    "next_dataset"
+], apply_with_init=False)
 class BlockDeviceCalculatorTestObjects(object):
     """
     Object to house all test objects for the tests in
@@ -1360,8 +1360,8 @@ class BlockDeviceCalculatorTestObjects(object):
 
     :ivar test_case: The TestCase to use for assertions and cleanup callbacks.
     :ivar deployer: The ``IDeployer`` that will be used to run changes.
-    :ivar cluster_state: The current cluster state, updated everytime
-        ``discover_state`` is run on the deployer.
+    :ivar BlockDeviceDeployerLocalState _local_state: The current local state,
+        updated everytime ``discover_state`` is run in the convergence loop.
     :ivar UUID _dataset_id: The dataset_id of the dataset under test.
     :ivar DesiredDataset inial_dataset: The first dataset state to converge to.
     :ivar DesiredDataset next_dataset: The second dataset state to converge to.
@@ -1382,14 +1382,12 @@ class BlockDeviceCalculatorTestObjects(object):
             deployer = create_blockdevicedeployer(test_case)
         self.test_case = test_case
         self.deployer = deployer
-        self.cluster_state = DeploymentState(
-            nodes=[_empty_node_state(deployer)]
-        )
         self.dataset_id = two_dataset_states[0].dataset_id
         self.initial_dataset, self.next_dataset = [
             self._fixup_dataset_state(d)
             for d in two_dataset_states
         ]
+        self._local_state = None
 
     def _fixup_dataset_state(self, dataset_state):
         """
@@ -1414,17 +1412,14 @@ class BlockDeviceCalculatorTestObjects(object):
             dataset_state = dataset_state.set(mount_point=mount_point)
         return dataset_state
 
-    def current_local_state(self):
+    def discover_state(self):
         """
-        Return the current ``BlockDeviceDeployerLocalState`` from the deployer.
+        :returns: The current ``BlockDeviceDeployerLocalState`` from the
+            deployer.
         """
         local_state = self.test_case.successResultOf(
             self.deployer.discover_state(_empty_node_state(self.deployer))
         )
-
-        for change in local_state.shared_state_changes():
-            self.cluster_state = change.update_cluster_state(
-                self.cluster_state)
         return local_state
 
     def cleanup_example(self):
@@ -1434,17 +1429,11 @@ class BlockDeviceCalculatorTestObjects(object):
         umount_all(self.deployer.mountroot)
         detach_destroy_volumes(self.deployer.block_device_api)
 
-    def current_datasets(self):
+    def current_local_state(self):
         """
-        Return the current state of datasets from the deployer.
+        Return the current cached ``BlockDeviceDeployerLocalState``.
         """
-        return self.current_local_state().datasets
-
-    def current_cluster_state(self):
-        """
-        Return the current state of the cluster.
-        """
-        return self.cluster_state
+        return self._local_state
 
     def run_convergence_step(self, desired_datasets):
         """
@@ -1453,7 +1442,8 @@ class BlockDeviceCalculatorTestObjects(object):
         :param desired_datasets: The dataset state to converge to.
         :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
         """
-        local_datasets = self.current_datasets()
+        self._local_state = self.discover_state()
+        local_datasets = self._local_state.datasets
         changes = self.deployer.calculator.calculate_changes_for_datasets(
             discovered_datasets=local_datasets,
             desired_datasets=desired_datasets,
@@ -1476,9 +1466,9 @@ class BlockDeviceCalculatorTestObjects(object):
         for i in range(max_iterations):
             self.run_convergence_step(
                 dataset_map_from_iterable(desired_datasets))
-            note(self.current_datasets())
+            note(self.discover_state().datasets)
             if compare_dataset_states(
-                self.current_datasets(),
+                self.discover_state().datasets,
                 dataset_map_from_iterable(desired_datasets),
             ):
                 break
@@ -1576,11 +1566,11 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
         before or after flocker was ready for it to use the path.
         """
 
-        nullable_callback = _MutableCallback()
+        callback = _MutableCallback()
 
         actual_blockdevice_manager = BlockDeviceManager()
         proxy_blockdevice_manager = create_callback_blockdevice_manager_proxy(
-            actual_blockdevice_manager, nullable_callback)
+            actual_blockdevice_manager, callback)
 
         test_objects = BlockDeviceCalculatorTestObjects(
             self,
@@ -1596,13 +1586,13 @@ class BlockDeviceCalculatorTests(SynchronousTestCase):
                 mountroot_for_test(self),
                 actual_blockdevice_manager)
 
-            nullable_callback.callback = partial(
+            callback.callback = partial(
                 external_agent.invariant, self,
-                test_objects.current_cluster_state)
+                test_objects.current_local_state)
 
             test_objects.run_sequential_convergence_test()
         finally:
-            nullable_callback.callback = None
+            callback.callback = None
             test_objects.cleanup_example()
 
     @given(
