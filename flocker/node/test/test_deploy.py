@@ -6,14 +6,13 @@ Tests for ``flocker.node._deploy``.
 
 from twisted.internet.defer import succeed
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from zope.interface.verify import verifyObject
 
 from ..testtools import (
     ControllableAction, ControllableDeployer, ideployer_tests_factory,
     EMPTY_NODE_STATE,
 )
+from ...testtools import TestCase
 from ...control import (
     NodeState,
 )
@@ -26,7 +25,7 @@ from .._deploy import (
 from .istatechange import make_istatechange_tests
 
 
-class NodeLocalStateTests(SynchronousTestCase):
+class NodeLocalStateTests(TestCase):
     """
     Tests for ``NodeLocalState``
     """
