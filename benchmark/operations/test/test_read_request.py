@@ -9,7 +9,6 @@ from zope.interface.verify import verifyClass
 
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
-from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient import IFlockerAPIV1Client, FakeFlockerClient
 from flocker.testtools import TestCase
@@ -89,8 +88,7 @@ class ValidMethodNameTests(TestCase):
         )
 
 
-# XXX FLOC-3281 Change to flocker.testtools.TestCase after FLOC-3077 is merged
-class ReadRequestTests(SynchronousTestCase):
+class ReadRequestTests(TestCase):
     """
     ReadRequest operation tests.
     """
