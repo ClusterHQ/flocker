@@ -3898,6 +3898,7 @@ class LoopbackBlockDeviceAPIImplementationTests(TestCase):
         )
 
     def setUp(self):
+        super(LoopbackBlockDeviceAPIImplementationTests, self).setUp()
         self.api = loopbackblockdeviceapi_for_test(
             test_case=self,
             allocation_unit=LOOPBACK_ALLOCATION_UNIT,
