@@ -356,7 +356,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
     // apply config related to 'run_trial' jobs
     if (job_type == 'run_trial') {
         for (_module in job_values.with_modules) {
-            _job_name = job_name + '_' + _module
+            _job_name = job_name + '_' + _module.replace('/', '_')
             job("${dashProject}/${dashBranchName}/${_job_name}") {
                 parameters {
                     // we pass the 'MODULE' parameter as the flocker module to test with trial
@@ -421,7 +421,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
     // apply config related to 'run_acceptance' jobs
     if (job_type == 'run_acceptance') {
         for (_module in job_values.with_modules) {
-            _job_name = job_name + '_' + _module
+            _job_name = job_name + '_' + _module.replace('/', '_')
             job("${dashProject}/${dashBranchName}/${_job_name}") {
                 parameters {
                     // we pass the 'MODULE' parameter as the flocker module to test with trial
@@ -551,7 +551,7 @@ def build_multijob(dashBranchName, branchName) {
                                      'run_acceptance']) {
                         for (job_entry in job_type_values) {
                             for (_module in job_entry.value.with_modules) {
-                                _job_name = job_entry.key + '_' + _module
+                                _job_name = job_entry.key + '_' + _module.replace('/', '_')
                                 job("${dashProject}/${dashBranchName}/${_job_name}")  {
                                     /* make sure we don't kill the parent multijob when we
                                        fail */
