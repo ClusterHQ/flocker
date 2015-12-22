@@ -270,7 +270,7 @@ class TimeoutTests(TestCase):
         fire within the timeout interval, it is made to fire with the custom
         reason once the timeout interval elapses.
         """
-        reason = CustomException("Custom timeout reason")
+        reason = CustomException(self.id())
         deferred = timeout(self.clock, self.deferred, self.timeout, reason)
         self.clock.advance(self.timeout)
         self.assertEqual(
@@ -295,7 +295,7 @@ class TimeoutTests(TestCase):
         """
         deferred = timeout(self.clock, self.deferred, self.timeout)
         self.clock.advance(self.timeout - 1.0)
-        self.deferred.errback(CustomException())
+        self.deferred.errback(CustomException(self.id()))
         self.failureResultOf(deferred, CustomException)
 
     def test_doesnt_time_out_failure_custom_reason(self):
@@ -308,7 +308,7 @@ class TimeoutTests(TestCase):
             ValueError("This should not appear.")
         )
         self.clock.advance(self.timeout - 1.0)
-        self.deferred.errback(CustomException())
+        self.deferred.errback(CustomException(self.id()))
         self.failureResultOf(deferred, CustomException)
 
     def test_advancing_after_success(self):
@@ -326,7 +326,7 @@ class TimeoutTests(TestCase):
         A Deferred that fires with a failure before the timeout continues to
         fail after the timeout has elapsed.
         """
-        deferred = fail(CustomException())
+        deferred = fail(CustomException(self.id()))
         timeout(self.clock, deferred, self.timeout)
         self.clock.advance(self.timeout)
         self.failureResultOf(deferred, CustomException)
@@ -346,7 +346,10 @@ class TimeoutTests(TestCase):
         pending on the reactor.
         """
         timeout(self.clock, self.deferred, self.timeout)
-        self.deferred.errback(CustomException())
+        self.deferred.errback(CustomException(self.id()))
+        # We need to handle the errback so that Trial and/or testtools don't
+        # fail with unhandled errors.
+        self.addCleanup(self.deferred.addErrback, lambda _: None)
         self.assertEqual(self.clock.getDelayedCalls(), [])
 
 
