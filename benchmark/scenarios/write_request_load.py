@@ -4,6 +4,7 @@ Read request load scenario for the control service benchmarks.
 """
 from collections import deque
 from itertools import repeat
+import random
 
 from zope.interface import implementer
 from eliot import start_action, write_failure, Message
@@ -211,7 +212,7 @@ class WriteRequestLoadScenario(object):
         """
         if not nodes:
             raise WNoNodesFound()
-        return nodes[0]
+        return random.choice(nodes)
 
     def _request_and_measure(self, count):
         """
