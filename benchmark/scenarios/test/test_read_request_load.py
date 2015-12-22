@@ -23,14 +23,14 @@ DEFAULT_VOLUME_SIZE=1073741824
 
 class RateMeasurerTest(SynchronousTestCase):
     """
-    RateMeasurer tests
+    RateMeasurer tests.
     """
 
     def send_requests(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will send the desired number of request.
 
-        :param rate_measurer: The `RateMeasurer` we are testing
+        :param rate_measurer: The `RateMeasurer` we are testing.
         :param num_requests: The number of request we want to send.
         :param num_samples: The number of samples to collect.
         """
@@ -41,7 +41,7 @@ class RateMeasurerTest(SynchronousTestCase):
         """
         Helper function that will receive the desired number of requests.
 
-        :param rate_measurer: The `RateMeasurer` we are testing
+        :param rate_measurer: The `RateMeasurer` we are testing.
         :param num_requests: The number of request we want to receive.
         :param num_samples: The number of samples to collect.
         """
@@ -56,7 +56,7 @@ class RateMeasurerTest(SynchronousTestCase):
         Helper function that will result the desired number of response
         failures.
 
-        :param rate_measurer: The `RateMeasurer` we are testing
+        :param rate_measurer: The `RateMeasurer` we are testing.
         :param num_failures: The number of requests we want to fail.
         :param num_samples: The number of samples to collect.
         """
@@ -72,7 +72,7 @@ class RateMeasurerTest(SynchronousTestCase):
         desired number of request, and receiving the same
         amount of them.
 
-        :param rate_measurer: The `RateMeasurer` we are testing
+        :param rate_measurer: The `RateMeasurer` we are testing.
         :param num_requests: The number of request we want to make.
         :param num_samples: The number of samples to collect.
         """

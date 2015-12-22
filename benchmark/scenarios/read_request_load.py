@@ -79,13 +79,13 @@ class RateMeasurer(object):
 
 class RequestRateTooLow(Exception):
     """
-    The RequestRate dropped below a threshold.
+    The request rate dropped below a threshold.
     """
 
 
 class RequestRateNotReached(Exception):
     """
-    The RequestRate did not reach the target level.
+    The request rate did not reach the target level.
     """
 
 
@@ -131,6 +131,9 @@ class ReadRequestLoadScenario(object):
         """
         Update the rate with the current value and send `request_rate`
         number of new requests.
+
+        :param count: The number of seconds passed since the last time
+            `_request_and_measure` was called.
         """
         for i in range(count):
             self.rate_measurer.update_rate()
