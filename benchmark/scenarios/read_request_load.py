@@ -28,7 +28,7 @@ class RateMeasurer(object):
     :ivar _sent: The number of sent requests recorded.
     :ivar _received: The number of received requests recorded.
     :ivar _errors: The number of failed requests recorded.
-    :ivar _rate: The current rate
+    :ivar _rate: The current rate.
     """
 
     def __init__(self, sample_size=DEFAULT_SAMPLE_SIZE):
