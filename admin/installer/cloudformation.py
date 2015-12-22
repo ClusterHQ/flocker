@@ -10,7 +10,7 @@ from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
 from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 
-NUM_NODES = 1
+NUM_NODES = 2
 NODE_NAME_TEMPLATE = u"Flocker{index}"
 S3_SETUP = 'setup_s3.sh'
 DOCKER_SETUP = 'setup_docker.sh'
