@@ -202,14 +202,15 @@ class WriteRequestLoadScenario(object):
         """
         if not nodes:
             raise WNoNodesFound()
-        return nodes[0]
+        self.dataset_node = nodes[0]
+        return self.dataset_node
 
     def _request_and_measure(self, count):
         """
-        Updates the rate with the current value and sends `request_rate`
+        Update the rate with the current value and send `request_rate`
         number of new requests.
 
-        :param count: the number of seconds passed since the last time
+        :param count: The number of seconds passed since the last time
             `_request_and_measure` was called.
         """
         for i in range(count):
@@ -220,7 +221,7 @@ class WriteRequestLoadScenario(object):
             write_failure(result)
 
         for i in range(self.request_rate):
-            d = self.control_service.move_dataset(self.dataset_id,
+            d = self.control_service.move_dataset(self.dataset_node.uuid,
                                                   self.dataset_id)
             self.rate_measurer.request_sent()
             d.addCallbacks(self.rate_measurer.response_received,
