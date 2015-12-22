@@ -866,7 +866,7 @@ class CreateDatasetTests(SynchronousTestCase):
             _to_volume_name(volume.dataset.dataset_id)))
 
 
-class DeleteDatasetTests(TestCase):
+class DeleteDatasetTests(SynchronousTestCase):
     """
     Tests for ``DeleteDataset``.
     """
