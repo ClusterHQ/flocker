@@ -352,8 +352,8 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         being raised.
         """
         c = Clock()
-        cluster = self.make_cluster(
-            self.get_dropping_flocker_client_instance())
+        control_service = self.get_dropping_flocker_client_instance()
+        cluster = self.make_cluster(control_service)
         sample_size = 5
         s = WriteRequestLoadScenario(c, cluster, sample_size=sample_size)
 
@@ -363,7 +363,7 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         # requested rate.
         c.pump(repeat(1, sample_size))
 
-        cluster.get_control_service(c).drop_requests = True
+        control_service.drop_requests = True
 
         # Advance the clock by 2 seconds so that a request is dropped
         # and a new rate which is below the target can be established.
@@ -378,10 +378,10 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         target rate cannot be established within a given timeframe.
         """
         c = Clock()
-        cluster = self.make_cluster(
-            self.get_dropping_flocker_client_instance())
+        control_service = self.get_dropping_flocker_client_instance()
+        cluster = self.make_cluster(control_service)
         s = WriteRequestLoadScenario(c, cluster)
-        cluster.get_control_service(c).drop_requests = True
+        control_service.drop_requests = True
         d = s.start()
 
         # Continue the clock for one second longer than the timeout
@@ -404,8 +404,10 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         in a more realistic manner.
         """
         # XXX Update this test when we add tolerance for rate fluctuations.
+        # See FLOC-3757.
         c = Clock()
-        cluster = self.make_cluster(self.get_dropping_flocker_client_instance())
+        control_service = self.get_dropping_flocker_client_instance()
+        cluster = self.make_cluster(control_service)
         target_rate = 10
         sample_size = 20
         s = WriteRequestLoadScenario(c, cluster, request_rate=target_rate,
@@ -415,12 +417,12 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
 
         s.start()
         # Reach initial rate
-        cluster.get_control_service(c).drop_requests = True
+        control_service.drop_requests = True
         # Initially, we generate enough dropped requests so that the scenario
         # is overloaded when we start monitoring.
         c.pump(repeat(1, seconds_to_overload+1))
         # We stop dropping requests
-        cluster.get_control_service(c).drop_requests = False
+        control_service.drop_requests = False
         # Now we generate the initial rate to start monitoring the scenario
         c.pump(repeat(1, sample_size))
         # We only need to advance one more second (first loop in the monitoring
@@ -432,15 +434,16 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
 
     def test_scenario_stops_only_when_no_outstanding_requests(self):
         """
-        `ReadRequestLoadScenario` should only be considered as stopped
+        `WriteRequestLoadScenario` should only be considered as stopped
         when all outstanding requests made by it have completed.
         """
         c = Clock()
 
-        cluster = self.make_cluster(self.get_error_response_client(c))
+        control_service = self.get_error_response_client(c)
+        cluster = self.make_cluster(control_service)
         delay = 1
 
-        cluster.get_control_service(c).delay = delay
+        control_service.delay = delay
         sample_size = 5
         s = WriteRequestLoadScenario(
             c, cluster, request_rate=10, sample_size=sample_size
@@ -456,9 +459,9 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         # Force the control service to fail requests for one second.
         # These requests will fail after the delay period set in the
         # control service.
-        cluster.get_control_service(c).fail_requests = True
+        control_service.fail_requests = True
         c.advance(1)
-        cluster.get_control_service(c).fail_requests = False
+        control_service.fail_requests = False
 
         d.addCallback(lambda ignored: s.stop())
 
@@ -470,13 +473,14 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
 
     def test_scenario_timeouts_if_requests_not_completed(self):
         """
-        `ReadRequestLoadScenario` should timeout if the outstanding
+        `WriteRequestLoadScenario` should timeout if the outstanding
         requests for the scenarion do not complete within the specified
         time.
         """
         c = Clock()
 
-        cluster = self.make_cluster(self.get_error_response_client(c))
+        control_service = self.get_error_response_client(c)
+        cluster = self.make_cluster(control_service)
         sample_size = 5
         s = WriteRequestLoadScenario(
             c, cluster, request_rate=10, sample_size=sample_size
@@ -484,7 +488,7 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
 
         # Set the delay for the requests to be longer than the scenario
         # timeout
-        cluster.get_control_service(c).delay = s.timeout + 10
+        control_service.delay = s.timeout + 10
 
         d = s.start()
         s.maintained().addBoth(lambda x: self.fail())
@@ -493,9 +497,9 @@ class WriteRequestLoadScenarioTest(SynchronousTestCase):
         # requested rate.
         c.pump(repeat(1, sample_size))
 
-        cluster.get_control_service(c).fail_requests = True
+        control_service.fail_requests = True
         c.advance(1)
-        cluster.get_control_service(c).fail_requests = False
+        control_service.fail_requests = False
 
         d.addCallback(lambda ignored: s.stop())
 

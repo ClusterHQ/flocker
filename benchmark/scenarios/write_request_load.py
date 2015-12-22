@@ -89,8 +89,9 @@ class RateMeasurer(object):
         return self._rate
 
 
-# XXX make this excetions common for read and write scenarios and remove
-# the initial W preceding the name
+# XXX The following exceptions are duplicated from the read load
+# scenario with a prepended 'W'. They should be shared across both
+# scenarios. See FLOC-3756.
 class WRequestRateTooLow(Exception):
     """
     The request rate dropped below a threshold.
