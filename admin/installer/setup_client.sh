@@ -12,6 +12,6 @@ chmod +x /usr/local/bin/docker-compose
 
 mkdir -p /home/ubuntu/postgres
 
-curl https://raw.githubusercontent.com/ClusterHQ/flocker/b371c64fc5f50801f2cce34d31ea3700f7cab024/admin/installer/postgres/docker-compose-node0.yml > /home/ubuntu/postgres/docker-compose-node0.yml
+curl https://raw.githubusercontent.com/ClusterHQ/flocker/flocker-cloudformation-FLOC-3709/admin/installer/postgres/docker-compose-node0.yml > /home/ubuntu/postgres/docker-compose-node0.yml
 
 chown --recursive ubuntu:ubuntu /home/ubuntu/postgres
