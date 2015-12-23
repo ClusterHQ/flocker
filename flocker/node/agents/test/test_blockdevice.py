@@ -2340,7 +2340,7 @@ class BlockDeviceDeployerMountCalculateChangesTests(
             in_parallel(changes=[
                 MountBlockDevice(
                     dataset_id=self.DATASET_ID,
-                    blockdevice_id=self.BLOCKDEVICE_ID,
+                    device_path=device,
                     mountpoint=FilePath(b"/flocker/").child(
                         bytes(self.DATASET_ID)
                     )
@@ -4258,7 +4258,7 @@ class CreateFilesystemTests(
 class MountBlockDeviceInitTests(
     make_with_init_tests(
         MountBlockDevice,
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+        dict(dataset_id=uuid4(), device_path=FilePath("/dev/sdb"),
              mountpoint=FilePath(b"/foo")),
         dict(),
     )
@@ -4301,7 +4301,13 @@ class _MountScenario(PClass):
     api = field()
     volume = field(type=BlockDeviceVolume)
     deployer = field(type=BlockDeviceDeployer)
+    device_path = field(type=FilePath)
     mountpoint = field(type=FilePath)
+
+    def state_change(self):
+        return MountBlockDevice(dataset_id=self.dataset_id,
+                                device_path=self.device_path,
+                                mountpoint=self.mountpoint)
 
     @classmethod
     def generate(cls, case, mountpoint):
@@ -4327,6 +4333,7 @@ class _MountScenario(PClass):
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         api.attach_volume(volume.blockdevice_id, host)
+        device_path = api.get_device_path(volume.blockdevice_id)
 
         deployer = BlockDeviceDeployer(
             node_uuid=uuid4(),
@@ -4337,7 +4344,9 @@ class _MountScenario(PClass):
 
         return cls(
             host=host, dataset_id=dataset_id, filesystem_type=filesystem_type,
-            api=api, volume=volume, deployer=deployer, mountpoint=mountpoint,
+            api=api, volume=volume, deployer=deployer,
+            device_path=device_path,
+            mountpoint=mountpoint,
         )
 
     def create(self):
@@ -4359,9 +4368,9 @@ class _MountScenario(PClass):
 class MountBlockDeviceTests(
     make_istatechange_tests(
         MountBlockDevice,
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+        dict(dataset_id=uuid4(), device_path=FilePath(b"/dev/sdb"),
              mountpoint=FilePath(b"/foo")),
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2,
+        dict(dataset_id=uuid4(), device_path=FilePath(b"/dev/sdc"),
              mountpoint=FilePath(b"/bar")),
     )
 ):
@@ -4377,11 +4386,7 @@ class MountBlockDeviceTests(
         scenario = _MountScenario.generate(self, mountpoint)
         self.successResultOf(scenario.create())
 
-        change = MountBlockDevice(
-            dataset_id=scenario.dataset_id,
-            blockdevice_id=scenario.volume.blockdevice_id,
-            mountpoint=scenario.mountpoint
-        )
+        change = scenario.state_change()
         return scenario, run_state_change(change, scenario.deployer)
 
     def _run_success_test(self, mountpoint):
@@ -4389,7 +4394,7 @@ class MountBlockDeviceTests(
         self.successResultOf(mount_result)
 
         expected = (
-            scenario.api.get_device_path(scenario.volume.blockdevice_id).path,
+            scenario.device_path.path,
             mountpoint.path,
             scenario.filesystem_type,
         )
@@ -4407,9 +4412,7 @@ class MountBlockDeviceTests(
 
     def _mount(self, scenario, mountpoint):
         self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=mountpoint),
+            scenario.state_change().set(mountpoint=mountpoint),
             scenario.deployer))
 
     def test_run(self):
@@ -4439,11 +4442,6 @@ class MountBlockDeviceTests(
     def test_create_fails_on_existing_filesystem(self):
         """
         Running ``CreateFilesystem`` on a block device that already has a file
-        self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=mountpoint),
-            scenario.deployer))
         system fails with an exception and preserves the data.
 
         This is because mkfs is a destructive operation that will destroy any
@@ -4517,9 +4515,7 @@ class MountBlockDeviceTests(
         scenario = self._run_success_test(mountpoint)
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint),
+            scenario.state_change(),
             scenario.deployer))
 
     def test_lost_found_deleted_remount(self):
@@ -4531,9 +4527,7 @@ class MountBlockDeviceTests(
         check_call([b"mklost+found"], cwd=mountpoint.path)
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint),
+            scenario.state_change(),
             scenario.deployer))
         self.assertEqual(mountpoint.children(), [])
 
@@ -4548,9 +4542,7 @@ class MountBlockDeviceTests(
         check_call([b"mklost+found"], cwd=mountpoint.path)
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint),
+            scenario.state_change(),
             scenario.deployer))
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
@@ -4568,9 +4560,7 @@ class MountBlockDeviceTests(
         mountpoint.chmod(S_IRWXU)
         mountpoint.restat()
         self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint),
+            scenario.state_change(),
             scenario.deployer))
         self.assertEqual(mountpoint.getPermissions().shorthand(),
                          'rwx------')
