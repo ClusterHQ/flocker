@@ -66,6 +66,14 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    def repeat_retries(self):
+        """
+        EBS is eventually consistent, so e.g. a newly created volume may not
+        show up in listing results for a while. So, we retry for up to 30
+        seconds.
+        """
+        return [1] * 30
+
     def test_foreign_volume(self):
         """
         ``list_volumes`` lists only those volumes
