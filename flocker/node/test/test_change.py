@@ -383,10 +383,7 @@ class InParallelTests(TestCase):
                   subchanges[1].called]
         self.assertEqual(called, [True, True])
 
-    @capture_logging(
-        lambda self, logger: logger.flush_tracebacks(CustomException)
-    )
-    def test_exception_result(self, logger):
+    def test_exception_result(self):
         """
         When called with the result of ``in_parallel``, ``run_state_changes``
         returns a ``Deferred`` that fires with the first exception raised
@@ -414,7 +411,6 @@ class InParallelTests(TestCase):
         change = in_parallel(changes=subchanges)
         result = run_state_change(change, DEPLOYER)
         self.failureResultOf(result, FirstError)
-        # self.flushLoggedErrors(CustomException)
         self.assertEqual(
             (some_change.called, other_change.called),
             (True, True),
@@ -432,7 +428,6 @@ class InParallelTests(TestCase):
         result = run_state_change(change, DEPLOYER)
         failure = self.failureResultOf(result, FirstError)
         self.assertEqual(failure.value.subFailure.type, RuntimeError)
-        # self.flushLoggedErrors(RuntimeError)
 
     @capture_logging(None)
     def test_failure_all_logged(self, logger):
