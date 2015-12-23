@@ -41,7 +41,7 @@ from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase, SkipTest
+from twisted.trial.unittest import SkipTest
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
@@ -364,11 +364,12 @@ def delete_manifestation(node_state, manifestation):
     return node_state
 
 
-class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
+class BlockDeviceDeployerLocalStateTests(TestCase):
     """
     Tests for ``BlockDeviceDeployerLocalState``.
     """
     def setUp(self):
+        super(BlockDeviceDeployerLocalStateTests, self).setUp()
         self.node_uuid = uuid4()
         self.hostname = u"192.0.2.1"
 
@@ -577,7 +578,7 @@ class BlockDeviceDeployerTests(
     """
 
 
-class BlockDeviceDeployerAsyncAPITests(SynchronousTestCase):
+class BlockDeviceDeployerAsyncAPITests(TestCase):
     """
     Tests for ``BlockDeviceDeployer.async_block_device_api``.
     """
@@ -661,12 +662,13 @@ def assert_discovered_state(
     )
 
 
-class BlockDeviceDeployerDiscoverRawStateTests(SynchronousTestCase):
+class BlockDeviceDeployerDiscoverRawStateTests(TestCase):
     """
     Tests for ``BlockDeviceDeployer._discover_raw_state``.
     """
 
     def setUp(self):
+        super(BlockDeviceDeployerDiscoverRawStateTests, self).setUp()
         self.expected_hostname = u'192.0.2.123'
         self.expected_uuid = uuid4()
         self.api = loopbackblockdeviceapi_for_test(self)
@@ -746,11 +748,12 @@ class BlockDeviceDeployerDiscoverRawStateTests(SynchronousTestCase):
                 without_fs=False))
 
 
-class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
+class BlockDeviceDeployerDiscoverStateTests(TestCase):
     """
     Tests for ``BlockDeviceDeployer.discover_state``.
     """
     def setUp(self):
+        super(BlockDeviceDeployerDiscoverStateTests, self).setUp()
         self.expected_hostname = u'192.0.2.123'
         self.expected_uuid = uuid4()
         self.api = loopbackblockdeviceapi_for_test(self)
@@ -1090,7 +1093,7 @@ def make_icalculator_tests(calculator_factory):
 
     :return: A ``TestCase`` subclass.
     """
-    class ICalculatorTests(SynchronousTestCase):
+    class ICalculatorTests(TestCase):
         """
         Tests of an ``ICalculator`` implementation.
         """
@@ -1198,11 +1201,12 @@ class DidNotConverge(Exception):
     """
 
 
-class BlockDeviceCalculatorTests(SynchronousTestCase):
+class BlockDeviceCalculatorTests(TestCase):
     """
     Tests for ``BlockDeviceCalculator``.
     """
     def setUp(self):
+        super(BlockDeviceCalculatorTests, self).setUp()
         self.deployer = create_blockdevicedeployer(self)
 
     def teardown_example(self, token):
@@ -1393,11 +1397,12 @@ def assert_desired_datasets(
     )
 
 
-class CalculateDesiredStateTests(SynchronousTestCase):
+class CalculateDesiredStateTests(TestCase):
     """
     Tests for ``BlockDeviceDeployer._calculate_desired_state``.
     """
     def setUp(self):
+        super(CalculateDesiredStateTests, self).setUp()
         self.hostname = ScenarioMixin.NODE
         self.node_uuid = ScenarioMixin.NODE_UUID
         self.api = UnusableAPI()
@@ -1851,7 +1856,7 @@ def local_state_from_shared_state(
     )
 
 
-class LocalStateFromSharedStateTests(SynchronousTestCase):
+class LocalStateFromSharedStateTests(TestCase):
     """
     Tests for ``local_state_from_shared_state``.
     """
@@ -1882,7 +1887,7 @@ class LocalStateFromSharedStateTests(SynchronousTestCase):
 
 
 class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     """
     Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
@@ -1935,7 +1940,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
 
 
 class BlockDeviceDeployerIgnorantCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     """
     Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
@@ -1977,7 +1982,7 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
 
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -2249,7 +2254,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
 
 class BlockDeviceDeployerAttachCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -2308,7 +2313,7 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
 
 
 class BlockDeviceDeployerMountCalculateChangesTests(
-    SynchronousTestCase, ScenarioMixin
+    TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -2361,7 +2366,7 @@ class BlockDeviceDeployerMountCalculateChangesTests(
 
 
 class BlockDeviceDeployerCreateFilesystemCalculateChangesTests(
-    SynchronousTestCase, ScenarioMixin
+    TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -2407,7 +2412,7 @@ class BlockDeviceDeployerCreateFilesystemCalculateChangesTests(
 
 
 class BlockDeviceDeployerUnmountCalculateChangesTests(
-    SynchronousTestCase, ScenarioMixin
+    TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -2531,7 +2536,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
 
 
 class BlockDeviceDeployerCreationCalculateChangesTests(
-        SynchronousTestCase,
+        TestCase,
         ScenarioMixin
 ):
     """
@@ -2887,7 +2892,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
 
 
 class BlockDeviceDeployerDetachCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     def test_detach_manifestation(self):
         """
@@ -2961,7 +2966,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         )
 
 
-class BlockDeviceInterfaceTests(SynchronousTestCase):
+class BlockDeviceInterfaceTests(TestCase):
     """
     Tests for ``IBlockDeviceAPI`` and ``IBlockDeviceAsyncAPI``.
     """
@@ -2992,12 +2997,13 @@ class BlockDeviceInterfaceTests(SynchronousTestCase):
 
 
 class BlockDeviceDeployerCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes``.
     """
     def setUp(self):
+        super(BlockDeviceDeployerCalculateChangesTests, self).setUp()
         self.expected_change = ControllableAction(
             result=succeed(None),
         )
@@ -3717,8 +3723,9 @@ def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IProfiledBlockDeviceAPI`` provider.
     """
-    class Tests(IProfiledBlockDeviceAPITestsMixin, SynchronousTestCase):
+    class Tests(IProfiledBlockDeviceAPITestsMixin, TestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.api = profiled_blockdevice_api_factory(self)
             self.dataset_size = dataset_size
 
@@ -3745,7 +3752,7 @@ def make_iblockdeviceasyncapi_tests(blockdeviceasync_api_factory):
         because we currently assume ``make_iblockdeviceapi_tests`` will be used
         on the wrapped object.
     """
-    class Tests(IBlockDeviceAsyncAPITestsMixin, SynchronousTestCase):
+    class Tests(IBlockDeviceAsyncAPITestsMixin, TestCase):
         def setUp(self):
             super(Tests, self).setUp()
             self.api = blockdeviceasync_api_factory(test_case=self)
@@ -3836,7 +3843,7 @@ class LoopbackBlockDeviceAPITests(
     """
 
 
-class LoopbackBlockDeviceAPIConstructorTests(SynchronousTestCase):
+class LoopbackBlockDeviceAPIConstructorTests(TestCase):
     """
     Implementation specific constructor tests.
     """
@@ -3864,7 +3871,7 @@ class LoopbackBlockDeviceAPIConstructorTests(SynchronousTestCase):
         )
 
 
-class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
+class LoopbackBlockDeviceAPIImplementationTests(TestCase):
     """
     Implementation specific tests for ``LoopbackBlockDeviceAPI``.
     """
@@ -3891,6 +3898,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         )
 
     def setUp(self):
+        super(LoopbackBlockDeviceAPIImplementationTests, self).setUp()
         self.api = loopbackblockdeviceapi_for_test(
             test_case=self,
             allocation_unit=LOOPBACK_ALLOCATION_UNIT,
@@ -4036,7 +4044,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             'Could not find valid instance ID for %r' % (api,), str(e))
 
 
-class LosetupListTests(SynchronousTestCase):
+class LosetupListTests(TestCase):
     """
     Tests for ``_losetup_list_parse``.
     """
@@ -4807,8 +4815,9 @@ def make_createblockdevicedataset_mixin(profiled_api):
         if you want self.api not to provide ``IProfiledBlockDeviceAPI``.
     """
     class Mixin(CreateBlockDeviceDatasetImplementationMixin,
-                SynchronousTestCase):
+                TestCase):
         def setUp(self):
+            super(Mixin, self).setUp()
             if profiled_api:
                 self.api = fakeprofiledloopbackblockdeviceapi_for_test(
                     self,
@@ -5056,7 +5065,7 @@ class ActionNeededTests(
     """
 
 
-class AllocatedSizeTypeTests(SynchronousTestCase):
+class AllocatedSizeTypeTests(TestCase):
     """
     Tests for type coercion of parameters supplied to
     ``allocated_size``.
@@ -5137,8 +5146,9 @@ def make_allocated_size_tests(allocation_unit):
         against the supplied ``allocation_unit``. The name of the test
         contains the classname of ``allocation_unit``.
     """
-    class Tests(AllocatedSizeTestsMixin, SynchronousTestCase):
+    class Tests(AllocatedSizeTestsMixin, TestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.allocation_unit = int(allocation_unit.to_Byte().value)
 
     Tests.__name__ = (
@@ -5213,11 +5223,12 @@ class CountingProxy(object):
         return counting_proxy
 
 
-class ProcessLifetimeCacheTests(SynchronousTestCase):
+class ProcessLifetimeCacheTests(TestCase):
     """
     Tests for the caching logic in ``ProcessLifetimeCache``.
     """
     def setUp(self):
+        super(ProcessLifetimeCacheTests, self).setUp()
         self.api = loopbackblockdeviceapi_for_test(self)
         self.counting_proxy = CountingProxy(self.api)
         self.cache = ProcessLifetimeCache(self.counting_proxy)

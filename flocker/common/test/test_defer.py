@@ -6,6 +6,8 @@ Tests for ``flocker.common._defer``.
 
 import gc
 
+from eliot.testing import capture_logging
+
 from .._defer import gather_deferreds
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
@@ -17,7 +19,8 @@ class GatherDeferredsTests(TestCase):
     """
     Tests for ``gather_deferreds``.
     """
-    def test_logging(self):
+    @capture_logging(None)
+    def test_logging(self, logger):
         """
         Failures in the supplied ``deferreds`` are all logged.
         """
@@ -30,12 +33,18 @@ class GatherDeferredsTests(TestCase):
             )
         )
 
+        failures = logger.flush_tracebacks(ZeroDivisionError)
         self.assertEqual(
-            [expected_failure1, expected_failure2],
-            self.flushLoggedErrors(ZeroDivisionError)
+            [expected_failure1.value, expected_failure2.value],
+            list(
+                failure["reason"]
+                for failure
+                in failures
+            )
         )
 
-    def test_errors_logged_immediately(self):
+    @capture_logging(None)
+    def test_errors_logged_immediately(self, logger):
         """
         Failures in the supplied ``deferreds`` are logged immediately.
         """
@@ -48,8 +57,11 @@ class GatherDeferredsTests(TestCase):
         d1.errback(expected_error)
 
         # d2 has not yet fired, but the error is logged immediately
-        logged_errors = self.flushLoggedErrors(ZeroDivisionError)
-        self.assertEqual([expected_error], [f.value for f in logged_errors])
+        logged_errors = logger.flush_tracebacks(ZeroDivisionError)
+        self.assertEqual(
+            [expected_error],
+            list(f["reason"] for f in logged_errors),
+        )
 
         d2.callback(None)
         self.failureResultOf(gathering)
@@ -67,7 +79,10 @@ class GatherDeferredsTests(TestCase):
         results = self.successResultOf(d)
         self.assertEqual([expected_result1, expected_result2], results)
 
-    def test_first_error(self):
+    @capture_logging(
+        lambda self, logger: logger.flush_tracebacks(ZeroDivisionError)
+    )
+    def test_first_error(self, logger):
         """
         If any of the supplied ``deferreds`` fail, ``gather_deferreds`` will
         errback with a ``FirstError``.
@@ -79,9 +94,10 @@ class GatherDeferredsTests(TestCase):
 
         self.failureResultOf(d, FirstError)
 
-        self.flushLoggedErrors(ZeroDivisionError)
-
-    def test_first_error_value(self):
+    @capture_logging(
+        lambda self, logger: logger.flush_tracebacks(ZeroDivisionError)
+    )
+    def test_first_error_value(self, logger):
         """
         The ``FirstError`` has a reference to the ``Failure`` produced by the
         first of the supplied ``deferreds`` that failed.
@@ -94,9 +110,10 @@ class GatherDeferredsTests(TestCase):
         first_error = self.failureResultOf(d, FirstError)
         self.assertIs(first_error.value.subFailure, failure1)
 
-        self.flushLoggedErrors(ZeroDivisionError)
-
-    def test_fire_when_all_fired(self):
+    @capture_logging(
+        lambda self, logger: logger.flush_tracebacks(ZeroDivisionError)
+    )
+    def test_fire_when_all_fired(self, logger):
         """
         The ``Deferred`` returned by ``gather_deferreds`` does not fire until
         all the supplied ``deferreds`` have either erred back or called back.
@@ -119,9 +136,8 @@ class GatherDeferredsTests(TestCase):
         # ...and the gathered list has now fired.
         self.failureResultOf(gathering)
 
-        self.flushLoggedErrors(ZeroDivisionError)
-
-    def test_consume_errors(self):
+    @capture_logging(None)
+    def test_consume_errors(self, logger):
         """
         Errors in the supplied ``deferreds`` are always consumed so that they
         are not logged during garbage collection.
@@ -135,10 +151,10 @@ class GatherDeferredsTests(TestCase):
         self.failureResultOf(gather_deferreds([d1, d2, d3]))
 
         # Flush the errors which will have been logged immediately
-        self.flushLoggedErrors(ZeroDivisionError)
+        logger.flush_tracebacks(ZeroDivisionError)
 
         # When the original deferreds are garbage collected, there is no
         # further logging of errors.
         del d1, d2, d3
         gc.collect()
-        self.assertEqual([], self.flushLoggedErrors(ZeroDivisionError))
+        self.assertEqual([], logger.flush_tracebacks(ZeroDivisionError))
