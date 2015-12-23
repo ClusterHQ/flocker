@@ -14,7 +14,8 @@ from twisted.python.filepath import FilePath
 
 from ...common.runner import run_ssh
 from ...common import gather_deferreds
-from ...testtools import AsyncTestCase, Cluster, ControlService
+from ...testtools import AsyncTestCase
+from ..testtools import Cluster, ControlService
 from ...ca import treq_with_authentication, UserCredential
 from ...apiclient import FlockerClient
 from ...control.httpapi import REST_API_PORT
@@ -29,14 +30,6 @@ COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
 RECREATE_STATEMENT = 'drop table if exists test; create table test(i int);'
 INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
-
-FLOCKER_VOLUMES_CLEANUP = 'docker run --rm \
-    --env FLOCKER_API_CERT_NAME=user1 \
-    --env FLOCKER_CONTROL_SERVICE_ENDPOINT={control_ip} \
-    --volume /etc/flocker:/etc/flocker \
-    clusterhq/volume-cli:1.8.0 \
-    delete \
-    --dataset-name=postgres'
 
 
 def remote_command(node, *args):
@@ -116,12 +109,7 @@ def cleanup():
         )
     )
 
-    d_cleanup_flocker_volumes = remote_command(NODE0,
-                                               FLOCKER_VOLUMES_CLEANUP.format(
-                                                   control_ip=NODE0))
-
-    d = gather_deferreds([d_node1_compose, d_node2_compose,
-                          d_cleanup_flocker_volumes])
+    d = gather_deferreds([d_node1_compose, d_node2_compose])
 
     d.addCallback(cluster.clean_nodes)
 
