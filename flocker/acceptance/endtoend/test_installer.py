@@ -6,13 +6,14 @@ Tests for AWS CloudFormation installer.
 
 from datetime import timedelta
 import os
-from subprocess import check_call
+from subprocess import check_call, check_output
 
 from twisted.internet import reactor
 from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
 
 from twisted.python.filepath import FilePath
+from eliot import Message
 
 
 from ...common.runner import run_ssh
@@ -33,6 +34,10 @@ COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
 RECREATE_STATEMENT = 'drop table if exists test; create table test(i int);'
 INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
+
+CLOUDFORMATION_STACK_NAME = 'test_installer_stack'
+S3_CLOUDFORMATION_TEMPLATE = 'https://s3.amazonaws.com/ \
+        installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json'
 
 
 def remote_command(node, *args):
@@ -121,7 +126,31 @@ def cleanup(local_certs_path):
         lambda ignored: cluster.clean_nodes()
     )
 
+    d.addCallback(
+        lambda ignored: delete_cloudformation_stack
+    )
     return d
+
+
+def create_cloudformation_stack():
+    """
+    """
+    # Request stack creation.
+    stack_id = check_output(
+        ['aws', 'cloudformation', 'create-stack',
+         '--stack-name', CLOUDFORMATION_STACK_NAME,
+         '--template-body', S3_CLOUDFORMATION_TEMPLATE]
+    )
+    Message.new(cloudformation_stack_id=stack_id)
+
+
+def delete_cloudformation_stack():
+    """
+    """
+    check_call(
+        ['aws', 'cloudformation', 'delete-stack',
+         '--stack-name', CLOUDFORMATION_STACK_NAME]
+    )
 
 
 class DockerComposeTests(AsyncTestCase):
@@ -131,6 +160,7 @@ class DockerComposeTests(AsyncTestCase):
     run_tests_with = async_runner(timeout=timedelta(minutes=10))
 
     def setUp(self):
+        create_cloudformation_stack()
         local_certs_path = self.mktemp()
         check_call(
             ['scp', '-r',
