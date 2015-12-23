@@ -13,7 +13,6 @@ from twisted.python.usage import Options
 from twisted.internet.endpoints import serverFromString
 from twisted.python.filepath import FilePath
 from twisted.application.service import MultiService
-from twisted.internet.ssl import Certificate
 
 from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
@@ -21,9 +20,6 @@ from ._clusterstate import ClusterStateService
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from ._protocol import ControlAMPService
-from ..ca import (
-    rest_api_context_factory, ControlCredential, amp_server_context_factory,
-)
 
 DEFAULT_CERTIFICATE_PATH = b"/etc/flocker"
 
@@ -52,32 +48,45 @@ class ControlScript(object):
     A command to start a long-running process to control a Flocker
     cluster.
     """
-    def main(self, reactor, options):
-        certificates_path = FilePath(options["certificates-directory"])
-        ca = Certificate.loadPEM(
-            certificates_path.child(b"cluster.crt").getContent())
-        # This is a hack; from_path should be more
-        # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
-        control_credential = ControlCredential.from_path(
-            certificates_path, b"service")
-
+    def service(
+        self, reactor,
+        data_path,
+        api_port,
+        agent_port,
+    ):
+        """
+        :param reactor: The reactor to use for the service.
+        :param data_path: The path to store persistent state in.
+        :param IServerEndpoint api_port: The endpoint for the API to use.
+        :param agent_port: The endpoint description of the agent port to use.
+        :param Certificate ca_certificate: The CA certificate of the cluster.
+        :param ControlCredential control_credential: The credentials for the
+            control service.
+        """
         top_service = MultiService()
         persistence = ConfigurationPersistenceService(
-            reactor, options["data-path"])
+            reactor, data_path)
+        persistence.setServiceParent(top_service)
         persistence.setServiceParent(top_service)
         cluster_state = ClusterStateService(reactor)
         cluster_state.setServiceParent(top_service)
         api_service = create_api_service(
-            persistence, cluster_state, serverFromString(
-                reactor, options["port"]),
-            rest_api_context_factory(ca, control_credential))
+            persistence, cluster_state, api_port)
         api_service.setServiceParent(top_service)
         amp_service = ControlAMPService(
-            reactor, cluster_state, persistence, serverFromString(
-                reactor, options["agent-port"]),
-            amp_server_context_factory(ca, control_credential))
+            reactor, cluster_state, persistence, agent_port,
+        )
         amp_service.setServiceParent(top_service)
-        return main_for_service(reactor, top_service)
+        return top_service
+
+    def main(self, reactor, options):
+        service = self.service(
+            reactor,
+            data_path=options["data-path"],
+            api_port=serverFromString(reactor, options["port"]),
+            agent_port=serverFromString(reactor, options["agent-port"]),
+        )
+        return main_for_service(reactor, service)
 
 
 def flocker_control_main():

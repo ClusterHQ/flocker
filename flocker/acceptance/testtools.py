@@ -7,16 +7,12 @@ from functools import wraps
 from json import dumps
 from os import environ, close
 from unittest import SkipTest, skipUnless
-from uuid import uuid4, UUID
+from uuid import uuid4
 from socket import socket
 from contextlib import closing
 from tempfile import mkstemp
 
-import yaml
 import json
-import ssl
-
-from docker.tls import TLSConfig
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
@@ -24,8 +20,9 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
 from twisted.internet.error import ProcessTerminated
+from twisted.internet.task import deferLater
 
-from eliot import start_action, Message, write_failure
+from eliot import start_action, Message
 from eliot.twisted import DeferredContext
 
 from treq import json_content, content, get, post
@@ -40,10 +37,8 @@ from ..common import gather_deferreds, loop_until, timeout
 from ..common.runner import download_file, run_ssh
 
 from ..control.httpapi import REST_API_PORT
-from ..ca import treq_with_authentication, UserCredential
-from ..testtools import random_name
+from ..testtools import random_name, find_free_port
 from ..apiclient import FlockerClient, DatasetState
-from ..node.agents.ebs import aws_from_configuration
 from ..node import dockerpy_client
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
@@ -98,23 +93,7 @@ def get_docker_client(cluster, address):
 
     :return: Docker ``Client`` instance.
     """
-    def get_path(name):
-        return cluster.certificates_path.child(name).path
-
-    tls = TLSConfig(
-        client_cert=(get_path(b"user.crt"), get_path(b"user.key")),
-        # Blows up if not set
-        # (https://github.com/shazow/urllib3/issues/695):
-        ssl_version=ssl.PROTOCOL_TLSv1,
-        # Don't validate hostname, we don't generate it correctly, but
-        # do verify certificate authority signed the server certificate:
-        assert_hostname=False,
-        verify=get_path(b"cluster.crt"))
-
-    return dockerpy_client(
-        base_url="https://{}:{}".format(address, DOCKER_PORT),
-        tls=tls, timeout=100, version='1.21',
-    )
+    return dockerpy_client()
 
 
 def get_mongo_application():
@@ -187,15 +166,10 @@ def get_dataset_backend(test_case):
     :return DatasetBackend: The configured backend.
     :raise SkipTest: if the backend is specified.
     """
-    backend = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
-    if backend is None:
-        raise SkipTest(
-            "Set acceptance testing volume backend using the " +
-            "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
-    return DatasetBackend.lookupByName(backend)
+    return DatasetBackend.loopback
 
 
-def get_backend_api(test_case, cluster_id):
+def get_backend_api(test_case):
     """
     Get an appropriate BackendAPI for the specified dataset backend.
 
@@ -209,27 +183,9 @@ def get_backend_api(test_case, cluster_id):
     :param cluster_id: The unique cluster_id, used for backend APIs that
         require this in order to be constructed.
     """
-    backend_type = get_dataset_backend(test_case)
-    if backend_type != DatasetBackend.aws:
-        raise SkipTest(
-            'This test is asking for backend type {} but only constructing '
-            'aws backends is currently supported'.format(backend_type.name))
-    backend_name = backend_type.name
-    backend_config_filename = environ.get(
-        "FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG")
-    if backend_config_filename is None:
-        raise SkipTest(
-            'This test requires the ability to construct an IBlockDeviceAPI '
-            'in order to verify construction. Please set '
-            'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG to a yaml filepath '
-            'with the dataset configuration.')
-    backend_config_filepath = FilePath(backend_config_filename)
-    full_backend_config = yaml.safe_load(
-        backend_config_filepath.getContent())
-    backend_config = full_backend_config.get(backend_name)
-    if 'backend' in backend_config:
-        backend_config.pop('backend')
-    return aws_from_configuration(cluster_id=cluster_id, **backend_config)
+    raise SkipTest(
+        'This test is asking for backend type {} but only constructing '
+        'aws backends is currently supported')
 
 
 def skip_backend(unsupported, reason):
@@ -260,7 +216,7 @@ def skip_backend(unsupported, reason):
     return decorator
 
 require_moving_backend = skip_backend(
-    unsupported={DatasetBackend.loopback},
+    unsupported={},
     reason="doesn't support moving")
 
 
@@ -269,7 +225,8 @@ def get_default_volume_size():
     :returns int: the default volume size (in bytes) supported by the
         backend the acceptance tests are using.
     """
-    default_volume_size = environ.get("FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE")
+    default_volume_size = environ.get("FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE",
+                                      67108864)
     if default_volume_size is None:
         raise SkipTest(
             "Set acceptance testing default volume size using the " +
@@ -470,8 +427,7 @@ class Cluster(PClass):
     nodes = field(mandatory=True, type=_NodeList)
     treq = field(mandatory=True)
     client = field(type=FlockerClient, mandatory=True)
-    certificates_path = field(FilePath, mandatory=True)
-    cluster_uuid = field(mandatory=True, type=UUID)
+    rest_api_port = field(type=int, mandatory=True, initial=REST_API_PORT)
 
     @property
     def base_url(self):
@@ -479,8 +435,8 @@ class Cluster(PClass):
         :returns: The base url for API requests to this cluster's control
             service.
         """
-        return b"https://{}:{}/v1".format(
-            self.control_node.public_address, REST_API_PORT
+        return b"http://{}:{}/v1".format(
+            self.control_node.public_address, self.rest_api_port,
         )
 
     @log_method
@@ -812,89 +768,82 @@ class Cluster(PClass):
         return d
 
 
-def _get_test_cluster(reactor):
-    """
-    Build a ``Cluster`` instance.
+def _get_in_process_cluster(reactor, test_case, num_nodes):
+    data_path = FilePath(test_case.mktemp())
+    api_port = find_free_port()[1]
+    agent_port = api_port + 1
 
-    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
-    """
-    control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
-
-    if control_node is None:
-        raise SkipTest(
-            "Set acceptance testing control node IP address using the " +
-            "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
-
-    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_NUM_AGENT_NODES')
-
-    if agent_nodes_env_var is None:
-        raise SkipTest(
-            "Set the number of configured acceptance testing nodes using the "
-            "FLOCKER_ACCEPTANCE_NUM_AGENT_NODES environment variable.")
-
-    num_agent_nodes = int(agent_nodes_env_var)
-
-    certificates_path = FilePath(
-        environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
-    cluster_cert = certificates_path.child(b"cluster.crt")
-    user_cert = certificates_path.child(b"user.crt")
-    user_key = certificates_path.child(b"user.key")
-    user_credential = UserCredential.from_files(user_cert, user_key)
-    cluster = Cluster(
-        control_node=ControlService(public_address=control_node),
-        nodes=[],
-        treq=treq_with_authentication(
-            reactor, cluster_cert, user_cert, user_key),
-        client=FlockerClient(reactor, control_node, REST_API_PORT,
-                             cluster_cert, user_cert, user_key),
-        certificates_path=certificates_path,
-        cluster_uuid=user_credential.cluster_uuid,
+    from twisted.internet.endpoints import (
+        TCP4ServerEndpoint
     )
+    from flocker.control.script import ControlScript
+    control_service = ControlScript().service(
+        reactor,
+        data_path=data_path,
+        api_port=TCP4ServerEndpoint(
+            reactor, api_port, interface="127.0.0.1"),
+        agent_port=TCP4ServerEndpoint(
+            reactor, agent_port, interface="127.0.0.1"),
+    )
+    control_service.startService()
+    test_case.addCleanup(control_service.stopService)
 
-    hostname_to_public_address_env_var = environ.get(
-        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
-    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
-
-    # Wait until nodes are up and running:
-    def nodes_available():
-        Message.new(
-            message_type="acceptance:get_test_cluster:polling",
-        ).write()
-
-        def failed_query(failure):
-            reasons = getattr(failure.value, 'reasons', None)
-            if reasons is None:
-                # Guess it was something else.  Do some simpler logging.
-                write_failure(failure, logger=None)
-            else:
-                # It is one of those.  Log all of the stuff from inside it.
-                for reason in reasons:
-                    write_failure(reason, logger=None)
-            return False
-        d = cluster.current_nodes()
-        d.addCallbacks(lambda nodes: len(nodes) >= num_agent_nodes,
-                       # Control service may not be up yet, keep trying:
-                       failed_query)
-        return d
-    agents_connected = loop_until(reactor, nodes_available)
-
-    # Extract node hostnames from API that lists nodes. Currently we
-    # happen know these in advance, but in FLOC-1631 node identification
-    # will switch to UUIDs instead.
-    agents_connected.addCallback(lambda _: cluster.current_nodes())
-
-    def node_from_dict(node):
-        reported_hostname = node["host"]
-        public_address = hostname_to_public_address.get(
-            reported_hostname, reported_hostname)
-        return Node(
-            uuid=node[u"uuid"],
-            public_address=public_address.encode("ascii"),
-            reported_hostname=reported_hostname.encode("ascii"),
+    from flocker.node._docker import NamespacedDockerClient
+    from flocker.node import ApplicationNodeDeployer
+    from flocker.node.agents.blockdevice import BlockDeviceDeployer
+    from flocker.node.agents.loopback import LoopbackBlockDeviceAPI
+    from flocker.node._loop import AgentLoopService
+    from uuid import UUID
+    from ..common._era import get_era
+    loopback_root = test_case.mktemp()
+    nodes = []
+    for index in range(num_nodes):
+        hostname = u"host-{}".format(index)
+        node_uuid = UUID(int=index)
+        container_service = AgentLoopService(
+            reactor=reactor,
+            deployer=ApplicationNodeDeployer(
+                node_uuid=node_uuid,
+                hostname=hostname,
+                docker_client=NamespacedDockerClient(unicode(node_uuid)),
+            ),
+            host="127.0.0.1",
+            port=agent_port,
+            era=get_era(),
         )
-    agents_connected.addCallback(lambda nodes: cluster.set(
-        "nodes", map(node_from_dict, nodes)))
-    return agents_connected
+        container_service.startService()
+        test_case.addCleanup(container_service.stopService)
+        blockdevice_service = AgentLoopService(
+            reactor=reactor,
+            deployer=BlockDeviceDeployer(
+                node_uuid=node_uuid,
+                hostname=hostname,
+                mountroot=FilePath(test_case.mktemp()),
+                block_device_api=LoopbackBlockDeviceAPI.from_path(
+                    root_path=loopback_root,
+                ),
+            ),
+            host="127.0.0.1",
+            port=agent_port,
+            era=get_era(),
+        )
+        blockdevice_service.startService()
+        test_case.addCleanup(blockdevice_service.stopService)
+        nodes.append(Node(
+            uuid=unicode(node_uuid),
+            public_address='127.0.0.1',
+            reported_hostname=hostname.encode('ascii'),
+        ))
+
+    from treq.client import HTTPClient
+    from twisted.web.client import Agent
+    return deferLater(reactor, 0, lambda: Cluster(
+        control_node=ControlService(public_address='127.0.0.1'),
+        nodes=nodes,
+        treq=HTTPClient(Agent(reactor)),
+        client=FlockerClient(reactor, '127.0.0.1', api_port),
+        rest_api_port=api_port,
+    ))
 
 
 def require_cluster(num_nodes, required_backend=None):
@@ -928,8 +877,7 @@ def require_cluster(num_nodes, required_backend=None):
                         'This test requires backend type {} but is being run '
                         'on {}.'.format(required_backend.name,
                                         backend_type.name))
-                kwargs['backend'] = get_backend_api(test_case,
-                                                    cluster.cluster_uuid)
+                kwargs['backend'] = get_backend_api(test_case)
             return test_method(test_case, *args, **kwargs)
 
         @wraps(test_method)
@@ -938,9 +886,14 @@ def require_cluster(num_nodes, required_backend=None):
             # clean them up prior to the test.  The nodes must already
             # have been started and their flocker services started before
             # we clean them.
-            waiting_for_cluster = _get_test_cluster(reactor)
+            waiting_for_cluster = _get_in_process_cluster(
+                reactor, test_case, num_nodes,
+            )
 
             def clean(cluster):
+                if cluster is None:
+                    cluster = _get_in_process_cluster(
+                        reactor, test_case, num_nodes)
                 existing = len(cluster.nodes)
                 if num_nodes > existing:
                     raise SkipTest(

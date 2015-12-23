@@ -14,8 +14,6 @@ import yaml
 
 from pyrsistent import pmap, thaw
 
-from twisted.protocols.tls import TLSMemoryBIOFactory
-
 from twisted.python.filepath import FilePath
 from twisted.web.http import (
     CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
@@ -1295,7 +1293,7 @@ def api_dataset_from_dataset_and_node(dataset, node_uuid):
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint,
-                       context_factory, clock=reactor):
+                       clock=reactor):
     """
     Create a Twisted Service that serves the API on the given endpoint.
 
@@ -1322,11 +1320,7 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
 
     return StreamServerEndpointService(
         endpoint,
-        TLSMemoryBIOFactory(
-            context_factory,
-            False,
-            Site(api_root)
-        )
+        Site(api_root),
     )
 
 

@@ -11,7 +11,7 @@ definitions:
     minLength: 36
     maxLength: 36
     # UUIDv4, as defined by RFC 4122. See http://tools.ietf.org/html/rfc4122.html#section-4.1
-    pattern: "^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-4[A-Fa-f0-9]{3}-[89abAB][A-Fa-f0-9]{3}-[A-Fa-f0-9]{12}$"
+    pattern: "^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$"
 
   dataset_id:
     title: "Unique identifier"

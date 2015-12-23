@@ -29,29 +29,6 @@ class DatasetAPITests(AsyncTestCase):
         """
         return create_dataset(self, cluster)
 
-    @require_cluster(1, required_backend=DatasetBackend.aws)
-    def test_dataset_creation_with_gold_profile(self, cluster, backend):
-        """
-        A dataset created with the gold profile as specified in metadata on EBS
-        has EBS volume type 'io1'.
-
-        This is verified by constructing an EBS backend in this process, purely
-        for the sake of using it as a wrapper on the cloud API.
-        """
-        waiting_for_create = create_dataset(
-            self, cluster, maximum_size=4*1024*1024*1024,
-            metadata={u"clusterhq:flocker:profile": u"gold"})
-
-        def confirm_gold(dataset):
-            volumes = backend.list_volumes()
-            for volume in volumes:
-                if volume.dataset_id == dataset.dataset_id:
-                    break
-            ebs_volume = backend._get_ebs_volume(volume.blockdevice_id)
-            self.assertEqual('io1', ebs_volume.volume_type)
-
-        waiting_for_create.addCallback(confirm_gold)
-        return waiting_for_create
 
     @flaky(u'FLOC-3341')
     @require_moving_backend

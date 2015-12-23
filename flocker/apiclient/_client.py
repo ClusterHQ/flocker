@@ -30,7 +30,6 @@ from twisted.internet.task import deferLater
 
 from treq import json_content, content
 
-from ..ca import treq_with_authentication
 from ..control import Leases as LeasesModel, LeaseError, DockerImage
 from ..common import retry_failure
 
@@ -536,8 +535,7 @@ class FlockerClient(object):
     """
     A client for the Flocker V1 REST API.
     """
-    def __init__(self, reactor, host, port,
-                 ca_cluster_path, cert_path, key_path):
+    def __init__(self, reactor, host, port):
         """
         :param reactor: Reactor to use for connections.
         :param bytes host: Host to connect to.
@@ -547,9 +545,10 @@ class FlockerClient(object):
         :param FilePath key_path: Path to user private key.
         """
         self._reactor = reactor
-        self._treq = treq_with_authentication(reactor, ca_cluster_path,
-                                              cert_path, key_path)
-        self._base_url = b"https://%s:%d/v1" % (host, port)
+        from treq.client import HTTPClient
+        from twisted.web.client import Agent
+        self._treq = HTTPClient(Agent(reactor))
+        self._base_url = b"http://%s:%d/v1" % (host, port)
 
     def _request_with_headers(
             self, method, path, body, success_codes, error_codes=None,

@@ -39,7 +39,6 @@ from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, maybeDeferred
 from twisted.internet.protocol import ReconnectingClientFactory
-from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from . import run_state_change, NoOp
 
@@ -633,7 +632,7 @@ class AgentLoopService(MultiService, object):
     :ivar UUID era: This node's era.
     """
 
-    def __init__(self, context_factory):
+    def __init__(self):
         """
         :param context_factory: TLS context factory for the AMP client.
         """
@@ -646,8 +645,7 @@ class AgentLoopService(MultiService, object):
         self.reconnecting_factory = ReconnectingClientFactory.forProtocol(
             lambda: AgentAMP(self.reactor, self)
         )
-        self.factory = TLSMemoryBIOFactory(context_factory, True,
-                                           self.reconnecting_factory)
+        self.factory = self.reconnecting_factory
 
     def startService(self):
         MultiService.startService(self)

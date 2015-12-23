@@ -56,9 +56,8 @@ from twisted.protocols.amp import (
     MAX_VALUE_LENGTH,
 )
 from twisted.internet.task import LoopingCall
-from twisted.internet.protocol import ServerFactory
+from twisted.internet.protocol import Factory
 from twisted.application.internet import StreamServerEndpointService
-from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from ._persistence import wire_encode, wire_decode
 from ._model import (
@@ -493,8 +492,8 @@ class ControlAMPService(Service):
     """
     logger = Logger()
 
-    def __init__(self, reactor, cluster_state, configuration_service, endpoint,
-                 context_factory):
+    def __init__(self, reactor, cluster_state, configuration_service, endpoint
+                 ):
         """
         :param reactor: See ``ControlServiceLocator.__init__``.
         :param ClusterStateService cluster_state: Object that records known
@@ -510,11 +509,7 @@ class ControlAMPService(Service):
         self.configuration_service = configuration_service
         self.endpoint_service = StreamServerEndpointService(
             endpoint,
-            TLSMemoryBIOFactory(
-                context_factory,
-                False,
-                ServerFactory.forProtocol(lambda: ControlAMP(reactor, self))
-            )
+            Factory.forProtocol(lambda: ControlAMP(reactor, self))
         )
         # When configuration changes, notify all connected clients:
         self.configuration_service.register(
