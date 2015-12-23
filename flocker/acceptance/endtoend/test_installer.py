@@ -4,9 +4,12 @@
 Tests for AWS CloudFormation installer.
 """
 
+from datetime import timedelta
 import os
+from subprocess import check_call
 
 from twisted.internet import reactor
+from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
 
 from twisted.python.filepath import FilePath
@@ -14,7 +17,7 @@ from twisted.python.filepath import FilePath
 
 from ...common.runner import run_ssh
 from ...common import gather_deferreds
-from ...testtools import AsyncTestCase
+from ...testtools import AsyncTestCase, async_runner
 from ..testtools import Cluster, ControlService
 from ...ca import treq_with_authentication, UserCredential
 from ...apiclient import FlockerClient
@@ -65,7 +68,10 @@ def remote_docker_compose(compose_file_path, *args):
 
 def remote_postgres(host, command):
     postgres_output = []
-    d = run_ssh(
+    d = deferLater(
+        reactor,
+        60,
+        run_ssh,
         reactor,
         'ubuntu',
         CLIENT_IP,
@@ -79,8 +85,8 @@ def remote_postgres(host, command):
     return d
 
 
-def cleanup():
-    certificates_path = FilePath(b'/etc/flocker')
+def cleanup(local_certs_path):
+    certificates_path = FilePath(local_certs_path)
     cluster_cert = certificates_path.child(b"cluster.crt")
     user_cert = certificates_path.child(b"user1.crt")
     user_key = certificates_path.child(b"user1.key")
@@ -122,11 +128,18 @@ class DockerComposeTests(AsyncTestCase):
     """
     Tests for AWS CloudFormation installer.
     """
+    run_tests_with = async_runner(timeout=timedelta(minutes=10))
 
     def setUp(self):
-        self.addCleanup(cleanup)
+        local_certs_path = self.mktemp()
+        check_call(
+            ['scp', '-r',
+             'ubuntu@{}:/etc/flocker'.format(CLIENT_IP),
+             local_certs_path]
+        )
+        self.addCleanup(cleanup, local_certs_path)
         d = maybeDeferred(super(DockerComposeTests, self).setUp)
-        d.addCallback(lambda ignored: cleanup)
+        d.addCallback(lambda ignored: cleanup(local_certs_path))
         return d
 
     def test_docker_compose_up_postgres(self):

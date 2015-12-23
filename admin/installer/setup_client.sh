@@ -19,9 +19,6 @@ chown --recursive ubuntu:ubuntu /home/ubuntu/postgres
 
 # Get uft-flocker-volumes
 curl -sSL https://get.flocker.io/ | sh
-uft-flocker-ca --version
 
 mkdir -p /etc/flocker
 s3cmd_wrapper get --recursive --config=/root/.s3cfg s3://${s3_bucket}/flocker-config/ /etc/flocker
-
-
