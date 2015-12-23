@@ -210,10 +210,6 @@ class AttachVolumeAndWaitTests(SynchronousTestCase):
             time_limit=0,
         )
 
-    def test_where_does_stderr_go(self):
-        output = check_output(['bash', '-c', 'echo "RICHARDW_STDERR" >&2'])
-        self.assertEqual('', output)
-
 
 class ExpectedDeviceTests(SynchronousTestCase):
     """
