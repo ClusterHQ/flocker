@@ -57,13 +57,18 @@ class DatasetAPITests(AsyncTestCase):
             raise SkipTest(
                 'Missing environment variables for upgrade test: %s.' %
                 ', '.join(missing_vars))
-        version = os.environ.get('FLOCKER_ACCEPTANCE_PACKAGE_VERSION',
-                                 default_version)
+        version = (os.environ.get('FLOCKER_ACCEPTANCE_PACKAGE_VERSION') or
+                   default_version)
         return PackageSource(
             version=version,
             branch=os.environ.get('FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'),
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
+    # This is flaky even though FLOC-3712 is fixed at HEAD. Specifically,
+    # FLOC-3712 happens sometimes when we downgrade to 1.8.0 before we upgrade
+    # to HEAD on centos. Once that fix has landed in a release, we can remove
+    # this flaky decorator.
+    @flaky('FLOC-3712')
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
