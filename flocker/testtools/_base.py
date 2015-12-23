@@ -116,6 +116,9 @@ def _test_skipped(case, result, exception):
 class AsyncTestCase(testtools.TestCase, _MktempMixin):
     """
     Base class for asynchronous test cases.
+
+    :ivar reactor: The Twisted reactor that the test is being run in. Set by
+        ``async_runner`` and only available for the duration of the test.
     """
 
     run_tests_with = async_runner(timeout=DEFAULT_ASYNC_TIMEOUT)
