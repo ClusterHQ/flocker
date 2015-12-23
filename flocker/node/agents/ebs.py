@@ -685,30 +685,25 @@ def _get_device_size(device):
     """
     Helper function to fetch the size of given block device.
 
+    We read ``/sys/block/<disk>/size``, which returns the number of 512-byte
+    sectors.  As far as I can tell, this matches the logical block size and
+    will always be 512. Unfortunately it's not documented in the Linux ABI:
+
+    * https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-block
+
+    Another method would be to issue a BLKGETSIZE64 ioctl, using the ``blockdev
+    --getsize64`` command, but that would require root permissions.
+
+    * http://lxr.free-electrons.com/ident?i=BLKGETSIZE64
+    * https://github.com/karelzak/util-linux/tree/master/disk-utils
+
     :param unicode device: Name of the block device to fetch size for.
 
     :returns: Size, in SI metric bytes, of device we are interested in.
     :rtype: int
     """
-    device_name = b"/dev/" + device.encode("ascii")
-
-    # Retrieve size of device as OS sees it using `lsblk`.
-    # Requires util-linux-ng package on CentOS, and
-    # util-linux on Ubuntu.
-    # Required package is installed by default
-    # on Ubuntu 14.04 and CentOS 7.
-    command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
-               b"--output", b"SIZE", device_name]
-
-    # Get the base device size, which is the first line in
-    # `lsblk` output. Ignore partition sizes.
-    # XXX: Handle error cases during `check_output()` run
-    # (https://clusterhq.atlassian.net/browse/FLOC-1886).
-    result = run_process(command)
-    line_one = result.output.splitlines()[0]
-    device_size = int(line_one.rstrip().decode("ascii"))
-
-    return device_size
+    size_file = FilePath('/sys/block/{}/size'.format(device))
+    return int(size_file.getContent()) * 512
 
 
 def _wait_for_new_device(base, expected_size, time_limit):
