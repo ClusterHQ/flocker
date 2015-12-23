@@ -9,9 +9,15 @@ import os
 from twisted.internet import reactor
 from twisted.internet.defer import maybeDeferred
 
+from twisted.python.filepath import FilePath
+
+
 from ...common.runner import run_ssh
 from ...common import gather_deferreds
-from ...testtools import AsyncTestCase
+from ...testtools import AsyncTestCase, Cluster, ControlService
+from ...ca import treq_with_authentication, UserCredential
+from ...apiclient import FlockerClient
+from ...control.httpapi import REST_API_PORT
 
 CLIENT_IP = os.environ['CLIENT_IP']
 DOCKER_HOST = os.environ['DOCKER_HOST']
@@ -81,6 +87,21 @@ def remote_postgres(host, command):
 
 
 def cleanup():
+    certificates_path = FilePath(b'/etc/flocker')
+    cluster_cert = certificates_path.child(b"cluster.crt")
+    user_cert = certificates_path.child(b"user1.crt")
+    user_key = certificates_path.child(b"user1.key")
+    user_credential = UserCredential.from_files(user_cert, user_key)
+    cluster = Cluster(
+        control_node=ControlService(public_address=NODE0),
+        nodes=[],
+        treq=treq_with_authentication(
+            reactor, cluster_cert, user_cert, user_key),
+        client=FlockerClient(reactor, NODE0, REST_API_PORT,
+                             cluster_cert, user_cert, user_key),
+        certificates_path=certificates_path,
+        cluster_uuid=user_credential.cluster_uuid,
+    )
     d_node1_compose = remote_docker_compose(COMPOSE_NODE0, 'stop')
     d_node1_compose.addCallback(
         lambda ignored: remote_docker_compose(
@@ -98,8 +119,13 @@ def cleanup():
     d_cleanup_flocker_volumes = remote_command(NODE0,
                                                FLOCKER_VOLUMES_CLEANUP.format(
                                                    control_ip=NODE0))
-    return gather_deferreds([d_node1_compose, d_node2_compose,
-                             d_cleanup_flocker_volumes])
+
+    d = gather_deferreds([d_node1_compose, d_node2_compose,
+                          d_cleanup_flocker_volumes])
+
+    d.addCallback(cluster.clean_nodes)
+
+    return d
 
 
 class DockerComposeTests(AsyncTestCase):
