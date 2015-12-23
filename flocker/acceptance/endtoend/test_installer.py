@@ -111,7 +111,9 @@ def cleanup():
 
     d = gather_deferreds([d_node1_compose, d_node2_compose])
 
-    d.addCallback(cluster.clean_nodes)
+    d.addCallback(
+        lambda ignored: cluster.clean_nodes()
+    )
 
     return d
 
