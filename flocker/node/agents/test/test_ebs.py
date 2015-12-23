@@ -5,7 +5,6 @@ Tests for ``flocker.node.agents.ebs``.
 """
 
 from string import lowercase
-from subprocess import check_output
 from uuid import uuid4
 
 from hypothesis import given

@@ -50,7 +50,6 @@ from .blockdevice import (
 from ..script import StorageInitializationError
 
 from ...control import pmap_field
-from ...testtools import run_process
 
 from ._logging import (
     AWS_ACTION, NO_AVAILABLE_DEVICE,
