@@ -68,7 +68,7 @@ class DatasetAPITests(AsyncTestCase):
     # FLOC-3712 happens sometimes when we downgrade to 1.8.0 before we upgrade
     # to HEAD on centos. Once that fix has landed in a release, we can remove
     # this flaky decorator.
-    @flaky('FLOC-3712')
+    @flaky(u'FLOC-3712')
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
