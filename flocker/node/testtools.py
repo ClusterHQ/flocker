@@ -18,7 +18,7 @@ from zope.interface import implementer
 
 from characteristic import attributes
 
-from twisted.trial.unittest import TestCase, SkipTest
+from twisted.trial.unittest import SkipTest
 from twisted.internet.defer import succeed
 
 from zope.interface.verify import verifyObject
@@ -29,7 +29,7 @@ from . import (
     ILocalState, IDeployer, NodeLocalState, IStateChange, sequentially
 )
 from ..common import loop_until
-from ..testtools import find_free_port
+from ..testtools import AsyncTestCase, find_free_port
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 from ..control._model import ip_to_uuid, Leases
@@ -248,7 +248,7 @@ def ideployer_tests_factory(fixture):
 
     :return: ``TestCase`` subclass that will test the given fixture.
     """
-    class IDeployerTests(TestCase):
+    class IDeployerTests(AsyncTestCase):
         """
         Tests for ``IDeployer``.
         """
