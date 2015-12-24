@@ -8,6 +8,7 @@ from datetime import timedelta
 from itertools import tee
 import json
 import tempfile
+from unittest import SkipTest
 
 from eliot.prettyprint import pretty_format
 from fixtures import Fixture
@@ -75,6 +76,12 @@ class TestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
     """
 
     run_tests_with = retry_flaky(testtools.RunTest)
+    # Eliot's validateLogging hard-codes a check for SkipTest when deciding
+    # whether to check for valid logging, which is fair enough, since there's
+    # no other API for checking whether a test has skipped. Setting
+    # skipException tells testtools to treat unittest.SkipTest as the
+    # exception that signals skipping.
+    skipException = SkipTest
 
     def __init__(self, *args, **kwargs):
         super(TestCase, self).__init__(*args, **kwargs)
@@ -122,6 +129,8 @@ class AsyncTestCase(testtools.TestCase, _MktempMixin):
     """
 
     run_tests_with = async_runner(timeout=DEFAULT_ASYNC_TIMEOUT)
+    # See comment on TestCase.skipException.
+    skipException = SkipTest
 
     def __init__(self, *args, **kwargs):
         super(AsyncTestCase, self).__init__(*args, **kwargs)
