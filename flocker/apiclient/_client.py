@@ -111,6 +111,17 @@ class Lease(PClass):
     expires = field(type=(float, int, NoneType), mandatory=True)
 
 
+class MountedDataset(PClass):
+    """
+    A mounted dataset.
+
+    :attr UUID dataset_id: The UUID of the dataset.
+    :attr unicode mountpoint: The filesystem location of the dataset.
+    """
+    dataset_id = field(type=UUID, mandatory=True)
+    mountpoint = field(type=unicode, mandatory=True)
+
+
 class Container(PClass):
     """
     A container in the configuration.
@@ -119,10 +130,13 @@ class Container(PClass):
         will run.
     :attr unicode name: The unique name of the container.
     :attr DockerImage image: The Docker image the container will run.
+    :attr Sequence[MountedDataset] volumes: Flocker volumes mounted in
+        container.
     """
     node_uuid = field(type=UUID, mandatory=True)
     name = field(type=unicode, mandatory=True)
     image = field(type=DockerImage, mandatory=True)
+    volumes = field(initial=None)
 
 
 class ContainerState(PClass):
@@ -134,11 +148,14 @@ class ContainerState(PClass):
     :attr unicode name: The unique name of the container.
     :attr DockerImage image: The name of the Docker image.
     :attr bool running: Whether the container is running.
+    :attr Sequence[MountedDataset] volumes: Flocker volumes mounted in
+        container.
     """
     node_uuid = field(type=UUID, mandatory=True)
     name = field(type=unicode, mandatory=True)
     image = field(type=DockerImage, mandatory=True)
     running = field(type=bool, mandatory=True)
+    volumes = field(initial=None)
 
 
 class Node(PClass):
@@ -450,6 +467,7 @@ class FakeFlockerClient(object):
                 name=container.name,
                 image=container.image,
                 running=True,
+                volumes=container.volumes,
             ) for container in self._configured_containers.values()
         ]
 
@@ -751,6 +769,24 @@ class FlockerClient(object):
             b"GET", b"/version", None, {OK}
         )
 
+    @staticmethod
+    def _parse_volumes(volume_list):
+        """
+        Parse a list decoded from JSON with volume configuration.
+
+        :param volume_list: List describing mounted datasets.
+        :return: List of MountedDataset, or None if no volumes.
+        """
+        if volume_list:
+            return [
+                MountedDataset(
+                    dataset_id=volume[u'dataset_id'],
+                    mountpoint=volume[u'mountpoint'],
+                ) for volume in volume_list
+            ]
+        else:
+            return None
+
     def _parse_configuration_container(self, container_dict):
         """
         Convert a dictionary decoded from JSON with a container's
@@ -763,12 +799,20 @@ class FlockerClient(object):
             node_uuid=UUID(hex=container_dict[u"node_uuid"], version=4),
             name=container_dict[u'name'],
             image=DockerImage.from_string(container_dict[u"image"]),
+            volumes=self._parse_volumes(container_dict.get(u'volumes')),
         )
 
-    def create_container(self, node_uuid, name, image):
+    def create_container(self, node_uuid, name, image, volumes=None):
         container = dict(
             node_uuid=unicode(node_uuid), name=name, image=image.full_name,
         )
+        if volumes:
+            container[u'volumes'] = [
+                {
+                    u'dataset_id': volume.dataset_id,
+                    u'mountpoint': volume.mountpoint
+                } for volume in volumes
+            ]
         d = self._request(
             b"POST",
             b"/configuration/containers",
@@ -799,6 +843,7 @@ class FlockerClient(object):
                     name=container[u'name'],
                     image=DockerImage.from_string(container[u'image']),
                     running=container[u'running'],
+                    volumes=self._parse_volumes(container.get(u'volumes'))
                 )
             except KeyError as e:
                 raise ServerResponseMissingElementError(e.args[0], container)
