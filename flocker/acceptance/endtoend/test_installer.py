@@ -249,7 +249,7 @@ class DockerComposeTests(AsyncTestCase):
     """
     Tests for AWS CloudFormation installer.
     """
-    run_tests_with = async_runner(timeout=timedelta(minutes=10))
+    run_tests_with = async_runner(timeout=timedelta(minutes=20))
 
     def setUp(self):
         print "CREATING STACK"
