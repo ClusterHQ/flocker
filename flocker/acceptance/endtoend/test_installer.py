@@ -135,26 +135,29 @@ def cleanup(test_case, local_certs_path):
         certificates_path=certificates_path,
         cluster_uuid=user_credential.cluster_uuid,
     )
-    d_node1_compose = remote_docker_compose(COMPOSE_NODE0, 'stop')
+    d_node1_compose = remote_docker_compose(test_case.client_ip,
+                                            test_case.docker_host,
+                                            COMPOSE_NODE0, 'stop')
     d_node1_compose.addCallback(
         lambda ignored: remote_docker_compose(
+            test_case.client_ip,
+            test_case.docker_host,
             COMPOSE_NODE0, 'rm', '-f'
         )
     )
 
-    d_node2_compose = remote_docker_compose(COMPOSE_NODE1, 'stop')
+    d_node2_compose = remote_docker_compose(
+        test_case.client_ip, test_case.docker_host, COMPOSE_NODE1, 'stop')
     d_node2_compose.addCallback(
         lambda ignored: remote_docker_compose(
-            COMPOSE_NODE1, 'rm', '-f'
+            test_case.client_ip, test_case.docker_host, COMPOSE_NODE1, 'rm', '-f'
         )
     )
 
     d = gather_deferreds([d_node1_compose, d_node2_compose])
-
     d.addCallback(
         lambda ignored: cluster.clean_nodes()
     )
-
     d.addCallback(
         lambda ignored: delete_cloudformation_stack(test_case.stack_id)
     )
@@ -258,16 +261,16 @@ class DockerComposeTests(AsyncTestCase):
         self.node1 = get_output(outputs, 'FlockerNode1IP')
         self.docker_host = self.node0 + ':2376'
         local_certs_path = self.mktemp()
-        self.addCleanup(cleanup, self, local_certs_path)
         print "WAITING FOR CLIENT NODE"
-        time.sleep(120)
+        time.sleep(180)
         check_call(
             ['scp', '-o', 'StrictHostKeyChecking no', '-r',
              'ubuntu@{}:/etc/flocker'.format(self.client_ip),
              local_certs_path]
         )
+        self.addCleanup(cleanup, self, local_certs_path)
         d = maybeDeferred(super(DockerComposeTests, self).setUp)
-        d.addCallback(lambda ignored: cleanup(self, local_certs_path))
+        # d.addCallback(lambda ignored: cleanup(self, local_certs_path))
         return d
 
     def test_docker_compose_up_postgres(self):
