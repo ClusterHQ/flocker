@@ -4,10 +4,8 @@
 Testing infrastructure for integration tests.
 """
 
-from twisted.trial.unittest import TestCase
-
 from ..testtools import require_cluster, create_dataset
-from ...testtools import random_name
+from ...testtools import AsyncTestCase, random_name
 
 
 def make_dataset_integration_testcase(image_name, volume_path, internal_port,
@@ -29,7 +27,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
 
     :return: ``TestCase`` subclass.
     """
-    class IntegrationTests(TestCase):
+    class IntegrationTests(AsyncTestCase):
         """
         Test that the given application can start and restart with Flocker
         datasets as volumes.
