@@ -2,6 +2,8 @@ from itertools import repeat
 from uuid import uuid4
 from ipaddr import IPAddress
 
+from eliot.testing import capture_logging
+
 from twisted.internet.defer import succeed, Deferred
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
@@ -231,7 +233,8 @@ class ReadRequestLoadScenarioTest(TestCase):
             default_volume_size=DEFAULT_VOLUME_SIZE,
         )
 
-    def test_read_request_load_succeeds(self):
+    @capture_logging(None)
+    def test_read_request_load_succeeds(self, _logger):
         """
         ReadRequestLoadScenario starts and stops without collapsing.
         """
@@ -260,7 +263,8 @@ class ReadRequestLoadScenarioTest(TestCase):
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
 
-    def test_scenario_throws_exception_when_rate_drops(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_when_rate_drops(self, _logger):
         """
         ReadRequestLoadScenario raises RequestRateTooLow if rate
         drops below the requested rate.
@@ -291,7 +295,10 @@ class ReadRequestLoadScenarioTest(TestCase):
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestRateTooLow)
 
-    def test_scenario_throws_exception_if_requested_rate_not_reached(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_if_requested_rate_not_reached(
+        self, _logger
+    ):
         """
         ReadRequestLoadScenario raises RequestRateNotReached if the
         target rate cannot be established within a given timeframe.
@@ -309,7 +316,8 @@ class ReadRequestLoadScenarioTest(TestCase):
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, RequestRateNotReached)
 
-    def test_scenario_throws_exception_if_overloaded(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_if_overloaded(self, _logger):
         """
         `ReadRequestLoadScenario` raises `RequestOverload` if the
         difference between sent requests and received requests exceeds
@@ -386,7 +394,8 @@ class ReadRequestLoadScenarioTest(TestCase):
         c.advance(delay)
         self.successResultOf(d)
 
-    def test_scenario_timeouts_if_requests_not_completed(self):
+    @capture_logging(None)
+    def test_scenario_timeouts_if_requests_not_completed(self, _logger):
         """
         `ReadRequestLoadScenario` should timeout if the outstanding
         requests for the scenarion do not complete within the specified

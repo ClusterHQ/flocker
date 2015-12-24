@@ -2,6 +2,8 @@ from itertools import repeat
 from uuid import uuid4
 from ipaddr import IPAddress
 
+from eliot.testing import capture_logging
+
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.task import Clock
 from twisted.python.components import proxyForInterface
@@ -281,7 +283,8 @@ class WriteRequestLoadScenarioTest(TestCase):
             reactor
         )
 
-    def test_setup_generates_dataset(self):
+    @capture_logging(None)
+    def test_setup_generates_dataset(self, _logger):
         """
         `WriteRequestLoadScenario` starts and stops without collapsing.
         """
@@ -322,7 +325,8 @@ class WriteRequestLoadScenarioTest(TestCase):
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, DatasetCreationTimeout)
 
-    def test_write_request_load_succeeds(self):
+    @capture_logging(None)
+    def test_write_request_load_succeeds(self, _logger):
         """
         WriteRequestLoadScenario starts and stops without collapsing.
         """
@@ -342,7 +346,8 @@ class WriteRequestLoadScenarioTest(TestCase):
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
 
-    def test_scenario_throws_exception_when_rate_drops(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_when_rate_drops(self, _logger):
         """
         WriteRequestLoadScenario raises RequestRateTooLow if rate
         drops below the requested rate.
@@ -373,7 +378,10 @@ class WriteRequestLoadScenarioTest(TestCase):
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, WRequestRateTooLow)
 
-    def test_scenario_throws_exception_if_requested_rate_not_reached(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_if_requested_rate_not_reached(
+        self, _logger
+    ):
         """
         WriteRequestLoadScenario raises RequestRateNotReached if the
         target rate cannot be established within a given timeframe.
@@ -392,7 +400,8 @@ class WriteRequestLoadScenarioTest(TestCase):
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, WRequestRateNotReached)
 
-    def test_scenario_throws_exception_if_overloaded(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_if_overloaded(self, __logger):
         """
         `WriteRequestLoadScenario` raises `RequestOverload` if the
         difference between sent requests and received requests exceeds
@@ -472,7 +481,8 @@ class WriteRequestLoadScenarioTest(TestCase):
         c.advance(delay)
         self.successResultOf(d)
 
-    def test_scenario_timeouts_if_requests_not_completed(self):
+    @capture_logging(None)
+    def test_scenario_timeouts_if_requests_not_completed(self, _logger):
         """
         `WriteRequestLoadScenario` should timeout if the outstanding
         requests for the scenarion do not complete within the specified
