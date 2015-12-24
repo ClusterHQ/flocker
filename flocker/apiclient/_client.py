@@ -332,13 +332,14 @@ class IFlockerAPIV1Client(Interface):
         :return: ``Deferred`` firing with a ``list`` of ``Node``.
         """
 
-    def create_container(node_uuid, name, image):
+    def create_container(node_uuid, name, image, volumes=None):
         """
         :param UUID node_uuid: The ``UUID`` of the node where the container
             will be started.
         :param unicode name: The name to assign to the container.
         :param DockerImage image: The Docker image which the container will
             run.
+        :param Sequence[MountedDataset] volumes: Volumes to mount on container.
 
         :return: ``Deferred`` firing with the configured ``Container`` or
             ``ContainerAlreadyExists`` if the supplied container name already
@@ -506,13 +507,14 @@ class FakeFlockerClient(object):
     def list_nodes(self):
         return succeed(self._nodes)
 
-    def create_container(self, node_uuid, name, image):
+    def create_container(self, node_uuid, name, image, volumes=None):
         if name in self._configured_containers:
             return fail(ContainerAlreadyExists())
         result = Container(
             node_uuid=node_uuid,
             name=name,
             image=image,
+            volumes=volumes,
         )
         self._configured_containers = self._configured_containers.set(
             name, result
@@ -780,7 +782,7 @@ class FlockerClient(object):
         if volume_list:
             return [
                 MountedDataset(
-                    dataset_id=volume[u'dataset_id'],
+                    dataset_id=UUID(volume[u'dataset_id']),
                     mountpoint=volume[u'mountpoint'],
                 ) for volume in volume_list
             ]
@@ -796,7 +798,7 @@ class FlockerClient(object):
         :return: ``Container`` instance.
         """
         return Container(
-            node_uuid=UUID(hex=container_dict[u"node_uuid"], version=4),
+            node_uuid=UUID(hex=container_dict[u"node_uuid"]),
             name=container_dict[u'name'],
             image=DockerImage.from_string(container_dict[u"image"]),
             volumes=self._parse_volumes(container_dict.get(u'volumes')),
@@ -809,7 +811,7 @@ class FlockerClient(object):
         if volumes:
             container[u'volumes'] = [
                 {
-                    u'dataset_id': volume.dataset_id,
+                    u'dataset_id': unicode(volume.dataset_id),
                     u'mountpoint': volume.mountpoint
                 } for volume in volumes
             ]

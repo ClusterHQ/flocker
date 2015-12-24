@@ -34,7 +34,7 @@ from .._client import (
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
     Lease, LeaseAlreadyHeld, Node, Container, ContainerAlreadyExists,
     DatasetsConfiguration, ConfigurationChanged, conditional_create,
-    _LOG_CONDITIONAL_CREATE, ContainerState,
+    _LOG_CONDITIONAL_CREATE, ContainerState, MountedDataset,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -517,6 +517,74 @@ def make_clientv1_tests():
                     containers
                 )
             )
+
+            return d
+
+        def test_container_volumes(self):
+            """
+            Mounted datasets are included in response messages.
+            """
+            d = self.assert_creates(
+                self.client, primary=self.node_1.uuid,
+                maximum_size=DATASET_SIZE
+            )
+
+            def start_container(dataset):
+                name = random_name(case=self)
+                volumes = [
+                    MountedDataset(
+                        dataset_id=dataset.dataset_id, mountpoint=u'/data')
+                ]
+                expected_configuration = Container(
+                    node_uuid=self.node_1.uuid,
+                    name=name,
+                    image=DockerImage.from_string(u'nginx'),
+                    volumes=volumes,
+                )
+
+                # Create a container with an attached dataset
+                d = self.client.create_container(
+                    node_uuid=expected_configuration.node_uuid,
+                    name=expected_configuration.name,
+                    image=expected_configuration.image,
+                    volumes=expected_configuration.volumes,
+                )
+
+                # Check result of create call
+                d.addCallback(
+                    lambda configuration: self.assertEqual(
+                        configuration, expected_configuration
+                    )
+                )
+
+                # Check that configuration is correct
+                d.addCallback(
+                    lambda _ignore: self.client.list_containers_configuration()
+                ).addCallback(
+                    lambda configurations: self.assertIn(
+                        expected_configuration, configurations
+                    )
+                )
+
+                d.addCallback(lambda _ignore: self.synchronize_state())
+
+                expected_state = ContainerState(
+                    node_uuid=self.node_1.uuid,
+                    name=name,
+                    image=DockerImage.from_string(u'nginx'),
+                    running=True,
+                    volumes=volumes,
+                )
+
+                # Check that state is correct after convergence
+                d.addCallback(
+                    lambda _ignore: self.client.list_containers_state()
+                ).addCallback(
+                    lambda states: self.assertIn(expected_state, states)
+                )
+
+                return d
+            d.addCallback(start_container)
 
             return d
 
