@@ -550,14 +550,14 @@ def make_clientv1_tests():
                     volumes=expected_configuration.volumes,
                 )
 
-                # Check result of create call
+                # Result of create call is stateful container configuration
                 d.addCallback(
                     lambda configuration: self.assertEqual(
                         configuration, expected_configuration
                     )
                 )
 
-                # Check that configuration is correct
+                # Cluster configuration contains stateful container
                 d.addCallback(
                     lambda _ignore: self.client.list_containers_configuration()
                 ).addCallback(
@@ -576,7 +576,7 @@ def make_clientv1_tests():
                     volumes=volumes,
                 )
 
-                # Check that state is correct after convergence
+                # After convergence, cluster state contains stateful container
                 d.addCallback(
                     lambda _ignore: self.client.list_containers_state()
                 ).addCallback(
