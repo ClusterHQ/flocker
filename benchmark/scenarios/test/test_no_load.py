@@ -1,4 +1,4 @@
-from zope.interface.verify import verifyObject
+from zope.interface.verify import verifyClass
 
 from twisted.internet.task import Clock
 
@@ -8,29 +8,16 @@ from benchmark.scenarios import NoLoadScenario
 from benchmark._interfaces import IScenario
 
 
-def check_interfaces(factory):
-    """
-    Check interface for IScenario implementation.
-    """
-
-    class ScenarioTests(TestCase):
-
-        def test_interfaces(self):
-            scenario = factory(Clock(), None)
-            verifyObject(IScenario, scenario)
-
-    testname = '{}InterfaceTests'.format(factory.__name__)
-    ScenarioTests.__name__ = testname
-    globals()[testname] = ScenarioTests
-
-for factory in (NoLoadScenario,):
-    check_interfaces(factory)
-
-
 class NoLoadScenarioTests(TestCase):
     """
     NoLoadScenario tests
     """
+
+    def test_implements_IScenario(self):
+        """
+        NoLoadScenario provides the IScenario interface.
+        """
+        verifyClass(IScenario, NoLoadScenario)
 
     def test_no_load_happy(self):
         """
