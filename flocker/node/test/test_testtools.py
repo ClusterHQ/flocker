@@ -8,9 +8,11 @@ from twisted.internet.defer import succeed
 
 from .. import sequentially
 from ..testtools import (
-    DummyDeployer, ControllableDeployer, ideployer_tests_factory,
+    DummyDeployer, ControllableAction, ControllableDeployer,
+    ideployer_tests_factory,
 )
 from ...control import NodeState
+from .istatechange import make_istatechange_tests
 
 
 class DummyDeployerIDeployerTests(
@@ -34,5 +36,17 @@ class ControllableDeployerIDeployerTests(
     )
 ):
     """
-    Tests for the ``IDeployer`` implementation of ``DummyDeployer``.
+    Tests for the ``IDeployer`` implementation of ``ControllableDeployer``.
+    """
+
+
+class ControllableActionIStateChangeTests(
+        make_istatechange_tests(
+            ControllableAction,
+            kwargs1=dict(result=1),
+            kwargs2=dict(result=2),
+        )
+):
+    """
+    Tests for ``ControllableAction``.
     """
