@@ -19,7 +19,7 @@ from characteristic import attributes
 
 from twisted.internet.defer import succeed
 
-from flocker.testtools import TestCase
+from ...testtools import TestCase
 from .. import IStateChange
 
 
