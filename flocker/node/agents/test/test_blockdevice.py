@@ -34,6 +34,7 @@ from hypothesis.strategies import (
     dictionaries, tuples
 )
 
+from testtools.deferredruntest import SynchronousDeferredRunTest
 from testtools.matchers import Equals
 
 from twisted.internet import reactor
@@ -576,6 +577,10 @@ class BlockDeviceDeployerTests(
     """
     Tests for ``BlockDeviceDeployer``.
     """
+
+    # This test returns Deferreds but doesn't use the reactor. It uses
+    # NonReactor instead.
+    run_tests_with = SynchronousDeferredRunTest
 
 
 class BlockDeviceDeployerAsyncAPITests(TestCase):

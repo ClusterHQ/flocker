@@ -4,6 +4,7 @@
 Tests for ``flocker.node.testtools``.
 """
 
+from testtools.deferredruntest import SynchronousDeferredRunTest
 from twisted.internet.defer import succeed
 
 from .. import sequentially
@@ -39,6 +40,9 @@ class ControllableDeployerIDeployerTests(
     Tests for the ``IDeployer`` implementation of ``ControllableDeployer``.
     """
 
+    # This test returns Deferreds but doesn't use the reactor.
+    run_tests_with = SynchronousDeferredRunTest
+
 
 class ControllableActionIStateChangeTests(
         make_istatechange_tests(
@@ -50,3 +54,6 @@ class ControllableActionIStateChangeTests(
     """
     Tests for ``ControllableAction``.
     """
+
+    # This test returns Deferreds but doesn't use the reactor.
+    run_tests_with = SynchronousDeferredRunTest
