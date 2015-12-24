@@ -85,7 +85,9 @@ class TestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
 
     def __init__(self, *args, **kwargs):
         super(TestCase, self).__init__(*args, **kwargs)
-        # XXX: Work around testing-cabal/unittest-ext#60
+        # XXX: Work around testing-cabal/unittest-ext#60. Delete after
+        # https://github.com/testing-cabal/testtools/pull/189 lands, is
+        # released, and we use it.
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
     def setUp(self):
@@ -134,7 +136,9 @@ class AsyncTestCase(testtools.TestCase, _MktempMixin):
 
     def __init__(self, *args, **kwargs):
         super(AsyncTestCase, self).__init__(*args, **kwargs)
-        # XXX: Work around testing-cabal/unittest-ext#60
+        # XXX: Work around testing-cabal/unittest-ext#60. Delete after
+        # https://github.com/testing-cabal/testtools/pull/189 lands, is
+        # released, and we use it.
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
     def setUp(self):
