@@ -5,7 +5,7 @@ Test for real world behaviour of Cinder implementations to validate some of our
 basic assumptions/understandings of how Cinder works in the real world.
 """
 
-from twisted.trial.unittest import SkipTest
+from unittest import SkipTest
 
 from ..cinder import (
     get_keystone_session, get_cinder_v1_client, wait_for_volume_state

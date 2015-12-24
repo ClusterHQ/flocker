@@ -42,7 +42,6 @@ from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SkipTest
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
@@ -3816,7 +3815,7 @@ def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
     """
     user_id = getuid()
     if user_id != 0:
-        raise SkipTest(
+        raise test_case.skipTest(
             "``LoopbackBlockDeviceAPI`` uses ``losetup``, "
             "which requires root privileges. "
             "Required UID: 0, Found UID: {!r}".format(user_id)

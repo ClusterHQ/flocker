@@ -11,7 +11,6 @@ from bitmath import Byte, GiB
 from botocore.exceptions import ClientError
 
 from twisted.python.constants import Names, NamedConstant
-from twisted.trial.unittest import SkipTest
 from eliot.testing import LoggedAction, capture_logging, assertHasMessage
 
 from ..blockdevice import MandatoryProfiles
@@ -73,7 +72,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         try:
             config = get_blockdevice_config(ProviderType.aws)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
         ec2_client = get_ec2_client_for_test(config)
         meta_client = ec2_client.connection.meta.client
         requested_volume = meta_client.create_volume(
@@ -109,7 +108,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         try:
             config = get_blockdevice_config(ProviderType.aws)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
 
         dataset_id = uuid4()
         flocker_volume = self.api.create_volume(
