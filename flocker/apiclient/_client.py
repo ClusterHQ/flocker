@@ -126,12 +126,12 @@ class Container(PClass):
     """
     A container in the configuration.
 
-    :attr UUID node_uuid: The UUID of a node in the cluster where the container
-        will run.
+    :attr UUID node_uuid: The UUID of a node in the cluster where the
+        container will run.
     :attr unicode name: The unique name of the container.
     :attr DockerImage image: The Docker image the container will run.
-    :attr Sequence[MountedDataset] volumes: Flocker volumes mounted in
-        container.
+    :attr Optional[Sequence[MountedDataset]] volumes: Flocker volumes
+        mounted in container.
     """
     node_uuid = field(type=UUID, mandatory=True)
     name = field(type=unicode, mandatory=True)
@@ -143,13 +143,13 @@ class ContainerState(PClass):
     """
     The state of a container in the cluster.
 
-    :attr UUID node_uuid: The UUID of a node in the cluster where the container
-        will run.
+    :attr UUID node_uuid: The UUID of a node in the cluster where the
+        container will run.
     :attr unicode name: The unique name of the container.
     :attr DockerImage image: The name of the Docker image.
     :attr bool running: Whether the container is running.
-    :attr Sequence[MountedDataset] volumes: Flocker volumes mounted in
-        container.
+    :attr Optional[Sequence[MountedDataset]] volumes: Flocker volumes
+        mounted in container.
     """
     node_uuid = field(type=UUID, mandatory=True)
     name = field(type=unicode, mandatory=True)
@@ -339,7 +339,8 @@ class IFlockerAPIV1Client(Interface):
         :param unicode name: The name to assign to the container.
         :param DockerImage image: The Docker image which the container will
             run.
-        :param Sequence[MountedDataset] volumes: Volumes to mount on container.
+        :param Optional[Sequence[MountedDataset]] volumes: Volumes to mount on
+            container.
 
         :return: ``Deferred`` firing with the configured ``Container`` or
             ``ContainerAlreadyExists`` if the supplied container name already
@@ -776,8 +777,10 @@ class FlockerClient(object):
         """
         Parse a list decoded from JSON with volume configuration.
 
-        :param volume_list: List describing mounted datasets.
-        :return: List of MountedDataset, or None if no volumes.
+        :param Optional[Sequence[Mapping[unicode, unicode]]] volume_list: List
+            describing a JSON list of volume objects.
+        :return Optional[Sequence[MountedDataset]]: List of mounted datasets,
+            or None if no volumes.
         """
         if volume_list:
             return [
