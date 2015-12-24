@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from functools import partial
 from characteristic import attributes
 
-from eliot import Message, MessageType, Field
+from eliot import write_failure, Message, MessageType, Field
 
 from effect import TypeDispatcher, ComposedDispatcher
 from txeffect import (
@@ -30,14 +30,12 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python.filepath import FilePath
 import os
 
-from ...common import loop_until
+from ...common import loop_until, timeout
 from ._model import (
     Run, Sudo, Put, Comment, RunRemotely, perform_comment, perform_put,
     perform_sudo)
 
 from .._effect import dispatcher as base_dispatcher
-
-from ._monkeypatch import patch_twisted_7672
 
 RUN_OUTPUT_MESSAGE = MessageType(
     message_type="flocker.provision.ssh:run:output",
@@ -70,7 +68,6 @@ class CommandProtocol(LineOnlyReceiver, object):
     delimiter = b'\n'
 
     def connectionMade(self):
-        from functools import partial
         self.transport.disconnecting = False
         # SSHCommandClientEndpoint doesn't support capturing stderr.
         # We patch the SSHChannel to interleave it.
@@ -156,7 +153,8 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
 
     def connect():
         connection = connection_helper.secureConnection()
-        connection.addErrback(lambda _: False)
+        connection.addErrback(write_failure)
+        timeout(reactor, connection, 30)
         return connection
 
     connection = yield loop_until(reactor, connect)
@@ -176,7 +174,6 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
 
 
 def make_dispatcher(reactor):
-    patch_twisted_7672()
     return ComposedDispatcher([
         TypeDispatcher({
             RunRemotely: partial(perform_run_remotely, reactor),

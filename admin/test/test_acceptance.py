@@ -8,20 +8,21 @@ from io import BytesIO
 from uuid import UUID
 
 from zope.interface.verify import verifyObject
-from twisted.trial.unittest import SynchronousTestCase
 
 from ..acceptance import (
     IClusterRunner, ManagedRunner, generate_certificates,
-    journald_json_formatter, DISTRIBUTIONS, TailFormatter
+    journald_json_formatter, DISTRIBUTIONS, TailFormatter,
+    ClusterIdentity
 )
 
+from flocker.testtools import TestCase
 from flocker.ca import RootCredential
 from flocker.provision import PackageSource
 from flocker.provision._install import ManagedNode
 from flocker.acceptance.testtools import DatasetBackend
 
 
-class ManagedRunnerTests(SynchronousTestCase):
+class ManagedRunnerTests(TestCase):
     """
     Tests for ``ManagedRunner``.
     """
@@ -39,13 +40,18 @@ class ManagedRunnerTests(SynchronousTestCase):
             distribution=b'centos-7',
             dataset_backend=DatasetBackend.zfs,
             dataset_backend_configuration={},
+            identity=ClusterIdentity(
+                name=b'cluster',
+                purpose=u'test',
+                prefix=u'test',
+            ),
         )
         self.assertTrue(
             verifyObject(IClusterRunner, runner)
         )
 
 
-class GenerateCertificatesTests(SynchronousTestCase):
+class GenerateCertificatesTests(TestCase):
     """
     Tests for ``generate_certificates``.
     """
@@ -57,7 +63,7 @@ class GenerateCertificatesTests(SynchronousTestCase):
         node = ManagedNode(
             address=b"192.0.2.17", distribution=DISTRIBUTIONS[0],
         )
-        certificates = generate_certificates(cluster_id, [node])
+        certificates = generate_certificates(b'cluster', cluster_id, [node])
         root = RootCredential.from_path(certificates.directory)
         self.assertEqual(
             cluster_id,
@@ -136,7 +142,7 @@ _SYSTEMD_UNIT=docker.service
 MESSAGE=time="2015-10-02T13:33:26.192780138Z" level=info msg="GET /v1.20/containers/json"
 """
 
-class JournaldJSONFormatter(SynchronousTestCase):
+class JournaldJSONFormatter(TestCase):
     """
     Tests for ``journald_json_formatter``.
     """
@@ -193,11 +199,12 @@ class JournaldJSONFormatter(SynchronousTestCase):
         )
 
 
-class TailFormatterRegex(SynchronousTestCase):
+class TailFormatterRegex(TestCase):
     """
     Tests for ``TailFormatter``
     """
     def setUp(self):
+        super(TailFormatterRegex, self).setUp()
         self._valid_match_flocker = "random ==> /var/log/"\
             "flocker/valid_service.log <=="
         self._valid_match_upstart = "==> /var/log/upstart/valid_service.log <=="

@@ -13,7 +13,7 @@ from hypothesis.strategies import lists, sampled_from, builds
 from bitmath import GiB
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SkipTest, SynchronousTestCase
+from twisted.trial.unittest import SkipTest
 
 from ..ebs import (
     AttachedUnexpectedDevice, _expected_device,
@@ -22,7 +22,7 @@ from ..ebs import (
 )
 from ..blockdevice import BlockDeviceVolume
 
-from ....testtools import CustomException
+from ....testtools import CustomException, TestCase
 
 
 # A Hypothesis strategy for generating /dev/sd?
@@ -32,7 +32,7 @@ device_path = builds(
 )
 
 
-class AttachedUnexpectedDeviceTests(SynchronousTestCase):
+class AttachedUnexpectedDeviceTests(TestCase):
     """
     Tests for ``AttachedUnexpectedDevice``.
     """
@@ -89,11 +89,12 @@ class AttachedUnexpectedDeviceTests(SynchronousTestCase):
         )
 
 
-class AttachVolumeAndWaitTests(SynchronousTestCase):
+class AttachVolumeAndWaitTests(TestCase):
     """
     Tests for ``_attach_volume_and_wait_for_device``.
     """
     def setUp(self):
+        super(AttachVolumeAndWaitTests, self).setUp()
         self.volume = BlockDeviceVolume(
             dataset_id=uuid4(),
             blockdevice_id=u"opaque storage backend id",
@@ -190,7 +191,7 @@ class AttachVolumeAndWaitTests(SynchronousTestCase):
         )
 
 
-class ExpectedDeviceTests(SynchronousTestCase):
+class ExpectedDeviceTests(TestCase):
     """
     Tests for ``_expected_device``.
     """

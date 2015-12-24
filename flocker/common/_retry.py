@@ -4,7 +4,9 @@
 Helpers for retrying things.
 """
 
-from __future__ import absolute_import
+from __future__ import absolute_import, division
+
+from sys import exc_info
 
 from datetime import timedelta
 from functools import partial
@@ -12,10 +14,13 @@ from inspect import getfile, getsourcelines
 from itertools import repeat
 import time
 
-from eliot import ActionType, MessageType, Field
+from eliot import (
+    ActionType, MessageType, Message, Field, start_action,
+)
 from eliot.twisted import DeferredContext
 
-from twisted.python.reflect import safe_repr
+from twisted.python.reflect import fullyQualifiedName, safe_repr
+from twisted.python.failure import Failure
 from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
 
@@ -43,6 +48,16 @@ def function_serializer(function):
         return {
             "function": str(function),
         }
+    except TypeError:
+        # Callable not supported by inspect.getfile
+        if isinstance(function, partial):
+            return {
+                'partial': function_serializer(function.func)
+            }
+        else:
+            return {
+                "function": str(function),
+            }
 
 
 class LoopExceeded(Exception):
@@ -112,28 +127,41 @@ def loop_until(reactor, predicate, steps=None):
     return d.addActionFinish()
 
 
-def timeout(reactor, deferred, timeout_sec):
-    """Adds a timeout to an existing deferred. If the timeout expires before
-    the deferred expires, then the deferred is cancelled.
+def timeout(reactor, deferred, timeout_sec, reason=None):
+    """
+    Adds a timeout to an existing deferred.  If the timeout expires before the
+    deferred expires, then the deferred is cancelled.
 
     :param IReactorTime reactor: The reactor implementation to schedule the
         timeout.
-
     :param Deferred deferred: The deferred to cancel at a later point in time.
-
     :param float timeout_sec: The number of seconds to wait before the deferred
         should time out.
+    :param Exception reason: An exception used to create a Failure with which
+        to fire the Deferred if the timeout is encountered.  If not given,
+        ``deferred`` retains its original failure behavior.
+
+    :return: The updated deferred.
     """
     def _timeout():
         deferred.cancel()
 
     delayed_timeout = reactor.callLater(timeout_sec, _timeout)
 
+    if reason is not None:
+        def maybe_replace_reason(passthrough):
+            if delayed_timeout.active():
+                return passthrough
+            return Failure(reason)
+        deferred.addErrback(maybe_replace_reason)
+
     def abort_timeout(passthrough):
         if delayed_timeout.active():
             delayed_timeout.cancel()
         return passthrough
     deferred.addBoth(abort_timeout)
+
+    return deferred
 
 
 def retry_failure(reactor, function, expected=None, steps=None):
@@ -251,3 +279,175 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
     should_retry.wait_secs = retry_wait
 
     return retry(effect, should_retry)
+
+
+_TRY_UNTIL_SUCCESS = u"flocker:failure-retry"
+_TRY_RETRYING = _TRY_UNTIL_SUCCESS + u":retrying"
+_TRY_FAILURE = _TRY_UNTIL_SUCCESS + u":failure"
+_TRY_SUCCESS = _TRY_UNTIL_SUCCESS + u":success"
+
+
+def get_default_retry_steps(
+    delay=timedelta(seconds=0.1),
+    max_time=timedelta(minutes=2)
+):
+    """
+    Retry every 0.1 seconds for 2 minutes.
+    """
+    repetitions = max_time.total_seconds() / delay.total_seconds()
+    return repeat(delay, int(repetitions))
+
+
+def retry_always(exc_type, value, traceback):
+    pass
+
+
+def retry_if(predicate):
+    """
+    Create a predicate compatible with ``with_retry``
+    which will retry if the raised exception satisfies the given predicate.
+
+    :param predicate: A one-argument callable which will be called with the
+        raised exception instance only.  It should return ``True`` if a retry
+        should be attempted, ``False`` otherwise.
+    """
+    def should_retry(exc_type, value, traceback):
+        if predicate(value):
+            return None
+        raise exc_type, value, traceback
+    return should_retry
+
+
+# TODO Move this helper to somewhere else in flocker.common.  It's not
+# particular to any retry logic.
+def decorate_methods(obj, decorator):
+    """
+    Return a wrapper around ``obj`` with ``decorator`` applied to all of its
+    method calls.
+
+    For example, to retry on IOError up to 5 times with a 3 second delay
+    between each try::
+
+        retry_three_times = partial(
+            with_retry,
+            should_retry=retry_if(lambda exc: isinstance(exc, IOError)),
+            steps=[timedelta(seconds=3)] * 5,
+        )
+        obj_with_three_retries = decorate_methods(obj, retry_three_times)
+
+    :param callable decorator: A unary callable that takes a method and returns
+        a method.
+
+    :return: An object like ``obj`` but with all the methods decorated.
+    """
+    return _DecoratedInstance(obj, decorator)
+
+
+def _poll_until_success_returning_result(
+    should_retry, steps, sleep, function, args, kwargs
+):
+    """
+    Call a function until it does not raise an exception or ``should_retry``
+    says it shouldn't be tried anymore, whichever comes first.
+
+    :param should_retry: See ``should_retry`` parameter of ``with_retry``.
+    :param steps: See ``steps`` parameter of ``with_retry``.
+    :param sleep: See ``sleep`` parameter of ``with_retry``.
+    :param function: The function to try calling.
+    :param args: Position arguments to pass to the function.
+    :param kwargs: Keyword arguments to pass to the function.
+
+    :return: The value returned by ``function`` on the first call where it
+        returns a value instead of raising an exception.
+    """
+    saved_result = [None]
+
+    def pollable():
+        Message.new(
+            message_type=_TRY_RETRYING,
+        ).write()
+        try:
+            result = function(*args, **kwargs)
+        except Exception as e:
+            saved_result[0] = exc_info()
+            should_retry(*saved_result[0])
+            Message.new(
+                message_type=_TRY_FAILURE,
+                exception=str(e),
+            ).write()
+            return False
+        else:
+            Message.new(
+                message_type=_TRY_SUCCESS,
+                result=result,
+            ).write()
+            saved_result[0] = result
+            return True
+
+    try:
+        poll_until(
+            pollable, (step.total_seconds() for step in steps), sleep=sleep,
+        )
+    except LoopExceeded:
+        # XXX untested
+        thing = saved_result.pop()
+        try:
+            raise thing[0], thing[1], thing[2]
+        finally:
+            del thing
+    else:
+        return saved_result[0]
+
+
+def with_retry(method, should_retry=None, steps=None, sleep=None):
+    """
+    Return a new version of ``method`` that retries.
+
+    :param callable method: A method to retry.
+    :param callable should_retry: A one-argument callable which accepts a
+        three-tuple of exception state and returns ``None`` or raises an
+        exception.  If ``None`` is returned, the call will be retried after a
+        delay given by the next element of ``steps``.  If an exception is
+        raised, no further retries are attempted and the exception is
+        propagated from the method call.
+    :param steps: An iterator of delay intervals (as ``timedelta`` instances).
+        These intervals give the amount of time to wait between retries.
+    :param callable sleep: A replacement for ``time.sleep``.
+
+    :return: A method that will retry.
+    """
+    if should_retry is None:
+        should_retry = retry_always
+
+    if steps is None:
+        steps = get_default_retry_steps()
+
+    def method_with_retry(*a, **kw):
+        name = _callable_repr(method)
+        action_type = _TRY_UNTIL_SUCCESS
+        with start_action(action_type=action_type, function=name):
+            return _poll_until_success_returning_result(
+                should_retry, steps, sleep, method, a, kw
+            )
+    return method_with_retry
+
+
+def _callable_repr(method):
+    """Get a useful representation ``method``."""
+    try:
+        return fullyQualifiedName(method)
+    except AttributeError:
+        return safe_repr(method)
+
+
+class _DecoratedInstance(object):
+    def __init__(self, wrapped, decorator, **kw):
+        self._wrapped = wrapped
+        self._decorator = decorator
+        self._kw = kw
+
+    def __getattr__(self, name):
+        attribute = getattr(self._wrapped, name)
+        if callable(attribute):
+            return self._decorator(attribute, **self._kw)
+        return attribute

@@ -33,9 +33,12 @@ to_file(sys.stderr)
 
 _SCENARIOS = {
     'no-load': scenarios.NoLoadScenario,
+    'read-request-load': scenarios.ReadRequestLoadScenario,
+    'write-request-load': scenarios.WriteRequestLoadScenario,
 }
 
 _OPERATIONS = {
+    'create-dataset': operations.CreateDataset,
     'no-op': operations.NoOperation,
     'read-request': operations.ReadRequest,
     'wait': operations.Wait,

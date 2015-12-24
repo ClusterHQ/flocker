@@ -9,31 +9,29 @@ import time
 from uuid import uuid4
 from bitmath import Byte, GiB
 
-from boto.ec2.volume import (
-    Volume as EbsVolume, AttachmentSet
-)
-from boto.exception import EC2ResponseError
+from botocore.exceptions import ClientError
 
 from twisted.python.constants import Names, NamedConstant
-from twisted.trial.unittest import SkipTest, TestCase
-from eliot.testing import LoggedMessage, capture_logging, assertHasMessage
+from twisted.trial.unittest import SkipTest
+from eliot.testing import LoggedAction, capture_logging, assertHasMessage
 
 from ..blockdevice import MandatoryProfiles
 
 from ..ebs import (
-    _wait_for_volume_state_change, BOTO_EC2RESPONSE_ERROR,
+    _wait_for_volume_state_change,
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
-    EBSMandatoryProfileAttributes,
+    EBSMandatoryProfileAttributes, _get_volume_tag,
 )
-from ....testtools import flaky
+from ....testtools import AsyncTestCase, flaky
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
-    CREATE_VOLUME_FAILURE
+    CREATE_VOLUME_FAILURE, AWS_ACTION,
 )
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests
+    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
+    make_icloudapi_tests,
 )
 
 from ..test.blockdevicefactory import (
@@ -78,14 +76,16 @@ class EBSBlockDeviceAPIInterfaceTests(
         except InvalidConfig as e:
             raise SkipTest(str(e))
         ec2_client = get_ec2_client_for_test(config)
-        requested_volume = ec2_client.connection.create_volume(
-            int(Byte(self.minimum_allocatable_size).to_GiB().value),
-            ec2_client.zone)
-        self.addCleanup(ec2_client.connection.delete_volume,
-                        requested_volume.id)
+        meta_client = ec2_client.connection.meta.client
+        requested_volume = meta_client.create_volume(
+            Size=int(Byte(self.minimum_allocatable_size).to_GiB().value),
+            AvailabilityZone=ec2_client.zone)
+        created_volume = ec2_client.connection.Volume(
+            requested_volume['VolumeId'])
+        self.addCleanup(created_volume.delete)
 
         _wait_for_volume_state_change(VolumeOperations.CREATE,
-                                      requested_volume)
+                                      created_volume)
 
         self.assertEqual(self.api.list_volumes(), [])
 
@@ -118,8 +118,8 @@ class EBSBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
         )
         ec2_client = get_ec2_client_for_test(config)
-        name = ec2_client.connection.get_all_volumes(
-            volume_ids=[flocker_volume.blockdevice_id])[0].tags[u"Name"]
+        volume = ec2_client.connection.Volume(flocker_volume.blockdevice_id)
+        name = _get_volume_tag(volume, u"Name")
         self.assertEqual(name, u"flocker-{}".format(dataset_id))
 
     @capture_logging(lambda self, logger: None)
@@ -132,15 +132,15 @@ class EBSBlockDeviceAPIInterfaceTests(
         originating from boto.ec2.connection.EC2Connection.
         """
         # Test 1: Create volume with size 0.
-        # Raises: EC2ResponseError
-        self.assertRaises(EC2ResponseError, self.api.create_volume,
+        # Raises: ClientError
+        self.assertRaises(ClientError, self.api.create_volume,
                           dataset_id=uuid4(), size=0,)
 
         # Test 2: Set EC2 connection zone to an invalid string.
-        # Raises: EC2ResponseError
+        # Raises: ClientError
         self.api.zone = u'invalid_zone'
         self.assertRaises(
-            EC2ResponseError,
+            ClientError,
             self.api.create_volume,
             dataset_id=uuid4(),
             size=self.minimum_allocatable_size,
@@ -150,10 +150,9 @@ class EBSBlockDeviceAPIInterfaceTests(
         # actually logged to ``Eliot`` logger.
         expected_message_keys = {AWS_CODE.key, AWS_MESSAGE.key,
                                  AWS_REQUEST_ID.key}
-        for logged in LoggedMessage.of_type(logger.messages,
-                                            BOTO_EC2RESPONSE_ERROR,):
+        for logged in LoggedAction.of_type(logger.messages, AWS_ACTION,):
             key_subset = set(key for key in expected_message_keys
-                             if key in logged.message.keys())
+                             if key in logged.end_message.keys())
             self.assertEqual(expected_message_keys, key_subset)
 
     @capture_logging(None)
@@ -226,7 +225,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         Create a volume so large that none of the ``MandatoryProfiles``
         can be assigned to it.
         """
-        self.assertRaises(EC2ResponseError,
+        self.assertRaises(ClientError,
                           self._assert_create_volume_with_mandatory_profile,
                           MandatoryProfiles.GOLD,
                           size_GiB=1024*1024)
@@ -243,7 +242,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         """
         Too large volume (> 16TiB) for ``silver`` profile.
         """
-        self.assertRaises(EC2ResponseError,
+        self.assertRaises(ClientError,
                           self._assert_create_volume_with_mandatory_profile,
                           MandatoryProfiles.SILVER,
                           size_GiB=1024*1024)
@@ -280,7 +279,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         A = EBSMandatoryProfileAttributes.lookupByName(
             cannonical_profile.name).value
         ebs_volume = self.api._get_ebs_volume(volume1.blockdevice_id)
-        self.assertEqual(ebs_volume.type, A.volume_type.value)
+        self.assertEqual(ebs_volume.volume_type, A.volume_type.value)
         requested_iops = A.requested_iops(ebs_volume.size)
         self.assertEqual(ebs_volume.iops if requested_iops is not None
                          else None, requested_iops)
@@ -315,11 +314,54 @@ class EBSProfiledBlockDeviceAPIInterfaceTests(
     pass
 
 
-class VolumeStateTransitionTests(TestCase):
+class VolumeStub(object):
+    """
+    Stub object to represent properties found on the immutable
+    `boto3.resources.factory.ec2.Volume`. This allows a ``Volume``
+    with properties to be compared to expected values.
+    """
+    def __init__(self, **kwargs):
+        self._volume_attributes = dict(
+            id=None, create_time=None, tags=None, attachments=None,
+            size=None, snapshot_id=None, zone=None, volume_type=None,
+            iops=None, state=None, encrypted=None
+        )
+        for key, value in kwargs.items():
+            if key in self._volume_attributes:
+                self._volume_attributes[key] = value
+
+    def __getattr__(self, name):
+        if name in self._volume_attributes:
+            return self._volume_attributes[name]
+        else:
+            raise AttributeError
+
+    def __eq__(self, other):
+        """
+        Compare set attributes on this stub to a boto3 ``Volume``.
+        """
+        equal = True
+        for key, value in self._volume_attributes.items():
+            other_value = getattr(other, key, None)
+            if self._volume_attributes[key] is not None:
+                if self._volume_attributes[key] != other_value:
+                    equal = False
+            if other_value is not None:
+                if self._volume_attributes[key] != other_value:
+                    equal = False
+        return equal
+
+    def __ne__(self, other):
+        """
+        Negative comparison. See ``VolumeStub.__eq__``.
+        """
+        return not self.__eq__(other)
+
+
+class VolumeStateTransitionTests(AsyncTestCase):
     """
     Tests for volume state operations and resulting volume state changes.
     """
-
     class VolumeEndStateTypes(Names):
         """
         Types of volume states to simulate.
@@ -350,9 +392,9 @@ class VolumeStateTransitionTests(TestCase):
             A value from ``VolumeOperations``.
 
         :returns: Suitable volume in the right start state for input operation.
-        :rtype: boto.ec2.volume.Volume
+        :rtype: ``VolumeStub``
         """
-        volume = EbsVolume()
+        volume = VolumeStub()
 
         # Irrelevant volume attributes.
         volume.id = u'vol-9c48a689'
@@ -367,7 +409,7 @@ class VolumeStateTransitionTests(TestCase):
         start_state = state_flow.start_state.value
 
         # Interesting volume attribute.
-        volume.status = start_state
+        volume.state = start_state
 
         return volume
 
@@ -407,24 +449,24 @@ class VolumeStateTransitionTests(TestCase):
         :param NamedConstant attach_type: Type of attach data to create.
 
         :returns: Volume attachment set that conforms to requested attach type.
-        :rtype: AttachmentSet
+        :rtype: `dict`
         """
         if attach_type == self.A.MISSING_ATTACH_DATA:
             return None
         elif attach_type == self.A.MISSING_INSTANCE_ID:
-            attach_data = AttachmentSet()
-            attach_data.device = u'/dev/sdf'
-            attach_data.instance_id = ''
+            attach_data = dict()
+            attach_data['Device'] = u'/dev/sdf'
+            attach_data['InstanceId'] = ''
             return attach_data
         elif attach_type == self.A.MISSING_DEVICE:
-            attach_data = AttachmentSet()
-            attach_data.device = ''
-            attach_data.instance_id = u'i-xyz'
+            attach_data = dict()
+            attach_data['Device'] = ''
+            attach_data['InstanceId'] = u'i-xyz'
             return attach_data
         elif attach_type == self.A.ATTACH_SUCCESS:
-            attach_data = AttachmentSet()
-            attach_data.device = u'/dev/sdf'
-            attach_data.instance_id = u'i-xyz'
+            attach_data = dict()
+            attach_data['Device'] = u'/dev/sdf'
+            attach_data['InstanceId'] = u'i-xyz'
             return attach_data
         elif attach_type == self.A.DETACH_SUCCESS:
             return None
@@ -441,8 +483,8 @@ class VolumeStateTransitionTests(TestCase):
             :param boto.ec2.volume.Volume volume: Volume to move to
                 invalid state.
             """
-            volume.status = self._pick_end_state(operation, state_type)
-            volume.attach_data = self._pick_attach_data(attach_data)
+            volume.state = self._pick_end_state(operation, state_type)
+            volume.attachments = [self._pick_attach_data(attach_data)]
         return update
 
     def _assert_unexpected_state_exception(self, operation,
@@ -587,22 +629,22 @@ class VolumeStateTransitionTests(TestCase):
         Assert that successful volume creation leads to valid volume end state.
         """
         volume = self._process_volume(self.V.CREATE, self.S.DESTINATION_STATE)
-        self.assertEqual(volume.status, u'available')
+        self.assertEqual(volume.state, u'available')
 
     def test_destroy_success(self):
         """
         Assert that successful volume destruction leads to valid end state.
         """
         volume = self._process_volume(self.V.DESTROY, self.S.DESTINATION_STATE)
-        self.assertEquals(volume.status, u'')
+        self.assertEquals(volume.state, u'')
 
-    def test_attach_sucess(self):
+    def test_attach_success(self):
         """
         Test if successful attach volume operation leads to expected state.
         """
         volume = self._process_volume(self.V.ATTACH, self.S.DESTINATION_STATE)
-        self.assertEqual([volume.status, volume.attach_data.device,
-                          volume.attach_data.instance_id],
+        self.assertEqual([volume.state, volume.attachments[0]['Device'],
+                          volume.attachments[0]['InstanceId']],
                          [u'in-use', u'/dev/sdf', u'i-xyz'])
 
     def test_detach_success(self):
@@ -611,4 +653,15 @@ class VolumeStateTransitionTests(TestCase):
         """
         volume = self._process_volume(self.V.DETACH, self.S.DESTINATION_STATE,
                                       self.A.DETACH_SUCCESS)
-        self.assertEqual(volume.status, u'available')
+        self.assertEqual(volume.state, u'available')
+
+
+class EBSCloudInterfaceTests(
+        make_icloudapi_tests(
+            blockdevice_api_factory=(
+                lambda test_case: ebsblockdeviceapi_for_test(
+                    test_case=test_case)))):
+
+    """
+    ``ICloudAPI`` adherence tests for ``EBSBlockDeviceAPI``.
+    """

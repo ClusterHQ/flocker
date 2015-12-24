@@ -54,3 +54,27 @@ def interface_decorator(decorator_name, interface, method_decorator,
             setattr(cls, name, method_decorator(name, *args, **kwargs))
         return cls
     return class_decorator
+
+
+def provides(interface):
+    """
+    Create an invariant that asserts that the given value provides the given
+    interface.
+
+    :param InterfaceClass interface: The interface to check for.
+
+    :return: A function that takes an object and returns a tuple of `bool` and
+        a error message.
+    """
+    interface_name = interface.__name__
+
+    def invariant(value):
+        if interface.providedBy(value):
+            return (True, "")
+        else:
+            return (False, "{value!r} doesn't provide {interface}".format(
+                value=value, interface=interface_name,
+            ))
+    invariant.__name__ = "provides_{}_invariant".format(interface_name)
+
+    return invariant

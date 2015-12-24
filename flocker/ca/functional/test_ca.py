@@ -84,6 +84,7 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         """
         Create a root certificate for the test.
         """
+        super(FlockerCATests, self).setUp()
         self.temp_path = FilePath(self.mktemp())
         self.temp_path.makedirs()
         flocker_ca(b"initialize", b"mycluster", cwd=self.temp_path.path)
