@@ -252,11 +252,18 @@ def ideployer_tests_factory(fixture):
         """
         Tests for ``IDeployer``.
         """
+
+        def _make_deployer(self):
+            """
+            Make the ``IDeployer`` under test.
+            """
+            return fixture(self)
+
         def test_interface(self):
             """
             The object claims to provide the interface.
             """
-            self.assertTrue(verifyObject(IDeployer, fixture(self)))
+            self.assertTrue(verifyObject(IDeployer, self._make_deployer()))
 
         def _discover_state(self):
             """
@@ -265,7 +272,9 @@ def ideployer_tests_factory(fixture):
             :return: The return value of the object's ``discover_state``
                 method.
             """
-            self._deployer = fixture(self)
+            # XXX: Why is this set on the instance? Is it re-used? Does it
+            # cache?
+            self._deployer = self._make_deployer()
             result = self._deployer.discover_state(
                 NodeState(hostname=b"10.0.0.1"))
             return result
