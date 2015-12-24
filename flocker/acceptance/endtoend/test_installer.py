@@ -48,6 +48,16 @@ PARAMETERS = [
         'ParameterValue': os.environ['SECRET_ACCESS_KEY']
     }
 ]
+STACK_POLICY = {
+        "Version":"2012-10-17",
+        "Statement" : [
+            {
+                "Effect": "Allow",
+                "Action" : "cloudformation:*",
+                "Resource" : "*"
+            }
+        ]
+}
 
 COMPOSE_NODE0 = '/home/ubuntu/postgres/docker-compose-node0.yml'
 COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
@@ -158,9 +168,11 @@ def cleanup(test_case, local_certs_path):
     d.addCallback(
         lambda ignored: cluster.clean_nodes()
     )
+
     d.addCallback(
         lambda ignored: delete_cloudformation_stack(test_case.stack_id)
     )
+
     return d
 
 
@@ -206,10 +218,12 @@ def create_cloudformation_stack():
     """
     # Request stack creation.
 
+    stack_name = CLOUDFORMATION_STACK_NAME + str(int(time.time()))
     output = check_output(
         ['aws', '--region', REGION, 'cloudformation', 'create-stack',
          '--parameters', json.dumps(PARAMETERS),
-         '--stack-name', CLOUDFORMATION_STACK_NAME + str(int(time.time())),
+         '--stack-policy-body', json.dumps(STACK_POLICY),
+         '--stack-name', stack_name,
          '--template-body', S3_CLOUDFORMATION_TEMPLATE]
     )
 
