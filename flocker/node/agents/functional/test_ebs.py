@@ -2,7 +2,6 @@
 
 """
 Functional tests for ``flocker.node.agents.ebs`` using an EC2 cluster.
-
 """
 
 import time

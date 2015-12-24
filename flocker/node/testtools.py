@@ -7,7 +7,7 @@ Testing utilities for ``flocker.node``.
 from functools import wraps
 import os
 import pwd
-from unittest import skipIf
+from unittest import skipIf, SkipTest
 from uuid import uuid4
 from datetime import timedelta
 from distutils.version import LooseVersion
@@ -18,7 +18,6 @@ from zope.interface import implementer
 
 from characteristic import attributes
 
-from twisted.trial.unittest import SkipTest
 from twisted.internet.defer import succeed
 
 from zope.interface.verify import verifyObject
@@ -74,6 +73,7 @@ def require_docker_version(minimum_docker_version, message):
         minimum_docker_version
     )
 
+    # XXX: Can we change this to use skipIf?
     def decorator(wrapped):
         @wraps(wrapped)
         def wrapper(*args, **kwargs):
