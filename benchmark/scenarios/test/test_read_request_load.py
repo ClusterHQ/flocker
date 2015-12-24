@@ -189,6 +189,12 @@ class RequestDroppingFakeFlockerClient(
         return Deferred()
 
 
+class FakeNetworkError(Exception):
+    """
+    A reason for getting no response from a call.
+    """
+
+
 class RequestErrorFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
@@ -208,7 +214,7 @@ class RequestErrorFakeFlockerClient(
             def fail_later(secs):
                 d = Deferred()
                 self.reactor.callLater(
-                    secs, d.errback, Failure(Exception())
+                    secs, d.errback, Failure(FakeNetworkError())
                 )
                 return d
             return fail_later(self.delay)
@@ -356,7 +362,8 @@ class ReadRequestLoadScenarioTest(TestCase):
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestOverload)
 
-    def test_scenario_stops_only_when_no_outstanding_requests(self):
+    @capture_logging(None)
+    def test_scenario_stops_only_when_no_outstanding_requests(self, logger):
         """
         `ReadRequestLoadScenario` should only be considered as stopped
         when all outstanding requests made by it have completed.
@@ -393,6 +400,8 @@ class ReadRequestLoadScenarioTest(TestCase):
         self.assertNoResult(d)
         c.advance(delay)
         self.successResultOf(d)
+
+        logger.flushTracebacks(FakeNetworkError)
 
     @capture_logging(None)
     def test_scenario_timeouts_if_requests_not_completed(self, _logger):
