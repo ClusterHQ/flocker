@@ -32,8 +32,6 @@ class NoLoadScenarioTests(TestCase):
     NoLoadScenario tests
     """
 
-    # XXX: FLOC-3755: This isn't a test since it doesn't start with "test_".
-    # It never runs. If this is fixed so that it runs, it fails.
     def test_no_load_happy(self):
         """
         NoLoadScenario starts and stops without collapsing.
@@ -41,5 +39,5 @@ class NoLoadScenarioTests(TestCase):
         s = NoLoadScenario(Clock(), None)
         d = s.start()
         s.maintained().addBoth(lambda x: self.fail())
-        d.addCallback(s.stop)
+        d.addCallback(lambda _ignore: s.stop())
         self.successResultOf(d)
