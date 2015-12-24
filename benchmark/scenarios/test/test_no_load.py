@@ -34,7 +34,7 @@ class NoLoadScenarioTests(TestCase):
 
     # XXX: FLOC-3755: This isn't a test since it doesn't start with "test_".
     # It never runs. If this is fixed so that it runs, it fails.
-    def no_load_happy(self):
+    def test_no_load_happy(self):
         """
         NoLoadScenario starts and stops without collapsing.
         """
