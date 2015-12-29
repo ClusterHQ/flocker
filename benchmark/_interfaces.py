@@ -87,3 +87,12 @@ class IMetric(Interface):
         :return: Deferred firing when measurement has been taken, with the
             value of the measurement.
         """
+
+
+class IRequestGenerator(Interface):
+
+    def make_request():
+        """
+        Interface for request generator
+        """
+
