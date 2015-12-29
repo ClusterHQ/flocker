@@ -7,3 +7,6 @@ from .write_request_load import (
     WriteRequestLoadScenario, WRequestRateTooLow, WRequestRateNotReached,
     WRequestOverload, DatasetCreationTimeout
 )
+from .rate_measurer import (
+    RateMeasurer, DEFAULT_SAMPLE_SIZE
+)
