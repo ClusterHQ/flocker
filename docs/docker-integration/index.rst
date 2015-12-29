@@ -45,3 +45,8 @@ It allows you to control Flocker directly from the Docker CLI or a Docker Compos
 
 It also works in multi-host environments where you're using Docker Swarm.
 
+Tutorials
+=========
+
+* Using the Flocker plugin for Docker directly
+* Flocker with Docker Swarm and Compose

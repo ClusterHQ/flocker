@@ -14,6 +14,7 @@
             float:left;
             margin:0.5em;
             padding:0.5em;
+            margin-top:20px; margin-bottom:20px;
         }
         .orchestration {
             border-color: #80B164;
@@ -29,30 +30,32 @@ Installing Flocker
 .. raw:: html
 
     <h2>Which stack are you using?</h2>
+    <p>Flocker adds support for stateful containers to a range of container orchestration frameworks.</p>
+
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="big-box orchestration">
 	    Docker, Swarm, Compose
 		<img src="_images/docker.png" style="width:80px;"/>
 		<br />
-	<a href="docker-integration/" class="button" style="position:relative; top: 2em">Install</a>
+        <a href="docker-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Kubernetes
 		<img src="_images/kubernetes.png" style="width:70px;"/>
         <br />
-	<a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Install</a>
+        <a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Mesos
-		<img src="_images/mesos.png" style="width:80px;"/>
+		<img src="_images/mesos.png" style="width:70px;"/>
         <br />
-	<a href="mesos-integration/" class="button" style="position:relative; top: 2em">Install</a>
+        <a href="mesos-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div class="big-box orchestration">
 		Other
 	 	<img src="_images/questionmark.png" style="width:80px;"/>
         <br />
-	<a href="flocker-standalone/" class="button" style="position:relative; top: 2em">Install</a>
+        <a href="flocker-standalone/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
     <div style="clear:both;"></div>
 
@@ -62,11 +65,11 @@ Let us know with the form below!
 .. toctree::
    :maxdepth: 2
 
+   supported
    docker-integration/index
    kubernetes-integration/index
    mesos-integration/index
    flocker-standalone/index
-   supported
    labs/index
    releasenotes/index
    faq/index
