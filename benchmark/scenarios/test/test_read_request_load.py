@@ -114,6 +114,7 @@ class ReadRequestLoadScenarioTest(TestCase):
         c.pump(repeat(1, sample_size))
         s.maintained().addBoth(lambda x: self.fail())
         d.addCallback(lambda ignored: s.stop())
+        c.pump(repeat(1, sample_size))
         self.successResultOf(d)
 
     def test_scenario_throws_exception_when_rate_drops(self):
@@ -160,7 +161,7 @@ class ReadRequestLoadScenarioTest(TestCase):
 
         # Continue the clock for one second longer than the timeout
         # value to allow the timeout to be triggered.
-        c.advance(s.timeout + 1)
+        c.advance(s.request_scenario.timeout + 1)
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, RequestRateNotReached)
@@ -185,7 +186,7 @@ class ReadRequestLoadScenarioTest(TestCase):
         s = ReadRequestLoadScenario(c, cluster, request_rate=target_rate,
                                     sample_size=sample_size)
         dropped_rate = target_rate / 2
-        seconds_to_overload = s.max_outstanding / dropped_rate
+        seconds_to_overload = s.request_scenario.max_outstanding / dropped_rate
 
         s.start()
         # Reach initial rate
@@ -258,7 +259,7 @@ class ReadRequestLoadScenarioTest(TestCase):
 
         # Set the delay for the requests to be longer than the scenario
         # timeout
-        cluster.get_control_service(c).delay = s.timeout + 10
+        cluster.get_control_service(c).delay = s.request_scenario.timeout + 10
 
         d = s.start()
         s.maintained().addBoth(lambda x: self.fail())
@@ -276,6 +277,6 @@ class ReadRequestLoadScenarioTest(TestCase):
         # Advance the clock by the timeout value so it is triggered
         # before the requests complete.
         self.assertNoResult(d)
-        c.advance(s.timeout + 1)
-        self.assertTrue(s.rate_measurer.outstanding() > 0)
+        c.advance(s.request_scenario.timeout + 1)
+        self.assertTrue(s.request_scenario.rate_measurer.outstanding() > 0)
         self.successResultOf(d)
