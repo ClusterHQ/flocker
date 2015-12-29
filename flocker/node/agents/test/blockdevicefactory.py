@@ -19,11 +19,11 @@ See `acceptance testing <acceptance-testing>`_ for details.
 """
 
 from os import environ
+from unittest import SkipTest
 
 import yaml
 from bitmath import GiB
 
-from twisted.trial.unittest import SkipTest
 from twisted.python.constants import Names, NamedConstant
 
 from ..cinder import cinder_from_configuration

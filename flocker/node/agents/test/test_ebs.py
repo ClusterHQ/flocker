@@ -13,7 +13,6 @@ from hypothesis.strategies import lists, sampled_from, builds
 from bitmath import GiB
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SkipTest
 
 from ..ebs import (
     AttachedUnexpectedDevice, _expected_device,
@@ -168,7 +167,7 @@ class AttachVolumeAndWaitTests(TestCase):
             #
             # With apologies,
             #  -jean-paul
-            raise SkipTest(
+            raise self.skipTest(
                 "Could not find a suitable device to use as a bad device."
             )
 
