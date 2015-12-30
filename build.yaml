@@ -1426,7 +1426,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
-      timeout: 45
+      timeout: 120
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
@@ -1447,7 +1447,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
-      timeout: 45
+      timeout: 90
 
     run_acceptance_on_Rackspace_CentOS_7_with_Cinder:
       at: '0 5 * * *'
@@ -1470,7 +1470,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
-      timeout: 45
+      timeout: 120
 
     run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
@@ -1493,7 +1493,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
-      timeout: 45
+      timeout: 90
 
 #-----------------------------------------------------------------------------#
 # View definitions below this point
