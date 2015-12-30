@@ -9,11 +9,29 @@ from twisted.internet.defer import Deferred
 from .._interfaces import IScenario, IRequestGenerator
 
 from rate_measurer import DEFAULT_SAMPLE_SIZE
+
 from request_load import (
     RequestLoadScenario, RequestOverload, RequestRateTooLow,
     RequestRateNotReached
 )
 
+
+@implementer(IRequestGenerator)
+class ReadRequest(object):
+    def __init__(self, reactor, cluster):
+        self.control_service = cluster.get_control_service(reactor)
+
+    def make_request(self):
+        return self.control_service.list_nodes()
+
+
+class ReadSetup(object):
+    def __init__(self, reactor, cluster):
+        self.control_service = cluster.get_control_service(reactor)
+
+    def run_setup(self):
+        d = Deferred()
+        return d
 
 @implementer(IRequestGenerator)
 class ReadRequest(object):
