@@ -924,6 +924,11 @@ common_cli:
 
     echo "This vagrant box is available at : ${S3_BOX_JSON_LATEST}"
 
+    # The box is supposed to be a gzipped tar file.  Validate that here.  Only
+    # do this *after* the upload so that the corrupt box is available online
+    # for inspection to debug the build failure.
+    gzip --verbose --test "${BOX_NAME}" || abort_build
+    tar --verbose --list --file "${BOX_NAME}" || abort_build
 
   run_lint: &run_lint |
     # we need to unset PIP_INDEX_URL since it causes tox to fail.
