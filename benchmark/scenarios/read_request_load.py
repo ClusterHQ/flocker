@@ -9,25 +9,10 @@ from twisted.internet.defer import Deferred
 from .._interfaces import IScenario, IRequestGenerator
 
 from rate_measurer import DEFAULT_SAMPLE_SIZE
-from .request_load import RequestLoadScenario
-
-
-class RequestRateTooLow(Exception):
-    """
-    The request rate dropped below a threshold.
-    """
-
-
-class RequestRateNotReached(Exception):
-    """
-    The request rate did not reach the target level.
-    """
-
-
-class RequestOverload(Exception):
-    """
-    There are too many outstanding requests.
-    """
+from request_load import (
+    RequestLoadScenario, RequestOverload, RequestRateTooLow,
+    RequestRateNotReached
+)
 
 
 @implementer(IRequestGenerator)
@@ -53,7 +38,7 @@ class ReadRequestLoadScenario(object):
     def __init__(self, reactor, cluster, request_rate=10,
                  sample_size=DEFAULT_SAMPLE_SIZE, timeout=45):
         self.read_request = ReadRequest(reactor, cluster)
-        self.setup=None
+        self.setup = None
         self.request_scenario = RequestLoadScenario(
             reactor,
             request_rate=request_rate,

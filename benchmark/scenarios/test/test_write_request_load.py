@@ -14,8 +14,8 @@ from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
-    WriteRequestLoadScenario, WRequestRateTooLow, WRequestRateNotReached,
-    WRequestOverload, DatasetCreationTimeout
+    WriteRequestLoadScenario, RequestRateTooLow, RequestRateNotReached,
+    RequestOverload, DatasetCreationTimeout
 )
 
 DEFAULT_VOLUME_SIZE = 1073741824
@@ -149,11 +149,11 @@ class WriteRequestLoadScenarioTest(TestCase):
             self.assertNotEqual(returned_datasets, [])
 
         # Create a datasest and verify we get a success
-        d = s._create_dataset(self.node1)
+        d = s.setup._create_dataset(self.node1)
         self.successResultOf(d)
 
         # Verify that a dataset is actually being created
-        d2 = s.control_service.list_datasets_configuration()
+        d2 = s.setup.control_service.list_datasets_configuration()
         d2.addCallback(assert_created)
         s.stop()
 
@@ -173,7 +173,7 @@ class WriteRequestLoadScenarioTest(TestCase):
         s = WriteRequestLoadScenario(c, cluster, 5, sample_size=3)
 
         d = s.start()
-        c.pump(repeat(1, s.timeout+1))
+        c.pump(repeat(1, s.setup.timeout+1))
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, DatasetCreationTimeout)
@@ -227,7 +227,7 @@ class WriteRequestLoadScenarioTest(TestCase):
         c.advance(2)
 
         failure = self.failureResultOf(s.maintained())
-        self.assertIsInstance(failure.value, WRequestRateTooLow)
+        self.assertIsInstance(failure.value, RequestRateTooLow)
 
     def test_scenario_throws_exception_if_requested_rate_not_reached(self):
         """
@@ -243,10 +243,10 @@ class WriteRequestLoadScenarioTest(TestCase):
 
         # Continue the clock for one second longer than the timeout
         # value to allow the timeout to be triggered.
-        c.advance(s.timeout + 1)
+        c.advance(s.request_scenario.timeout + 1)
 
         failure = self.failureResultOf(d)
-        self.assertIsInstance(failure.value, WRequestRateNotReached)
+        self.assertIsInstance(failure.value, RequestRateNotReached)
 
     def test_scenario_throws_exception_if_overloaded(self):
         """
@@ -270,7 +270,7 @@ class WriteRequestLoadScenarioTest(TestCase):
         s = WriteRequestLoadScenario(c, cluster, request_rate=target_rate,
                                      sample_size=sample_size)
         dropped_rate = target_rate / 2
-        seconds_to_overload = s.max_outstanding / dropped_rate
+        seconds_to_overload = s.request_scenario.max_outstanding / dropped_rate
 
         s.start()
         # Reach initial rate
@@ -287,7 +287,7 @@ class WriteRequestLoadScenarioTest(TestCase):
         c.advance(1)
 
         failure = self.failureResultOf(s.maintained())
-        self.assertIsInstance(failure.value, WRequestOverload)
+        self.assertIsInstance(failure.value, RequestOverload)
 
     def test_scenario_stops_only_when_no_outstanding_requests(self):
         """
@@ -345,7 +345,7 @@ class WriteRequestLoadScenarioTest(TestCase):
 
         # Set the delay for the requests to be longer than the scenario
         # timeout
-        control_service.delay = s.timeout + 10
+        control_service.delay = s.request_scenario.timeout + 10
 
         d = s.start()
         s.maintained().addBoth(lambda x: self.fail())
@@ -363,6 +363,6 @@ class WriteRequestLoadScenarioTest(TestCase):
         # Advance the clock by the timeout value so it is triggered
         # before the requests complete.
         self.assertNoResult(d)
-        c.advance(s.timeout + 1)
-        self.assertTrue(s.rate_measurer.outstanding() > 0)
+        c.advance(s.request_scenario.timeout + 1)
+        self.assertTrue(s.request_scenario.rate_measurer.outstanding() > 0)
         self.successResultOf(d)

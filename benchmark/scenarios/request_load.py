@@ -36,6 +36,12 @@ class RequestOverload(Exception):
     """
 
 
+class NoNodesFound(Exception):
+    """
+    No nodes were provided by the control service.
+    """
+
+
 @implementer(IScenario)
 class RequestLoadScenario(object):
     """
@@ -117,13 +123,13 @@ class RequestLoadScenario(object):
 
     def start(self):
         if self.setup is None:
-            d = self.run_scenario()
+            d = self.run_scenario(None)
         else:
             d = self.setup.run_setup()
             d.addCallback(self.run_scenario)
         return d
 
-    def run_scenario(self):
+    def run_scenario(self, result):
         """
         :return: A Deferred that fires when the desired scenario is
             established (e.g. that a certain load is being applied).
