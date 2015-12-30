@@ -1429,8 +1429,8 @@ job_type:
       # Give the acceptance test suite a nice long time to run.  Give it even
       # longer on CentOS than Ubuntu because Docker configuration on CentOS
       # causes some things to be particularly slow.  This value is just a guess
-      # at what a reasonable upper-bound for the runtime of the suite to be as
-      # of Dec 2015.
+      # at what a reasonable upper-bound for the runtime of the suite might be
+      # as of Dec 2015.
       timeout: 120
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
