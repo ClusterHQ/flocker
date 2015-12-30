@@ -1426,7 +1426,12 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
-      timeout: 45
+      # Give the acceptance test suite a nice long time to run.  Give it even
+      # longer on CentOS than Ubuntu because Docker configuration on CentOS
+      # causes some things to be particularly slow.  This value is just a guess
+      # at what a reasonable upper-bound for the runtime of the suite might be
+      # as of Dec 2015.
+      timeout: 120
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
@@ -1447,7 +1452,9 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
-      timeout: 45
+      # Similar to the reasoning for run_acceptance_on_AWS_CentOS_7_with_EBS
+      # but slightly shorter since Ubuntu runs the tests faster.
+      timeout: 90
 
     run_acceptance_on_Rackspace_CentOS_7_with_Cinder:
       at: '0 5 * * *'
@@ -1470,7 +1477,8 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
-      timeout: 45
+      # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
+      timeout: 120
 
     run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
@@ -1493,7 +1501,8 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
-      timeout: 45
+      # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
+      timeout: 90
 
 #-----------------------------------------------------------------------------#
 # View definitions below this point
