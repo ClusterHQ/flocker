@@ -49,18 +49,20 @@ class RequestLoadScenario(object):
     requests at a specified rate.
 
     :ivar reactor: Reactor to use.
-    :ivar cluster: `BenchmarkCluster` containing the control service.
     :ivar request_rate: The target number of requests per second.
     :ivar sample_size: The number of samples to collect when measuring
         the rate.
     :ivar timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
+    :ivar setup_instance: instance of an implementation of `IScenarioSetup`
+    :ivar request_generator_instance: instance of an implementation of
+        `IRequestGenerator`
     """
 
     def __init__(
-        self, reactor, request_rate=10,
+        self, reactor, request_generator_instance, request_rate=10,
         sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
-        setup_instance=None, request_generator_instance=None
+        setup_instance=None
     ):
         self._maintained = Deferred()
         self.reactor = reactor

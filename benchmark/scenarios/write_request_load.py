@@ -2,34 +2,40 @@
 """
 Read request load scenario for the control service benchmarks.
 """
-from itertools import repeat
 import random
 
 from zope.interface import implementer
-from eliot import start_action, write_failure, Message
-from eliot.twisted import DeferredContext
 
-from twisted.internet.defer import CancelledError, Deferred
-from twisted.internet.task import LoopingCall
+from twisted.internet.defer import CancelledError
 
-from flocker.common import loop_until, timeout
+from flocker.common import timeout
 
-from .._interfaces import IScenario, IRequestGenerator
+from .._interfaces import IScenario, IRequestGenerator, IScenarioSetup
 
-from rate_measurer import RateMeasurer, DEFAULT_SAMPLE_SIZE
+from rate_measurer import DEFAULT_SAMPLE_SIZE
 
 from request_load import (
     RequestLoadScenario, RequestOverload, RequestRateTooLow,
     RequestRateNotReached, NoNodesFound
 )
 
+
 class DatasetCreationTimeout(Exception):
     """
     The dataset could not be created within the specified time.
     """
 
-@implementer(IRequestGenerator)
+
+@implementer(IRequestGenerator, IScenarioSetup)
 class WriteRequest(object):
+    """
+    Implementation of the write request generator and the write
+    load scenario setup.
+    :ivar reactor: Reactor to use.
+    :ivar cluster: `BenchmarkCluster` containing the control service.
+    :ivar timeout: Maximum time in seconds to wait until the dataset is
+        created.
+    """
     def __init__(self, reactor, cluster, timeout=10):
         self.control_service = cluster.get_control_service(reactor)
         self.reactor = reactor
@@ -78,9 +84,19 @@ class WriteRequest(object):
         return random.choice(nodes)
 
     def _set_dataset_node(self, nodes):
+        """
+        Function to set the value of the nodes once they are listed
+        (to be added as a callback once the nodes are listed)
+        :param nodes: listed nodes
+        """
         self.nodes = nodes
 
     def _set_dataset_id(self, dataset_id):
+        """
+        Function to set the value of the dataset id once the dataset
+        has been created
+        :param nodes: listed nodes
+        """
         self.dataset_id = dataset_id
 
     def run_setup(self):
@@ -110,7 +126,7 @@ class WriteRequest(object):
             )
 
 
-@implementer(IScenario)
+@implementer(IScenario, IScenarioSetup)
 class WriteRequestLoadScenario(object):
     """
     A scenario that places load on the cluster by performing write
@@ -132,11 +148,11 @@ class WriteRequestLoadScenario(object):
 
         self.request_scenario = RequestLoadScenario(
             reactor,
+            self.read_request,
             request_rate=request_rate,
             sample_size=sample_size,
             timeout=timeout,
             setup_instance=self.setup,
-            request_generator_instance=self.read_request
         )
 
     def start(self):
