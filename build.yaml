@@ -1134,6 +1134,9 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
+      # Give this job a slightly longer timeout because it has to interact with
+      # the cloud-supplied Cinder which can be a bit sluggish even in the best
+      # of times.
       timeout: 90
 
     run_trial_for_cinder_storage_driver_on_Ubuntu_trusty:
@@ -1153,6 +1156,8 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
+      # Reasoning for run_trial_for_cinder_storage_driver_on_CentOS_7's timeout
+      # applies here as well.
       timeout: 90
 
 
