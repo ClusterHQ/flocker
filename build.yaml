@@ -232,7 +232,7 @@ common_cli:
     # <some code> || abort_build
     function abort_build() {
       echo "aborting ..."
-      vagrant destroy -f
+      vagrant_destroy
       exit 1
     }
 
