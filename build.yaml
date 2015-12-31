@@ -681,6 +681,9 @@ common_cli:
     # To avoid it, we set '+e' on this shell.
     set +e
 
+  cleanup_old_jenkins_osx_yosemite_boxes: &cleanup_old_jenkins_osx_yosemite_boxes |
+    admin/ci-tools/cleanup-vagrant-boxes clusterhq/jenkins-osx-yosemite
+
   new_vagrantfile_for_osx_yosemite: &new_vagrantfile_for_osx_yosemite |
     # this builds a Vagrantfile which will use the latest jenkins-osx-yosemite
     # vagrant box built overnight.
@@ -1294,6 +1297,7 @@ job_type:
                    *set_home_variable_on_mesos,
                    *do_not_abort_on_errors,
                    *get_s3_creds_for_bucket_vagrant_jenkins_boxes,
+                   *cleanup_old_jenkins_osx_yosemite_boxes,
                    *new_vagrantfile_for_osx_yosemite,
                    'vagrant_box_update',
                    'vagrant_up',

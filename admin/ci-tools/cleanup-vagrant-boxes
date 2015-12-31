@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+
+"""
+A tool for use by the CI system to clean up old versions of Vagrant boxes that
+get downloaded as part of CI work.  This helps keep disks of slaves from
+filling up with useless old boxes and eventually failing when there are too
+many.
+
+The newest version of the box is kept.
+
+Usage::
+
+  cleanup-vagrant-boxes <name of box>
+"""
+
+from subprocess import check_output
+
+
+class Box(object):
+    def __init__(self, name, rest):
+        self.name = name
+        self._rest = rest
+
+    def remove(self):
+        # self._rest is like "(virtualbox, 0.3.2.doc1.2008.g63e63f2)"
+        box_version = self._rest[1:-1].split()[1]
+        check_output([
+            b"vagrant", b"box", b"remove",
+            b"--box-version", box_version, self.name,
+        ])
+
+
+def list_vagrant_boxes():
+    boxes = check_output([b"vagrant", b"box", b"list"])
+    return (Box(name, rest) for (name, rest) in boxes.splitlines())
+
+
+def main(box_name):
+    boxes = list(
+        box for box in list_vagrant_boxes() if box.name == box_name
+    )
+    boxes.sort(lambda box: box.version.split(b"."))
+
+    # Remove all but the newest version of the box.  Keeping the newest version
+    # means we don't have to re-download it all the time whenever the version
+    # hasn't changed.
+    boxes.pop()
+    for box in boxes:
+        box.remove()
