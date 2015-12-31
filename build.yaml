@@ -226,7 +226,7 @@ common_cli:
     EOF_METADATA
     }
 
-    # destroy the vagrant box and aborts the build
+    # destroy the vagrant vm and aborts the build
     # this is used when one the of the intermediate steps has failed
     # usage:
     # <some code> || abort_build
@@ -257,9 +257,9 @@ common_cli:
       ) || abort_build
     }
 
-    # destroys the vagrant box
+    # destroys the vagrant vm
     # usage:
-    # vagrant_box_destroy
+    # vagrant_destroy
     function vagrant_destroy() {
       vagrant destroy -f
     }
