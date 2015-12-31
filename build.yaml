@@ -74,7 +74,7 @@ common_cli:
   hashbang: &hashbang |
     #!/bin/bash -l
     # don't leak secrets
-    set +x
+    set -x # leak everything please for debugging
     set -e
 
 
