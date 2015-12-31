@@ -155,7 +155,7 @@ class ContainerState(PClass):
     name = field(type=unicode, mandatory=True)
     image = field(type=DockerImage, mandatory=True)
     running = field(type=bool, mandatory=True)
-    volumes = field(initial=None)
+    volumes = field(initial=None, mandatory=True)
 
 
 class Node(PClass):
