@@ -122,6 +122,26 @@ class MountedDataset(PClass):
     mountpoint = field(type=unicode, mandatory=True)
 
 
+def _parse_volumes(data_list):
+    """
+    Parse a list of volume configuration.
+
+    :param Optional[Sequence[Mapping[unicode, unicode]]] data_list: Sequence
+        of data describing volume objects.
+    :return Optional[Sequence[MountedDataset]]: Sequence of mounted datasets,
+        or None if no volumes.
+    """
+    if data_list:
+        return [
+            MountedDataset(
+                dataset_id=UUID(data[u'dataset_id']),
+                mountpoint=data[u'mountpoint'],
+            ) for data in data_list
+        ]
+    else:
+        return None
+
+
 class Container(PClass):
     """
     A container in the configuration.
@@ -772,26 +792,6 @@ class FlockerClient(object):
             b"GET", b"/version", None, {OK}
         )
 
-    @staticmethod
-    def _parse_volumes(volume_list):
-        """
-        Parse a list decoded from JSON with volume configuration.
-
-        :param Optional[Sequence[Mapping[unicode, unicode]]] volume_list: List
-            describing a JSON list of volume objects.
-        :return Optional[Sequence[MountedDataset]]: List of mounted datasets,
-            or None if no volumes.
-        """
-        if volume_list:
-            return [
-                MountedDataset(
-                    dataset_id=UUID(volume[u'dataset_id']),
-                    mountpoint=volume[u'mountpoint'],
-                ) for volume in volume_list
-            ]
-        else:
-            return None
-
     def _parse_configuration_container(self, container_dict):
         """
         Convert a dictionary decoded from JSON with a container's
@@ -804,7 +804,7 @@ class FlockerClient(object):
             node_uuid=UUID(hex=container_dict[u"node_uuid"]),
             name=container_dict[u'name'],
             image=DockerImage.from_string(container_dict[u"image"]),
-            volumes=self._parse_volumes(container_dict.get(u'volumes')),
+            volumes=_parse_volumes(container_dict.get(u'volumes')),
         )
 
     def create_container(self, node_uuid, name, image, volumes=None):
@@ -848,7 +848,7 @@ class FlockerClient(object):
                     name=container[u'name'],
                     image=DockerImage.from_string(container[u'image']),
                     running=container[u'running'],
-                    volumes=self._parse_volumes(container.get(u'volumes'))
+                    volumes=_parse_volumes(container.get(u'volumes'))
                 )
             except KeyError as e:
                 raise ServerResponseMissingElementError(e.args[0], container)
