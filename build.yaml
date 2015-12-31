@@ -778,6 +778,14 @@ common_cli:
     # let's stop it and wait a bit, as sometimes the box is not fully down
     # when the vagrant halt command finishes.
     vagrant halt ; sleep 60
+
+    # Write the status of the VM into the console output.  It's not clear
+    # whether it makes a difference or not what the status is at this point --
+    # ``vagrant package`` supposedly shuts down the VM automatically if
+    # necessary -- but some packaging problems suggest this might not be
+    # happening.  Having the extra information may be handy for debugging.
+    vagrant status
+
     BOX_NAME="jenkins-osx-yosemite-${FLOCKER_VERSION}.box"
     (
       retry_n_times_with_timeout 2 1800 \
