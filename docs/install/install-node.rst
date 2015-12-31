@@ -4,7 +4,10 @@
 Installing the Flocker Node Services
 ====================================
 
-The following instructions describe how to install the ``clusterhq-flocker node`` package, and the optional ``clusterhq-flocker-docker-plugin`` package on each of the nodes in your cluster.
+The following instructions describe how to install the ``clusterhq-flocker node`` package on each of the nodes in your cluster.
+
+If you want Flocker to manage your data volumes while using other tools such as Docker, Docker Swarm, or Mesos to manage your containers, you can also install the ``clusterhq-flocker-docker-plugin`` package on each node in your cluster.
+For more information, see :ref:`docker-plugin`.
 
 .. _installing-flocker-node-prereq:
 
