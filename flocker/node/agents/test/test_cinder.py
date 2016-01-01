@@ -4,12 +4,12 @@
 Tests for ``flocker.node.agents.cinder``.
 """
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from ..cinder import _openstack_verify_from_config
 
+from ....testtools import TestCase
 
-class VerifyTests(SynchronousTestCase):
+
+class VerifyTests(TestCase):
     """
     Tests for _openstack_verify_from_config.
     """

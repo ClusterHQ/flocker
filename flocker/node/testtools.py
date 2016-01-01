@@ -7,7 +7,7 @@ Testing utilities for ``flocker.node``.
 from functools import wraps
 import os
 import pwd
-from unittest import skipIf
+from unittest import skipIf, SkipTest
 from uuid import uuid4
 from datetime import timedelta
 from distutils.version import LooseVersion
@@ -18,7 +18,6 @@ from zope.interface import implementer
 
 from characteristic import attributes
 
-from twisted.trial.unittest import TestCase, SkipTest
 from twisted.internet.defer import succeed
 
 from zope.interface.verify import verifyObject
@@ -29,7 +28,7 @@ from . import (
     ILocalState, IDeployer, NodeLocalState, IStateChange, sequentially
 )
 from ..common import loop_until
-from ..testtools import find_free_port
+from ..testtools import AsyncTestCase, find_free_port
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 from ..control._model import ip_to_uuid, Leases
@@ -74,6 +73,7 @@ def require_docker_version(minimum_docker_version, message):
         minimum_docker_version
     )
 
+    # XXX: Can we change this to use skipIf?
     def decorator(wrapped):
         @wraps(wrapped)
         def wrapper(*args, **kwargs):
@@ -248,15 +248,22 @@ def ideployer_tests_factory(fixture):
 
     :return: ``TestCase`` subclass that will test the given fixture.
     """
-    class IDeployerTests(TestCase):
+    class IDeployerTests(AsyncTestCase):
         """
         Tests for ``IDeployer``.
         """
+
+        def _make_deployer(self):
+            """
+            Make the ``IDeployer`` under test.
+            """
+            return fixture(self)
+
         def test_interface(self):
             """
             The object claims to provide the interface.
             """
-            self.assertTrue(verifyObject(IDeployer, fixture(self)))
+            self.assertTrue(verifyObject(IDeployer, self._make_deployer()))
 
         def _discover_state(self):
             """
@@ -265,7 +272,9 @@ def ideployer_tests_factory(fixture):
             :return: The return value of the object's ``discover_state``
                 method.
             """
-            self._deployer = fixture(self)
+            # XXX: Why is this set on the instance? Is it re-used? Does it
+            # cache?
+            self._deployer = self._make_deployer()
             result = self._deployer.discover_state(
                 NodeState(hostname=b"10.0.0.1"))
             return result

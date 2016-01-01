@@ -2,12 +2,12 @@ import json
 from unittest import skipUnless
 
 from twisted.python.procutils import which
-from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.node.diagnostics import list_hardware
+from flocker.testtools import TestCase
 
 
-class ListHardwareTests(SynchronousTestCase):
+class ListHardwareTests(TestCase):
 
     @skipUnless(which('lshw'), 'Tests require the ``lshw`` command.')
     def test_list_hardware(self):

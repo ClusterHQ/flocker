@@ -79,6 +79,8 @@ class AsyncSpy(PClass):
     threadpool = field()
 
 
+# XXX: NonThreadPool and NonReactor are used outside of test_thread. They
+# should be moved into flocker.testtools.
 class NonThreadPool(object):
     """
     A stand-in for ``twisted.python.threadpool.ThreadPool`` so that the

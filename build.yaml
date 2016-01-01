@@ -97,41 +97,41 @@ common_cli:
     # https://github.com/spotify/dh-virtualenv/issues/10
     # so we set our virtualenv dir to live in /tmp/<random number>
     #
-    export venv=/tmp/\${RANDOM}
+    export venv=/tmp/${RANDOM}
     # make sure the virtualenv doesn't already exist
-    while [ -e \${venv} ]
+    while [ -e ${venv} ]
     do
-      export venv=/tmp/\${RANDOM}
+      export venv=/tmp/${RANDOM}
     done
 
     function os {
       # Let's figure out if this is OSX or Linux
       # and return the OS type (or the distribution for a Linux OS)
-      _nix_flavour=\$(uname)
-      if [ 'Darwin' == "\${_nix_flavour}" ]; then
+      _nix_flavour=$(uname)
+      if [ 'Darwin' == "${_nix_flavour}" ]; then
         echo "OSX"
       else
         # Determine OS platform
         source /etc/os-release
-        echo \${ID}
+        echo ${ID}
       fi
     }
     function is_ubuntu {
-      if [ 'ubuntu' == "\$(os)" ]; then
+      if [ 'ubuntu' == "$(os)" ]; then
         return 0
       else
         return 1
       fi
     }
     function is_centos {
-      if [ 'centos' == "\$(os)" ]; then
+      if [ 'centos' == "$(os)" ]; then
         return 0
       else
         return 1
       fi
     }
     function is_osx {
-      if [ 'OSX' == "\$(os)" ]; then
+      if [ 'OSX' == "$(os)" ]; then
         return 0
       else
         return 1
@@ -148,16 +148,16 @@ common_cli:
     # We consume this as part or the vagrant build tests.
     # Those tests run on our Mesos Cluster, the job connects to a local nginx
     # instance running on the Mesos Slave where the job is running.
-    export eth0_ip=\$( ip -o -4 addr show eth0 |awk '{ print \$4 '} | cut -f 1 -d "/")
+    export eth0_ip=$( ip -o -4 addr show eth0 |awk '{ print $4 '} | cut -f 1 -d "/")
 
     # pass the exit code from the previous and return the the aggregated
     # exit status for the whole job.
     function updateExitStatus {
       # if we had previous failures, we just fail here.
-      if [ "\${JOB_EXIT_STATUS}" != "0" ] && [ "\${JOB_EXIT_STATUS}" != "" ]; then
+      if [ "${JOB_EXIT_STATUS}" != "0" ] && [ "${JOB_EXIT_STATUS}" != "" ]; then
         echo 1
       else
-         if [ "\$1" !=  "0" ]; then
+         if [ "$1" !=  "0" ]; then
          # first failure on the job, lets return 1, which will set
          # JOB_EXIT_STATUS to 1 and mark the job as failed.
              echo 1
@@ -171,24 +171,24 @@ common_cli:
     #
     function retry_n_times_with_timeout {
       set +e
-      max_tries=\${1}
-      seconds=\${2}
+      max_tries=${1}
+      seconds=${2}
       shift 2
 
       let delay=15
       let tries=0
-      while [ \${tries} -lt \${max_tries} ]; do
-        echo "executing...  \${*}"
-        if (timeout --foreground --signal=SIGKILL \${seconds} bash -c "\${*}"); then
+      while [ ${tries} -lt ${max_tries} ]; do
+        echo "executing...  ${*}"
+        if (timeout --foreground --signal=SIGKILL ${seconds} bash -c "${*}"); then
             break
         fi
-        echo Command failed, waiting \${delay}...
-        sleep \${delay}
+        echo Command failed, waiting ${delay}...
+        sleep ${delay}
         let delay=delay*2
         let tries=tries+1
 
         # abort on too many failures
-        if [ \${tries} -eq \${max_tries} ]; then
+        if [ ${tries} -eq ${max_tries} ]; then
           echo "too many failed retries... aborting"
           exit 1
         fi
@@ -200,26 +200,26 @@ common_cli:
     # usage:
     # s3_upload <bucket> <filename>
     function s3_upload() {
-      echo "uploading \${2} to S3 bucket ${1} ..."
+      echo "uploading ${2} to S3 bucket ${1} ..."
       retry_n_times_with_timeout 3 900 \
-        aws --region \${S3_ENDPOINT} s3 cp "\${2}" s3://\${1}/
+        aws --region ${S3_ENDPOINT} s3 cp "${2}" s3://${1}/
     }
 
     # creates a metadata file to be used with vagrant up; vagrant box update
     # usage: create_vagrant_metadata_file
     #   <filename> <box_name> <description> <version> <url> <sha1>
     function create_vagrant_metadata_file() {
-      cat <<EOF_METADATA > \${1}
+      cat <<EOF_METADATA > ${1}
       {
-        "name": "\${2}",
-        "description": "\${3}",
+        "name": "${2}",
+        "description": "${3}",
         "versions": [{
-          "version": "\${4}",
+          "version": "${4}",
           "providers": [{
             "name": "virtualbox",
-            "url": "\${5}",
+            "url": "${5}",
             "checksum_type": "sha1",
-            "checksum": "\${6}"
+            "checksum": "${6}"
           }]
         }]
       }
@@ -268,7 +268,7 @@ common_cli:
   # does the pre-scm plugin does this correctly for us ?
   # https://clusterhq.atlassian.net/browse/FLOC-3139
   cleanup: &cleanup |
-    export PATH=/usr/local/bin:\${PATH}
+    export PATH=/usr/local/bin:${PATH}
     # clean up the stuff from previous runs
     # due to the length of the jobname workspace, we are hitting limits in
     # our sheebang path name in pip.
@@ -277,14 +277,14 @@ common_cli:
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
     # So we will place the virtualenv in /tmp/v instead
     #
-    rm -rf \${venv}
+    rm -rf ${venv}
 
   setup_venv: &setup_venv |
     # Set up the new venv.
-    virtualenv -p python2.7 --clear \${venv}
-    . \${venv}/bin/activate
+    virtualenv -p python2.7 --clear ${venv}
+    . ${venv}/bin/activate
     # Report the version of Python we're using, to aid debugging.
-    \${venv}/bin/python --version
+    ${venv}/bin/python --version
 
   setup_pip_cache: &setup_pip_cache |
     # exports the PIP_INDEX_URL, TRUSTED_HOST variables to the environment.
@@ -301,27 +301,27 @@ common_cli:
     # But first, we need to upgrade pip to 7.1.
     # We have a devpi cache in AWS which we will consume instead of going
     # upstream to the PyPi servers.
-    # We specify that devpi caching server using -i \$PIP_INDEX_URL
+    # We specify that devpi caching server using -i $PIP_INDEX_URL
     # which requires as to include --trusted-host as we are not (yet) using
     # SSL on our caching box.
     # The --trusted-host option is only available with pip 7.
     #
-    if [ \${PIP_INDEX_URL} ]; then
-        PIP_ADDITIONAL_OPTIONS="\${PIP_ADDITIONAL_OPTIONS} -i \${PIP_INDEX_URL} "
+    if [ ${PIP_INDEX_URL} ]; then
+        PIP_ADDITIONAL_OPTIONS="${PIP_ADDITIONAL_OPTIONS} -i ${PIP_INDEX_URL} "
     fi
-    if [ \${TRUSTED_HOST} ]; then
-        PIP_ADDITIONAL_OPTIONS="\${PIP_ADDITIONAL_OPTIONS} \
-                                --trusted-host \${TRUSTED_HOST} "
+    if [ ${TRUSTED_HOST} ]; then
+        PIP_ADDITIONAL_OPTIONS="${PIP_ADDITIONAL_OPTIONS} \
+                                --trusted-host ${TRUSTED_HOST} "
     fi
 
     # using the caching-layer, install all the dependencies
     pip install --upgrade pip
-    pip install . \${PIP_ADDITIONAL_OPTIONS}
+    pip install . ${PIP_ADDITIONAL_OPTIONS}
     # Install Flocker. Use --process-dependency-links so we can temporarily use
     # testtools fork. See FLOC-3498.
-    pip install --process-dependency-links  ".[dev]" \${PIP_ADDITIONAL_OPTIONS}
+    pip install --process-dependency-links  ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
     # install junix for our coverage report
-    pip install python-subunit junitxml \${PIP_ADDITIONAL_OPTIONS}
+    pip install python-subunit junitxml ${PIP_ADDITIONAL_OPTIONS}
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
@@ -350,7 +350,7 @@ common_cli:
     # downstream child jobs to the parent job and processing those files
     # one last time through the cobertura plugin.
     # The resulting report wil contain stats from every single job.
-    pip install coverage  \${PIP_ADDITIONAL_OPTIONS}
+    pip install coverage  ${PIP_ADDITIONAL_OPTIONS}
 
   run_coverage: &run_coverage |
     # run coverage and produce a report
@@ -362,14 +362,14 @@ common_cli:
       --no-passthrough --output-to=results.xml
 
   run_sphinx: &run_sphinx |
-    \${venv}/bin/python setup.py --version
+    ${venv}/bin/python setup.py --version
     cd docs
     # check spelling
-    \${venv}/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
+    ${venv}/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
     # check links
-    \${venv}/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
+    ${venv}/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
     # build html pages
-    \${venv}/bin/sphinx-build -d _build/doctree -b html . _build/html
+    ${venv}/bin/sphinx-build -d _build/doctree -b html . _build/html
 
   # flocker artifacts contains the list of files we want to collect from our
   # _main_multijob. These are used to produce the coverage, test reports.
@@ -401,9 +401,9 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
-    coverage run \${venv}/bin/trial \
+    coverage run ${venv}/bin/trial \
       --debug-stacktraces --reporter=subunit \
-      \${MODULE} 2>&1 | tee trial.log
+      ${MODULE} 2>&1 | tee trial.log
 
   run_trial_with_coverage_as_root: &run_trial_with_coverage_as_root |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -413,9 +413,9 @@ common_cli:
     # defintion, and feed it to the job configuration as the default value for
     # the 'MODULE' parameter.
     # This is how we tell trial which flocker module to call.
-    sudo \${venv}/bin/coverage run \${venv}/bin/trial \
+    sudo ${venv}/bin/coverage run ${venv}/bin/trial \
       --debug-stacktraces --reporter=subunit \
-      \${MODULE} 2>&1 | tee trial.log
+      ${MODULE} 2>&1 | tee trial.log
 
   run_trial_for_storage_drivers_with_coverage: &run_trial_for_storage_drivers_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -424,20 +424,20 @@ common_cli:
     # We grab the value from the 'with_modules:' dictionary in the yaml job
     # defintion, and feed it to the job configuration as the default value for
     # Consume the MODULE parameter set in the job configuration
-    sudo -E \${venv}/bin/coverage run \${venv}/bin/trial \
+    sudo -E ${venv}/bin/coverage run ${venv}/bin/trial \
       --debug-stacktraces --reporter=subunit \
-      --testmodule \${MODULE} 2>&1 | tee trial.log
+      --testmodule ${MODULE} 2>&1 | tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
-    touch \${HOME}/.ssh/known_hosts
+    touch ${HOME}/.ssh/known_hosts
     # remove existing keys
-    rm -f \${HOME}/.ssh/id_rsa*
-    cp /tmp/id_rsa \${HOME}/.ssh/id_rsa
-    chmod -R 0700 \${HOME}/.ssh
-    ssh-keygen -N '' -f \${HOME}/.ssh/id_rsa_flocker
+    rm -f ${HOME}/.ssh/id_rsa*
+    cp /tmp/id_rsa ${HOME}/.ssh/id_rsa
+    chmod -R 0700 ${HOME}/.ssh
+    ssh-keygen -N '' -f ${HOME}/.ssh/id_rsa_flocker
     eval `ssh-agent -s`
-    ssh-add \${HOME}/.ssh/id_rsa
+    ssh-add ${HOME}/.ssh/id_rsa
 
   run_acceptance_aws_tests: &run_acceptance_aws_tests |
     # We gather the return code but make sure we come out of these tests with 0
@@ -452,14 +452,14 @@ common_cli:
     # which are made available through a webserver running on port 80.
     # We pass the URL of our Jenkins Slave to the acceptance test nodes
     # through the --build-server parameter below.
-    \${venv}/bin/python admin/run-acceptance-tests \
-    --distribution \${DISTRIBUTION_NAME} \
-    --provider aws --dataset-backend aws --branch \${TRIGGERED_BRANCH} \
+    ${venv}/bin/python admin/run-acceptance-tests \
+    --distribution ${DISTRIBUTION_NAME} \
+    --provider aws --dataset-backend aws --branch ${TRIGGERED_BRANCH} \
     --build-server  \
-    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
     --config-file /tmp/acceptance.yaml \
-    \${ACCEPTANCE_TEST_MODULE}
-    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+    ${ACCEPTANCE_TEST_MODULE}
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_acceptance_loopback_tests: &run_acceptance_loopback_tests |
     # We gather the return code but make sure we come out of these tests with 0
@@ -469,14 +469,14 @@ common_cli:
     # The admin/run-acceptance-tests will provision a flocker cluster with a
     # single node since the loopback backend doesn't support moving data across
     # hosts.
-    \${venv}/bin/python admin/run-acceptance-tests \
-    --distribution \${DISTRIBUTION_NAME} --number-of-nodes 1 \
-    --provider aws --dataset-backend loopback --branch \${TRIGGERED_BRANCH} \
+    ${venv}/bin/python admin/run-acceptance-tests \
+    --distribution ${DISTRIBUTION_NAME} --number-of-nodes 1 \
+    --provider aws --dataset-backend loopback --branch ${TRIGGERED_BRANCH} \
     --build-server  \
-    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
     --config-file /tmp/acceptance.yaml \
-    \${ACCEPTANCE_TEST_MODULE}
-    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+    ${ACCEPTANCE_TEST_MODULE}
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_acceptance_rackspace_tests: &run_acceptance_rackspace_tests |
     # We gather the return code but make sure we come out of these tests with 0
@@ -491,50 +491,50 @@ common_cli:
     # which are made available through a webserver running on port 80.
     # We pass the URL of our Jenkins Slave to the acceptance test nodes
     # through the --build-server parameter below.
-    \${venv}/bin/python admin/run-acceptance-tests \
-    --distribution \${DISTRIBUTION_NAME} \
+    ${venv}/bin/python admin/run-acceptance-tests \
+    --distribution ${DISTRIBUTION_NAME} \
     --provider rackspace --dataset-backend rackspace \
-    --branch \${TRIGGERED_BRANCH} \
+    --branch ${TRIGGERED_BRANCH} \
     --build-server  \
-    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
     --config-file /tmp/acceptance.yaml \
-    \${ACCEPTANCE_TEST_MODULE}
-    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+    ${ACCEPTANCE_TEST_MODULE}
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_client_tests: &run_client_tests |
     # We gather the return code but make sure we come out of these tests with 0
     # we store that code and pass it to the end of the job execution,
     # as part of the JOB_EXIT_STATUS variable.
-    \${venv}/bin/python admin/run-client-tests \
-    --distribution \${DISTRIBUTION_NAME} \
-    --branch \${TRIGGERED_BRANCH} \
+    ${venv}/bin/python admin/run-client-tests \
+    --distribution ${DISTRIBUTION_NAME} \
+    --branch ${TRIGGERED_BRANCH} \
     --build-server  \
-    http://\$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
-    JOB_EXIT_STATUS="\$( updateExitStatus \$? )"
+    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   disable_selinux: &disable_selinux |
     sudo /usr/sbin/setenforce 0
 
   check_version: &check_version |
-    export FLOCKER_VERSION=\$(\${venv}/bin/python setup.py --version)
+    export FLOCKER_VERSION=$(${venv}/bin/python setup.py --version)
 
   build_sdist: &build_sdist  |
     # package the goodies
-    \${venv}/bin/python setup.py sdist
+    ${venv}/bin/python setup.py sdist
 
   build_package: &build_package  |
     # and build a rpm/deb package using docker
-    \${venv}/bin/python admin/build-package \
+    ${venv}/bin/python admin/build-package \
     --destination-path repo \
-    --distribution \${DISTRIBUTION_NAME} \
-    /flocker/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
+    --distribution ${DISTRIBUTION_NAME} \
+    /flocker/dist/Flocker-${FLOCKER_VERSION}.tar.gz
 
   build_homebrew_package: &build_homebrew_package  |
     # and build a homebrew recipe and a package
-    SDIST_URL=file://\${PWD}/dist/Flocker-\${FLOCKER_VERSION}.tar.gz
-    RECIPE_FILE=\${PWD}/Flocker\${GIT_COMMIT}.rb
-    \${venv}/bin/python -m admin.homebrew --flocker-version \${GIT_COMMIT} \
-      --sdist \${SDIST_URL} --output-file \${RECIPE_FILE}
+    SDIST_URL=file://${PWD}/dist/Flocker-${FLOCKER_VERSION}.tar.gz
+    RECIPE_FILE=${PWD}/Flocker${GIT_COMMIT}.rb
+    ${venv}/bin/python -m admin.homebrew --flocker-version ${GIT_COMMIT} \
+      --sdist ${SDIST_URL} --output-file ${RECIPE_FILE}
 
   install_homebrew_package: &install_homebrew_package |
     # make sure we're no longer in our virtualenv
@@ -542,27 +542,27 @@ common_cli:
     # install the new freshly baked package
     brew update
     brew tap ClusterHQ/tap
-    brew install \${RECIPE_FILE}
-    brew test \${RECIPE_FILE}
+    brew install ${RECIPE_FILE}
+    brew test ${RECIPE_FILE}
 
   build_repo_metadata: &build_repo_metadata |
     # the acceptance tests look for a package in a yum repository,
     # we provide one by starting a webserver and pointing the tests
     # to look over there
-    REPO_PATH=/results/omnibus/\${TRIGGERED_BRANCH}/\${DISTRIBUTION_NAME}
+    REPO_PATH=/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
     DOC_ROOT=/usr/share/nginx/html
-    sudo rm -rf \${DOC_ROOT}/\${REPO_PATH}
-    sudo mkdir -p \${DOC_ROOT}/\${REPO_PATH}
-    sudo cp repo/* \${DOC_ROOT}/\${REPO_PATH}
-    cd \${DOC_ROOT}/\${REPO_PATH}
+    sudo rm -rf ${DOC_ROOT}/${REPO_PATH}
+    sudo mkdir -p ${DOC_ROOT}/${REPO_PATH}
+    sudo cp repo/* ${DOC_ROOT}/${REPO_PATH}
+    cd ${DOC_ROOT}/${REPO_PATH}
     # create a repo on either centos or ubuntu
-    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-14.04" ]; then
+    if [ "${DISTRIBUTION_NAME}" == "ubuntu-14.04" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
-    if [ "\${DISTRIBUTION_NAME}" == "ubuntu-15.10" ]; then
+    if [ "${DISTRIBUTION_NAME}" == "ubuntu-15.10" ]; then
       sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
     fi
-    if [ "\${DISTRIBUTION_NAME}" == "centos-7" ]; then
+    if [ "${DISTRIBUTION_NAME}" == "centos-7" ]; then
       sudo createrepo .
     fi
     cd -
@@ -575,7 +575,7 @@ common_cli:
   exit_with_return_code_from_test: &exit_with_return_code_from_test |
     # this is where we make sure we exit with the correct return code
     # from the tests we executed above.
-    exit \${JOB_EXIT_STATUS}
+    exit ${JOB_EXIT_STATUS}
 
   push_image_to_dockerhub: &push_image_to_dockerhub |
     # the /tmp/dockerhub_creds is copied from the Jenkins Master on
@@ -583,18 +583,18 @@ common_cli:
     # This contains the login details for our dockerhub instance, which is
     # deployed as part of our caching platform.
     #
-    export D_USER=\$( cat /tmp/dockerhub_creds | cut -f 1 -d ":" )
-    export D_PASSWORD=\$( cat /tmp/dockerhub_creds | cut -f 2 -d ":" )
-    export D_EMAIL=\$( cat /tmp/dockerhub_creds | cut -f 3 -d ":" )
-    docker login -u \${D_USER} -p \${D_PASSWORD} -e \${D_EMAIL}
-    echo y | docker push \${DOCKER_IMAGE}
+    export D_USER=$( cat /tmp/dockerhub_creds | cut -f 1 -d ":" )
+    export D_PASSWORD=$( cat /tmp/dockerhub_creds | cut -f 2 -d ":" )
+    export D_EMAIL=$( cat /tmp/dockerhub_creds | cut -f 3 -d ":" )
+    docker login -u ${D_USER} -p ${D_PASSWORD} -e ${D_EMAIL}
+    echo y | docker push ${DOCKER_IMAGE}
 
   build_docker_image: &build_docker_image |
     # we want to make sure we are fetching the latest OS updates every time
     # so we build the docker image using --no-cache, this way apt-get updates
     # are actually executed.
     # See: https://github.com/docker/docker/issues/3313
-    docker build --no-cache -t \$DOCKER_IMAGE .
+    docker build --no-cache -t $DOCKER_IMAGE .
 
   # These are the docker images we will be using during our tests.
   # We build them every 24 hours, making sure we have the latest OS updates
@@ -604,7 +604,7 @@ common_cli:
   build_dockerfile_centos7: &build_dockerfile_centos7 |
     # Download the latest pip requirements file from flocker
     wget -c \
-    https://raw.githubusercontent.com/ClusterHQ/flocker/\${TRIGGERED_BRANCH}/requirements.txt
+    https://raw.githubusercontent.com/ClusterHQ/flocker/${TRIGGERED_BRANCH}/requirements.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-centos-7:latest" > Dockerfile
@@ -625,7 +625,7 @@ common_cli:
   build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
     # Download the latest pip requirements file from flocker
     wget -c \
-    https://raw.githubusercontent.com/ClusterHQ/flocker/\${TRIGGERED_BRANCH}/requirements.txt
+    https://raw.githubusercontent.com/ClusterHQ/flocker/${TRIGGERED_BRANCH}/requirements.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-trusty:latest" > Dockerfile
@@ -640,7 +640,7 @@ common_cli:
   build_dockerfile_ubuntu_wily: &build_dockerfile_ubuntu_wily |
     # Download the latest pip requirements file from flocker
     wget -c \
-    https://raw.githubusercontent.com/ClusterHQ/flocker/\${TRIGGERED_BRANCH}/requirements.txt
+    https://raw.githubusercontent.com/ClusterHQ/flocker/${TRIGGERED_BRANCH}/requirements.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-wily:latest" > Dockerfile
@@ -656,16 +656,16 @@ common_cli:
     vagrant destroy -f
     (
       retry_n_times_with_timeout 3 2400 \
-        \$venv/bin/python admin/build-vagrant-box \
+        $venv/bin/python admin/build-vagrant-box \
           --box tutorial \
-          --branch \${TRIGGERED_BRANCH} \
-          --build-server http://\${eth0_ip}
+          --branch ${TRIGGERED_BRANCH} \
+          --build-server http://${eth0_ip}
     )|| abort_build
 
     (
       retry_n_times_with_timeout 2 1200 \
         vagrant box add --force "clusterhq/flocker-tutorial" \
-          vagrant/tutorial/flocker-tutorial-\${FLOCKER_VERSION}.box
+          vagrant/tutorial/flocker-tutorial-${FLOCKER_VERSION}.box
     ) || abort_build
 
   do_not_abort_on_errors: &do_not_abort_on_errors |
@@ -687,7 +687,7 @@ common_cli:
     cat <<EOF_VAGRANTFILE >Vagrantfile
     Vagrant.configure(2) do |config|
        config.vm.box = 'clusterhq/jenkins-osx-yosemite'
-       config.vm.box_url = "s3://\${ENV['S3_BUCKET']}/metadata.json"
+       config.vm.box_url = "s3://${ENV['S3_BUCKET']}/metadata.json"
        config.vm.synced_folder '.', '/vagrant', disabled: true
        config.vm.provider 'virtualbox' do |vb|
           vb.memory = '1024'
@@ -727,11 +727,11 @@ common_cli:
 
     # this sets some variables used by the tests, since the tests run inside
     # virtualbox we store them to a file and copy them to the vagrant box.
-    echo "export GIT_COMMIT=\${GIT_COMMIT}" > git-commit.sh
+    echo "export GIT_COMMIT=${GIT_COMMIT}" > git-commit.sh
     for item in /tmp/pip.sh build.sh git-commit.sh
     do
-      vagrant scp \${item} default:\${item}
-      vagrant ssh -c "chmod 755 \${item}"
+      vagrant scp ${item} default:${item}
+      vagrant ssh -c "chmod 755 ${item}"
     done
 
     # make sure we don't abort on the first error
@@ -742,7 +742,7 @@ common_cli:
     # this removes the secrets files we used during provisioning
     for item in "/tmp/pip.sh build.sh git-commit.sh"
     do
-      vagrant ssh -c "rm -f \${item}"
+      vagrant ssh -c "rm -f ${item}"
     done
 
 
@@ -756,9 +756,9 @@ common_cli:
     # installs XCode CommandLineTools from the CLI
     # https://github.com/chcokr/osx-init/blob/master/install.sh#L25
     touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    PROD=\$(softwareupdate -l |grep '\\*.*Command Line' |head -n 1 \
-     | awk -F"*" '{print \$2}' |sed -e 's/^ *//' |tr -d "\n")
-    softwareupdate -i "\${PROD}" -v
+    PROD=$(softwareupdate -l |grep '\\*.*Command Line' |head -n 1 \
+     | awk -F"*" '{print $2}' |sed -e 's/^ *//' |tr -d "\n")
+    softwareupdate -i "${PROD}" -v
 
     # the basebox we use for OSX is missing quite a number of software pieces.
     brew update
@@ -777,10 +777,10 @@ common_cli:
     # let's stop it and wait a bit, as sometimes the box is not fully down
     # when the vagrant halt command finishes.
     vagrant halt ; sleep 60
-    BOX_NAME="jenkins-osx-yosemite-\${FLOCKER_VERSION}.box"
+    BOX_NAME="jenkins-osx-yosemite-${FLOCKER_VERSION}.box"
     (
       retry_n_times_with_timeout 2 1800 \
-        vagrant package --output "\${BOX_NAME}"
+        vagrant package --output "${BOX_NAME}"
     ) || abort_build
 
   start_vanilla_osx_yosemite_vagrant_box: &start_vanilla_osx_yosemite_vagrant_box |
@@ -805,7 +805,7 @@ common_cli:
   install_aws_cli: &install_aws_cli |
     # installs the AWS python based cli
     # we use the aws cli to upload the docs files to S3
-    pip install awscli \${PIP_ADDITIONAL_OPTIONS}
+    pip install awscli ${PIP_ADDITIONAL_OPTIONS}
 
   get_s3_creds_for_bucket_staging_docs: &get_s3_creds_for_bucket_staging_docs |
     # collects the S3 credentials that allows us to upload files to the S3
@@ -831,97 +831,97 @@ common_cli:
   upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
     # uploads the new generated html to a folder on the S3 staging-docs bucket
     cd _build/html
-    aws --region \${S3_ENDPOINT} s3 sync . s3://clusterhq-staging-docs/\$TRIGGERED_BRANCH
+    aws --region ${S3_ENDPOINT} s3 sync . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
     echo "This branch is available at :"
-    echo "http://clusterhq-staging-docs.s3.amazonaws.com/\$TRIGGERED_BRANCH/index.html"
+    echo "http://clusterhq-staging-docs.s3.amazonaws.com/$TRIGGERED_BRANCH/index.html"
 
   upload_vagrant_tutorial_basebox_to_s3: &upload_vagrant_tutorial_basebox_to_s3 |
     # uploads the generated vagrant box to a folder on the S3
     # clusterhq-dev-archive bucket.
-    FLOCKER_TUTORIAL=flocker-tutorial-\${FLOCKER_VERSION}
-    BOX_NAME=\${FLOCKER_TUTORIAL}.box
+    FLOCKER_TUTORIAL=flocker-tutorial-${FLOCKER_VERSION}
+    BOX_NAME=${FLOCKER_TUTORIAL}.box
     BOX_PATH=vagrant/tutorial
-    SHA1=\$( sha1sum \${BOX_NAME} | cut -f 1 -d " " )
-    HTTP_BOX_URL=http://\${S3_BUCKET}.s3.amazonaws.com/\${BOX_PATH}/\${BOX_NAME}
+    SHA1=$( sha1sum ${BOX_NAME} | cut -f 1 -d " " )
+    HTTP_BOX_URL=http://${S3_BUCKET}.s3.amazonaws.com/${BOX_PATH}/${BOX_NAME}
 
     # the JSON metadata for our box is flocker-tutorial.version.box.json
-    HTTP_BOX_JSON=http://\${S3_BUCKET}.s3.amazonaws.com/\${BOX_PATH}/\${BOX_NAME}.json
+    HTTP_BOX_JSON=http://${S3_BUCKET}.s3.amazonaws.com/${BOX_PATH}/${BOX_NAME}.json
 
     # the JSON url below is what the vagrant file will consume
-    HTTP_BOX_JSON_LATEST=http://\${S3_BUCKET}.s3.amazonaws.com/\${BOX_PATH}/metadata.json
+    HTTP_BOX_JSON_LATEST=http://${S3_BUCKET}.s3.amazonaws.com/${BOX_PATH}/metadata.json
 
     # vagrant doesn't support fully semantic versioning, numbering must be x.y.z
     # https://github.com/mitchellh/vagrant/issues/6052
-    VAGRANT_BOX_VERSION="\$( echo \${FLOCKER_VERSION} | cut -f 1,2,3 -d "." )"
+    VAGRANT_BOX_VERSION="$( echo ${FLOCKER_VERSION} | cut -f 1,2,3 -d "." )"
 
-    cd \$BOX_PATH
+    cd $BOX_PATH
 
     # generates the metadata.json, it used by vagrant box update operations.
     create_vagrant_metadata_file \
       metadata.json \
       clusterhq/flocker-tutorial \
       'This box contains the flocker-tutorial VM.' \
-      \${VAGRANT_BOX_VERSION} \
-      \${HTTP_BOX_URL} \
-      \${SHA1}
+      ${VAGRANT_BOX_VERSION} \
+      ${HTTP_BOX_URL} \
+      ${SHA1}
 
-    cp metadata.json \${BOX_NAME}.json
+    cp metadata.json ${BOX_NAME}.json
 
     # uploads the vagrant box and metadata files to S3
     # We won't overwrite the json metadata files if the upload of the box
     # failed
-    box_files="\${BOX_NAME} \${BOX_NAME}.json metadata.json"
+    box_files="${BOX_NAME} ${BOX_NAME}.json metadata.json"
     (
       s3_upload \
-        \${S3_BUCKET}/\${BOX_PATH}/ "\${BOX_NAME}" && \
+        ${S3_BUCKET}/${BOX_PATH}/ "${BOX_NAME}" && \
       s3_upload \
-        \${S3_BUCKET}/\${BOX_PATH}/ "\${BOX_NAME}.json" && \
+        ${S3_BUCKET}/${BOX_PATH}/ "${BOX_NAME}.json" && \
       s3_upload \
-        \${S3_BUCKET}/\${BOX_PATH}/ "metadata.json"
+        ${S3_BUCKET}/${BOX_PATH}/ "metadata.json"
     ) ||  abort_build
 
     cd -
-    echo "This vagrant box is available at : \${HTTP_BOX_JSON_LATEST}"
+    echo "This vagrant box is available at : ${HTTP_BOX_JSON_LATEST}"
 
   upload_vagrant_basebox_osx_yosemite_to_s3: &upload_vagrant_basebox_osx_yosemite_to_s3 |
     # uploads the generated vagrant box to a folder on the S3
     # clusterhq-vagrant-jenkins-boxes bucket.
-    BOX_NAME="jenkins-osx-yosemite-\${FLOCKER_VERSION}.box"
-    SHA1=\$( sha1sum \${BOX_NAME} | cut -f 1 -d " " )
+    BOX_NAME="jenkins-osx-yosemite-${FLOCKER_VERSION}.box"
+    SHA1=$( sha1sum ${BOX_NAME} | cut -f 1 -d " " )
 
-    S3_BOX_URL=s3://\${S3_BUCKET}/\${BOX_NAME}
+    S3_BOX_URL=s3://${S3_BUCKET}/${BOX_NAME}
 
     # the JSON metadata for our box is jenkins-osx-yosemite-version.box.json
-    S3_BOX_JSON=s3://\${S3_BUCKET}/\${BOX_PATH}/\${BOX_NAME}.json
+    S3_BOX_JSON=s3://${S3_BUCKET}/${BOX_PATH}/${BOX_NAME}.json
 
     # the JSON url below is what the vagrant file will consume
-    S3_BOX_JSON_LATEST=s3://\${S3_BUCKET}/\${BOX_PATH}/metadata.json
+    S3_BOX_JSON_LATEST=s3://${S3_BUCKET}/${BOX_PATH}/metadata.json
 
     # vagrant doesn't support fully semantic versioning, numbering must be x.y.z
     # https://github.com/mitchellh/vagrant/issues/6052
-    VAGRANT_BOX_VERSION="\$( date +%s).0.0"
+    VAGRANT_BOX_VERSION="$( date +%s).0.0"
 
     # generates the metadata.json, it used by vagrant box update operations.
     create_vagrant_metadata_file \
       metadata.json \
       clusterhq/jenkins-osx-yosemite \
       'This box contains the OSX box used for the client tests.' \
-      \${VAGRANT_BOX_VERSION} \
-      \${S3_BOX_URL} \
-      \${SHA1}
+      ${VAGRANT_BOX_VERSION} \
+      ${S3_BOX_URL} \
+      ${SHA1}
 
-    cp metadata.json \${BOX_NAME}.json
+    cp metadata.json ${BOX_NAME}.json
 
     # uploads the vagrant box and metadata.json files
     # We won't overwrite the json metadata files if the upload of the box
     # failed
     (
-      s3_upload \${S3_BUCKET} "\${BOX_NAME}" &&  \
-      s3_upload \${S3_BUCKET} "\${BOX_NAME}.json" &&  \
-      s3_upload \${S3_BUCKET} "metadata.json"
+      s3_upload ${S3_BUCKET} "${BOX_NAME}" &&  \
+      s3_upload ${S3_BUCKET} "${BOX_NAME}.json" &&  \
+      s3_upload ${S3_BUCKET} "metadata.json"
     ) || abort_build
 
-    echo "This vagrant box is available at : \${S3_BOX_JSON_LATEST}"
+    echo "This vagrant box is available at : ${S3_BOX_JSON_LATEST}"
 
 
   run_lint: &run_lint |
@@ -934,7 +934,7 @@ common_cli:
 
   install_flake8: &install_flake8 |
     # flake8 is used by lint tests on Flocker source code
-    pip install flake8 \${PIP_ADDITIONAL_OPTIONS}
+    pip install flake8 ${PIP_ADDITIONAL_OPTIONS}
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -1134,7 +1134,10 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 45
+      # Give this job a slightly longer timeout because it has to interact with
+      # the cloud-supplied Cinder which can be a bit sluggish even in the best
+      # of times.
+      timeout: 90
 
     run_trial_for_cinder_storage_driver_on_Ubuntu_trusty:
       on_nodes_with_labels: 'rackspace-jenkins-slave-ubuntu14-standard-4-dfw'
@@ -1153,7 +1156,9 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 45
+      # Reasoning for run_trial_for_cinder_storage_driver_on_CentOS_7's timeout
+      # applies here as well.
+      timeout: 90
 
 
   # http://build.clusterhq.com/builders/flocker-docs
@@ -1185,7 +1190,7 @@ job_type:
                    *build_sdist, *build_package,
                    *build_repo_metadata,
                    *setup_authentication,
-                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   'export ACCEPTANCE_TEST_MODULE=${MODULE}',
                    *run_acceptance_loopback_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
@@ -1206,7 +1211,7 @@ job_type:
                    *build_sdist, *build_package,
                    *build_repo_metadata,
                    *setup_authentication,
-                   'export ACCEPTANCE_TEST_MODULE=\${MODULE}',
+                   'export ACCEPTANCE_TEST_MODULE=${MODULE}',
                    *run_acceptance_loopback_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
@@ -1426,7 +1431,12 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
-      timeout: 45
+      # Give the acceptance test suite a nice long time to run.  Give it even
+      # longer on CentOS than Ubuntu because Docker configuration on CentOS
+      # causes some things to be particularly slow.  This value is just a guess
+      # at what a reasonable upper-bound for the runtime of the suite might be
+      # as of Dec 2015.
+      timeout: 120
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
@@ -1447,7 +1457,9 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
-      timeout: 45
+      # Similar to the reasoning for run_acceptance_on_AWS_CentOS_7_with_EBS
+      # but slightly shorter since Ubuntu runs the tests faster.
+      timeout: 90
 
     run_acceptance_on_Rackspace_CentOS_7_with_Cinder:
       at: '0 5 * * *'
@@ -1470,7 +1482,8 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
-      timeout: 45
+      # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
+      timeout: 120
 
     run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
@@ -1493,7 +1506,8 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
-      timeout: 45
+      # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
+      timeout: 90
 
 #-----------------------------------------------------------------------------#
 # View definitions below this point

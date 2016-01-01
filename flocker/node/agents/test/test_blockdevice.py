@@ -34,6 +34,7 @@ from hypothesis.strategies import (
     dictionaries, tuples
 )
 
+from testtools.deferredruntest import SynchronousDeferredRunTest
 from testtools.matchers import Equals
 
 from twisted.internet import reactor
@@ -41,7 +42,6 @@ from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
@@ -364,11 +364,12 @@ def delete_manifestation(node_state, manifestation):
     return node_state
 
 
-class BlockDeviceDeployerLocalStateTests(SynchronousTestCase):
+class BlockDeviceDeployerLocalStateTests(TestCase):
     """
     Tests for ``BlockDeviceDeployerLocalState``.
     """
     def setUp(self):
+        super(BlockDeviceDeployerLocalStateTests, self).setUp()
         self.node_uuid = uuid4()
         self.hostname = u"192.0.2.1"
 
@@ -576,8 +577,12 @@ class BlockDeviceDeployerTests(
     Tests for ``BlockDeviceDeployer``.
     """
 
+    # This test returns Deferreds but doesn't use the reactor. It uses
+    # NonReactor instead.
+    run_tests_with = SynchronousDeferredRunTest
 
-class BlockDeviceDeployerAsyncAPITests(SynchronousTestCase):
+
+class BlockDeviceDeployerAsyncAPITests(TestCase):
     """
     Tests for ``BlockDeviceDeployer.async_block_device_api``.
     """
@@ -661,12 +666,13 @@ def assert_discovered_state(
     )
 
 
-class BlockDeviceDeployerDiscoverRawStateTests(SynchronousTestCase):
+class BlockDeviceDeployerDiscoverRawStateTests(TestCase):
     """
     Tests for ``BlockDeviceDeployer._discover_raw_state``.
     """
 
     def setUp(self):
+        super(BlockDeviceDeployerDiscoverRawStateTests, self).setUp()
         self.expected_hostname = u'192.0.2.123'
         self.expected_uuid = uuid4()
         self.api = loopbackblockdeviceapi_for_test(self)
@@ -746,11 +752,12 @@ class BlockDeviceDeployerDiscoverRawStateTests(SynchronousTestCase):
                 without_fs=False))
 
 
-class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
+class BlockDeviceDeployerDiscoverStateTests(TestCase):
     """
     Tests for ``BlockDeviceDeployer.discover_state``.
     """
     def setUp(self):
+        super(BlockDeviceDeployerDiscoverStateTests, self).setUp()
         self.expected_hostname = u'192.0.2.123'
         self.expected_uuid = uuid4()
         self.api = loopbackblockdeviceapi_for_test(self)
@@ -1090,7 +1097,7 @@ def make_icalculator_tests(calculator_factory):
 
     :return: A ``TestCase`` subclass.
     """
-    class ICalculatorTests(SynchronousTestCase):
+    class ICalculatorTests(TestCase):
         """
         Tests of an ``ICalculator`` implementation.
         """
@@ -1198,11 +1205,12 @@ class DidNotConverge(Exception):
     """
 
 
-class BlockDeviceCalculatorTests(SynchronousTestCase):
+class BlockDeviceCalculatorTests(TestCase):
     """
     Tests for ``BlockDeviceCalculator``.
     """
     def setUp(self):
+        super(BlockDeviceCalculatorTests, self).setUp()
         self.deployer = create_blockdevicedeployer(self)
 
     def teardown_example(self, token):
@@ -1393,11 +1401,12 @@ def assert_desired_datasets(
     )
 
 
-class CalculateDesiredStateTests(SynchronousTestCase):
+class CalculateDesiredStateTests(TestCase):
     """
     Tests for ``BlockDeviceDeployer._calculate_desired_state``.
     """
     def setUp(self):
+        super(CalculateDesiredStateTests, self).setUp()
         self.hostname = ScenarioMixin.NODE
         self.node_uuid = ScenarioMixin.NODE_UUID
         self.api = UnusableAPI()
@@ -1851,7 +1860,7 @@ def local_state_from_shared_state(
     )
 
 
-class LocalStateFromSharedStateTests(SynchronousTestCase):
+class LocalStateFromSharedStateTests(TestCase):
     """
     Tests for ``local_state_from_shared_state``.
     """
@@ -1882,7 +1891,7 @@ class LocalStateFromSharedStateTests(SynchronousTestCase):
 
 
 class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     """
     Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
@@ -1935,7 +1944,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
 
 
 class BlockDeviceDeployerIgnorantCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     """
     Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
@@ -1977,7 +1986,7 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
 
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -2249,7 +2258,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
 
 class BlockDeviceDeployerAttachCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -2308,7 +2317,7 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
 
 
 class BlockDeviceDeployerMountCalculateChangesTests(
-    SynchronousTestCase, ScenarioMixin
+    TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -2340,7 +2349,7 @@ class BlockDeviceDeployerMountCalculateChangesTests(
             in_parallel(changes=[
                 MountBlockDevice(
                     dataset_id=self.DATASET_ID,
-                    blockdevice_id=self.BLOCKDEVICE_ID,
+                    device_path=device,
                     mountpoint=FilePath(b"/flocker/").child(
                         bytes(self.DATASET_ID)
                     )
@@ -2361,7 +2370,7 @@ class BlockDeviceDeployerMountCalculateChangesTests(
 
 
 class BlockDeviceDeployerCreateFilesystemCalculateChangesTests(
-    SynchronousTestCase, ScenarioMixin
+    TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -2407,7 +2416,7 @@ class BlockDeviceDeployerCreateFilesystemCalculateChangesTests(
 
 
 class BlockDeviceDeployerUnmountCalculateChangesTests(
-    SynchronousTestCase, ScenarioMixin
+    TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -2531,7 +2540,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
 
 
 class BlockDeviceDeployerCreationCalculateChangesTests(
-        SynchronousTestCase,
+        TestCase,
         ScenarioMixin
 ):
     """
@@ -2887,7 +2896,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
 
 
 class BlockDeviceDeployerDetachCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     def test_detach_manifestation(self):
         """
@@ -2961,7 +2970,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         )
 
 
-class BlockDeviceInterfaceTests(SynchronousTestCase):
+class BlockDeviceInterfaceTests(TestCase):
     """
     Tests for ``IBlockDeviceAPI`` and ``IBlockDeviceAsyncAPI``.
     """
@@ -2992,12 +3001,13 @@ class BlockDeviceInterfaceTests(SynchronousTestCase):
 
 
 class BlockDeviceDeployerCalculateChangesTests(
-        SynchronousTestCase, ScenarioMixin
+        TestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes``.
     """
     def setUp(self):
+        super(BlockDeviceDeployerCalculateChangesTests, self).setUp()
         self.expected_change = ControllableAction(
             result=succeed(None),
         )
@@ -3717,8 +3727,9 @@ def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IProfiledBlockDeviceAPI`` provider.
     """
-    class Tests(IProfiledBlockDeviceAPITestsMixin, SynchronousTestCase):
+    class Tests(IProfiledBlockDeviceAPITestsMixin, TestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.api = profiled_blockdevice_api_factory(self)
             self.dataset_size = dataset_size
 
@@ -3745,7 +3756,7 @@ def make_iblockdeviceasyncapi_tests(blockdeviceasync_api_factory):
         because we currently assume ``make_iblockdeviceapi_tests`` will be used
         on the wrapped object.
     """
-    class Tests(IBlockDeviceAsyncAPITestsMixin, SynchronousTestCase):
+    class Tests(IBlockDeviceAsyncAPITestsMixin, TestCase):
         def setUp(self):
             super(Tests, self).setUp()
             self.api = blockdeviceasync_api_factory(test_case=self)
@@ -3804,7 +3815,7 @@ def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
     """
     user_id = getuid()
     if user_id != 0:
-        raise SkipTest(
+        test_case.skipTest(
             "``LoopbackBlockDeviceAPI`` uses ``losetup``, "
             "which requires root privileges. "
             "Required UID: 0, Found UID: {!r}".format(user_id)
@@ -3836,7 +3847,7 @@ class LoopbackBlockDeviceAPITests(
     """
 
 
-class LoopbackBlockDeviceAPIConstructorTests(SynchronousTestCase):
+class LoopbackBlockDeviceAPIConstructorTests(TestCase):
     """
     Implementation specific constructor tests.
     """
@@ -3864,7 +3875,7 @@ class LoopbackBlockDeviceAPIConstructorTests(SynchronousTestCase):
         )
 
 
-class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
+class LoopbackBlockDeviceAPIImplementationTests(TestCase):
     """
     Implementation specific tests for ``LoopbackBlockDeviceAPI``.
     """
@@ -3891,6 +3902,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         )
 
     def setUp(self):
+        super(LoopbackBlockDeviceAPIImplementationTests, self).setUp()
         self.api = loopbackblockdeviceapi_for_test(
             test_case=self,
             allocation_unit=LOOPBACK_ALLOCATION_UNIT,
@@ -4036,7 +4048,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             'Could not find valid instance ID for %r' % (api,), str(e))
 
 
-class LosetupListTests(SynchronousTestCase):
+class LosetupListTests(TestCase):
     """
     Tests for ``_losetup_list_parse``.
     """
@@ -4258,7 +4270,7 @@ class CreateFilesystemTests(
 class MountBlockDeviceInitTests(
     make_with_init_tests(
         MountBlockDevice,
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+        dict(dataset_id=uuid4(), device_path=FilePath("/dev/sdb"),
              mountpoint=FilePath(b"/foo")),
         dict(),
     )
@@ -4301,7 +4313,13 @@ class _MountScenario(PClass):
     api = field()
     volume = field(type=BlockDeviceVolume)
     deployer = field(type=BlockDeviceDeployer)
+    device_path = field(type=FilePath)
     mountpoint = field(type=FilePath)
+
+    def state_change(self):
+        return MountBlockDevice(dataset_id=self.dataset_id,
+                                device_path=self.device_path,
+                                mountpoint=self.mountpoint)
 
     @classmethod
     def generate(cls, case, mountpoint):
@@ -4327,6 +4345,7 @@ class _MountScenario(PClass):
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         api.attach_volume(volume.blockdevice_id, host)
+        device_path = api.get_device_path(volume.blockdevice_id)
 
         deployer = BlockDeviceDeployer(
             node_uuid=uuid4(),
@@ -4337,7 +4356,9 @@ class _MountScenario(PClass):
 
         return cls(
             host=host, dataset_id=dataset_id, filesystem_type=filesystem_type,
-            api=api, volume=volume, deployer=deployer, mountpoint=mountpoint,
+            api=api, volume=volume, deployer=deployer,
+            device_path=device_path,
+            mountpoint=mountpoint,
         )
 
     def create(self):
@@ -4359,9 +4380,9 @@ class _MountScenario(PClass):
 class MountBlockDeviceTests(
     make_istatechange_tests(
         MountBlockDevice,
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
+        dict(dataset_id=uuid4(), device_path=FilePath(b"/dev/sdb"),
              mountpoint=FilePath(b"/foo")),
-        dict(dataset_id=uuid4(), blockdevice_id=ARBITRARY_BLOCKDEVICE_ID_2,
+        dict(dataset_id=uuid4(), device_path=FilePath(b"/dev/sdc"),
              mountpoint=FilePath(b"/bar")),
     )
 ):
@@ -4377,11 +4398,7 @@ class MountBlockDeviceTests(
         scenario = _MountScenario.generate(self, mountpoint)
         self.successResultOf(scenario.create())
 
-        change = MountBlockDevice(
-            dataset_id=scenario.dataset_id,
-            blockdevice_id=scenario.volume.blockdevice_id,
-            mountpoint=scenario.mountpoint
-        )
+        change = scenario.state_change()
         return scenario, run_state_change(change, scenario.deployer)
 
     def _run_success_test(self, mountpoint):
@@ -4389,7 +4406,7 @@ class MountBlockDeviceTests(
         self.successResultOf(mount_result)
 
         expected = (
-            scenario.api.get_device_path(scenario.volume.blockdevice_id).path,
+            scenario.device_path.path,
             mountpoint.path,
             scenario.filesystem_type,
         )
@@ -4407,9 +4424,7 @@ class MountBlockDeviceTests(
 
     def _mount(self, scenario, mountpoint):
         self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=mountpoint),
+            scenario.state_change().set(mountpoint=mountpoint),
             scenario.deployer))
 
     def test_run(self):
@@ -4439,11 +4454,6 @@ class MountBlockDeviceTests(
     def test_create_fails_on_existing_filesystem(self):
         """
         Running ``CreateFilesystem`` on a block device that already has a file
-        self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=mountpoint),
-            scenario.deployer))
         system fails with an exception and preserves the data.
 
         This is because mkfs is a destructive operation that will destroy any
@@ -4517,9 +4527,7 @@ class MountBlockDeviceTests(
         scenario = self._run_success_test(mountpoint)
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint),
+            scenario.state_change(),
             scenario.deployer))
 
     def test_lost_found_deleted_remount(self):
@@ -4531,9 +4539,7 @@ class MountBlockDeviceTests(
         check_call([b"mklost+found"], cwd=mountpoint.path)
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint),
+            scenario.state_change(),
             scenario.deployer))
         self.assertEqual(mountpoint.children(), [])
 
@@ -4548,9 +4554,7 @@ class MountBlockDeviceTests(
         check_call([b"mklost+found"], cwd=mountpoint.path)
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint),
+            scenario.state_change(),
             scenario.deployer))
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
@@ -4568,9 +4572,7 @@ class MountBlockDeviceTests(
         mountpoint.chmod(S_IRWXU)
         mountpoint.restat()
         self.successResultOf(run_state_change(
-            MountBlockDevice(dataset_id=scenario.dataset_id,
-                             blockdevice_id=scenario.volume.blockdevice_id,
-                             mountpoint=scenario.mountpoint),
+            scenario.state_change(),
             scenario.deployer))
         self.assertEqual(mountpoint.getPermissions().shorthand(),
                          'rwx------')
@@ -4817,8 +4819,9 @@ def make_createblockdevicedataset_mixin(profiled_api):
         if you want self.api not to provide ``IProfiledBlockDeviceAPI``.
     """
     class Mixin(CreateBlockDeviceDatasetImplementationMixin,
-                SynchronousTestCase):
+                TestCase):
         def setUp(self):
+            super(Mixin, self).setUp()
             if profiled_api:
                 self.api = fakeprofiledloopbackblockdeviceapi_for_test(
                     self,
@@ -5066,7 +5069,7 @@ class ActionNeededTests(
     """
 
 
-class AllocatedSizeTypeTests(SynchronousTestCase):
+class AllocatedSizeTypeTests(TestCase):
     """
     Tests for type coercion of parameters supplied to
     ``allocated_size``.
@@ -5147,8 +5150,9 @@ def make_allocated_size_tests(allocation_unit):
         against the supplied ``allocation_unit``. The name of the test
         contains the classname of ``allocation_unit``.
     """
-    class Tests(AllocatedSizeTestsMixin, SynchronousTestCase):
+    class Tests(AllocatedSizeTestsMixin, TestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.allocation_unit = int(allocation_unit.to_Byte().value)
 
     Tests.__name__ = (
@@ -5223,11 +5227,12 @@ class CountingProxy(object):
         return counting_proxy
 
 
-class ProcessLifetimeCacheTests(SynchronousTestCase):
+class ProcessLifetimeCacheTests(TestCase):
     """
     Tests for the caching logic in ``ProcessLifetimeCache``.
     """
     def setUp(self):
+        super(ProcessLifetimeCacheTests, self).setUp()
         self.api = loopbackblockdeviceapi_for_test(self)
         self.counting_proxy = CountingProxy(self.api)
         self.cache = ProcessLifetimeCache(self.counting_proxy)

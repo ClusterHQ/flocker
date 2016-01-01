@@ -12,8 +12,9 @@ from pyrsistent import pset, pvector
 
 from bitmath import GiB
 
+from eliot.testing import capture_logging
+
 from twisted.internet.defer import FirstError
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
@@ -24,6 +25,7 @@ from ..testtools import (
     EMPTY_STATE, empty_node_local_state,
     assert_calculated_changes_for_deployer, to_node,
 )
+from ...testtools import TestCase
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
     NodeState, DeploymentState, RestartNever, RestartAlways, RestartOnFailure
@@ -112,7 +114,7 @@ def assert_application_calculated_changes(
     )
 
 
-class ApplicationNodeDeployerAttributesTests(SynchronousTestCase):
+class ApplicationNodeDeployerAttributesTests(TestCase):
     """
     Tests for attributes and initialiser arguments of
     `ApplicationNodeDeployer`.
@@ -184,7 +186,7 @@ SetProxiesIStateChangeTests = make_istatechange_tests(
 )
 
 
-class StartApplicationTests(SynchronousTestCase):
+class StartApplicationTests(TestCase):
     """
     Tests for ``StartApplication``.
     """
@@ -470,7 +472,7 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
 
-class LinkEnviromentTests(SynchronousTestCase):
+class LinkEnviromentTests(TestCase):
     """
     Tests for ``_link_environment``.
     """
@@ -498,7 +500,7 @@ class LinkEnviromentTests(SynchronousTestCase):
             })
 
 
-class StopApplicationTests(SynchronousTestCase):
+class StopApplicationTests(TestCase):
     """
     Tests for ``StopApplication``.
     """
@@ -573,11 +575,14 @@ EMPTY_NODESTATE = NodeState(hostname=u"example.com", uuid=uuid4(),
 
 
 class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
-        SynchronousTestCase):
+        TestCase):
     """
     Tests for ``ApplicationNodeDeployer.discover_local_state``.
     """
     def setUp(self):
+        super(
+            ApplicationNodeDeployerDiscoverNodeConfigurationTests, self
+        ).setUp()
         self.hostname = u"example.com"
         self.network = make_memory_network()
         self.node_uuid = uuid4()
@@ -871,7 +876,7 @@ def no_change():
     return NoOp()
 
 
-class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
+class ApplicationNodeDeployerCalculateVolumeChangesTests(TestCase):
     """
     Tests for ``ApplicationNodeDeployer.calculate_changes`` specifically as it
     relates to volume state and configuration.
@@ -1091,7 +1096,7 @@ class ApplicationNodeDeployerCalculateVolumeChangesTests(SynchronousTestCase):
         )
 
 
-class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
+class ApplicationNodeDeployerCalculateChangesTests(TestCase):
     """
     Tests for ``ApplicationNodeDeployer.calculate_changes``.
     """
@@ -1858,7 +1863,7 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         )
 
 
-class SetProxiesTests(SynchronousTestCase):
+class SetProxiesTests(TestCase):
     """
     Tests for ``SetProxies``.
     """
@@ -1924,7 +1929,8 @@ class SetProxiesTests(SynchronousTestCase):
             set(fake_network.enumerate_proxies())
         )
 
-    def test_delete_proxy_errors_as_errbacks(self):
+    @capture_logging(None)
+    def test_delete_proxy_errors_as_errbacks(self, logger):
         """
         Exceptions raised in `delete_proxy` operations are reported as
         failures in the returned deferred.
@@ -1943,9 +1949,10 @@ class SetProxiesTests(SynchronousTestCase):
             exception.value.subFailure.value,
             ZeroDivisionError
         )
-        self.flushLoggedErrors(ZeroDivisionError)
+        logger.flush_tracebacks(ZeroDivisionError)
 
-    def test_create_proxy_errors_as_errbacks(self):
+    @capture_logging(None)
+    def test_create_proxy_errors_as_errbacks(self, logger):
         """
         Exceptions raised in `create_proxy_to` operations are reported as
         failures in the returned deferred.
@@ -1963,9 +1970,10 @@ class SetProxiesTests(SynchronousTestCase):
             exception.value.subFailure.value,
             ZeroDivisionError
         )
-        self.flushLoggedErrors(ZeroDivisionError)
+        logger.flush_tracebacks(ZeroDivisionError)
 
-    def test_create_proxy_errors_all_logged(self):
+    @capture_logging(None)
+    def test_create_proxy_errors_all_logged(self, logger):
         """
         Exceptions raised in `create_proxy_to` operations are all logged.
         """
@@ -1984,11 +1992,11 @@ class SetProxiesTests(SynchronousTestCase):
 
         self.failureResultOf(d, FirstError)
 
-        failures = self.flushLoggedErrors(ZeroDivisionError)
+        failures = logger.flush_tracebacks(ZeroDivisionError)
         self.assertEqual(3, len(failures))
 
 
-class OpenPortsTests(SynchronousTestCase):
+class OpenPortsTests(TestCase):
     """
     Tests for ``OpenPorts``.
     """
@@ -2053,7 +2061,8 @@ class OpenPortsTests(SynchronousTestCase):
             set(fake_network.enumerate_open_ports())
         )
 
-    def test_delete_open_port_errors_as_errbacks(self):
+    @capture_logging(None)
+    def test_delete_open_port_errors_as_errbacks(self, logger):
         """
         Exceptions raised in `delete_open_port` operations are reported as
         failures in the returned deferred.
@@ -2072,9 +2081,10 @@ class OpenPortsTests(SynchronousTestCase):
             exception.value.subFailure.value,
             ZeroDivisionError
         )
-        self.flushLoggedErrors(ZeroDivisionError)
+        logger.flush_tracebacks(ZeroDivisionError)
 
-    def test_open_port_errors_as_errbacks(self):
+    @capture_logging(None)
+    def test_open_port_errors_as_errbacks(self, logger):
         """
         Exceptions raised in `open_port` operations are reported as
         failures in the returned deferred.
@@ -2092,9 +2102,10 @@ class OpenPortsTests(SynchronousTestCase):
             exception.value.subFailure.value,
             ZeroDivisionError
         )
-        self.flushLoggedErrors(ZeroDivisionError)
+        logger.flush_tracebacks(ZeroDivisionError)
 
-    def test_open_ports_errors_all_logged(self):
+    @capture_logging(None)
+    def test_open_ports_errors_all_logged(self, logger):
         """
         Exceptions raised in `OpenPorts` operations are all logged.
         """
@@ -2113,5 +2124,5 @@ class OpenPortsTests(SynchronousTestCase):
 
         self.failureResultOf(d, FirstError)
 
-        failures = self.flushLoggedErrors(ZeroDivisionError)
+        failures = logger.flush_tracebacks(ZeroDivisionError)
         self.assertEqual(3, len(failures))
