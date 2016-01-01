@@ -1308,11 +1308,11 @@ class _WriteVerifyingExternalClient(object):
             discovered_dataset = local_state.datasets.get(self._dataset_id)
 
             if discovered_dataset:
-                # If the dataset is mounted, the write should succeed.
+                # If the dataset is manifest, the write should succeed.
                 write_to_current_path_should_succeed = (
-                    discovered_dataset.state == DatasetStates.MOUNTED)
+                    discovered_dataset.state == DatasetStates.MANIFEST)
 
-                current_path = getattr(discovered_dataset, 'mount_point', None)
+                current_path = getattr(discovered_dataset, 'link_path', None)
                 if current_path:
                     self._known_mountpoints.add(current_path)
 
@@ -1341,9 +1341,9 @@ class _WriteVerifyingExternalClient(object):
             else:
                 case.assertTrue(
                     self._has_file_with_content(filename, random_string),
-                    "Successfully wrote to a path gotten from flocker, "
+                    "Successfully wrote to a path gotten from flocker(%s), "
                     "but the write was not persisted to the backing block "
-                    "device.")
+                    "device(%s)." % (path_to_write, self._device_path))
 
 
 def _empty_node_state(deployer):
@@ -1586,9 +1586,6 @@ class BlockDeviceCalculatorTests(TestCase):
         This would represent an agent like docker attempting to use a path
         before or after flocker was ready for it to use the path.
         """
-        self.skipTest(
-            'Currently this fails as the path is writable after unmount.')
-
         callback = _MutableCallback()
 
         actual_blockdevice_manager = BlockDeviceManager()
