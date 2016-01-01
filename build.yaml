@@ -687,7 +687,7 @@ common_cli:
     cat <<EOF_VAGRANTFILE >Vagrantfile
     Vagrant.configure(2) do |config|
        config.vm.box = 'clusterhq/jenkins-osx-yosemite'
-       config.vm.box_url = "s3://${ENV['S3_BUCKET']}/metadata.json"
+       config.vm.box_url = "s3://${S3_BUCKET}/metadata.json"
        config.vm.synced_folder '.', '/vagrant', disabled: true
        config.vm.provider 'virtualbox' do |vb|
           vb.memory = '1024'
