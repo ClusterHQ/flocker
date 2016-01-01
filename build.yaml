@@ -74,7 +74,7 @@ common_cli:
   hashbang: &hashbang |
     #!/bin/bash -l
     # don't leak secrets
-    set -x # leak everything please for debugging
+    set +x
     set -e
 
 
@@ -687,14 +687,6 @@ common_cli:
   new_vagrantfile_for_osx_yosemite: &new_vagrantfile_for_osx_yosemite |
     # this builds a Vagrantfile which will use the latest jenkins-osx-yosemite
     # vagrant box built overnight.
-    echo "Dumping environment"
-    echo "==================="
-    env
-    echo "==================="
-    echo "S3_BUCKET is ${ENV['S3_BUCKET']}"
-    echo "box_url will be s3://${ENV['S3_BUCKET']}/metadata.json"
-    echo "==================="
-    echo "Alternately, S3_BUCKET is ${S3_BUCKET} and box_url could be s3://${S3_BUCKET}/metadata.json"
     cat <<EOF_VAGRANTFILE >Vagrantfile
     Vagrant.configure(2) do |config|
        config.vm.box = 'clusterhq/jenkins-osx-yosemite'
