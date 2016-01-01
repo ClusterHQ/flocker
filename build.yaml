@@ -687,6 +687,13 @@ common_cli:
   new_vagrantfile_for_osx_yosemite: &new_vagrantfile_for_osx_yosemite |
     # this builds a Vagrantfile which will use the latest jenkins-osx-yosemite
     # vagrant box built overnight.
+    echo "Dumping environment"
+    echo "==================="
+    env
+    echo "==================="
+    echo "S3_BUCKET is ${ENV['S3_BUCKET']}"
+    echo "box_url will be s3://${ENV['S3_BUCKET']}/metadata.json"
+    echo "==================="
     cat <<EOF_VAGRANTFILE >Vagrantfile
     Vagrant.configure(2) do |config|
        config.vm.box = 'clusterhq/jenkins-osx-yosemite'
