@@ -1212,6 +1212,14 @@ class DidNotConverge(Exception):
     """
 
 
+class _WriteError(Exception):
+    """
+    Error used to indicate that we failed to write to a path as if we were
+    docker.
+    """
+    pass
+
+
 class _WriteVerifyingExternalClient(object):
     """
     Representation of an external client of the Flocker API. This client can be
@@ -1243,6 +1251,22 @@ class _WriteVerifyingExternalClient(object):
         self._node_uuid = node_uuid
         self._testing_mountroot = mountroot
         self._blockdevice_manager = blockdevice_manager
+
+    def _immitate_docker_writing(self, mountdir, filename, content):
+        """
+        Imitate writing content to a file to a mounted directory using docker.
+
+        :param FilePath mountidr: The directory to be mounted as a docker
+            volume.
+        :param unicode filename: The name of the file to create in the docker
+            volume.
+        :param unicode content: The content to write to the file.
+        """
+        path_to_write = mountdir.child(filename)
+        try:
+            path_to_write.setContent(content)
+        except OSError:
+            raise _WriteError()
 
     def _has_file_with_content(self, filename, content):
         """
@@ -1314,10 +1338,9 @@ class _WriteVerifyingExternalClient(object):
         for path in self._known_mountpoints:
             filename = unicode(uuid4())
             random_string = unicode(uuid4())
-            path_to_write = path.child(filename)
             try:
-                path_to_write.setContent(random_string)
-            except OSError:
+                self._immitate_docker_writing(path, filename, random_string)
+            except _WriteError:
                 # This indicates that we failed to write to a path provided by
                 # flocker. Assert that this is not the path of a currently
                 # manifest dataset.
@@ -1325,7 +1348,8 @@ class _WriteVerifyingExternalClient(object):
                     write_to_current_path_should_succeed and
                     current_path == path,
                     "Could not write to path %s despite dataset %s reporting "
-                    "as manifest." % (path_to_write, dataset))
+                    "as manifest." % ("/".join([unicode(path), filename]),
+                                      dataset))
             else:
                 case.assertTrue(
                     self._has_file_with_content(filename, random_string),
