@@ -15,7 +15,6 @@ from machinist import LOG_FSM_TRANSITION
 
 from pyrsistent import pset
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactorClock
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred, fail
@@ -28,7 +27,7 @@ from twisted.test.iosim import connectedServerAndClient
 from ...testtools.amp import (
     FakeAMPClient, DelayedAMPClient, connected_amp_protocol,
 )
-from ...testtools import CustomException
+from ...testtools import CustomException, TestCase
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
@@ -58,11 +57,12 @@ class StubFSM(object):
         self.inputted.append(symbol)
 
 
-class ClusterStatusFSMTests(SynchronousTestCase):
+class ClusterStatusFSMTests(TestCase):
     """
     Tests for the cluster status FSM.
     """
     def setUp(self):
+        super(ClusterStatusFSMTests, self).setUp()
         self.convergence_loop = StubFSM()
         self.fsm = build_cluster_status_fsm(self.convergence_loop)
 
@@ -247,7 +247,7 @@ def no_action():
     return ControllableAction(result=succeed(None))
 
 
-class SleepTests(SynchronousTestCase):
+class SleepTests(TestCase):
     """
     Tests for ``_Sleep``.
     """
@@ -270,7 +270,7 @@ class SleepTests(SynchronousTestCase):
                  spread=True))
 
 
-class ConvergenceLoopFSMTests(SynchronousTestCase):
+class ConvergenceLoopFSMTests(TestCase):
     """
     Tests for FSM created by ``build_convergence_loop_fsm``.
     """
@@ -1136,11 +1136,12 @@ class UpdateNodeEraLocator(CommandLocator):
         return {}
 
 
-class AgentLoopServiceTests(SynchronousTestCase):
+class AgentLoopServiceTests(TestCase):
     """
     Tests for ``AgentLoopService``.
     """
     def setUp(self):
+        super(AgentLoopServiceTests, self).setUp()
         self.deployer = ControllableDeployer(u"127.0.0.1", [], [])
         self.reactor = MemoryReactorClock()
         self.service = AgentLoopService(

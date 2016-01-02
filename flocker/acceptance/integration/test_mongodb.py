@@ -59,4 +59,4 @@ class MongoIntegrationTests(make_dataset_integration_testcase(
     """
     @require_mongo
     def setUp(self):
-        pass
+        super(MongoIntegrationTests, self).setUp()

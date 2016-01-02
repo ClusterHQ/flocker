@@ -17,7 +17,7 @@ from eliot.serializers import identity
 
 from zope.interface import implementer, Interface, provider
 
-from pyrsistent import PClass, field, pmap_field, pset_field, thaw
+from pyrsistent import PClass, field, pmap_field, pset_field, thaw, CheckedPMap
 
 from characteristic import with_cmp
 
@@ -354,7 +354,7 @@ UNMOUNT_BLOCK_DEVICE_DETAILS = MessageType(
 
 MOUNT_BLOCK_DEVICE = ActionType(
     u"agent:blockdevice:mount",
-    [DATASET_ID, BLOCK_DEVICE_ID],
+    [DATASET_ID, BLOCK_DEVICE_PATH],
     [],
     u"A block-device-backed dataset is being mounted.",
 )
@@ -550,37 +550,34 @@ class MountBlockDevice(PClass):
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the filesystem to mount.
-    :ivar unicode blockdevice_id: The unique identifier of the
-        ``IBlockDeviceAPI``-managed volume to be mounted.
+    :ivar FilePath device_path: The path of the block device to be mounted.
     :ivar FilePath mountpoint: The filesystem location at which to mount the
         volume's filesystem.  If this does not exist, it is created.
     """
-    dataset_id = field(type=UUID, mandatory=True)
-    blockdevice_id = field(type=unicode, mandatory=True)
+    device_path = field(type=FilePath, mandatory=True)
     mountpoint = field(type=FilePath, mandatory=True)
+
+    # Only for logging
+    dataset_id = field(type=UUID, mandatory=True)
 
     @classmethod
     def from_state_and_config(cls, discovered_dataset, desired_dataset):
         return cls(
             dataset_id=desired_dataset.dataset_id,
-            blockdevice_id=discovered_dataset.blockdevice_id,
+            device_path=discovered_dataset.device_path,
             mountpoint=desired_dataset.mount_point,
         )
 
     @property
     def eliot_action(self):
         return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id,
-                                  block_device_id=self.blockdevice_id)
+                                  block_device_path=self.device_path)
 
     def run(self, deployer):
         """
         Run the system ``mount`` tool to mount this change's volume's block
         device.  The volume must be attached to this node.
         """
-        api = deployer.block_device_api
-        device = api.get_device_path(self.blockdevice_id)
-        MOUNT_BLOCK_DEVICE_DETAILS(block_device_path=device).write(_logger)
-
         # Create the directory where a device will be mounted.
         # The directory's parent's permissions will be set to only allow access
         # by owner, to limit access by other users on the node.
@@ -592,7 +589,7 @@ class MountBlockDevice(PClass):
         self.mountpoint.parent().chmod(S_IRWXU)
 
         # This should be asynchronous.  FLOC-1797
-        deployer.block_device_manager.mount(device, self.mountpoint)
+        deployer.block_device_manager.mount(self.device_path, self.mountpoint)
 
         # Remove lost+found to ensure filesystems always start out empty.
         # Mounted filesystem is also made world
@@ -1390,6 +1387,18 @@ class BlockDeviceDeployerLocalState(PClass):
         )
 
 
+class TransitionTable(CheckedPMap):
+    """
+    Mapping from desired and discovered dataset state to
+    ``IDatasetStateChangeFactory``.
+    """
+    __key_type__ = NamedConstant
+
+    class __value_type__(CheckedPMap):
+        __key_type__ = NamedConstant
+        __invariant__ = lambda k, v: provides(IDatasetStateChangeFactory)(v)
+
+
 @provider(IDatasetStateChangeFactory)
 class DoNothing(PClass):
     """
@@ -1403,7 +1412,7 @@ class DoNothing(PClass):
 # IStateChange factory. (The factory is expected to take
 # ``desired_dataset`` and ``discovered_dataset``.
 Desired = Discovered = DatasetStates
-DATASET_TRANSITIONS = {
+DATASET_TRANSITIONS = TransitionTable.create({
     Desired.MOUNTED: {
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
         # Other node will need to deatch first, but we we need to
@@ -1433,7 +1442,7 @@ DATASET_TRANSITIONS = {
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
     },
-}
+})
 del Desired, Discovered
 
 
@@ -1442,7 +1451,13 @@ class BlockDeviceCalculator(PClass):
     """
     An ``ICalculator`` that calculates actions that use a
     ``BlockDeviceDeployer``.
+
+    :ivar TransitionTable transitions: Table of convergence actions.
     """
+    transitions = field(TransitionTable, mandatory=True,
+                        factory=TransitionTable.create,
+                        initial=DATASET_TRANSITIONS)
+
     def _calculate_dataset_change(self, discovered_dataset, desired_dataset):
         """
         Calculate the state changes necessary to make ``discovered_dataset``
@@ -1464,7 +1479,7 @@ class BlockDeviceCalculator(PClass):
                             if discovered_dataset is not None
                             else DatasetStates.NON_EXISTENT)
         if desired_state != discovered_state:
-            transition = DATASET_TRANSITIONS[desired_state][discovered_state]
+            transition = self.transitions[desired_state][discovered_state]
             return transition.from_state_and_config(
                 discovered_dataset=discovered_dataset,
                 desired_dataset=desired_dataset,

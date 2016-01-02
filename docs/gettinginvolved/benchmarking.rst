@@ -86,6 +86,16 @@ An example file:
      - name: default
        type: no-load
 
+     - name: read-request-5
+       type: read-request-load
+       request_rate: 5
+
+     - name: read-request-10
+       type: read-request-load
+       request_rate: 10
+       sample_size: 10
+       timeout: 60
+
    operations:
      - name: default
        type: read-request
@@ -111,6 +121,18 @@ Scenario Types
 .. option:: no-load
 
    No additional load on system.
+
+.. option:: read-request-load
+
+   Create additional load on the system by performing read requests.
+   Specify the rate of requests to perform per second using an additional ``request_rate`` property.
+   The default is 10 requests per second.
+
+   Specify the number of samples to be collected when sampling the request rate using an additional ``sample_size`` property.
+   The default is 5 samples.
+
+   Specify a timeout for establishing the scenario using an additional ``timeout`` property.
+   The default is 45 seconds.
 
 Operation Types
 ~~~~~~~~~~~~~~~

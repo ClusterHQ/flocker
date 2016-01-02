@@ -10,10 +10,11 @@ from zope.interface import implementer
 from eliot.testing import capture_logging
 
 from twisted.internet.defer import Deferred, succeed, fail
-from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from benchmark._driver import benchmark, sample
 from benchmark._interfaces import IScenario, IProbe, IOperation, IMetric
+
+from flocker.testtools import AsyncTestCase, TestCase
 
 
 @implementer(IMetric)
@@ -83,7 +84,7 @@ class FakeScenario(object):
         return succeed(None)
 
 
-class SampleTest(SynchronousTestCase):
+class SampleTest(TestCase):
     """
     Test sample function.
     """
@@ -117,13 +118,16 @@ class SampleTest(SynchronousTestCase):
         )
 
 
-class BenchmarkTest(TestCase):
+class BenchmarkTest(AsyncTestCase):
     """
     Test benchmark function.
     """
-    # Test using `TestCase` rather than `SynchronousTestCase` because
-    # the `benchmark` function uses `twisted.task.cooperate`, which uses
-    # the global reactor.
+    # Test using `AsyncTestCase` rather than `TestCase` because the
+    # `benchmark` function uses `twisted.task.cooperate`, which uses the
+    # global reactor.
+    #
+    # This could be fixed by making the cooperator to use a parameter and
+    # supplying one driven by a fake IReactorTime (eg Clock).
 
     @capture_logging(None)
     def test_good_probes(self, logger):

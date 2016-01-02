@@ -11,12 +11,12 @@ from eliot.testing import (
     capture_logging,
 )
 from twisted.internet.defer import succeed
-from twisted.trial.unittest import SynchronousTestCase
 
 from ..testtools import (log_method, _ensure_encodeable)
+from ...testtools import TestCase
 
 
-class EnsureEncodeableTests(SynchronousTestCase):
+class EnsureEncodeableTests(TestCase):
     """
     Tests for ``_ensure_encodeable``.
 
@@ -51,7 +51,7 @@ class EnsureEncodeableTests(SynchronousTestCase):
         self.assertEqual(repr(value), _ensure_encodeable(value))
 
 
-class LogMethodTests(SynchronousTestCase):
+class LogMethodTests(TestCase):
     """
     Tests for ``log_method``.
     """

@@ -34,7 +34,7 @@ from .._client import (
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
     Lease, LeaseAlreadyHeld, Node, Container, ContainerAlreadyExists,
     DatasetsConfiguration, ConfigurationChanged, conditional_create,
-    _LOG_CONDITIONAL_CREATE,
+    _LOG_CONDITIONAL_CREATE, ContainerState, MountedDataset,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
@@ -345,7 +345,7 @@ def make_clientv1_tests():
                                          configuration_tag=u"willnotmatch")
             return self.assertFailure(d, ConfigurationChanged)
 
-        def test_list_state(self):
+        def test_dataset_state(self):
             """
             ``list_datasets_state`` returns information about state.
             """
@@ -494,6 +494,98 @@ def make_clientv1_tests():
                 )
                 return self.assertFailure(d, ContainerAlreadyExists)
             d.addCallback(got_result)
+            return d
+
+        def test_container_state(self):
+            """
+            ``list_containers_state`` returns information about state.
+            """
+            expected, d = create_container_for_test(self, self.client)
+
+            d.addCallback(lambda _ignored: self.synchronize_state())
+
+            d.addCallback(lambda _ignored: self.client.list_containers_state())
+
+            d.addCallback(
+                lambda containers: self.assertIn(
+                    ContainerState(
+                        node_uuid=expected.node_uuid,
+                        name=expected.name,
+                        image=expected.image,
+                        running=True,
+                    ),
+                    containers
+                )
+            )
+
+            return d
+
+        def test_container_volumes(self):
+            """
+            Mounted datasets are included in response messages.
+            """
+            d = self.assert_creates(
+                self.client, primary=self.node_1.uuid,
+                maximum_size=DATASET_SIZE
+            )
+
+            def start_container(dataset):
+                name = random_name(case=self)
+                volumes = [
+                    MountedDataset(
+                        dataset_id=dataset.dataset_id, mountpoint=u'/data')
+                ]
+                expected_configuration = Container(
+                    node_uuid=self.node_1.uuid,
+                    name=name,
+                    image=DockerImage.from_string(u'nginx'),
+                    volumes=volumes,
+                )
+
+                # Create a container with an attached dataset
+                d = self.client.create_container(
+                    node_uuid=expected_configuration.node_uuid,
+                    name=expected_configuration.name,
+                    image=expected_configuration.image,
+                    volumes=expected_configuration.volumes,
+                )
+
+                # Result of create call is stateful container configuration
+                d.addCallback(
+                    lambda configuration: self.assertEqual(
+                        configuration, expected_configuration
+                    )
+                )
+
+                # Cluster configuration contains stateful container
+                d.addCallback(
+                    lambda _ignore: self.client.list_containers_configuration()
+                ).addCallback(
+                    lambda configurations: self.assertIn(
+                        expected_configuration, configurations
+                    )
+                )
+
+                d.addCallback(lambda _ignore: self.synchronize_state())
+
+                expected_state = ContainerState(
+                    node_uuid=self.node_1.uuid,
+                    name=name,
+                    image=DockerImage.from_string(u'nginx'),
+                    running=True,
+                    volumes=volumes,
+                )
+
+                # After convergence, cluster state contains stateful container
+                d.addCallback(
+                    lambda _ignore: self.client.list_containers_state()
+                ).addCallback(
+                    lambda states: self.assertIn(expected_state, states)
+                )
+
+                return d
+            d.addCallback(start_container)
+
             return d
 
         def test_delete_container(self):
@@ -663,7 +755,9 @@ class FlockerClientTests(make_clientv1_tests()):
 
     def synchronize_state(self):
         deployment = self.persistence_service.get()
+        # No IP address known, so use UUID for hostname
         node_states = [NodeState(uuid=node.uuid, hostname=unicode(node.uuid),
+                                 applications=node.applications,
                                  manifestations=node.manifestations,
                                  paths={manifestation.dataset_id:
                                         FilePath(b"/flocker").child(bytes(

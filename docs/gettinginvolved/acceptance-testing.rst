@@ -70,6 +70,8 @@ To see the supported values for each option, run:
 
    admin/run-acceptance-tests --help
 
+.. _acceptance-testing-configuration-file:
+
 Configuration File
 ==================
 
