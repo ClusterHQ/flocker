@@ -1312,7 +1312,7 @@ class _WriteVerifyingExternalClient(object):
                 write_to_current_path_should_succeed = (
                     discovered_dataset.state == DatasetStates.MANIFEST)
 
-                current_path = getattr(discovered_dataset, 'link_path', None)
+                current_path = getattr(discovered_dataset, 'shared_path', None)
                 if current_path:
                     self._known_mountpoints.add(current_path)
 
