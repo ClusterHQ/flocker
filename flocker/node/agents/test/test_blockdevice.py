@@ -9,7 +9,9 @@ from functools import partial
 from os import getuid
 import time
 from uuid import UUID, uuid4
-from subprocess import STDOUT, PIPE, Popen, check_output, check_call
+from subprocess import (
+    STDOUT, PIPE, Popen, check_output, check_call, CalledProcessError
+)
 from stat import S_IRWXU
 from datetime import datetime
 
@@ -105,8 +107,7 @@ from ....common.algebraic import tagged_union_strategy
 from ... import run_state_change, in_parallel, ILocalState, NoOp, IStateChange
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
-    compute_cluster_state,
-    ControllableAction,
+    compute_cluster_state, if_docker_configured, ControllableAction,
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
@@ -1262,10 +1263,15 @@ class _WriteVerifyingExternalClient(object):
             volume.
         :param unicode content: The content to write to the file.
         """
-        path_to_write = mountdir.child(filename)
+        container_path = FilePath('/vol')
         try:
-            path_to_write.setContent(content)
-        except OSError:
+            check_call([
+                "docker", "run", "--rm", "-v", "%s:%s" % (
+                    mountdir.path, container_path.path),
+                "busybox", "/bin/sh", "-c", "echo -n %s > %s" % (
+                    content, container_path.child(filename).path)
+            ])
+        except CalledProcessError:
             raise _WriteError()
 
     def _has_file_with_content(self, filename, content):
@@ -1563,6 +1569,7 @@ class BlockDeviceCalculatorTests(TestCase):
         finally:
             test_objects.cleanup_example()
 
+    @if_docker_configured
     @given(
         two_dataset_states=TWO_DESIRED_DATASET_STRATEGY
     )
