@@ -70,7 +70,8 @@ Let us know with the form below!
    kubernetes-integration/index
    mesos-integration/index
    flocker-standalone/index
-   labs/index
+   flocker-features/index
+   reference/index
    releasenotes/index
    faq/index
    gettinginvolved/index
