@@ -839,7 +839,7 @@ common_cli:
 
   sync_master_docs_to_doc_dev: &sync_master_docs_to_doc_dev |
     # ensure master docs at doc-dev are up-to-date
-    aws --region ${S3_DOCS_REGION} s3 sync --acl public-read \
+    [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --acl public-read \
       s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
 
   upload_vagrant_tutorial_basebox_to_s3: &upload_vagrant_tutorial_basebox_to_s3 |
