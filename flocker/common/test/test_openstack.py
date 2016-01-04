@@ -4,6 +4,7 @@
 Tests for ``flocker.common.auto_openstack_logging``.
 """
 
+from unittest import skipIf
 from twisted.web.http import INTERNAL_SERVER_ERROR
 
 from eliot.testing import LoggedMessage, assertContainsFields, capture_logging
@@ -64,8 +65,10 @@ class AutoOpenStackLoggingTests(TestCase):
     """
     Tests for ``auto_openstack_logging``.
     """
-    if dependency_skip is not None:
-        skip = dependency_skip
+
+    @skipIf(dependency_skip, dependency_skip)
+    def setUp(self):
+        super(AutoOpenStackLoggingTests, self).setUp()
 
     def test_return(self):
         """

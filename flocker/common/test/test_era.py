@@ -9,7 +9,7 @@ from unittest import skipUnless
 
 from twisted.python.runtime import platform
 from .._era import get_era
-from ...testtols import TestCase
+from ...testtools import TestCase
 
 
 class EraTests(TestCase):

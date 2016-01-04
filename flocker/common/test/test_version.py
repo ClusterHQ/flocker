@@ -4,6 +4,7 @@
 Tests for :module:`flocker.docs.version`.
 """
 
+from unittest import skipIf, skipUnless
 
 try:
     from packaging.version import Version as PEP440Version
@@ -66,8 +67,7 @@ class MakeRpmVersionTests(TestCase):
         ``make_rpm_version`` raises ``UnparseableVersion`` when supplied with a
         version with a non-integer pre or dev suffix number.
         """
-        with self.assertRaises(UnparseableVersion):
-            make_rpm_version('0.1.2rcX')
+        self.assertRaises(UnparseableVersion, make_rpm_version, '0.1.2rcX')
 
 
 class InvalidVersionTests(TestCase):
@@ -118,6 +118,7 @@ def build_version_test(name, version_case):
     is interpreted as expected.
     """
     class Tests(TestCase):
+
         def test_flocker_version(self):
             """
             The parsed version matches the expected parsed version.
@@ -138,6 +139,9 @@ def build_version_test(name, version_case):
                 "Calculated doc version doesn't match expected doc version.",
             )
 
+        @skipIf(
+            version_case.is_legacy,
+            "Legacy version don't generate proper installable version.")
         def test_installable_version(self):
             """
             The calculated installable version matches the expected installable
@@ -148,11 +152,6 @@ def build_version_test(name, version_case):
                 version_case.installable_version,
                 "Calculated installable version doesn't match"
                 "expected installable version.",)
-
-        if version_case.is_legacy:
-            test_installable_version.skip = (
-                "Legacy version don't generate proper installable version."
-            )
 
         def test_is_release(self):
             """
@@ -181,6 +180,7 @@ def build_version_test(name, version_case):
                 version_case.is_pre_release,
             )
 
+        @skipUnless(PACKAGING_INSTALLED, "``packaing`` not installed.")
         def test_pep_440(self):
             """
             The version is a valid PEP440 version.
@@ -189,6 +189,8 @@ def build_version_test(name, version_case):
             """
             PEP440Version(version_case.version)
 
+        @skipUnless(PACKAGING_INSTALLED, "``packaing`` not installed.")
+        @skipIf(version_case.is_legacy, "Legacy version isn't normalized.")
         def test_normalization(self):
             """
             The version number is normalized according to PEP440.
@@ -197,13 +199,6 @@ def build_version_test(name, version_case):
                 version_case.version,
                 str(PEP440Version(version_case.version)),
                 "Version isn't normalized.",
-            )
-        if version_case.is_legacy:
-            test_normalization.skip = "Legacy version isn't normalized."
-
-        if not PACKAGING_INSTALLED:
-            test_normalization.skip = test_pep_440.skip = (
-                "``packaing`` not installed."
             )
 
     Tests.__name__ = name
