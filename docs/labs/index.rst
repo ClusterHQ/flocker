@@ -64,7 +64,6 @@ List of Labs Projects
    :maxdepth: 1
    :titlesonly:
 
-   installer
    volumes-cli
    volumes-gui
    swarm
