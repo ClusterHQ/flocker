@@ -34,15 +34,15 @@ class ReadRequest(object):
 def read_request_load_scenario(reactor, cluster, request_rate=10,
                                sample_size=DEFAULT_SAMPLE_SIZE, timeout=45):
     """
-    A scenario that places load on the cluster by performing read
-    requests at a specified rate.
+    Factory that will initialise and return an excenario that places
+    load on the cluster by performing read requests at a specified rate.
 
-    :ivar reactor: Reactor to use.
-    :ivar cluster: `BenchmarkCluster` containing the control service.
-    :ivar request_rate: The target number of requests per second.
-    :ivar sample_size: The number of samples to collect when measuring
+    :param reactor: Reactor to use.
+    :param cluster: `BenchmarkCluster` containing the control service.
+    :param request_rate: The target number of requests per second.
+    :param sample_size: The number of samples to collect when measuring
         the rate.
-    :ivar timeout: Maximum time in seconds to wait for the requested
+    :param timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
     """
     return RequestLoadScenario(

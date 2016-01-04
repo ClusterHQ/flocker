@@ -49,30 +49,37 @@ class RequestLoadScenario(object):
     requests at a specified rate.
 
     :ivar reactor: Reactor to use.
+    :ivar scenario_setup: instance of an implementation of the interface
+        `IRequestScenarioSetup`.
     :ivar request_rate: The target number of requests per second.
     :ivar sample_size: The number of samples to collect when measuring
         the rate.
     :ivar timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
-    :ivar setup_instance: instance of an implementation of `IScenarioSetup`
-    :ivar request_generator_instance: instance of an implementation of
-        `IRequestGenerator`
+    :ivar maintained: A `Deferred` that fires with an errback if the desired
+        scenario fails to hold between being established and being
+        stopped.  This Deferred never fires with a callback.
+    :ivar rate_measurer: `RateMeasurer` instace to monitor the scenario.
+    :ivar loop: main loop that will be doing requests every second.
+    :ivar monitor_loop: loop that will monitor the status of the scenario once
+        the target has been reached.
     """
 
     def __init__(
         self, reactor, scenario_setup_instance, request_rate=10,
         sample_size=DEFAULT_SAMPLE_SIZE, timeout=45
     ):
-        self._maintained = Deferred()
         self.reactor = reactor
         self.scenario_setup = scenario_setup_instance
         self.request_rate = request_rate
         self.timeout = timeout
+        self._maintained = Deferred()
         self.rate_measurer = RateMeasurer(sample_size)
         self.max_outstanding = 10 * request_rate
         # Send requests per second
         self.loop = LoopingCall.withCount(self._request_and_measure)
         self.loop.clock = self.reactor
+        # Monitor the status of the scenario
         self.monitor_loop = LoopingCall(self.check_rate)
         self.monitor_loop.clock = self.reactor
 
@@ -101,6 +108,8 @@ class RequestLoadScenario(object):
         """
         Fail the scenario. Stop the monitor loop and throw the
         error.
+
+        :param exception: `Exception` that caused the failure.
         """
         self.monitor_loop.stop()
         self._maintained.errback(exception)
@@ -122,6 +131,12 @@ class RequestLoadScenario(object):
             self._fail(RequestOverload())
 
     def start(self):
+        """
+        Runs the setup and starts the scenario
+
+        :return: A Deferred that fires when the desired scenario is
+            established (e.g. that a certain load is being applied).
+        """
         d = self.scenario_setup.run_setup()
         d.addCallback(self.run_scenario)
         return d
@@ -130,6 +145,9 @@ class RequestLoadScenario(object):
         """
         :return: A Deferred that fires when the desired scenario is
             established (e.g. that a certain load is being applied).
+
+        :raise RequestRateNotReached: if the target rate could not be
+            reached.
         """
         self.loop.start(interval=1)
 
@@ -213,3 +231,4 @@ class RequestLoadScenario(object):
             scenario = DeferredContext(scenario_stopped)
             scenario.addActionFinish()
             return scenario.result
+

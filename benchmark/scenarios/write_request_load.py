@@ -10,13 +10,12 @@ from twisted.internet.defer import CancelledError
 
 from flocker.common import timeout
 
-from .._interfaces import IScenario, IRequestScenarioSetup
+from .._interfaces import IRequestScenarioSetup
 
 from ._rate_measurer import DEFAULT_SAMPLE_SIZE
 
 from ._request_load import (
-    RequestLoadScenario, RequestOverload, RequestRateTooLow,
-    RequestRateNotReached, NoNodesFound
+    RequestLoadScenario, NoNodesFound
 )
 
 
@@ -83,8 +82,8 @@ class WriteRequest(object):
     def _set_dataset_id(self, dataset_id):
         """
         Function to set the value of the dataset id once the dataset
-        has been created
-        :param nodes: listed nodes
+        has been created.
+        :param nodes: listed nodes.
         """
         self.dataset_id = dataset_id
 
@@ -118,15 +117,15 @@ class WriteRequest(object):
 def write_request_load_scenario(reactor, cluster, request_rate=10,
                                 sample_size=DEFAULT_SAMPLE_SIZE, timeout=45):
     """
-    A scenario that places load on the cluster by performing write
-    requests at a specified rate.
+    Factory that will initialise and return a scenario that places load on
+    the cluster by performing write requests at a specified rate.
 
-    :ivar reactor: Reactor to use.
-    :ivar cluster: `BenchmarkCluster` containing the control service.
-    :ivar request_rate: The target number of requests per second.
-    :ivar sample_size: The number of samples to collect when measuring
+    :param reactor: Reactor to use.
+    :param cluster: `BenchmarkCluster` containing the control service.
+    :param request_rate: The target number of requests per second.
+    :param sample_size: The number of samples to collect when measuring
         the rate.
-    :ivar timeout: Maximum time in seconds to wait for the requested
+    :param timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
     """
     return RequestLoadScenario(
