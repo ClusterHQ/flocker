@@ -8,7 +8,6 @@ from datetime import timedelta
 from itertools import repeat, count
 from functools import partial
 
-import testtools
 from testtools.matchers import (
     MatchesPredicate, Equals, AllMatch, IsInstance, GreaterThan, raises
 )
@@ -755,7 +754,7 @@ class RetryIfTests(TestCase):
         )
 
 
-class DecorateMethodsTests(testtools.TestCase):
+class DecorateMethodsTests(TestCase):
     """
     Tests for ``decorate_methods``.
     """
