@@ -79,13 +79,13 @@ class WriteRequest(object):
             raise NoNodesFound()
         return random.choice(nodes)
 
-    def _set_dataset_id(self, dataset_id):
+    def _set_dataset_id(self, dataset):
         """
         Function to set the value of the dataset id once the dataset
         has been created.
         :param nodes: listed nodes.
         """
-        self.dataset_id = dataset_id
+        self.dataset_id = dataset.dataset_id
 
     def run_setup(self):
         """
