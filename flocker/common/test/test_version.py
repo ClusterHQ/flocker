@@ -117,7 +117,7 @@ def build_version_test(name, version_case):
     Create a test case that checks that a given version
     is interpreted as expected.
     """
-    class Tests(SynchronousTestCase):
+    class Tests(TestCase):
         def test_flocker_version(self):
             """
             The parsed version matches the expected parsed version.
@@ -379,7 +379,7 @@ LegacyDocReleaseTests = build_version_test(
 )
 
 
-class GetPreReleaseTests(SynchronousTestCase):
+class GetPreReleaseTests(TestCase):
     """
     Tests for :function:`get_pre_release`.
     """
