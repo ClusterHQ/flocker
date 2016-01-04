@@ -15,7 +15,7 @@ Trying Out the Volumes GUI
 
 Prerequisites:
 
-* A Flocker cluster, if you don't have one of these then try the :ref:`experimental installer <labs-installer>`.
+* A Flocker cluster, if you don't have one of these then try the :ref:`experimental installer <quick-start-installer>`.
 * Docker (either locally or in `boot2docker <https://docs.docker.com/installation/mac/>`_ on OS X).
 * A web browser (tested on Google Chrome).
 
@@ -43,7 +43,7 @@ Run this command from the directory where you created your cluster configuration
 .. warning::
 
     You must substitute ``your.control.service`` with the name (or IP address, depending on how you configured it) of your Flocker control service and ``certuser`` with the name of an API client you generated a key and certificate for (where you have those files in your current working directory).
-    Refer to the instructions in the :ref:`experimental installer <labs-installer>`.
+    Refer to the instructions in the :ref:`experimental installer <quick-start-installer>`.
 
 Step 2 - Load Up the Experimental Flocker GUI
 =============================================

@@ -13,13 +13,13 @@ This can be used in conjunction with the Flocker plugin for Docker, see :ref:`th
 Install & Configure
 ===================
 
-First, you need to :ref:`install Flocker <labs-installer>`, you can use our experimental :ref:`Flocker Installer <labs-installer>` to do this.
+First, you need to :ref:`install Flocker <quick-start-installer>`, you can use our experimental :ref:`Flocker Installer <quick-start-installer>` to do this.
 The Flocker Volumes CLI will be installed as part of this process, called ``flocker-volumes``.
 
 To connect to the Flocker Control Service, the CLI will need a ``cluster.yml`` file that describes your cluster.
 It will also need access to the TLS certificates that were created when you provisioned your cluster.
 
-If you have used our :ref:`installer tool <labs-installer>` - you will have already created such a file.  The TLS certificates will have been generated in the same folder after you have run the ``flocker-config`` command.
+If you have used our :ref:`installer tool <quick-start-installer>` - you will have already created such a file.  The TLS certificates will have been generated in the same folder after you have run the ``flocker-config`` command.
 
 You can read more about generating these certificates in the documentation for our :ref:`Flocker installer <labs-installing-unofficial-flocker-tools>`.
 

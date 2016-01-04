@@ -34,7 +34,7 @@ Currently Flocker supports both volume-centric operation via the dataset API and
 The goals of ClusterHQ Labs are to make it possible to:
 
 * See what's happening in your Flocker cluster with a :ref:`CLI <labs-volumes-cli>` and a :ref:`GUI <labs-volumes-gui>`.
-* Make it easier to spin up a Flocker cluster in the first place with an :ref:`installer <labs-installer>`.
+* Make it easier to spin up a Flocker cluster in the first place with an :ref:`installer <quick-start-installer>`.
 * Integrate Flocker with other popular tools, like :ref:`Weave <labs-weave>`, :ref:`Mesosphere <labs-mesosphere>` and eventually :ref:`Kubernetes <labs-kubernetes>`.
 
 **We believe that Flocker will be more successful if, as well as focusing on making it useful for managing data volumes, we work on integrating it with other components in the emerging Docker and container ecosystem.**
