@@ -1,4 +1,4 @@
-j. _storage-backends:
+.. _storage-backends:
 
 ========================
 Supported Configurations
