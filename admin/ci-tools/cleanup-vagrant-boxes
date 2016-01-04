@@ -13,37 +13,54 @@ Usage::
   cleanup-vagrant-boxes <name of box>
 """
 
+from __future__ import unicode_literals, print_function
+
+from distutils.version import LooseVersion
 from subprocess import check_output
 
 
 class Box(object):
     def __init__(self, name, rest):
+        """
+        :param bytes rest: The second columne from a ``vagrant box list``
+            command, eg ``b"(virtualbox, 0.3.2.doc1.2008.g63e63f2)"``
+        """
+        self._version_string = rest[1:-1].split()[1]
+        self.version = LooseVersion(self._version_string)
         self.name = name
-        self._rest = rest
+
 
     def remove(self):
-        # self._rest is like "(virtualbox, 0.3.2.doc1.2008.g63e63f2)"
-        box_version = self._rest[1:-1].split()[1]
         check_output([
             b"vagrant", b"box", b"remove",
-            b"--box-version", box_version, self.name,
+            b"--box-version", self._version_string, self.name,
         ])
 
 
 def list_vagrant_boxes():
     boxes = check_output([b"vagrant", b"box", b"list"])
-    return (Box(name, rest) for (name, rest) in boxes.splitlines())
+    return (
+        Box(*line.split(None, 1))
+        for line
+        in boxes.splitlines()
+        if b" " in line
+    )
 
 
 def main(box_name):
     boxes = list(
         box for box in list_vagrant_boxes() if box.name == box_name
     )
-    boxes.sort(lambda box: box.version.split(b"."))
+    boxes.sort(key=lambda box: box.version)
 
     # Remove all but the newest version of the box.  Keeping the newest version
     # means we don't have to re-download it all the time whenever the version
     # hasn't changed.
-    boxes.pop()
+    print("Keeping {}".format(boxes.pop().version))
     for box in boxes:
+        print("Removing {}".format(box.version))
         box.remove()
+
+if __name__ == '__main__':
+    from sys import argv
+    main(argv[1])
