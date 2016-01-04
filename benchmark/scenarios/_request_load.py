@@ -15,7 +15,7 @@ from flocker.common import loop_until, timeout
 
 from .._interfaces import IScenario
 
-from rate_measurer import RateMeasurer, DEFAULT_SAMPLE_SIZE
+from ._rate_measurer import RateMeasurer, DEFAULT_SAMPLE_SIZE
 
 
 class RequestRateTooLow(Exception):

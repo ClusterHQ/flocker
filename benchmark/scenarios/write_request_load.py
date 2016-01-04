@@ -12,9 +12,9 @@ from flocker.common import timeout
 
 from .._interfaces import IScenario, IRequestGenerator, IScenarioSetup
 
-from rate_measurer import DEFAULT_SAMPLE_SIZE
+from ._rate_measurer import DEFAULT_SAMPLE_SIZE
 
-from request_load import (
+from ._request_load import (
     RequestLoadScenario, RequestOverload, RequestRateTooLow,
     RequestRateNotReached, NoNodesFound
 )

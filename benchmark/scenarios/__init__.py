@@ -5,8 +5,8 @@ from .write_request_load import WriteRequestLoadScenario, DatasetCreationTimeout
 from .rate_measurer import (
     RateMeasurer, DEFAULT_SAMPLE_SIZE
 )
-from .request_load import (
-    RequestLoadScenario, RequestRateTooLow, RequestRateNotReached,
+from ._request_load import (
+    RequestRateTooLow, RequestRateNotReached,
     RequestOverload, NoNodesFound
 )
 

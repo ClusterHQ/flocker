@@ -1,6 +1,6 @@
 from flocker.testtools import TestCase
 
-from benchmark.scenarios import RateMeasurer
+from .._rate_measurer import RateMeasurer
 
 
 class RateMeasurerTest(TestCase):
