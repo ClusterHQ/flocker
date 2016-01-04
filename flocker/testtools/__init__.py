@@ -281,41 +281,46 @@ class FakeSysModule(object):
         self.stderr = io.BytesIO()
 
 
-class FlockerScriptTestsMixin(object):
-    """Common tests for scripts that can be run via L{FlockerScriptRunner}
-
-    :ivar ICommandLineScript script: The script class under test.
-    :ivar usage.Options options: The options parser class to use in the test.
-    :ivar text command_name: The name of the command represented by ``script``.
+def make_flocker_script_test(script, options, command_name):
     """
+    Return a ``FlockerScriptTestCase`` which tests that the script
+    class provides ICommandLineScript
 
-    script = None
-    options = None
-    command_name = None
+    :param ICommandLineScript script: The script class under test.
+    :param usage.Options options: The options parser class to use in the test.
+    :param text command_name: The name of the command represented by ``script``.
 
-    def test_interface(self):
+    :returns: A ``TestCase``.
+    """
+    class FlockerScriptTestCase(TestCase):
         """
-        A script that is meant to be run by ``FlockerScriptRunner`` must
-        implement ``ICommandLineScript``.
+        Test for classes that implement ICommandLineScript
         """
-        self.assertTrue(verifyObject(ICommandLineScript, self.script()))
 
-    def test_incorrect_arguments(self):
-        """
-        ``FlockerScriptRunner.main`` exits with status 1 and prints help to
-        `stderr` if supplied with unexpected arguments.
-        """
-        sys_module = FakeSysModule(
-            argv=[self.command_name, b'--unexpected_argument'])
-        script = FlockerScriptRunner(
-            reactor=None, script=self.script(), options=self.options(),
-            sys_module=sys_module)
-        error = self.assertRaises(SystemExit, script.main)
-        error_text = sys_module.stderr.getvalue()
-        self.assertEqual(
-            (1, []),
-            (error.code, help_problems(self.command_name, error_text))
-        )
+        def test_interface(self):
+            """
+            A script that is meant to be run by ``FlockerScriptRunner`` must
+            implement ``ICommandLineScript``.
+            """
+            self.assertTrue(verifyObject(ICommandLineScript, script()))
+
+        def test_incorrect_arguments(self):
+            """
+            ``FlockerScriptRunner.main`` exits with status 1 and prints help to
+            `stderr` if supplied with unexpected arguments.
+            """
+            sys_module = FakeSysModule(
+                argv=[command_name, b'--unexpected_argument'])
+            script_runner = FlockerScriptRunner(
+                reactor=None, script=script(), options=options(),
+                sys_module=sys_module)
+            error = self.assertRaises(SystemExit, script_runner.main)
+            error_text = sys_module.stderr.getvalue()
+            self.assertEqual(
+                (1, []),
+                (error.code, help_problems(command_name, error_text))
+            )
+    return FlockerScriptTestCase
 
 
 class StandardOptionsTestsMixin(object):

@@ -4,18 +4,17 @@ import os
 
 from twisted.python.filepath import FilePath
 from ...testtools import (
-    FlockerScriptTestsMixin, StandardOptionsTestsMixin, TestCase,
+    make_flocker_script_test, StandardOptionsTestsMixin, TestCase,
 )
 from .._script import CAScript, CAOptions
 
 
-class FlockerCATests(FlockerScriptTestsMixin, TestCase):
+class FlockerCATests(
+        make_flocker_script_test(CAScript, CAOptions, u'flocker-ca')
+):
     """
     Tests for ``flocker-ca`` CLI.
     """
-    script = CAScript
-    options = CAOptions
-    command_name = u'flocker-ca'
 
 
 class CAOptionsTests(StandardOptionsTestsMixin, TestCase):
