@@ -4,7 +4,7 @@ from .read_request_load import read_request_load_scenario
 from .write_request_load import (
     write_request_load_scenario, DatasetCreationTimeout
 )
-from .rate_measurer import (
+from ._rate_measurer import (
     RateMeasurer, DEFAULT_SAMPLE_SIZE
 )
 from ._request_load import (
