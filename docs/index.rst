@@ -72,6 +72,7 @@ Let us know with the form below!
    flocker-standalone/index
    flocker-features/index
    reference/index
+   labs/index
    releasenotes/index
    faq/index
    gettinginvolved/index

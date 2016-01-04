@@ -50,3 +50,8 @@ Tutorials
 
 * Using the Flocker plugin for Docker directly
 * Flocker with Docker Swarm and Compose
+
+.. toctree::
+   :maxdepth: 2
+
+   cloudformation
