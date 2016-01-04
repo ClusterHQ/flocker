@@ -20,6 +20,14 @@ from subprocess import check_output
 
 
 class Box(object):
+    """
+    Representation of some trivial metadata for a version of a Vagrant box.
+
+    :ivar bytes _version_string: The uninterpreted version string as reported
+        by Vagrant.
+    :ivar LooseVersion version: The parsed form of the version.
+    :ivar bytes name: The name of the box as reported by Vagrant.
+    """
     def __init__(self, name, rest):
         """
         :param bytes rest: The second columne from a ``vagrant box list``
@@ -31,6 +39,9 @@ class Box(object):
 
 
     def remove(self):
+        """
+        Remove this version of this box from the system.
+        """
         check_output([
             b"vagrant", b"box", b"remove",
             b"--box-version", self._version_string, self.name,
@@ -38,6 +49,10 @@ class Box(object):
 
 
 def list_vagrant_boxes():
+    """
+    :return: An iterator of ``Box`` instances, one for each version of each box
+        on the system.
+    """
     boxes = check_output([b"vagrant", b"box", b"list"])
     return (
         Box(*line.split(None, 1))
@@ -48,6 +63,11 @@ def list_vagrant_boxes():
 
 
 def main(box_name):
+    """
+    Remove all but the most recent version of a Vagrant box.
+
+    :param bytes box_name: The name of the Vagrant box to manipulate.
+    """
     boxes = list(
         box for box in list_vagrant_boxes() if box.name == box_name
     )
