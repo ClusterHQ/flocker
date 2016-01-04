@@ -2,4 +2,4 @@
 Quick Installation of Flocker with Swarm on AWS
 ===============================================
 
-<cloudformation buttons go here>
+cloudformation buttons go here
