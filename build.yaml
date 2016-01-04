@@ -88,8 +88,10 @@ common_cli:
   # TODO: https://clusterhq.atlassian.net/browse/FLOC-2986
   add_shell_functions: &add_shell_functions |
 
-    # set a default AWS endpoint for S3 operations
-    export S3_ENDPOINT=us-west-2
+    # set default AWS region for S3 operations
+    export S3_REGION=us-west-2
+    # Docs buckets (clusterhq-staging-docs, doc-dev.clusterhq.com) are hosted in us-east-1
+    export S3_DOCS_REGION=us-east-1
 
     # The long directory names where we build our code cause pip to fail.
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
@@ -202,7 +204,7 @@ common_cli:
     function s3_upload() {
       echo "uploading ${2} to S3 bucket ${1} ..."
       retry_n_times_with_timeout 3 900 \
-        aws --region ${S3_ENDPOINT} s3 cp "${2}" s3://${1}/
+        aws --region ${S3_REGION} s3 cp "${2}" s3://${1}/
     }
 
     # creates a metadata file to be used with vagrant up; vagrant box update
@@ -831,9 +833,14 @@ common_cli:
   upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
     # uploads the new generated html to a folder on the S3 staging-docs bucket
     cd _build/html
-    aws --region ${S3_ENDPOINT} s3 sync . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
+    aws --region ${S3_DOCS_REGION} s3 sync . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
     echo "This branch is available at :"
     echo "http://clusterhq-staging-docs.s3.amazonaws.com/$TRIGGERED_BRANCH/index.html"
+
+  sync_master_docs_to_doc_dev: &sync_master_docs_to_doc_dev |
+    # ensure master docs at doc-dev are up-to-date
+    [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --acl public-read \
+      s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
 
   upload_vagrant_tutorial_basebox_to_s3: &upload_vagrant_tutorial_basebox_to_s3 |
     # uploads the generated vagrant box to a folder on the S3
@@ -1171,7 +1178,8 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *install_aws_cli, *run_sphinx,
                    *get_s3_creds_for_bucket_staging_docs,
-                   *upload_new_docs_html_to_s3_staging_docs]
+                   *upload_new_docs_html_to_s3_staging_docs,
+                   *sync_master_docs_to_doc_dev ]
           }
       timeout: 10
 
