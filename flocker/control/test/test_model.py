@@ -13,7 +13,6 @@ from pyrsistent import (
     pvector, PRecord
 )
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from hypothesis import given, assume
@@ -21,7 +20,7 @@ from hypothesis.strategies import sampled_from
 
 from zope.interface.verify import verifyObject
 
-from ...testtools import make_with_init_tests
+from ...testtools import make_with_init_tests, TestCase
 from .._model import pset_field, pmap_field, pvector_field, ip_to_uuid
 
 from .. import (
@@ -33,7 +32,7 @@ from .. import (
 )
 
 
-class IPToUUIDTests(SynchronousTestCase):
+class IPToUUIDTests(TestCase):
     """
     Tests for ``ip_to_uuid``.
     """
@@ -75,7 +74,7 @@ class DockerImageInitTests(make_with_init_tests(
     """
 
 
-class DockerImageTests(SynchronousTestCase):
+class DockerImageTests(TestCase):
     """
     Other tests for ``DockerImage``.
     """
@@ -112,7 +111,7 @@ class DockerImageTests(SynchronousTestCase):
         )
 
 
-class DockerImageFromStringTests(SynchronousTestCase):
+class DockerImageFromStringTests(TestCase):
     """
     Tests for ``DockerImage.from_string``.
     """
@@ -174,7 +173,7 @@ class NodeInitTests(make_with_init_tests(
         self.assertEqual(node.uuid, uuid)
 
 
-class ManifestationTests(SynchronousTestCase):
+class ManifestationTests(TestCase):
     """
     Tests for ``Manifestation``.
     """
@@ -187,7 +186,7 @@ class ManifestationTests(SynchronousTestCase):
         self.assertEqual(m1.dataset_id, m1.dataset.dataset_id)
 
 
-class NodeTests(SynchronousTestCase):
+class NodeTests(TestCase):
     """
     Tests for ``Node``.
     """
@@ -250,7 +249,7 @@ class NodeTests(SynchronousTestCase):
                           manifestations={u"123": MANIFESTATION})
 
 
-class NodeStateTests(SynchronousTestCase):
+class NodeStateTests(TestCase):
     """
     Tests for ``NodeState``.
     """
@@ -397,7 +396,7 @@ class NonManifestDatasetsInitTests(make_with_init_tests(
     """
 
 
-class NonManifestDatasetsTests(SynchronousTestCase):
+class NonManifestDatasetsTests(TestCase):
     """
     Tests for ``NonManifestDatasets``.
     """
@@ -448,7 +447,7 @@ class DeploymentInitTests(make_with_init_tests(
     """
 
 
-class GetNodeTests(SynchronousTestCase):
+class GetNodeTests(TestCase):
     """
     Tests for ``Deployment.get_node`` and ``DeploymentState.get_node``.
     """
@@ -504,7 +503,7 @@ class GetNodeTests(SynchronousTestCase):
         )
 
 
-class DeploymentTests(SynchronousTestCase):
+class DeploymentTests(TestCase):
     """
     Tests for ``Deployment``.
     """
@@ -736,7 +735,7 @@ class DeploymentTests(SynchronousTestCase):
         self.assertEqual(original, updated)
 
 
-class RestartOnFailureTests(SynchronousTestCase):
+class RestartOnFailureTests(TestCase):
     """
     Tests for ``RestartOnFailure``.
     """
@@ -784,7 +783,7 @@ class RestartOnFailureTests(SynchronousTestCase):
         )
 
 
-class AttachedVolumeTests(SynchronousTestCase):
+class AttachedVolumeTests(TestCase):
     """
     Tests for ``AttachedVolume``.
     """
@@ -803,7 +802,7 @@ class AttachedVolumeTests(SynchronousTestCase):
 PYRSISTENT_STRUCT = sampled_from({PClass, PRecord})
 
 
-class PSetFieldTests(SynchronousTestCase):
+class PSetFieldTests(TestCase):
     """
     Tests for ``pset_field``.
 
@@ -919,7 +918,7 @@ class PSetFieldTests(SynchronousTestCase):
                 ("SomethingPSet", "IntPSet"))
 
 
-class PVectorFieldTests(SynchronousTestCase):
+class PVectorFieldTests(TestCase):
     """
     Tests for ``pvector_field``.
 
@@ -1035,7 +1034,7 @@ class PVectorFieldTests(SynchronousTestCase):
                 ("SomethingPVector", "IntPVector"))
 
 
-class PMapFieldTests(SynchronousTestCase):
+class PMapFieldTests(TestCase):
     """
     Tests for ``pmap_field``.
 
@@ -1188,7 +1187,7 @@ class PMapFieldTests(SynchronousTestCase):
         assert Record(value={1: 2}).value == {1: 2}
 
 
-class DeploymentStateTests(SynchronousTestCase):
+class DeploymentStateTests(TestCase):
     """
     Tests for ``DeploymentState``.
     """
@@ -1357,7 +1356,7 @@ class DeploymentStateTests(SynchronousTestCase):
         self.assertEqual(original, original.remove_node(uuid4()))
 
 
-class SameNodeTests(SynchronousTestCase):
+class SameNodeTests(TestCase):
     """
     Tests for ``same_node``.
     """
@@ -1394,7 +1393,7 @@ class SameNodeTests(SynchronousTestCase):
                          [True, False])
 
 
-class NodeStateWipingTests(SynchronousTestCase):
+class NodeStateWipingTests(TestCase):
     """
     Tests for ``NodeState.get_information_wipe``.
     """
@@ -1486,7 +1485,7 @@ class NodeStateWipingTests(SynchronousTestCase):
             DeploymentState(nodes={node_2}))
 
 
-class NoWipeTests(SynchronousTestCase):
+class NoWipeTests(TestCase):
     """
     Tests for ``NoWipe``.
     """
@@ -1515,7 +1514,7 @@ class NoWipeTests(SynchronousTestCase):
         self.assertEqual(updated, cluster_state)
 
 
-class NonManifestDatasetsWipingTests(SynchronousTestCase):
+class NonManifestDatasetsWipingTests(TestCase):
     """
     Tests for ``NonManifestDatasets.get_information_wipe()``.
 
@@ -1531,7 +1530,7 @@ class NonManifestDatasetsWipingTests(SynchronousTestCase):
         self.assertIsInstance(wipe, NoWipe)
 
 
-class LinkTests(SynchronousTestCase):
+class LinkTests(TestCase):
     """
     Tests for ``Link``.
     """
@@ -1544,7 +1543,7 @@ class LinkTests(SynchronousTestCase):
         self.assertEqual(link, link2)
 
 
-class LeaseTests(SynchronousTestCase):
+class LeaseTests(TestCase):
     """
     Tests for ``Leases``.
     """
@@ -1552,6 +1551,7 @@ class LeaseTests(SynchronousTestCase):
         """
         Setup for each test.
         """
+        super(LeaseTests, self).setUp()
         self.leases = Leases()
         self.now = datetime.datetime.now()
         self.dataset_id = uuid4()
@@ -1717,7 +1717,7 @@ class LeaseTests(SynchronousTestCase):
         )
 
 
-class UpdateNodeStateEraTests(SynchronousTestCase):
+class UpdateNodeStateEraTests(TestCase):
     """
     Tests for ``UpdateNodeStateEraTests``.
     """

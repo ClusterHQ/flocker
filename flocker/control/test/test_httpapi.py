@@ -16,7 +16,6 @@ from zope.interface.verify import verifyObject
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.web.http import (
     CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR,
@@ -48,6 +47,7 @@ from .._config import (
     FlockerConfiguration, FigConfiguration, model_from_configuration)
 from .test_config import COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML
 from ... import __version__
+from ...testtools import TestCase
 
 
 class APITestsMixin(APIAssertionsMixin):
@@ -2645,7 +2645,7 @@ RealTestsGetDatasetConfiguration, MemoryTestsGetDatasetConfiguration = (
 )
 
 
-class CreateAPIServiceTests(SynchronousTestCase):
+class CreateAPIServiceTests(TestCase):
     """
     Tests for ``create_api_service``.
     """
@@ -2842,7 +2842,7 @@ RealTestsDatasetsStateAPI, MemoryTestsDatasetsStateAPI = buildIntegrationTests(
     DatasetsStateTestsMixin, "DatasetsStateAPI", _build_app)
 
 
-class DatasetsFromDeploymentTests(SynchronousTestCase):
+class DatasetsFromDeploymentTests(TestCase):
     """
     Tests for ``datasets_from_deployment``.
     """
@@ -3025,7 +3025,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         )
 
 
-class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
+class APIDatasetFromDatasetAndNodeTests(TestCase):
     """
     Tests for ``api_dataset_from_dataset_and_node``.
     """
