@@ -359,7 +359,7 @@ CREATE_MOUNT_SYMLINK = ActionType(
 )
 
 REMOVE_MOUNT_SYMLINK = ActionType(
-    u"agent:blockdevice:symlink",
+    u"agent:blockdevice:remove_symlink",
     [DATASET_ID],
     [],
     u"The symlink to a dataset is being unlinked.",
@@ -628,7 +628,7 @@ class RemoveMountSymlink(PClass):
 
     @property
     def eliot_action(self):
-        return CREATE_MOUNT_SYMLINK(_logger, dataset_id=self.dataset_id)
+        return REMOVE_MOUNT_SYMLINK(_logger, dataset_id=self.dataset_id)
 
     def run(self, deployer):
         """
