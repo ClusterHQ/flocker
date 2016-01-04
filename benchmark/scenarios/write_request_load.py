@@ -105,8 +105,16 @@ class WriteRequest(object):
         return d
 
     def make_request(self):
+        """
+        Makes a single write request.
+        It will try to move the dataset to the same location where it
+        is right now, so no real changes will be made to the config.
+
+        :return: A `Deferred` that fires when the dataset has been moved.
+
+        :raise DatasetCreationTimeout: if there is no dataset to be moved.
+        """
         if self.dataset_node is None:
-            # Rise exception
             raise DatasetCreationTimeout
         return self.control_service.move_dataset(
             self.dataset_node.uuid,
@@ -127,6 +135,9 @@ def write_request_load_scenario(reactor, cluster, request_rate=10,
         the rate.
     :param timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
+
+    :return: a `RequestLoadScenario` initialised to be a write load
+        scenario.
     """
     return RequestLoadScenario(
         reactor,
