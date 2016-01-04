@@ -72,7 +72,7 @@ Further Reading
 Now that you've installed your own Flocker cluster, you may want to learn more about Flocker:
 
 * :ref:`controlling-flocker` (note that the ``flocker-deploy`` tool is installed on your system as ``uft-flocker-deploy``)
-* :ref:`Flocker concepts <concepts>`
+* :ref:`Flocker features <features>`
 * :ref:`API reference <api>`
 
 Or try some of our more experimental projects and integrations, including:
