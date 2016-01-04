@@ -93,7 +93,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         try:
             config = get_blockdevice_config(ProviderType.aws)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
 
         dataset_id = uuid4()
         ec2_client = get_ec2_client_for_test(config)
