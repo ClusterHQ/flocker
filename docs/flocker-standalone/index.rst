@@ -33,7 +33,7 @@ The following diagram illustrates the architecture for the Installer:
 * The Installer creates certificates for you, saves them in your cluster directory, installs Flocker and the certificates on servers, and starts Flocker.
 * You can now interact with your Flocker cluster using the ``docker`` CLI on the nodes, or locally by using the ``uft-flocker-deploy`` tool or the ``uft-flocker-volumes`` tool.
 
-The following instructiosn will take you through setting up the Installer, and running a tutorial to check everything is working:
+The following instructions will take you through installing Flocker with the Installer, and running a tutorial to check everything is working:
 
 .. toctree::
    :maxdepth: 1
