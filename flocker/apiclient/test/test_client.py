@@ -635,9 +635,10 @@ def make_clientv1_tests():
             ``Node``s.
             """
             d = self.client.list_nodes()
+            d.addCallback(frozenset)
             d.addCallback(
                 self.assertItemsEqual,
-                [self.node_1, self.node_2]
+                frozenset([self.node_1, self.node_2]),
             )
             return d
 
