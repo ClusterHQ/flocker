@@ -15,6 +15,10 @@ class FlockerCLITests(FlockerScriptTestsMixin, TestCase):
 
 class CLIOptionsTests(StandardOptionsTestsMixin, TestCase):
     """Tests for :class:`CLIOptions`."""
+
+    # XXX: Actual tests live in StandardOptionsTestsMixin. FLOC-3794 says we
+    # should make those tests use a pattern similar to
+    # make_iblockdeviceapi_tests. tests
     options = CLIOptions
 
 
