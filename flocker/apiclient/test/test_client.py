@@ -19,7 +19,7 @@ from pyrsistent import pmap
 from eliot import ActionType
 from eliot.testing import capture_logging, assertHasAction, LoggedAction
 
-from twisted.trial.unittest import TestCase, SynchronousTestCase
+from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 from twisted.internet import reactor
@@ -38,7 +38,9 @@ from .._client import (
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
-from ...testtools import find_free_port, random_name, CustomException
+from ...testtools import (
+    find_free_port, random_name, CustomException, AsyncTestCase,
+)
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
@@ -67,8 +69,9 @@ def make_clientv1_tests():
     synchronize_state: Make state match the configuration.
     get_configuration_tag: Return the configuration hash.
     """
-    class InterfaceTests(TestCase):
+    class InterfaceTests(AsyncTestCase):
         def setUp(self):
+            super(InterfaceTests, self).setUp()
             self.node_1 = Node(
                 uuid=uuid4(),
                 public_address=IPAddress('10.0.0.1')
@@ -403,16 +406,17 @@ def make_clientv1_tests():
                 ])
             d.addCallback(lambda _: self.client.release_lease(d2))
             d.addCallback(lambda _: self.client.list_leases())
+            d.addCallback(frozenset)
             d.addCallback(
-                self.assertItemsEqual,
-                [
+                self.assertEqual,
+                frozenset([
                     Lease(
                         dataset_id=d1, node_uuid=self.node_1.uuid, expires=10
                     ),
                     Lease(
                         dataset_id=d3, node_uuid=self.node_2.uuid, expires=10.5
                     )
-                ]
+                ])
             )
             return d
 
