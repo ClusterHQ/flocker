@@ -18,7 +18,6 @@ from zope.interface import implementer
 from eliot import Message
 from eliot.testing import assertContainsFields
 
-from twisted.trial.unittest import TestCase
 from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutput
 from twisted.internet.defer import succeed, Deferred
@@ -29,7 +28,7 @@ from twisted.python.usage import Options, UsageError
 
 from ..script import ICommandLineScript, flocker_standard_options
 from ...common import loop_until
-from ...testtools import random_name, if_root
+from ...testtools import random_name, if_root, AsyncTestCase, TestCase
 
 
 def _journald_available():
@@ -115,7 +114,7 @@ FlockerScriptRunner({}(), StandardOptions()).main()
 '''
 
 
-class FlockerScriptRunnerTests(TestCase):
+class FlockerScriptRunnerTests(AsyncTestCase):
     """
     Functional tests for ``FlockerScriptRunner``.
     """
@@ -311,7 +310,7 @@ class FlockerScriptRunnerTests(TestCase):
         return d
 
 
-class FlockerScriptRunnerJournaldTests(TestCase):
+class FlockerScriptRunnerJournaldTests(AsyncTestCase):
     """
     Functional tests for ``FlockerScriptRunner`` journald support.
     """

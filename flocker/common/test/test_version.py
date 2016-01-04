@@ -5,8 +5,6 @@ Tests for :module:`flocker.docs.version`.
 """
 
 
-from twisted.trial.unittest import SynchronousTestCase
-
 try:
     from packaging.version import Version as PEP440Version
     PACKAGING_INSTALLED = True
@@ -26,9 +24,10 @@ from ..version import (
 )
 
 from flocker.common.version import RPMVersion, make_rpm_version
+from flocker.testtools import TestCase
 
 
-class MakeRpmVersionTests(SynchronousTestCase):
+class MakeRpmVersionTests(TestCase):
     """
     Tests for ``make_rpm_version``.
     """
@@ -71,7 +70,7 @@ class MakeRpmVersionTests(SynchronousTestCase):
             make_rpm_version('0.1.2rcX')
 
 
-class InvalidVersionTests(SynchronousTestCase):
+class InvalidVersionTests(TestCase):
     """
     Tests for invalid versions.
     """
@@ -400,7 +399,7 @@ class GetPreReleaseTests(SynchronousTestCase):
         self.assertEqual(get_pre_release('0.3.2rc3'), 3)
 
 
-class TargetReleaseTests(SynchronousTestCase):
+class TargetReleaseTests(TestCase):
     """
     Tests for :function:`target_release`.
     """
@@ -420,7 +419,7 @@ class TargetReleaseTests(SynchronousTestCase):
         self.assertEqual(target_release('0.3.2rc3'), '0.3.2')
 
 
-class GetPackageKeySuffixTests(SynchronousTestCase):
+class GetPackageKeySuffixTests(TestCase):
     """
     Tests for :function:`get_package_key_suffix`.
     """
