@@ -19,7 +19,6 @@ from pyrsistent import pmap
 from eliot import ActionType
 from eliot.testing import capture_logging, assertHasAction, LoggedAction
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 from twisted.internet import reactor
@@ -39,7 +38,7 @@ from .._client import (
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
 from ...testtools import (
-    find_free_port, random_name, CustomException, AsyncTestCase,
+    find_free_port, random_name, CustomException, AsyncTestCase, TestCase,
 )
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
@@ -888,11 +887,12 @@ class FlockerClientTests(make_clientv1_tests()):
                                   ResponseError)
 
 
-class ConditionalCreateTests(SynchronousTestCase):
+class ConditionalCreateTests(TestCase):
     """
     Tests for ``conditional_create``.
     """
     def setUp(self):
+        super(ConditionalCreateTests, self).setUp()
         self.client = FakeFlockerClient()
         self.reactor = Clock()
         self.node_id = uuid4()
