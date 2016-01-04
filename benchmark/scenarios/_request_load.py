@@ -1,6 +1,6 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Read request load scenario for the control service benchmarks.
+Request load scenario for the control service benchmarks.
 """
 from itertools import repeat
 
@@ -45,7 +45,7 @@ class NoNodesFound(Exception):
 @implementer(IScenario)
 class RequestLoadScenario(object):
     """
-    A scenario that places load on the cluster by performing read
+    A scenario that places load on the cluster by performing
     requests at a specified rate.
 
     :ivar reactor: Reactor to use.
@@ -60,14 +60,12 @@ class RequestLoadScenario(object):
     """
 
     def __init__(
-        self, reactor, request_generator_instance, request_rate=10,
-        sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
-        setup_instance=None
+        self, reactor, scenario_setup_instance, request_rate=10,
+        sample_size=DEFAULT_SAMPLE_SIZE, timeout=45
     ):
         self._maintained = Deferred()
         self.reactor = reactor
-        self.request_generator = request_generator_instance
-        self.setup = setup_instance
+        self.scenario_setup = scenario_setup_instance
         self.request_rate = request_rate
         self.timeout = timeout
         self.rate_measurer = RateMeasurer(sample_size)
@@ -94,7 +92,7 @@ class RequestLoadScenario(object):
             write_failure(result)
 
         for i in range(self.request_rate):
-            d = self.request_generator.make_request()
+            d = self.scenario_setup.make_request()
             self.rate_measurer.request_sent()
             d.addCallbacks(self.rate_measurer.response_received,
                            errback=handle_request_error)
@@ -113,8 +111,8 @@ class RequestLoadScenario(object):
         not overloaded. A scenario is overloaded if there are too many
         outstanding requests.
 
-        :raise: `RequestRateTooLow` if the rate has dropped.
-        :raise: `RequestOverload` if the scenario is overloaded.
+        :raise RequestRateTooLow: if the rate has dropped.
+        :raise RequestOverload: if the scenario is overloaded.
         """
         rate = self.rate_measurer.rate()
         if rate < self.request_rate:
@@ -124,11 +122,8 @@ class RequestLoadScenario(object):
             self._fail(RequestOverload())
 
     def start(self):
-        if self.setup is None:
-            d = self.run_scenario(None)
-        else:
-            d = self.setup.run_setup()
-            d.addCallback(self.run_scenario)
+        d = self.scenario_setup.run_setup()
+        d.addCallback(self.run_scenario)
         return d
 
     def run_scenario(self, result):
@@ -194,7 +189,7 @@ class RequestLoadScenario(object):
 
         with start_action(
             action_type=u'flocker:benchmark:scenario:stop',
-            scenario='read_request_load'
+            scenario='request_load'
         ):
             def handle_timeout(failure):
                 failure.trap(CancelledError)

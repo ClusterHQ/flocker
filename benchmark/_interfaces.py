@@ -89,21 +89,16 @@ class IMetric(Interface):
         """
 
 
-class IRequestGenerator(Interface):
+class IRequestScenarioSetup(Interface):
     """
-    A request generator that provides a method to generate
-    a request of certain type (like read or write)
+    Setup for a load scenario.
+    It will provide a setup function and a make request function to
+    make requests of a certain type
     """
     def make_request():
         """
         Interface for request generator
         """
-
-
-class IScenarioSetup(Interface):
-    """
-    Setup for a load scenario
-    """
     def run_setup(self):
         """
         Interface for the scenario load setup

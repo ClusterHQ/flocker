@@ -14,7 +14,7 @@ from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
-    WriteRequestLoadScenario, RequestRateTooLow, RequestRateNotReached,
+    write_request_load_scenario, RequestRateTooLow, RequestRateNotReached,
     RequestOverload, DatasetCreationTimeout
 )
 
@@ -84,12 +84,12 @@ class UnresponsiveDatasetCreationFakeFlockerClient(
         return Deferred()
 
 
-class WriteRequestLoadScenarioTest(TestCase):
+class write_request_load_scenarioTest(TestCase):
     """
-    WriteRequestLoadScenario tests.
+    write_request_load_scenario tests.
     """
     def setUp(self):
-        super(WriteRequestLoadScenarioTest, self).setUp()
+        super(write_request_load_scenarioTest, self).setUp()
         self.node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
         self.node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
 
@@ -139,21 +139,21 @@ class WriteRequestLoadScenarioTest(TestCase):
 
     def test_setup_generates_dataset(self):
         """
-        `WriteRequestLoadScenario` starts and stops without collapsing.
+        `write_request_load_scenario` starts and stops without collapsing.
         """
         c = Clock()
         cluster = self.make_cluster(self.get_fake_flocker_client_instance())
-        s = WriteRequestLoadScenario(c, cluster, 5, sample_size=3)
+        s = write_request_load_scenario(c, cluster, 5, sample_size=3)
 
         def assert_created(returned_datasets):
             self.assertNotEqual(returned_datasets, [])
 
         # Create a datasest and verify we get a success
-        d = s.setup._create_dataset(self.node1)
+        d = s.scenario_setup._create_dataset(self.node1)
         self.successResultOf(d)
 
         # Verify that a dataset is actually being created
-        d2 = s.setup.control_service.list_datasets_configuration()
+        d2 = s.scenario_setup.control_service.list_datasets_configuration()
         d2.addCallback(assert_created)
         s.stop()
 
@@ -164,28 +164,28 @@ class WriteRequestLoadScenarioTest(TestCase):
 
     def test_setup_timeout_when_datasat_not_created(self):
         """
-        `WriteRequestLoadScenario` should timeout if the setup the dataset
+        `write_request_load_scenario` should timeout if the setup the dataset
         creation does not complete within the given time.
         """
         c = Clock()
         cluster = self.make_cluster(
             self.get_unresponsive_flocker_client_instance())
-        s = WriteRequestLoadScenario(c, cluster, 5, sample_size=3)
+        s = write_request_load_scenario(c, cluster, 5, sample_size=3)
 
         d = s.start()
-        c.pump(repeat(1, s.setup.timeout+1))
+        c.pump(repeat(1, s.scenario_setup.timeout+1))
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, DatasetCreationTimeout)
 
     def test_write_request_load_succeeds(self):
         """
-        WriteRequestLoadScenario starts and stops without collapsing.
+        write_request_load_scenario starts and stops without collapsing.
         """
         c = Clock()
         cluster = self.make_cluster(self.get_fake_flocker_client_instance())
         sample_size = 5
-        s = WriteRequestLoadScenario(c, cluster, sample_size=sample_size)
+        s = write_request_load_scenario(c, cluster, sample_size=sample_size)
 
         d = s.start()
 
@@ -200,7 +200,7 @@ class WriteRequestLoadScenarioTest(TestCase):
 
     def test_scenario_throws_exception_when_rate_drops(self):
         """
-        WriteRequestLoadScenario raises RequestRateTooLow if rate
+        write_request_load_scenario raises RequestRateTooLow if rate
         drops below the requested rate.
 
         Establish the requested rate by having the FakeFlockerClient
@@ -212,7 +212,7 @@ class WriteRequestLoadScenarioTest(TestCase):
         control_service = self.get_dropping_flocker_client_instance()
         cluster = self.make_cluster(control_service)
         sample_size = 5
-        s = WriteRequestLoadScenario(c, cluster, sample_size=sample_size)
+        s = write_request_load_scenario(c, cluster, sample_size=sample_size)
 
         s.start()
 
@@ -231,26 +231,26 @@ class WriteRequestLoadScenarioTest(TestCase):
 
     def test_scenario_throws_exception_if_requested_rate_not_reached(self):
         """
-        WriteRequestLoadScenario raises RequestRateNotReached if the
+        write_request_load_scenario raises RequestRateNotReached if the
         target rate cannot be established within a given timeframe.
         """
         c = Clock()
         control_service = self.get_dropping_flocker_client_instance()
         cluster = self.make_cluster(control_service)
-        s = WriteRequestLoadScenario(c, cluster)
+        s = write_request_load_scenario(c, cluster)
         control_service.drop_requests = True
         d = s.start()
 
         # Continue the clock for one second longer than the timeout
         # value to allow the timeout to be triggered.
-        c.advance(s.request_scenario.timeout + 1)
+        c.advance(s.timeout + 1)
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, RequestRateNotReached)
 
     def test_scenario_throws_exception_if_overloaded(self):
         """
-        `WriteRequestLoadScenario` raises `RequestOverload` if the
+        `write_request_load_scenario` raises `RequestOverload` if the
         difference between sent requests and received requests exceeds
         the tolerated difference once we start monitoring the scenario.
 
@@ -267,10 +267,10 @@ class WriteRequestLoadScenarioTest(TestCase):
         cluster = self.make_cluster(control_service)
         target_rate = 10
         sample_size = 20
-        s = WriteRequestLoadScenario(c, cluster, request_rate=target_rate,
+        s = write_request_load_scenario(c, cluster, request_rate=target_rate,
                                      sample_size=sample_size)
         dropped_rate = target_rate / 2
-        seconds_to_overload = s.request_scenario.max_outstanding / dropped_rate
+        seconds_to_overload = s.max_outstanding / dropped_rate
 
         s.start()
         # Reach initial rate
@@ -291,7 +291,7 @@ class WriteRequestLoadScenarioTest(TestCase):
 
     def test_scenario_stops_only_when_no_outstanding_requests(self):
         """
-        `WriteRequestLoadScenario` should only be considered as stopped
+        `write_request_load_scenario` should only be considered as stopped
         when all outstanding requests made by it have completed.
         """
         c = Clock()
@@ -302,7 +302,7 @@ class WriteRequestLoadScenarioTest(TestCase):
 
         control_service.delay = delay
         sample_size = 5
-        s = WriteRequestLoadScenario(
+        s = write_request_load_scenario(
             c, cluster, request_rate=10, sample_size=sample_size
         )
 
@@ -330,7 +330,7 @@ class WriteRequestLoadScenarioTest(TestCase):
 
     def test_scenario_timeouts_if_requests_not_completed(self):
         """
-        `WriteRequestLoadScenario` should timeout if the outstanding
+        `write_request_load_scenario` should timeout if the outstanding
         requests for the scenarion do not complete within the specified
         time.
         """
@@ -339,13 +339,13 @@ class WriteRequestLoadScenarioTest(TestCase):
         control_service = self.get_error_response_client(c)
         cluster = self.make_cluster(control_service)
         sample_size = 5
-        s = WriteRequestLoadScenario(
+        s = write_request_load_scenario(
             c, cluster, request_rate=10, sample_size=sample_size
         )
 
         # Set the delay for the requests to be longer than the scenario
         # timeout
-        control_service.delay = s.request_scenario.timeout + 10
+        control_service.delay = s.timeout + 10
 
         d = s.start()
         s.maintained().addBoth(lambda x: self.fail())
@@ -363,6 +363,6 @@ class WriteRequestLoadScenarioTest(TestCase):
         # Advance the clock by the timeout value so it is triggered
         # before the requests complete.
         self.assertNoResult(d)
-        c.advance(s.request_scenario.timeout + 1)
-        self.assertTrue(s.request_scenario.rate_measurer.outstanding() > 0)
+        c.advance(s.timeout + 1)
+        self.assertTrue(s.rate_measurer.outstanding() > 0)
         self.successResultOf(d)

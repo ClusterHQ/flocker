@@ -5,18 +5,16 @@ Read request load scenario for the control service benchmarks.
 
 from zope.interface import implementer
 
-from twisted.internet.defer import Deferred
-from .._interfaces import IScenario, IRequestGenerator, IScenarioSetup
+from twisted.internet.defer import succeed
+
+from .._interfaces import IRequestScenarioSetup
 
 from ._rate_measurer import DEFAULT_SAMPLE_SIZE
 
-from ._request_load import (
-    RequestLoadScenario, RequestOverload, RequestRateTooLow,
-    RequestRateNotReached
-)
+from ._request_load import RequestLoadScenario
 
 
-@implementer(IRequestGenerator)
+@implementer(IRequestScenarioSetup)
 class ReadRequest(object):
     """
     Implementation of the read request generator and the write.
@@ -29,18 +27,12 @@ class ReadRequest(object):
     def make_request(self):
         return self.control_service.list_nodes()
 
-
-@implementer(IRequestGenerator)
-class ReadRequest(object):
-    def __init__(self, reactor, cluster):
-        self.control_service = cluster.get_control_service(reactor)
-
-    def make_request(self):
-        return self.control_service.list_nodes()
+    def run_setup(self):
+        return succeed(None)
 
 
-@implementer(IScenario)
-class ReadRequestLoadScenario(object):
+def read_request_load_scenario(reactor, cluster, request_rate=10,
+                               sample_size=DEFAULT_SAMPLE_SIZE, timeout=45):
     """
     A scenario that places load on the cluster by performing read
     requests at a specified rate.
@@ -53,26 +45,11 @@ class ReadRequestLoadScenario(object):
     :ivar timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
     """
-    def __init__(self, reactor, cluster, request_rate=10,
-                 sample_size=DEFAULT_SAMPLE_SIZE, timeout=45):
-        self.read_request = ReadRequest(reactor, cluster)
-        self.setup = None
-        self.request_scenario = RequestLoadScenario(
-            reactor,
-            self.read_request,
-            request_rate=request_rate,
-            sample_size=sample_size,
-            timeout=timeout,
-            setup_instance=self.setup,
-        )
-
-    def start(self):
-        return self.request_scenario.start()
-
-    def maintained(self):
-        return self.request_scenario.maintained()
-
-    def stop(self):
-        return self.request_scenario.stop()
-
+    return RequestLoadScenario(
+        reactor,
+        ReadRequest(reactor, cluster),
+        request_rate=request_rate,
+        sample_size=sample_size,
+        timeout=timeout,
+    )
 

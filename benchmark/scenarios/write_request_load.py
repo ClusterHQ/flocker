@@ -10,7 +10,7 @@ from twisted.internet.defer import CancelledError
 
 from flocker.common import timeout
 
-from .._interfaces import IScenario, IRequestGenerator, IScenarioSetup
+from .._interfaces import IScenario, IRequestScenarioSetup
 
 from ._rate_measurer import DEFAULT_SAMPLE_SIZE
 
@@ -26,11 +26,10 @@ class DatasetCreationTimeout(Exception):
     """
 
 
-@implementer(IRequestGenerator, IScenarioSetup)
+@implementer(IRequestScenarioSetup)
 class WriteRequest(object):
     """
-    Implementation of the write request generator and the write
-    load scenario setup.
+    Implementation of the write setup.
     :ivar reactor: Reactor to use.
     :ivar cluster: `BenchmarkCluster` containing the control service.
     :ivar timeout: Maximum time in seconds to wait until the dataset is
@@ -58,8 +57,6 @@ class WriteRequest(object):
         creating = self.control_service.create_dataset(
             primary=node.uuid)
 
-        # Not sure about handling errors and timeout in the same errback.
-        # How could I handle them differently?
         def handle_timeout_and_errors(failure):
             failure.trap(CancelledError)
             raise DatasetCreationTimeout()
@@ -82,14 +79,6 @@ class WriteRequest(object):
         if not nodes:
             raise NoNodesFound()
         return random.choice(nodes)
-
-    def _set_dataset_node(self, nodes):
-        """
-        Function to set the value of the nodes once they are listed
-        (to be added as a callback once the nodes are listed)
-        :param nodes: listed nodes
-        """
-        self.nodes = nodes
 
     def _set_dataset_id(self, dataset_id):
         """
@@ -126,8 +115,8 @@ class WriteRequest(object):
             )
 
 
-@implementer(IScenario, IScenarioSetup)
-class WriteRequestLoadScenario(object):
+def write_request_load_scenario(reactor, cluster, request_rate=10,
+                                sample_size=DEFAULT_SAMPLE_SIZE, timeout=45):
     """
     A scenario that places load on the cluster by performing write
     requests at a specified rate.
@@ -140,27 +129,11 @@ class WriteRequestLoadScenario(object):
     :ivar timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
     """
-
-    def __init__(self, reactor, cluster, request_rate=10,
-                 sample_size=DEFAULT_SAMPLE_SIZE, timeout=45):
-        self.setup = WriteRequest(reactor, cluster)
-        self.read_request = self.setup
-
-        self.request_scenario = RequestLoadScenario(
-            reactor,
-            self.read_request,
-            request_rate=request_rate,
-            sample_size=sample_size,
-            timeout=timeout,
-            setup_instance=self.setup,
-        )
-
-    def start(self):
-        return self.request_scenario.start()
-
-    def maintained(self):
-        return self.request_scenario.maintained()
-
-    def stop(self):
-        return self.request_scenario.stop()
+    return RequestLoadScenario(
+        reactor,
+        WriteRequest(reactor, cluster),
+        request_rate=request_rate,
+        sample_size=sample_size,
+        timeout=timeout,
+    )
 

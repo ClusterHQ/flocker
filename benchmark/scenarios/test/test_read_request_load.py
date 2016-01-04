@@ -14,8 +14,8 @@ from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
-    ReadRequestLoadScenario, RequestRateTooLow, RequestRateNotReached,
-    RequestOverload
+    RequestRateTooLow, RequestRateNotReached,
+    RequestOverload, read_request_load_scenario
 )
 
 DEFAULT_VOLUME_SIZE = 1073741824
@@ -68,9 +68,9 @@ class RequestErrorFakeFlockerClient(
             return fail_later(self.delay)
 
 
-class ReadRequestLoadScenarioTest(TestCase):
+class read_request_load_scenarioTest(TestCase):
     """
-    ReadRequestLoadScenario tests
+    read_request_load_scenario tests
     """
     def make_cluster(self, FlockerClient):
         """
@@ -89,7 +89,7 @@ class ReadRequestLoadScenarioTest(TestCase):
 
     def test_read_request_load_succeeds(self):
         """
-        ReadRequestLoadScenario starts and stops without collapsing.
+        read_request_load_scenario starts and stops without collapsing.
         """
         c = Clock()
 
@@ -103,7 +103,7 @@ class ReadRequestLoadScenarioTest(TestCase):
         )
 
         sample_size = 5
-        s = ReadRequestLoadScenario(c, cluster, sample_size=sample_size)
+        s = read_request_load_scenario(c, cluster, sample_size=sample_size)
 
         d = s.start()
 
@@ -119,7 +119,7 @@ class ReadRequestLoadScenarioTest(TestCase):
 
     def test_scenario_throws_exception_when_rate_drops(self):
         """
-        ReadRequestLoadScenario raises RequestRateTooLow if rate
+        read_request_load_scenario raises RequestRateTooLow if rate
         drops below the requested rate.
 
         Establish the requested rate by having the FakeFlockerClient
@@ -131,7 +131,7 @@ class ReadRequestLoadScenarioTest(TestCase):
 
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
         sample_size = 5
-        s = ReadRequestLoadScenario(c, cluster, sample_size=sample_size)
+        s = read_request_load_scenario(c, cluster, sample_size=sample_size)
 
         s.start()
 
@@ -150,25 +150,25 @@ class ReadRequestLoadScenarioTest(TestCase):
 
     def test_scenario_throws_exception_if_requested_rate_not_reached(self):
         """
-        ReadRequestLoadScenario raises RequestRateNotReached if the
+        read_request_load_scenario raises RequestRateNotReached if the
         target rate cannot be established within a given timeframe.
         """
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        s = ReadRequestLoadScenario(c, cluster)
+        s = read_request_load_scenario(c, cluster)
         cluster.get_control_service(c).drop_requests = True
         d = s.start()
 
         # Continue the clock for one second longer than the timeout
         # value to allow the timeout to be triggered.
-        c.advance(s.request_scenario.timeout + 1)
+        c.advance(s.timeout + 1)
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, RequestRateNotReached)
 
     def test_scenario_throws_exception_if_overloaded(self):
         """
-        `ReadRequestLoadScenario` raises `RequestOverload` if the
+        `read_request_load_scenario` raises `RequestOverload` if the
         difference between sent requests and received requests exceeds
         the tolerated difference once we start monitoring the scenario.
 
@@ -183,10 +183,10 @@ class ReadRequestLoadScenarioTest(TestCase):
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
         target_rate = 10
         sample_size = 20
-        s = ReadRequestLoadScenario(c, cluster, request_rate=target_rate,
+        s = read_request_load_scenario(c, cluster, request_rate=target_rate,
                                     sample_size=sample_size)
         dropped_rate = target_rate / 2
-        seconds_to_overload = s.request_scenario.max_outstanding / dropped_rate
+        seconds_to_overload = s.max_outstanding / dropped_rate
 
         s.start()
         # Reach initial rate
@@ -207,7 +207,7 @@ class ReadRequestLoadScenarioTest(TestCase):
 
     def test_scenario_stops_only_when_no_outstanding_requests(self):
         """
-        `ReadRequestLoadScenario` should only be considered as stopped
+        `read_request_load_scenario` should only be considered as stopped
         when all outstanding requests made by it have completed.
         """
         c = Clock()
@@ -217,7 +217,7 @@ class ReadRequestLoadScenarioTest(TestCase):
 
         cluster.get_control_service(c).delay = delay
         sample_size = 5
-        s = ReadRequestLoadScenario(
+        s = read_request_load_scenario(
             c, cluster, request_rate=10, sample_size=sample_size
         )
 
@@ -245,7 +245,7 @@ class ReadRequestLoadScenarioTest(TestCase):
 
     def test_scenario_timeouts_if_requests_not_completed(self):
         """
-        `ReadRequestLoadScenario` should timeout if the outstanding
+        `read_request_load_scenario` should timeout if the outstanding
         requests for the scenarion do not complete within the specified
         time.
         """
@@ -253,13 +253,13 @@ class ReadRequestLoadScenarioTest(TestCase):
 
         cluster = self.make_cluster(RequestErrorFakeFlockerClient)
         sample_size = 5
-        s = ReadRequestLoadScenario(
+        s = read_request_load_scenario(
             c, cluster, request_rate=10, sample_size=sample_size
         )
 
         # Set the delay for the requests to be longer than the scenario
         # timeout
-        cluster.get_control_service(c).delay = s.request_scenario.timeout + 10
+        cluster.get_control_service(c).delay = s.timeout + 10
 
         d = s.start()
         s.maintained().addBoth(lambda x: self.fail())
@@ -277,6 +277,7 @@ class ReadRequestLoadScenarioTest(TestCase):
         # Advance the clock by the timeout value so it is triggered
         # before the requests complete.
         self.assertNoResult(d)
-        c.advance(s.request_scenario.timeout + 1)
-        self.assertTrue(s.request_scenario.rate_measurer.outstanding() > 0)
+        c.advance(s.timeout + 1)
+        self.assertTrue(s.rate_measurer.outstanding() > 0)
         self.successResultOf(d)
+
