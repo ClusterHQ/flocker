@@ -1,7 +1,8 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
-from twisted.trial.unittest import TestCase, SynchronousTestCase
-from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
+from ...testtools import (
+    FlockerScriptTestsMixin, StandardOptionsTestsMixin, TestCase,
+)
 from ..script import CLIScript, CLIOptions
 
 
@@ -12,7 +13,7 @@ class FlockerCLITests(FlockerScriptTestsMixin, TestCase):
     command_name = u'flocker'
 
 
-class CLIOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class CLIOptionsTests(StandardOptionsTestsMixin, TestCase):
     """Tests for :class:`CLIOptions`."""
     options = CLIOptions
 

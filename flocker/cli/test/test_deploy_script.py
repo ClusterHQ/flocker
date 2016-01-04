@@ -6,10 +6,9 @@ Unit tests for the implementation of ``flocker-deploy``.
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
-from twisted.trial.unittest import TestCase, SynchronousTestCase
 
 from ...testtools import (
-    FlockerScriptTestsMixin, StandardOptionsTestsMixin)
+    FlockerScriptTestsMixin, StandardOptionsTestsMixin, TestCase)
 from ..script import DeployScript, DeployOptions
 from ...control.httpapi import REST_API_PORT
 
@@ -24,7 +23,7 @@ class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
 CONTROL_HOST = u"192.168.1.1"
 
 
-class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class DeployOptionsTests(StandardOptionsTestsMixin, TestCase):
     """Tests for :class:`DeployOptions`."""
     options = DeployOptions
 
