@@ -8,7 +8,7 @@ import os
 import sys
 from json import loads
 from signal import SIGINT
-from unittest import skipUnless
+from unittest import skipUnless, skipIf
 from subprocess import check_output, CalledProcessError, STDOUT, Popen
 
 from bitmath import MiB
@@ -20,9 +20,10 @@ from eliot.testing import assertContainsFields
 
 try:
     from eliot.journald import JournaldDestination
+    del JournaldDestination
+    can_write_to_journald = True
 except ImportError as e:
-    # This platform doesn't have journald.
-    JournaldDestination = None
+    can_write_to_journald = False
 
 from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutput
@@ -37,7 +38,7 @@ from ...common import loop_until
 from ...testtools import random_name, if_root, AsyncTestCase, TestCase
 
 
-def _journald_available():
+def _can_query_journald():
     """
     :return: Boolean indicating whether journald is available to use.
     """
@@ -321,7 +322,7 @@ class FlockerScriptRunnerJournaldTests(AsyncTestCase):
     Functional tests for ``FlockerScriptRunner`` journald support.
     """
     @if_root
-    @skipUnless(_journald_available(),
+    @skipUnless(_can_query_journald(),
                 "journald unavailable or inactive on this machine.")
     def run_journald_script(self, script):
         """
@@ -367,10 +368,10 @@ class JournaldOptionsTests(TestCase):
     """
     Tests for the ``--journald`` option.
     """
-    # _journald_available() is too strong of an assertion; a non-root user
+    # _can_query_journald() is too strong of an assertion; a non-root user
     # on system with journald installed will get False but this test
     # shouldn't be run in that case.
-    @skipUnless(JournaldDestination is None, "Journald is available on this machine.")
+    @skipIf(can_write_to_journald, "Journald is available on this machine.")
     def test_journald_unavailable(self):
         """
         If journald is unavailable on the machine, ``--journald`` raises a
