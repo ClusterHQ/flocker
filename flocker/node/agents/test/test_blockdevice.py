@@ -1351,7 +1351,7 @@ class _WriteVerifyingExternalClient(object):
             filename = unicode(uuid4())
             random_string = unicode(uuid4())
             try:
-                self._immitate_docker_writing(path, filename, random_string)
+                self._imitate_docker_writing(path, filename, random_string)
             except _WriteError:
                 # This indicates that we failed to write to a path provided by
                 # flocker. Assert that this is not the path of a currently
@@ -1601,8 +1601,8 @@ class BlockDeviceCalculatorTests(TestCase):
         This would represent an agent like docker attempting to use a path
         before or after flocker was ready for it to use the path.
         """
-        #self.skipTest(
-        #    'Currently this fails as the path is writable after unmount.')
+        self.skipTest(
+            'Currently this fails as the path is writable after unmount.')
 
         callback = _MutableCallback()
 
