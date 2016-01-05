@@ -2,4 +2,48 @@
 Quick Installation of Flocker with Swarm on AWS
 ===============================================
 
-cloudformation buttons go here
+Step 1
+------
+
+Create and save an AWS EC2 KeyPair:
+
+- Create an AWS EC2 KeyPair in the target region for Flocker cluster: https://console.aws.amazon.com/ec2/v2/home
+  |keypair|
+
+.. |keypair| image:: keypair.png
+
+- Save EC2 KeyPair.
+
+Step 2
+------
+
+- Select Flocker ClouldFormation stack launch Region (currently defaults to ``us-east-1``).
+
+- Create a 2 node Flocker cluster CreateCluster_ .
+
+.. TODO: Paramterize number of cluster nodes.
+  
+.. TODO: customize CloudFormation link below to parameterize region.
+.. _CreateCluster: https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json
+
+
+Step 3
+------
+
+- Monitor stack completion message |stack_completion|.
+
+.. |stack_completion| image:: stack.png
+
+Step 4
+------
+
+- Under ``Outputs`` tab, gather Client IP and Docker Swarm Host info |client_swarmhost|.
+
+.. |client_swarmhost| image:: client-swarmhost.png
+
+
+- Connect to the client IP, and check that ``docker info`` lists two hosts in the cluster |swarm_status|.
+
+.. |swarm_status| image:: swarm-status.png
+
+

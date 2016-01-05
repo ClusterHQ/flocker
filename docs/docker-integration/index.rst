@@ -52,6 +52,6 @@ Tutorials
 * Flocker with Docker Swarm and Compose
 
 .. toctree::
-   :hidden:
+   :maxdepth: 2
 
    cloudformation
