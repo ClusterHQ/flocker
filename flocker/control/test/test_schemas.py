@@ -442,7 +442,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
         {
             'node_uuid': a_uuid,
             'image': 'postgres',
-            'name': 'postgres-8.1_server'
+            'name': '/postgres-8.1_server'
         },
         {
             'node_uuid': a_uuid,
