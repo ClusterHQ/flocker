@@ -6,6 +6,7 @@ Tests for ``flocker.control.httpapi``.
 from uuid import uuid4
 from copy import deepcopy
 from datetime import datetime
+from unittest import skip
 
 from pyrsistent import pmap, thaw
 
@@ -1697,6 +1698,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
         """
         return self._dataset_id_collision_test(self.NODE_A, unicode.title)
 
+    @skip(
+        "See FLOC-1278.  Make this pass by inspecting cluster state "
+        "instead of desired configuration to determine whether a node is "
+        "valid or not.")
     def test_unknown_primary_node(self):
         """
         If a ``POST`` request made to the endpoint indicates a non-existent
@@ -1710,11 +1715,6 @@ class CreateDatasetTestsMixin(APITestsMixin):
                     u"The provided primary node is not part of the cluster."
             }
         )
-    test_unknown_primary_node.todo = (
-        "See FLOC-1278.  Make this pass by inspecting cluster state "
-        "instead of desired configuration to determine whether a node is "
-        "valid or not."
-    )
 
     def test_minimal_create_dataset(self):
         """
@@ -2069,6 +2069,10 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             self.NODE_A_UUID, self.NODE_B_UUID
         )
 
+    @skip(
+        "See FLOC-1278.  Make this pass by inspecting cluster state "
+        "instead of desired configuration to determine whether a node is "
+        "valid or not.")
     def test_unknown_primary_node(self):
         """
         A dataset's primary IP address must belong to a node in the cluster.
@@ -2104,11 +2108,6 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             return creating
         saving.addCallback(saved)
         return saving
-    test_unknown_primary_node.todo = (
-        "See FLOC-1278.  Make this pass by inspecting cluster state "
-        "instead of desired configuration to determine whether a node is "
-        "valid or not."
-    )
 
     def test_change_primary_to_configured_node(self):
         """
@@ -2149,6 +2148,13 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             self.NODE_A_UUID, self.NODE_A_UUID
         )
 
+    @skip(
+        "XXX: Perhaps this test isn't necessary. "
+        "There should always be a primary."
+        "But perhaps there should be a test that demonstrates the general 500 "
+        "response message format."
+        "See https://clusterhq.atlassian.net/browse/FLOC-1393 and "
+        "https://clusterhq.atlassian.net/browse/FLOC-1403")
     def test_only_replicas(self):
         """
         If there are only replica manifestations of the requested dataset, 500
@@ -2185,14 +2191,6 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             return creating
         saving.addCallback(saved)
         return saving
-    test_only_replicas.todo = (
-        "XXX: Perhaps this test isn't necessary. "
-        "There should always be a primary."
-        "But perhaps there should be a test that demonstrates the general 500 "
-        "response message format."
-        "See https://clusterhq.atlassian.net/browse/FLOC-1393 and "
-        "https://clusterhq.atlassian.net/browse/FLOC-1403"
-    )
 
     def test_primary_invalid(self):
         """
@@ -2425,13 +2423,13 @@ class DeleteDatasetTestsMixin(APITestsMixin):
             additional_headers={IF_MATCHES_HEADER:
                                 [b"willnotmatch"]})
 
+    @skip("Implement in FLOC-1240")
     def test_multiple_manifestations(self):
         """
         If there are multiple manifestations on multiple nodes the ``DELETE``
         action will mark all of their datasets as deleted.
         """
         raise NotImplementedError()
-    test_multiple_manifestations.todo = "Implement in FLOC-1240"
 
 
 RealTestsDeleteDataset, MemoryTestsDeleteDataset = (
