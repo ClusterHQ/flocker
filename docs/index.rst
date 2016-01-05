@@ -83,6 +83,7 @@ Let us know with the form below!
    :hidden:
 
    version
+   installation/index
 
 .. What follows is a terrible hack to force sphinx to drag images into the build
 
