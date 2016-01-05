@@ -50,4 +50,4 @@ Step 4
 
 .. |swarm_status| image:: swarm-status.png
 
-
+Your cluster is now ready for workloads!
