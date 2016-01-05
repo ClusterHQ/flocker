@@ -14,18 +14,59 @@ from zope.interface import Interface, implementer
 from pyrsistent import PClass, field
 
 from twisted.python.filepath import FilePath
+from twisted.python.constants import ValueConstant, Values
 
 from characteristic import attributes
 
 
+class Permissions(Values):
+    """
+    Constants for permissions for a remount.
+    """
+    READ_ONLY = ValueConstant("ro")
+    READ_WRITE = ValueConstant("rw")
+
+
 @attributes(["blockdevice", "mountpoint", "source_message"])
 class MountError(Exception):
-    """Raised from errors while mounting a blockdevice.
+    """
+    Raised from errors while mounting a blockdevice.
 
     :ivar FilePath blockdevice: The path to the blockdevice that was
         being mounted when the error occurred.
     :ivar FilePath mountpoint: The path that the blockdevice was going to be
         mounted at when the error occurred.
+    :ivar unicode source_message: The error message describing the error.
+    """
+
+    def __str__(self):
+        return self.__repr__()
+
+
+@attributes(["source_path", "mountpoint", "source_message"])
+class BindMountError(Exception):
+    """
+    Raised from errors while bind mounting.
+
+    :ivar FilePath source_path: The source path that was requested to be bind
+        mounted.
+    :ivar FilePath mountpoint: The path that `source_path` was going to be
+        mounted at when the error occurred.
+    :ivar unicode source_message: The error message describing the error.
+    """
+
+    def __str__(self):
+        return self.__repr__()
+
+
+@attributes(["mountpoint", "permissions", "source_message"])
+class RemountError(Exception):
+    """
+    Raised from errors while remounting a mount point.
+
+    :ivar FilePath mountpoint: The path of the mount to be remounted
+    :ivar Permissions permissions: The attempted permissions to remount the
+        mountpoint with.
     :ivar unicode source_message: The error message describing the error.
     """
 
@@ -124,6 +165,31 @@ class IBlockDeviceManager(Interface):
         :returns: An iterable of ``MountInfo``s of all known mounts.
         """
 
+    def bind_mount(source_path, mountpoint):
+        """
+        Bind mounts ``source_path`` at ``mountpoint``.
+
+        :param FilePath source_path: The path to be bind mounted.
+        :param FilePath mountpoint: The target path for the mount.
+
+        :raises: ``BindMountError`` on any failure from the system. This
+            includes user kill signals, so this may even be raised on
+            successful bind mounts.
+        """
+
+    def remount(mountpoint, permissions):
+        """
+        Remounts ``mountpoint`` with the given permissions.
+
+        :param FilePath mountpoint: The target path for the mount.
+        :param Permissions permissions: The permissions to remount the
+            mountpoint with.
+
+        :raises: ``RemountError`` on any failure from the system. This includes
+            user kill signals, so this may even be raised on successful bind
+            mounts.
+        """
+
 
 @implementer(IBlockDeviceManager)
 class BlockDeviceManager(PClass):
@@ -190,3 +256,23 @@ class BlockDeviceManager(PClass):
         return (MountInfo(blockdevice=FilePath(mount.device),
                           mountpoint=FilePath(mount.mountpoint))
                 for mount in mounts)
+
+    def bind_mount(self, source_path, mountpoint):
+        try:
+            check_output([b"mount", "--bind", source_path.path,
+                          mountpoint.path],
+                         stderr=STDOUT)
+        except CalledProcessError as e:
+            raise BindMountError(source_path=source_path,
+                                 mountpoint=mountpoint,
+                                 source_message="\n".join([str(e), e.output]))
+
+    def remount(self, mountpoint, permissions):
+        try:
+            check_output([b"mount", "-o", "remount,%s" % permissions.value,
+                          mountpoint.path],
+                         stderr=STDOUT)
+        except CalledProcessError as e:
+            raise RemountError(mountpoint=mountpoint,
+                               permissions=permissions,
+                               source_message="\n".join([str(e), e.output]))
