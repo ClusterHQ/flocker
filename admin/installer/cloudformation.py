@@ -10,7 +10,7 @@ from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
 from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 
-NUM_NODES = 2
+NUM_NODES = 3
 NODE_NAME_TEMPLATE = u"Flocker{index}"
 S3_SETUP = 'setup_s3.sh'
 DOCKER_SETUP = 'setup_docker.sh'
@@ -118,24 +118,25 @@ for i in range(NUM_NODES):
         template.add_output([
             Output(
                 "FlockerControlIP",
-                Description="Public IP address of the Flocker Control node.",
+                Description="Public IP address of the Flocker Control node"
+                            "and Docker Swarm Manager.",
                 Value=GetAtt(ec2_instance, "PublicIp"),
             )
         ])
     else:
         ec2_instance.DependsOn = control_service_instance.name
-    template.add_output([
-        Output(
-            "FlockerNode{}IP".format(i),
-            Description="Public IP address of a Flocker Agent node.",
-            Value=GetAtt(ec2_instance, "PublicIp"),
-        )
-    ])
+        user_data += sibling_lines(SWARM_NODE_SETUP)
+        template.add_output([
+            Output(
+                "FlockerNode{}IP".format(i),
+                Description="Public IP address of a node running Flocker agent"
+                            "and Docker Swarm agent.",
+                Value=GetAtt(ec2_instance, "PublicIp"),
+            )
+        ])
 
     user_data += sibling_lines(FLOCKER_CONFIGURATION_GETTER)
-    user_data += sibling_lines(SWARM_NODE_SETUP)
     ec2_instance.UserData = Base64(Join("", user_data))
-
     template.add_resource(ec2_instance)
 
 client_instance = ec2.Instance(
