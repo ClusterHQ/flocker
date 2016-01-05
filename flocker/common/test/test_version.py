@@ -180,7 +180,7 @@ def build_version_test(name, version_case):
                 version_case.is_pre_release,
             )
 
-        @skipUnless(PACKAGING_INSTALLED, "``packaing`` not installed.")
+        @skipUnless(PACKAGING_INSTALLED, "``packaging`` not installed.")
         def test_pep_440(self):
             """
             The version is a valid PEP440 version.
@@ -189,7 +189,7 @@ def build_version_test(name, version_case):
             """
             PEP440Version(version_case.version)
 
-        @skipUnless(PACKAGING_INSTALLED, "``packaing`` not installed.")
+        @skipUnless(PACKAGING_INSTALLED, "``packaging`` not installed.")
         @skipIf(version_case.is_legacy, "Legacy version isn't normalized.")
         def test_normalization(self):
             """
