@@ -2,8 +2,8 @@
 Flocker with Docker, Swarm, Compose
 ===================================
 
-Deployment options
-==================
+Install Flocker
+===============
 
 .. raw:: html
 
@@ -27,31 +27,37 @@ Deployment options
         CloudFormation is the easiest way to get started with Flocker and Swarm on AWS.
         <br />
         <br />
-        <a href="cloudformation.html" class="button">Install</a>
+        <a href="cloudformation.html" class="button">CloudFormation Install</a>
     </div>
     <div class="wide-box">
-        &lt;other installation options go here...&gt;
+        Install Flocker manually to deploy it on infrastructure other than AWS.
+        <br />
+        <br />
+        <a href="manual-install.html" class="button">Manual Install</a>
     </div>
+    <div style="clear:both;"></div>
 
 
-About the integration
-=====================
+Follow a tutorial
+=================
 
-Flocker integrates with the Docker Engine, Docker Swarm and/or Docker Compose via the Flocker Plugin for Docker.
+.. raw:: html
 
-The Flocker Plugin for Docker is a Docker volumes plugin.
+    <div class="wide-box" style="background-color:yellow;">
+        Tutorial: using Flocker with Docker Swarm and Compose
+        <br />
+        <br />
+        <a href="tutorial-swarm-compose.html" class="button">Follow Tutorial</a>
+    </div>
+    <div style="clear:both;"></div>
 
-It allows you to control Flocker directly from the Docker CLI or a Docker Compose file.
+Learn more about the integration
+================================
 
-It also works in multi-host environments where you're using Docker Swarm.
-
-Tutorials
-=========
-
-* Using the Flocker plugin for Docker directly
-* Flocker with Docker Swarm and Compose
+To learn about the details of how this integration works, read :ref:`about`.
 
 .. toctree::
    :maxdepth: 2
 
    cloudformation
+   about
