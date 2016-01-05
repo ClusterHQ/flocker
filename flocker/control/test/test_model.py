@@ -526,9 +526,9 @@ class DeploymentTests(TestCase):
                 image=DockerImage.from_string(u"image"))}),
         )
         deployment = Deployment(nodes=frozenset([node, another_node]))
-        self.assertItemsEqual(set(deployment.applications()),
-                              set(node.applications) |
-                              set(another_node.applications))
+        self.assertEqual(
+            set(deployment.applications()),
+            set(node.applications) | set(another_node.applications))
 
     def test_update_node_retains_leases(self):
         """
