@@ -114,6 +114,7 @@ def build_copy_artifacts(dash_project, dash_branch_name, job_name, job_values) {
      * artifacts for jobs that don't produce them
      */
     if (job_values.archive_artifacts) {
+        println("Job ${job_name} has artifacts; configuring archival.")
         for (artifact in job_values.archive_artifacts) {
             copyArtifacts(
                 "${dash_project}/${dash_branch_name}/${job_name}") {
@@ -129,6 +130,8 @@ def build_copy_artifacts(dash_project, dash_branch_name, job_name, job_values) {
                 }
             }
         }
+    } else {
+        println("Job ${job_name} has no artifacts.")
     }
 }
 
