@@ -2148,50 +2148,6 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             self.NODE_A_UUID, self.NODE_A_UUID
         )
 
-    @skip(
-        "XXX: Perhaps this test isn't necessary. "
-        "There should always be a primary."
-        "But perhaps there should be a test that demonstrates the general 500 "
-        "response message format."
-        "See https://clusterhq.atlassian.net/browse/FLOC-1393 and "
-        "https://clusterhq.atlassian.net/browse/FLOC-1403")
-    def test_only_replicas(self):
-        """
-        If there are only replica manifestations of the requested dataset, 500
-        response is returned and ``IndexError`` is logged.
-
-        XXX The 500 error message really should be clearer.
-        See https://clusterhq.atlassian.net/browse/FLOC-1393
-
-        XXX This situation should return a more friendly error code and
-        message.
-        See https://clusterhq.atlassian.net/browse/FLOC-1403.
-        """
-        expected_manifestation = _manifestation(primary=False)
-        node_a = Node(
-            uuid=self.NODE_A_UUID,
-            applications=frozenset(),
-            manifestations={expected_manifestation.dataset_id:
-                            expected_manifestation}
-        )
-        node_b = Node(uuid=self.NODE_B_UUID)
-        deployment = Deployment(nodes=frozenset([node_a, node_b]))
-        saving = self.persistence_service.save(deployment)
-
-        def saved(ignored):
-            creating = self.assertResult(
-                b"POST",
-                b"/configuration/datasets/%s" % (
-                    expected_manifestation.dataset.dataset_id.encode('ascii')
-                ),
-                {u"primary": self.NODE_B},
-                INTERNAL_SERVER_ERROR,
-                u'ELIOT LOG REFERENCE'
-            )
-            return creating
-        saving.addCallback(saved)
-        return saving
-
     def test_primary_invalid(self):
         """
         A request with an invalid (non-IPv4) primary IP address is rejected

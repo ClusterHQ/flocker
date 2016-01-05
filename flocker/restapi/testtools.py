@@ -170,7 +170,7 @@ def buildIntegrationTests(mixinClass, name, fixture):
 
     @param name: A C{str}, the name of the test category.
 
-    :param fixture: A callable that takes a ``AsyncTestCase`` and returns a
+    :param fixture: A callable that takes an ``AsyncTestCase`` and returns a
         ``klein.Klein`` object.
 
     @return: A pair of L{AsyncTestCase} classes.
