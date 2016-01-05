@@ -21,7 +21,7 @@ from ..script import (
     EliotObserver, TWISTED_LOG_MESSAGE,
     )
 from ...testtools import (
-    help_problems, FakeSysModule, StandardOptionsTestsMixin,
+    help_problems, FakeSysModule, make_standard_options_test,
     MemoryCoreReactor,
     )
 
@@ -168,13 +168,11 @@ class TestOptions(usage.Options):
     """An unmodified ``usage.Options`` subclass for use in testing."""
 
 
-class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
-                                  SynchronousTestCase):
+class FlockerStandardOptionsTests(make_standard_options_test(TestOptions)):
     """Tests for ``flocker_standard_options``
 
     Using a decorating an unmodified ``usage.Options`` subclass.
     """
-    options = TestOptions
 
 
 class AsyncStopService(Service):

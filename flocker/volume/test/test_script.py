@@ -10,7 +10,7 @@ from twisted.application.service import Service
 from twisted.python.usage import Options
 
 from ...testtools import (
-    StandardOptionsTestsMixin
+    make_standard_options_test
 )
 from ..testtools import (
     make_volume_options_tests
@@ -36,11 +36,10 @@ class VolumeManagerScriptMainTests(SynchronousTestCase):
         self.assertIs(None, self.successResultOf(result))
 
 
-class VolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class VolumeOptionsTests(make_standard_options_test(VolumeOptions)):
     """
     Tests for :class:`VolumeOptions`.
     """
-    options = VolumeOptions
 
 
 @flocker_volume_options

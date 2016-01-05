@@ -1,7 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
-from twisted.trial.unittest import TestCase, SynchronousTestCase
-from ...testtools import make_flocker_script_test, StandardOptionsTestsMixin
+from twisted.trial.unittest import TestCase
+from ...testtools import make_flocker_script_test, make_standard_options_test
 from ..script import CLIScript, CLIOptions
 
 
@@ -11,9 +11,8 @@ class FlockerCLITests(
     """Tests for ``flocker`` CLI."""
 
 
-class CLIOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class CLIOptionsTests(make_standard_options_test(CLIOptions)):
     """Tests for :class:`CLIOptions`."""
-    options = CLIOptions
 
 
 class FlockerCLIMainTests(TestCase):
