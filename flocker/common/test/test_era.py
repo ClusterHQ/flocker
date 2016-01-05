@@ -7,18 +7,18 @@ Tests for ``flocker.common._era``.
 from uuid import UUID
 from unittest import skipUnless
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.runtime import platform
 from .._era import get_era
+from ...testtools import TestCase
 
 
-class EraTests(SynchronousTestCase):
+class EraTests(TestCase):
     """
     Tests for ``get_era``
     """
     @skipUnless(platform.isLinux(), "get_era() only supported on Linux.")
     def setUp(self):
-        pass
+        super(EraTests, self).setUp()
 
     def test_get_era(self):
         """

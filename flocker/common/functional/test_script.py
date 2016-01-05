@@ -8,7 +8,7 @@ import os
 import sys
 from json import loads
 from signal import SIGINT
-from unittest import skipUnless, skipIf
+from unittest import skipUnless
 from subprocess import check_output, CalledProcessError, STDOUT, Popen
 
 from bitmath import MiB
@@ -24,7 +24,6 @@ except ImportError as e:
     # This platform doesn't have journald.
     JournaldDestination = None
 
-from twisted.trial.unittest import TestCase
 from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutput
 from twisted.internet.defer import succeed, Deferred
@@ -35,7 +34,7 @@ from twisted.python.usage import Options, UsageError
 
 from ..script import ICommandLineScript, flocker_standard_options
 from ...common import loop_until
-from ...testtools import random_name, if_root
+from ...testtools import random_name, if_root, AsyncTestCase, TestCase
 
 
 def _journald_available():
@@ -121,7 +120,7 @@ FlockerScriptRunner({}(), StandardOptions()).main()
 '''
 
 
-class FlockerScriptRunnerTests(TestCase):
+class FlockerScriptRunnerTests(AsyncTestCase):
     """
     Functional tests for ``FlockerScriptRunner``.
     """
@@ -317,7 +316,7 @@ class FlockerScriptRunnerTests(TestCase):
         return d
 
 
-class FlockerScriptRunnerJournaldTests(TestCase):
+class FlockerScriptRunnerJournaldTests(AsyncTestCase):
     """
     Functional tests for ``FlockerScriptRunner`` journald support.
     """
