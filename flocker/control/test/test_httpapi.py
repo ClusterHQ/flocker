@@ -19,7 +19,7 @@ from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.web.http import (
-    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR,
+    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND,
     NOT_ALLOWED as METHOD_NOT_ALLOWED, PRECONDITION_FAILED,
 )
 from twisted.web.client import readBody
