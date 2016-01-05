@@ -3,7 +3,7 @@
 from twisted.python.filepath import FilePath
 
 from ..script import ControlOptions, ControlScript
-from ...testtools import MemoryCoreReactor, make_standard_options_test
+from ...testtools import MemoryCoreReactor, make_standard_options_test, TestCase
 from .._clusterstate import ClusterStateService
 from ..httpapi import REST_API_PORT
 
