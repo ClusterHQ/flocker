@@ -74,6 +74,19 @@ class RemountError(Exception):
         return self.__repr__()
 
 
+@attributes(["mountpoint", "source_message"])
+class MakeTmpfsMountError(Exception):
+    """
+    Raised from errors while making a tmpfs mount.
+
+    :ivar FilePath mountpoint: The mountpoint for the new tmpfs mount.
+    :ivar unicode source_message: The error message describing the error.
+    """
+
+    def __str__(self):
+        return self.__repr__()
+
+
 @attributes(["blockdevice", "source_message"])
 class MakeFilesystemError(Exception):
     """Raised from errors while making a filesystem on a blockdevice.
@@ -160,7 +173,10 @@ class IBlockDeviceManager(Interface):
 
     def get_mounts():
         """
-        Returns all known mounts on the system.
+        Returns all known disk device mounts on the system.
+
+        This only includes mounted block devices and not tmpfs mounts or bind
+        mounts.
 
         :returns: An iterable of ``MountInfo``s of all known mounts.
         """
@@ -186,8 +202,19 @@ class IBlockDeviceManager(Interface):
             mountpoint with.
 
         :raises: ``RemountError`` on any failure from the system. This includes
-            user kill signals, so this may even be raised on successful bind
-            mounts.
+            user kill signals, so this may even be raised on successful
+            remounts.
+        """
+
+    def make_tmpfs_mount(mountpoint):
+        """
+        Creates a tmpfs mount at the given mountpoint.
+
+        :param FilePath mountpoint: The target path for the mount.
+
+        :raises: ``MakeTmpfsMountError`` on any failure from the system. This
+            includes user kill signals, so this may even be raised on
+            successful mounts.
         """
 
 
@@ -276,3 +303,12 @@ class BlockDeviceManager(PClass):
             raise RemountError(mountpoint=mountpoint,
                                permissions=permissions,
                                source_message="\n".join([str(e), e.output]))
+
+    def make_tmpfs_mount(self, mountpoint):
+        try:
+            check_output([b"mount", "-t", "tmpfs", "tmpfs", mountpoint.path],
+                         stderr=STDOUT)
+        except CalledProcessError as e:
+            raise MakeTmpfsMountError(mountpoint=mountpoint,
+                                      source_message="\n".join(
+                                          [str(e), e.output]))

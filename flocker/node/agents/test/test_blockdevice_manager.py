@@ -6,6 +6,8 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 
 from uuid import uuid4
 
+from subprocess import check_output
+
 from testtools import ExpectedException
 from testtools.matchers import Equals
 
@@ -14,15 +16,16 @@ from zope.interface.verify import verifyObject
 from ....testtools import TestCase
 
 from ..blockdevice_manager import (
-    IBlockDeviceManager,
-    BlockDeviceManager,
-    MountInfo,
-    MakeFilesystemError,
-    MountError,
     BindMountError,
+    BlockDeviceManager,
+    IBlockDeviceManager,
+    MakeFilesystemError,
+    MakeTmpfsMountError,
+    MountError,
+    MountInfo,
+    Permissions,
     RemountError,
     UnmountError,
-    Permissions,
 )
 
 from .test_blockdevice import (
@@ -229,3 +232,37 @@ class BlockDeviceManagerTests(TestCase):
         with ExpectedException(RemountError):
             self.manager_under_test.remount(unmounted_directory,
                                             Permissions.READ_WRITE)
+
+    def test_make_tmpfs_mount(self):
+        """
+        make_tmpfs_mount should create a tmpfs mountpoint that can be written
+        to. Once the mount is unmounted all files should be gone.
+        """
+        mountpoint = self._get_directory_for_mount()
+        test_filename = unicode(uuid4())
+
+        # Twisted caches FilePath.exists, so if run path.exists() before and
+        # after you unmount a mountpoint, the FilePath will lie to you and
+        # claim that it still exists after the tmpfs mount was unmounted.
+        # Instead, create a new FilePath object every time to avoid bugs in the
+        # state of FilePath.
+        def test_file():
+            return mountpoint.child(test_filename)
+
+        self.manager_under_test.make_tmpfs_mount(mountpoint)
+        self.expectThat(test_file().exists(), Equals(False))
+        test_file().touch()
+        self.expectThat(test_file().exists(), Equals(True),
+                        'File did not exist after being touched on tmpfs.')
+        self.manager_under_test.unmount(mountpoint)
+        self.expectThat(test_file().exists(), Equals(False),
+                        'File persisted after tmpfs mount unmounted')
+
+    def test_make_tmpfs_mount_failure(self):
+        """
+        make_tmpfs_mount errors with a ``MakeTmpfsMountError`` if the mount
+        point does not exist.
+        """
+        non_existent = self._get_directory_for_mount().child('non_existent')
+        with ExpectedException(MakeTmpfsMountError, '.*non_existent.*'):
+            self.manager_under_test.make_tmpfs_mount(non_existent)
