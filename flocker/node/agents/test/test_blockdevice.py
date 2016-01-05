@@ -105,8 +105,7 @@ from ....common.algebraic import tagged_union_strategy
 from ... import run_state_change, in_parallel, ILocalState, NoOp, IStateChange
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
-    compute_cluster_state,
-    ControllableAction,
+    compute_cluster_state, if_docker_configured, ControllableAction,
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
@@ -1212,6 +1211,14 @@ class DidNotConverge(Exception):
     """
 
 
+class _WriteError(Exception):
+    """
+    Error used to indicate that we failed to write to a path as if we were
+    docker.
+    """
+    pass
+
+
 class _WriteVerifyingExternalClient(object):
     """
     Representation of an external client of the Flocker API. This client can be
@@ -1243,6 +1250,33 @@ class _WriteVerifyingExternalClient(object):
         self._node_uuid = node_uuid
         self._testing_mountroot = mountroot
         self._blockdevice_manager = blockdevice_manager
+
+    def _imitate_docker_writing(self, mountdir, filename, content):
+        """
+        Imitate writing content to a file to a mounted directory using docker.
+
+        :param FilePath mountdir: The directory to be mounted as a docker
+            volume.
+        :param unicode filename: The name of the file to create in the docker
+            volume.
+        :param unicode content: The content to write to the file.
+        """
+        # The path for docker to expose within the container. Docker will bind
+        # mount mountdir to this location within the container.
+        container_path = FilePath('/vol')
+        process_result = run_process([
+            "docker",
+            "run",  # Run a container.
+            "--rm",  # Remove the container once it exits.
+            # Bind mount the passed in directory into the container
+            "-v", "%s:%s" % (mountdir.path, container_path.path),
+            "busybox",  # Run the busybox image.
+            # Use sh to echo the content into the file in the bind mount.
+            "/bin/sh", "-c", "echo -n %s > %s" % (
+                content, container_path.child(filename).path)
+        ])
+        if process_result.status != 0:
+            raise _WriteError()
 
     def _has_file_with_content(self, filename, content):
         """
@@ -1314,10 +1348,9 @@ class _WriteVerifyingExternalClient(object):
         for path in self._known_mountpoints:
             filename = unicode(uuid4())
             random_string = unicode(uuid4())
-            path_to_write = path.child(filename)
             try:
-                path_to_write.setContent(random_string)
-            except OSError:
+                self._imitate_docker_writing(path, filename, random_string)
+            except _WriteError:
                 # This indicates that we failed to write to a path provided by
                 # flocker. Assert that this is not the path of a currently
                 # manifest dataset.
@@ -1325,7 +1358,8 @@ class _WriteVerifyingExternalClient(object):
                     write_to_current_path_should_succeed and
                     current_path == path,
                     "Could not write to path %s despite dataset %s reporting "
-                    "as manifest." % (path_to_write, dataset))
+                    "as manifest." % ("/".join([unicode(path), filename]),
+                                      dataset))
             else:
                 case.assertTrue(
                     self._has_file_with_content(filename, random_string),
@@ -1539,6 +1573,7 @@ class BlockDeviceCalculatorTests(TestCase):
         finally:
             test_objects.cleanup_example()
 
+    @if_docker_configured
     @given(
         two_dataset_states=TWO_DESIRED_DATASET_STRATEGY
     )
