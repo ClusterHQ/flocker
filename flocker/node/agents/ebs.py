@@ -391,6 +391,27 @@ def _enable_boto_logging():
 _enable_boto_logging()
 
 
+class AttachUnexpectedInstance(Exception):
+    """
+    An attempt was made to attach a volume to an instance other than the
+    one this ``IBlockDeviceAPI`` implementation is running on.
+    """
+    def __init__(self, blockdevice_id, instance_id, local_instance_id):
+        """
+        :param unicode blockdevice_id: The identity of the block device we
+            are attempting to attach.
+        :param unicode instance_id: The identity of the instance we are
+            attempting to attach the block device to.
+        :param unicode local_instance_id: The identity of the instance this
+            API is running on.
+        """
+        Exception.__init__(
+            self, blockdevice_id, instance_id, local_instance_id)
+        self.blockdevice_id = blockdevice_id
+        self.instance_id = instance_id
+        self.local_instance_id = local_instance_id
+
+
 @with_cmp(["requested", "discovered"])
 class AttachedUnexpectedDevice(Exception):
     """
@@ -524,9 +545,10 @@ def _get_volume_tag(volume, name):
 
     :return: A ``str`` representing the value of the tag.
     """
-    for tag in volume.tags:
-        if tag['Key'] == name:
-            return tag['Value']
+    if volume.tags:
+        for tag in volume.tags:
+            if tag['Key'] == name:
+                return tag['Value']
     raise TagNotFound(volume.id, name, volume.tags)
 
 
@@ -998,45 +1020,45 @@ class EBSBlockDeviceAPI(object):
         return volume.attach_to_instance(
             InstanceId=instance_id, Device=device)
 
-    def _next_device(self, instance_id, volumes, devices_in_use):
+    def _next_device(self):
         """
-        Get the next available EBS device name for a given EC2 instance.
+        Get the next available EBS device name for this EC2 instance.
 
-        Algorithm:
-        1. Get all ``Block devices`` currently in use by given instance:
-            a) List all volumes visible to this instance.
-            b) Gather device IDs of all devices attached to (a).
-        2. Devices available for EBS volume usage are ``/dev/sd[f-p]``.
-           Find the first device from this set that is currently not
-           in use.
+        Devices available for EBS volume usage are ``/dev/sd[f-p]``.
+        Find the first device from this set that is currently not
+        in use.
         XXX: Handle lack of free devices in ``/dev/sd[f-p]`` range
         (see https://clusterhq.atlassian.net/browse/FLOC-1887).
-
-        :param unicode instance_id: EC2 instance ID.
-        :param volumes: Collection of currently known
-            ``BlockDeviceVolume`` instances.
-        :param set devices_in_use: Unicode names of devices that are
-            probably in use based on observed behavior.
 
         :returns unicode file_name: available device name for attaching
             EBS volume.
         :returns ``None`` if suitable EBS device names on this EC2
             instance are currently occupied.
         """
-        volume_devices = []
-        for v in volumes:
-            volume_attachments = v.attachments
-            for attachment in volume_attachments:
-                if attachment['InstanceId'] == instance_id:
-                    volume_devices.append(attachment['Device'])
-        devices = pset(volume_devices)
-        devices = devices | devices_in_use
-        sorted_devices = sorted(list(thaw(devices)))
+
+        command = [b"/bin/lsblk", b"--output", b"KNAME"]
+        # Command result returns a list of kernel device names
+        # separated by line breaks, with KNAME as the output of the
+        # header row. The top line is therefore ignored in the filter
+        # below.
+        command_result = check_output(command)
+        local_devices = pset(filter(
+            lambda d: d.startswith(b"xvd") or d.startswith('sd'),
+            command_result.split("\n")[1:]
+        ))
+        sorted_devices = sorted(list(thaw(local_devices)))
         IN_USE_DEVICES(devices=sorted_devices).write()
 
         for suffix in b"fghijklmonp":
-            file_name = u'/dev/sd' + suffix
-            if file_name not in devices:
+            next_local_device = b'xvd' + suffix
+            next_local_sd_device = b'sd' + suffix
+            file_name = u'/dev/sd' + unicode(suffix)
+            possible_devices = [
+                next_local_device, next_local_sd_device
+            ]
+            if not any(
+                list(device in local_devices for device in possible_devices)
+            ):
                 return file_name
 
         # Could not find any suitable device that is available
@@ -1178,12 +1200,15 @@ class EBSBlockDeviceAPI(object):
                 ebs_volume.state != VolumeStates.AVAILABLE.value):
             raise AlreadyAttachedVolume(blockdevice_id)
 
+        local_instance_id = self.compute_instance_id()
+        if attach_to != local_instance_id:
+            raise AttachUnexpectedInstance(
+                blockdevice_id, attach_to, local_instance_id)
+
         attached = False
-        ignore_devices = pset([])
         for attach_attempt in range(3):
             with self.lock:
-                volumes = self._list_ebs_volumes()
-                device = self._next_device(attach_to, volumes, ignore_devices)
+                device = self._next_device()
                 if device is None:
                     # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
                     # (https://clusterhq.atlassian.net/browse/FLOC-1887).
@@ -1202,8 +1227,6 @@ class EBSBlockDeviceAPI(object):
                     )
                     attached_volume = volume.set('attached_to', attach_to)
                     return attached_volume
-                else:
-                    ignore_devices = ignore_devices.add(device)
 
         raise AttachFailed(volume.blockdevice_id, attach_to, device)
 

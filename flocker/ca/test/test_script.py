@@ -3,8 +3,9 @@
 import os
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase, SynchronousTestCase
-from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
+from ...testtools import (
+    FlockerScriptTestsMixin, StandardOptionsTestsMixin, TestCase,
+)
 from .._script import CAScript, CAOptions
 
 
@@ -17,7 +18,7 @@ class FlockerCATests(FlockerScriptTestsMixin, TestCase):
     command_name = u'flocker-ca'
 
 
-class CAOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class CAOptionsTests(StandardOptionsTestsMixin, TestCase):
     """
     Tests for :class:`CAOptions`.
     """

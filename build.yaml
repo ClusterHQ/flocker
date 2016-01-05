@@ -88,8 +88,10 @@ common_cli:
   # TODO: https://clusterhq.atlassian.net/browse/FLOC-2986
   add_shell_functions: &add_shell_functions |
 
-    # set a default AWS endpoint for S3 operations
-    export S3_ENDPOINT=us-west-2
+    # set default AWS region for S3 operations
+    export S3_REGION=us-west-2
+    # Docs buckets (clusterhq-staging-docs, doc-dev.clusterhq.com) are hosted in us-east-1
+    export S3_DOCS_REGION=us-east-1
 
     # The long directory names where we build our code cause pip to fail.
     # https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/20
@@ -202,7 +204,7 @@ common_cli:
     function s3_upload() {
       echo "uploading ${2} to S3 bucket ${1} ..."
       retry_n_times_with_timeout 3 900 \
-        aws --region ${S3_ENDPOINT} s3 cp "${2}" s3://${1}/
+        aws --region ${S3_REGION} s3 cp "${2}" s3://${1}/
     }
 
     # creates a metadata file to be used with vagrant up; vagrant box update
@@ -226,13 +228,13 @@ common_cli:
     EOF_METADATA
     }
 
-    # destroy the vagrant box and aborts the build
+    # destroy the vagrant vm and aborts the build
     # this is used when one the of the intermediate steps has failed
     # usage:
     # <some code> || abort_build
     function abort_build() {
       echo "aborting ..."
-      vagrant destroy -f
+      vagrant_destroy
       exit 1
     }
 
@@ -257,9 +259,9 @@ common_cli:
       ) || abort_build
     }
 
-    # destroys the vagrant box
+    # destroys the vagrant vm
     # usage:
-    # vagrant_box_destroy
+    # vagrant_destroy
     function vagrant_destroy() {
       vagrant destroy -f
     }
@@ -681,13 +683,17 @@ common_cli:
     # To avoid it, we set '+e' on this shell.
     set +e
 
+  cleanup_old_jenkins_osx_yosemite_boxes: &cleanup_old_jenkins_osx_yosemite_boxes |
+    admin/ci-tools/cleanup-vagrant-boxes clusterhq/jenkins-osx-yosemite
+
   new_vagrantfile_for_osx_yosemite: &new_vagrantfile_for_osx_yosemite |
     # this builds a Vagrantfile which will use the latest jenkins-osx-yosemite
     # vagrant box built overnight.
     cat <<EOF_VAGRANTFILE >Vagrantfile
     Vagrant.configure(2) do |config|
        config.vm.box = 'clusterhq/jenkins-osx-yosemite'
-       config.vm.box_url = "s3://${ENV['S3_BUCKET']}/metadata.json"
+       # "vagrant plugin install vagrant-s3auth" to enable support for s3 box URLs
+       config.vm.box_url = "s3://${S3_BUCKET}/metadata.json"
        config.vm.synced_folder '.', '/vagrant', disabled: true
        config.vm.provider 'virtualbox' do |vb|
           vb.memory = '1024'
@@ -777,6 +783,14 @@ common_cli:
     # let's stop it and wait a bit, as sometimes the box is not fully down
     # when the vagrant halt command finishes.
     vagrant halt ; sleep 60
+
+    # Write the status of the VM into the console output.  It's not clear
+    # whether it makes a difference or not what the status is at this point --
+    # ``vagrant package`` supposedly shuts down the VM automatically if
+    # necessary -- but some packaging problems suggest this might not be
+    # happening.  Having the extra information may be handy for debugging.
+    vagrant status
+
     BOX_NAME="jenkins-osx-yosemite-${FLOCKER_VERSION}.box"
     (
       retry_n_times_with_timeout 2 1800 \
@@ -831,9 +845,14 @@ common_cli:
   upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
     # uploads the new generated html to a folder on the S3 staging-docs bucket
     cd _build/html
-    aws --region ${S3_ENDPOINT} s3 sync . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
+    aws --region ${S3_DOCS_REGION} s3 sync . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
     echo "This branch is available at :"
     echo "http://clusterhq-staging-docs.s3.amazonaws.com/$TRIGGERED_BRANCH/index.html"
+
+  sync_master_docs_to_doc_dev: &sync_master_docs_to_doc_dev |
+    # ensure master docs at doc-dev are up-to-date
+    [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --acl public-read \
+      s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
 
   upload_vagrant_tutorial_basebox_to_s3: &upload_vagrant_tutorial_basebox_to_s3 |
     # uploads the generated vagrant box to a folder on the S3
@@ -923,6 +942,11 @@ common_cli:
 
     echo "This vagrant box is available at : ${S3_BOX_JSON_LATEST}"
 
+    # The box is supposed to be a gzipped tar file.  Validate that here.  Only
+    # do this *after* the upload so that the corrupt box is available online
+    # for inspection to debug the build failure.
+    gzip --verbose --test "${BOX_NAME}" || abort_build
+    tar --verbose --list --file "${BOX_NAME}" || abort_build
 
   run_lint: &run_lint |
     # we need to unset PIP_INDEX_URL since it causes tox to fail.
@@ -1171,7 +1195,8 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *install_aws_cli, *run_sphinx,
                    *get_s3_creds_for_bucket_staging_docs,
-                   *upload_new_docs_html_to_s3_staging_docs]
+                   *upload_new_docs_html_to_s3_staging_docs,
+                   *sync_master_docs_to_doc_dev ]
           }
       timeout: 10
 
@@ -1280,6 +1305,7 @@ job_type:
                    *set_home_variable_on_mesos,
                    *do_not_abort_on_errors,
                    *get_s3_creds_for_bucket_vagrant_jenkins_boxes,
+                   *cleanup_old_jenkins_osx_yosemite_boxes,
                    *new_vagrantfile_for_osx_yosemite,
                    'vagrant_box_update',
                    'vagrant_up',
