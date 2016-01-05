@@ -14,7 +14,7 @@ from .._interfaces import IRequestScenarioSetup
 from ._request_load import (
     RequestLoadScenario, NoNodesFound
 )
-from .rate_measurer import DEFAULT_SAMPLE_SIZE
+from ._rate_measurer import DEFAULT_SAMPLE_SIZE
 
 
 class DatasetCreationTimeout(Exception):
