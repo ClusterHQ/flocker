@@ -19,7 +19,7 @@ apt-get -y install s3cmd
 # bucket of interest is populated.
 s3cmd_wrapper ()
 {
-    while ! /usr/bin/s3cmd $@; do
+    while ! /usr/bin/s3cmd --force $@; do
         sleep 5
     done
 }
