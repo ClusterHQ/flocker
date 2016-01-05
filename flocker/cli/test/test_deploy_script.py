@@ -8,7 +8,8 @@ from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 
 from ...testtools import (
-    make_flocker_script_test, make_standard_options_test, TestCase)
+    make_flocker_script_test, make_standard_options_test, TestCase
+)
 from ..script import DeployScript, DeployOptions
 from ...control.httpapi import REST_API_PORT
 

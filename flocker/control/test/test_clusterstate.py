@@ -6,7 +6,6 @@ Tests for ``flocker.control._clusterstate``.
 
 from uuid import uuid4
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 
@@ -17,6 +16,7 @@ from .. import (
     Dataset,
 )
 from .clusterstatetools import advance_some, advance_rest
+from ...testtools import TestCase
 
 APP1 = Application(
     name=u"webserver", image=DockerImage.from_string(u"apache"))
@@ -26,7 +26,7 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 
 
-class ClusterStateServiceTests(SynchronousTestCase):
+class ClusterStateServiceTests(TestCase):
     """
     Tests for ``ClusterStateService``.
     """
@@ -41,6 +41,7 @@ class ClusterStateServiceTests(SynchronousTestCase):
     )
 
     def setUp(self):
+        super(ClusterStateServiceTests, self).setUp()
         self.clock = Clock()
 
     def service(self):

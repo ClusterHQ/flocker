@@ -11,11 +11,9 @@ from pyrsistent import (
 )
 from hypothesis import given, strategies as st, assume, example
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from twisted.python.constants import Names, NamedConstant
 
-
+from ...testtools import TestCase
 from ..algebraic import TaggedUnionInvariant, tagged_union_strategy
 
 
@@ -51,7 +49,7 @@ ALGEBRAIC_TYPE_ARGUMENTS_STRATEGY = ALGEBRAIC_TYPE_STRATEGY.map(
     lambda v: v.serialize())
 
 
-class TaggedUnionInvariantTests(SynchronousTestCase):
+class TaggedUnionInvariantTests(TestCase):
     """
     Tests for ``TaggedUnionInvariant``.
     """

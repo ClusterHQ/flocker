@@ -70,7 +70,7 @@ from twisted.internet.task import Clock
 from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
-from twisted.trial.unittest import SynchronousTestCase, SkipTest
+from twisted.trial.unittest import SkipTest
 from twisted.internet.protocol import Factory, ProcessProtocol, Protocol
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
@@ -488,7 +488,7 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
     for k, v in expected_defaults.items():
         required_kwargs.pop(k)
 
-    class WithInitTests(SynchronousTestCase):
+    class WithInitTests(TestCase):
         """
         Tests for classes decorated with ``with_init``.
         """

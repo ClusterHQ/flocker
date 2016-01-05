@@ -1,7 +1,8 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
-from twisted.trial.unittest import TestCase
-from ...testtools import make_flocker_script_test, make_standard_options_test
+from ...testtools import (
+    make_flocker_script_test, make_standard_options_test, TestCase,
+)
 from ..script import CLIScript, CLIOptions
 
 
