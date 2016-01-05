@@ -21,7 +21,8 @@ from ...testtools import AsyncTestCase, async_runner, flaky
 from ...provision import PackageSource
 
 from ..testtools import (
-    require_cluster, require_moving_backend, create_dataset, DatasetBackend
+    require_cluster, require_moving_backend, create_dataset, DatasetBackend,
+    skip_backend
 )
 
 
@@ -69,6 +70,10 @@ class DatasetAPITests(AsyncTestCase):
     # to HEAD on centos. Once that fix has landed in a release, we can remove
     # this flaky decorator.
     @flaky(u'FLOC-3712')
+    @skip_backend(
+        unsupported={DatasetBackend.loopback},
+        reason="Does not maintain compute_instance_id across restarting "
+               "flocker (and didn't as of most recent release).")
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
