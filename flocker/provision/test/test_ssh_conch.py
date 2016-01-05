@@ -6,26 +6,24 @@ from txeffect import perform
 
 from eliot.testing import capture_logging, assertHasMessage
 
-from twisted.internet import reactor
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase
-
 
 from .._ssh import run, put, run_remotely
 from .._ssh._conch import make_dispatcher, RUN_OUTPUT_MESSAGE
-
+from ...testtools import AsyncTestCase
 
 from flocker.testtools.ssh import create_ssh_server, create_ssh_agent
 
 skip = "See FLOC-1883. These tests don't properly clean up the reactor."
 
 
-class Tests(TestCase):
+class Tests(AsyncTestCase):
     """
     Tests for conch implementation of ``flocker.provision._ssh.RunRemotely``.
     """
 
     def setUp(self):
+        super(Tests, self).setUp()
         self.sshd_config = FilePath(self.mktemp())
         self.server = create_ssh_server(self.sshd_config)
         self.addCleanup(self.server.restore)
@@ -45,7 +43,7 @@ class Tests(TestCase):
         )
 
         d = perform(
-            make_dispatcher(reactor),
+            make_dispatcher(self.reactor),
             command,
         )
 
@@ -67,7 +65,7 @@ class Tests(TestCase):
         )
 
         d = perform(
-            make_dispatcher(reactor),
+            make_dispatcher(self.reactor),
             command,
         )
 
@@ -92,7 +90,7 @@ class Tests(TestCase):
         )
 
         d = perform(
-            make_dispatcher(reactor),
+            make_dispatcher(self.reactor),
             command,
         )
         return d
@@ -112,7 +110,7 @@ class Tests(TestCase):
         )
 
         d = perform(
-            make_dispatcher(reactor),
+            make_dispatcher(self.reactor),
             command,
         )
         return d
