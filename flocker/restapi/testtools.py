@@ -6,6 +6,7 @@ Public utilities for testing code that uses the REST API.
 
 from io import BytesIO
 from json import dumps, loads as _loads
+import os.path
 from itertools import count
 
 from jsonschema.exceptions import ValidationError
@@ -233,7 +234,12 @@ def build_UNIX_integration_tests(mixin_class, name, fixture):
         real API users will be connecting from.
         """
         def setUp(self):
-            path = self.mktemp()
+            # We use relpath as you can't bind to a path longer than 107
+            # chars. You can easily get an absolute path that long
+            # from mktemp, but rather strangely bind doesn't care
+            # how long the abspath is, so we call relpath here and
+            # it should work as long as our method names aren't too long
+            path = os.path.relpath(self.mktemp())
             self.app = fixture(self)
             self.port = reactor.listenUNIX(
                 path, Site(self.app.resource()),
