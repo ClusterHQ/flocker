@@ -320,13 +320,14 @@ def make_flocker_script_test(script, options, command_name):
                 (1, []),
                 (error.code, help_problems(command_name, error_text))
             )
+
     return FlockerScriptTestCase
 
 
 def make_standard_options_test(options):
     """
-    Return a ``FlockerScriptTestCase`` which tests that the script
-    class provides ICommandLineScript
+    Return a ``StandardOptionsTestCase`` which tests that the passed in
+    options class provides the expected defaults and basic functionality.
 
     :ivar usage.Options options: The ``usage.Options`` class under test.
 
@@ -334,12 +335,13 @@ def make_standard_options_test(options):
     """
     class StandardOptionsTestCase(TestCase):
         """
-        Test for classes that implement ICommandLineScript
+        Tests for the standard options that should be available for every
+        flocker command.
         """
         def test_sys_module_default(self):
             """
-            ``flocker_standard_options`` adds a ``_sys_module`` attribute which is
-            ``sys`` by default.
+            ``flocker_standard_options`` adds a ``_sys_module`` attribute
+            which is ``sys`` by default.
             """
             self.assertIs(sys, options()._sys_module)
 
@@ -384,10 +386,10 @@ def make_standard_options_test(options):
             configured verbosity by `1`.
             """
             options_instance = options()
-            # The command may otherwise give a UsageError
-            # "Wrong number of arguments." if there are arguments required.
-            # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
-            # which does not involve patching.
+            # The command may otherwise give a UsageError "Wrong
+            # number of arguments." if there are arguments required.
+            # See https://clusterhq.atlassian.net/browse/FLOC-184
+            # about a solution which does not involve patching.
             self.patch(options_instance, "parseArgs", lambda: None)
             options_instance.parseOptions(['--verbose'])
             self.assertEqual(1, options_instance['verbosity'])
@@ -398,23 +400,24 @@ def make_standard_options_test(options):
             verbosity by 1.
             """
             options_instance = options()
-            # The command may otherwise give a UsageError
-            # "Wrong number of arguments." if there are arguments required.
-            # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
-            # which does not involve patching.
+            # The command may otherwise give a UsageError "Wrong
+            # number of arguments." if there are arguments required.
+            # See https://clusterhq.atlassian.net/browse/FLOC-184
+            # about a solution which does not involve patching.
             self.patch(options_instance, "parseArgs", lambda: None)
             options_instance.parseOptions(['-v'])
             self.assertEqual(1, options_instance['verbosity'])
 
         def test_verbosity_multiple(self):
             """
-            `--verbose` can be supplied multiple times to increase the verbosity.
+            `--verbose` can be supplied multiple times to increase the
+            verbosity.
             """
             options_instance = options()
-            # The command may otherwise give a UsageError
-            # "Wrong number of arguments." if there are arguments required.
-            # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
-            # which does not involve patching.
+            # The command may otherwise give a UsageError "Wrong
+            # number of arguments." if there are arguments required.
+            # See https://clusterhq.atlassian.net/browse/FLOC-184
+            # about a solution which does not involve patching.
             self.patch(options_instance, "parseArgs", lambda: None)
             options_instance.parseOptions(['-v', '--verbose'])
             self.assertEqual(2, options_instance['verbosity'])
@@ -426,10 +429,10 @@ def make_standard_options_test(options):
             """
             sys = FakeSysModule()
             options_instance = options(sys_module=sys)
-            # The command may otherwise give a UsageError
-            # "Wrong number of arguments." if there are arguments required.
-            # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
-            # which does not involve patching.
+            # The command may otherwise give a UsageError "Wrong
+            # number of arguments." if there are arguments required.
+            # See https://clusterhq.atlassian.net/browse/FLOC-184
+            # about a solution which does not involve patching.
             self.patch(options_instance, "parseArgs", lambda: None)
             options_instance.parseOptions([])
             self.assertIs(sys.stdout, options_instance.eliot_destination.file)
@@ -440,13 +443,15 @@ def make_standard_options_test(options):
             ``twisted.python.logfile.LogFile``.
             """
             options_instance = options()
-            # The command may otherwise give a UsageError
-            # "Wrong number of arguments." if there are arguments required.
-            # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
-            # which does not involve patching.
+            # The command may otherwise give a UsageError "Wrong
+            # number of arguments." if there are arguments required.
+            # See https://clusterhq.atlassian.net/browse/FLOC-184
+            # about a solution which does not involve patching.
             self.patch(options_instance, "parseArgs", lambda: None)
             expected_path = FilePath(self.mktemp()).path
-            options_instance.parseOptions(['--logfile={}'.format(expected_path)])
+            options_instance.parseOptions(
+                ['--logfile={}'.format(expected_path)]
+            )
             logfile = options_instance.eliot_destination.file
             self.assertEqual(
                 (LogFile, expected_path, int(MiB(100).to_Byte().value), 5),
@@ -455,6 +460,7 @@ def make_standard_options_test(options):
             )
 
     return StandardOptionsTestCase
+
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):
     """
