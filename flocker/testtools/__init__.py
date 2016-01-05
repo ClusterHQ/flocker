@@ -288,7 +288,8 @@ def make_flocker_script_test(script, options, command_name):
 
     :param ICommandLineScript script: The script class under test.
     :param usage.Options options: The options parser class to use in the test.
-    :param text command_name: The name of the command represented by ``script``.
+    :param text command_name: The name of the command represented by
+    ``script``.
 
     :returns: A ``TestCase``.
     """

@@ -14,9 +14,9 @@ from ..script import DeployScript, DeployOptions
 from ...control.httpapi import REST_API_PORT
 
 
-class FlockerDeployTests(
-        make_flocker_script_test(DeployScript, DeployOptions, u'flocker-deploy')
-):
+class FlockerDeployTests(make_flocker_script_test(
+        DeployScript, DeployOptions, u'flocker-deploy'
+)):
     """Tests for ``flocker-deploy``."""
 
 
