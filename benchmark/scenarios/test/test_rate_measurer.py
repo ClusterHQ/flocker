@@ -1,3 +1,4 @@
+# copyright 2016 clusterhq inc.  see license file for details.
 from flocker.testtools import TestCase
 
 from .._rate_measurer import RateMeasurer
@@ -5,14 +6,14 @@ from .._rate_measurer import RateMeasurer
 
 class RateMeasurerTest(TestCase):
     """
-    RateMeasurer tests.
+    ``RateMeasurer`` tests.
     """
 
     def send_requests(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will send the desired number of request.
 
-        :param rate_measurer: The `RateMeasurer` we are testing.
+        :param rate_measurer: The ``RateMeasurer`` we are testing.
         :param num_requests: The number of request we want to send.
         :param num_samples: The number of samples to collect.
         """
@@ -23,11 +24,11 @@ class RateMeasurerTest(TestCase):
         """
         Helper function that will receive the desired number of requests.
 
-        :param rate_measurer: The `RateMeasurer` we are testing.
+        :param rate_measurer: The ``RateMeasurer`` we are testing.
         :param num_requests: The number of request we want to receive.
         :param num_samples: The number of samples to collect.
         """
-        ignored = ""
+        ignored = u""
         for i in range(num_samples):
             for i in range(num_requests):
                 rate_measurer.response_received(ignored)
@@ -38,7 +39,7 @@ class RateMeasurerTest(TestCase):
         Helper function that will result the desired number of response
         failures.
 
-        :param rate_measurer: The `RateMeasurer` we are testing.
+        :param rate_measurer: The ``RateMeasurer`` we are testing.
         :param num_failures: The number of requests we want to fail.
         :param num_samples: The number of samples to collect.
         """
@@ -54,7 +55,7 @@ class RateMeasurerTest(TestCase):
         desired number of request, and receiving the same
         amount of them.
 
-        :param rate_measurer: The `RateMeasurer` we are testing.
+        :param rate_measurer: The ``RateMeasurer`` we are testing.
         :param num_requests: The number of request we want to make.
         :param num_samples: The number of samples to collect.
         """
@@ -63,7 +64,7 @@ class RateMeasurerTest(TestCase):
 
     def test_rate_is_zero_when_no_samples(self):
         """
-        When no samples have been collected, the rate should be 0.
+        When no samples have been collected, the rate is 0.
         """
         r = RateMeasurer()
         self.assertEqual(r.rate(), 0, "Expected initial rate to be zero")
@@ -71,7 +72,7 @@ class RateMeasurerTest(TestCase):
     def test_rate_is_lower_than_target_when_not_enough_samples(self):
         """
         When the number of samples collected is less than the sample
-        size, the rate should be lower than `target_rate`.
+        size, the rate is lower than ``target_rate``.
         """
         r = RateMeasurer()
         target_rate = 5
@@ -83,7 +84,7 @@ class RateMeasurerTest(TestCase):
 
     def test_rate_is_correct_when_enough_samples(self):
         """
-        A RateMeasurer should correctly report the rate when enough
+        A RateMeasurer correctly reports the rate when enough
         samples have been collected.
         """
         r = RateMeasurer()
@@ -95,7 +96,7 @@ class RateMeasurerTest(TestCase):
 
     def test_old_samples_are_not_considered(self):
         """
-        Old samples should be discarded, meaning that only `sample_size`
+        Old samples should be discarded, meaning that only ``sample_size``
         number of requests are considered for the rate, and when receiving
         a new sample, the oldest one is discarded.
         """
@@ -112,7 +113,7 @@ class RateMeasurerTest(TestCase):
 
     def test_rate_only_considers_received_samples(self):
         """
-        The rate should be based on the number of received requests,
+        The rate is based on the number of received requests,
         not the number of sent or failed requests.
         """
         r = RateMeasurer()
@@ -129,7 +130,7 @@ class RateMeasurerTest(TestCase):
     def test_outstanding_considers_all_responses(self):
         """
         Requests that fail are considered to be completed requests and
-        should be included when calculating the number of outstanding
+        are included when calculating the number of outstanding
         requests.
         """
         r = RateMeasurer()

@@ -14,7 +14,6 @@ from twisted.internet.task import LoopingCall
 from flocker.common import loop_until, timeout
 
 from .._interfaces import IScenario
-
 from ._rate_measurer import RateMeasurer, DEFAULT_SAMPLE_SIZE
 
 
@@ -42,6 +41,12 @@ class NoNodesFound(Exception):
     """
 
 
+class RequestScenarioAlreadyStarted(Exception):
+    """
+    No nodes were provided by the control service.
+    """
+
+
 @implementer(IScenario)
 class RequestLoadScenario(object):
     """
@@ -49,20 +54,23 @@ class RequestLoadScenario(object):
     requests at a specified rate.
 
     :ivar reactor: Reactor to use.
-    :ivar scenario_setup: instance of an implementation of the interface
-        `IRequestScenarioSetup`.
+    :ivar scenario_setup: provider of the interface
+        ``IRequestScenarioSetup``.
     :ivar request_rate: The target number of requests per second.
     :ivar sample_size: The number of samples to collect when measuring
         the rate.
     :ivar timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
-    :ivar maintained: A `Deferred` that fires with an errback if the desired
+    :ivar maintained: A ``Deferred`` that fires with an errback if the desired
         scenario fails to hold between being established and being
         stopped.  This Deferred never fires with a callback.
-    :ivar rate_measurer: `RateMeasurer` instace to monitor the scenario.
+    :ivar rate_measurer: ``RateMeasurer`` instace to monitor the scenario.
     :ivar loop: main loop that will be doing requests every second.
     :ivar monitor_loop: loop that will monitor the status of the scenario once
         the target has been reached.
+    :ivar is_started: boolean that will be set to True once the scenario has
+        been started. The scenario cannot be started twice. If someone tries
+        to do so, an exception will be raised.
     """
 
     def __init__(
@@ -82,14 +90,15 @@ class RequestLoadScenario(object):
         # Monitor the status of the scenario
         self.monitor_loop = LoopingCall(self.check_rate)
         self.monitor_loop.clock = self.reactor
+        self.is_started = False
 
     def _request_and_measure(self, count):
         """
-        Update the rate with the current value and send `request_rate`
+        Update the rate with the current value and send ``request_rate``
         number of new requests.
 
         :param count: The number of seconds passed since the last time
-            `_request_and_measure` was called.
+            ``_request_and_measure`` was called.
         """
         for i in range(count):
             self.rate_measurer.update_rate()
@@ -109,7 +118,7 @@ class RequestLoadScenario(object):
         Fail the scenario. Stop the monitor loop and throw the
         error.
 
-        :param exception: `Exception` that caused the failure.
+        :param exception: ``Exception`` that caused the failure.
         """
         self.monitor_loop.stop()
         self._maintained.errback(exception)
@@ -127,7 +136,7 @@ class RequestLoadScenario(object):
         if rate < self.request_rate:
             self._fail(RequestRateTooLow(rate))
 
-        if self.rate_measurer.outstanding() > self.max_outstanding:
+        elif self.rate_measurer.outstanding() > self.max_outstanding:
             self._fail(RequestOverload())
 
     def start(self):
@@ -136,7 +145,16 @@ class RequestLoadScenario(object):
 
         :return: A Deferred that fires when the desired scenario is
             established (e.g. that a certain load is being applied).
+
+        :raise RequestScenarioAlreadyStarted: if the scenario had been
+            already started.
         """
+        # First, verify that the scenario has not been already started
+        if self.is_started:
+            raise RequestScenarioAlreadyStarted()
+        else:
+            self.is_started = True
+
         d = self.scenario_setup.run_setup()
         d.addCallback(self.run_scenario)
         return d
@@ -156,7 +174,7 @@ class RequestLoadScenario(object):
 
         def handle_timeout(failure):
             failure.trap(CancelledError)
-            raise RequestRateNotReached
+            raise RequestRateNotReached()
 
         waiting_for_target_rate = loop_until(self.reactor,
                                              reached_target_rate,
@@ -174,7 +192,7 @@ class RequestLoadScenario(object):
 
     def maintained(self):
         """
-        :return: A Deferred that fires with an errback if the desired
+        :return: A ``Deferred`` that fires with an errback if the desired
             scenario fails to hold between being established and being
             stopped.  This Deferred never fires with a callback.
         """
@@ -185,8 +203,9 @@ class RequestLoadScenario(object):
         Stop the scenario from being maintained by stopping all the
         loops that may be executing.
 
-        :return: A Deferred that fires when the scenario has stopped.
+        :return: A ``Deferred`` that fires when the scenario has stopped.
         """
+        self.is_started = False
         if self.monitor_loop.running:
             self.monitor_loop.stop()
 

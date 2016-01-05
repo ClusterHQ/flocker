@@ -1,3 +1,4 @@
+# copyright 2016 clusterhq inc.  see license file for details.
 from itertools import repeat
 from uuid import uuid4
 from ipaddr import IPAddress
@@ -15,7 +16,7 @@ from flocker.testtools import TestCase
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
     write_request_load_scenario, RequestRateTooLow, RequestRateNotReached,
-    RequestOverload, DatasetCreationTimeout
+    RequestOverload, DatasetCreationTimeout, RequestScenarioAlreadyStarted,
 )
 
 DEFAULT_VOLUME_SIZE = 1073741824
@@ -25,7 +26,7 @@ class RequestDroppingFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
     """
-    A FakeFlockerClient that can drop alternating requests.
+    A ``FakeFlockerClient`` that can drop alternating requests.
     """
     def __init__(self, client):
         super(RequestDroppingFakeFlockerClient, self).__init__(client)
@@ -47,7 +48,7 @@ class RequestErrorFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
     """
-    A FakeFlockerClient that can result in failured requests.
+    A ``FakeFlockerClient`` that can result in failured requests.
     """
     def __init__(self, client, reactor):
         super(RequestErrorFakeFlockerClient, self).__init__(client)
@@ -72,7 +73,7 @@ class UnresponsiveDatasetCreationFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
     """
-    A FakeFlockerClient that does not respond to requests.
+    A ``FakeFlockerClient`` that does not respond to requests.
     """
     def __init__(self, client):
         super(
@@ -86,7 +87,7 @@ class UnresponsiveDatasetCreationFakeFlockerClient(
 
 class write_request_load_scenarioTest(TestCase):
     """
-    write_request_load_scenario tests.
+    ``write_request_load_scenario`` tests.
     """
     def setUp(self):
         super(write_request_load_scenarioTest, self).setUp()
@@ -106,14 +107,14 @@ class write_request_load_scenarioTest(TestCase):
 
     def get_fake_flocker_client_instance(self):
         """
-        Returns a `FakeFlockerClient` instance with the nodes
+        Returns a ``FakeFlockerClient`` instance with the nodes
         defined in the init.
         """
         return FakeFlockerClient([self.node1, self.node2])
 
     def get_dropping_flocker_client_instance(self):
         """
-        Returns a `RequestDroppingFakeFlockerClient` instance
+        Returns a ``RequestDroppingFakeFlockerClient`` instance
         using the nodes defined in the init.
         """
         return RequestDroppingFakeFlockerClient(
@@ -121,7 +122,7 @@ class write_request_load_scenarioTest(TestCase):
 
     def get_unresponsive_flocker_client_instance(self):
         """
-        Returns a `UnresponsiveDatasetCreationFakeFlockerClient`
+        Returns a ``UnresponsiveDatasetCreationFakeFlockerClient``
         instance using the nodes defined in the init.
         """
         return UnresponsiveDatasetCreationFakeFlockerClient(
@@ -129,7 +130,7 @@ class write_request_load_scenarioTest(TestCase):
 
     def get_error_response_client(self, reactor):
         """
-        Returns a `RequestErrorFakeFlockerClient` instance using the
+        Returns a ``RequestErrorFakeFlockerClient`` instance using the
         nodes defined in the init.
         """
         return RequestErrorFakeFlockerClient(
@@ -139,7 +140,7 @@ class write_request_load_scenarioTest(TestCase):
 
     def test_setup_generates_dataset(self):
         """
-        `write_request_load_scenario` starts and stops without collapsing.
+        ``write_request_load_scenario`` starts and stops without collapsing.
         """
         c = Clock()
         cluster = self.make_cluster(self.get_fake_flocker_client_instance())
@@ -158,13 +159,13 @@ class write_request_load_scenarioTest(TestCase):
         s.stop()
 
     def test_setup_retries_generating_dataset(self):
-        # Not implemented. This will just return an error
+        # XXX: Not implemented. This will just return an error
         # Should we implement it?
         pass
 
     def test_setup_timeout_when_datasat_not_created(self):
         """
-        `write_request_load_scenario` should timeout if the setup the dataset
+        ``write_request_load_scenario`` should timeout if the setup the dataset
         creation does not complete within the given time.
         """
         c = Clock()
@@ -180,7 +181,7 @@ class write_request_load_scenarioTest(TestCase):
 
     def test_write_request_load_succeeds(self):
         """
-        write_request_load_scenario starts and stops without collapsing.
+        ``write_request_load_scenario`` starts and stops without collapsing.
         """
         c = Clock()
         cluster = self.make_cluster(self.get_fake_flocker_client_instance())
@@ -198,14 +199,50 @@ class write_request_load_scenarioTest(TestCase):
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
 
+    def test_write_scenario_start_stop_start_succeeds(self):
+        """
+        ``write_request_load_scenario`` starts, stops and starts
+        without collapsing.
+        """
+        c = Clock()
+        cluster = self.make_cluster(self.get_fake_flocker_client_instance())
+        sample_size = 5
+        s = write_request_load_scenario(c, cluster, sample_size=sample_size)
+        # Start and stop
+        s.start()
+        c.pump(repeat(1, sample_size))
+        s.stop()
+
+        # Start again and check it succeeds.
+        d = s.start()
+        c.pump(repeat(1, sample_size))
+        s.maintained().addBoth(lambda x: self.fail())
+        d.addCallback(lambda ignored: s.stop())
+        self.successResultOf(d)
+
+    def test_scenario_throws_exception_when_already_started(self):
+        """
+        start method in the ``RequestLoadScenario`` throws a
+        ``RequestScenarioAlreadyStarted`` if the scenario is already started.
+        """
+        c = Clock()
+        cluster = self.make_cluster(self.get_fake_flocker_client_instance())
+        sample_size = 5
+        s = write_request_load_scenario(c, cluster, sample_size=sample_size)
+        # Start and stop
+        s.start()
+        c.pump(repeat(1, sample_size))
+        self.assertRaises(RequestScenarioAlreadyStarted, s.start)
+
+
     def test_scenario_throws_exception_when_rate_drops(self):
         """
-        write_request_load_scenario raises RequestRateTooLow if rate
+        ``write_request_load_scenario`` raises ``RequestRateTooLow`` if rate
         drops below the requested rate.
 
-        Establish the requested rate by having the FakeFlockerClient
+        Establish the requested rate by having the ``FakeFlockerClient``
         respond to all requests, then lower the rate by dropping
-        alternate requests. This should result in RequestRateTooLow
+        alternate requests. This should result in ``RequestRateTooLow``
         being raised.
         """
         c = Clock()
@@ -231,8 +268,8 @@ class write_request_load_scenarioTest(TestCase):
 
     def test_scenario_throws_exception_if_requested_rate_not_reached(self):
         """
-        write_request_load_scenario raises RequestRateNotReached if the
-        target rate cannot be established within a given timeframe.
+        ``write_request_load_scenario`` raises ``RequestRateNotReached`` if
+        the target rate cannot be established within a given timeframe.
         """
         c = Clock()
         control_service = self.get_dropping_flocker_client_instance()
@@ -250,7 +287,7 @@ class write_request_load_scenarioTest(TestCase):
 
     def test_scenario_throws_exception_if_overloaded(self):
         """
-        `write_request_load_scenario` raises `RequestOverload` if the
+        ``write_request_load_scenario`` raises ``RequestOverload`` if the
         difference between sent requests and received requests exceeds
         the tolerated difference once we start monitoring the scenario.
 
@@ -291,7 +328,7 @@ class write_request_load_scenarioTest(TestCase):
 
     def test_scenario_stops_only_when_no_outstanding_requests(self):
         """
-        `write_request_load_scenario` should only be considered as stopped
+        ``write_request_load_scenario`` should only be considered as stopped
         when all outstanding requests made by it have completed.
         """
         c = Clock()
@@ -330,7 +367,7 @@ class write_request_load_scenarioTest(TestCase):
 
     def test_scenario_timeouts_if_requests_not_completed(self):
         """
-        `write_request_load_scenario` should timeout if the outstanding
+        ``write_request_load_scenario`` should timeout if the outstanding
         requests for the scenarion do not complete within the specified
         time.
         """
@@ -366,3 +403,4 @@ class write_request_load_scenarioTest(TestCase):
         c.advance(s.timeout + 1)
         self.assertTrue(s.rate_measurer.outstanding() > 0)
         self.successResultOf(d)
+

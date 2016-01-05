@@ -11,12 +11,10 @@ from twisted.internet.defer import CancelledError
 from flocker.common import timeout
 
 from .._interfaces import IRequestScenarioSetup
-
-from ._rate_measurer import DEFAULT_SAMPLE_SIZE
-
 from ._request_load import (
     RequestLoadScenario, NoNodesFound
 )
+from .rate_measurer import DEFAULT_SAMPLE_SIZE
 
 
 class DatasetCreationTimeout(Exception):
@@ -30,7 +28,7 @@ class WriteRequest(object):
     """
     Implementation of the write setup.
     :ivar reactor: Reactor to use.
-    :ivar cluster: `BenchmarkCluster` containing the control service.
+    :ivar cluster: ``BenchmarkCluster`` containing the control service.
     :ivar timeout: Maximum time in seconds to wait until the dataset is
         created.
     """
@@ -48,9 +46,9 @@ class WriteRequest(object):
 
         :param node: node where we want the dataset.
 
-        :return: A Deferred that fires when the dataset has been created.
+        :return: A ``Deferred`` that fires when the dataset has been created.
 
-        :raises: `DatasetCreationTimeout` if the creation goes wrong.
+        :raise DatasetCreationTimeout: if the creation goes wrong.
         """
         self.dataset_node = node
         creating = self.control_service.create_dataset(
@@ -69,11 +67,11 @@ class WriteRequest(object):
         """
         Selects the node where the dataset will be created.
 
-        :param nodes: list of `Node` where we will chose one
+        :param nodes: list of ``Node`` where we will chose one
             to create the dataset.
 
-        :return: the selected `Node`.
-        :raise: `NoNodesFound` if the given list of nodes was empty.
+        :return: the selected ``Node``.
+        :raise: ``NoNodesFound`` if the given list of nodes was empty.
         """
         if not nodes:
             raise NoNodesFound()
@@ -91,7 +89,7 @@ class WriteRequest(object):
         """
         Executes the setup and starts running the write scenario.
 
-        :return: A Deferred that fires when the desired scenario is
+        :return: A ``Deferred`` that fires when the desired scenario is
             established (e.g. that a certain load is being applied).
         """
         # List all the nodes registered in the control service
@@ -110,12 +108,12 @@ class WriteRequest(object):
         It will try to move the dataset to the same location where it
         is right now, so no real changes will be made to the config.
 
-        :return: A `Deferred` that fires when the dataset has been moved.
+        :return: A ``Deferred`` that fires when the dataset has been moved.
 
         :raise DatasetCreationTimeout: if there is no dataset to be moved.
         """
         if self.dataset_node is None:
-            raise DatasetCreationTimeout
+            raise DatasetCreationTimeout()
         return self.control_service.move_dataset(
             self.dataset_node.uuid,
             self.dataset_id
@@ -129,14 +127,14 @@ def write_request_load_scenario(reactor, cluster, request_rate=10,
     the cluster by performing write requests at a specified rate.
 
     :param reactor: Reactor to use.
-    :param cluster: `BenchmarkCluster` containing the control service.
+    :param cluster: ``BenchmarkCluster` containing the control service.
     :param request_rate: The target number of requests per second.
     :param sample_size: The number of samples to collect when measuring
         the rate.
     :param timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
 
-    :return: a `RequestLoadScenario` initialised to be a write load
+    :return: a ``RequestLoadScenario`` initialised to be a write load
         scenario.
     """
     return RequestLoadScenario(

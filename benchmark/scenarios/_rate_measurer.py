@@ -3,7 +3,6 @@ from collections import deque
 
 DEFAULT_SAMPLE_SIZE = 5
 
-
 class RateMeasurer(object):
     """
     Measures the rate of requests in requests per second.

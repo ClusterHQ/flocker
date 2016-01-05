@@ -8,10 +8,7 @@ from zope.interface import implementer
 from twisted.internet.defer import succeed
 
 from .._interfaces import IRequestScenarioSetup
-
-from ._rate_measurer import DEFAULT_SAMPLE_SIZE
-
-from ._request_load import RequestLoadScenario
+from ._request_load import RequestLoadScenario, DEFAULT_SAMPLE_SIZE
 
 
 @implementer(IRequestScenarioSetup)
@@ -20,7 +17,7 @@ class ReadRequest(object):
     Implementation of the setup and request maker for the read load
     scenario.
     :ivar reactor: Reactor to use.
-    :ivar cluster: `BenchmarkCluster` containing the control service.
+    :ivar cluster: ``BenchmarkCluster`` containing the control service.
     """
     def __init__(self, reactor, cluster):
         self.control_service = cluster.get_control_service(reactor)
@@ -29,9 +26,9 @@ class ReadRequest(object):
         """
         Function that will make a single read request.
         It will list the nodes on the cluster given when initialising
-        the ReadRequest class
+        the ``ReadRequest`` class
 
-        :return: A Deferred that fires when the nodes have been listed.
+        :return: A ``Deferred`` that fires when the nodes have been listed.
         """
         return self.control_service.list_nodes()
 
@@ -40,7 +37,7 @@ class ReadRequest(object):
         No setup is required for the read scenario, so this is a no-op
         setup.
 
-        :return: A `Deferred` that fires instantly with a success result.
+        :return: A ``Deferred`` that fires instantly with a success result.
         """
         return succeed(None)
 
@@ -52,14 +49,14 @@ def read_request_load_scenario(reactor, cluster, request_rate=10,
     load on the cluster by performing read requests at a specified rate.
 
     :param reactor: Reactor to use.
-    :param cluster: `BenchmarkCluster` containing the control service.
+    :param cluster: ``BenchmarkCluster`` containing the control service.
     :param request_rate: The target number of requests per second.
     :param sample_size: The number of samples to collect when measuring
         the rate.
     :param timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
 
-    :return: a `RequestLoadScenario` initialised to be a read load
+    :return: a ``RequestLoadScenario`` initialised to be a read load
         scenario.
     """
     return RequestLoadScenario(
@@ -69,4 +66,3 @@ def read_request_load_scenario(reactor, cluster, request_rate=10,
         sample_size=sample_size,
         timeout=timeout,
     )
-

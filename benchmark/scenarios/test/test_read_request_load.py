@@ -1,3 +1,4 @@
+# copyright 2016 clusterhq inc.  see license file for details.
 from itertools import repeat
 from uuid import uuid4
 from ipaddr import IPAddress
@@ -15,7 +16,7 @@ from flocker.testtools import TestCase
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
     RequestRateTooLow, RequestRateNotReached,
-    RequestOverload, read_request_load_scenario
+    RequestOverload, read_request_load_scenario, RequestScenarioAlreadyStarted,
 )
 
 DEFAULT_VOLUME_SIZE = 1073741824
@@ -25,7 +26,7 @@ class RequestDroppingFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
     """
-    A FakeFlockerClient that can drop alternating requests.
+    A ``FakeFlockerClient`` that can drop alternating requests.
     """
     def __init__(self, client, reactor):
         super(RequestDroppingFakeFlockerClient, self).__init__(client)
@@ -47,7 +48,7 @@ class RequestErrorFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
     """
-    A FakeFlockerClient that can result in failured requests.
+    A ``FakeFlockerClient`` that can result in failured requests.
     """
     def __init__(self, client, reactor):
         super(RequestErrorFakeFlockerClient, self).__init__(client)
@@ -70,7 +71,7 @@ class RequestErrorFakeFlockerClient(
 
 class read_request_load_scenarioTest(TestCase):
     """
-    read_request_load_scenario tests
+    ``read_request_load_scenario`` tests
     """
     def make_cluster(self, FlockerClient):
         """
@@ -89,7 +90,7 @@ class read_request_load_scenarioTest(TestCase):
 
     def test_read_request_load_succeeds(self):
         """
-        read_request_load_scenario starts and stops without collapsing.
+        ``read_request_load_scenario`` starts and stops without collapsing.
         """
         c = Clock()
 
@@ -117,14 +118,68 @@ class read_request_load_scenarioTest(TestCase):
         c.pump(repeat(1, sample_size))
         self.successResultOf(d)
 
+    def test_read_request_load_start_stop_start_succeeds(self):
+        """
+        ``read_request_load_scenario`` starts, stops and starts
+        without collapsing.
+        """
+        c = Clock()
+
+        node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
+        node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
+        cluster = BenchmarkCluster(
+            node1.public_address,
+            lambda reactor: FakeFlockerClient([node1, node2]),
+            {node1.public_address, node2.public_address},
+            default_volume_size=DEFAULT_VOLUME_SIZE
+        )
+
+        sample_size = 5
+        s = read_request_load_scenario(c, cluster, sample_size=sample_size)
+        # Start and stop
+        s.start()
+        c.pump(repeat(1, sample_size))
+        s.stop()
+
+        # Start again and verify the scenario succeeds
+        d = s.start()
+        c.pump(repeat(1, sample_size))
+        s.maintained().addBoth(lambda x: self.fail())
+        d.addCallback(lambda ignored: s.stop())
+        c.pump(repeat(1, sample_size))
+        self.successResultOf(d)
+
+    def test_scenario_throws_exception_when_already_started(self):
+        """
+        start method in the ``RequestLoadScenario`` throws a
+        ``RequestScenarioAlreadyStarted`` if the scenario is already started.
+        """
+        c = Clock()
+
+        node1 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1'))
+        node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
+        cluster = BenchmarkCluster(
+            node1.public_address,
+            lambda reactor: FakeFlockerClient([node1, node2]),
+            {node1.public_address, node2.public_address},
+            default_volume_size=DEFAULT_VOLUME_SIZE
+        )
+
+        sample_size = 5
+        s = read_request_load_scenario(c, cluster, sample_size=sample_size)
+
+        s.start()
+
+        self.assertRaises(RequestScenarioAlreadyStarted, s.start)
+
     def test_scenario_throws_exception_when_rate_drops(self):
         """
-        read_request_load_scenario raises RequestRateTooLow if rate
+        ``read_request_load_scenario`` raises ``RequestRateTooLow`` if rate
         drops below the requested rate.
 
-        Establish the requested rate by having the FakeFlockerClient
+        Establish the requested rate by having the ``FakeFlockerClient``
         respond to all requests, then lower the rate by dropping
-        alternate requests. This should result in RequestRateTooLow
+        alternate requests. This should result in ``RequestRateTooLow``
         being raised.
         """
         c = Clock()
@@ -150,7 +205,7 @@ class read_request_load_scenarioTest(TestCase):
 
     def test_scenario_throws_exception_if_requested_rate_not_reached(self):
         """
-        read_request_load_scenario raises RequestRateNotReached if the
+        ``read_request_load_scenario`` raises ``RequestRateNotReached`` if the
         target rate cannot be established within a given timeframe.
         """
         c = Clock()
@@ -168,7 +223,7 @@ class read_request_load_scenarioTest(TestCase):
 
     def test_scenario_throws_exception_if_overloaded(self):
         """
-        `read_request_load_scenario` raises `RequestOverload` if the
+        ``read_request_load_scenario`` raises ``RequestOverload`` if the
         difference between sent requests and received requests exceeds
         the tolerated difference once we start monitoring the scenario.
 
@@ -184,7 +239,7 @@ class read_request_load_scenarioTest(TestCase):
         target_rate = 10
         sample_size = 20
         s = read_request_load_scenario(c, cluster, request_rate=target_rate,
-                                    sample_size=sample_size)
+                                       sample_size=sample_size)
         dropped_rate = target_rate / 2
         seconds_to_overload = s.max_outstanding / dropped_rate
 
@@ -207,7 +262,7 @@ class read_request_load_scenarioTest(TestCase):
 
     def test_scenario_stops_only_when_no_outstanding_requests(self):
         """
-        `read_request_load_scenario` should only be considered as stopped
+        ``read_request_load_scenario`` should only be considered as stopped
         when all outstanding requests made by it have completed.
         """
         c = Clock()
@@ -245,7 +300,7 @@ class read_request_load_scenarioTest(TestCase):
 
     def test_scenario_timeouts_if_requests_not_completed(self):
         """
-        `read_request_load_scenario` should timeout if the outstanding
+        ``read_request_load_scenario`` should timeout if the outstanding
         requests for the scenarion do not complete within the specified
         time.
         """
