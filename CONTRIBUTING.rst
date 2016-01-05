@@ -134,9 +134,20 @@ Alternatively, without needing to set up a Flocker development environment, you 
         -v ${PWD}/README.rst:/app/README.rst \
         -v ${PWD}/docs/:/app/docs/ clusterhq/flocker-docs-builder
 
-You can then run the second command multiple times as you are editing the docs: because we bind-mount the docs directory, there's no need to rebuild the image each time.
+You can then run the second command multiple times as you are editing the docs: because we bind-mount the docs directory, there's no need to rebuild the Docker image each time.
 
 Either way, you can then view the result by opening ``docs/_build/html/index.html`` in your browser.
+
+Some features of the documentation only work when viewed through a web server.
+To run a web server locally in Docker, using the ``clusterhq/flocker-docs-builder`` Docker image built in the above command, run:
+
+.. prompt:: bash $
+
+    docker run -p 8080:8080 -ti -v ${PWD}/docs/_build/html:/www \
+        --entrypoint twistd clusterhq/flocker-docs-builder \
+        -n web --path /www
+
+Then open http://localhost:8080/ in a web browser.
 
 .. _Sphinx: http://sphinx-doc.org/
 
