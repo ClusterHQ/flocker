@@ -18,6 +18,13 @@ from zope.interface import implementer
 from eliot import Message
 from eliot.testing import assertContainsFields
 
+try:
+    from eliot.journald import JournaldDestination
+    del JournaldDestination
+    can_write_to_journald = True
+except ImportError as e:
+    can_write_to_journald = False
+
 from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutput
 from twisted.internet.defer import succeed, Deferred
@@ -31,7 +38,7 @@ from ...common import loop_until
 from ...testtools import random_name, if_root, AsyncTestCase, TestCase
 
 
-def _journald_available():
+def _can_query_journald():
     """
     :return: Boolean indicating whether journald is available to use.
     """
@@ -315,7 +322,7 @@ class FlockerScriptRunnerJournaldTests(AsyncTestCase):
     Functional tests for ``FlockerScriptRunner`` journald support.
     """
     @if_root
-    @skipUnless(_journald_available(),
+    @skipUnless(_can_query_journald(),
                 "journald unavailable or inactive on this machine.")
     def run_journald_script(self, script):
         """
@@ -361,10 +368,10 @@ class JournaldOptionsTests(TestCase):
     """
     Tests for the ``--journald`` option.
     """
-    # _journald_available() is too strong of an assertion; a non-root user
+    # _can_query_journald() is too strong of an assertion; a non-root user
     # on system with journald installed will get False but this test
     # shouldn't be run in that case.
-    @skipIf(which("journalctl"), "Journald is available on this machine.")
+    @skipIf(can_write_to_journald, "Journald is available on this machine.")
     def test_journald_unavailable(self):
         """
         If journald is unavailable on the machine, ``--journald`` raises a
