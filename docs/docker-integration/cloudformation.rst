@@ -5,9 +5,9 @@ Quick Installation of Flocker with Swarm on AWS
 Step 1
 ------
 
-Create and save an AWS EC2 KeyPair:
+Create and save an AWS EC2 Key Pair:
 
-- Create an AWS EC2 KeyPair in the target region for Flocker cluster: https://console.aws.amazon.com/ec2/v2/home
+- Create an AWS EC2 Key Pair in the target region for Flocker cluster: https://console.aws.amazon.com/ec2/v2/home
   |keypair|
 
 .. |keypair| image:: keypair.png
