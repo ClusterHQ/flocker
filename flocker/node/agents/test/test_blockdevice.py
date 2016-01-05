@@ -1253,25 +1253,31 @@ class _WriteVerifyingExternalClient(object):
         self._testing_mountroot = mountroot
         self._blockdevice_manager = blockdevice_manager
 
-    def _immitate_docker_writing(self, mountdir, filename, content):
+    def _imitate_docker_writing(self, mountdir, filename, content):
         """
         Imitate writing content to a file to a mounted directory using docker.
 
-        :param FilePath mountidr: The directory to be mounted as a docker
+        :param FilePath mountdir: The directory to be mounted as a docker
             volume.
         :param unicode filename: The name of the file to create in the docker
             volume.
         :param unicode content: The content to write to the file.
         """
+        # The path for docker to expose within the container. Docker will bind
+        # mount mountdir to this location within the container.
         container_path = FilePath('/vol')
-        try:
-            check_call([
-                "docker", "run", "--rm", "-v", "%s:%s" % (
-                    mountdir.path, container_path.path),
-                "busybox", "/bin/sh", "-c", "echo -n %s > %s" % (
-                    content, container_path.child(filename).path)
-            ])
-        except CalledProcessError:
+        process_result = run_process([
+            "docker",
+            "run",  # Run a container.
+            "--rm",  # Remove the container once it exits.
+            # Bind mount the passed in directory into the container
+            "-v", "%s:%s" % (mountdir.path, container_path.path),
+            "busybox",  # Run the busybox image.
+            # Use sh to echo the content into the file in the bind mount.
+            "/bin/sh", "-c", "echo -n %s > %s" % (
+                content, container_path.child(filename).path)
+        ])
+        if process_result.status != 0:
             raise _WriteError()
 
     def _has_file_with_content(self, filename, content):
@@ -1595,8 +1601,8 @@ class BlockDeviceCalculatorTests(TestCase):
         This would represent an agent like docker attempting to use a path
         before or after flocker was ready for it to use the path.
         """
-        self.skipTest(
-            'Currently this fails as the path is writable after unmount.')
+        #self.skipTest(
+        #    'Currently this fails as the path is writable after unmount.')
 
         callback = _MutableCallback()
 
