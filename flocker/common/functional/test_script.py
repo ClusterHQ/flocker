@@ -18,6 +18,12 @@ from zope.interface import implementer
 from eliot import Message
 from eliot.testing import assertContainsFields
 
+try:
+    from eliot.journald import JournaldDestination
+except ImportError as e:
+    # This platform doesn't have journald.
+    JournaldDestination = None
+
 from twisted.trial.unittest import TestCase
 from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutput
@@ -365,7 +371,7 @@ class JournaldOptionsTests(TestCase):
     # _journald_available() is too strong of an assertion; a non-root user
     # on system with journald installed will get False but this test
     # shouldn't be run in that case.
-    @skipIf(which("journalctl"), "Journald is available on this machine.")
+    @skipUnless(JournaldDestination is None, "Journald is available on this machine.")
     def test_journald_unavailable(self):
         """
         If journald is unavailable on the machine, ``--journald`` raises a
