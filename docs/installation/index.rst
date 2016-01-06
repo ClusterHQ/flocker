@@ -1,12 +1,18 @@
+.. _installing-flocker:
+
 ==================
 Installing Flocker
 ==================
 
-.. begin-body
+.. begin-body-introduction
 
 There are several installation options with which you can get up and running with Flocker.
 
+.. end-body-introduction
+
 .. _quick-start-installer:
+
+.. begin-body-quick-start-installer
 
 Quick Start Flocker Installer
 =============================
@@ -38,11 +44,15 @@ The following instructions will take you through installing Flocker with the Ins
 .. toctree::
    :maxdepth: 1
    
-   installer-getstarted
-   installer-tutorial
-   cluster-cleanup
+   ../installation/installer-getstarted
+   ../installation/installer-tutorial
+   ../installation/cluster-cleanup
+
+.. end-body-quick-start-installer
 
 .. _full-installation:
+
+.. begin-body-full-installation
 
 Full Installation
 =================
@@ -56,18 +66,22 @@ If you want to install the :ref:`Flocker plugin for Docker <plugin>`, this is in
 .. toctree::
    :maxdepth: 2
 
-   install-client
-   install-node
+   ../installation/install-client
+   ../installation/install-node
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
 .. toctree::
    :hidden:
 
-   setup-aws
-   setup-rackspace
+   ../installation/setup-aws
+   ../installation/setup-rackspace
+
+.. end-body-full-installation
 
 .. _post-installation-configuration:
+
+.. begin-body-configuring-flocker
 
 Configuring Flocker
 ===================
@@ -77,14 +91,18 @@ Once you have installed Flocker you will need to complete the following configur
 .. toctree::
    :maxdepth: 2
 
-   configuring-authentication
-   generate-api-certificates
-   generate-api-plugin
-   enabling-control-service
-   configuring-nodes-storage
-   enabling-agent-service
+   ../installation/configuring-authentication
+   ../installation/generate-api-certificates
+   ../installation/generate-api-plugin
+   ../installation/enabling-control-service
+   ../installation/configuring-nodes-storage
+   ../installation/enabling-agent-service
+
+.. end-body-configuring-flocker
 
 .. _controlling-flocker:
+
+.. begin-body-controlling-flocker
 
 Controlling Flocker
 ===================
@@ -108,8 +126,8 @@ The following topics go into more detail about how you can control Flocker using
 .. toctree::
    :maxdepth: 2
 
-   plugin/index
-   cli/index
-   administering/index
+   ../installation/plugin/index
+   ../installation/cli/index
+   ../installation/administering/index
 
-.. end-body
+.. end-body-controlling-flocker
