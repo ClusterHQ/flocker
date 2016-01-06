@@ -579,13 +579,14 @@ def build_multijob(dashBranchName, branchName) {
                                     /* make sure we don't kill the parent multijob when we
                                        fail */
                                     killPhaseCondition("NEVER")
+
+                                    /* Copy the job's configured artifacts to the master
+                                     */
+                                    build_copy_artifacts(
+                                        delegate, dashProject, dashBranchName, _job_name,
+                                        job_entry.value,
+                                    )
                                 }
-                                /* Copy the job's configured artifacts to the master
-                                 */
-                                build_copy_artifacts(
-                                    delegate, dashProject, dashBranchName, _job_name,
-                                    job_entry.value,
-                                )
 
                             }
                         }
