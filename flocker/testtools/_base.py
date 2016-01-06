@@ -122,7 +122,7 @@ def _test_skipped(case, result, exception):
     result.addSkip(case, details={'reason': text_content(unicode(exception))})
 
 
-class AsyncTestCase(testtools.TestCase, _MktempMixin):
+class AsyncTestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
     """
     Base class for asynchronous test cases.
 

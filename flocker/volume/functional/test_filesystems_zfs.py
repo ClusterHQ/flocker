@@ -15,7 +15,6 @@ import errno
 
 from twisted.internet import reactor
 from twisted.internet.task import cooperate
-from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from ..test.filesystemtests import (
@@ -30,6 +29,7 @@ from ..filesystems.zfs import (
 from ..service import Volume, VolumeName
 from .._model import VolumeSize
 from ..testtools import create_zfs_pool, service_for_pool
+from ...testtools import AsyncTestCase, TestCase
 
 
 class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
@@ -72,7 +72,7 @@ class VolumeToDatasetTests(TestCase):
                          b"my-uuid.myns.myvolume")
 
 
-class StoragePoolTests(TestCase):
+class StoragePoolTests(AsyncTestCase):
     """
     ZFS-specific ``StoragePool`` tests.
     """
@@ -399,7 +399,7 @@ class StoragePoolTests(TestCase):
         return d
 
 
-class IncrementalPushTests(TestCase):
+class IncrementalPushTests(AsyncTestCase):
     """
     Tests for incremental push based on ZFS snapshots.
     """
@@ -457,7 +457,7 @@ class IncrementalPushTests(TestCase):
         return loading
 
 
-class FilesystemTests(TestCase):
+class FilesystemTests(AsyncTestCase):
     """
     ZFS-specific tests for ``Filesystem``.
     """
