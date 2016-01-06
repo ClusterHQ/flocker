@@ -7,7 +7,7 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 from uuid import uuid4
 
 from testtools import ExpectedException
-from testtools.matchers import Equals
+from testtools.matchers import Not, FileExists
 
 from zope.interface.verify import verifyObject
 
@@ -179,7 +179,7 @@ class BlockDeviceManagerTests(TestCase):
             filename = str(uuid4())
             new_file = create.child(filename)
             new_file.touch()
-            self.expectThat(view.child(filename).exists(), Equals(True),
+            self.expectThat(view.child(filename).path, FileExists(),
                             'Created file not visible through bind mount.')
 
     def test_failing_bind_mount(self):
@@ -207,20 +207,20 @@ class BlockDeviceManagerTests(TestCase):
         third_file = mountpoint.child(str(uuid4()))
 
         first_file.touch()
-        self.expectThat(first_file.exists(), Equals(True))
+        self.expectThat(first_file.path, FileExists())
 
         self.manager_under_test.remount(mountpoint, Permissions.READ_ONLY)
-        self.expectThat(first_file.exists(), Equals(True))
+        self.expectThat(first_file.path, FileExists())
 
         with ExpectedException(OSError):
             second_file.touch()
-        self.expectThat(second_file.exists(), Equals(False))
+        self.expectThat(second_file.path, Not(FileExists()))
 
         self.manager_under_test.remount(mountpoint, Permissions.READ_WRITE)
-        self.expectThat(first_file.exists(), Equals(True))
-        self.expectThat(second_file.exists(), Equals(False))
+        self.expectThat(first_file.path, FileExists())
+        self.expectThat(second_file.path, Not(FileExists()))
         third_file.touch()
-        self.expectThat(third_file.exists(), Equals(True))
+        self.expectThat(third_file.path, FileExists())
 
     def test_remount_failure(self):
         """
@@ -237,23 +237,16 @@ class BlockDeviceManagerTests(TestCase):
         to. Once the mount is unmounted all files should be gone.
         """
         mountpoint = self._get_directory_for_mount()
-        test_filename = unicode(uuid4())
 
-        # Twisted caches FilePath.exists, so if run path.exists() before and
-        # after you unmount a mountpoint, the FilePath will lie to you and
-        # claim that it still exists after the tmpfs mount was unmounted.
-        # Instead, create a new FilePath object every time to avoid bugs in the
-        # state of FilePath.
-        def test_file():
-            return mountpoint.child(test_filename)
+        test_file = mountpoint.child(unicode(uuid4()))
 
         self.manager_under_test.make_tmpfs_mount(mountpoint)
-        self.expectThat(test_file().exists(), Equals(False))
-        test_file().touch()
-        self.expectThat(test_file().exists(), Equals(True),
+        self.expectThat(test_file.path, Not(FileExists()))
+        test_file.touch()
+        self.expectThat(test_file.path, FileExists(),
                         'File did not exist after being touched on tmpfs.')
         self.manager_under_test.unmount(mountpoint)
-        self.expectThat(test_file().exists(), Equals(False),
+        self.expectThat(test_file.path, Not(FileExists()),
                         'File persisted after tmpfs mount unmounted')
 
     def test_make_tmpfs_mount_failure(self):
