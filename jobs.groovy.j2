@@ -582,12 +582,13 @@ def build_multijob(dashBranchName, branchName) {
 
                                     /* Copy the job's configured artifacts to the master
                                      */
-                                    build_copy_artifacts(
-                                        delegate, dashProject, dashBranchName, _job_name,
-                                        job_entry.value,
-                                    )
+                                    steps {
+                                        build_copy_artifacts(
+                                            delegate, dashProject, dashBranchName, _job_name,
+                                            job_entry.value,
+                                        )
+                                    }
                                 }
-
                             }
                         }
                     }
