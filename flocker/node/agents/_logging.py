@@ -105,7 +105,13 @@ BOTO_LOG_HEADER = u'flocker:node:agents:blockdevice:aws:boto_logs'
 
 BOTO_LOG_RESULT = u'flocker:node:agents:blockdevice:aws:boto_result'
 
-VOLUME_BUSY_MESSAGE = u"flocker:node:agents:blockdevice:aws:volume_busy"
+VOLUME_BUSY_MESSAGE = MessageType(
+    u"flocker:node:agents:blockdevice:aws:volume_busy",
+    [
+        Field.for_types("attachments", [list], u"Known volume attachments."),
+        Field.for_types("volume_id", [bytes, unicode], u"The blockdevice ID."),
+    ],
+)
 # End: Helper datastructures used by AWS storage driver.
 
 # Begin: Helper datastructures used by OpenStack storage drivers

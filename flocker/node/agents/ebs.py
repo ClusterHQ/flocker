@@ -284,8 +284,7 @@ class VolumeBusy(Exception):
     """
     def __init__(self, volume):
         Exception.__init__(self, volume.id, volume.attachments)
-        Message.new(
-            message_type=VOLUME_BUSY_MESSAGE,
+        VOLUME_BUSY_MESSAGE(
             volume_id=volume.id,
             attachments=volume.attachments
         ).write()
