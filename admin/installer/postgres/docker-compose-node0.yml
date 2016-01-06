@@ -3,7 +3,7 @@ postgres:
   ports:
      -  "5432:5432"
   environment:
-     - "constraint:flocker-node==0"
+     - "constraint:flocker-node==1"
      - "POSTGRES_USER=flocker"
      - "POSTGRES_PASSWORD=flocker"
      - "PGDATA=/var/lib/postgresql/data"
