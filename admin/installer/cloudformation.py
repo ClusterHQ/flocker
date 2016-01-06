@@ -9,6 +9,7 @@ from troposphere import FindInMap, GetAtt, Base64, Join
 from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
 from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
+from troposphere.policies import CreationPolicy, ResourceSignal
 
 NUM_NODES = 3
 NODE_NAME_TEMPLATE = u"Flocker{index}"
@@ -19,6 +20,7 @@ SWARM_NODE_SETUP = 'setup_swarm_node.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
 FLOCKER_CONFIGURATION_GETTER = 'flocker-configuration-getter.sh'
 CLIENT_SETUP = 'setup_client.sh'
+SIGNAL_CREATION_POLICY = 'signal_creation_policy.sh'
 
 
 def sibling_lines(filename):
@@ -89,9 +91,14 @@ base_user_data = [
     'access_key_id="', Ref(access_key_id_param), '"\n',
     'secret_access_key="', Ref(secret_access_key_param), '"\n',
     's3_bucket="', Ref(s3bucket), '"\n',
+    'stack_name="', Ref("AWS::StackName"), '"\n',
     'node_count="{}"\n'.format(NUM_NODES),
     'apt-get update\n',
 ]
+
+creation_policy = CreationPolicy(
+    ResourceSignal=ResourceSignal(Count=1,
+                                  Timeout='PT5M'))
 
 for i in range(NUM_NODES):
     node_name = NODE_NAME_TEMPLATE.format(index=i)
@@ -102,10 +109,12 @@ for i in range(NUM_NODES):
         KeyName=Ref(keyname_param),
         SecurityGroups=[Ref(instance_sg)],
         AvailabilityZone=zone,
+        # CreationPolicy=creation_policy
     )
     user_data = base_user_data[:]
     user_data += [
         'node_number="{}"\n'.format(i),
+        'node_name="{}"\n'.format(node_name),
     ]
 
     user_data += sibling_lines(DOCKER_SETUP)
@@ -136,6 +145,7 @@ for i in range(NUM_NODES):
         ])
 
     user_data += sibling_lines(FLOCKER_CONFIGURATION_GETTER)
+    user_data += sibling_lines(SIGNAL_CREATION_POLICY)
     ec2_instance.UserData = Base64(Join("", user_data))
     template.add_resource(ec2_instance)
 
