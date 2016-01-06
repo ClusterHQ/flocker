@@ -8,7 +8,6 @@ Further coverage is provided in
 
 import os
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.error import ProcessDone, ProcessTerminated
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
@@ -19,7 +18,8 @@ from eliot.testing import (
     )
 
 from ...testtools import (
-    FakeProcessReactor, assert_equal_comparison, assert_not_equal_comparison
+    FakeProcessReactor, assert_equal_comparison, assert_not_equal_comparison,
+    TestCase,
 )
 
 from ..filesystems.zfs import (
@@ -30,7 +30,7 @@ from ..filesystems.zfs import (
 )
 
 
-class FilesystemTests(SynchronousTestCase):
+class FilesystemTests(TestCase):
     """
     Tests for :class:`Filesystem`.
     """
@@ -106,7 +106,7 @@ class FilesystemTests(SynchronousTestCase):
         )
 
 
-class ZFSCommandTests(SynchronousTestCase):
+class ZFSCommandTests(TestCase):
     """
     Tests for :func:`zfs_command`.
     """
@@ -187,7 +187,7 @@ def error_status_logged(case, logger):
     case.assertEqual(len(LoggedMessage.ofType(logger.messages, ZFS_ERROR)), 1)
 
 
-class SyncCommandTests(SynchronousTestCase):
+class SyncCommandTests(TestCase):
     """
     Tests for ``_sync_command_error_squashed``.
     """
@@ -224,7 +224,7 @@ class SyncCommandTests(SynchronousTestCase):
         self.assertIs(None, result)
 
 
-class ZFSSnapshotsTests(SynchronousTestCase):
+class ZFSSnapshotsTests(TestCase):
     """Unit tests for ``ZFSSnapshotsTests``."""
 
     def test_create(self):
@@ -324,7 +324,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         self.assertEqual(self.successResultOf(d), [b"name2"])
 
 
-class LatestCommonSnapshotTests(SynchronousTestCase):
+class LatestCommonSnapshotTests(TestCase):
     """
     Tests for ``_latest_common_snapshot``.
     """
@@ -381,11 +381,12 @@ class LatestCommonSnapshotTests(SynchronousTestCase):
             b, _latest_common_snapshot([a, b], [a, b]))
 
 
-class DatasetInfoTests(SynchronousTestCase):
+class DatasetInfoTests(TestCase):
     """
     Tests for ``_DatasetInfo``.
     """
     def setUp(self):
+        super(DatasetInfoTests, self).setUp()
         self.info = _DatasetInfo(
             dataset=b"foo",
             mountpoint=b"bar",
