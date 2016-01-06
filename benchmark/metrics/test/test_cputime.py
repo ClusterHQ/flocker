@@ -18,14 +18,14 @@ from benchmark.metrics.cputime import (
     WALLCLOCK_LABEL, CPUTime, CPUParser, get_node_cpu_times, compute_change,
 )
 
-
-# A process name that is expected to always be present on a distribution
-_always_present = {
-    'centos': 'systemd',
-    'Ubuntu': 'init',
-}
-_distribution = platform.linux_distribution(full_distribution_name=False)[0]
-_standard_process = _always_present.get(_distribution)
+# Process 1 (usually `init` or `systemd`) provides a process name that
+# is always present.
+try:
+    _standard_process = subprocess.check_output(
+        ['ps', '-p', '1', '-o', 'comm=']
+    ).strip()
+except subprocess.CalledProcessError:
+    _standard_process = None
 
 on_linux = skipIf(platform.system() != 'Linux', 'Requires Linux')
 
