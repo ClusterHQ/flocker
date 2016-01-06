@@ -22,7 +22,7 @@ Use the Flocker Installer if you want to get started with Flocker quickly, but i
 
 The following diagram illustrates the architecture for the Installer:
 
-.. image:: install-architecture.png
+.. image:: ..images/install-architecture.png
 
 .. Source file is at "Engineering/Labs/flocker architecture" https://drive.google.com/open?id=0B3gop2KayxkVbmNBR2Jrbk0zYmM
 

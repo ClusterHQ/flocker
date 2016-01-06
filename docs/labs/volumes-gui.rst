@@ -4,7 +4,7 @@
 Prototype Volumes GUI
 =====================
 
-.. image:: volumes-gui-screenshot.png
+.. image:: ..images/volumes-gui-screenshot.png
 
 This is a very simple web interface to view the current state of the datasets (volumes) in your Flocker cluster.
 
