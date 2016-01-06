@@ -56,7 +56,7 @@ class RequestErrorFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
     """
-    A ``FakeFlockerClient`` that can result in failured requests.
+    A ``FakeFlockerClient`` that can result in failed requests.
     """
     def __init__(self, client, reactor):
         super(RequestErrorFakeFlockerClient, self).__init__(client)
@@ -379,10 +379,11 @@ class write_request_load_scenarioTest(TestCase):
         # delay period for the failed requests.
         self.assertNoResult(d)
         c.advance(delay)
-        self.successResultOf(d)
 
-        # Suppress Eliot error for unflushed exceptions
+        # The scenario requests that failed will have been logged.
         logger.flushTracebacks(FakeNetworkError)
+
+        self.successResultOf(d)
 
     @capture_logging(None)
     def test_scenario_timeouts_if_requests_not_completed(self, _logger):
