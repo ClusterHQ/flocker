@@ -726,7 +726,7 @@ for (job_type_entry in GLOBAL_CONFIG.job_type) {
                 steps build_steps(job_values.with_steps)
                 steps {
                     build_copy_artifacts(
-                        owner, dashProject, dashBranchName, job_name,
+                        delegate, dashProject, dashBranchName, job_name,
                         job_values,
                     )
                 }
