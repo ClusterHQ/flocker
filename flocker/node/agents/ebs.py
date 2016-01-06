@@ -283,7 +283,7 @@ class VolumeBusy(Exception):
     A volume could not be detached, due to being in busy state.
     """
     def __init__(self, volume):
-        Exception.__init__(volume.id, volume.attachments)
+        Exception.__init__(self, volume.id, volume.attachments)
 
 
 class InvalidRegionError(Exception):
