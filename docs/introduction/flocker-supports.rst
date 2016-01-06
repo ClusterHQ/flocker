@@ -42,7 +42,6 @@ Community supported drivers:
 * Dell SC Series
 * EMC ScaleIO
 * EMC XtremIO
-* EMC VMAX
 * Hedvig
 * Huawei
 * NetApp OnTap
