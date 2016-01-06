@@ -8,8 +8,6 @@ import time
 from uuid import uuid4
 from bitmath import Byte, GiB
 
-from subprocess import check_call
-
 from botocore.exceptions import ClientError
 
 from twisted.python.constants import Names, NamedConstant
@@ -22,7 +20,7 @@ from ..ebs import (
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
     EBSMandatoryProfileAttributes, _get_volume_tag,
-    AttachUnexpectedInstance,
+    AttachUnexpectedInstance, VolumeBusy,
 )
 from ....testtools import AsyncTestCase, flaky
 
@@ -79,44 +77,40 @@ class EBSBlockDeviceAPIInterfaceTests(
             config = get_blockdevice_config(ProviderType.aws)
         except InvalidConfig as e:
             self.skipTest(str(e))
-        ec2_client = get_ec2_client_for_test(config)
-        meta_client = ec2_client.connection.meta.client
 
+        # Create a volume
         dataset_id = uuid4()
-        tmp_dir = "/tmp/{id}".format(id=str(dataset_id))
+        flocker_volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=self.minimum_allocatable_size,
+        )
+        ec2_client = get_ec2_client_for_test(config)
 
-        requested_volume = meta_client.create_volume(
-            Size=1, AvailabilityZone=ec2_client.zone)
-        created_volume = ec2_client.connection.Volume(
-            requested_volume['VolumeId'])
+        # Attach the volume.
+        instance_id = self.api.compute_instance_id()
+        self.api.attach_volume(flocker_volume.blockdevice_id, instance_id)
+
+        volume = ec2_client.connection.Volume(flocker_volume.blockdevice_id)
 
         def clean_volume(volume):
             volume.detach_from_instance()
             _wait_for_volume_state_change(VolumeOperations.DETACH, volume)
             volume.delete()
 
-        self.addCleanup(clean_volume, created_volume)
+        self.addCleanup(clean_volume, volume)
 
-        _wait_for_volume_state_change(VolumeOperations.CREATE, created_volume)
+        # Artificially set the volume's attachment state to "busy", by
+        # monkey-patching the EBS driver's ``_get_ebs_volume`` method.
+        def busy_ebs_volume(volume_id):
+            busy_volume = ec2_client.connection.Volume(volume_id)
+            busy_volume.attachments[0]['State'] = "busy"
+            return busy_volume
 
-        # Get this instance ID.
-        instance_id = self.api.compute_instance_id()
+        self.patch(self.api, "_get_ebs_volume", busy_ebs_volume)
 
-        # Attach volume.
-        device_name = self.api._next_device()
-        self.api._attach_ebs_volume(
-            created_volume.id, instance_id, device_name)
-        _wait_for_volume_state_change(VolumeOperations.ATTACH, created_volume)
-
-        # Create a filesystem.
-        check_call(["mkfs", "-t", "ext4", device_name])
-
-        # Create a mount location.
-        check_call(["mkdir", tmp_dir])
-
-        # Mount the volume.
-        check_call(["mount", device_name, tmp_dir])
-        self.fail("not finished yet")
+        # Try to detach and get the VolumeBusy exception.
+        self.assertRaises(
+            VolumeBusy, self.api.detach_volume, flocker_volume.blockdevice_id)
 
     def test_attach_foreign_instance_error(self):
         """
