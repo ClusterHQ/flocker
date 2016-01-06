@@ -1082,6 +1082,7 @@ class GenericDockerClientTests(AsyncTestCase):
         d.addCallback(self.assertEqual, "2")
         return d
 
+    @flaky([u'FLOC-3742', u'FLOC-3746'])
     def test_restart_policy_on_failure(self):
         """
         An container with a restart policy of on-failure is restarted
@@ -1093,6 +1094,7 @@ class GenericDockerClientTests(AsyncTestCase):
         d.addCallback(self.assertEqual, "2")
         return d
 
+    @flaky([u'FLOC-3742', u'FLOC-3746'])
     def test_restart_policy_on_failure_maximum_count(self):
         """
         A container with a restart policy of on-failure and a maximum
