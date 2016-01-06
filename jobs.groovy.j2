@@ -588,7 +588,7 @@ def build_multijob(dashBranchName, branchName) {
                                      */
                                     steps {
                                         build_copy_artifacts(
-                                            delegate, dashProject, dashBranchName, _job_name,
+                                            owner, dashProject, dashBranchName, _job_name,
                                             job_entry.value,
                                         )
                                     }
