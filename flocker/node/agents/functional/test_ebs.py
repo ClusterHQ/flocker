@@ -93,6 +93,15 @@ class EBSBlockDeviceAPIInterfaceTests(
         instance_id = self.api.compute_instance_id()
         self.api.attach_volume(flocker_volume.blockdevice_id, instance_id)
 
+        volume = ec2_client.connection.Volume(flocker_volume.blockdevice_id)
+
+        def clean_volume(volume):
+            volume.detach_from_instance()
+            _wait_for_volume_state_change(VolumeOperations.DETACH, volume)
+            volume.delete()
+
+        self.addCleanup(clean_volume, volume)
+
         # Artificially set the volume's attachment state to "busy", by
         # monkey-patching the EBS driver's ``_get_ebs_volume`` method.
         def busy_ebs_volume(volume_id):
@@ -101,11 +110,13 @@ class EBSBlockDeviceAPIInterfaceTests(
             busy_volume.attachments[0]['State'] = "busy"
             return busy_volume
 
-        self.patch(self.api, "_get_ebs_volume", busy_ebs_volume)
+        patch = self.patch(self.api, "_get_ebs_volume", busy_ebs_volume)
 
         # Try to detach and get the VolumeBusy exception.
         self.assertRaises(
             VolumeBusy, self.api.detach_volume, flocker_volume.blockdevice_id)
+
+        patch.restore()
 
         expected_keys = set(["volume_id", "attachments"])
         for message in LoggedMessage.of_type(
