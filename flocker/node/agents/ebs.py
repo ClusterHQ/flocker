@@ -45,7 +45,7 @@ from eliot import Message, register_exception_extractor
 from .blockdevice import (
     IBlockDeviceAPI, IProfiledBlockDeviceAPI, BlockDeviceVolume, UnknownVolume,
     AlreadyAttachedVolume, UnattachedVolume, UnknownInstanceID,
-    MandatoryProfiles, ICloudAPI,
+    MandatoryProfiles
 )
 
 from ..script import StorageInitializationError
@@ -75,6 +75,8 @@ IOPS_MIN_SIZE = 4
 # for error details:
 NOT_FOUND = u'InvalidVolume.NotFound'
 INVALID_PARAMETER_VALUE = u'InvalidParameterValue'
+
+VOLUME_ATTACHMENT_BUSY = u'busy'
 
 
 # Register Eliot field extractor for ClientError responses.
@@ -274,6 +276,14 @@ class AttachFailed(Exception):
     """
     AWS EBS refused to allow a volume to be attached to an instance.
     """
+
+
+class DetachFailed(Exception):
+    """
+    A volume could not be detached, due to being in busy state.
+    """
+    def __init__(self, volume):
+        Exception.__init__(volume.id, volume.attachments)
 
 
 class InvalidRegionError(Exception):
@@ -873,7 +883,6 @@ def _get_blockdevices():
 
 @implementer(IBlockDeviceAPI)
 @implementer(IProfiledBlockDeviceAPI)
-@implementer(ICloudAPI)
 class EBSBlockDeviceAPI(object):
     """
     An EBS implementation of ``IBlockDeviceAPI`` which creates
@@ -1245,6 +1254,11 @@ class EBSBlockDeviceAPI(object):
         if ebs_volume.state != VolumeStates.IN_USE.value:
             raise UnattachedVolume(blockdevice_id)
 
+        if ebs_volume.attachments:
+            attachment_state = ebs_volume.attachments[0]['State']
+            if attachment_state == VOLUME_ATTACHMENT_BUSY:
+                raise DetachFailed(ebs_volume)
+
         self._detach_ebs_volume(blockdevice_id)
 
         _wait_for_volume_state_change(VolumeOperations.DETACH, ebs_volume)
@@ -1308,13 +1322,6 @@ class EBSBlockDeviceAPI(object):
             )
 
         return _expected_device(ebs_volume.attachments[0]['Device'])
-
-    # ICloudAPI:
-    @boto3_log
-    def list_live_nodes(self):
-        instances = self.connection.instances.filter(
-            Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
-        return list(instance.id for instance in instances)
 
 
 def aws_from_configuration(region, zone, access_key_id, secret_access_key,
