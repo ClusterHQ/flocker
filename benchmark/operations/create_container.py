@@ -111,7 +111,7 @@ def create_container(
             return (
                 expected.name == inspecting.name and
                 expected.node_uuid == inspecting.node_uuid and
-                inspecting.running is True
+                inspecting.running
             )
 
         def find_match(existing_state):
@@ -160,7 +160,7 @@ def delete_container(reactor, control_service, container):
             return (
                 expected.name == inspecting.name and
                 expected.node_uuid == inspecting.node_uuid and
-                inspecting.running is True
+                inspecting.running
             )
 
         def no_running_match(existing_state):
