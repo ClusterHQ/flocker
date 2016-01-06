@@ -10,8 +10,6 @@ There are several installation options with which you can get up and running wit
 
 .. end-body-introduction
 
-.. _quick-start-installer:
-
 .. begin-body-quick-start-installer
 
 Quick Start Flocker Installer
@@ -50,8 +48,6 @@ The following instructions will take you through installing Flocker with the Ins
 
 .. end-body-quick-start-installer
 
-.. _full-installation:
-
 .. begin-body-full-installation
 
 Full Installation
@@ -79,8 +75,6 @@ If you want to install the :ref:`Flocker plugin for Docker <plugin>`, this is in
 
 .. end-body-full-installation
 
-.. _post-installation-configuration:
-
 .. begin-body-configuring-flocker
 
 Configuring Flocker
@@ -99,8 +93,6 @@ Once you have installed Flocker you will need to complete the following configur
    ../installation/enabling-agent-service
 
 .. end-body-configuring-flocker
-
-.. _controlling-flocker:
 
 .. begin-body-controlling-flocker
 
