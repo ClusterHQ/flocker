@@ -713,7 +713,8 @@ for (job_type_entry in GLOBAL_CONFIG.job_type) {
         job_values = job_entry.value
         /* apply config related to 'cronly_jobs' jobs */
         if (job_type == 'cronly_jobs') {
-            job("${dashProject}/${dashBranchName}/_${job_entry.key}") {
+            job_name = "_${job_entry.key}"
+            job("${dashProject}/${dashBranchName}/${job_name}") {
                 parameters {
                     textParam("TRIGGERED_BRANCH", "${branchName}",
                               "Branch that triggered this job" )
@@ -723,6 +724,12 @@ for (job_type_entry in GLOBAL_CONFIG.job_type) {
                 triggers build_triggers('cron', job_values.at, "${branchName}")
                 scm build_scm("${git_url}", "${branchName}")
                 steps build_steps(job_values.with_steps)
+                steps {
+                    build_copy_artifacts(
+                        owner, dashProject, dashBranchName, job_name,
+                        job_values,
+                    )
+                }
             }
         }
     }
