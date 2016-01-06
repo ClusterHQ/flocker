@@ -56,7 +56,7 @@ from ._logging import (
     AWS_ACTION, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
     BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE,
-    BOTO_LOG_RESULT
+    BOTO_LOG_RESULT, VOLUME_BUSY_MESSAGE,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -284,6 +284,11 @@ class VolumeBusy(Exception):
     """
     def __init__(self, volume):
         Exception.__init__(self, volume.id, volume.attachments)
+        Message.new(
+            message_type=VOLUME_BUSY_MESSAGE,
+            volume_id=volume.id,
+            attachments=volume.attachments
+        ).write()
 
 
 class InvalidRegionError(Exception):
