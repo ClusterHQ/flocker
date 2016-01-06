@@ -75,7 +75,8 @@ class RequestLoadScenario(object):
 
     def __init__(
         self, reactor, scenario_setup_instance, request_rate=10,
-        sample_size=DEFAULT_SAMPLE_SIZE, timeout=45
+        sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
+        tolerance_percentage=0.2
     ):
         self.reactor = reactor
         self.scenario_setup = scenario_setup_instance
@@ -91,6 +92,8 @@ class RequestLoadScenario(object):
         self.monitor_loop = LoopingCall(self.check_rate)
         self.monitor_loop.clock = self.reactor
         self.is_started = False
+        self.rate_tolerated = float(request_rate) - (request_rate*tolerance_percentage)
+
 
     def _request_and_measure(self, count):
         """
@@ -133,7 +136,7 @@ class RequestLoadScenario(object):
         :raise RequestOverload: if the scenario is overloaded.
         """
         rate = self.rate_measurer.rate()
-        if rate < self.request_rate:
+        if rate < self.rate_tolerated:
             self._fail(RequestRateTooLow(rate))
 
         elif self.rate_measurer.outstanding() > self.max_outstanding:
@@ -170,7 +173,7 @@ class RequestLoadScenario(object):
         self.loop.start(interval=1)
 
         def reached_target_rate():
-            return self.rate_measurer.rate() >= self.request_rate
+            return self.rate_measurer.rate() >= self.rate_tolerated
 
         def handle_timeout(failure):
             failure.trap(CancelledError)
