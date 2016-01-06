@@ -10,6 +10,8 @@ from bitmath import Byte, GiB
 
 from botocore.exceptions import ClientError
 
+from testtool.matchers import AllMatch, ContainsAll
+
 from twisted.python.constants import Names, NamedConstant
 from eliot.testing import (
     LoggedAction, capture_logging, assertHasMessage,
@@ -118,11 +120,11 @@ class EBSBlockDeviceAPIInterfaceTests(
             VolumeBusy, self.api.detach_volume, flocker_volume.blockdevice_id)
 
         expected_keys = set(["volume_id", "attachments"])
-        for message in LoggedMessage.of_type(
-            logger.messages, VOLUME_BUSY_MESSAGE
-        ):
-            keys = set(message.message.keys())
-            self.assertTrue(expected_keys.issubset(keys))
+        messages = [
+            message.message for message
+            in LoggedMessage.of_type(logger.messages, VOLUME_BUSY_MESSAGE)
+        ]
+        self.assertThat(messages, AllMatch(ContainsAll(expected_keys)))
 
     def test_attach_foreign_instance_error(self):
         """

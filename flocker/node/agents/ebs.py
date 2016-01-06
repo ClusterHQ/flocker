@@ -284,20 +284,6 @@ class VolumeBusy(Exception):
     """
     def __init__(self, volume):
         Exception.__init__(self, volume.id, volume.attachments)
-        logged_attachments = []
-        for attachment in volume.attachments:
-            logged_attachments.append(
-                dict(
-                    instance_id=attachment['InstanceId'],
-                    volume_id=attachment['VolumeId'],
-                    device=attachment['Device'],
-                    state=attachment['State'],
-                )
-            )
-        VOLUME_BUSY_MESSAGE(
-            volume_id=volume.id,
-            attachments=logged_attachments
-        ).write()
 
 
 class InvalidRegionError(Exception):
@@ -1279,6 +1265,20 @@ class EBSBlockDeviceAPI(object):
         if ebs_volume.attachments:
             attachment_state = ebs_volume.attachments[0]['State']
             if attachment_state == VOLUME_ATTACHMENT_BUSY:
+                logged_attachments = []
+                for attachment in ebs_volume.attachments:
+                    logged_attachments.append(
+                        dict(
+                            instance_id=attachment['InstanceId'],
+                            volume_id=attachment['VolumeId'],
+                            device=attachment['Device'],
+                            state=attachment['State'],
+                        )
+                    )
+                VOLUME_BUSY_MESSAGE(
+                    volume_id=ebs_volume.id,
+                    attachments=logged_attachments
+                ).write()
                 raise VolumeBusy(ebs_volume)
 
         self._detach_ebs_volume(blockdevice_id)
