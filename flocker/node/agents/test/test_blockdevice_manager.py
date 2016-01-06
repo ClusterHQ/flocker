@@ -6,8 +6,6 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 
 from uuid import uuid4
 
-from subprocess import check_output
-
 from testtools import ExpectedException
 from testtools.matchers import Equals
 

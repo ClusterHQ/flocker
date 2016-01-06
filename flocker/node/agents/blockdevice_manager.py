@@ -218,6 +218,38 @@ class IBlockDeviceManager(Interface):
         """
 
 
+class _CommandResult(PClass):
+    """
+    Helper object to represent the result of a command.
+
+    :ivar bool succeeded: True if the command was successful otherwise false.
+    :ivar unicode error_message: Message that would be useful to output on
+        failure. Only set if the command did not succeed.
+    """
+    succeeded = field(type=bool)
+    error_message = field(type=unicode, mandatory=False)
+
+
+def _run_command(command_arg_list):
+    """
+    Helper wrapper to run a command and capture STDOUT and STDERR if the
+    command fails. Used for common code in the implementation of many methods
+    of the interface.
+
+    :param command_arg_list: Command arguments that will be passed directly as
+        the first argument of check_output.
+
+    :returns _CommandResult: The representation of the result of the command.
+    """
+    try:
+        check_output(command_arg_list, stderr=STDOUT)
+    except CalledProcessError as e:
+        return _CommandResult(
+            succeeded=False,
+            error_message=u"\n".join([str(e), e.output]))
+    return _CommandResult(succeeded=True)
+
+
 @implementer(IBlockDeviceManager)
 class BlockDeviceManager(PClass):
     """
@@ -225,20 +257,18 @@ class BlockDeviceManager(PClass):
     """
 
     def make_filesystem(self, blockdevice, filesystem):
-        try:
-            check_output([
-                b"mkfs", b"-t", filesystem.encode("ascii"),
-                # This is ext4 specific, and ensures mke2fs doesn't ask
-                # user interactively about whether they really meant to
-                # format whole device rather than partition. It will be
-                # removed once upstream bug is fixed. See FLOC-2085.
-                b"-F",
-                blockdevice.path
-            ], stderr=STDOUT)
-        except CalledProcessError as e:
+        result = _run_command([
+            b"mkfs", b"-t", filesystem.encode("ascii"),
+            # This is ext4 specific, and ensures mke2fs doesn't ask
+            # user interactively about whether they really meant to
+            # format whole device rather than partition. It will be
+            # removed once upstream bug is fixed. See FLOC-2085.
+            b"-F",
+            blockdevice.path
+        ])
+        if not result.succeeded:
             raise MakeFilesystemError(blockdevice=blockdevice,
-                                      source_message="\n".join(
-                                          [str(e), e.output]))
+                                      source_message=result.error_message)
 
     def has_filesystem(self, blockdevice):
         try:
@@ -264,19 +294,16 @@ class BlockDeviceManager(PClass):
         return True
 
     def mount(self, blockdevice, mountpoint):
-        try:
-            check_output([b"mount", blockdevice.path, mountpoint.path],
-                         stderr=STDOUT)
-        except CalledProcessError as e:
+        result = _run_command([b"mount", blockdevice.path, mountpoint.path])
+        if not result.succeeded:
             raise MountError(blockdevice=blockdevice, mountpoint=mountpoint,
-                             source_message="\n".join([str(e), e.output]))
+                             source_message=result.error_message)
 
     def unmount(self, blockdevice):
-        try:
-            check_output([b"umount", blockdevice.path], stderr=STDOUT)
-        except CalledProcessError as e:
+        result = _run_command([b"umount", blockdevice.path])
+        if not result.succeeded:
             raise UnmountError(blockdevice=blockdevice,
-                               source_message="\n".join([str(e), e.output]))
+                               source_message=result.error_message)
 
     def get_mounts(self):
         mounts = psutil.disk_partitions()
@@ -285,30 +312,24 @@ class BlockDeviceManager(PClass):
                 for mount in mounts)
 
     def bind_mount(self, source_path, mountpoint):
-        try:
-            check_output([b"mount", "--bind", source_path.path,
-                          mountpoint.path],
-                         stderr=STDOUT)
-        except CalledProcessError as e:
+        result = _run_command(
+            [b"mount", "--bind", source_path.path, mountpoint.path])
+        if not result.succeeded:
             raise BindMountError(source_path=source_path,
                                  mountpoint=mountpoint,
-                                 source_message="\n".join([str(e), e.output]))
+                                 source_message=result.error_message)
 
     def remount(self, mountpoint, permissions):
-        try:
-            check_output([b"mount", "-o", "remount,%s" % permissions.value,
-                          mountpoint.path],
-                         stderr=STDOUT)
-        except CalledProcessError as e:
+        result = _run_command([
+            b"mount", "-o", "remount,%s" % permissions.value, mountpoint.path])
+        if not result.succeeded:
             raise RemountError(mountpoint=mountpoint,
                                permissions=permissions,
-                               source_message="\n".join([str(e), e.output]))
+                               source_message=result.error_message)
 
     def make_tmpfs_mount(self, mountpoint):
-        try:
-            check_output([b"mount", "-t", "tmpfs", "tmpfs", mountpoint.path],
-                         stderr=STDOUT)
-        except CalledProcessError as e:
+        result = _run_command(
+            [b"mount", "-t", "tmpfs", "tmpfs", mountpoint.path])
+        if not result.succeeded:
             raise MakeTmpfsMountError(mountpoint=mountpoint,
-                                      source_message="\n".join(
-                                          [str(e), e.output]))
+                                      source_message=result.error_message)
