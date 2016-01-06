@@ -296,7 +296,7 @@ class CreateContainerProbe(PClass):
 class CreateContainer(object):
 
     def __init__(
-        self, reactor, cluster, image=u'debian', volume_size=None,
+        self, reactor, cluster, image=u'clusterhq/mongodb', volume_size=None,
         mountpoint=u'/data'
     ):
         self.reactor = reactor
