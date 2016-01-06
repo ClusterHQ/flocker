@@ -29,15 +29,19 @@ Installing Flocker
 
 .. raw:: html
 
-    <h2>Which stack are you using?</h2>
+    <h2>Installing Flocker</h2>
+    <p>To install Flocker, you first need to choose which stack you using.</p>
     <p>Flocker adds support for stateful containers to a range of container orchestration frameworks.</p>
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
-    <div class="big-box orchestration">
+    <div class="big-box orchestration" style="background-color: yellow">
 	    Docker, Swarm, Compose
 		<img src="_images/docker.png" style="width:80px;"/>
 		<br />
-        <a href="docker-integration/" class="button" style="position:relative; top: 2em">Install</a>
+        <div style="position:relative; top:2em;">
+        <a href="docker-integration/" class="button">Install</a>
+        <em style="font-size:small;">easiest</em>
+        </div>
     </div>
     <div class="big-box orchestration">
 		Kubernetes

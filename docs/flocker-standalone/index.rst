@@ -1,6 +1,6 @@
-==========================
-Flocker with Other Systems
-==========================
+============================
+> Flocker with Other Systems
+============================
 
 .. include:: ../installation/index.rst
    :start-after: .. begin-body-introduction
