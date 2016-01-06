@@ -110,8 +110,12 @@ GLOBAL_CONFIG = jsonSlurper.parseText(
 // --------------------------------------------------------------------------
 
 def build_copy_artifacts(context, dash_project, dash_branch_name, job_name, job_values) {
-    println("Configuring artifacts for ${dash_project} ${dash_branch_name} ${job_name} ${job_values.archive_artifacts}")
-    /* not every job produces an artifact, so make sure wew don't try to fetch
+    println(
+        "Configuring artifacts for " +
+        "${dash_project} ${dash_branch_name} ${job_name} " +
+        "${job_values.archive_artifacts}"
+    )
+    /* not every job produces an artifact, so make sure we don't try to fetch
      * artifacts for jobs that don't produce them
      */
     if (job_values.archive_artifacts) {
