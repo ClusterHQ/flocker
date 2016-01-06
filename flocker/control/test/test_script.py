@@ -1,18 +1,16 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from ..script import ControlOptions, ControlScript
-from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin
+from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin, TestCase
 from .._clusterstate import ClusterStateService
 from ..httpapi import REST_API_PORT
 
 from ...ca.testtools import get_credential_sets
 
 
-class ControlOptionsTests(StandardOptionsTestsMixin,
-                          SynchronousTestCase):
+class ControlOptionsTests(StandardOptionsTestsMixin, TestCase):
     """
     Tests for ``ControlOptions``.
     """
@@ -71,7 +69,7 @@ class ControlOptionsTests(StandardOptionsTestsMixin,
         self.assertEqual(options["agent-port"], b"tcp:1234")
 
 
-class ControlScriptTests(SynchronousTestCase):
+class ControlScriptTests(TestCase):
     """
     Tests for ``ControlScript``.
     """
@@ -79,6 +77,7 @@ class ControlScriptTests(SynchronousTestCase):
         """
         Create some certificates to use when creating the control service.
         """
+        super(ControlScriptTests, self).setUp()
         ca_set, _ = get_credential_sets()
         self.certificate_path = FilePath(self.mktemp())
         self.certificate_path.makedirs()

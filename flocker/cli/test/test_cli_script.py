@@ -1,7 +1,8 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
-from twisted.trial.unittest import TestCase, SynchronousTestCase
-from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
+from ...testtools import (
+    FlockerScriptTestsMixin, StandardOptionsTestsMixin, TestCase,
+)
 from ..script import CLIScript, CLIOptions
 
 
@@ -12,8 +13,12 @@ class FlockerCLITests(FlockerScriptTestsMixin, TestCase):
     command_name = u'flocker'
 
 
-class CLIOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class CLIOptionsTests(StandardOptionsTestsMixin, TestCase):
     """Tests for :class:`CLIOptions`."""
+
+    # XXX: Actual tests live in StandardOptionsTestsMixin. FLOC-3794 says we
+    # should make those tests use a pattern similar to
+    # make_iblockdeviceapi_tests. tests
     options = CLIOptions
 
 

@@ -4,13 +4,12 @@
 Tests for :module:`flocker.volume.script`.
 """
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.python.usage import Options
 
 from ...testtools import (
-    StandardOptionsTestsMixin
+    StandardOptionsTestsMixin, TestCase
 )
 from ..testtools import (
     make_volume_options_tests
@@ -20,7 +19,7 @@ from ..script import (
 )
 
 
-class VolumeManagerScriptMainTests(SynchronousTestCase):
+class VolumeManagerScriptMainTests(TestCase):
     """
     Tests for ``VolumeManagerScript.main``.
     """
@@ -36,7 +35,7 @@ class VolumeManagerScriptMainTests(SynchronousTestCase):
         self.assertIs(None, self.successResultOf(result))
 
 
-class VolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class VolumeOptionsTests(StandardOptionsTestsMixin, TestCase):
     """
     Tests for :class:`VolumeOptions`.
     """

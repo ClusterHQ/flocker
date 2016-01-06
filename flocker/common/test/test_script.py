@@ -9,7 +9,6 @@ from eliot.testing import validateLogging, assertHasMessage
 from twisted.internet import task
 from twisted.internet.defer import succeed
 from twisted.python import usage
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.failure import Failure
 from twisted.python.log import LogPublisher
 from twisted.python import log as twisted_log
@@ -22,11 +21,11 @@ from ..script import (
     )
 from ...testtools import (
     help_problems, FakeSysModule, StandardOptionsTestsMixin,
-    MemoryCoreReactor,
+    MemoryCoreReactor, TestCase,
     )
 
 
-class FlockerScriptRunnerInitTests(SynchronousTestCase):
+class FlockerScriptRunnerInitTests(TestCase):
     """Tests for :py:meth:`FlockerScriptRunner.__init__`."""
 
     def test_sys_default(self):
@@ -60,7 +59,7 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         )
 
 
-class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
+class FlockerScriptRunnerParseOptionsTests(TestCase):
     """Tests for :py:meth:`FlockerScriptRunner._parse_options`."""
 
     def test_parse_options(self):
@@ -108,7 +107,7 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
         )
 
 
-class FlockerScriptRunnerMainTests(SynchronousTestCase):
+class FlockerScriptRunnerMainTests(TestCase):
     """Tests for :py:meth:`FlockerScriptRunner.main`."""
 
     def test_main_uses_sysargv(self):
@@ -168,8 +167,7 @@ class TestOptions(usage.Options):
     """An unmodified ``usage.Options`` subclass for use in testing."""
 
 
-class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
-                                  SynchronousTestCase):
+class FlockerStandardOptionsTests(StandardOptionsTestsMixin, TestCase):
     """Tests for ``flocker_standard_options``
 
     Using a decorating an unmodified ``usage.Options`` subclass.
@@ -194,11 +192,12 @@ class AsyncStopService(Service):
         return self.stop_result
 
 
-class MainForServiceTests(SynchronousTestCase):
+class MainForServiceTests(TestCase):
     """
     Tests for ``main_for_service``.
     """
     def setUp(self):
+        super(MainForServiceTests, self).setUp()
         self.reactor = MemoryCoreReactor()
         self.service = Service()
 
@@ -266,7 +265,7 @@ class MainForServiceTests(SynchronousTestCase):
         self.assertIs(None, self.successResultOf(result))
 
 
-class EliotObserverTests(SynchronousTestCase):
+class EliotObserverTests(TestCase):
     """
     Tests for ``EliotObserver``.
     """

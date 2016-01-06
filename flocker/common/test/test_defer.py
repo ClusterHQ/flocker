@@ -9,10 +9,10 @@ import gc
 from eliot.testing import capture_logging
 
 from .._defer import gather_deferreds
+from ...testtools import TestCase
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.python.failure import Failure
-from twisted.trial.unittest import TestCase
 
 
 class GatherDeferredsTests(TestCase):

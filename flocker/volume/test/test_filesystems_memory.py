@@ -7,7 +7,6 @@ Tests for :module:`flocker.filesystems.memory`.
 from __future__ import absolute_import
 
 from twisted.internet.defer import succeed, fail
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .filesystemtests import (
@@ -18,7 +17,7 @@ from ..filesystems.memory import (
     DirectoryFilesystem,
 )
 from ...testtools import (
-    assert_equal_comparison, assert_not_equal_comparison
+    TestCase, assert_equal_comparison, assert_not_equal_comparison
 )
 
 
@@ -28,7 +27,7 @@ class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
     """``IFilesystemSnapshotsTests`` for in-memory filesystem."""
 
 
-class CannedFilesystemSnapshotsTests(SynchronousTestCase):
+class CannedFilesystemSnapshotsTests(TestCase):
     """
     Additional test cases for CannedFilesystemSnapshots.
     """
@@ -57,7 +56,7 @@ class IStoragePoolTests(make_istoragepool_tests(
     """``IStoragePoolTests`` for fake storage pool."""
 
 
-class DirectoryFilesystemTests(SynchronousTestCase):
+class DirectoryFilesystemTests(TestCase):
     """
     Direct tests for ``FilesystemStoragePool``\ 's ``IFilesystem``
     implementation, ``DirectoryFilesystem``.

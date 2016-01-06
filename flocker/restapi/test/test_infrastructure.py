@@ -21,8 +21,6 @@ from twisted.web.http import (
     BAD_REQUEST, INTERNAL_SERVER_ERROR, PAYMENT_REQUIRED, GONE,
     NOT_ALLOWED, NOT_FOUND, OK)
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from .._infrastructure import (
     EndpointResponse, user_documentation, structured, UserDocumentation)
 from .._logging import REQUEST, JSON_REQUEST
@@ -31,6 +29,7 @@ from .._error import DECODING_ERROR_DESCRIPTION, BadRequest
 from ..testtools import (EventChannel, dumps, loads,
                          CloseEnoughJSONResponse, dummyRequest, render,
                          asResponse)
+from ...testtools import TestCase
 from .utils import (
     _assertRequestLogged, _assertTracebackLogged, FAILED_INPUT_VALIDATION)
 
@@ -360,7 +359,7 @@ class Execution(Names):
 
 
 class SynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin,
-                                               SynchronousTestCase):
+                                               TestCase):
     """
     Apply the tests defined by L{StructuredResultHandlingMixin} to an
     application which returns results synchronously without involving
@@ -374,7 +373,7 @@ class SynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin,
 
 
 class SynchronousDeferredStructuredResultHandlingTests(
-        StructuredResultHandlingMixin, SynchronousTestCase):
+        StructuredResultHandlingMixin, TestCase):
     """
     Apply the tests defined by L{StructuredResultHandlingMixin} to an
     application which returns results synchronously as the result of an
@@ -389,7 +388,7 @@ class SynchronousDeferredStructuredResultHandlingTests(
 
 
 class AsynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin,
-                                                SynchronousTestCase):
+                                                TestCase):
     """
     Apply the tests defined by L{StructuredResultHandlingMixin} to an
     application which returns results asynchronously as the future result of a
@@ -410,7 +409,7 @@ class AsynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin,
         return app
 
 
-class StructuredJSONTests(SynchronousTestCase):
+class StructuredJSONTests(TestCase):
     """
     Tests for the L{structured} behavior related to decoding JSON requests and
     serializing JSON responses.
@@ -609,7 +608,7 @@ class StructuredJSONTests(SynchronousTestCase):
             {"jsonValue": True, "routingValue": "quux"}, app.kwargs)
 
 
-class UserDocumentationTests(SynchronousTestCase):
+class UserDocumentationTests(TestCase):
     """
     Tests for L{user_documentation}.
     """
@@ -633,7 +632,7 @@ class UserDocumentationTests(SynchronousTestCase):
             ))
 
 
-class NotAllowedTests(SynchronousTestCase):
+class NotAllowedTests(TestCase):
     """
     Tests for the HTTP method restriction functionality imposed by the routing
     decorator.
@@ -658,7 +657,7 @@ class NotAllowedTests(SynchronousTestCase):
         self.assertEqual(NOT_ALLOWED, request._code)
 
 
-class NotFoundTests(SynchronousTestCase):
+class NotFoundTests(TestCase):
     """
     Tests for the response behavior relating to requests for non-existent
     resources.
@@ -683,7 +682,7 @@ class NotFoundTests(SynchronousTestCase):
         self.assertEqual(NOT_FOUND, request._code)
 
 
-class TracingTests(SynchronousTestCase):
+class TracingTests(TestCase):
     """
     Tests for cross-process tracing with Eliot.
     """
