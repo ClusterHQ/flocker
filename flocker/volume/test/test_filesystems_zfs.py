@@ -13,10 +13,7 @@ from twisted.internet.error import ProcessDone, ProcessTerminated
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 
-from eliot import Logger
-from eliot.testing import (
-    LoggedMessage, validateLogging, assertHasMessage,
-    )
+from eliot.testing import LoggedMessage, assertHasMessage
 
 from ...testtools import (
     FakeProcessReactor, assert_equal_comparison, assert_not_equal_comparison
@@ -24,9 +21,8 @@ from ...testtools import (
 
 from ..filesystems.zfs import (
     _DatasetInfo,
-    zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
-    _sync_command_error_squashed, _latest_common_snapshot, ZFS_ERROR,
-    Snapshot,
+    zfs_command, CommandFailed, BadArguments, Filesystem,
+    _latest_common_snapshot, ZFS_ERROR, Snapshot,
 )
 
 
@@ -174,154 +170,6 @@ def no_such_executable_logged(case, logger):
         'zfs_command': 'nonsense garbage made up no such command',
         'output': '[Errno 2] No such file or directory'})
     case.assertEqual(len(LoggedMessage.ofType(logger.messages, ZFS_ERROR)), 1)
-
-
-def error_status_logged(case, logger):
-    """
-    Validate the error logging behavior of ``_sync_command_error_squashed``.
-    """
-    assertHasMessage(case, logger, ZFS_ERROR, {
-        'status': 1,
-        'zfs_command': 'python -c raise SystemExit(1)',
-        'output': ''})
-    case.assertEqual(len(LoggedMessage.ofType(logger.messages, ZFS_ERROR)), 1)
-
-
-class SyncCommandTests(SynchronousTestCase):
-    """
-    Tests for ``_sync_command_error_squashed``.
-    """
-    @validateLogging(no_such_executable_logged)
-    def test_no_such_executable(self, logger):
-        """
-        If the executable specified to ``_sync_command_error_squashed`` cannot
-        be found then the function nevertheless returns ``None``.
-        """
-        result = _sync_command_error_squashed(
-            [b"nonsense garbage made up no such command"],
-            logger)
-        self.assertIs(None, result)
-
-    @validateLogging(error_status_logged)
-    def test_error_exit(self, logger):
-        """
-        If the child process run by ``_sync_command_error_squashed`` exits with
-        an an error status then the function nevertheless returns ``None``.
-        """
-        result = _sync_command_error_squashed(
-            [b"python", b"-c", b"raise SystemExit(1)"],
-            logger)
-        self.assertIs(None, result)
-
-    def test_success(self):
-        """
-        ``_sync_command_error_squashed`` runs the given command and returns
-        ``None``.
-        """
-        result = _sync_command_error_squashed(
-            [b"python", b"-c", b""],
-            Logger())
-        self.assertIs(None, result)
-
-
-class ZFSSnapshotsTests(SynchronousTestCase):
-    """Unit tests for ``ZFSSnapshotsTests``."""
-
-    def test_create(self):
-        """
-        ``ZFSSnapshots.create()`` calls the ``zfs snapshot`` command with the
-        given ``bytes`` as the snapshot name.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"pool", "fs"))
-        snapshots.create(b"myname")
-        arguments = reactor.processes[0]
-        self.assertEqual(arguments.args, [b"zfs", b"snapshot",
-                                          b"pool/fs@myname"])
-
-    def test_create_no_result_yet(self):
-        """
-        The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that does not
-        fire if the creation is unfinished.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        d = snapshots.create(b"name")
-        self.assertNoResult(d)
-
-    def test_create_result(self):
-        """
-        The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that fires
-        when creation has finished.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        d = snapshots.create(b"name")
-        reactor.processes[0].processProtocol.processEnded(
-            Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), None)
-
-    def test_list(self):
-        """
-        ``ZFSSnapshots.list()`` calls the ``zfs list`` command with the pool
-        name.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        snapshots.list()
-        self.assertEqual(reactor.processes[0].args,
-                         [b"zfs", b"list", b"-H", b"-r", b"-t", b"snapshot",
-                          b"-o", b"name", b"-s", b"creation", b"mypool"])
-
-    def test_list_result_root_dataset(self):
-        """
-        ``ZFSSnapshots.list`` parses out the snapshot names of the root dataset
-        from the results of the command.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-
-        d = snapshots.list()
-        process_protocol = reactor.processes[0].processProtocol
-        process_protocol.childDataReceived(1, b"mypool@name\n")
-        process_protocol.childDataReceived(1, b"mypool@name2\n")
-        reactor.processes[0].processProtocol.processEnded(
-            Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), [b"name", b"name2"])
-
-    def test_list_result_child_dataset(self):
-        """
-        ``ZFSSnapshots.list`` parses out the snapshot names of a non-root
-        dataset from the results of the command.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", b"myfs"))
-
-        d = snapshots.list()
-        process_protocol = reactor.processes[0].processProtocol
-        process_protocol.childDataReceived(1, b"mypool/myfs@name\n")
-        process_protocol.childDataReceived(1, b"mypool/myfs@name2\n")
-        reactor.processes[0].processProtocol.processEnded(
-            Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), [b"name", b"name2"])
-
-    def test_list_result_ignores_other_pools(self):
-        """
-        ``ZFSSnapshots.list`` skips snapshots of other pools.
-
-        In particular, we are likely to see snapshot names of sub-pools in
-        the output.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-
-        d = snapshots.list()
-        process_protocol = reactor.processes[0].processProtocol
-        process_protocol.childDataReceived(1, b"mypool/child@name\n")
-        process_protocol.childDataReceived(1, b"mypool@name2\n")
-        reactor.processes[0].processProtocol.processEnded(
-            Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), [b"name2"])
 
 
 class LatestCommonSnapshotTests(SynchronousTestCase):

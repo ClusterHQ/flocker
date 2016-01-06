@@ -6,7 +6,8 @@ import sys
 
 from twisted.python.usage import Options
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import succeed, maybeDeferred
+from twisted.internet import task
+from twisted.internet.defer import succeed
 
 from zope.interface import implementer
 
@@ -240,7 +241,7 @@ class VolumeManagerScript(object):
             documentation.
         """
         if options.subCommand is not None:
-            return maybeDeferred(options.subOptions.run, service)
+            return task.deferLater(reactor, 0, options.subOptions.run, service)
         else:
             return succeed(None)
 

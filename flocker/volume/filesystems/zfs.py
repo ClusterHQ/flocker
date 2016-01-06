@@ -7,23 +7,26 @@ ZFS APIs.
 from __future__ import absolute_import
 
 import os
+import libzfs_core
+
+from functools import wraps
 from contextlib import contextmanager
 from uuid import uuid4
-from subprocess import (
-    CalledProcessError, STDOUT, PIPE, Popen, check_call, check_output
-)
+from subprocess import call, check_call
+from Queue import Queue
 
 from characteristic import attributes, with_cmp, with_repr
 
 from zope.interface import implementer
 
-from eliot import Field, MessageType, Logger
+from eliot import Field, MessageType, Logger, write_traceback
 
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
-from twisted.internet.defer import Deferred, succeed, gatherResults
+from twisted.internet.defer import Deferred, succeed
+from twisted.internet.threads import deferToThreadPool
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 from twisted.application.service import Service
 
@@ -67,6 +70,93 @@ class _AccumulatingProtocol(Protocol):
         del self._result
 
 
+class _AsyncLZC(object):
+    """
+    A proxy class for the asynchronous execution using a given reactor and its
+    thread pool.
+
+    Primarily this class dispatches its method calls to the functions in
+    :mod:`libzfs_core`.  But it can also be used for the asynchronous execution
+    of an arbitrary function.
+    """
+
+    def __init__(self, reactor):
+        """
+        :param reactor: the reactor that is to be used for the asynchronous
+                        execution.
+        """
+        self._reactor = reactor
+        self._cache = {}
+
+    def callDeferred(self, func, *args, **kwargs):
+        """
+        This is a thin wrapper around :func:`deferToThreadPool`.
+
+        Its primary advantage is that the reactor is already associated with
+        an instance of :class:`_AsyncLZC` and :meth:`getThreadPool` is called
+        to get the reactor's thread pool.
+        """
+        return deferToThreadPool(self._reactor, self._reactor.getThreadPool(),
+                                 func, *args, **kwargs)
+
+    def __getattr__(self, name):
+        """
+        Pretend that this class provides the same methods as the functions
+        in :mod:`libzfs_core`.  The proxy methods execute the functions
+        in the asynchronous mode using the reactor and its thread pool.
+        """
+        try:
+            return self._cache[name]
+        except KeyError:
+            func = getattr(libzfs_core, name)
+
+            @wraps(func)
+            def _async_wrapper(*args, **kwargs):
+                return self.callDeferred(func, *args, **kwargs)
+
+            self._cache[name] = _async_wrapper
+            return self._cache[name]
+
+
+_reactor_to_alzc = {}
+
+
+def _async_lzc(reactor):
+    """
+    Return an instance of :class:`_AsyncLZC` for the given reactor.
+
+    :param reactor: the reactor.
+
+    The instance gets associated with the reactor and the same instance will
+    be returned for subsequent calls with the same ``reactor`` argument.
+    """
+    try:
+        return _reactor_to_alzc[reactor]
+    except KeyError:
+        _reactor_to_alzc[reactor] = _AsyncLZC(reactor)
+        return _reactor_to_alzc[reactor]
+
+
+def ext_command(reactor, arguments):
+    """
+    Asynchronously run the given command-line tool with the given arguments.
+
+    :param reactor: A ``IReactorProcess`` provider.
+
+    :param arguments: A ``list`` of ``bytes``, the command and command-line
+    arguments.
+
+    :return: A :class:`Deferred` firing with the bytes of the result (on
+        exit code 0), or errbacking with :class:`CommandFailed` or
+        :class:`BadArguments` depending on the exit code (1 or 2).
+    """
+    endpoint = ProcessEndpoint(reactor, arguments[0], arguments,
+                               os.environ)
+    d = connectProtocol(endpoint, _AccumulatingProtocol())
+    d.addCallback(lambda protocol: protocol._result)
+    return d
+
+
 def zfs_command(reactor, arguments):
     """
     Asynchronously run the ``zfs`` command-line tool with the given arguments.
@@ -80,11 +170,7 @@ def zfs_command(reactor, arguments):
         exit code 0), or errbacking with :class:`CommandFailed` or
         :class:`BadArguments` depending on the exit code (1 or 2).
     """
-    endpoint = ProcessEndpoint(reactor, b"zfs", [b"zfs"] + arguments,
-                               os.environ)
-    d = connectProtocol(endpoint, _AccumulatingProtocol())
-    d.addCallback(lambda protocol: protocol._result)
-    return d
+    return ext_command(reactor, [b"zfs"] + arguments)
 
 
 _ZFS_COMMAND = Field.forTypes(
@@ -98,33 +184,6 @@ _STATUS = Field.forTypes(
 ZFS_ERROR = MessageType(
     "filesystem:zfs:error", [_ZFS_COMMAND, _OUTPUT, _STATUS],
     u"The zfs command signaled an error.")
-
-
-def _sync_command_error_squashed(arguments, logger):
-    """
-    Synchronously run a command-line tool with the given arguments.
-
-    :param arguments: A ``list`` of ``bytes``, command-line arguments to
-        execute.
-
-    :param eliot.Logger logger: The log writer to use to log errors running the
-        zfs command.
-    """
-    message = None
-    log_arguments = b" ".join(arguments)
-    try:
-        process = Popen(arguments, stdout=PIPE, stderr=STDOUT)
-        output = process.stdout.read()
-        status = process.wait()
-    except Exception as e:
-        message = ZFS_ERROR(
-            zfs_command=log_arguments, output=str(e), status=1)
-    else:
-        if status:
-            message = ZFS_ERROR(
-                zfs_command=log_arguments, output=output, status=status)
-    if message is not None:
-        message.write(logger)
 
 
 @attributes(["name"])
@@ -170,6 +229,8 @@ class Filesystem(object):
     filesystem.  This will likely grow into a more sophisticiated
     implementation over time.
     """
+    logger = Logger()
+
     def __init__(self, pool, dataset, mountpoint=None, size=None,
                  reactor=None):
         """
@@ -190,6 +251,7 @@ class Filesystem(object):
         if reactor is None:
             from twisted.internet import reactor
         self._reactor = reactor
+        self._async_lzc = _async_lzc(self._reactor)
 
     def _exists(self):
         """
@@ -198,11 +260,7 @@ class Filesystem(object):
         :return: ``True`` if there is a filesystem with this name, ``False``
             otherwise.
         """
-        try:
-            check_output([b"zfs", b"list", self.name], stderr=STDOUT)
-        except CalledProcessError:
-            return False
-        return True
+        return libzfs_core.lzc_exists(self.name)
 
     def snapshots(self):
         if self._exists():
@@ -241,39 +299,48 @@ class Filesystem(object):
         # I'm just using UUIDs, and hopefully requirements will become
         # clearer as we iterate.
         snapshot = b"%s@%s" % (self.name, uuid4())
-        check_call([b"zfs", b"snapshot", snapshot])
+        libzfs_core.lzc_snapshot([snapshot])
 
         # Determine whether there is a shared snapshot which can be used as the
         # basis for an incremental send.
         local_snapshots = list(
             Snapshot(name=name) for name in
-            _parse_snapshots(
-                check_output([b"zfs"] + _list_snapshots_command(self)),
-                self
-            ))
+            _parse_snapshots(_do_list_snapshots(self), self)
+        )
 
         if remote_snapshots is None:
             remote_snapshots = []
 
         latest_common_snapshot = _latest_common_snapshot(
             remote_snapshots, local_snapshots)
+        latest_common_name = None
+        if latest_common_snapshot is not None:
+            latest_common_name = b"%s@%s" % (self.name,
+                                             latest_common_snapshot.name)
 
-        if latest_common_snapshot is None:
-            identifier = [snapshot]
-        else:
-            identifier = [
-                b"-i",
-                u"{}@{}".format(
-                    self.name, latest_common_snapshot.name).encode("ascii"),
-                snapshot,
-            ]
+        (rfd, wfd) = os.pipe()
+        out = os.fdopen(rfd)
+        queue = Queue()
 
-        process = Popen([b"zfs", b"send"] + identifier, stdout=PIPE)
+        def send_and_close():
+            try:
+                libzfs_core.lzc_send(snapshot, latest_common_name, wfd)
+            except Exception as e:
+                message = ZFS_ERROR(zfs_command="lzc_send " + snapshot,
+                                    output=str(e), status=e.errno)
+                message.write(self.logger)
+                write_traceback(self.logger)
+            finally:
+                os.close(wfd)
+                queue.put(None)
+
+        d = self._async_lzc.callDeferred(send_and_close)
+        d.addBoth(lambda _: None)
         try:
-            yield process.stdout
+            yield out
         finally:
-            process.stdout.close()
-            process.wait()
+            out.close()
+            queue.get()
 
     @contextmanager
     def writer(self):
@@ -289,33 +356,56 @@ class Filesystem(object):
             # a hack.  When we replace this mechanism with a proper API we
             # should make it include that information.
             #
-            # -e means "if the stream says it is for foo/bar/baz then receive
-            # into baz".  I don't know why self.name is also required,
-            # then. XXX try -d self.pool instead. XXX it works without -e w/
-            # self.name too. XXX Delete this paragraph if we go ahead with just
-            # `-F` in the implementation.
-            #
-            # -F means force.  If the stream is based on not-quite-the-latest
+            # If the stream is based on not-quite-the-latest
             # snapshot then we have to throw away all the snapshots newer than
             # it in order to receive the stream.  To do that you have to
             # force.
             #
-            cmd = [b"zfs", b"receive", b"-F", self.name]
+            force = True
         else:
             # If the filesystem doesn't already exist then this is a complete
             # data stream.
-            cmd = [b"zfs", b"receive", self.name]
-        process = Popen(cmd, stdin=PIPE)
-        succeeded = False
+            force = False
+
+        (rfd, wfd) = os.pipe()
+        wfile = os.fdopen(wfd, "w")
+        queue = Queue()
+
+        def recv_and_close():
+            try:
+                (header, c_header) = libzfs_core.receive_header(rfd)
+                # drr_toname is a full snapshot name, but we need only the part
+                # after '@' that we use to construct a local snapshot name.
+                snapname = header['drr_toname'].split('@', 1)[1]
+                snapname = self.name + '@' + snapname
+                libzfs_core.lzc_receive_with_header(snapname, rfd, c_header,
+                                                    force)
+                success = True
+            except Exception as e:
+                success = False
+                message = ZFS_ERROR(zfs_command="lzc_receive " + self.name,
+                                    output=str(e), status=e.errno)
+                message.write(self.logger)
+                write_traceback(self.logger)
+            finally:
+                os.close(rfd)
+                queue.put(success)
+
+        d = self._async_lzc.callDeferred(recv_and_close)
+        d.addBoth(lambda _: None)
         try:
-            yield process.stdin
+            yield wfile
         finally:
-            process.stdin.close()
-            succeeded = not process.wait()
-        if succeeded:
-            check_call([b"zfs", b"set",
-                        b"mountpoint=" + self._mountpoint.path,
-                        self.name])
+            try:
+                wfile.close()
+            except:
+                pass
+            succeeded = queue.get()
+            if succeeded and not force:
+                # a new filesystem
+                libzfs_core.lzc_set_prop(self.name, b"mountpoint",
+                                         self._mountpoint.path)
+                check_call([b"zfs", b"mount", self.name])
 
 
 @implementer(IFilesystemSnapshots)
@@ -324,11 +414,12 @@ class ZFSSnapshots(object):
 
     def __init__(self, reactor, filesystem):
         self._reactor = reactor
+        self._async_lzc = _async_lzc(self._reactor)
         self._filesystem = filesystem
 
     def create(self, name):
         encoded_name = b"%s@%s" % (self._filesystem.name, name)
-        d = zfs_command(self._reactor, [b"snapshot", encoded_name])
+        d = self._async_lzc.lzc_snapshot([encoded_name])
         d.addCallback(lambda _: None)
         return d
 
@@ -339,56 +430,43 @@ class ZFSSnapshots(object):
         return _list_snapshots(self._reactor, self._filesystem)
 
 
-def _list_snapshots_command(filesystem):
+def _do_list_snapshots(filesystem):
     """
-    Construct a ``zfs`` command which will output the names of the snapshots of
-    the given filesystem.
+    Produce a list of snapshots of the given filesystem sorted by their
+    creation order.
 
     :param Filesystem filesystem: The ZFS filesystem the snapshots of which to
         list.
 
-    :return list: An argument list (of ``bytes``) which can be passed to
-        ``zfs`` to produce the desired list of snapshots.  ``zfs`` is not
-        included as the first element.
+    :return list: A ``list`` of ``bytes`` corresponding to the
+        names of the snapshots.
     """
-    return [
-        b"list",
-        # Format the output without a header.
-        b"-H",
-        # Recurse to datasets beneath the named dataset.
-        b"-r",
-        # Only output datasets of type snapshot.
-        b"-t", b"snapshot",
-        # Only output the name of each dataset encountered.  The name is the
-        # only thing we currently store in our snapshot model.
-        b"-o", b"name",
-        # Sort by the creation property.  This gives us the snapshots in the
-        # order they were taken.
-        b"-s", b"creation",
-        # Start with this the dataset we're interested in.
-        filesystem.name,
-    ]
+    snaps = []
+    for snap in libzfs_core.lzc_list_snaps(filesystem.name):
+        creation = libzfs_core.lzc_get_props(snap)[b"createtxg"]
+        snaps.append((snap, creation))
+    return [x[0] for x in sorted(snaps, key=lambda x: x[1])]
 
 
 def _parse_snapshots(data, filesystem):
     """
-    Parse the output of a ``zfs list`` command (like the one defined by
-    ``_list_snapshots_command`` into a ``list`` of ``bytes`` (the snapshot
-    names only).
+    Transform the list of fully qualified snapshot names to a list of
+    snapshot short names that are relative to the given filesystem.
 
-    :param bytes data: The output to parse.
+    :param bytes data: A ``list`` of ``bytes`` corresponding to the names
+        of the snapshots.
 
     :param Filesystem filesystem: The filesystem from which to extract
         snapshots.  If the output includes snapshots for other filesystems (eg
         siblings or children) they are excluded from the result.
 
     :return list: A ``list`` of ``bytes`` corresponding to the
-        names of the snapshots in the output.  The order of the list is the
+        short names of the snapshots.  The order of the list is the
         same as the order of the snapshots in the data being parsed.
     """
     result = []
-    for line in data.splitlines():
-        dataset, snapshot = line.split(b'@', 1)
+    for snap in data:
+        dataset, snapshot = snap.split(b'@', 1)
         if dataset == filesystem.name:
             result.append(snapshot)
     return result
@@ -407,7 +485,7 @@ def _list_snapshots(reactor, filesystem):
     :return: A ``Deferred`` which fires with a ``list`` of ``Snapshot``
         instances giving the requested snapshot information.
     """
-    d = zfs_command(reactor, _list_snapshots_command(filesystem))
+    d = _async_lzc(reactor).callDeferred(_do_list_snapshots, filesystem)
     d.addCallback(_parse_snapshots, filesystem)
     return d
 
@@ -446,6 +524,7 @@ class StoragePool(Service):
             mounted.
         """
         self._reactor = reactor
+        self._async_lzc = _async_lzc(self._reactor)
         self._name = name
         self._mount_root = mount_root
 
@@ -467,18 +546,31 @@ class StoragePool(Service):
         # for StoragePool being an IService implementation).
         # https://clusterhq.atlassian.net/browse/FLOC-635
 
+        # First, actually unmount the dataset.
+        # See the explanation below where 'canmount' is set to 'off'.
+        # At the moment all errors are ignored.
+        call([b"umount", self._name])
+
         # Set the root dataset to be read only; IService.startService
         # doesn't support Deferred results, and in any case startup can be
         # synchronous with no ill effects.
-        _sync_command_error_squashed(
-            [b"zfs", b"set", b"readonly=on", self._name], self.logger)
+        try:
+            libzfs_core.lzc_set_prop(self._name, b"readonly", 1)
+        except libzfs_core.exceptions.ZFSError as e:
+            message = ZFS_ERROR(zfs_command="set readonly=on " + self._name,
+                                output=str(e), status=e.errno)
+            message.write(self.logger)
 
         # If the root dataset is read-only then it's not possible to create
         # mountpoints in it for its child datasets.  Avoid mounting it to avoid
         # this problem.  This should be fine since we don't ever intend to put
         # any actual data into the root dataset.
-        _sync_command_error_squashed(
-            [b"zfs", b"set", b"canmount=off", self._name], self.logger)
+        try:
+            libzfs_core.lzc_set_prop(self._name, b"canmount", 0)
+        except libzfs_core.exceptions.ZFSError as e:
+            message = ZFS_ERROR(zfs_command="set canmount=off" + self._name,
+                                output=str(e), status=e.errno)
+            message.write(self.logger)
 
     def _check_for_out_of_space(self, reason):
         """
@@ -492,17 +584,15 @@ class StoragePool(Service):
     def create(self, volume):
         filesystem = self.get(volume)
         mount_path = filesystem.get_path().path
-        properties = [b"-o", b"mountpoint=" + mount_path]
+        properties = {b"mountpoint": mount_path}
         if volume.locally_owned():
-            properties.extend([b"-o", b"readonly=off"])
+            properties[b"readonly"] = 0
         if volume.size.maximum_size is not None:
-            properties.extend([
-                b"-o", u"refquota={0}".format(
-                    volume.size.maximum_size).encode("ascii")
-            ])
-        d = zfs_command(self._reactor,
-                        [b"create"] + properties + [filesystem.name])
+            properties[b"refquota"] = volume.size.maximum_size
+        d = self._async_lzc.lzc_create(filesystem.name, props=properties)
         d.addErrback(self._check_for_out_of_space)
+        d.addCallback(
+            lambda _: zfs_command(self._reactor, [b"mount", filesystem.name]))
         d.addCallback(lambda _: filesystem)
         return d
 
@@ -513,27 +603,25 @@ class StoragePool(Service):
         # It would be better to have snapshot destruction logic as part of
         # IFilesystemSnapshots, but that isn't really necessary yet.
         def got_snapshots(snapshots):
-            return gatherResults(list(zfs_command(
-                self._reactor,
-                [b"destroy", b"%s@%s" % (filesystem.name, snapshot.name)])
-                for snapshot in snapshots))
+            return self._async_lzc.lzc_destroy_snaps([
+                b"%s@%s" % (filesystem.name, snapshot.name)
+                for snapshot in snapshots
+            ], defer=False)
         d.addCallback(got_snapshots)
-        d.addCallback(lambda _: zfs_command(
-            self._reactor, [b"destroy", filesystem.name]))
+        d.addCallback(
+            lambda _: ext_command(self._reactor, [b"umount", filesystem.name]))
+        d.addCallback(
+            lambda _: self._async_lzc.lzc_destroy(filesystem.name))
         return d
 
     def set_maximum_size(self, volume):
         filesystem = self.get(volume)
-        properties = []
         if volume.size.maximum_size is not None:
-            properties.extend([
-                u"refquota={0}".format(
-                    volume.size.maximum_size).encode("ascii")
-            ])
+            requota = volume.size.maximum_size
         else:
-            properties.extend([u"refquota=none"])
-        d = zfs_command(self._reactor,
-                        [b"set"] + properties + [filesystem.name])
+            # zero means no quota
+            requota = 0
+        d = self._async_lzc.lzc_set_prop(filesystem.name, b"refquota", requota)
         d.addErrback(self._check_for_out_of_space)
         d.addCallback(lambda _: filesystem)
         return d
@@ -544,13 +632,9 @@ class StoragePool(Service):
         zfs_snapshots = ZFSSnapshots(self._reactor, parent_filesystem)
         snapshot_name = bytes(uuid4())
         d = zfs_snapshots.create(snapshot_name)
-        clone_command = [b"clone",
-                         # Snapshot we're cloning from:
-                         b"%s@%s" % (parent_filesystem.name, snapshot_name),
-                         # New filesystem we're cloning to:
-                         new_filesystem.name,
-                         ]
-        d.addCallback(lambda _: zfs_command(self._reactor, clone_command))
+        full_snap_name = b"%s@%s" % (parent_filesystem.name, snapshot_name)
+        d.addCallback(lambda _: self._async_lzc.lzc_clone(new_filesystem.name,
+                                                          full_snap_name))
         self._created(d, volume)
         d.addCallback(lambda _: new_filesystem)
         return d
@@ -558,8 +642,10 @@ class StoragePool(Service):
     def change_owner(self, volume, new_volume):
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)
-        d = zfs_command(self._reactor,
-                        [b"rename", old_filesystem.name, new_filesystem.name])
+        d = ext_command(self._reactor,
+                        [b"umount", old_filesystem.name])
+        d.addCallback(lambda _: self._async_lzc.lzc_rename(
+            old_filesystem.name, new_filesystem.name))
         self._created(d, new_volume)
 
         def remounted(ignored):
@@ -587,7 +673,7 @@ class StoragePool(Service):
         new_mount_path = new_filesystem.get_path().path
 
         def creation_failed(f):
-            if f.check(CommandFailed):
+            if (f.check(libzfs_core.exceptions.FilesystemExists)):
                 # This isn't the only reason the operation could fail. We
                 # should figure out why and report it appropriately.
                 # https://clusterhq.atlassian.net/browse/FLOC-199
@@ -597,16 +683,15 @@ class StoragePool(Service):
 
         def exists(ignored):
             if new_volume.locally_owned():
-                result = zfs_command(self._reactor,
-                                     [b"set", b"readonly=off",
-                                      new_filesystem.name])
+                result = self._async_lzc.lzc_set_prop(new_filesystem.name,
+                                                      b"readonly", 0)
             else:
-                result = zfs_command(self._reactor,
-                                     [b"inherit", b"readonly",
-                                      new_filesystem.name])
-            result.addCallback(lambda _: zfs_command(self._reactor,
-                               [b"set", b"mountpoint=" + new_mount_path,
-                                new_filesystem.name]))
+                result = self._async_lzc.lzc_inherit_prop(new_filesystem.name,
+                                                          b"readonly")
+            result.addCallback(lambda _: self._async_lzc.lzc_set_prop(
+                new_filesystem.name, b"mountpoint", new_mount_path))
+            result.addCallback(lambda _: zfs_command(
+                self._reactor, [b"mount", new_filesystem.name]))
             return result
         result.addCallback(exists)
 
@@ -617,7 +702,7 @@ class StoragePool(Service):
             self._name, dataset, mount_path, volume.size)
 
     def enumerate(self):
-        listing = _list_filesystems(self._reactor, self._name)
+        listing = self._async_lzc.callDeferred(_list_filesystems, self._name)
 
         def listed(filesystems):
             result = set()
@@ -643,40 +728,20 @@ class _DatasetInfo(object):
     """
 
 
-def _list_filesystems(reactor, pool):
+def _list_filesystems(pool):
     """Get a listing of all filesystems on a given pool.
 
     :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
         provider.
-    :return: A ``Deferred`` that fires with an iterator, the elements
-        of which are ``tuples`` containing the name and mountpoint of each
-        filesystem.
+    :return: An iterator, the elements of which are ``tuples`` containing
+        the name and mountpoint of each filesystem.
     """
-    listing = zfs_command(
-        reactor,
-        [b"list",
-         # Descend the hierarchy to a depth of one (ie, list the direct
-         # children of the pool)
-         b"-d", b"1",
-         # Omit the output header
-         b"-H",
-         # Output exact, machine-parseable values (eg 65536 instead of 64K)
-         b"-p",
-         # Output each dataset's name, mountpoint and refquota
-         b"-o", b"name,mountpoint,refquota",
-         # Look at this pool
-         pool])
-
-    def listed(output, pool):
-        for line in output.splitlines():
-            name, mountpoint, refquota = line.split(b'\t')
-            name = name[len(pool) + 1:]
-            if name:
-                refquota = int(refquota.decode("ascii"))
-                if refquota == 0:
-                    refquota = None
-                yield _DatasetInfo(
-                    dataset=name, mountpoint=mountpoint, refquota=refquota)
-
-    listing.addCallback(listed, pool)
-    return listing
+    for child in libzfs_core.lzc_list_children(pool):
+        props = libzfs_core.lzc_get_props(child)
+        name = child[len(pool) + 1:]
+        refquota = props[b"refquota"]
+        mountpoint = props[b"mountpoint"]
+        if refquota == 0:
+            refquota = None
+        yield _DatasetInfo(
+            dataset=name, mountpoint=mountpoint, refquota=refquota)
