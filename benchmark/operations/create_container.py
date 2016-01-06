@@ -4,6 +4,7 @@ Operation to create a container.
 """
 
 from functools import partial
+from itertools import repeat
 import random
 from uuid import UUID, uuid4
 
@@ -124,7 +125,9 @@ def create_container(
     d = control_service.create_container(node_uuid, name, image, volumes)
 
     def loop_until_container_started(expected):
-        return loop_until(reactor, partial(container_started, expected))
+        return loop_until(
+            reactor, partial(container_started, expected), repeat(0.25, 1200)
+        )
     d.addCallback(loop_until_container_started)
 
     return d
@@ -213,7 +216,7 @@ class CreateContainerProbe(PClass):
             if nodes:
                 return random.choice(nodes)
             else:
-                # Cannot proceed if there arbitraryre no nodes in the cluster!
+                # Cannot proceed if there are no nodes in the cluster!
                 raise EmptyClusterError("Cluster contains no nodes.")
         d.addCallback(select_node)
 
