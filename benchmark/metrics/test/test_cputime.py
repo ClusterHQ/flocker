@@ -18,19 +18,14 @@ from benchmark.metrics.cputime import (
     WALLCLOCK_LABEL, CPUTime, CPUParser, get_node_cpu_times, compute_change,
 )
 
-# Process 1 (usually `init` or `systemd`) provides a process name that
-# is always present.
-try:
-    _standard_process = subprocess.check_output(
-        ['ps', '-p', '1', '-o', 'comm=']
-    ).strip()
-except subprocess.CalledProcessError:
-    _standard_process = None
+# Process 1 (usually `init`, `systemd`, or `launchd`) provides a process
+# name that is always present.
+_standard_process = subprocess.check_output(
+    ['ps', '-p', '1', '-o', 'comm=']
+).strip()
 
+# The command used to check cputimes only works on Linux
 on_linux = skipIf(platform.system() != 'Linux', 'Requires Linux')
-
-supported_linux = skipIf(
-    _standard_process is None, 'Requires supported version of Linux')
 
 
 class CPUParseTests(TestCase):
@@ -113,7 +108,7 @@ class GetNodeCPUTimeTests(AsyncTestCase):
     Test ``get_node_cpu_times`` command.
     """
 
-    @supported_linux
+    @on_linux
     def test_get_node_cpu_times(self):
         """
         Success results in output of dictionary containing process names.
@@ -201,7 +196,7 @@ class CPUTimeTests(AsyncTestCase):
         """
         verifyClass(IMetric, CPUTime)
 
-    @supported_linux
+    @on_linux
     def test_cpu_time(self):
         """
         Fake Flocker cluster gives expected results.
