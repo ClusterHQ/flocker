@@ -17,8 +17,8 @@ from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IOperation, IProbe
 from benchmark.operations.create_container import (
     CreateContainer, CreateContainerProbe,
-    EmptyClusterError,
 )
+from benchmark.operations._common import EmptyClusterError
 
 
 class CreateContainerTests(TestCase):

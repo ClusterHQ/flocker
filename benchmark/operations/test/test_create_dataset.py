@@ -16,8 +16,9 @@ from flocker.testtools import TestCase
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IOperation, IProbe
 from benchmark.operations.create_dataset import (
-    CreateDataset, CreateDatasetProbe, EmptyClusterError,
+    CreateDataset, CreateDatasetProbe
 )
+from benchmark.operations._common import EmptyClusterError
 
 
 class CreateDatasetTests(TestCase):

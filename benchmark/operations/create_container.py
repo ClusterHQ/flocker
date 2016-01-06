@@ -4,7 +4,6 @@ Operation to create a container.
 """
 
 from functools import partial
-import random
 from uuid import UUID, uuid4
 
 from pyrsistent import PClass, field
@@ -14,13 +13,8 @@ from flocker.apiclient import MountedDataset
 from flocker.common import gather_deferreds, loop_until
 from flocker.control import DockerImage
 
-from .._interfaces import IProbe, IOperation
-
-
-class EmptyClusterError(Exception):
-    """
-    Exception indicating that the cluster contains no nodes.
-    """
+from benchmark._interfaces import IProbe, IOperation
+from benchmark.operations._common import select_node
 
 
 def loop_until_state_found(reactor, get_states, state_matches):
@@ -201,12 +195,6 @@ class CreateContainerProbe(PClass):
         d = control_service.list_nodes()
 
         # Select an arbitrary node on which to create the container.
-        def select_node(nodes):
-            if nodes:
-                return random.choice(nodes)
-            else:
-                # Cannot proceed if there are no nodes in the cluster!
-                raise EmptyClusterError("Cluster contains no nodes.")
         d.addCallback(select_node)
 
         def parallel_setup(node):
