@@ -536,6 +536,10 @@ class FilesystemTests(AsyncTestCase):
             MY_VOLUME, size=VolumeSize(maximum_size=maximum_size))
         creating = pool.create(volume)
 
+        def write_and_flush(file_object, data):
+            file_object.write(data)
+            file_object.flush()
+
         def created(filesystem):
             path = filesystem.get_path()
             # Try to write one byte more than the maximum_size of data.
@@ -545,10 +549,9 @@ class FilesystemTests(AsyncTestCase):
                 for i in range(maximum_size / chunk_size):
                     fObj.write(chunk)
                 fObj.flush()
-                with self.assertRaises(IOError) as ctx:
-                    fObj.write(b"x")
-                    fObj.flush()
-                self.assertEqual(ctx.exception.args[0], errno.EDQUOT)
+                exception = self.assertRaises(
+                    IOError, write_and_flush, fObj, b'x')
+                self.assertEqual(exception.args[0], errno.EDQUOT)
 
         creating.addCallback(created)
         return creating
