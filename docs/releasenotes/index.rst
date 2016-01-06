@@ -16,8 +16,8 @@ Next Release
 * The :ref:`Flocker Plugin for Docker<docker-plugin>` now solely relies on the metadata key ``"name"`` to find datasets.
 * Now supporting Ubuntu-15.10 instead of Ubuntu-15.04 for the flocker client.
   See :ref:`installing-flocker-cli-ubuntu-15.10`.
-* Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they
-  don't need to be skipped anymore.
+* Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they don't need to be skipped anymore.
+* Added documentation for the :ref:`EMC VMAX <emc-dataset-backend>` driver.
 
 This Release
 ============
