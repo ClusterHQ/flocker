@@ -9,13 +9,13 @@ from zope.interface import Attribute, Interface, implementer
 from eliot import ActionType
 from eliot.testing import capture_logging, assertHasAction, LoggedAction
 
-from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.failure import Failure
 from twisted.python.threadpool import ThreadPool
 
 from pyrsistent import PClass, field
 
 from .. import auto_threaded
+from ...testtools import TestCase, AsyncTestCase
 
 
 class IStub(Interface):
@@ -113,11 +113,12 @@ class NonReactor(object):
         f(*args, **kwargs)
 
 
-class AutoThreadedTests(SynchronousTestCase):
+class AutoThreadedTests(TestCase):
     """
     Tests for ``flocker.common.auto_threaded``.
     """
     def setUp(self):
+        super(AutoThreadedTests, self).setUp()
         self.reactor = NonReactor()
         self.threadpool = NonThreadPool()
         # Some unique objects that support ``+``
@@ -188,7 +189,7 @@ class AutoThreadedTests(SynchronousTestCase):
         )
 
 
-class AutoThreadedIntegrationTests(TestCase):
+class AutoThreadedIntegrationTests(AsyncTestCase):
     """
     Tests for ``auto_threaded`` in combination with a real reactor and a real
     thread pool, ``twisted.python.threads.ThreadPool``.

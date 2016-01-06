@@ -11,7 +11,6 @@ from bitmath import Byte, GiB
 from botocore.exceptions import ClientError
 
 from twisted.python.constants import Names, NamedConstant
-from twisted.trial.unittest import SkipTest
 from eliot.testing import LoggedAction, capture_logging, assertHasMessage
 
 from ..blockdevice import MandatoryProfiles
@@ -21,6 +20,7 @@ from ..ebs import (
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
     EBSMandatoryProfileAttributes, _get_volume_tag,
+    AttachUnexpectedInstance,
 )
 from ....testtools import AsyncTestCase, flaky
 
@@ -40,6 +40,7 @@ from ..test.blockdevicefactory import (
 )
 
 TIMEOUT = 5
+ONE_GIB = 1073741824
 
 
 def ebsblockdeviceapi_for_test(test_case):
@@ -65,6 +66,78 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    def test_attach_foreign_instance_error(self):
+        """
+        Attempting to attach a volume to a non-local instance will
+        raise an ``AttachUnexpectedInstance`` error.
+        """
+        dataset_id = uuid4()
+        volume = self.api.create_volume(dataset_id=dataset_id, size=ONE_GIB)
+
+        self.addCleanup(self.api.destroy_volume, volume.blockdevice_id)
+
+        bad_instance_id = u'i-12345678'
+
+        self.assertRaises(
+            AttachUnexpectedInstance,
+            self.api.attach_volume,
+            volume.blockdevice_id,
+            bad_instance_id
+        )
+
+    def test_attach_when_foreign_device_has_next_device(self):
+        """
+        ``attach_volume`` does not attempt to use device paths that are already
+        assigned to volumes that have been attached outside of Flocker.
+        """
+        try:
+            config = get_blockdevice_config(ProviderType.aws)
+        except InvalidConfig as e:
+            self.skipTest(str(e))
+
+        dataset_id = uuid4()
+        ec2_client = get_ec2_client_for_test(config)
+        meta_client = ec2_client.connection.meta.client
+
+        # Create a volume directly using boto.
+        requested_volume = meta_client.create_volume(
+            Size=1, AvailabilityZone=ec2_client.zone)
+        created_volume = ec2_client.connection.Volume(
+            requested_volume['VolumeId'])
+
+        def clean_volume(volume):
+            volume.detach_from_instance()
+            _wait_for_volume_state_change(VolumeOperations.DETACH, volume)
+            volume.delete()
+
+        self.addCleanup(clean_volume, created_volume)
+
+        _wait_for_volume_state_change(VolumeOperations.CREATE, created_volume)
+
+        # Get this instance ID.
+        instance_id = self.api.compute_instance_id()
+
+        # Attach manual volume using /xvd* device.
+        device_name = self.api._next_device()
+        device_name = device_name.replace('/sd', '/xvd')
+        self.api._attach_ebs_volume(
+            created_volume.id, instance_id, device_name)
+        _wait_for_volume_state_change(VolumeOperations.ATTACH, created_volume)
+
+        # Now create a volume via Flocker EBS backend.
+        blockdevice_volume = self.api.create_volume(
+            dataset_id=dataset_id, size=ONE_GIB)
+
+        flocker_volume = ec2_client.connection.Volume(
+            blockdevice_volume.blockdevice_id)
+        self.addCleanup(clean_volume, flocker_volume)
+
+        # Attach the blockdevice volume to this instance.
+        # The assertion in this test is that this operation does not
+        # raise an ``AttachedUnexpectedDevice`` error.
+        self.api.attach_volume(
+            blockdevice_volume.blockdevice_id, instance_id)
+
     def test_foreign_volume(self):
         """
         ``list_volumes`` lists only those volumes
@@ -73,7 +146,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         try:
             config = get_blockdevice_config(ProviderType.aws)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
         ec2_client = get_ec2_client_for_test(config)
         meta_client = ec2_client.connection.meta.client
         requested_volume = meta_client.create_volume(
@@ -109,7 +182,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         try:
             config = get_blockdevice_config(ProviderType.aws)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
 
         dataset_id = uuid4()
         flocker_volume = self.api.create_volume(
@@ -174,31 +247,6 @@ class EBSBlockDeviceAPIInterfaceTests(
                 messages
             )
         )
-
-    def test_next_device_in_use(self):
-        """
-        ``_next_device`` skips devices indicated as being in use.
-
-        Ideally we'd have a test for this using the public API, but this
-        only occurs if we hit eventually consistent ignorance in the AWS
-        servers so it's hard to trigger deterministically.
-        """
-        result = self.api._next_device(self.api.compute_instance_id(), [],
-                                       {u"/dev/sdf"})
-        self.assertEqual(result, u"/dev/sdg")
-
-    def test_next_device_in_use_end(self):
-        """
-        ``_next_device`` returns ``None`` if all devices are in use.
-        """
-        devices_in_use = {
-            u'/dev/sd{}'.format(d)
-            for d in u'fghijklmnop'
-        }
-        result = self.api._next_device(
-            self.api.compute_instance_id(), [], devices_in_use
-        )
-        self.assertIs(result, None)
 
     def test_create_volume_gold_profile(self):
         """
