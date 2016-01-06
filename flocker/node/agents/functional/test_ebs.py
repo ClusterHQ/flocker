@@ -69,7 +69,7 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
-    @capture_logging(lambda self, logger: None)
+    @capture_logging(None)
     def test_volume_busy_error_on_busy_state(self, logger):
         """
         A ``VolumeBusy`` is raised if a volume's attachment state is "busy"
@@ -120,7 +120,7 @@ class EBSBlockDeviceAPIInterfaceTests(
             logger.messages, VOLUME_BUSY_MESSAGE
         ):
             keys = set(message.message.keys())
-            self.assertTrue(keys.issubset(expected_keys))
+            self.assertTrue(expected_keys.issubset(keys))
 
     def test_attach_foreign_instance_error(self):
         """
