@@ -284,9 +284,19 @@ class VolumeBusy(Exception):
     """
     def __init__(self, volume):
         Exception.__init__(self, volume.id, volume.attachments)
+        logged_attachments = []
+        for attachment in volume.attachments:
+            logged_attachments.append(
+                dict(
+                    instance_id=attachment['InstanceId'],
+                    volume_id=attachment['VolumeId'],
+                    device=attachment['Device'],
+                    state=attachment['State'],
+                )
+            )
         VOLUME_BUSY_MESSAGE(
             volume_id=volume.id,
-            attachments=volume.attachments
+            attachments=logged_attachments
         ).write()
 
 
