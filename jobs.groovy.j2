@@ -109,7 +109,7 @@ GLOBAL_CONFIG = jsonSlurper.parseText(
 // UTILITIES DEFINED BELOW
 // --------------------------------------------------------------------------
 
-def build_copy_artifacts(context, dash_project, dash_branch_name, job_name, job_values) {
+def build_copy_artifacts = { dash_project, dash_branch_name, job_name, job_values ->
     println("Configuring artifacts for ${dash_project} ${dash_branch_name} ${job_name} ${job_values.archive_artifacts}")
     /* not every job produces an artifact, so make sure wew don't try to fetch
      * artifacts for jobs that don't produce them
@@ -117,7 +117,7 @@ def build_copy_artifacts(context, dash_project, dash_branch_name, job_name, job_
     if (job_values.archive_artifacts) {
         println("Job ${job_name} has artifacts; configuring archival.")
         for (artifact in job_values.archive_artifacts) {
-            context.copyArtifacts(
+            copyArtifacts(
                 "${dash_project}/${dash_branch_name}/${job_name}") {
                 optional(true)
                 includePatterns(artifact)
@@ -583,7 +583,7 @@ def build_multijob(dashBranchName, branchName) {
                                 /* Copy the job's configured artifacts to the master
                                  */
                                 build_copy_artifacts(
-                                    delegate, dashProject, dashBranchName, _job_name,
+                                    dashProject, dashBranchName, _job_name,
                                     job_entry.value,
                                 )
 
