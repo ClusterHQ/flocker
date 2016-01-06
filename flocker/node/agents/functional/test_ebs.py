@@ -119,7 +119,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         for message in LoggedMessage.of_type(
             logger.messages, VOLUME_BUSY_MESSAGE
         ):
-            keys = message.message.keys()
+            keys = set(message.message.keys())
             self.assertTrue(keys.issubset(expected_keys))
 
     def test_attach_foreign_instance_error(self):
