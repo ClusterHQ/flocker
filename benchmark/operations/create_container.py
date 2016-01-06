@@ -4,7 +4,6 @@ Operation to create a container.
 """
 
 from functools import partial
-from itertools import repeat
 import random
 from uuid import UUID, uuid4
 
@@ -24,6 +23,31 @@ class EmptyClusterError(Exception):
     """
 
 
+def loop_until_state_found(reactor, get_states, state_matches):
+    """
+    Loop until a state has been reached.
+
+    :param get_states: Callable returning a Deferred firing with a list
+        of states.
+    :param state_matches: Callable that accepts a state parameter, and
+        returns a boolean indicating whether the state matches.
+    :return Deferred[Any]: The matching state.
+    """
+    def state_reached():
+        d = get_states()
+
+        def find_match(states):
+            for state in states:
+                if state_matches(state):
+                    return state
+            return None
+        d.addCallback(find_match)
+
+        return d
+
+    return loop_until(reactor, state_reached)
+
+
 def create_dataset(
     reactor, control_service, node_uuid, dataset_id, volume_size
 ):
@@ -39,41 +63,25 @@ def create_dataset(
     :return Deferred[DatasetState]: The state of the created dataset.
     """
 
-    def dataset_mounted(expected):
-        """
-        Check whether a dataset has been created and mounted.
-
-        :param Dataset expected: A dataset configuration to match against the
-            results of ``list_datasets_state``.
-        :return Deferred[Optional[DatasetState]]: The matching dataset state,
-            or None if the expected dataset is not found.
-        """
-        d = control_service.list_datasets_state()
-
-        def dataset_matches(inspecting, expected):
-            return (
-                expected.dataset_id == inspecting.dataset_id and
-                expected.primary == inspecting.primary and
-                inspecting.path is not None
-            )
-
-        def find_match(existing_state):
-            for state in existing_state:
-                if dataset_matches(state, expected):
-                    return state
-            return None
-        d.addCallback(find_match)
-        return d
-
     d = control_service.create_dataset(
         primary=node_uuid,
         maximum_size=volume_size,
         dataset_id=dataset_id,
     )
 
-    def loop_until_dataset_mounted(expected):
-        return loop_until(reactor, partial(dataset_mounted, expected))
-    d.addCallback(loop_until_dataset_mounted)
+    def dataset_matches(dataset, state):
+        return (
+            state.dataset_id == dataset.dataset_id and
+            state.primary == dataset.primary and
+            state.path is not None
+        )
+
+    d.addCallback(
+        lambda dataset: loop_until_state_found(
+            reactor, control_service.list_datasets_state,
+            partial(dataset_matches, dataset)
+        )
+    )
 
     return d
 
@@ -95,40 +103,21 @@ def create_container(
     :return Deferred[ContainerState]: The state of the created container.
     """
 
-    def container_started(expected):
-        """
-        Check whether a container has been created and started.
-
-        :param Container expected: A container configuration to match against
-            the results of ``list_containers_state``.
-        :return Deferred[Optional[ContainerState]]: The matching container
-            state, or None if the expected container is not found or is not
-            running.
-        """
-        d = control_service.list_containers_state()
-
-        def container_matches(inspecting, expected):
-            return (
-                expected.name == inspecting.name and
-                expected.node_uuid == inspecting.node_uuid and
-                inspecting.running
-            )
-
-        def find_match(existing_state):
-            for state in existing_state:
-                if container_matches(state, expected):
-                    return state
-            return None
-        d.addCallback(find_match)
-        return d
-
     d = control_service.create_container(node_uuid, name, image, volumes)
 
-    def loop_until_container_started(expected):
-        return loop_until(
-            reactor, partial(container_started, expected), repeat(0.25, 1200)
+    def container_matches(container, state):
+        return (
+            container.name == state.name and
+            container.node_uuid == state.node_uuid and
+            state.running
         )
-    d.addCallback(loop_until_container_started)
+
+    d.addCallback(
+        lambda container: loop_until_state_found(
+            reactor, control_service.list_containers_state,
+            partial(container_matches, container)
+        )
+    )
 
     return d
 
