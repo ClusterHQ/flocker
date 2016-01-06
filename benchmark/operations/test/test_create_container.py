@@ -4,13 +4,14 @@ Create Container operation tests for the control service benchmarks.
 """
 from uuid import uuid4
 
+from eliot.testing import capture_logging
 from ipaddr import IPAddress
 from zope.interface.verify import verifyClass
 
 from twisted.internet.task import Clock
-from twisted.trial.unittest import SynchronousTestCase
 
 from flocker.apiclient import FakeFlockerClient, Node
+from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IOperation, IProbe
@@ -20,7 +21,7 @@ from benchmark.operations.create_container import (
 )
 
 
-class CreateContainerTests(SynchronousTestCase):
+class CreateContainerTests(TestCase):
     """
     CreateContainer operation tests.
     """
@@ -37,7 +38,8 @@ class CreateContainerTests(SynchronousTestCase):
         """
         verifyClass(IProbe, CreateContainerProbe)
 
-    def test_create_container(self):
+    @capture_logging(None)
+    def test_create_container(self, _logger):
         """
         CreateContainer probe waits for cluster to converge.
         """
