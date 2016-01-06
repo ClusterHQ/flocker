@@ -104,10 +104,11 @@ class EBSBlockDeviceAPIInterfaceTests(
 
         # Artificially set the volume's attachment state to "busy", by
         # monkey-patching the EBS driver's ``_get_ebs_volume`` method.
-        def busy_ebs_volume(volume_id):
-            busy_volume = ec2_client.connection.Volume(volume_id)
+        def busy_ebs_volume(obj, volume_id):
+            busy_volume = obj.connection.Volume(volume_id)
             busy_volume.load()
-            busy_volume.attachments[0]['State'] = "busy"
+            if busy_volume.attachments:
+                busy_volume.attachments[0]['State'] = "busy"
             return busy_volume
 
         patch = self.patch(self.api, "_get_ebs_volume", busy_ebs_volume)
