@@ -18,6 +18,7 @@ Next Release
   See :ref:`installing-flocker-cli-ubuntu-15.10`.
 * Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they
   don't need to be skipped anymore.
+* Added documentation for the :ref:`EMC VMAX <emc-dataset-backend>` driver.
 
 This Release
 ============
