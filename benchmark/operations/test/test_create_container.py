@@ -1,6 +1,6 @@
-# Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
+# Copyright 2016 ClusterHQ Inc.  See LICENSE file for details.
 """
-Create Dataset operation tests for the control service benchmarks.
+Create Container operation tests for the control service benchmarks.
 """
 from uuid import uuid4
 
@@ -15,33 +15,33 @@ from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IOperation, IProbe
-from benchmark.operations.create_dataset import (
-    CreateDataset, CreateDatasetProbe
+from benchmark.operations.create_container import (
+    CreateContainer, CreateContainerProbe,
 )
 from benchmark.operations._common import EmptyClusterError
 
 
-class CreateDatasetTests(TestCase):
+class CreateContainerTests(TestCase):
     """
-    CreateDataset operation tests.
+    CreateContainer operation tests.
     """
 
     def test_implements_IOperation(self):
         """
-        CreateDataset provides the IOperation interface.
+        CreateContainer provides the IOperation interface.
         """
-        verifyClass(IOperation, CreateDataset)
+        verifyClass(IOperation, CreateContainer)
 
     def test_implements_IProbe(self):
         """
-        CreateDatasetProbe provides the IProbe interface.
+        CreateContainerProbe provides the IProbe interface.
         """
-        verifyClass(IProbe, CreateDatasetProbe)
+        verifyClass(IProbe, CreateContainerProbe)
 
     @capture_logging(None)
-    def test_create_dataset(self, logger):
+    def test_create_container(self, _logger):
         """
-        CreateDataset probe waits for cluster to converge.
+        CreateContainer probe waits for cluster to converge.
         """
         clock = Clock()
 
@@ -55,7 +55,7 @@ class CreateDatasetTests(TestCase):
             {},
             None,
         )
-        operation = CreateDataset(clock, cluster)
+        operation = CreateContainer(clock, cluster)
         d = operation.get_probe()
 
         def run_probe(probe):
@@ -69,21 +69,24 @@ class CreateDatasetTests(TestCase):
         d.addCallback(run_probe)
 
         # Advance the clock because probe periodically polls the state.
-
-        # The Deferred does not fire before the dataset has been created.
+        # Due to multiple steps, need to synchronize state a few times.
+        control_service.synchronize_state()  # creation of pull container
         clock.advance(1)
+        control_service.synchronize_state()  # deletion of pull container
+        clock.advance(1)
+
+        # The Deferred does not fire before the container has been created.
         self.assertNoResult(d)
 
-        # Trigger convergence of the fake Flocker cluster.
-        control_service.synchronize_state()
-
-        # The Deferred fires once the dataset has been created.
+        control_service.synchronize_state()  # creation of test container
         clock.advance(1)
+
+        # The Deferred fires once the container has been created.
         self.successResultOf(d)
 
     def test_empty_cluster(self):
         """
-        CreateDataset fails if no nodes in cluster.
+        CreateContainer fails if no nodes in cluster.
         """
         control_service = FakeFlockerClient()
 
@@ -94,6 +97,6 @@ class CreateDatasetTests(TestCase):
             None,
         )
 
-        d = CreateDataset(Clock(), cluster).get_probe()
+        d = CreateContainer(Clock(), cluster).get_probe()
 
         self.failureResultOf(d, EmptyClusterError)

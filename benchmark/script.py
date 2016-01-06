@@ -38,6 +38,7 @@ _SCENARIOS = {
 }
 
 _OPERATIONS = {
+    'create-container': operations.CreateContainer,
     'create-dataset': operations.CreateDataset,
     'no-op': operations.NoOperation,
     'read-request': operations.ReadRequest,

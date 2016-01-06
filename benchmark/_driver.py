@@ -46,17 +46,20 @@ def sample(operation, metric, name):
 
         def run_probe(probe):
             probing = metric.measure(probe.run)
-            probing.addCallbacks(
-                lambda interval: dict(success=True, value=interval),
-                lambda reason: dict(
-                    success=False, reason=reason.getTraceback()),
+            probing.addCallback(
+                lambda measurement: dict(success=True, value=measurement)
             )
             probing.addCallback(bypass, probe.cleanup)
 
             return probing
         sampling.addCallback(run_probe)
-        sampling.addActionFinish()
-        return sampling.result
+
+        # Convert an error running the probe into a failed sample.
+        def convert_to_result(failure):
+            return dict(success=False, reason=failure.getTraceback())
+        sampling.addErrback(convert_to_result)
+
+        return sampling.addActionFinish()
 
 
 def benchmark(scenario, operation, metric, num_samples=3):
