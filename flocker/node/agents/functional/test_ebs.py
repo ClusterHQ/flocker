@@ -11,7 +11,10 @@ from bitmath import Byte, GiB
 from botocore.exceptions import ClientError
 
 from twisted.python.constants import Names, NamedConstant
-from eliot.testing import LoggedAction, capture_logging, assertHasMessage
+from eliot.testing import (
+    LoggedAction, capture_logging, assertHasMessage,
+    LoggedMessage,
+)
 
 from ..blockdevice import MandatoryProfiles
 
@@ -26,7 +29,7 @@ from ....testtools import AsyncTestCase, flaky
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
-    CREATE_VOLUME_FAILURE, AWS_ACTION,
+    CREATE_VOLUME_FAILURE, AWS_ACTION, VOLUME_BUSY_MESSAGE,
 )
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
@@ -111,6 +114,13 @@ class EBSBlockDeviceAPIInterfaceTests(
         # Try to detach and get the VolumeBusy exception.
         self.assertRaises(
             VolumeBusy, self.api.detach_volume, flocker_volume.blockdevice_id)
+
+        expected_keys = set(["volume_id", "attachments"])
+        for message in LoggedMessage.of_type(
+            logger.messages, VOLUME_BUSY_MESSAGE
+        ):
+            keys = message.message.keys()
+            self.assertTrue(keys.issubset(expected_keys))
 
     def test_attach_foreign_instance_error(self):
         """
