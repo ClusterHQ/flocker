@@ -10,7 +10,7 @@ from bitmath import Byte, GiB
 
 from botocore.exceptions import ClientError
 
-from testtool.matchers import AllMatch, ContainsAll
+from testtools.matchers import AllMatch, ContainsAll
 
 from twisted.python.constants import Names, NamedConstant
 from eliot.testing import (
