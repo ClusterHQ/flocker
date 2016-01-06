@@ -142,7 +142,9 @@ Operation Types
    Create a stateful container and wait for it to be running.
 
    Specify the container image using an additional ``image`` property.
-   The default is ``clusterhq/mongodb``.
+   The container will be started with the default command line.
+   Hence the image must have a long-lived default command line.
+   The default image is ``clusterhq/mongodb``.
 
    Specify the size of the dataset using an additional ``volume_size`` property.
    If specifying a cluster using environment variables, this defaults to the value of the ``FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE`` environment variable.
