@@ -10,6 +10,7 @@ from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
 from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 from troposphere.policies import CreationPolicy, ResourceSignal
+from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
 NUM_NODES = 3
 NODE_NAME_TEMPLATE = u"Flocker{index}"
@@ -102,6 +103,16 @@ creation_policy = CreationPolicy(
 
 for i in range(NUM_NODES):
     node_name = NODE_NAME_TEMPLATE.format(index=i)
+
+    wait_condition_handle = template.add_resource(
+        WaitConditionHandle("{}WaitHandle".format(node_name)))
+    wait_condition = template.add_resource(
+        WaitCondition("{}WaitCondition".format(node_name),
+                      Handle=Ref(wait_condition_handle),
+                      Timeout="300",
+                      )
+    )
+
     ec2_instance = ec2.Instance(
         node_name,
         ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "FlockerAMI"),
@@ -115,6 +126,7 @@ for i in range(NUM_NODES):
     user_data += [
         'node_number="{}"\n'.format(i),
         'node_name="{}"\n'.format(node_name),
+        'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
     ]
 
     user_data += sibling_lines(DOCKER_SETUP)
