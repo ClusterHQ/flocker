@@ -38,10 +38,8 @@ class CreateDatasetProbe(PClass):
         :param int volume_size: Size of created volume, in bytes.
         :return: Deferred firing with a new probe.
         """
-        d = control_service.list_nodes()
-
         # Select an arbitrary node to be the primary for the dataset.
-        d.addCallback(select_node)
+        d = control_service.list_nodes().addCallback(select_node)
 
         # Create the CreateDatasetProbe instance.
         def create_probe(node):

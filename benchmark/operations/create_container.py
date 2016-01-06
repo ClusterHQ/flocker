@@ -192,10 +192,8 @@ class CreateContainerProbe(PClass):
         :param unicode mountpoint: Mountpoint for created volume.
         :return: Deferred firing with a new probe.
         """
-        d = control_service.list_nodes()
-
         # Select an arbitrary node on which to create the container.
-        d.addCallback(select_node)
+        d = control_service.list_nodes().addCallback(select_node)
 
         def parallel_setup(node):
             # Ensure the Docker image is cached by starting and stopping a
