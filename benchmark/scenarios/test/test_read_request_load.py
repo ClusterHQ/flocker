@@ -1,7 +1,9 @@
-# copyright 2016 clusterhq inc.  see license file for details.
+# Copyright 2016 ClusterHQ Inc.  See LICENSE file for details.
 from itertools import repeat
 from uuid import uuid4
 from ipaddr import IPAddress
+
+from eliot.testing import capture_logging
 
 from twisted.internet.defer import succeed, Deferred
 from twisted.internet.task import Clock
@@ -44,11 +46,17 @@ class RequestDroppingFakeFlockerClient(
         return Deferred()
 
 
+class FakeNetworkError(Exception):
+    """
+    A reason for getting no response from a call.
+    """
+
+
 class RequestErrorFakeFlockerClient(
     proxyForInterface(IFlockerAPIV1Client)
 ):
     """
-    A ``FakeFlockerClient`` that can result in failured requests.
+    A ``FakeFlockerClient`` that can result in failed requests.
     """
     def __init__(self, client, reactor):
         super(RequestErrorFakeFlockerClient, self).__init__(client)
@@ -63,7 +71,7 @@ class RequestErrorFakeFlockerClient(
             def fail_later(secs):
                 d = Deferred()
                 self.reactor.callLater(
-                    secs, d.errback, Failure(Exception())
+                    secs, d.errback, Failure(FakeNetworkError())
                 )
                 return d
             return fail_later(self.delay)
@@ -88,7 +96,8 @@ class read_request_load_scenarioTest(TestCase):
             default_volume_size=DEFAULT_VOLUME_SIZE,
         )
 
-    def test_read_request_load_succeeds(self):
+    @capture_logging(None)
+    def test_read_request_load_succeeds(self, _logger):
         """
         ``read_request_load_scenario`` starts and stops without collapsing.
         """
@@ -118,7 +127,8 @@ class read_request_load_scenarioTest(TestCase):
         c.pump(repeat(1, sample_size))
         self.successResultOf(d)
 
-    def test_read_request_load_start_stop_start_succeeds(self):
+    @capture_logging(None)
+    def test_read_request_load_start_stop_start_succeeds(self, _logger):
         """
         ``read_request_load_scenario`` starts, stops and starts
         without collapsing.
@@ -149,7 +159,8 @@ class read_request_load_scenarioTest(TestCase):
         c.pump(repeat(1, sample_size))
         self.successResultOf(d)
 
-    def test_scenario_throws_exception_when_already_started(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_when_already_started(self, _logger):
         """
         start method in the ``RequestLoadScenario`` throws a
         ``RequestScenarioAlreadyStarted`` if the scenario is already started.
@@ -172,7 +183,8 @@ class read_request_load_scenarioTest(TestCase):
 
         self.assertRaises(RequestScenarioAlreadyStarted, s.start)
 
-    def test_scenario_throws_exception_when_rate_drops(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_when_rate_drops(self, _logger):
         """
         ``read_request_load_scenario`` raises ``RequestRateTooLow`` if rate
         drops below the requested rate.
@@ -203,7 +215,10 @@ class read_request_load_scenarioTest(TestCase):
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestRateTooLow)
 
-    def test_scenario_throws_exception_if_requested_rate_not_reached(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_if_requested_rate_not_reached(
+        self, _logger
+    ):
         """
         ``read_request_load_scenario`` raises ``RequestRateNotReached`` if the
         target rate cannot be established within a given timeframe.
@@ -221,7 +236,8 @@ class read_request_load_scenarioTest(TestCase):
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, RequestRateNotReached)
 
-    def test_scenario_throws_exception_if_overloaded(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_if_overloaded(self, _logger):
         """
         ``read_request_load_scenario`` raises ``RequestOverload`` if the
         difference between sent requests and received requests exceeds
@@ -260,7 +276,8 @@ class read_request_load_scenarioTest(TestCase):
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestOverload)
 
-    def test_scenario_stops_only_when_no_outstanding_requests(self):
+    @capture_logging(None)
+    def test_scenario_stops_only_when_no_outstanding_requests(self, logger):
         """
         ``read_request_load_scenario`` should only be considered as stopped
         when all outstanding requests made by it have completed.
@@ -296,9 +313,14 @@ class read_request_load_scenarioTest(TestCase):
         # delay period for the failed requests.
         self.assertNoResult(d)
         c.advance(delay)
+
+        # The scenario requests that failed will have been logged.
+        logger.flushTracebacks(FakeNetworkError)
+
         self.successResultOf(d)
 
-    def test_scenario_timeouts_if_requests_not_completed(self):
+    @capture_logging(None)
+    def test_scenario_timeouts_if_requests_not_completed(self, _logger):
         """
         ``read_request_load_scenario`` should timeout if the outstanding
         requests for the scenarion do not complete within the specified
@@ -335,4 +357,3 @@ class read_request_load_scenarioTest(TestCase):
         c.advance(s.timeout + 1)
         self.assertTrue(s.rate_measurer.outstanding() > 0)
         self.successResultOf(d)
-
