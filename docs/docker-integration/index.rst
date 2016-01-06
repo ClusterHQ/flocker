@@ -61,3 +61,4 @@ To learn about the details of how this integration works, read :ref:`about`.
 
    cloudformation
    about
+   manual-install
