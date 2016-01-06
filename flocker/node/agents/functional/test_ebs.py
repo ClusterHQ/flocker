@@ -106,6 +106,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         # monkey-patching the EBS driver's ``_get_ebs_volume`` method.
         def busy_ebs_volume(volume_id):
             busy_volume = ec2_client.connection.Volume(volume_id)
+            busy_volume.load()
             busy_volume.attachments[0]['State'] = "busy"
             return busy_volume
 
