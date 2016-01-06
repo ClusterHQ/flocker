@@ -4,7 +4,6 @@ Operation to create a dataset.
 """
 
 from functools import partial
-import random
 from uuid import uuid4
 
 from pyrsistent import PClass, field
@@ -12,13 +11,8 @@ from zope.interface import implementer
 
 from flocker.common import loop_until
 
-from .._interfaces import IProbe, IOperation
-
-
-class EmptyClusterError(Exception):
-    """
-    Exception indicating that the cluster contains no nodes.
-    """
+from benchmark._interfaces import IProbe, IOperation
+from benchmark.operations._common import select_node
 
 
 @implementer(IProbe)
@@ -44,16 +38,8 @@ class CreateDatasetProbe(PClass):
         :param int volume_size: Size of created volume, in bytes.
         :return: Deferred firing with a new probe.
         """
-        d = control_service.list_nodes()
-
         # Select an arbitrary node to be the primary for the dataset.
-        def pick_primary(nodes):
-            if nodes:
-                return random.choice(nodes)
-            else:
-                # Cannot proceed if there are no nodes in the cluster!
-                raise EmptyClusterError("Cluster contains no nodes.")
-        d.addCallback(pick_primary)
+        d = control_service.list_nodes().addCallback(select_node)
 
         # Create the CreateDatasetProbe instance.
         def create_probe(node):
