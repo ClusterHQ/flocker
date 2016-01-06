@@ -8,6 +8,8 @@ import time
 from uuid import uuid4
 from bitmath import Byte, GiB
 
+from subprocess import check_call
+
 from botocore.exceptions import ClientError
 
 from twisted.python.constants import Names, NamedConstant
@@ -66,6 +68,56 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    @capture_logging(lambda self, logger: None)
+    def test_volume_busy_error_on_busy_state(self, logger):
+        """
+        A ``VolumeBusy`` is raised if a volume's attachment state is "busy"
+        when attempting to detach the volume. This can occur if an attempt
+        is made to detach a volume that has not been unmounted.
+        """
+        try:
+            config = get_blockdevice_config(ProviderType.aws)
+        except InvalidConfig as e:
+            self.skipTest(str(e))
+        ec2_client = get_ec2_client_for_test(config)
+        meta_client = ec2_client.connection.meta.client
+
+        dataset_id = uuid4()
+        tmp_dir = "/tmp/{id}".format(id=str(dataset_id))
+
+        requested_volume = meta_client.create_volume(
+            Size=1, AvailabilityZone=ec2_client.zone)
+        created_volume = ec2_client.connection.Volume(
+            requested_volume['VolumeId'])
+
+        def clean_volume(volume):
+            volume.detach_from_instance()
+            _wait_for_volume_state_change(VolumeOperations.DETACH, volume)
+            volume.delete()
+
+        self.addCleanup(clean_volume, created_volume)
+
+        _wait_for_volume_state_change(VolumeOperations.CREATE, created_volume)
+
+        # Get this instance ID.
+        instance_id = self.api.compute_instance_id()
+
+        # Attach volume.
+        device_name = self.api._next_device()
+        self.api._attach_ebs_volume(
+            created_volume.id, instance_id, device_name)
+        _wait_for_volume_state_change(VolumeOperations.ATTACH, created_volume)
+
+        # Create a filesystem.
+        check_call(["mkfs", "-t", "ext4", device_name])
+
+        # Create a mount location.
+        check_call(["mkdir", tmp_dir])
+
+        # Mount the volume.
+        check_call(["mount", device_name, tmp_dir])
+        self.fail("not finished yet")
+
     def test_attach_foreign_instance_error(self):
         """
         Attempting to attach a volume to a non-local instance will

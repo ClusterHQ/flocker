@@ -76,6 +76,8 @@ IOPS_MIN_SIZE = 4
 NOT_FOUND = u'InvalidVolume.NotFound'
 INVALID_PARAMETER_VALUE = u'InvalidParameterValue'
 
+VOLUME_ATTACHMENT_BUSY = u"busy"
+
 
 # Register Eliot field extractor for ClientError responses.
 register_exception_extractor(
@@ -274,6 +276,14 @@ class AttachFailed(Exception):
     """
     AWS EBS refused to allow a volume to be attached to an instance.
     """
+
+
+class VolumeBusy(Exception):
+    """
+    A volume could not be detached, due to being in busy state.
+    """
+    def __init__(self, volume):
+        Exception.__init__(volume.id, volume.attachments)
 
 
 class InvalidRegionError(Exception):
@@ -1240,10 +1250,22 @@ class EBSBlockDeviceAPI(object):
             corresponding to the input blockdevice_id.
         :raises UnattachedVolume: If the BlockDeviceVolume for the
             blockdevice_id is not currently 'in-use'.
+        :raises VolumeBusy: If the volume's attachment state is busy.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         if ebs_volume.state != VolumeStates.IN_USE.value:
             raise UnattachedVolume(blockdevice_id)
+
+        # Unfortunately, if there the volume we're detaching is still mounted,
+        # AWS won't detach it but will not return an error when we
+        # attempt to detach either. This means we have to check the attachment
+        # state info here.
+        # See FLOC-3686.
+        # See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-detaching-volume.html # NOQA
+        if ebs_volume.attachments:
+            attachment_state = ebs_volume.attachments[0]['State']
+            if attachment_state == VOLUME_ATTACHMENT_BUSY:
+                raise VolumeBusy(ebs_volume)
 
         self._detach_ebs_volume(blockdevice_id)
 
