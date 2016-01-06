@@ -127,7 +127,8 @@ class read_request_load_scenarioTest(TestCase):
         c.pump(repeat(1, sample_size))
         self.successResultOf(d)
 
-    def test_read_request_load_start_stop_start_succeeds(self):
+    @capture_logging(None)
+    def test_read_request_load_start_stop_start_succeeds(self, _logger):
         """
         ``read_request_load_scenario`` starts, stops and starts
         without collapsing.
@@ -158,7 +159,8 @@ class read_request_load_scenarioTest(TestCase):
         c.pump(repeat(1, sample_size))
         self.successResultOf(d)
 
-    def test_scenario_throws_exception_when_already_started(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_when_already_started(self, _logger):
         """
         start method in the ``RequestLoadScenario`` throws a
         ``RequestScenarioAlreadyStarted`` if the scenario is already started.

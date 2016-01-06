@@ -209,7 +209,8 @@ class write_request_load_scenarioTest(TestCase):
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
 
-    def test_write_scenario_start_stop_start_succeeds(self):
+    @capture_logging(None)
+    def test_write_scenario_start_stop_start_succeeds(self, _logger):
         """
         ``write_request_load_scenario`` starts, stops and starts
         without collapsing.
@@ -230,7 +231,8 @@ class write_request_load_scenarioTest(TestCase):
         d.addCallback(lambda ignored: s.stop())
         self.successResultOf(d)
 
-    def test_scenario_throws_exception_when_already_started(self):
+    @capture_logging(None)
+    def test_scenario_throws_exception_when_already_started(self, _logger):
         """
         start method in the ``RequestLoadScenario`` throws a
         ``RequestScenarioAlreadyStarted`` if the scenario is already started.
