@@ -3141,12 +3141,9 @@ class IBlockDeviceAPITestsMixin(object):
         """
         for step in self.repeat_retries():
             try:
-                f(*args, **kwargs)
+                return f(*args, **kwargs)
             except AssertionError as e:
-                pass
-            else:
-                return
-            time.sleep(step)
+                time.sleep(step)
         raise e
 
     def _verify_volume_size(self, requested_size, expected_volume_size):
