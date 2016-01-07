@@ -8,8 +8,8 @@ Manually Installing Flocker with Docker Swarm
    The plugin is required for Docker Swarm integration.
 #. Follow the :ref:`post-installation-configuration-with-docker` steps, to configure authentication and your chosen backend.
    These steps also include the enablement of the control service, the agent services, and the plugin. 
-#. Install Swarm manually.
-#. Follow a tutorial to see how to control Flocker via Swarm.
+#. Install :ref:`Docker Swarm <manually-install-swarm>`.
+#. Follow a tutorial to see how to control Flocker via Docker Swarm.
 
 .. _full-installation-with-docker:
 
@@ -22,6 +22,8 @@ Manually Installing Flocker with Docker Swarm
 .. include:: ../installation/index.rst
    :start-after: .. begin-body-configuring-flocker-docker
    :end-before: .. end-body-configuring-flocker-docker
+
+.. _manually-install-swarm:
 
 Manually Installing Docker Swarm
 ================================
