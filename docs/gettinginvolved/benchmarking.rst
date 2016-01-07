@@ -53,6 +53,13 @@ The :program:`benchmark` script has the following command line options:
    This is the ``name`` of a metric in the configuration file.
    Defaults to the name ``default``.
 
+.. option:: --userdata <json-data>
+
+   Specifies JSON data to be added to the result JSON.
+   If the value starts with ``@`` the remainder of the value is the name of a file containing JSON data.
+   Otherwise, the value must be a valid JSON structure.
+   The supplied data is added as the ``userdata`` property of the output result.
+
 
 .. _benchmarking-cluster-description:
 
