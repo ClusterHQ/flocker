@@ -1422,7 +1422,7 @@ Desired = Discovered = DatasetStates
 DATASET_TRANSITIONS = TransitionTable.create({
     Desired.MOUNTED: {
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
-        # Other node will need to deatch first, but we we need to
+        # Other node will need to detach first, but we we need to
         # wake up to notice that it has detached.
         Discovered.ATTACHED_ELSEWHERE: ActionNeeded,
         Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
@@ -1433,7 +1433,7 @@ DATASET_TRANSITIONS = TransitionTable.create({
         # XXX FLOC-2206
         # Can't create non-manifest datasets yet.
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
-        # Other node will deatch
+        # Other node will detach
         Discovered.ATTACHED_ELSEWHERE: DoNothing,
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
