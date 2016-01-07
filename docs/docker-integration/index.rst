@@ -1,3 +1,9 @@
+.. raw:: html
+
+    <style>
+        .toctree-wrapper { display:none; }
+    </style>
+
 .. _docker-integration:
 
 =====================================
@@ -9,23 +15,7 @@ Install Flocker
 
 .. raw:: html
 
-    <!-- This toctree-wrapper and next button override is obviously a horrible
-         hack, and we need a better way of disabling the toctree on the front
-         page. -->
-    <style>
-        .toctree-wrapper { display:none; }
-        a.button.rel { display:none; }
-        .wide-box {
-            border:1px solid black;
-            width:45%;
-            height:10em;
-            float:left;
-            margin:0.5em;
-            padding:0.5em;
-        }
-    </style>
-
-    <div class="wide-box" style="background-color:yellow;">
+    <div class="wide-box recommended">
         CloudFormation is the easiest way to get started with Flocker and Swarm on AWS.
         <br />
         <br />
@@ -46,7 +36,7 @@ Follow a tutorial
 
 .. raw:: html
 
-    <div class="wide-box" style="background-color:yellow;">
+    <div class="wide-box recommended">
         Tutorial: using Flocker with Docker Swarm and Compose
         <br />
         <br />

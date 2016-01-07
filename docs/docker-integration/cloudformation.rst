@@ -1,16 +1,12 @@
+.. raw:: html
+
+    <style>
+        .toctree-wrapper { display:none; }
+    </style>
+
 ===============================================
 Quick Installation of Flocker with Swarm on AWS
 ===============================================
-
-.. raw:: html
-
-    <!-- This toctree-wrapper and next button override is obviously a horrible
-         hack, and we need a better way of disabling the toctree on the front
-         page. -->
-    <style>
-        .toctree-wrapper { display:none; }
-        a.button.rel { display:none; }
-    </style>
 
 Deployment Architecture
 -----------------------

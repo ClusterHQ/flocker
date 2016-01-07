@@ -1,5 +1,52 @@
 /* Docs */
 
+/* XXX START Temporary stylings for reorg-integrations-FLOC-3718 branch */
+
+.wide-box {
+    border:1px solid black;
+    width:45%;
+    height:10em;
+    float:left;
+    margin:0.5em;
+    padding:0.5em;
+}
+
+.recommended {
+    background-color: #F2DE72;
+}
+
+.harder {
+}
+
+.big-box {
+    border:2px solid #777;
+    width:11em;
+    height:11em;
+    float:left;
+    margin:0.5em;
+    padding:0.5em;
+    margin-top:20px; margin-bottom:20px;
+}
+
+.small-box {
+    border:2px solid #777;
+    width:7em;
+    height:7em;
+    float:left;
+    margin:0.5em;
+    padding:0.5em;
+}
+
+.orchestration {
+    border-color: #80B164;
+}
+
+.storage {
+    border-color: #D69A00;
+}
+
+/* XXX END Temporary stylings for reorg-integrations-FLOC-3718 branch */
+
 /* Nav Style from website */
 
 nav {
@@ -211,6 +258,10 @@ a.button.rel {
     width: 100%;
     text-align: center;
     margin-top: 10px;
+    /* XXX START Temporary stylings for reorg-integrations-FLOC-3718 branch */
+    /* Hide prev/next buttons (killll theeemmmm) */
+    display: none;
+    /* XXX END Temporary stylings for reorg-integrations-FLOC-3718 branch */
 }
 
 /* Search bar */

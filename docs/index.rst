@@ -1,24 +1,7 @@
 .. raw:: html
 
-    <!-- This toctree-wrapper and next button override is obviously a horrible
-         hack, and we need a better way of disabling the toctree on the front
-         page. -->
     <style>
         .toctree-wrapper { display:none; }
-        a.button.rel { display:none; }
-        h1 { display:none; }
-        .big-box {
-            border:2px solid #777;
-            width:11em;
-            height:11em;
-            float:left;
-            margin:0.5em;
-            padding:0.5em;
-            margin-top:20px; margin-bottom:20px;
-        }
-        .orchestration {
-            border-color: #80B164;
-        }
     </style>
 
 ==================
@@ -29,12 +12,11 @@ Installing Flocker
 
 .. raw:: html
 
-    <h2>Installing Flocker</h2>
     <p>To install Flocker, you first need to choose which stack you using.</p>
     <p>Flocker adds support for stateful containers to a range of container orchestration frameworks.</p>
 
     <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
-    <div class="big-box orchestration" style="background-color: yellow">
+    <div class="big-box orchestration recommended">
 	    Docker, Swarm, Compose
 		<img src="_images/docker.png" style="width:80px;"/>
 		<br />
@@ -43,19 +25,19 @@ Installing Flocker
         <em style="font-size:small;">easiest</em>
         </div>
     </div>
-    <div class="big-box orchestration">
+    <div class="big-box orchestration harder">
 		Kubernetes
 		<img src="_images/kubernetes.png" style="width:70px;"/>
         <br />
         <a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
-    <div class="big-box orchestration">
+    <div class="big-box orchestration harder">
 		Mesos
 		<img src="_images/mesos.png" style="width:70px;"/>
         <br />
         <a href="mesos-integration/" class="button" style="position:relative; top: 2em">Install</a>
     </div>
-    <div class="big-box orchestration">
+    <div class="big-box orchestration harder">
 		Other
 	 	<img src="_images/questionmark.png" style="width:80px;"/>
         <br />
