@@ -71,6 +71,16 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    def repeat_retries(self):
+        """
+        Override retry policy from base class.
+
+        EBS is eventually consistent, so e.g. a newly created volume may not
+        show up in listing results for a while. So, we retry for up to 30
+        seconds.
+        """
+        return [1] * 30
+
     @capture_logging(None)
     def test_volume_busy_error_on_busy_state(self, logger):
         """
