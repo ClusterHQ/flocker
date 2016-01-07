@@ -3252,7 +3252,11 @@ class IBlockDeviceAPITestsMixin(object):
         )
 
         def validate():
-            [listed_volume] = self.api.list_volumes()
+            listed_volumes = self.api.list_volumes()
+            # Ideally we wouldn't two two assertions, but it's the easiest
+            # thing to do that works with the retry logic.
+            self.assertEqual(len(listed_volumes), 1)
+            listed_volume = listed_volumes[0]
 
             self.assertEqual(
                 (expected_dataset_id, self.minimum_allocatable_size),
