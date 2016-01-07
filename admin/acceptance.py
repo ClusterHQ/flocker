@@ -961,6 +961,7 @@ class CommonOptions(Options):
                  secret_access_token: <aws secret access token>
                  keyname: <ssh-key-name>
                  security_groups: ["<permissive security group>"]
+                 instance_type: m3.large
 
         :see: :ref:`acceptance-testing-aws-config`
         """
