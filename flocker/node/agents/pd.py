@@ -5,17 +5,20 @@
 A PD implementation of the ``IBlockDeviceAPI``.
 """
 
-from bitmath import GiB, Byte
-from zope.interface import implementer
 import requests
-from oauth2client.gce import AppAssertionCredentials
+
+from bitmath import GiB, Byte
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
+from oauth2client.gce import AppAssertionCredentials
 from socket import gethostname
+from twisted.python.filepath import FilePath
 from uuid import UUID
+from zope.interface import implementer
 
 from .blockdevice import (
-    IBlockDeviceAPI, BlockDeviceVolume, AlreadyAttachedVolume, UnknownVolume
+    IBlockDeviceAPI, BlockDeviceVolume, AlreadyAttachedVolume, UnknownVolume,
+    UnattachedVolume
 )
 from ...common import poll_until
 
@@ -44,10 +47,11 @@ def _dataset_id_to_blockdevice_id(dataset_id):
     return _PREFIX + unicode(dataset_id)
 
 
-def _extract_attached_to(val):
-    if not val:
+def _extract_attached_to(disk):
+    users = disk.get('users', [])
+    if not users:
         return None
-    return unicode(val[0].split('/')[-1])
+    return unicode(users[0].split('/')[-1])
 
 
 @implementer(IBlockDeviceAPI)
@@ -78,15 +82,14 @@ class PDBlockDeviceAPI(object):
                 project=self._project,
                 zone=self._zone,
                 operation=operation_name).execute()
-            print "BREAK"
-            print latest_operation
+            # TODO Logging
             if latest_operation['status'] == 'DONE':
                 return latest_operation
             return None
 
         # TODO(mewert): Collect data or look at EBS to figure out good values
         # of retries.
-        return poll_until(finished_operation_result, [1]*20)
+        return poll_until(finished_operation_result, [1]*35)
 
     def allocation_unit(self):
         """
@@ -103,7 +106,7 @@ class PDBlockDeviceAPI(object):
             BlockDeviceVolume(
                 blockdevice_id=unicode(x['name']),
                 size=int(GiB(int(x['sizeGb'])).to_Byte()),
-                attached_to=_extract_attached_to(x['users']),
+                attached_to=_extract_attached_to(x),
                 dataset_id=_blockdevice_id_to_dataset_id(x['name'])
             )
             for x in result['items']
@@ -115,6 +118,7 @@ class PDBlockDeviceAPI(object):
         return unicode(gethostname())
 
     def create_volume(self, dataset_id, size):
+        # TODO(mewert): Set cluster_id in the metadata.
         blockdevice_id = _dataset_id_to_blockdevice_id(dataset_id)
         sizeGiB=int(Byte(size).to_GiB())
         config = dict(
@@ -146,10 +150,11 @@ class PDBlockDeviceAPI(object):
                 instance=attach_to,
                 body=config
             )
-        except HttpError e:
-            print e
-            import pdb; pdb.set_trace
-            raise UnknownVolume(blockdevice_id)
+        except HttpError as e:
+            if e.resp.status == 400:
+                raise UnknownVolume(blockdevice_id)
+            else:
+                raise e
         errors = result.get('error', {}).get('errors', [])
         for e in errors:
             if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
@@ -164,23 +169,44 @@ class PDBlockDeviceAPI(object):
             dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
         )
 
+    def _get_attached_to(self, blockdevice_id):
+        try:
+            disk = self._compute.disks().get(project=self._project,
+                                            zone=self._zone,
+                                            disk=blockdevice_id).execute()
+        except HttpError as e:
+            if e.resp.status == 404:
+                raise UnknownVolume(blockdevice_id)
+            else:
+                raise e
+        attached_to =  _extract_attached_to(disk)
+        if not attached_to:
+            raise UnattachedVolume(blockdevice_id)
+        return attached_to
+
     def detach_volume(self, blockdevice_id):
-        disk = self._compute.disks().get(project=self._project,
-                                         zone=self._zone,
-                                         disk=blockdevice_id).execute()
-        attached_to = _extract_attached_to(disk['users'])
-        if attached_to:
-            result = self._do_blocking_operation(
-                self._compute.instances().detachDisk, instance=attached_to,
-                deviceName=blockdevice_id)
+        attached_to = self._get_attached_to(blockdevice_id)
+        # TODO(mewert): Test this race (something else detaches riight at this
+        # point).
+        self._do_blocking_operation(
+            self._compute.instances().detachDisk, instance=attached_to,
+            deviceName=blockdevice_id)
         return None
 
     def get_device_path(self, blockdevice_id):
-        return u"/dev/disk/by-id/google-" + blockdevice_id
+        # Called to verify that the blockdevice is attached.
+        self._get_attached_to(blockdevice_id)
+        return FilePath(u"/dev/disk/by-id/google-" + blockdevice_id)
 
     def destroy_volume(self, blockdevice_id):
-        self._do_blocking_operation(
-            self._compute.disks().delete,
-            disk=blockdevice_id
-        )
+        try:
+            self._do_blocking_operation(
+                self._compute.disks().delete,
+                disk=blockdevice_id
+            )
+        except HttpError as e:
+            if e.resp.status == 404:
+                raise UnknownVolume(blockdevice_id)
+            else:
+                raise e
         return None
