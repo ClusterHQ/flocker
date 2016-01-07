@@ -161,6 +161,16 @@ class PDBlockDeviceAPI(object):
             'compute', 'v1', credentials=credentials)
         self._project = project
         self._zone = zone
+        self._cluster_id = cluster_id
+
+    def _disk_resource_description(self):
+        """
+        Returns the value to be used in the description field of the disk
+        resources for this cluster.
+
+        :returns unicode: The value for the description.
+        """
+        return u"flocker-v1-cluster-id: " + unicode(self._cluster_id)
 
     def _do_blocking_operation(self, function, **kwargs):
         """
@@ -222,13 +232,14 @@ class PDBlockDeviceAPI(object):
                                             zone=self._zone).execute()
         return list(
             BlockDeviceVolume(
-                blockdevice_id=unicode(x['name']),
-                size=int(GiB(int(x['sizeGb'])).to_Byte()),
-                attached_to=_extract_attached_to(x),
-                dataset_id=_blockdevice_id_to_dataset_id(x['name'])
+                blockdevice_id=unicode(disk['name']),
+                size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+                attached_to=_extract_attached_to(disk),
+                dataset_id=_blockdevice_id_to_dataset_id(disk['name'])
             )
-            for x in result['items']
-            if x['name'].startswith(_PREFIX)
+            for disk in result['items']
+            if (disk['name'].startswith(_PREFIX) and
+                disk['description'] == self._disk_resource_description())
         )
 
     def compute_instance_id(self):
@@ -247,7 +258,8 @@ class PDBlockDeviceAPI(object):
         sizeGiB = int(Byte(size).to_GiB())
         config = dict(
             name=blockdevice_id,
-            sizeGb=sizeGiB
+            sizeGb=sizeGiB,
+            description=self._disk_resource_description(),
         )
         # TODO(mewert): Verify timeout and error conditions.
         self._do_blocking_operation(
