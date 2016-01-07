@@ -28,9 +28,9 @@ Manually Installing Flocker with Docker Swarm
 Manually Installing Docker Swarm
 ================================
 
-Follow the `Manual Docker Swarm installation <https://docs.docker.com/swarm/install-manual/>`_ guide on your nodes.
+Follow the `Manual Docker Swarm installation <https://docs.docker.com/swarm/install-manual/>`_ guide on each of your nodes.
 
-Next steps
-==========
+Next step
+=========
 
 :ref:`Try a tutorial <docker-tutorials>` to kick the tyres on your Flocker cluster with Docker Swarm!
