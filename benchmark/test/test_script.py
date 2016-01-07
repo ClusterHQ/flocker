@@ -16,7 +16,7 @@ from flocker.testtools import TestCase
 
 from benchmark.script import (
     BenchmarkOptions, get_cluster, validate_configuration, get_config_by_name,
-    add_userdata,
+    parse_userdata,
 )
 
 
@@ -440,9 +440,7 @@ class UserDataTests(TestCase):
         """
         options = BenchmarkOptions()
         options.parseOptions([])
-        result = {}
-        add_userdata(options, result)
-        self.assertEqual(result, {})
+        self.assertIs(parse_userdata(options), None)
 
     def test_empty_userdata(self):
         """
@@ -450,9 +448,7 @@ class UserDataTests(TestCase):
         """
         options = BenchmarkOptions()
         options.parseOptions(['--userdata', ''])
-        result = {}
-        add_userdata(options, result)
-        self.assertEqual(result, {})
+        self.assertIs(parse_userdata(options), None)
 
     def test_json_userdata(self):
         """
@@ -460,9 +456,7 @@ class UserDataTests(TestCase):
         """
         options = BenchmarkOptions()
         options.parseOptions(['--userdata', '{"branch": "master"}'])
-        result = {}
-        add_userdata(options, result)
-        self.assertEqual(result, {"userdata": {"branch": "master"}})
+        self.assertEqual(parse_userdata(options), {"branch": "master"})
 
     def test_json_file_userdata(self):
         """
@@ -473,9 +467,7 @@ class UserDataTests(TestCase):
             f.write('{"branch": "master"}\n')
         options = BenchmarkOptions()
         options.parseOptions(['--userdata', '@{}'.format(json_file.path)])
-        result = {}
-        add_userdata(options, result)
-        self.assertEqual(result, {"userdata": {"branch": "master"}})
+        self.assertEqual(parse_userdata(options), {"branch": "master"})
 
     def test_invalid_json(self):
         """
@@ -485,7 +477,7 @@ class UserDataTests(TestCase):
         options.parseOptions(['--userdata', '"branch": "master"'])
         with capture_stderr() as captured_stderr:
             exception = self.assertRaises(
-                SystemExit, add_userdata, options, {},
+                SystemExit, parse_userdata, options
             )
             self.assertIn(
                 'Invalid user data', exception.args[0]
@@ -501,7 +493,7 @@ class UserDataTests(TestCase):
         options.parseOptions(['--userdata', '@{}'.format(no_file.path)])
         with capture_stderr() as captured_stderr:
             exception = self.assertRaises(
-                SystemExit, add_userdata, options, {},
+                SystemExit, parse_userdata, options
             )
             self.assertIn(
                 'Invalid user data file', exception.args[0]
@@ -519,7 +511,7 @@ class UserDataTests(TestCase):
         options.parseOptions(['--userdata', '@{}'.format(invalid_file.path)])
         with capture_stderr() as captured_stderr:
             exception = self.assertRaises(
-                SystemExit, add_userdata, options, {},
+                SystemExit, parse_userdata, options
             )
             self.assertIn(
                 'Invalid user data', exception.args[0]

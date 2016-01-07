@@ -206,12 +206,12 @@ def get_cluster(options, env):
     return cluster
 
 
-def add_userdata(options, result):
+def parse_userdata(options):
     """
     Parse the userdata option and add to result.
 
     :param BenchmarkOptions options: Script options.
-    :param dict result: Result dictionary.
+    :return: Parsed user data.
     """
     userdata = options['userdata']
     if userdata:
@@ -219,16 +219,17 @@ def add_userdata(options, result):
             if userdata.startswith('@'):
                 try:
                     with open(userdata[1:]) as f:
-                        result['userdata'] = json.load(f)
+                        return json.load(f)
                 except IOError as e:
                     usage(
                         options,
                         'Invalid user data file: {}'.format(e.strerror)
                     )
             else:
-                result['userdata'] = json.loads(userdata)
+                return json.loads(userdata)
         except ValueError as e:
             usage(options, 'Invalid user data: {}'.format(e.args[0]))
+    return None
 
 
 def main():
@@ -295,7 +296,9 @@ def main():
         metric=metric_config,
     )
 
-    add_userdata(options, result)
+    userdata = parse_userdata(options)
+    if userdata:
+        result['userdata'] = userdata
 
     react(
         driver, (
