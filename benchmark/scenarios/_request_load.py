@@ -110,6 +110,8 @@ class RequestLoadScenario(object):
         for i in range(self.request_rate):
             d = self.scenario_setup.make_request()
             self.rate_measurer.request_sent()
+            # XXX - make_request modified to return time for call
+            # XXX - pass to rate_measurer.response_received
             d.addCallbacks(self.rate_measurer.response_received,
                            errback=handle_request_error)
 
@@ -205,6 +207,7 @@ class RequestLoadScenario(object):
 
         :return: A ``Deferred`` that fires when the scenario has stopped.
         """
+        # XXX - get calltimes from rate_measurer, to return as result of deferred
         self.is_started = False
         if self.monitor_loop.running:
             self.monitor_loop.stop()

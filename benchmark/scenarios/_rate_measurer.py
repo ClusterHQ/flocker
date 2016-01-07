@@ -23,6 +23,7 @@ class RateMeasurer(object):
         self._received = 0
         self._errors = 0
         self._rate = 0
+        self._count = {}  # XXX - count of calltimes
 
     def request_sent(self):
         """
@@ -30,14 +31,15 @@ class RateMeasurer(object):
         """
         self._sent += 1
 
-    def response_received(self, ignored):
+    def response_received(self, calltime):
         """
         Increase the number of received requests.
 
-        :param ignored: The result of a callback. This parameter is
-            not used.
+        :param calltime: Time to perform call
         """
         self._received += 1
+        # XXX - need to handle non-existent key
+        self.count[int(calltime)] += 1
 
     def request_failed(self, ignored):
         """
