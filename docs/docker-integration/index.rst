@@ -1,3 +1,5 @@
+.. _docker-integration:
+
 =====================================
 > Flocker with Docker, Swarm, Compose
 =====================================
@@ -37,6 +39,7 @@ Install Flocker
     </div>
     <div style="clear:both;"></div>
 
+.. _docker-tutorials:
 
 Follow a tutorial
 =================
@@ -60,5 +63,6 @@ To learn about the details of how this integration works, read :ref:`about`.
    :maxdepth: 2
 
    cloudformation
+   tutorial-swarm-compose
    about
    manual-install

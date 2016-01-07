@@ -2,13 +2,22 @@
 Quick Installation of Flocker with Swarm on AWS
 ===============================================
 
+.. raw:: html
+
+    <!-- This toctree-wrapper and next button override is obviously a horrible
+         hack, and we need a better way of disabling the toctree on the front
+         page. -->
+    <style>
+        .toctree-wrapper { display:none; }
+        a.button.rel { display:none; }
+    </style>
+
 Deployment Architecture
 -----------------------
 
-The below steps enable you to deploy a 2 node Flocker Swarm cluster with the following layout:
-|cloudformation|
+The below steps enable you to deploy a Flocker Swarm cluster with the following layout, deploying four EC2 instances:
 
-.. |cloudformation| image:: ../images/cloudformation.png
+.. image:: ../images/cloudformation.png
 
 Step 1
 ------
@@ -30,6 +39,7 @@ Step 2
 .. TODO: Paramterize number of cluster nodes.
   
 .. TODO: customize CloudFormation link below to parameterize region.
+
 .. _CreateCluster: https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json
 
 - Fill in ``Stack name``, ``AccessKeyID``, ``KeyName`` (corresponding to the key created in Step 1), ``SecretAccessKey``.
@@ -59,3 +69,8 @@ Step 4
 .. |swarm_status| image:: ../images/swarm-status.png
 
 Your cluster is now ready for workloads!
+
+Next steps
+----------
+
+:ref:`Try a tutorial <docker-tutorials>` to kick the tyres on your Flocker cluster with Docker Swarm!
