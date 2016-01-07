@@ -10,8 +10,13 @@ from bitmath import Byte, GiB
 
 from botocore.exceptions import ClientError
 
+from testtools.matchers import AllMatch, ContainsAll
+
 from twisted.python.constants import Names, NamedConstant
-from eliot.testing import LoggedAction, capture_logging, assertHasMessage
+from eliot.testing import (
+    LoggedAction, capture_logging, assertHasMessage,
+    LoggedMessage,
+)
 
 from ..blockdevice import MandatoryProfiles
 
@@ -20,13 +25,13 @@ from ..ebs import (
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _should_finish, UnexpectedStateException,
     EBSMandatoryProfileAttributes, _get_volume_tag,
-    AttachUnexpectedInstance,
+    AttachUnexpectedInstance, VolumeBusy,
 )
 from ....testtools import AsyncTestCase, flaky
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
-    CREATE_VOLUME_FAILURE, AWS_ACTION,
+    CREATE_VOLUME_FAILURE, AWS_ACTION, VOLUME_BUSY_MESSAGE,
 )
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
@@ -66,6 +71,61 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    @capture_logging(None)
+    def test_volume_busy_error_on_busy_state(self, logger):
+        """
+        A ``VolumeBusy`` is raised if a volume's attachment state is "busy"
+        when attempting to detach the volume. This can occur if an attempt
+        is made to detach a volume that has not been unmounted.
+        """
+        try:
+            config = get_blockdevice_config(ProviderType.aws)
+        except InvalidConfig as e:
+            self.skipTest(str(e))
+
+        # Create a volume
+        dataset_id = uuid4()
+        flocker_volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=self.minimum_allocatable_size,
+        )
+        ec2_client = get_ec2_client_for_test(config)
+
+        # Attach the volume.
+        instance_id = self.api.compute_instance_id()
+        self.api.attach_volume(flocker_volume.blockdevice_id, instance_id)
+
+        volume = ec2_client.connection.Volume(flocker_volume.blockdevice_id)
+
+        def clean_volume(volume):
+            volume.detach_from_instance()
+            _wait_for_volume_state_change(VolumeOperations.DETACH, volume)
+            volume.delete()
+
+        self.addCleanup(clean_volume, volume)
+
+        # Artificially set the volume's attachment state to "busy", by
+        # monkey-patching the EBS driver's ``_get_ebs_volume`` method.
+        def busy_ebs_volume(volume_id):
+            busy_volume = ec2_client.connection.Volume(volume_id)
+            busy_volume.load()
+            if busy_volume.attachments:
+                busy_volume.attachments[0]['State'] = "busy"
+            return busy_volume
+
+        self.patch(self.api, "_get_ebs_volume", busy_ebs_volume)
+
+        # Try to detach and get the VolumeBusy exception.
+        self.assertRaises(
+            VolumeBusy, self.api.detach_volume, flocker_volume.blockdevice_id)
+
+        expected_keys = set(["volume_id", "attachments"])
+        messages = [
+            message.message for message
+            in LoggedMessage.of_type(logger.messages, VOLUME_BUSY_MESSAGE)
+        ]
+        self.assertThat(messages, AllMatch(ContainsAll(expected_keys)))
+
     def test_attach_foreign_instance_error(self):
         """
         Attempting to attach a volume to a non-local instance will
