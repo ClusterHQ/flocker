@@ -702,6 +702,13 @@ class AttachVolume(PClass):
         return attaching
 
 
+ACTION_NEEDED = ActionType(
+    u"agent:blockdevice:action_needed:BUGGY_CODE",
+    [DATASET_ID], [],
+    u"If you see this logged that means an ActionNeeded was run, which in"
+    u"theory should never happen.")
+
+
 @implementer(IStateChange)
 @provider(IDatasetStateChangeFactory)
 class ActionNeeded(PClass):
@@ -718,9 +725,9 @@ class ActionNeeded(PClass):
     """
     dataset_id = field(type=UUID, mandatory=True)
 
-    # Nominal interface compliance; we don't expect this to be ever run,
-    # it's just a marker object basically.
-    eliot_action = None
+    @property
+    def eliot_action(self):
+        return ACTION_NEEDED(_logger, dataset_id=self.dataset_id)
 
     @classmethod
     def from_state_and_config(cls, discovered_dataset, desired_dataset):
