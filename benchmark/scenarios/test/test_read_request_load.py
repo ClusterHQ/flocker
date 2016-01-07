@@ -218,6 +218,37 @@ class read_request_load_scenarioTest(TestCase):
         self.assertIsInstance(failure.value, RequestRateTooLow)
 
     @capture_logging(None)
+    def test_scenario_succeeds_when_rate_has_tolerated_drop(self, _logger):
+        """
+        ``read_request_load_scenario`` succeeds even if the rate drops,
+        if it is within the tolerance percentage.
+
+        Establish the requested rate by having the ``FakeFlockerClient``
+        respond to all requests, then lower the rate by dropping
+        alternate requests.
+        """
+        c = Clock()
+
+        cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
+        sample_size = 5
+        s = read_request_load_scenario(c, cluster, sample_size=sample_size,
+                                       tolerance_percentage=0.6)
+        cluster.get_control_service(c).drop_requests = True
+        d = s.start()
+
+        c.pump(repeat(1, sample_size))
+
+        cluster.get_control_service(c).drop_requests = True
+
+        c.pump(repeat(1, sample_size))
+        s.maintained().addBoth(lambda x: self.fail())
+        d.addCallback(lambda ignored: s.stop())
+        # Generate enough samples to finish the scenario
+        c.pump(repeat(1, sample_size*s.request_rate))
+
+        self.successResultOf(d)
+
+    @capture_logging(None)
     def test_scenario_throws_exception_if_requested_rate_not_reached(
         self, _logger
     ):
