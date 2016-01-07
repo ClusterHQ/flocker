@@ -10,10 +10,13 @@ import tempfile
 from ipaddr import IPAddress
 from jsonschema.exceptions import ValidationError
 
+from twisted.python.filepath import FilePath
+
 from flocker.testtools import TestCase
 
 from benchmark.script import (
-    BenchmarkOptions, get_cluster, validate_configuration, get_config_by_name
+    BenchmarkOptions, get_cluster, validate_configuration, get_config_by_name,
+    parse_userdata,
 )
 
 
@@ -25,9 +28,11 @@ def capture_stderr():
     Call the returned context variable to obtain captured output.
     """
     s = StringIO()
-    out, sys.stderr = sys.stderr, s
-    yield s.getvalue
-    sys.stderr = out
+    saved, sys.stderr = sys.stderr, s
+    try:
+        yield s.getvalue
+    finally:
+        sys.stderr = saved
 
 # Addresses must be different, to check that environment is not used
 # during YAML tests.
@@ -424,3 +429,93 @@ class SubConfigurationTests(TestCase):
         """
         config = get_config_by_name(self.config['metrics'], 'default')
         self.assertEqual(config['name'], 'default')
+
+
+class UserDataTests(TestCase):
+    """
+    Test --userdata option.
+    """
+
+    def test_no_userdata(self):
+        """
+        Missing option adds nothing to result.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions([])
+        self.assertIs(parse_userdata(options), None)
+
+    def test_empty_userdata(self):
+        """
+        Empty option adds nothing to result.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', ''])
+        self.assertIs(parse_userdata(options), None)
+
+    def test_json_userdata(self):
+        """
+        JSON string adds to result.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', '{"branch": "master"}'])
+        self.assertEqual(parse_userdata(options), {"branch": "master"})
+
+    def test_json_file_userdata(self):
+        """
+        JSON file adds to result.
+        """
+        json_file = FilePath(self.mktemp())
+        with json_file.open('w') as f:
+            f.write('{"branch": "master"}\n')
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', '@{}'.format(json_file.path)])
+        self.assertEqual(parse_userdata(options), {"branch": "master"})
+
+    def test_invalid_json(self):
+        """
+        Invalid JSON string handled.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', '"branch": "master"'])
+        with capture_stderr() as captured_stderr:
+            exception = self.assertRaises(
+                SystemExit, parse_userdata, options
+            )
+            self.assertIn(
+                'Invalid user data', exception.args[0]
+            )
+            self.assertIn(options.getUsage(), captured_stderr())
+
+    def test_invalid_path(self):
+        """
+        Non-existent file handled.
+        """
+        no_file = FilePath(self.mktemp())
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', '@{}'.format(no_file.path)])
+        with capture_stderr() as captured_stderr:
+            exception = self.assertRaises(
+                SystemExit, parse_userdata, options
+            )
+            self.assertIn(
+                'Invalid user data file', exception.args[0]
+            )
+            self.assertIn(options.getUsage(), captured_stderr())
+
+    def test_invalid_file_data(self):
+        """
+        Invalid file data handled.
+        """
+        invalid_file = FilePath(self.mktemp())
+        with invalid_file.open('w') as f:
+            f.write('hello\n')
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', '@{}'.format(invalid_file.path)])
+        with capture_stderr() as captured_stderr:
+            exception = self.assertRaises(
+                SystemExit, parse_userdata, options
+            )
+            self.assertIn(
+                'Invalid user data', exception.args[0]
+            )
+            self.assertIn(options.getUsage(), captured_stderr())
