@@ -9,18 +9,21 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-Next release
+Next Release
 ============
 
 * The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
 * The :ref:`Flocker Plugin for Docker<docker-plugin>` now solely relies on the metadata key ``"name"`` to find datasets.
 * Now supporting Ubuntu-15.10 instead of Ubuntu-15.04 for the flocker client.
   See :ref:`installing-flocker-cli-ubuntu-15.10`.
-* Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they
-  don't need to be skipped anymore.
+* Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they don't need to be skipped anymore.
+* Added documentation for the :ref:`EMC VMAX <emc-dataset-backend>` driver.
+
+This Release
+============
 
 v1.8.0
-======
+------
 
 * The :ref:`Flocker Plugin for Docker<docker-plugin>` is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
 * Better error reporting for the Flocker Plugin for Docker.
@@ -30,36 +33,45 @@ v1.8.0
 * Fixed a bug where datasets that hadn't had a filesystem created on them could never be mounted;
   existing flocker datasets without filesystems now have a filesystem created on them.
 
+Previous Releases
+=================
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
+
+
 v1.7.2
-======
+------
 
 * Moved the installation instructions for the Flocker plugin for Docker, to prevent issues when installing and configuring the plugin.
 * Added documentation for :ref:`Dell SC Series <dell-dataset-backend>`, :ref:`Huawei <huawei-backend>` and :ref:`NexentaEdge <nexenta-backend>` drivers.
 
 v1.7.1
-======
+------
 
 * Prevent disconnect/reconnect cycles causing high CPU load.
 
 v1.7.0
-======
+------
 
 * Added support for :ref:`storage profiles<storage-profiles>`.
 
 v1.6.1
-======
+------
 
 * Updated the Vagrant tutorial box to work with Docker 1.9.
 
 v1.6.0
-======
+------
 
 * The :ref:`Flocker plugin for Docker<docker-plugin>` is now compatible with Docker 1.9.
 * New EBS and OpenStack Cinder volumes created by Flocker will now have ``flocker-<dataset ID>`` as their name, to make it easier to find them in their respective cloud administration UIs.
   Existing volumes created by older versions of Flocker will continue to have no name.
 
 v1.5.0
-======
+------
 
 * The :ref:`Flocker plugin for Docker<docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
 * Unexpected errors in agent state discovery no longer break the agent convergence loop.
@@ -69,7 +81,7 @@ v1.5.0
 * Flocker CLI now installs on OS X 10.11.
 
 v1.4.0
-======
+------
 
 * The :ref:`dataset API <api>` added support for :ref:`leases <leases>`.
   Leases prevent a dataset from being deleted or moved off a node.
@@ -79,18 +91,18 @@ v1.4.0
 * Prevent repeated restart of containers with CPU shares or memory limits.
 
 v1.3.1
-======
+------
 
 * Fixed a bug in previous fix where OpenStack Cinder volumes failed to mount.
 * Creation of a ZFS pool using ZFS 0.6.5 or later requires the setting of a ``ZFS_MODULE_LOADING`` environment variable.
 
 v1.3
-====
+----
 
 * Fixed a bug where OpenStack Cinder volumes could be mapped to the wrong device and therefore mounted in the wrong location.
 
 v1.2
-====
+----
 
 * If you upgrade to Docker 1.8.1 you may find pulling images unreliable in flocker-deploy and the Flocker Containers API due to Docker bug `#15699`_.
   You may be able to workaround this by appending the image tag to the end of the image name (e.g. :latest).
@@ -102,7 +114,7 @@ v1.2
 * Flocker now includes :ref:`bug reporting documentation<flocker-bug-reporting>` and an accompanying command line tool called ``flocker-diagnostics``.
 
 v1.1
-====
+----
 
 * ``flocker-deploy`` supports specification of the pathnames of certificate and key files.
   See :ref:`flocker-deploy-authentication`.
@@ -112,12 +124,12 @@ v1.1
 * On CentOS 7, installing or upgrading the ``clusterhq-flocker-node`` package now reloads the ``rsyslog`` service to ensure that Flocker logging policy takes immediate effect.
 
 v1.0.3
-======
+------
 
 * On Ubuntu-14.04, log files are now written to /var/log/flocker and rotated in five 100MiB files, so as not fill up the system disk.
 
 v1.0.2
-======
+------
 
 * On CentOS 7, Flocker logs are no longer written to /var/log/messages since this filled up disk space too quickly.
   The logs are still available via journald.
@@ -125,7 +137,7 @@ v1.0.2
   See :ref:`restart policy<restart configuration>`.
 
 v1.0.1
-======
+------
 
 Upgrading is strongly recommended for all users of v1.0.0.
 
@@ -134,7 +146,7 @@ Upgrading is strongly recommended for all users of v1.0.0.
 * ClusterHQ Labs projects, including the Flocker Docker Plugin and an experimental Volumes CLI and GUI are now documented in the :ref:`Labs section <labs-projects>`.
 
 v1.0
-====
+----
 
 * Dataset backend support for :ref:`AWS Elastic Block Storage (EBS)<aws-dataset-backend>`, :ref:`OpenStack Cinder<openstack-dataset-backend>`, and :ref:`EMC ScaleIO and XtremIO<emc-dataset-backend>`.
 * Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
@@ -152,7 +164,7 @@ v1.0
 * Bug fixes and improvements focused on security and stability across platforms.
 
 v0.4
-====
+----
 
 * New :ref:`REST API<api>` for managing datasets.
 * Applications can now be configured with a :ref:`restart policy<restart configuration>`.
@@ -162,13 +174,13 @@ v0.4
   A future version of Flocker may provide a different integration strategy.
 
 v0.3.2
-======
+------
 
 * Documented how to configure the Fedora firewall on certain cloud platforms.
 
 
 v0.3.1
-======
+------
 
 * Applications can now be :ref:`configured with a CPU and memory limit<configuration>`.
 * Documentation now includes instructions for installing flocker-node on Fedora 20.
@@ -176,21 +188,21 @@ v0.3.1
 
 
 v0.3
-====
+----
 
 * ``geard`` is no longer used to manage Docker containers.
 * Added support for `Fig`_ compatible :ref:`application configuration <fig-compatible-config>` files.
 
 
 v0.2
-====
+----
 
 * Moving volumes between nodes is now done with a two-phase push that should dramatically decrease application downtime when moving large amounts of data.
 * Added support for environment variables in the :ref:`application configuration<configuration>`.
 * Added basic support for links between containers in the :ref:`application configuration<configuration>`.
 
 v0.1
-====
+----
 
 Everything is new since this is our first release.
 

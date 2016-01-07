@@ -7,11 +7,12 @@ Tests for :module:`flocker.testtools.amp`.
 from ..amp import FakeAMPClient, DelayedAMPClient
 from ...control.test.test_protocol import LoopbackAMPClient
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.error import ConnectionLost
 from twisted.protocols.amp import (
     Command, Integer, ListOf, MAX_VALUE_LENGTH, TooLong, CommandLocator,
 )
+
+from ...testtools import TestCase
 
 
 class TestCommand(Command):
@@ -26,7 +27,7 @@ class TestCommand(Command):
     ]
 
 
-class DelayedAMPClientTests(SynchronousTestCase):
+class DelayedAMPClientTests(TestCase):
     """
     Tests for :class:`DelayedAMPClient`.
     """
@@ -126,7 +127,7 @@ class MinimalLocator(CommandLocator):
         )
 
 
-class LoopbackAMPClientTests(SynchronousTestCase):
+class LoopbackAMPClientTests(TestCase):
     """
     Tests for :class:`LoopbackAMPClient`.
     """

@@ -34,6 +34,7 @@ from hypothesis.strategies import (
     dictionaries, tuples
 )
 
+from testtools.deferredruntest import SynchronousDeferredRunTest
 from testtools.matchers import Equals
 
 from twisted.internet import reactor
@@ -41,7 +42,6 @@ from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SkipTest
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
@@ -576,6 +576,10 @@ class BlockDeviceDeployerTests(
     """
     Tests for ``BlockDeviceDeployer``.
     """
+
+    # This test returns Deferreds but doesn't use the reactor. It uses
+    # NonReactor instead.
+    run_tests_with = SynchronousDeferredRunTest
 
 
 class BlockDeviceDeployerAsyncAPITests(TestCase):
@@ -3862,7 +3866,7 @@ def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
     """
     user_id = getuid()
     if user_id != 0:
-        raise SkipTest(
+        test_case.skipTest(
             "``LoopbackBlockDeviceAPI`` uses ``losetup``, "
             "which requires root privileges. "
             "Required UID: 0, Found UID: {!r}".format(user_id)

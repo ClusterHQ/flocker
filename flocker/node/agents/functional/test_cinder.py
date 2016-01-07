@@ -24,7 +24,6 @@ from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
-from twisted.trial.unittest import SkipTest
 
 from flocker.ca import (
     RootCredential, AUTHORITY_CERTIFICATE_FILENAME, NodeCredential
@@ -119,7 +118,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         try:
             config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
         return get_cinder_v1_client(session, region)
@@ -223,7 +222,7 @@ class CinderHttpsTests(TestCase):
         try:
             config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
         config['peer_verify'] = False
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
@@ -241,7 +240,7 @@ class CinderHttpsTests(TestCase):
         try:
             config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
         config['backend'] = 'openstack'
         config['auth_plugin'] = 'password'
         config['password'] = 'password'

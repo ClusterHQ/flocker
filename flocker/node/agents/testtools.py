@@ -6,8 +6,7 @@ Test helpers for ``flocker.node.agents``.
 
 from zope.interface.verify import verifyObject
 
-from twisted.trial.unittest import SynchronousTestCase
-
+from flocker.testtools import TestCase
 from .cinder import (
     ICinderVolumeManager, INovaVolumeManager,
 )
@@ -29,8 +28,9 @@ def make_icindervolumemanager_tests(client_factory):
     Build a ``TestCase`` for verifying that an implementation of
     ``ICinderVolumeManager`` adheres to that interface.
     """
-    class Tests(ICinderVolumeManagerTestsMixin, SynchronousTestCase):
+    class Tests(ICinderVolumeManagerTestsMixin, TestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.client = client_factory(test_case=self)
 
     return Tests
@@ -52,8 +52,9 @@ def make_inovavolumemanager_tests(client_factory):
     Build a ``TestCase`` for verifying that an implementation of
     ``INovaVolumeManager`` adheres to that interface.
     """
-    class Tests(INovaVolumeManagerTestsMixin, SynchronousTestCase):
+    class Tests(INovaVolumeManagerTestsMixin, TestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.client = client_factory(test_case=self)
 
     return Tests

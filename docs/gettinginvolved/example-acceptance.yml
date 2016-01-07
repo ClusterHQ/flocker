@@ -8,6 +8,7 @@ aws:
   region: us-east-1
   zone: us-east-1d
   security_groups: ['acceptance']
+  instance_type: m3.large
 
 rackspace:
   region: "dfw"

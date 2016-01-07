@@ -354,8 +354,10 @@ class AWSProvisioner(PClass):
         return False
 
 
-def aws_provisioner(access_key, secret_access_token, keyname,
-                    region, zone, security_groups):
+def aws_provisioner(
+    access_key, secret_access_token, keyname, region, zone, security_groups,
+    instance_type=b"m3.large"
+):
     """
     Create an IProvisioner for provisioning nodes on AWS EC2.
 
@@ -368,6 +370,7 @@ def aws_provisioner(access_key, secret_access_token, keyname,
        available from an agent.
     :param list security_groups: List of security groups to put created nodes
         in.
+    :param bytes instance_type: AWS instance type for cluster nodes.
     """
     conn = connect_to_region(
         region,
@@ -379,5 +382,5 @@ def aws_provisioner(access_key, secret_access_token, keyname,
         _keyname=keyname,
         _security_groups=security_groups,
         _zone=zone,
-        _default_size=b"m3.large",
+        _default_size=instance_type,
     )
