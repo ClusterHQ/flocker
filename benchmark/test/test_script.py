@@ -28,9 +28,11 @@ def capture_stderr():
     Call the returned context variable to obtain captured output.
     """
     s = StringIO()
-    out, sys.stderr = sys.stderr, s
-    yield s.getvalue
-    sys.stderr = out
+    saved, sys.stderr = sys.stderr, s
+    try:
+        yield s.getvalue
+    finally:
+        sys.stderr = saved
 
 # Addresses must be different, to check that environment is not used
 # during YAML tests.
