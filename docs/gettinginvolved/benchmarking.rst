@@ -34,6 +34,11 @@ The :program:`benchmark` script has the following command line options:
    The format of this file is specified in the :ref:`benchmarking-configuration-file` section below.
    Defaults to the file ``./benchmark.yml``.
 
+.. option:: --samples <integer>
+
+   Specifies the number of times to run the benchmark measurements.
+   Defaults to 3.
+
 .. option:: --scenario <scenario>
 
    Specifies the scenario to run the benchmark under.

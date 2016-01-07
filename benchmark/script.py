@@ -80,6 +80,7 @@ class BenchmarkOptions(Options):
          'If not set, use acceptance test environment variables.'],
         ['config', None, 'benchmark.yml',
          'YAML file describing benchmark options.'],
+        ['samples', None, 3, 'Number of samples to take.'],
         ['scenario', None, 'default',
          'Environmental scenario under which to perform test.'],
         ['operation', None, 'default', 'Operation to measure.'],
@@ -280,6 +281,8 @@ def main():
             options, 'Invalid metric type: {!r}'.format(metric_config['type'])
         )
 
+    num_samples = int(options['samples'])
+
     timestamp = datetime.now().isoformat()
 
     result = dict(
@@ -303,7 +306,7 @@ def main():
     react(
         driver, (
             cluster, scenario_factory, operation_factory, metric_factory,
-            result, partial(json.dump, fp=sys.stdout, indent=2)
+            num_samples, result, partial(json.dump, fp=sys.stdout, indent=2)
         )
     )
 
