@@ -28,6 +28,7 @@ from twisted.python.constants import Names, NamedConstant
 
 from ..cinder import cinder_from_configuration
 from ..ebs import EBSBlockDeviceAPI, ec2_client
+from ..pd import PDBlockDeviceAPI
 from ..test.test_blockdevice import detach_destroy_volumes
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
 from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
@@ -48,6 +49,7 @@ class ProviderType(Names):
     """
     openstack = NamedConstant()
     aws = NamedConstant()
+    gce = NamedConstant()
     rackspace = NamedConstant()
 
 
@@ -71,6 +73,8 @@ def _provider_for_provider_type(provider_type):
         return Providers.OPENSTACK
     if provider_type is ProviderType.aws:
         return Providers.AWS
+    if provider_type is ProviderType.gce:
+        return Providers.GCE
     return Providers.UNSPECIFIED
 
 
@@ -209,10 +213,24 @@ def _aws(cluster_id, config):
         ec2_client=get_ec2_client_for_test(config),
     )
 
+
+def _gce(cluster_id, config):
+    """
+    Create an IBlockDeviceAPI provider configured to use the GCE PD
+    region where the server that is running this code is running.
+
+    :param cluster_id: The flocker cluster id.
+    :param config: Any additional configuration (possibly provider-specific)
+        necessary to authenticate a PD session.
+    :return: A PDBlockDeviceAPI instance.
+    """
+    return PDBlockDeviceAPI(**config)
+
 # Map provider labels to IBlockDeviceAPI factory.
 _BLOCKDEVICE_TYPES = {
     Providers.OPENSTACK: _openstack,
     Providers.AWS: _aws,
+    Providers.GCE: _gce,
 }
 
 # ^^^^^^^^^^^^^^^^^^^^ generally useful implementation code, put it somewhere
@@ -290,6 +308,7 @@ MINIMUM_ALLOCATABLE_SIZES = {
     'devstack-openstack': GiB(1),
     'redhat-openstack': GiB(1),
     'aws': GiB(1),
+    'gce': GiB(10),
 }
 
 
