@@ -370,6 +370,7 @@ def aws_provisioner(
        available from an agent.
     :param list security_groups: List of security groups to put created nodes
         in.
+    :param bytes instance_type: AWS instance type for cluster nodes.
     """
     conn = connect_to_region(
         region,
