@@ -32,6 +32,9 @@ operations:
   - name: create-dataset
     type: create-dataset
 
+  - name: create-container
+    type: create-container
+
 metrics:
   - name: default
     type: wallclock

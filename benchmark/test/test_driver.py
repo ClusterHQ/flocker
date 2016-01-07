@@ -68,6 +68,13 @@ class FakeOperation(object):
         return FakeProbe(next(self.succeeds))
 
 
+@implementer(IOperation)
+class BrokenGetProbeOperation(object):
+
+    def get_probe(self):
+        return fail(RuntimeError('get_probe failed'))
+
+
 @implementer(IScenario)
 class FakeScenario(object):
 
@@ -116,6 +123,19 @@ class SampleTest(TestCase):
         self.assertEqual(
             self.successResultOf(sampled), {'success': False, 'reason': str}
         )
+
+    @capture_logging(None)
+    def test_failed_get_probe(self, logger):
+        """
+        Sampling returns reason when get_probe fails.
+        """
+        sampled = sample(
+            BrokenGetProbeOperation(), FakeMetric(repeat(5)), 1)
+
+        result = self.successResultOf(sampled)
+
+        self.assertFalse(result['success'])
+        self.assertIn('get_probe failed', result['reason'])
 
 
 class BenchmarkTest(AsyncTestCase):

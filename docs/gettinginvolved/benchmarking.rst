@@ -53,6 +53,13 @@ The :program:`benchmark` script has the following command line options:
    This is the ``name`` of a metric in the configuration file.
    Defaults to the name ``default``.
 
+.. option:: --userdata <json-data>
+
+   Specifies JSON data to be added to the result JSON.
+   If the value starts with ``@`` the remainder of the value is the name of a file containing JSON data.
+   Otherwise, the value must be a valid JSON structure.
+   The supplied data is added as the ``userdata`` property of the output result.
+
 
 .. _benchmarking-cluster-description:
 
@@ -136,6 +143,22 @@ Scenario Types
 
 Operation Types
 ~~~~~~~~~~~~~~~
+
+.. option:: create-container
+
+   Create a stateful container and wait for it to be running.
+
+   Specify the container image using an additional ``image`` property.
+   The container will be started with the default command line.
+   Hence the image must have a long-lived default command line.
+   The default image is ``clusterhq/mongodb``.
+
+   Specify the size of the dataset using an additional ``volume_size`` property.
+   If specifying a cluster using environment variables, this defaults to the value of the ``FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE`` environment variable.
+   Otherwise, it defaults to a platform-specific value.
+
+   Specify the volume mountpoint using an additional ``mountpoint`` property.
+   The default is ``/data``.
 
 .. option:: create-dataset
 
