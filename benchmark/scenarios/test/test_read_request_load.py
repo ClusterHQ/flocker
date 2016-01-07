@@ -172,6 +172,37 @@ class read_request_load_scenarioTest(TestCase):
 
         self.assertRaises(RequestScenarioAlreadyStarted, s.start)
 
+    def test_scenario_dont_throw_exception_when_rate_drops(self):
+        """
+        ``read_request_load_scenario`` raises ``RequestRateTooLow`` if rate
+        drops below the requested rate.
+
+        Establish the requested rate by having the ``FakeFlockerClient``
+        respond to all requests, then lower the rate by dropping
+        alternate requests. This should result in ``RequestRateTooLow``
+        being raised.
+        """
+        c = Clock()
+
+        cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
+        sample_size = 5
+        s = read_request_load_scenario(c, cluster, sample_size=sample_size,
+                                       tolerance_percentage=0.6)
+
+        cluster.get_control_service(c).drop_requests = True
+
+        d = s.start()
+
+        # Request rate samples are recorded every second and we need to
+        # collect enough samples to establish the rate which is defined
+        # by `sample_size`. Therefore, advance the clock by
+        # `sample_size` seconds to obtain enough samples.
+        c.pump(repeat(1, sample_size))
+        s.maintained().addBoth(lambda x: self.fail())
+        d.addCallback(lambda ignored: s.stop())
+        c.pump(repeat(1, sample_size*s.request_rate))
+        self.successResultOf(d)
+
     def test_scenario_throws_exception_when_rate_drops(self):
         """
         ``read_request_load_scenario`` raises ``RequestRateTooLow`` if rate
@@ -186,7 +217,8 @@ class read_request_load_scenarioTest(TestCase):
 
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
         sample_size = 5
-        s = read_request_load_scenario(c, cluster, sample_size=sample_size)
+        s = read_request_load_scenario(c, cluster, sample_size=sample_size,
+                                       tolerance_percentage=0)
 
         s.start()
 
@@ -203,6 +235,7 @@ class read_request_load_scenarioTest(TestCase):
         failure = self.failureResultOf(s.maintained())
         self.assertIsInstance(failure.value, RequestRateTooLow)
 
+
     def test_scenario_throws_exception_if_requested_rate_not_reached(self):
         """
         ``read_request_load_scenario`` raises ``RequestRateNotReached`` if the
@@ -210,7 +243,7 @@ class read_request_load_scenarioTest(TestCase):
         """
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        s = read_request_load_scenario(c, cluster)
+        s = read_request_load_scenario(c, cluster, tolerance_percentage=0)
         cluster.get_control_service(c).drop_requests = True
         d = s.start()
 

@@ -94,7 +94,6 @@ class RequestLoadScenario(object):
         self.is_started = False
         self.rate_tolerated = float(request_rate) - (request_rate*tolerance_percentage)
 
-
     def _request_and_measure(self, count):
         """
         Update the rate with the current value and send ``request_rate``

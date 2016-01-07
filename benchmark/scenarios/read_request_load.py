@@ -43,7 +43,8 @@ class ReadRequest(object):
 
 
 def read_request_load_scenario(reactor, cluster, request_rate=10,
-                               sample_size=DEFAULT_SAMPLE_SIZE, timeout=45):
+                               sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
+                               tolerance_percentage=0.2):
     """
     Factory that will initialise and return an excenario that places
     load on the cluster by performing read requests at a specified rate.
@@ -65,4 +66,5 @@ def read_request_load_scenario(reactor, cluster, request_rate=10,
         request_rate=request_rate,
         sample_size=sample_size,
         timeout=timeout,
+        tolerance_percentage=tolerance_percentage,
     )
