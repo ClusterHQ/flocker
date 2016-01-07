@@ -7,10 +7,11 @@ Manually Installing Flocker with Docker Swarm
 Manually Installing Flocker
 ===========================
 
-#. Follow the :ref:`full-installation-with-docker` steps. 
-   This includes a step to install the **Flocker plugin for Docker**, which is required for Docker Swarm integration.
-#. Follow the :ref:`post-installation-configuration-with-docker` steps.
-#. Follow the :ref:`controlling-flocker-with-docker` steps.
+#. Follow the :ref:`full-installation-with-docker` steps, to install Flocker and the **Flocker plugin for Docker**
+   The plugin is required for Docker Swarm integration.
+#. Follow the :ref:`post-installation-configuration-with-docker` steps, to configure authentication and your chosen backend.
+   These steps also include the enablement of the control service, the agent services, and the plugin. 
+#. Finally, the :ref:`controlling-flocker-with-docker` section describes how to control Flocker using either the plugin or via the Flocker CLI.
 
 .. _full-installation-with-docker:
 
