@@ -145,7 +145,7 @@ class PDBlockDeviceAPI(object):
     """
     # TODO(mewert): Logging throughout.
 
-    def __init__(self, project, zone):
+    def __init__(self, cluster_id, project, zone):
         """
         Initialize the PDBlockDeviceAPI.
 

@@ -224,7 +224,7 @@ def _gce(cluster_id, config):
         necessary to authenticate a PD session.
     :return: A PDBlockDeviceAPI instance.
     """
-    return PDBlockDeviceAPI(**config)
+    return PDBlockDeviceAPI(cluster_id=cluster_id, **config)
 
 # Map provider labels to IBlockDeviceAPI factory.
 _BLOCKDEVICE_TYPES = {

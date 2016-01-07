@@ -4,6 +4,8 @@
 Functional tests for ``flocker.node.agents.pd`` using a GCE cluster.
 """
 
+from uuid import uuid4
+
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests
 )
@@ -12,6 +14,8 @@ from ..test.blockdevicefactory import (
     ProviderType, get_blockdeviceapi_with_cleanup,
     get_minimum_allocatable_size, get_device_allocation_unit
 )
+
+from ....testtools import TestCase
 
 
 def pdblockdeviceapi_for_test(test_case):
@@ -30,7 +34,8 @@ class PDBlockDeviceAPIInterfaceTests(
         )
 ):
     """
-    Interface adherence Tests for ``PDBlockDeviceAPI``.
+    :class:`IBlockDeviceAPI` Interface adherence Tests for
+    :class:`PDBlockDeviceAPI`.
     """
 
     def test_attach_elsewhere_attached_volume(self):
@@ -40,3 +45,34 @@ class PDBlockDeviceAPIInterfaceTests(
         # before attempting the attach, just skip this test for this driver.
         # TODO(mewert): replace with a good test.
         pass
+
+
+class PDBlockDeviceAPITests(TestCase):
+    """
+    Tests for :class:`PDBlockDeviceAPI`.
+    """
+
+    def test_multiple_cluster(self):
+        """
+        Two :class:`PDBlockDeviceAPI` instances can be run with different
+        cluster_ids. Volumes in one cluster do not show up in listing from the
+        other.
+        """
+        pd_block_device_api_1 = pdblockdeviceapi_for_test(self)
+        pd_block_device_api_2 = pdblockdeviceapi_for_test(self)
+
+        cluster_1_dataset_id = uuid4()
+        cluster_2_dataset_id = uuid4()
+
+        pd_block_device_api_1.create_volume(cluster_1_dataset_id,
+                                            get_minimum_allocatable_size())
+
+        pd_block_device_api_2.create_volume(cluster_2_dataset_id,
+                                            get_minimum_allocatable_size())
+
+        self.assertEqual([cluster_1_dataset_id],
+                         list(x.dataset_id
+                              for x in pd_block_device_api_1.list_volumes()))
+        self.assertEqual([cluster_2_dataset_id],
+                         list(x.dataset_id
+                              for x in pd_block_device_api_2.list_volumes()))
