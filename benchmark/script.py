@@ -84,6 +84,7 @@ class BenchmarkOptions(Options):
          'Environmental scenario under which to perform test.'],
         ['operation', None, 'default', 'Operation to measure.'],
         ['metric', None, 'default', 'Quantity to benchmark.'],
+        ['userdata', None, None, 'JSON data to add to output.']
     ]
 
 
@@ -205,6 +206,31 @@ def get_cluster(options, env):
     return cluster
 
 
+def add_userdata(options, result):
+    """
+    Parse the userdata option and add to result.
+
+    :param BenchmarkOptions options: Script options.
+    :param dict result: Result dictionary.
+    """
+    userdata = options['userdata']
+    if userdata:
+        try:
+            if userdata.startswith('@'):
+                try:
+                    with open(userdata[1:]) as f:
+                        result['userdata'] = json.load(f)
+                except IOError as e:
+                    usage(
+                        options,
+                        'Invalid user data file: {}'.format(e.strerror)
+                    )
+            else:
+                result['userdata'] = json.loads(userdata)
+        except ValueError as e:
+            usage(options, 'Invalid user data: {}'.format(e.args[0]))
+
+
 def main():
     options = BenchmarkOptions()
 
@@ -268,6 +294,8 @@ def main():
         operation=operation_config,
         metric=metric_config,
     )
+
+    add_userdata(options, result)
 
     react(
         driver, (
