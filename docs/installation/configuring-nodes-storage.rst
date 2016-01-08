@@ -1,8 +1,10 @@
-.. _agent-yml:
+.. _configuring-nodes-backends:
 
 ==========================================
 Configuring the Nodes and Storage Backends
 ==========================================
+
+.. begin-body-nodeconfig-agent-yml
 
 To start the agents on a node, a configuration file must exist on the node at :file:`/etc/flocker/agent.yml`.
 The file must always include ``version`` and ``control-service`` items, and will need to include ``dataset`` objects similar to these:
@@ -48,6 +50,10 @@ All nodes must be configured to use the same dataset backend.
 .. note::
 	You can only choose a single backend at a time, and changing backends is not currently supported.
 
+.. end-body-nodeconfig-agent-yml
+
+.. begin-body-nodeconfig-storage-profiles
+
 Storage Profiles
 ================
 
@@ -55,7 +61,11 @@ Storage Profiles
    :start-after: .. begin-body
    :end-before: .. end-body
 
+.. end-body-nodeconfig-storage-profiles
+
 .. _supported-backends:
+
+.. begin-body-nodeconfig-backends
 
 Supported Backends
 ==================
@@ -89,3 +99,5 @@ Community supported drivers:
 Flocker supports pluggable storage backends. 
 Any storage system that is able to present itself as a network-based block device can serve as the underlying storage for a Docker data volume managed by Flocker.
 If the storage backend you are looking for is not currently supported by Flocker, you can consider :ref:`contributing it <build-flocker-driver>`.
+
+.. end-body-nodeconfig-backends
