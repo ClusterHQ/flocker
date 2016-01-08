@@ -4,6 +4,8 @@
 Configuring Cluster Authentication
 ==================================
 
+.. begin-body-config-authentication
+
 Prerequisites
 =============
 
@@ -166,5 +168,4 @@ Steps
 
 The next topic is :ref:`generate-api`, which is used to identify yourself when sending instructions to the control service.
 
-If you have chosen to install :ref:`plugin` you will also need to create API client certificates for the plugin, as it requires access to the Flocker REST API.
-In addition to the :ref:`generate-api` steps, you will also need to complete the instructions in :ref:`generate-api-docker-plugin` .
+.. end-body-config-authentication
