@@ -233,15 +233,15 @@ def parse_userdata(options):
     return None
 
 
-def main():
+def main(argv, environ, react=react):
     options = BenchmarkOptions()
 
     try:
-        options.parseOptions()
+        options.parseOptions(argv[1:])
     except UsageError as e:
         usage(options, e.args[0])
 
-    cluster = get_cluster(options, os.environ)
+    cluster = get_cluster(options, environ)
 
     with open(options['config'], 'rt') as f:
         config = yaml.safe_load(f)
@@ -281,7 +281,10 @@ def main():
             options, 'Invalid metric type: {!r}'.format(metric_config['type'])
         )
 
-    num_samples = int(options['samples'])
+    try:
+        num_samples = int(options['samples'])
+    except ValueError:
+        usage(options, 'Invalid sample count: {!r}'.format(options['samples']))
 
     timestamp = datetime.now().isoformat()
 
@@ -290,7 +293,7 @@ def main():
         client=dict(
             flocker_version=flocker_client_version,
             working_directory=os.getcwd(),
-            username=os.environ[b"USER"],
+            username=environ[b"USER"],
             nodename=node(),
             platform=platform(),
         ),
@@ -311,4 +314,4 @@ def main():
     )
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv, os.environ)
