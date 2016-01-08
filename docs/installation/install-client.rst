@@ -125,16 +125,8 @@ The ``flocker-deploy`` command line program will now be available:
    alice@mercury:~$ flocker-deploy --version
    |latest-installable|
 
-.. end-body-installing-client-OSX
-
-.. begin-body-installing-nextstep
-
-Next Step
-=========
-
-The next section describes your next step - :ref:`Installing the Flocker Node Services<installing-flocker-node>`.
-
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 
-.. end-body-installing-nextstep
+.. end-body-installing-client-OSX
+

@@ -38,6 +38,7 @@ Installing the Flocker Client
 
 .. _postinstall-nextstep:
 
-.. include:: ../installation/install-client.rst
-   :start-after: .. begin-body-installing-nextstep
-   :end-before: .. end-body-installing-nextstep
+Next Step
+=========
+
+The next section describes your next step - :ref:`Installing the Flocker Node Services<installing-flocker-node-docker>`.
