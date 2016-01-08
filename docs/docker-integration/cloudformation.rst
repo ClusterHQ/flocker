@@ -1,3 +1,5 @@
+.. _cloudformation:
+
 .. raw:: html
 
     <style>
@@ -28,17 +30,22 @@ Create and save an AWS EC2 Key Pair:
 Step 2
 ------
 
-- Select Flocker ClouldFormation stack launch Region (currently defaults to ``us-east-1``).
+- Select Flocker CloudFormation stack launch Region (currently defaults to ``us-east-1``).
 
-- Create a 2 node Flocker cluster CreateCluster_ .
+- Create a 2 node Flocker cluster:
+
+.. raw:: html
+
+  <div style="margin:2em;">
+      <a href="https://console.aws.amazon.com/cloudformation/home#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json" class="button" target="_blank">Create Cluster</a>
+  </div>
 
 .. TODO: Paramterize number of cluster nodes.
   
-.. TODO: customize CloudFormation link below to parameterize region.
+.. _CreateCluster:
 
-.. _CreateCluster: https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json
-
-- Fill in ``Stack name``, ``AccessKeyID``, ``KeyName`` (corresponding to the key created in Step 1), ``SecretAccessKey``.
+- Fill in ``Stack name`` (any descriptive name), ``KeyName`` (corresponding to the key created in Step 1), ``AccessKeyID``, ``SecretAccessKey``.
+  The last two are your AWS access credentials, get these from `here <https://console.aws.amazon.com/iam/home?nc2=h_m_sc#security_credential>`_.
   |parameters|
 
 .. |parameters| image:: ../images/parameters.png
@@ -68,5 +75,6 @@ Your cluster is now ready for workloads!
 
 Next steps
 ----------
+.. TODO: make Try a tutorial link to the list of tutorials as soon as we have more than one
 
-:ref:`Try a tutorial <docker-tutorials>` to kick the tyres on your Flocker cluster with Docker Swarm!
+:ref:`Try a tutorial <tutorial-swarm-compose>` to kick the tyres on your Flocker cluster with Docker Swarm!

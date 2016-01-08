@@ -44,6 +44,11 @@ Follow a tutorial
     </div>
     <div style="clear:both;"></div>
 
+Other tutorials on our blog
+---------------------------
+
+* TODO: link to other tutorials on our blog
+
 Learn more about the integration
 ================================
 
