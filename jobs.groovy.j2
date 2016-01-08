@@ -6,6 +6,24 @@
   required views, folders, and jobs for a particular project in the Jenkins
   interface.
 
+  The easiest way to debug or experiment with changes to this is:
+    * check them in to a branch
+    * trigger a build of that branch on the setup_ClusterHQ-flocker job
+    * ssh into the master (same hostname as the web ui)
+    * compare the master configuration xml with the branch configuration xml:
+
+        BASE=/var/lib/jenkins/jobs/ClusterHQ-flocker/jobs/
+        A=master
+        B=copy-artifacts-for-all-jobs-FLOC-3799
+        for config in $(find ${BASE}/${A} -name config.xml | cut -d '/' -f 10- | sort); do
+            if [ -e ${BASE}/${A}/${config} ] && [ -e ${BASE}/${B}/${config} ]; then
+                diff -u ${BASE}/${A}/${config} <(sed -e "s,${B},${A}," ${BASE}/${B}/${config})
+            fi
+        done | less
+
+      Certain changes will always be present.  For example, triggers for the
+      cron-style jobs are only created for the master branch.
+
   The full Jenkins job DSL reference can be found on the URL below:
   https://github.com/jenkinsci/job-dsl-plugin/wiki/Job-reference
 
