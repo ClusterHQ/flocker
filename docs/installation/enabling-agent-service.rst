@@ -48,13 +48,3 @@ Ubuntu
       service flocker-docker-plugin restart
 
 .. end-body-enable-agent-main
-
-.. begin-body-enable-agent-nextsteps
-
-Next Steps
-==========
-
-The configuration of your Flocker cluster is now complete.
-To learn about controlling and administering Flocker, please move on to :ref:`controlling-flocker`.
-
-.. end-body-enable-agent-nextsteps
