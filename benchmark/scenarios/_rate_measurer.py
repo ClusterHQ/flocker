@@ -12,11 +12,12 @@ class RateMeasurer(object):
     :ivar _samples: The recorded samples.
     :ivar _sent: The number of sent requests recorded.
     :ivar _received: The number of received requests recorded.
-    :ivar _errors: The number of failed requests recorded.
+    :ivar _error_count: The number of failed requests recorded.
     :ivar _rate: The current rate.
-    :ivar Mapping[int, int] _calltimes: Value is the number of requests
-        that took the amount of time (rounded down to nearest integer)
-        indicated by the key.
+    :ivar Mapping[int, int] _calltimes: The number of times a call took
+        the given time (rounded down to whole seconds).
+    :ivar Mapping[str, int] _errors: The number of times the given error
+        message was received.
     """
 
     def __init__(self, sample_size=DEFAULT_SAMPLE_SIZE):
@@ -77,6 +78,9 @@ class RateMeasurer(object):
         return self._rate
 
     def get_metrics(self):
+        """
+        Return the collected metrics.
+        """
         return {
             'calltimes': self._calltimes,
             'errors': self._errors,

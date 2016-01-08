@@ -149,3 +149,27 @@ class RateMeasurerTest(TestCase):
 
         self.assertEqual(0, r.outstanding())
 
+    def test_calltime_stats(self):
+        """
+        Calltime stats reflect response calls.
+        """
+        r = RateMeasurer()
+
+        # Send 25 requests
+        self.send_requests(r, 5, r.sample_size)
+
+        # Receive successful responses for 20 of those requests
+        self.receive_requests(r, 4, r.sample_size)
+
+        # Mark 5 of the requests as failed
+        self.failed_requests(r, 1, r.sample_size)
+
+        self.assertEqual(
+            r.get_metrics(),
+            {
+                'calltimes': {5: 20},
+                'errors': {'fail': 5},
+                'ok_count': 20,
+                'err_count': 5,
+            }
+        )
