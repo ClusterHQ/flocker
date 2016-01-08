@@ -6,6 +6,7 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 
 from uuid import uuid4
 
+from characteristic import attributes
 from pyrsistent import PClass, field
 from testtools import ExpectedException
 from testtools.matchers import Not, FileExists
@@ -276,6 +277,21 @@ class BlockDeviceManagerTests(TestCase):
             self.manager_under_test.make_tmpfs_mount(non_existent)
 
 
+@attributes(["error"])
+class CleanupError(Exception):
+    """
+    Wrapper for errors that might occur during cleanup, but should not stop
+    cleanup. This is specifically for errors like an UnmountError which might
+    occur if we are attempting to clean up a mount that was not mounted
+    successfully, but we had no way of verifying that.
+
+    :ivar error: The original error.
+    """
+
+    def __str__(self):
+        return self.__repr__()
+
+
 class _ICleanupOperation(Interface):
     """
     Interface for cleanup operations.
@@ -287,6 +303,9 @@ class _ICleanupOperation(Interface):
 
         :param blockdevice_manager: The :class:`IBlockDeviceManager` provider
             to use to execute the cleanup.
+
+        :raises CleanupError: If an error occurs that does not indicate a bug
+            in the code and should not stop cleanup execution.
         """
 
 
@@ -300,7 +319,10 @@ class _UnmountCleanup(PClass):
     path = field(type=FilePath)
 
     def execute(self, blockdevice_manager):
-        blockdevice_manager.unmount(self.path)
+        try:
+            blockdevice_manager.unmount(self.path)
+        except UnmountError as e:
+            raise CleanupError(error=e)
 
 
 class CleanupBlockDeviceManager(proxyForInterface(IBlockDeviceManager)):
@@ -324,7 +346,7 @@ class CleanupBlockDeviceManager(proxyForInterface(IBlockDeviceManager)):
 
     def mount(self, blockdevice, mountpoint):
         self._cleanup_operations.append(_UnmountCleanup(path=blockdevice))
-        self.original.mount(blockdevice, mountpoint)
+        return self.original.mount(blockdevice, mountpoint)
 
     def unmount(self, unmount_path):
         unmount_index = next(iter(
@@ -334,22 +356,28 @@ class CleanupBlockDeviceManager(proxyForInterface(IBlockDeviceManager)):
         ), None)
         if unmount_path is not None:
             self._cleanup_operations.pop(unmount_index)
-        self.original.unmount(unmount_path)
+        return self.original.unmount(unmount_path)
 
     def make_tmpfs_mount(self, mountpoint):
         self._cleanup_operations.append(_UnmountCleanup(path=mountpoint))
-        self.original.make_tmpfs_mount(mountpoint)
+        return self.original.make_tmpfs_mount(mountpoint)
 
     def bind_mount(self, source_path, mountpoint):
         self._cleanup_operations.append(_UnmountCleanup(path=mountpoint))
-        self.original.bind_mount(source_path, mountpoint)
+        return self.original.bind_mount(source_path, mountpoint)
 
     def cleanup(self):
         """
         Perform all cleanup operations.
         """
+        cleanup_errors = []
         for operation in reversed(self._cleanup_operations):
-            operation.execute(self.original)
+            try:
+                operation.execute(self.original)
+            except CleanupError as e:
+                cleanup_errors.append(e)
+        if cleanup_errors:
+            raise cleanup_errors[0].error
 
 
 class CleanupBlockDeviceManagerTests(TestCase):
