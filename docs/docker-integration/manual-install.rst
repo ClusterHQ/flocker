@@ -17,6 +17,12 @@ Manually Installing Flocker with Docker Swarm
    :start-after: .. begin-body-full-installation
    :end-before: .. end-body-full-installation
 
+.. toctree::
+   :maxdepth: 2
+
+   install-client
+   install-node
+
 .. _post-installation-configuration-with-docker:
 
 .. include:: ../installation/index.rst

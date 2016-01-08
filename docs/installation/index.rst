@@ -49,21 +49,21 @@ To get the full Flocker functionality, the following installation steps will tak
 
 .. XXX this introduction could be improved with an image. See FLOC-2077
 
+.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
+
+.. end-body-full-installation
+
 .. toctree::
    :maxdepth: 2
 
    ../installation/install-client
    ../installation/install-node
 
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
-
 .. toctree::
    :hidden:
 
    ../installation/setup-aws
    ../installation/setup-rackspace
-
-.. end-body-full-installation
 
 .. begin-body-configuring-flocker
 
