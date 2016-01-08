@@ -4,9 +4,15 @@
 Installing the Flocker Node Services
 ====================================
 
+.. begin-body-installing-node-intro
+
 The following instructions describe how to install the ``clusterhq-flocker node`` package, and the optional ``clusterhq-flocker-docker-plugin`` package on each of the nodes in your cluster.
 
+.. end-body-installing-node-intro
+
 .. _installing-flocker-node-prereq:
+
+.. begin-body-installing-node-prereqs
 
 Prerequisites
 =============
@@ -15,17 +21,21 @@ Before you begin to install the Flocker node services, you will need the followi
 
 * A minimum of 2 nodes:
   
-  * We support installing the Flocker node services on either :ref:`CentOS 7<centos-7-install>` or :ref:`Ubuntu 14.04<ubuntu-14.04-install>`.
-  * If you do not have any nodes, see our :ref:`helpful-guides` which can be used to help you set up nodes using either :ref:`Amazon Web Services<aws-install>` or :ref:`Rackspace<rackspace-install>`.
+  * We support installing the Flocker node services on either CentOS 7 or Ubuntu 14.04.
+  * If you do not have any nodes, our guides can be used to help you set up nodes, using either Amazon Web Services or Rackspace.
   * To avoid potential disk space problems (for example, when storing popular Docker images), we recommend a minimum of 16 GB storage on each node.
 
 * You will need permission for SSH access from your laptop.
 * Depending on your usage of Flocker, you will require access to a range of ports.
-  For example, instructions on specifying which ports to make available are included in the :ref:`aws-install` documentation.
+  For example, instructions on specifying which ports to make available are included in the Amazon Web Services guide.
 * Flocker's container management features depend on Docker.
   You will need to make sure `Docker (at least 1.8) is installed`_ and running.
 
+.. end-body-installing-node-prereqs
+
 .. _helpful-guides:
+
+.. begin-body-installing-node-guides
 
 Helpful Guides for Setting Up Nodes
 ===================================
@@ -37,12 +47,16 @@ If you do not have any nodes, the following guides will help you set some up, wi
 
 If you set up nodes with either AWS or Rackspace, you'll need to come back to the installation steps below to install the ``flocker-node`` packages specific to your operating system.
 
+.. end-body-installing-node-guides
+
 .. _centos-7-install:
+
+.. begin-body-installing-node-centos
 
 Installing on CentOS 7
 ======================
 
-.. note:: You should ensure your nodes are Flocker-ready, either by checking the :ref:`prerequisites<installing-flocker-node-prereq>` above, or by following our guides on using :ref:`AWS<aws-install>` or :ref:`Rackspace<rackspace-install>`.
+.. note:: You should ensure your nodes are Flocker-ready, either by checking the prerequisites above, or by following our guides on using Amazon Web Services or Rackspace.
 
 #. **Log into the first node as root:**
 
@@ -77,13 +91,17 @@ Installing on CentOS 7
 
 .. note:: Flocker's container management features depend on Docker.
           You will need to make sure `Docker (at least 1.8) is installed`_ and running.
-   
+
+.. end-body-installing-node-centos
+
 .. _ubuntu-14.04-install:
+
+.. begin-body-installing-node-ubuntu
 
 Installing on Ubuntu 14.04
 ==========================
 
-.. note:: You should ensure your nodes are Flocker-ready, either by checking the :ref:`prerequisites<installing-flocker-node-prereq>` above, or by following our guides on using :ref:`AWS<aws-install>` or :ref:`Rackspace<rackspace-install>`.
+.. note:: You should ensure your nodes are Flocker-ready, either by checking the prerequisites above, or by following our guides on using Amazon Web Services or Rackspace.
 
 #. **Log into the first node as root:**
 
@@ -120,6 +138,10 @@ Installing on Ubuntu 14.04
 .. note:: Flocker's container management features depend on Docker.
           You will need to make sure `Docker (at least 1.8) is installed`_ and running.
 
+.. end-body-installing-node-ubuntu
+
+.. begin-body-installing-node-nextstep
+
 Next Step
 =========
 
@@ -127,3 +149,5 @@ The installation of the Flocker clients, node services and the Flocker plugin fo
 To enable these services, and to configure your cluster security and backend, please move on to :ref:`post-installation-configuration`.
 
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
+
+.. end-body-installing-node-nextstep
