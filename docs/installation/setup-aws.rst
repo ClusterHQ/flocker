@@ -4,6 +4,8 @@
 Setting Up Nodes Using Amazon Web Services
 ==========================================
 
+.. begin-body
+
 If you are not familiar with AWS EC2, you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
 You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html>`_.
 
@@ -47,7 +49,7 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
    * **Configure security group**:
       
      * If you wish to customize the instance's security settings, make sure to permit SSH access from the administrators machine (for example, your laptop).
-     * To enable Flocker agents to communicate with the :ref:`Flocker control service <enabling-control-service>` and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
+     * To enable Flocker agents to communicate with the Flocker control service and for external access to the API, add a custom TCP security rule enabling access to ports 4523-4524.
      * Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
      * You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
      * Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
@@ -85,6 +87,7 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
 
       ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
+.. end-body
 
 #. Go to the installation instructions specific to your operating system in :ref:`installing-flocker-node`, to install ``clusterhq-flocker-node`` on each node in your cluster:
 
