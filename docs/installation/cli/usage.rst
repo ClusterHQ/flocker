@@ -7,7 +7,7 @@ It also manages network configuration for these containers (between them and bet
 And Flocker also creates and replicates volumes.
 All of this functionality is available via a simple invocation of the ``flocker-deploy`` program.
 This program is included in the ``flocker-cli`` package.
-If you haven't :ref:`installed that package <installing-flocker>` yet, you may want to do so now.
+If you haven't installed that package yet, you may want to do so now.
 
 Command Line Arguments
 ======================
