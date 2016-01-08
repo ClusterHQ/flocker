@@ -33,6 +33,8 @@ Installing the Flocker Node Services
    :start-after: .. begin-body-installing-node-ubuntu
    :end-before: .. end-body-installing-node-ubuntu
 
-.. include:: ../installation/install-node.rst
-   :start-after: .. begin-body-installing-node-nextstep
-   :end-before: .. end-body-installing-node-nextstep
+Next Step
+=========
+
+The installation of the Flocker clients, node services and the Flocker plugin for Docker is now complete.
+To enable these services, and to configure your cluster security and backend, please move on to :ref:`post-installation-configuration-docker`.

@@ -138,16 +138,6 @@ Installing on Ubuntu 14.04
 .. note:: Flocker's container management features depend on Docker.
           You will need to make sure `Docker (at least 1.8) is installed`_ and running.
 
-.. end-body-installing-node-ubuntu
-
-.. begin-body-installing-node-nextstep
-
-Next Step
-=========
-
-The installation of the Flocker clients, node services and the Flocker plugin for Docker (if chosen) is now complete.
-To enable these services, and to configure your cluster security and backend, please move on to :ref:`post-installation-configuration`.
-
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
 
-.. end-body-installing-node-nextstep
+.. end-body-installing-node-ubuntu
