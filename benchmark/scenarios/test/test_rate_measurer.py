@@ -1,4 +1,7 @@
-# copyright 2016 clusterhq inc.  see license file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
+from twisted.python.failure import Failure
+
 from flocker.testtools import TestCase
 
 from .._rate_measurer import RateMeasurer
@@ -28,10 +31,10 @@ class RateMeasurerTest(TestCase):
         :param num_requests: The number of request we want to receive.
         :param num_samples: The number of samples to collect.
         """
-        ignored = u""
+        calltime = 5
         for i in range(num_samples):
             for i in range(num_requests):
-                rate_measurer.response_received(ignored)
+                rate_measurer.response_received(calltime)
             rate_measurer.update_rate()
 
     def failed_requests(self, rate_measurer, num_failures, num_samples):
@@ -43,7 +46,7 @@ class RateMeasurerTest(TestCase):
         :param num_failures: The number of requests we want to fail.
         :param num_samples: The number of samples to collect.
         """
-        result = None
+        result = Failure(RuntimeError('fail'))
         for i in range(num_samples):
             for i in range(num_failures):
                 rate_measurer.request_failed(result)

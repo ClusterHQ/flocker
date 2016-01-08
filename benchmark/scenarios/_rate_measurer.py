@@ -14,6 +14,9 @@ class RateMeasurer(object):
     :ivar _received: The number of received requests recorded.
     :ivar _errors: The number of failed requests recorded.
     :ivar _rate: The current rate.
+    :ivar Mapping[int, int] _calltimes: Value is the number of requests
+        that took the amount of time (rounded down to nearest integer)
+        indicated by the key.
     """
 
     def __init__(self, sample_size=DEFAULT_SAMPLE_SIZE):
@@ -21,9 +24,10 @@ class RateMeasurer(object):
         self._samples = deque([0] * sample_size, sample_size)
         self._sent = 0
         self._received = 0
-        self._errors = 0
+        self._error_count = 0
         self._rate = 0
-        self._count = {}  # XXX - count of calltimes
+        self._calltimes = {}
+        self._errors = {}
 
     def request_sent(self):
         """
@@ -35,20 +39,21 @@ class RateMeasurer(object):
         """
         Increase the number of received requests.
 
-        :param calltime: Time to perform call
+        :param float calltime: Time to perform call
         """
         self._received += 1
-        # XXX - need to handle non-existent key
-        self.count[int(calltime)] += 1
+        calltime = int(calltime)
+        self._calltimes[calltime] = self._calltimes.get(calltime, 0) + 1
 
-    def request_failed(self, ignored):
+    def request_failed(self, failure):
         """
         Increase the error count for failed requests.
 
-        :param ignored: The result of a callback. This parameter is
-            not used.
+        :param Failure failure: Failure
         """
-        self._errors += 1
+        self._error_count += 1
+        key = failure.getErrorMessage()
+        self._errors[key] = self._errors.get(key, 0) + 1
 
     def update_rate(self):
         """
@@ -63,10 +68,18 @@ class RateMeasurer(object):
         """
         Return the number of outstanding requests.
         """
-        return self._sent - self._received - self._errors
+        return self._sent - self._received - self._error_count
 
     def rate(self):
         """
         Return the current rate.
         """
         return self._rate
+
+    def get_metrics(self):
+        return {
+            'calltimes': self._calltimes,
+            'errors': self._errors,
+            'ok_count': self._received,
+            'err_count': self._error_count,
+        }

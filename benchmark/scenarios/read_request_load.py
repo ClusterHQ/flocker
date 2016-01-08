@@ -30,10 +30,7 @@ class ReadRequest(object):
 
         :return: A ``Deferred`` that fires when the nodes have been listed.
         """
-        # XXX - get time at start
         return self.control_service.list_nodes()
-        # XXX - get time at end
-        # XXX - return Deferred firing with time difference
 
     def run_setup(self):
         """
