@@ -980,35 +980,17 @@ common_cli:
 # run_trial_modules contains a list of all the modules we want to execute
 # through trial.
 run_trial_modules: &run_trial_modules
-  - admin
-  - benchmark
-  - flocker.acceptance
-  - flocker.apiclient
-  - flocker.ca.functional
-  - flocker.ca.test
-  - flocker.cli
-  - flocker.common
-  - flocker.control
-  - flocker.restapi
-  - flocker.docs
-  - flocker.dockerplugin
-  - flocker.node.test
-  - flocker.node.functional.test_docker.GenericDockerClientTests
-  - flocker.node.functional.test_docker.IDockerClientNamespacedTests
-  - flocker.node.functional.test_docker.NamespacedDockerClientTests
-  - flocker.node.functional.test_script
-  - flocker.node.functional.test_deploy
-  - flocker.provision
-  - flocker.restapi
-  - flocker.route
-  - flocker.test
-  - flocker.testtools
+  - admin benchmark
+  - flocker.acceptance flocker.apiclient flocker.ca.functional flocker.ca.test
+  - flocker.cli flocker.common flocker.control flocker.restapi flocker.docs
+  - flocker.dockerplugin flocker.node.test flocker.node.functional
+  - flocker.provision flocker.restapi flocker.route flocker.test flocker.testtools
+
 run_trial_as_root_modules: &run_trial_as_root_modules
   # flocker.volume needs to run as root due to ZFS calls
   # so we run it as part of the run_trial_on_<Cloud>_<OS>_as_root jobs
-  - flocker.volume
   # flocker.node.agent needs to run as root due to mounting filesystems
-  - flocker.node.agents
+  - flocker.volume flocker.node.agents
 
 
 # run_trial_cli contains a list of all the CLI yaml anchors we want to
