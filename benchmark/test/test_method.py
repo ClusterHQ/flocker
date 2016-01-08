@@ -28,13 +28,13 @@ class ITest(Interface):
 
 class MethodTests(TestCase):
 
-    def noargs_is_noargs_method(self):
+    def test_noargs_is_noargs_method(self):
         """
         A no-argument method validates as no-arg method.
         """
         validate_no_arg_method(ITest, 'noargs')
 
-    def hasargs_fails_noargs_method(self):
+    def test_hasargs_fails_noargs_method(self):
         """
         An argument-taking method fails to validate as no-arg method.
         """
@@ -43,7 +43,7 @@ class MethodTests(TestCase):
         )
         self.assertIn('requires parameters', str(exception))
 
-    def not_present_fails_noargs_method(self):
+    def test_not_present_fails_noargs_method(self):
         """
         A non-present method fails to validate as no-arg method.
         """
