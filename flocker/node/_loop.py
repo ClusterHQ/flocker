@@ -264,11 +264,6 @@ class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
         return cls(delay_seconds=delay_seconds*jitter)
 
 
-# How many seconds to sleep between iterations when we may yet not be
-# converged so want to do another iteration again soon:
-_UNCONVERGED_DELAY = _Sleep(delay_seconds=0.1)
-
-
 class ConvergenceLoopStates(Names):
     """
     Convergence loop FSM states.
@@ -407,6 +402,9 @@ class ConvergenceLoop(object):
             # responsive.
             write_traceback()
             changes = None
+        # XXX need to decide whether to wakeup based on sleep interval!
+        # Wake up if not infinite?  Or preserve NoOp compression, turn it
+        # into Sleep compression, and then check for not being Sleep?
         if changes != NoOp():
             self.fsm.receive(ConvergenceLoopInputs.WAKEUP)
 
@@ -485,16 +483,10 @@ class ConvergenceLoop(object):
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state, local_state
             )
-            if action == NoOp():
-                # We've converged, we can sleep for deployer poll
-                # interval. We add some jitter so not all agents wake up
-                # at exactly the same time, to reduce load on system:
-                sleep_duration = _Sleep.with_jitter(
-                    self.deployer.poll_interval.total_seconds())
-            else:
-                # We're going to do some work, we should do another
-                # iteration quickly in case there's followup work:
-                sleep_duration = _UNCONVERGED_DELAY
+            sleep_seconds = get_sleep_interval(action).total_seconds()
+            if sleep_seconds == 0:
+                sleep_seconds = 0.1
+            sleep_duration = _Sleep.with_jitter(sleep_seconds)
 
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
@@ -514,7 +506,7 @@ class ConvergenceLoop(object):
         def error(failure):
             writeFailure(failure, self.fsm.logger)
             # We should retry quickly to redo the failed work:
-            return _UNCONVERGED_DELAY
+            return _Sleep(delay_seconds=0.1)
         d.addErrback(error)
 
         # We're done with the iteration:

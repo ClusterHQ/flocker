@@ -168,13 +168,27 @@ LOG_NOOP = ActionType("flocker:change:noop", [], [], "We've done nothing.")
 
 
 @implementer(IStateChange)
-class NoOp(PClass):
+class Sleep(PClass):
     """
     Do nothing.
     """
+    interval = field(type=timedelta)
+
     @property
     def eliot_action(self):
         return LOG_NOOP()
 
     def run(self, deployer):
         return succeed(None)
+
+def get_sleep_interval(state_change):
+    if isinstance(state_change, Sleep):
+        return state_change.interval
+    if isinstance(state_change, _Sequentially, _InParallel):
+        return min(map(get_sleep_interval, state_change.changes))
+    else:
+        return timedelta(seconds=0)
+
+# BlockDevice does:
+NOTHING_TO_DO = Sleep(interval=timedelta(seconds=60.0))
+WAIT_FOR_REMOTE_DETACH = Sleep(interval=timedelta(seconds=2.0))
