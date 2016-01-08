@@ -56,6 +56,7 @@ def read_request_load_scenario(
 
     :param reactor: Reactor to use.
     :param cluster: ``BenchmarkCluster`` containing the control service.
+    :param method: Method of ``IFlockerAPIV1Client`` to call.
     :param request_rate: The target number of requests per second.
     :param sample_size: The number of samples to collect when measuring
         the rate.
