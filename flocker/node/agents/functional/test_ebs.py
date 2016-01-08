@@ -155,6 +155,7 @@ class EBSBlockDeviceAPIInterfaceTests(
             bad_instance_id
         )
 
+    @flaky(u"FLOC-3832")
     def test_attach_when_foreign_device_has_next_device(self):
         """
         ``attach_volume`` does not attempt to use device paths that are already
