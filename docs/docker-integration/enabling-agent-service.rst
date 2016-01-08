@@ -32,8 +32,6 @@ Once installed, the example provided below runs two simple Docker tests to verif
 
       docker run -v apples:/data --volume-driver flocker busybox sh -c "cat /data/file.txt"
 
-More information about using the Flocker plugin for Docker can be found in :ref:`using-docker-plugin`.
-
 .. include:: ../installation/enabling-agent-service.rst
    :start-after: .. begin-body-enable-agent-nextsteps
    :end-before: .. end-body-enable-agent-nextsteps
