@@ -183,7 +183,6 @@ class read_request_load_scenarioTest(TestCase):
 
         self.assertRaises(RequestScenarioAlreadyStarted, s.start)
 
-
     @capture_logging(None)
     def test_scenario_throws_exception_when_rate_drops(self, _logger):
         """
@@ -235,12 +234,6 @@ class read_request_load_scenarioTest(TestCase):
                                        tolerance_percentage=0.6)
         cluster.get_control_service(c).drop_requests = True
         d = s.start()
-
-        c.pump(repeat(1, sample_size))
-
-        cluster.get_control_service(c).drop_requests = True
-
-        c.pump(repeat(1, sample_size))
         s.maintained().addBoth(lambda x: self.fail())
         d.addCallback(lambda ignored: s.stop())
         # Generate enough samples to finish the scenario

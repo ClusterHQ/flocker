@@ -56,6 +56,10 @@ def read_request_load_scenario(reactor, cluster, request_rate=10,
         the rate.
     :param timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
+    :param tolerance_percentage: error percentage in the rate that is
+        considered valid. For example, if we request a ``request_rate``
+        of 20, and we give a tolerance_percentage of 0.2 (20%), anything
+        in [16,20] will be a valid rate.
 
     :return: a ``RequestLoadScenario`` initialised to be a read load
         scenario.

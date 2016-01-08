@@ -71,6 +71,8 @@ class RequestLoadScenario(object):
     :ivar is_started: boolean that will be set to True once the scenario has
         been started. The scenario cannot be started twice. If someone tries
         to do so, an exception will be raised.
+    :ivar rate_tolerated: rate that will be consigered big enough to be a valid
+        load given the request_rate requested and the tolerance_percentage.
     """
 
     def __init__(
@@ -78,6 +80,20 @@ class RequestLoadScenario(object):
         sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
         tolerance_percentage=0.2
     ):
+        """
+        ``RequestLoadScenario`` constructor.
+
+        :param reactor: Reactor to use.
+        :param scenario_setup_instance: provider of the
+            ``IRequestScenarioSetup`` interface.
+        :param request_rate: target number of request per second.
+        :param sample_size: number of samples to collect when measuring
+            the rate.
+        :param tolerance_percentage: error percentage in the rate that is
+            considered valid. For example, if we request a ``request_rate``
+            of 20, and we give a tolerance_percentage of 0.2 (20%), anything
+            in [16,20] will be a valid rate.
+        """
         self.reactor = reactor
         self.scenario_setup = scenario_setup_instance
         self.request_rate = request_rate
@@ -92,7 +108,9 @@ class RequestLoadScenario(object):
         self.monitor_loop = LoopingCall(self.check_rate)
         self.monitor_loop.clock = self.reactor
         self.is_started = False
-        self.rate_tolerated = float(request_rate) - (request_rate*tolerance_percentage)
+        self.rate_tolerated = (
+            float(request_rate) - (request_rate*tolerance_percentage)
+        )
 
     def _request_and_measure(self, count):
         """
@@ -252,4 +270,3 @@ class RequestLoadScenario(object):
             scenario = DeferredContext(scenario_stopped)
             scenario.addActionFinish()
             return scenario.result
-
