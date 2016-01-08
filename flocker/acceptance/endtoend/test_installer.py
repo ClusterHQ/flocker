@@ -48,16 +48,6 @@ PARAMETERS = [
         'ParameterValue': os.environ['SECRET_ACCESS_KEY']
     }
 ]
-STACK_POLICY = {
-        "Version":"2012-10-17",
-        "Statement" : [
-            {
-                "Effect": "Allow",
-                "Action" : "cloudformation:*",
-                "Resource" : "*"
-            }
-        ]
-}
 
 COMPOSE_NODE0 = '/home/ubuntu/postgres/docker-compose-node0.yml'
 COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
@@ -136,7 +126,8 @@ def cleanup(test_case, local_certs_path):
     user_key = certificates_path.child(b"user1.key")
     user_credential = UserCredential.from_files(user_cert, user_key)
     cluster = Cluster(
-        control_node=ControlService(public_address=test_case.node0.encode("ascii")),
+        control_node=ControlService(
+            public_address=test_case.node0.encode("ascii")),
         nodes=[],
         treq=treq_with_authentication(
             reactor, cluster_cert, user_cert, user_key),
@@ -160,8 +151,8 @@ def cleanup(test_case, local_certs_path):
         test_case.client_ip, test_case.docker_host, COMPOSE_NODE1, 'stop')
     d_node2_compose.addCallback(
         lambda ignored: remote_docker_compose(
-            test_case.client_ip, test_case.docker_host, COMPOSE_NODE1, 'rm', '-f'
-        )
+            test_case.client_ip, test_case.docker_host, COMPOSE_NODE1,
+            'rm', '-f')
     )
 
     d = gather_deferreds([d_node1_compose, d_node2_compose])
@@ -222,7 +213,6 @@ def create_cloudformation_stack():
     output = check_output(
         ['aws', '--region', REGION, 'cloudformation', 'create-stack',
          '--parameters', json.dumps(PARAMETERS),
-         '--stack-policy-body', json.dumps(STACK_POLICY),
          '--stack-name', stack_name,
          '--template-body', S3_CLOUDFORMATION_TEMPLATE]
     )
@@ -276,7 +266,6 @@ class DockerComposeTests(AsyncTestCase):
         self.docker_host = self.node0 + ':2376'
         local_certs_path = self.mktemp()
         print "WAITING FOR CLIENT NODE"
-        time.sleep(180)
         check_call(
             ['scp', '-o', 'StrictHostKeyChecking no', '-r',
              'ubuntu@{}:/etc/flocker'.format(self.client_ip),

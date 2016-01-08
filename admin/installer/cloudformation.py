@@ -9,11 +9,16 @@ from troposphere import FindInMap, GetAtt, Base64, Join
 from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
 from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
-from troposphere.policies import CreationPolicy, ResourceSignal
 from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
 NUM_NODES = 3
-NODE_NAME_TEMPLATE = u"Flocker{index}"
+AGENT_NODE_NAME_TEMPLATE = u"AgentNode{index}"
+CONTROL_NODE_NAME = u"ControlNode"
+CLIENT_NODE_NAME = u"ClientNode"
+INFRA_WAIT_HANDLE_TEMPLATE = u"{node}FlockerSwarmReadySignal"
+INFRA_WAIT_CONDITION_TEMPLATE = u"{node}FlockerSwarmSetup"
+CLIENT_WAIT_HANDLE = u"ClientReadySignal"
+CLIENT_WAIT_CONDITION = u"ClientSetup"
 S3_SETUP = 'setup_s3.sh'
 DOCKER_SETUP = 'setup_docker.sh'
 SWARM_MANAGER_SETUP = 'setup_swarm_manager.sh'
@@ -21,7 +26,7 @@ SWARM_NODE_SETUP = 'setup_swarm_node.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
 FLOCKER_CONFIGURATION_GETTER = 'flocker-configuration-getter.sh'
 CLIENT_SETUP = 'setup_client.sh'
-SIGNAL_CREATION_POLICY = 'signal_creation_policy.sh'
+SIGNAL_CONFIG_COMPLETION = 'signal_config_completion.sh'
 
 
 def sibling_lines(filename):
@@ -97,21 +102,11 @@ base_user_data = [
     'apt-get update\n',
 ]
 
-creation_policy = CreationPolicy(
-    ResourceSignal=ResourceSignal(Count=1,
-                                  Timeout='PT5M'))
-
 for i in range(NUM_NODES):
-    node_name = NODE_NAME_TEMPLATE.format(index=i)
-
-    wait_condition_handle = template.add_resource(
-        WaitConditionHandle("{}WaitHandle".format(node_name)))
-    wait_condition = template.add_resource(
-        WaitCondition("{}WaitCondition".format(node_name),
-                      Handle=Ref(wait_condition_handle),
-                      Timeout="300",
-                      )
-    )
+    if i == 0:
+        node_name = CONTROL_NODE_NAME
+    else:
+        node_name = AGENT_NODE_NAME_TEMPLATE.format(index=i)
 
     ec2_instance = ec2.Instance(
         node_name,
@@ -120,8 +115,18 @@ for i in range(NUM_NODES):
         KeyName=Ref(keyname_param),
         SecurityGroups=[Ref(instance_sg)],
         AvailabilityZone=zone,
-        # CreationPolicy=creation_policy
     )
+
+    wait_condition_handle = WaitConditionHandle(
+        INFRA_WAIT_HANDLE_TEMPLATE.format(node=node_name))
+    template.add_resource(wait_condition_handle)
+    wait_condition = WaitCondition(
+        INFRA_WAIT_CONDITION_TEMPLATE.format(node=node_name),
+        Handle=Ref(wait_condition_handle),
+        Timeout="600",
+    )
+    template.add_resource(wait_condition)
+
     user_data = base_user_data[:]
     user_data += [
         'node_number="{}"\n'.format(i),
@@ -157,21 +162,34 @@ for i in range(NUM_NODES):
         ])
 
     user_data += sibling_lines(FLOCKER_CONFIGURATION_GETTER)
-    user_data += sibling_lines(SIGNAL_CREATION_POLICY)
+    user_data += sibling_lines(SIGNAL_CONFIG_COMPLETION)
     ec2_instance.UserData = Base64(Join("", user_data))
     template.add_resource(ec2_instance)
 
 client_instance = ec2.Instance(
-    'Client',
+    CLIENT_NODE_NAME,
     ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "ClientAMI"),
-    InstanceType="t2.micro",
+    InstanceType="m3.large",
     KeyName=Ref(keyname_param),
     SecurityGroups=[Ref(instance_sg)],
     AvailabilityZone=zone,
 )
+wait_condition_handle = WaitConditionHandle(CLIENT_WAIT_HANDLE)
+template.add_resource(wait_condition_handle)
+wait_condition = WaitCondition(
+    CLIENT_WAIT_CONDITION,
+    Handle=Ref(wait_condition_handle),
+    Timeout="600",
+)
+template.add_resource(wait_condition)
+
 user_data = base_user_data[:]
+user_data += [
+    'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
+]
 user_data += sibling_lines(S3_SETUP)
 user_data += sibling_lines(CLIENT_SETUP)
+user_data += sibling_lines(SIGNAL_CONFIG_COMPLETION)
 
 client_instance.UserData = Base64(Join("", user_data))
 client_instance.DependsOn = control_service_instance.name
