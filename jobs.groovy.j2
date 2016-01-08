@@ -290,7 +290,7 @@ def build_publishers(v) {
     currently only shell has been implemented.
 
     params job: dictionary the job steps (``with_steps``) */
-def build_steps(job_name, job) {
+def build_steps(dash_project, dash_branch_name, job_name, job) {
     return {
         for (_step in job.with_steps) {
             if (_step.type == 'shell') {
@@ -366,7 +366,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
                                          '${WORKSPACE}/.hypothesis']
                 wrappers build_wrappers(job_values, directories_to_delete)
                 scm build_scm(git_url, branchName)
-                steps build_steps(_job_name, job_values)
+                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
                 publishers build_publishers(job_values)
             }
         }
@@ -391,7 +391,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
                                          '${WORKSPACE}/.hypothesis']
                 wrappers build_wrappers(job_values, directories_to_delete)
                 scm build_scm(git_url, branchName)
-                steps build_steps(_job_name, job_values)
+                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
                 publishers build_publishers(job_values)
             }
         }
@@ -410,7 +410,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
             scm build_scm(git_url, branchName)
             // There is no module part for sphinx jobs so we can use job_name
             // unmodified.
-            steps build_steps(job_name, job_values)
+            steps build_steps(dashProject, dashBranchName, job_name, job_values)
         }
     }
 
@@ -437,7 +437,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
                 directories_to_delete = ['${WORKSPACE}/repo' ]
                 wrappers build_wrappers(job_values, directories_to_delete)
                 scm build_scm(git_url, branchName)
-                steps build_steps(_job_name, job_values)
+                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
                 publishers build_publishers(job_values)
             }
         }
@@ -464,7 +464,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
             scm build_scm(git_url, branchName)
             // There is no module for run_client jobs so we can use job_name
             // unmodified.
-            steps build_steps(job_name, job_values)
+            steps build_steps(dashProject, dashBranchName, job_name, job_values)
             publishers build_publishers(job_values)
         }
     }
@@ -479,7 +479,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
             scm build_scm("${git_url}", "${branchName}")
             // There is no module for omnibus jobs so we can use job_name
             // unmodified.
-            steps build_steps(job_name, job_values)
+            steps build_steps(dashProject, dashBranchName, job_name, job_values)
         }
     }
 
@@ -494,7 +494,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
             scm build_scm(git_url, branchName)
             // There is no module for lint jobs so we can use job_name
             // unmodified.
-            steps build_steps(job_name, job_values)
+            steps build_steps(dashProject, dashBranchName, job_name, job_values)
         }
     }
 }
@@ -724,7 +724,7 @@ for (job_type_entry in GLOBAL_CONFIG.job_type) {
                 wrappers build_wrappers(job_values, [])
                 triggers build_triggers('cron', job_values.at, "${branchName}")
                 scm build_scm("${git_url}", "${branchName}")
-                steps build_steps(_job_name, job_values)
+                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
             }
         }
     }
