@@ -12,9 +12,7 @@ Prerequisites
 Before you begin to configure authentication for your cluster, you will need to have completed the following:
 
 * Installed the ``flocker-cli`` on your local machine.
-  For more information, see :ref:`installing-flocker-cli`.
 * Installed ``flocker-node`` on each of your nodes.
-  For more information, see :ref:`installing-flocker-node`.
 * Chosen on which of your nodes you want to host the Flocker control service.
 
 Summary
