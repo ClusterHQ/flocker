@@ -35,7 +35,6 @@ ClusterHQ supported drivers:
 
 * Amazon AWS EBS
 * Anything that supports the OpenStack Cinder API
-* Local storage using our ZFS driver (currently Experimental)
 
 Community supported drivers:
 
@@ -43,6 +42,7 @@ Community supported drivers:
 * Dell SC Series
 * EMC ScaleIO
 * EMC XtremIO
+* EMC VMAX
 * Hedvig
 * Huawei
 * NetApp OnTap

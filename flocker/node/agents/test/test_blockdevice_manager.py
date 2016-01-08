@@ -6,15 +6,23 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 
 from uuid import uuid4
 
+from testtools import ExpectedException
+from testtools.matchers import Not, FileExists
+
 from zope.interface.verify import verifyObject
-from ....testtools import AsyncTestCase
+
+from ....testtools import TestCase
 
 from ..blockdevice_manager import (
-    IBlockDeviceManager,
+    BindMountError,
     BlockDeviceManager,
-    MountInfo,
+    IBlockDeviceManager,
     MakeFilesystemError,
+    MakeTmpfsMountError,
     MountError,
+    MountInfo,
+    Permissions,
+    RemountError,
     UnmountError,
 )
 
@@ -25,7 +33,7 @@ from .test_blockdevice import (
 )
 
 
-class BlockDeviceManagerTests(AsyncTestCase):
+class BlockDeviceManagerTests(TestCase):
     """
     Tests for flocker.node.agents.blockdevice_manager.BlockDeviceManager.
     """
@@ -34,6 +42,7 @@ class BlockDeviceManagerTests(AsyncTestCase):
         """
         Establish testing infrastructure for test cases.
         """
+        super(BlockDeviceManagerTests, self).setUp()
         self.loopback_api = loopbackblockdeviceapi_for_test(self)
         self.manager_under_test = BlockDeviceManager()
         self.mountroot = mountroot_for_test(self)
@@ -156,3 +165,95 @@ class BlockDeviceManagerTests(AsyncTestCase):
         blockdevice = self._get_free_blockdevice()
         with self.assertRaisesRegexp(MakeFilesystemError, blockdevice.path):
             self.manager_under_test.make_filesystem(blockdevice, 'myfakeyfs')
+
+    def test_bind_mount(self):
+        """
+        Files created in a bind mount are visible in the original folder and
+        vice versa.
+        """
+        src_directory = self._get_directory_for_mount()
+        target_directory = self._get_directory_for_mount()
+        self.manager_under_test.bind_mount(src_directory, target_directory)
+        for create, view in [(target_directory, src_directory),
+                             (src_directory, target_directory)]:
+            filename = str(uuid4())
+            new_file = create.child(filename)
+            new_file.touch()
+            self.expectThat(view.child(filename).path, FileExists(),
+                            'Created file not visible through bind mount.')
+
+    def test_failing_bind_mount(self):
+        """
+        Attempts to bind mount to a mountpoint that does not exist fail with a
+        ``BindMountError``.
+        """
+        src_directory = self._get_directory_for_mount()
+        target_directory = self._get_directory_for_mount().child('nonexistent')
+        with ExpectedException(BindMountError, '.*nonexistent.*'):
+            self.manager_under_test.bind_mount(src_directory, target_directory)
+
+    def test_remount(self):
+        """
+        Mounts remounted read-only cannot be written to until they are
+        remounted read-write.
+        """
+        blockdevice = self._get_free_blockdevice()
+        mountpoint = self._get_directory_for_mount()
+        self.manager_under_test.make_filesystem(blockdevice, 'ext4')
+        self.manager_under_test.mount(blockdevice, mountpoint)
+
+        first_file = mountpoint.child(str(uuid4()))
+        second_file = mountpoint.child(str(uuid4()))
+        third_file = mountpoint.child(str(uuid4()))
+
+        first_file.touch()
+        self.expectThat(first_file.path, FileExists())
+
+        self.manager_under_test.remount(mountpoint, Permissions.READ_ONLY)
+        self.expectThat(first_file.path, FileExists())
+
+        with ExpectedException(OSError):
+            second_file.touch()
+        self.expectThat(second_file.path, Not(FileExists()))
+
+        self.manager_under_test.remount(mountpoint, Permissions.READ_WRITE)
+        self.expectThat(first_file.path, FileExists())
+        self.expectThat(second_file.path, Not(FileExists()))
+        third_file.touch()
+        self.expectThat(third_file.path, FileExists())
+
+    def test_remount_failure(self):
+        """
+        Remounts of a folder that is not mounted fail with ``RemountError``.
+        """
+        unmounted_directory = self._get_directory_for_mount()
+        with ExpectedException(RemountError):
+            self.manager_under_test.remount(unmounted_directory,
+                                            Permissions.READ_WRITE)
+
+    def test_make_tmpfs_mount(self):
+        """
+        make_tmpfs_mount should create a tmpfs mountpoint that can be written
+        to. Once the mount is unmounted all files should be gone.
+        """
+        mountpoint = self._get_directory_for_mount()
+
+        test_file = mountpoint.child(unicode(uuid4()))
+
+        self.manager_under_test.make_tmpfs_mount(mountpoint)
+        self.expectThat(test_file.path, Not(FileExists()))
+        test_file.touch()
+        self.expectThat(test_file.path, FileExists(),
+                        'File did not exist after being touched on tmpfs.')
+        self.manager_under_test.unmount(mountpoint)
+        self.expectThat(test_file.path, Not(FileExists()),
+                        'File persisted after tmpfs mount unmounted')
+
+    def test_make_tmpfs_mount_failure(self):
+        """
+        make_tmpfs_mount errors with a ``MakeTmpfsMountError`` if the mount
+        point does not exist.
+        """
+        non_existent = self._get_directory_for_mount().child('non_existent')
+        with ExpectedException(MakeTmpfsMountError, '.*non_existent.*'):
+            self.manager_under_test.make_tmpfs_mount(non_existent)

@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Unit tests for IPC.
@@ -6,12 +6,10 @@ Unit tests for IPC.
 
 from __future__ import absolute_import
 
-from unittest import TestCase as PyTestCase
-
 from zope.interface.verify import verifyObject
 
 from .. import INode, FakeNode
-from ...testtools import assertNoFDsLeaked
+from ...testtools import TestCase, assertNoFDsLeaked
 
 
 def make_inode_tests(fixture):
@@ -21,7 +19,7 @@ def make_inode_tests(fixture):
     :param fixture: A fixture that returns a :class:`INode` provider which
         will work with any arbitrary valid program with arguments.
     """
-    class INodeTests(PyTestCase):
+    class INodeTests(TestCase):
         """Tests for :class:`INode` implementors.
 
         May be functional tests depending on the fixture.
@@ -47,9 +45,11 @@ def make_inode_tests(fixture):
             Exceptions raised in the context manager are not swallowed.
             """
             node = fixture(self)
-            with self.assertRaises(RuntimeError):
+
+            def run_node():
                 with node.run([b"cat"]):
                     raise RuntimeError()
+            self.assertRaises(RuntimeError, run_node)
 
         def test_run_no_fd_leakage_exceptions(self):
             """

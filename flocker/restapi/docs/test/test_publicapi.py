@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
 Tests for ``flocker.restapi.docs.publicapi``.
 """
@@ -6,10 +6,12 @@ Tests for ``flocker.restapi.docs.publicapi``.
 from yaml import safe_dump
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.reflect import namedModule
 
 from klein import Klein
+
+from ....testtools import TestCase
+
 
 try:
     namedModule("sphinxcontrib")
@@ -26,7 +28,7 @@ else:
 from ..._infrastructure import user_documentation, structured, private_api
 
 
-class GetRoutesTests(SynchronousTestCase):
+class GetRoutesTests(TestCase):
     """
     Tests for L{getRoutes}.
     """
@@ -55,7 +57,7 @@ class GetRoutesTests(SynchronousTestCase):
                        attributes={'attr': 'G'})])
 
 
-class MakeRstTests(SynchronousTestCase):
+class MakeRstTests(TestCase):
     """
     Tests for L{makeRst}.
     """
@@ -709,7 +711,7 @@ class MakeRstTests(SynchronousTestCase):
             ])
 
 
-class FormatExampleTests(SynchronousTestCase):
+class FormatExampleTests(TestCase):
     """
     Tests for L{_formatExample}.
     """
@@ -780,7 +782,7 @@ class FormatExampleTests(SynchronousTestCase):
              u''], lines)
 
 
-class LoadExamplesTests(SynchronousTestCase):
+class LoadExamplesTests(TestCase):
     """
     Tests for L{_loadExamples}.
     """
@@ -808,7 +810,7 @@ class LoadExamplesTests(SynchronousTestCase):
         self.assertRaises(Exception, _loadExamples, path)
 
 
-class VariableInterpolationTests(SynchronousTestCase):
+class VariableInterpolationTests(TestCase):
     """
     Tests for interpolation into route bodies done by L{makeRst}.
     """
@@ -873,7 +875,7 @@ class VariableInterpolationTests(SynchronousTestCase):
         )
 
 
-class ExampleFromDictionaryTests(SynchronousTestCase):
+class ExampleFromDictionaryTests(TestCase):
     """
     Tests for ``Example.fromDictionary``.
     """

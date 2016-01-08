@@ -45,12 +45,6 @@ AWS_REQUEST_ID = Field.for_types(
     u"The unique identifier assigned by the server for this request.",
 )
 
-# Structures to help log ``boto.exception.EC2ResponseError`` from AWS.
-BOTO_EC2RESPONSE_ERROR = MessageType(
-    u"flocker:node:agents:blockdevice:aws:boto_ec2response_error",
-    [AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID],
-)
-
 DEVICES = Field.for_types(
     u"devices", [list],
     u"List of devices currently in use by the compute instance.")
@@ -110,6 +104,14 @@ CREATE_VOLUME_FAILURE = MessageType(
 BOTO_LOG_HEADER = u'flocker:node:agents:blockdevice:aws:boto_logs'
 
 BOTO_LOG_RESULT = u'flocker:node:agents:blockdevice:aws:boto_result'
+
+VOLUME_BUSY_MESSAGE = MessageType(
+    u"flocker:node:agents:blockdevice:aws:volume_busy",
+    [
+        Field.for_types("attachments", [list], u"Known volume attachments."),
+        Field.for_types("volume_id", [bytes, unicode], u"The blockdevice ID."),
+    ],
+)
 # End: Helper datastructures used by AWS storage driver.
 
 # Begin: Helper datastructures used by OpenStack storage drivers

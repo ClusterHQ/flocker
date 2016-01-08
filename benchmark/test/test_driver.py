@@ -7,15 +7,18 @@ from itertools import count, repeat
 
 from zope.interface import implementer
 
+from eliot.testing import capture_logging
+
 from twisted.internet.defer import Deferred, succeed, fail
-from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from benchmark._driver import benchmark, sample
 from benchmark._interfaces import IScenario, IProbe, IOperation, IMetric
 
+from flocker.testtools import AsyncTestCase, TestCase
+
 
 @implementer(IMetric)
-class FakeMetric:
+class FakeMetric(object):
 
     def __init__(self, measurements):
         """
@@ -34,7 +37,7 @@ class FakeMetric:
 
 
 @implementer(IProbe)
-class FakeProbe:
+class FakeProbe(object):
     """
     A probe performs a single operation, which can be timed.
     """
@@ -52,7 +55,7 @@ class FakeProbe:
 
 
 @implementer(IOperation)
-class FakeOperation:
+class FakeOperation(object):
 
     def __init__(self, succeeds):
         """
@@ -65,8 +68,15 @@ class FakeOperation:
         return FakeProbe(next(self.succeeds))
 
 
+@implementer(IOperation)
+class BrokenGetProbeOperation(object):
+
+    def get_probe(self):
+        return fail(RuntimeError('get_probe failed'))
+
+
 @implementer(IScenario)
-class FakeScenario:
+class FakeScenario(object):
 
     def __init__(self, maintained=Deferred()):
         self._maintained = maintained
@@ -81,12 +91,13 @@ class FakeScenario:
         return succeed(None)
 
 
-class SampleTest(SynchronousTestCase):
+class SampleTest(TestCase):
     """
     Test sample function.
     """
 
-    def test_good_probe(self):
+    @capture_logging(None)
+    def test_good_probe(self, logger):
         """
         Sampling returns value when probe succeeds.
         """
@@ -95,7 +106,8 @@ class SampleTest(SynchronousTestCase):
         self.assertEqual(
             self.successResultOf(sampled), {'success': True, 'value': 5})
 
-    def test_bad_probe(self):
+    @capture_logging(None)
+    def test_bad_probe(self, logger):
         """
         Sampling returns reason when probe fails.
         """
@@ -112,16 +124,33 @@ class SampleTest(SynchronousTestCase):
             self.successResultOf(sampled), {'success': False, 'reason': str}
         )
 
+    @capture_logging(None)
+    def test_failed_get_probe(self, logger):
+        """
+        Sampling returns reason when get_probe fails.
+        """
+        sampled = sample(
+            BrokenGetProbeOperation(), FakeMetric(repeat(5)), 1)
 
-class BenchmarkTest(TestCase):
+        result = self.successResultOf(sampled)
+
+        self.assertFalse(result['success'])
+        self.assertIn('get_probe failed', result['reason'])
+
+
+class BenchmarkTest(AsyncTestCase):
     """
     Test benchmark function.
     """
-    # Test using `TestCase` rather than `SynchronousTestCase` because
-    # the `benchmark` function uses `twisted.task.cooperate`, which uses
-    # the global reactor.
+    # Test using `AsyncTestCase` rather than `TestCase` because the
+    # `benchmark` function uses `twisted.task.cooperate`, which uses the
+    # global reactor.
+    #
+    # This could be fixed by making the cooperator to use a parameter and
+    # supplying one driven by a fake IReactorTime (eg Clock).
 
-    def test_good_probes(self):
+    @capture_logging(None)
+    def test_good_probes(self, logger):
         """
         Sampling returns results when probes succeed.
         """
@@ -137,7 +166,8 @@ class BenchmarkTest(TestCase):
         samples_ready.addCallback(check)
         return samples_ready
 
-    def test_bad_probes(self):
+    @capture_logging(None)
+    def test_bad_probes(self, logger):
         """
         Sampling returns reasons when probes fail.
         """
@@ -168,3 +198,19 @@ class BenchmarkTest(TestCase):
             FakeMetric(count(5)),
             3)
         self.assertFailure(samples_ready, RuntimeError)
+
+    @capture_logging(None)
+    def test_sample_count(self, _logger):
+        """
+        The sample count determines the number of samples.
+        """
+        samples_ready = benchmark(
+            FakeScenario(),
+            FakeOperation(repeat(True)),
+            FakeMetric(count(5)),
+            5)
+
+        def check(samples):
+            self.assertEqual(len(samples), 5)
+        samples_ready.addCallback(check)
+        return samples_ready

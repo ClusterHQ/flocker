@@ -1,9 +1,8 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
 Tests for :module:`admin.vagrant`.
 """
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 
@@ -11,9 +10,10 @@ from admin.vagrant import (
     box_metadata, BuildOptions)
 
 from flocker import __version__ as flocker_version
+from flocker.testtools import TestCase
 
 
-class BuildOptionsTest(SynchronousTestCase):
+class BuildOptionsTest(TestCase):
     """
     Tests for :class:`admin.vagrant.BuildOptions`.
     """
@@ -88,7 +88,7 @@ class BuildOptionsTest(SynchronousTestCase):
         self.assertRaises(UsageError, options.parseOptions, [])
 
 
-class MetadataTests(SynchronousTestCase):
+class MetadataTests(TestCase):
     """
     Tests for :func:`box_metadata`.
     """

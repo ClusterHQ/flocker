@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 # -*- test-case-name: flocker.control.test.test_model -*-
 
 """
@@ -151,7 +151,7 @@ class DockerImage(PClass):
 
     @property
     def full_name(self):
-        return "{repository}:{tag}".format(
+        return u"{repository}:{tag}".format(
             repository=self.repository, tag=self.tag)
 
     @classmethod

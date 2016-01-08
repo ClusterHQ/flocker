@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.node._loop``.
@@ -15,7 +15,6 @@ from machinist import LOG_FSM_TRANSITION
 
 from pyrsistent import pset
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactorClock
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred, fail
@@ -28,13 +27,13 @@ from twisted.test.iosim import connectedServerAndClient
 from ...testtools.amp import (
     FakeAMPClient, DelayedAMPClient, connected_amp_protocol,
 )
-from ...testtools import CustomException
+from ...testtools import CustomException, TestCase
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     LOG_SEND_TO_CONTROL_SERVICE,
-    LOG_CONVERGE, LOG_CALCULATED_ACTIONS,
+    LOG_CONVERGE, LOG_CALCULATED_ACTIONS, LOG_DISCOVERY,
     _UNCONVERGED_DELAY, _Sleep,
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node
@@ -58,11 +57,12 @@ class StubFSM(object):
         self.inputted.append(symbol)
 
 
-class ClusterStatusFSMTests(SynchronousTestCase):
+class ClusterStatusFSMTests(TestCase):
     """
     Tests for the cluster status FSM.
     """
     def setUp(self):
+        super(ClusterStatusFSMTests, self).setUp()
         self.convergence_loop = StubFSM()
         self.fsm = build_cluster_status_fsm(self.convergence_loop)
 
@@ -247,7 +247,7 @@ def no_action():
     return ControllableAction(result=succeed(None))
 
 
-class SleepTests(SynchronousTestCase):
+class SleepTests(TestCase):
     """
     Tests for ``_Sleep``.
     """
@@ -270,7 +270,7 @@ class SleepTests(SynchronousTestCase):
                  spread=True))
 
 
-class ConvergenceLoopFSMTests(SynchronousTestCase):
+class ConvergenceLoopFSMTests(TestCase):
     """
     Tests for FSM created by ``build_convergence_loop_fsm``.
     """
@@ -325,7 +325,19 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                 )
         return client
 
-    @validate_logging(assertHasAction, LOG_SEND_TO_CONTROL_SERVICE, True)
+    def assert_discovery_and_send_logged(self, logger):
+        """
+        Discovery action was logged in context of the convergence iteration
+        action.
+        """
+        discovery = assertHasAction(self, logger, LOG_DISCOVERY, True)
+        convergence = assertHasAction(self, logger, LOG_CONVERGE, True)
+        send = assertHasAction(
+            self, logger, LOG_SEND_TO_CONTROL_SERVICE, True)
+        self.assertIn(discovery, convergence.children)
+        self.assertIn(send, convergence.children)
+
+    @capture_logging(assert_discovery_and_send_logged)
     def test_convergence_done_notify(self, logger):
         """
         A FSM doing convergence that gets a discovery result, sends the
@@ -334,7 +346,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         local_state = NodeState(hostname=u"192.0.2.123")
         client = self.make_amp_client([local_state])
-        action = ControllableAction(result=Deferred())
+        action = ControllableAction(result=succeed(None))
         deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state)], [action]
         )
@@ -1124,11 +1136,12 @@ class UpdateNodeEraLocator(CommandLocator):
         return {}
 
 
-class AgentLoopServiceTests(SynchronousTestCase):
+class AgentLoopServiceTests(TestCase):
     """
     Tests for ``AgentLoopService``.
     """
     def setUp(self):
+        super(AgentLoopServiceTests, self).setUp()
         self.deployer = ControllableDeployer(u"127.0.0.1", [], [])
         self.reactor = MemoryReactorClock()
         self.service = AgentLoopService(

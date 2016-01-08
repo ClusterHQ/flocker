@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.node._config``.
@@ -11,8 +11,8 @@ from uuid import uuid4, UUID
 from pyrsistent import pmap
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase
 
+from ...testtools import TestCase
 from .._config import (
     ConfigurationError, FlockerConfiguration,
     deployment_from_configuration,
@@ -71,7 +71,7 @@ COMPLEX_DEPLOYMENT_YAML = {
 }
 
 
-class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
+class ApplicationsFromFigConfigurationTests(TestCase):
     """
     Tests for ``Configuration._applications_from_configuration``.
     """
@@ -912,7 +912,7 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         self.assertEqual(exception.message, error_message)
 
 
-class ApplicationsFromConfigurationTests(SynchronousTestCase):
+class ApplicationsFromConfigurationTests(TestCase):
     """
     Tests for ``FlockerConfiguration.applications`` and the private methods
     that it calls.
@@ -2124,7 +2124,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         )
 
 
-class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
+class FlockerConfigurationRestartPolicyParsingTests(TestCase):
     """
     Tests for the parsing of Flocker restart policy configuration.
     """
@@ -2371,7 +2371,7 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
         )
 
 
-class DeploymentFromConfigurationTests(SynchronousTestCase):
+class DeploymentFromConfigurationTests(TestCase):
     """
     Tests for ``deployment_from_configuration``.
     """
@@ -2574,7 +2574,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(expected, result)
 
 
-class ModelFromConfigurationTests(SynchronousTestCase):
+class ModelFromConfigurationTests(TestCase):
     """
     Tests for ``Configuration.model_from_configuration``.
     """
@@ -2685,7 +2685,7 @@ def check_marshalled_restart_policy(test_case, policy_type, **attributes):
     )
 
 
-class ApplicationMarshallerConvertRestartPolicyTests(SynchronousTestCase):
+class ApplicationMarshallerConvertRestartPolicyTests(TestCase):
     """
     Tests for ``ApplicationMarshaller.convert_restart_policy``.
     """
@@ -2715,7 +2715,7 @@ class ApplicationMarshallerConvertRestartPolicyTests(SynchronousTestCase):
             self, RestartOnFailure, maximum_retry_count=10)
 
 
-class ApplicationConfigurationErrorTests(SynchronousTestCase):
+class ApplicationConfigurationErrorTests(TestCase):
     """
     """
     def test_attributes(self):
@@ -2753,7 +2753,7 @@ class ApplicationConfigurationErrorTests(SynchronousTestCase):
         )
 
 
-class DatasetIdFromNameTests(SynchronousTestCase):
+class DatasetIdFromNameTests(TestCase):
     """
     Tests for ``dataset_id_from_name``.
     """

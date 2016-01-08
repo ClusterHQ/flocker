@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Functional tests for IPC.
@@ -6,11 +6,11 @@ Functional tests for IPC.
 
 from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase
 
 from .. import ProcessNode
 from ..test.test_ipc import make_inode_tests
 from ...testtools.ssh import create_ssh_server
+from ...testtools import AsyncTestCase, TestCase
 
 
 def make_prefixless_processnode(test_case):
@@ -110,7 +110,7 @@ def make_sshnode(test_case):
         username=b"root", private_key=server.key_path)
 
 
-class SSHProcessNodeTests(TestCase):
+class SSHProcessNodeTests(AsyncTestCase):
     """Tests for ``ProcessNode.with_ssh``."""
 
     def test_runs_command(self):

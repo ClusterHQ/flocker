@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Local node manager for Flocker.
@@ -12,11 +12,13 @@ from ._deploy import (
     IDeployer,
     ILocalState,
     NodeLocalState,
-    P2PManifestationDeployer,
-    ApplicationNodeDeployer,
 )
+from ._container import ApplicationNodeDeployer
+from ._p2p import P2PManifestationDeployer
 
 from .script import BackendDescription, DeployerType
+
+from ._docker import dockerpy_client
 
 
 __all__ = [
@@ -26,4 +28,6 @@ __all__ = [
     'ApplicationNodeDeployer',
     'run_state_change', 'in_parallel', 'sequentially',
     'BackendDescription', 'DeployerType',
+
+    'dockerpy_client',
 ]

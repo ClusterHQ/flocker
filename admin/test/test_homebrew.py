@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
 Tests for :module:`admin.homebrew`.
 """
@@ -6,7 +6,6 @@ Tests for :module:`admin.homebrew`.
 import gzip
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 
 from requests.exceptions import HTTPError
@@ -17,8 +16,10 @@ from admin.homebrew import (
     format_resource_stanzas, get_recipe,
 )
 
+from flocker.testtools import TestCase
 
-class HomebrewOptionsTests(SynchronousTestCase):
+
+class HomebrewOptionsTests(TestCase):
     """
     Tests for :class:`HomebrewOptions`.
     """
@@ -53,7 +54,7 @@ class HomebrewOptionsTests(SynchronousTestCase):
              '--sdist', 'mysdist'])
 
 
-class GetChecksumTests(SynchronousTestCase):
+class GetChecksumTests(TestCase):
     """
     Tests for :func:`get_checksum`.
     """
@@ -94,13 +95,16 @@ class GetChecksumTests(SynchronousTestCase):
         If a requested file is not available in the repository, a 404 error is
         raised.
         """
-        with self.assertRaises(HTTPError) as exception:
-            get_checksum(url='file://' + FilePath(self.mktemp()).path)
+        exception = self.assertRaises(
+            HTTPError,
+            get_checksum,
+            url='file://' + FilePath(self.mktemp()).path,
+        )
 
-        self.assertEqual(404, exception.exception.response.status_code)
+        self.assertEqual(404, exception.response.status_code)
 
 
-class GetRequirementsTests(SynchronousTestCase):
+class GetRequirementsTests(TestCase):
     """
     Tests for :func:`get_requirements`.
     """
@@ -125,7 +129,7 @@ class GetRequirementsTests(SynchronousTestCase):
         )
 
 
-class GetClassNameTests(SynchronousTestCase):
+class GetClassNameTests(TestCase):
     """
     Tests for :func:`get_class_name`.
     """
@@ -155,7 +159,7 @@ class GetClassNameTests(SynchronousTestCase):
             'Flocker030444G05215b')
 
 
-class FormatResourceStanzasTests(SynchronousTestCase):
+class FormatResourceStanzasTests(TestCase):
     """
     Tests for :func:`format_resource_stanzas`.
     """
@@ -189,7 +193,7 @@ class FormatResourceStanzasTests(SynchronousTestCase):
         self.assertEqual(expected, format_resource_stanzas(resources))
 
 
-class GetRecipeTests(SynchronousTestCase):
+class GetRecipeTests(TestCase):
     """
     Tests for :func:`get_recipe`.
     """

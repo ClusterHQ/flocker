@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.control._persistence``.
@@ -20,11 +20,11 @@ from hypothesis.extra.datetime import datetimes
 
 from twisted.internet import reactor
 from twisted.internet.task import Clock
-from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from pyrsistent import PClass, pset
 
+from ...testtools import AsyncTestCase, TestCase
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
@@ -66,11 +66,12 @@ V1_TEST_DEPLOYMENT_JSON = FilePath(__file__).sibling(
     'configurations').child(b"configuration_v1.json").getContent()
 
 
-class LeasesTests(TestCase):
+class LeasesTests(AsyncTestCase):
     """
     Tests for ``LeaseService`` and ``update_leases``.
     """
     def setUp(self):
+        super(LeasesTests, self).setUp()
         self.clock = Clock()
         self.persistence_service = ConfigurationPersistenceService(
             self.clock, FilePath(self.mktemp()))
@@ -180,7 +181,7 @@ class LeasesTests(TestCase):
         return d
 
 
-class ConfigurationPersistenceServiceTests(TestCase):
+class ConfigurationPersistenceServiceTests(AsyncTestCase):
     """
     Tests for ``ConfigurationPersistenceService``.
     """
@@ -505,7 +506,7 @@ class StubMigration(object):
         return json.dumps({"version": 3, "configuration": "fake"})
 
 
-class MigrateConfigurationTests(SynchronousTestCase):
+class MigrateConfigurationTests(TestCase):
     """
     Tests for ``migrate_configuration``.
     """
@@ -649,7 +650,7 @@ DEPLOYMENTS = st.builds(
 SUPPORTED_VERSIONS = st.integers(1, _CONFIG_VERSION)
 
 
-class WireEncodeDecodeTests(SynchronousTestCase):
+class WireEncodeDecodeTests(TestCase):
     """
     Tests for ``to_unserialized_json``, ``wire_encode`` and ``wire_decode``.
     """
@@ -725,7 +726,7 @@ class WireEncodeDecodeTests(SynchronousTestCase):
         self.assertRaises(ValueError, wire_encode, datetime.now())
 
 
-class ConfigurationMigrationTests(SynchronousTestCase):
+class ConfigurationMigrationTests(TestCase):
     """
     Tests for ``ConfigurationMigration`` class that performs individual
     configuration upgrades.

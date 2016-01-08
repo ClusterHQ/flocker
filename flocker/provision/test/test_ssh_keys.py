@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for :module:`flocker.provision._ssh._keys`.
@@ -6,16 +6,15 @@ Tests for :module:`flocker.provision._ssh._keys`.
 
 import os
 
-from twisted.internet import reactor
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase
 
 from flocker.testtools.ssh import create_ssh_agent, generate_ssh_key
 
+from ...testtools import AsyncTestCase
 from .._ssh._keys import ensure_agent_has_ssh_key, KeyNotFound, AgentNotFound
 
 
-class EnsureKeyTests(TestCase):
+class EnsureKeyTests(AsyncTestCase):
     """
     Tests for ``ensure_agent_has_ssh_key``.
     """
@@ -30,7 +29,7 @@ class EnsureKeyTests(TestCase):
 
         create_ssh_agent(key_file, self)
 
-        result = ensure_agent_has_ssh_key(reactor, key)
+        result = ensure_agent_has_ssh_key(self.reactor, key)
         # No assertion, since the deferred should fire with a
         # successful result.
         return result
@@ -45,7 +44,7 @@ class EnsureKeyTests(TestCase):
 
         create_ssh_agent(key_file, self)
 
-        result = ensure_agent_has_ssh_key(reactor, key)
+        result = ensure_agent_has_ssh_key(self.reactor, key)
         # No assertion, since the deferred should fire with a
         # successful result.
         return result
@@ -62,7 +61,7 @@ class EnsureKeyTests(TestCase):
 
         other_key = generate_ssh_key(FilePath(self.mktemp())).public()
 
-        result = ensure_agent_has_ssh_key(reactor, other_key)
+        result = ensure_agent_has_ssh_key(self.reactor, other_key)
         return self.assertFailure(result, KeyNotFound)
 
     def test_agent_not_found(self):
@@ -82,5 +81,5 @@ class EnsureKeyTests(TestCase):
         key_file = FilePath(self.mktemp())
         key = generate_ssh_key(key_file)
         return self.assertFailure(
-            ensure_agent_has_ssh_key(reactor, key),
+            ensure_agent_has_ssh_key(self.reactor, key),
             AgentNotFound)

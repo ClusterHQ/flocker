@@ -1,6 +1,6 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Run the control service benchmarks.
+Run the Flocker benchmarks.
 """
 
 from datetime import datetime
@@ -10,17 +10,19 @@ import os
 from platform import node, platform
 import sys
 
-from jsonschema import FormatChecker, Draft4Validator
+from jsonschema import FormatChecker, Draft4Validator, ValidationError
 import yaml
 
 from eliot import to_file
 
 from twisted.internet.task import react
+from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
 from flocker import __version__ as flocker_client_version
 
 from benchmark import metrics, operations, scenarios
+from benchmark.cluster import BenchmarkCluster
 from benchmark._driver import driver
 
 
@@ -31,9 +33,13 @@ to_file(sys.stderr)
 
 _SCENARIOS = {
     'no-load': scenarios.NoLoadScenario,
+    'read-request-load': scenarios.read_request_load_scenario,
+    'write-request-load': scenarios.write_request_load_scenario,
 }
 
 _OPERATIONS = {
+    'create-container': operations.CreateContainer,
+    'create-dataset': operations.CreateDataset,
     'no-op': operations.NoOperation,
     'read-request': operations.ReadRequest,
     'wait': operations.Wait,
@@ -69,16 +75,17 @@ class BenchmarkOptions(Options):
     description = "Run benchmark tests."
 
     optParameters = [
-        ['control', None, None,
-         'IP address for a Flocker cluster control server.'],
-        ['certs', None, 'certs',
-         'Directory containing client certificates'],
+        ['cluster', None, None,
+         'Directory containing cluster configuration files.  '
+         'If not set, use acceptance test environment variables.'],
         ['config', None, 'benchmark.yml',
          'YAML file describing benchmark options.'],
+        ['samples', None, 3, 'Number of samples to take.'],
         ['scenario', None, 'default',
          'Environmental scenario under which to perform test.'],
         ['operation', None, 'default', 'Operation to measure.'],
         ['metric', None, 'default', 'Quantity to benchmark.'],
+        ['userdata', None, None, 'JSON data to add to output.']
     ]
 
 
@@ -168,17 +175,73 @@ def get_config_by_name(section, name):
     return None
 
 
-def main():
+def get_cluster(options, env):
+    """
+    Obtain a cluster from the command line options and environment.
+
+    :param BenchmarkOption options: Parsed command line options.
+    :param dict env: Dictionary of environment variables.
+    :return BenchmarkCluster: Cluster to benchmark.
+    """
+    cluster_option = options['cluster']
+    if cluster_option:
+        try:
+            cluster = BenchmarkCluster.from_cluster_yaml(
+                FilePath(cluster_option)
+            )
+        except IOError as e:
+            usage(
+                options, 'Cluster file {!r} not found.'.format(e.filename)
+            )
+    else:
+        try:
+            cluster = BenchmarkCluster.from_acceptance_test_env(env)
+        except KeyError as e:
+            usage(
+                options, 'Environment variable {!r} not set.'.format(e.args[0])
+            )
+        except ValueError as e:
+            usage(options, e.args[0])
+        except ValidationError as e:
+            usage(options, e.message)
+    return cluster
+
+
+def parse_userdata(options):
+    """
+    Parse the userdata option and add to result.
+
+    :param BenchmarkOptions options: Script options.
+    :return: Parsed user data.
+    """
+    userdata = options['userdata']
+    if userdata:
+        try:
+            if userdata.startswith('@'):
+                try:
+                    with open(userdata[1:]) as f:
+                        return json.load(f)
+                except IOError as e:
+                    usage(
+                        options,
+                        'Invalid user data file: {}'.format(e.strerror)
+                    )
+            else:
+                return json.loads(userdata)
+        except ValueError as e:
+            usage(options, 'Invalid user data: {}'.format(e.args[0]))
+    return None
+
+
+def main(argv, environ, react=react):
     options = BenchmarkOptions()
 
     try:
-        options.parseOptions()
+        options.parseOptions(argv[1:])
     except UsageError as e:
         usage(options, e.args[0])
 
-    if not options['control'] and options['operation'] != 'no-op':
-        # No-op is OK with no control service
-        usage(options, 'Control service required')
+    cluster = get_cluster(options, environ)
 
     with open(options['config'], 'rt') as f:
         config = yaml.safe_load(f)
@@ -218,6 +281,11 @@ def main():
             options, 'Invalid metric type: {!r}'.format(metric_config['type'])
         )
 
+    try:
+        num_samples = int(options['samples'])
+    except ValueError:
+        usage(options, 'Invalid sample count: {!r}'.format(options['samples']))
+
     timestamp = datetime.now().isoformat()
 
     result = dict(
@@ -225,7 +293,7 @@ def main():
         client=dict(
             flocker_version=flocker_client_version,
             working_directory=os.getcwd(),
-            username=os.environ[b"USER"],
+            username=environ[b"USER"],
             nodename=node(),
             platform=platform(),
         ),
@@ -234,12 +302,16 @@ def main():
         metric=metric_config,
     )
 
+    userdata = parse_userdata(options)
+    if userdata:
+        result['userdata'] = userdata
+
     react(
         driver, (
-            options, scenario_factory, operation_factory, metric_factory,
-            result, partial(json.dump, fp=sys.stdout, indent=2)
+            cluster, scenario_factory, operation_factory, metric_factory,
+            num_samples, result, partial(json.dump, fp=sys.stdout, indent=2)
         )
     )
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv, os.environ)

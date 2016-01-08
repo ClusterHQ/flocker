@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Unit tests for IPC.
@@ -10,7 +10,6 @@ from zope.interface.verify import verifyObject
 
 from twisted.internet.task import Clock
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase
 
 from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH, VolumeName
 from ..filesystems.zfs import Snapshot
@@ -21,6 +20,7 @@ from .._ipc import (
 from ..testtools import ServicePair
 from ...common import FakeNode
 from ...common._ipc import ProcessNode
+from ...testtools import AsyncTestCase, TestCase
 
 
 MY_VOLUME = VolumeName(namespace=u"myns", dataset_id=u"myvol")
@@ -33,7 +33,7 @@ def make_iremote_volume_manager(fixture):
 
     :param fixture: A fixture that returns a :class:`ServicePair` instance.
     """
-    class IRemoteVolumeManagerTests(TestCase):
+    class IRemoteVolumeManagerTests(AsyncTestCase):
         """
         Tests for ``IRemoteVolumeManager`` implementations.
         """
@@ -301,6 +301,7 @@ class RemoteVolumeManagerTests(TestCase):
     Tests for ``RemoteVolumeManager``.
     """
     def setUp(self):
+        super(RemoteVolumeManagerTests, self).setUp()
         self.pool = FilesystemStoragePool(FilePath(self.mktemp()))
         self.service = VolumeService(
             FilePath(self.mktemp()), self.pool, reactor=Clock())

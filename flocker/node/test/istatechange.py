@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Helpers for tests for implementations of ``IStateChange``.
@@ -17,9 +17,9 @@ from eliot import Logger, start_action
 from pyrsistent import PClass, field
 from characteristic import attributes
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import succeed
 
+from ...testtools import TestCase
 from .. import IStateChange
 
 
@@ -43,7 +43,7 @@ def make_comparison_tests(klass, kwargs1, kwargs2):
             return klass(**kwargs)
         return klass(**kwargs())
 
-    class Tests(SynchronousTestCase):
+    class Tests(TestCase):
         def test_equality(self):
             """
             Instances with the same arguments are equal.

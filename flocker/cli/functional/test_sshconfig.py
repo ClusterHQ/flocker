@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.cli._sshconfig``.
@@ -8,12 +8,12 @@ from os.path import expanduser
 from socket import socket
 from subprocess import CalledProcessError
 
-from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.threads import deferToThread
 
 from .. import configure_ssh
 from .._sshconfig import OpenSSHConfiguration
+from ...testtools import AsyncTestCase, TestCase
 from ...testtools.ssh import create_ssh_server, create_ssh_agent, if_conch
 
 try:
@@ -35,11 +35,12 @@ def goodlines(path):
                 if line and not line.strip().startswith(b"#"))
 
 
-class ConfigureSSHTests(TestCase):
+class ConfigureSSHTests(AsyncTestCase):
     """
     Tests for ``configure_ssh``.
     """
     def setUp(self):
+        super(ConfigureSSHTests, self).setUp()
         self.ssh_config = FilePath(self.mktemp())
         self.server = create_ssh_server(self.ssh_config)
         # Create a fake local keypair

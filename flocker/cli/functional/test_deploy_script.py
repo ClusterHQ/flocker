@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Functional tests for the ``flocker-deploy`` command line tool.
@@ -13,7 +13,6 @@ from yaml import safe_dump
 
 from twisted.python.procutils import which
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import TestCase
 from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutputAndValue
 from twisted.web.resource import Resource
@@ -30,6 +29,7 @@ from ...control.test.test_config import (
     COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML)
 
 from ...ca.testtools import get_credential_sets
+from ...testtools import AsyncTestCase
 
 from ..script import _OK_MESSAGE
 
@@ -40,12 +40,13 @@ _require_installed = skipUnless(which("flocker-deploy"),
                                 "flocker-deploy not installed")
 
 
-class FlockerDeployTests(TestCase):
+class FlockerDeployTests(AsyncTestCase):
     """
     Tests for ``flocker-deploy``.
     """
     @_require_installed
     def setUp(self):
+        super(FlockerDeployTests, self).setUp()
         ca_set, _ = get_credential_sets()
         self.certificate_path = FilePath(self.mktemp())
         self.certificate_path.makedirs()

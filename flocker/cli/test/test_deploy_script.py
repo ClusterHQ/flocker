@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Unit tests for the implementation of ``flocker-deploy``.
@@ -6,40 +6,45 @@ Unit tests for the implementation of ``flocker-deploy``.
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
-from twisted.trial.unittest import TestCase, SynchronousTestCase
 
 from ...testtools import (
-    FlockerScriptTestsMixin, StandardOptionsTestsMixin)
+    make_flocker_script_test, make_standard_options_test, TestCase
+)
 from ..script import DeployScript, DeployOptions
 from ...control.httpapi import REST_API_PORT
 
 
-class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
+class FlockerDeployTests(make_flocker_script_test(
+        DeployScript, DeployOptions, u'flocker-deploy'
+)):
     """Tests for ``flocker-deploy``."""
-    script = DeployScript
-    options = DeployOptions
-    command_name = u'flocker-deploy'
 
 
 CONTROL_HOST = u"192.168.1.1"
 
 
-class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class StandardDeployOptionsTests(make_standard_options_test(DeployOptions)):
+    """Standard options tests for :class:`DeployOptions`."""
+
+
+class DeployOptionsTests(TestCase):
     """Tests for :class:`DeployOptions`."""
-    options = DeployOptions
+
+    def setUp(self):
+        self.options = DeployOptions()
+        super(DeployOptionsTests, self).setUp()
 
     def default_port(self):
         """
         The default port to connect to is the REST API port.
         """
-        options = self.options()
         deploy = FilePath(self.mktemp())
         app = FilePath(self.mktemp())
 
         deploy.setContent(b"{}")
         app.setContent(b"{}")
 
-        self.assertEqual(options.parseOptions(
+        self.assertEqual(self.options.parseOptions(
             [CONTROL_HOST, deploy.path, app.path])["port"], REST_API_PORT)
 
     def test_cannot_mix_ca_path_options(self):
@@ -47,16 +52,15 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         A ``UsageError`` is raised if the ``certificates-directory`` and any
         of ``cacert``, ``cert`` or ``key`` options are mixed together.
         """
-        options = self.options()
         app = self.mktemp()
         FilePath(app).touch()
         deploy = self.mktemp()
         FilePath(deploy).touch()
         cacert_path = b"/path/to/cluster.crt"
         certificates_directory = b"/path/to/certificates"
-        options["cacert"] = cacert_path
-        options["certificates-directory"] = certificates_directory
-        exception = self.assertRaises(UsageError, options.parseOptions,
+        self.options["cacert"] = cacert_path
+        self.options["certificates-directory"] = certificates_directory
+        exception = self.assertRaises(UsageError, self.options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
         self.assertEqual(
             ("Cannot use --certificates-directory and --cacert options "
@@ -71,14 +75,13 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         A ``UsageError`` is raised if the specified ``cacert`` cluster
         certificate does not exist.
         """
-        options = self.options()
         app = self.mktemp()
         FilePath(app).touch()
         deploy = self.mktemp()
         FilePath(deploy).touch()
         credential_path = b"/path/to/non-existent-cluster.crt"
-        options["cacert"] = credential_path
-        exception = self.assertRaises(UsageError, options.parseOptions,
+        self.options["cacert"] = credential_path
+        exception = self.assertRaises(UsageError, self.options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
         expected_message = (
             "File /path/to/non-existent-cluster.crt does not exist. "
@@ -96,7 +99,6 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         A ``UsageError`` is raised if the specified ``cert`` user
         certificate does not exist.
         """
-        options = self.options()
         app = self.mktemp()
         FilePath(app).touch()
         deploy = self.mktemp()
@@ -104,9 +106,9 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         ca = self.mktemp()
         FilePath(ca).touch()
         credential_path = b"/path/to/non-existent-user.crt"
-        options["cacert"] = ca
-        options["cert"] = credential_path
-        exception = self.assertRaises(UsageError, options.parseOptions,
+        self.options["cacert"] = ca
+        self.options["cert"] = credential_path
+        exception = self.assertRaises(UsageError, self.options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
         expected_message = (
             "File /path/to/non-existent-user.crt does not exist. "
@@ -124,7 +126,6 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         A ``UsageError`` is raised if the specified ``key`` user
         private key does not exist.
         """
-        options = self.options()
         app = self.mktemp()
         FilePath(app).touch()
         deploy = self.mktemp()
@@ -134,10 +135,10 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         user_cert = self.mktemp()
         FilePath(user_cert).touch()
         credential_path = b"/path/to/non-existent-user.key"
-        options["cacert"] = ca
-        options["cert"] = user_cert
-        options["key"] = credential_path
-        exception = self.assertRaises(UsageError, options.parseOptions,
+        self.options["cacert"] = ca
+        self.options["cert"] = user_cert
+        self.options["key"] = credential_path
+        exception = self.assertRaises(UsageError, self.options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
         expected_message = (
             "File /path/to/non-existent-user.key does not exist. "
@@ -155,11 +156,10 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         A ``UsageError`` is raised if the ``deployment_config`` file does not
         exist.
         """
-        options = self.options()
         app = self.mktemp()
         FilePath(app).touch()
         deploy = b"/path/to/non-existent-file.cfg"
-        exception = self.assertRaises(UsageError, options.parseOptions,
+        exception = self.assertRaises(UsageError, self.options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
         self.assertEqual('No file exists at {deploy}'.format(deploy=deploy),
                          str(exception))
@@ -169,11 +169,10 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         A ``UsageError`` is raised if the ``app_config`` file does not
         exist.
         """
-        options = self.options()
         deploy = self.mktemp()
         FilePath(deploy).touch()
         app = b"/path/to/non-existent-file.cfg"
-        exception = self.assertRaises(UsageError, options.parseOptions,
+        exception = self.assertRaises(UsageError, self.options.parseOptions,
                                       [CONTROL_HOST, deploy, app])
         self.assertEqual('No file exists at {app}'.format(app=app),
                          str(exception))
@@ -183,7 +182,6 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         A ``UsageError`` is raised if the supplied deployment
         configuration cannot be parsed as YAML.
         """
-        options = self.options()
         deploy = FilePath(self.mktemp())
         app = FilePath(self.mktemp())
 
@@ -191,7 +189,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         app.setContent(b"{}")
 
         e = self.assertRaises(
-            UsageError, options.parseOptions,
+            UsageError, self.options.parseOptions,
             [CONTROL_HOST, deploy.path, app.path])
 
         expected = (
@@ -205,7 +203,6 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         A ``UsageError`` is raised if the supplied application
         configuration cannot be parsed as YAML.
         """
-        options = self.options()
         deploy = FilePath(self.mktemp())
         app = FilePath(self.mktemp())
 
@@ -213,7 +210,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         app.setContent(b"{'foo':'bar', 'x':y, '':'")
 
         e = self.assertRaises(
-            UsageError, options.parseOptions,
+            UsageError, self.options.parseOptions,
             [CONTROL_HOST, deploy.path, app.path])
 
         expected = (

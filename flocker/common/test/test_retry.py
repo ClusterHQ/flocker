@@ -1,20 +1,25 @@
-# Copyright ClusterHQ Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.common._retry``.
 """
 
 from datetime import timedelta
-from itertools import repeat
+from itertools import repeat, count
+from functools import partial
 
+from testtools.matchers import (
+    MatchesPredicate, Equals, AllMatch, IsInstance, GreaterThan, raises
+)
+
+from eliot import MessageType, fields
 from eliot.testing import (
     capture_logging,
     LoggedAction, LoggedMessage,
-    assertContainsFields,
+    assertContainsFields, assertHasAction,
 )
 
-from twisted.internet.defer import succeed, Deferred
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.internet.defer import succeed, fail, Deferred
 from twisted.internet.defer import CancelledError
 from twisted.internet.task import Clock
 from twisted.python.failure import Failure
@@ -27,20 +32,26 @@ from effect import (
 )
 from effect.testing import perform_sequence
 
-from .._retry import (
-    LOOP_UNTIL_ACTION,
-    LOOP_UNTIL_ITERATION_MESSAGE,
-    LoopExceeded,
+from .. import (
     loop_until,
     retry_effect_with_timeout,
     retry_failure,
     poll_until,
     timeout,
+    retry_if,
+    get_default_retry_steps,
+    decorate_methods,
+    with_retry,
 )
-from ...testtools import CustomException
+from .._retry import (
+    LOOP_UNTIL_ACTION,
+    LOOP_UNTIL_ITERATION_MESSAGE,
+    LoopExceeded,
+)
+from ...testtools import TestCase, CustomException
 
 
-class LoopUntilTests(SynchronousTestCase):
+class LoopUntilTests(TestCase):
     """
     Tests for :py:func:`loop_until`.
     """
@@ -192,74 +203,158 @@ class LoopUntilTests(SynchronousTestCase):
             str(self.failureResultOf(d).value),
             str(LoopExceeded(predicate, False)))
 
+    @capture_logging(None)
+    def test_partial_predicate(self, logger):
+        """
+        Predicate can be a functools.partial function.
+        """
+        result = object()
 
-class TimeoutTests(SynchronousTestCase):
+        def check():
+            return result
+        predicate = partial(check)
+
+        clock = Clock()
+        d = loop_until(clock, predicate)
+        self.assertEqual(
+            self.successResultOf(d),
+            result)
+
+        [action] = LoggedAction.of_type(logger.messages, LOOP_UNTIL_ACTION)
+        assertContainsFields(self, action.start_message, {
+            'predicate': predicate,
+        })
+        assertContainsFields(self, action.end_message, {
+            'action_status': 'succeeded',
+            'result': result,
+        })
+
+
+class TimeoutTests(TestCase):
     """
     Tests for :py:func:`timeout`.
     """
 
     def setUp(self):
-        """Initialize testing helper variables."""
-        self._deferred = Deferred()
-        self._timeout = 1.0
-        self._clock = Clock()
+        """
+        Initialize testing helper variables.
+        """
+        super(TimeoutTests, self).setUp()
+        self.deferred = Deferred()
+        self.timeout = 10.0
+        self.clock = Clock()
 
-    def _execute_timeout(self):
-        """Execute the timeout."""
-        timeout(self._clock, self._deferred, self._timeout)
+    def test_doesnt_time_out_early(self):
+        """
+        A deferred that has not fired by some short while prior to the timeout
+        interval is not made to fire with a timeout failure.
+        """
+        deferred = timeout(self.clock, self.deferred, self.timeout)
+        self.clock.advance(self.timeout - 1.0)
+        self.assertNoResult(deferred)
 
     def test_times_out(self):
         """
-        A deferred that never fires is timed out at the correct time using the
-        timeout function, and concludes with a CancelledError failure.
+        A deferred that does not fire within the timeout interval is made to
+        fire with ``CancelledError`` once the timeout interval elapses.
         """
-        self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
-        self.assertFalse(self._deferred.called)
-        self._clock.advance(0.1)
-        self.assertTrue(self._deferred.called)
-        self.failureResultOf(self._deferred, CancelledError)
+        deferred = timeout(self.clock, self.deferred, self.timeout)
+        self.clock.advance(self.timeout)
+        self.failureResultOf(deferred, CancelledError)
+
+    def test_times_out_with_reason(self):
+        """
+        If a custom reason is passed to ``timeout`` and the Deferred does not
+        fire within the timeout interval, it is made to fire with the custom
+        reason once the timeout interval elapses.
+        """
+        reason = CustomException(self.id())
+        deferred = timeout(self.clock, self.deferred, self.timeout, reason)
+        self.clock.advance(self.timeout)
+        self.assertEqual(
+            reason,
+            self.failureResultOf(deferred, CustomException).value,
+        )
 
     def test_doesnt_time_out(self):
         """
         A deferred that fires before the timeout is not cancelled by the
         timeout.
         """
-        self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
-        self.assertFalse(self._deferred.called)
-        self._deferred.callback('Success')
-        self.assertTrue(self._deferred.called)
-        self.assertEqual(self._deferred.result, 'Success')
-        self._clock.advance(0.1)
-        self.assertTrue(self._deferred.called)
-        self.assertEqual(self._deferred.result, 'Success')
+        deferred = timeout(self.clock, self.deferred, self.timeout)
+        self.clock.advance(self.timeout - 1.0)
+        self.deferred.callback('Success')
+        self.assertEqual(self.successResultOf(deferred), 'Success')
+
+    def test_doesnt_time_out_failure(self):
+        """
+        A Deferred that fails before the timeout is not cancelled by the
+        timeout.
+        """
+        deferred = timeout(self.clock, self.deferred, self.timeout)
+        self.clock.advance(self.timeout - 1.0)
+        self.deferred.errback(CustomException(self.id()))
+        self.failureResultOf(deferred, CustomException)
+
+    def test_doesnt_time_out_failure_custom_reason(self):
+        """
+        A Deferred that fails before the timeout is not cancelled by the
+        timeout.
+        """
+        deferred = timeout(
+            self.clock, self.deferred, self.timeout,
+            ValueError("This should not appear.")
+        )
+        self.clock.advance(self.timeout - 1.0)
+        self.deferred.errback(CustomException(self.id()))
+        self.failureResultOf(deferred, CustomException)
+
+    def test_advancing_after_success(self):
+        """
+        A Deferred that fires before the timeout continues to succeed after the
+        timeout has elapsed.
+        """
+        deferred = succeed('Success')
+        timeout(self.clock, deferred, self.timeout)
+        self.clock.advance(self.timeout)
+        self.assertEqual(self.successResultOf(deferred), 'Success')
+
+    def test_advancing_after_failure(self):
+        """
+        A Deferred that fires with a failure before the timeout continues to
+        fail after the timeout has elapsed.
+        """
+        deferred = fail(CustomException(self.id()))
+        timeout(self.clock, deferred, self.timeout)
+        self.clock.advance(self.timeout)
+        self.failureResultOf(deferred, CustomException)
 
     def test_timeout_cleaned_up_on_success(self):
         """
         If the deferred is successfully completed before the timeout, the
         timeout is not still pending on the reactor.
         """
-        self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
-        self._deferred.callback('Success')
-        self.assertEqual(self._clock.getDelayedCalls(), [])
-        self.assertEqual(self._deferred.result, 'Success')
+        timeout(self.clock, self.deferred, self.timeout)
+        self.deferred.callback('Success')
+        self.assertEqual(self.clock.getDelayedCalls(), [])
 
     def test_timeout_cleaned_up_on_failure(self):
         """
         If the deferred is failed before the timeout, the timeout is not still
         pending on the reactor.
         """
-        self._execute_timeout()
-        self._clock.advance(self._timeout - 0.1)
-        self._deferred.errback(Exception('ErrorXYZ'))
-        self.assertEqual(self._clock.getDelayedCalls(), [])
-        self.assertEqual(self._deferred.result.getErrorMessage(), 'ErrorXYZ')
-        self.failureResultOf(self._deferred, Exception)
+        timeout(self.clock, self.deferred, self.timeout)
+        self.deferred.errback(CustomException(self.id()))
+        # We need to handle the errback so that Trial and/or testtools don't
+        # fail with unhandled errors.
+        self.addCleanup(self.deferred.addErrback, lambda _: None)
+        self.assertEqual(self.clock.getDelayedCalls(), [])
 
 
-class RetryFailureTests(SynchronousTestCase):
+ITERATION_MESSAGE = MessageType("iteration_message", fields(iteration=int))
+
+
+class RetryFailureTests(TestCase):
     """
     Tests for :py:func:`retry_failure`.
     """
@@ -300,7 +395,19 @@ class RetryFailureTests(SynchronousTestCase):
         clock.advance(0.1)
         self.assertEqual(self.successResultOf(d), result)
 
-    def test_multiple_iterations(self):
+    def assert_logged_multiple_iterations(self, logger):
+        """
+        Function passed to ``retry_failure`` is run in the context of a
+        ``LOOP_UNTIL_ACTION``.
+        """
+        iterations = LoggedMessage.of_type(logger.messages, ITERATION_MESSAGE)
+        loop = assertHasAction(self, logger, LOOP_UNTIL_ACTION, True)
+        self.assertEqual(
+            sorted(iterations, key=lambda m: m.message["iteration"]),
+            loop.children)
+
+    @capture_logging(assert_logged_multiple_iterations)
+    def test_multiple_iterations(self, logger):
         """
         If the function fails multiple times and then succeeds,
         ``retry_failure`` returns the success.
@@ -315,6 +422,7 @@ class RetryFailureTests(SynchronousTestCase):
         ]
 
         def function():
+            ITERATION_MESSAGE(iteration=(3 - len(results))).write()
             return results.pop(0)
 
         clock = Clock()
@@ -411,7 +519,7 @@ class RetryFailureTests(SynchronousTestCase):
         self.assertEqual(self.failureResultOf(d), type_error)
 
 
-class PollUntilTests(SynchronousTestCase):
+class PollUntilTests(TestCase):
     """
     Tests for ``poll_until``.
     """
@@ -467,7 +575,7 @@ class PollUntilTests(SynchronousTestCase):
             poll_until(lambda: results.pop(0), steps, lambda ignored: None))
 
 
-class RetryEffectTests(SynchronousTestCase):
+class RetryEffectTests(TestCase):
     """
     Tests for :py:func:`retry_effect_with_timeout`.
     """
@@ -581,3 +689,218 @@ class RetryEffectTests(SynchronousTestCase):
             CustomException,
             perform_sequence, expected_intents, retrier
         )
+
+
+EXPECTED_RETRY_SOME_TIMES_RETRIES = 1200
+
+
+class GetDefaultRetryStepsTests(TestCase):
+    """
+    Tests for ``get_default_retry_steps``.
+    """
+    def test_steps(self):
+        """
+        ``get_default_retry_steps`` returns an iterator consisting of the given
+        delay repeated enough times to fill the given maximum time period.
+        """
+        delay = timedelta(seconds=3)
+        max_time = timedelta(minutes=3)
+        steps = list(get_default_retry_steps(delay, max_time))
+        self.assertThat(set(steps), Equals({delay}))
+        self.assertThat(sum(steps, timedelta()), Equals(max_time))
+
+    def test_default(self):
+        """
+        There are default values for the delay and maximum time parameters
+        accepted by ``get_default_retry_steps``.
+        """
+        steps = get_default_retry_steps()
+        self.assertThat(steps, AllMatch(IsInstance(timedelta)))
+        self.assertThat(steps, AllMatch(GreaterThan(timedelta())))
+
+
+class RetryIfTests(TestCase):
+    """
+    Tests for ``retry_if``.
+    """
+    def test_matches(self):
+        """
+        If the matching function returns ``True``, the retry predicate returned
+        by ``retry_if`` returns ``None``.
+        """
+        should_retry = retry_if(
+            lambda exception: isinstance(exception, CustomException)
+        )
+        self.assertThat(
+            should_retry(
+                CustomException, CustomException("hello, world"), None
+            ),
+            Equals(None),
+        )
+
+    def test_does_not_match(self):
+        """
+        If the matching function returns ``False``, the retry predicate
+        returned by ``retry_if`` re-raises the exception.
+        """
+        should_retry = retry_if(
+            lambda exception: not isinstance(exception, CustomException)
+        )
+        self.assertThat(
+            lambda: should_retry(
+                CustomException, CustomException("hello, world"), None
+            ),
+            raises(CustomException),
+        )
+
+
+class DecorateMethodsTests(TestCase):
+    """
+    Tests for ``decorate_methods``.
+    """
+    @staticmethod
+    def noop_wrapper(method):
+        return method
+
+    def test_data_descriptor(self):
+        """
+        Non-method attribute read access passes through to the wrapped object
+        and the result is the same as if no wrapping had taken place.
+        """
+        class Original(object):
+            class_attribute = object()
+
+            def __init__(self):
+                self.instance_attribute = object()
+
+        original = Original()
+        wrapper = decorate_methods(original, self.noop_wrapper)
+        self.expectThat(
+            wrapper.class_attribute,
+            Equals(original.class_attribute),
+        )
+        self.expectThat(
+            wrapper.instance_attribute,
+            Equals(original.instance_attribute),
+        )
+
+    def test_passthrough(self):
+        """
+        Methods called on the wrapper have the same arguments passed through to
+        the wrapped method and the result of the wrapped method returned if no
+        exception is raised.
+        """
+        class Original(object):
+            def some_method(self, a, b):
+                return (b, a)
+
+        a = object()
+        b = object()
+
+        wrapper = decorate_methods(Original(), self.noop_wrapper)
+        self.expectThat(
+            wrapper.some_method(a, b=b),
+            Equals((b, a)),
+        )
+
+
+class WithRetryTests(TestCase):
+    """
+    Tests for ``with_retry``.
+    """
+    class AlwaysFail(object):
+        failures = 0
+
+        def some_method(self):
+            self.failures += 1
+            raise CustomException(self.failures)
+
+    def always_failing(self, counter):
+        raise CustomException(next(counter))
+
+    def test_success(self):
+        """
+        If the wrapped method returns a value on the first call, the value is
+        returned and no retries are made.
+        """
+        time = []
+        sleep = time.append
+
+        expected = object()
+        another = object()
+        results = [another, expected]
+
+        wrapper = with_retry(results.pop, sleep=sleep)
+        actual = wrapper()
+
+        self.expectThat(actual, Equals(expected))
+        self.expectThat(results, Equals([another]))
+
+    def test_default_retry(self):
+        """
+        If no value is given for the ``should_retry`` parameter, if the wrapped
+        method raises an exception it is called again after a short delay.
+        This is repeated using the elements of ``retry_some_times`` as the
+        sleep times and stops when there are no more elements.
+        """
+        time = []
+        sleep = time.append
+
+        counter = iter(count())
+        wrapper = with_retry(
+            partial(self.always_failing, counter), sleep=sleep
+        )
+        # XXX testtools ``raises`` helper generates a crummy message when this
+        # assertion fails
+        self.assertRaises(CustomException, wrapper)
+        self.expectThat(
+            next(counter),
+            # The number of times we demonstrated (above) that retry_some_times
+            # retries - plus one more for the initial call.
+            Equals(EXPECTED_RETRY_SOME_TIMES_RETRIES + 1),
+        )
+        self.expectThat(
+            sum(time),
+            # Floating point maths.  Allow for some slop.
+            MatchesPredicate(
+                lambda t: 119.8 <= t <= 120.0,
+                "Time value %r too far from expected value 119.9",
+            ),
+        )
+
+    def test_steps(self):
+        """
+        If an iterator of steps is passed to ``with_retry``, it is used to
+        determine the number of retries and the duration of the sleeps between
+        retries.
+        """
+        s = timedelta(seconds=1)
+        sleeps = []
+        wrapper = with_retry(
+            partial(self.always_failing, count()),
+            sleep=sleeps.append,
+            steps=[s * 1, s * 2, s * 3],
+        )
+        self.assertRaises(CustomException, wrapper)
+        self.expectThat(sleeps, Equals([1, 2, 3]))
+
+    def test_custom_should_retry(self):
+        """
+        If a predicate is passed for ``should_retry``, it used to determine
+        whether a retry should be attempted any time an exception is raised.
+        """
+        counter = iter(count())
+        original = partial(self.always_failing, counter)
+        wrapped = with_retry(
+            original,
+            should_retry=retry_if(
+                lambda exception: (
+                    isinstance(exception, CustomException) and
+                    exception.args[0] < 10
+                ),
+            ),
+            sleep=lambda interval: None,
+        )
+
+        self.expectThat(wrapped, raises(CustomException))
+        self.expectThat(next(counter), Equals(11))

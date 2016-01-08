@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """Functional tests for the ``flocker-volume`` command line tool."""
 
@@ -6,12 +6,13 @@ from subprocess import check_output, Popen, PIPE
 import json
 from unittest import skipUnless
 
-from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from ... import __version__
-from ...testtools import skip_on_broken_permissions, attempt_effective_uid
+from ...testtools import (
+    skip_on_broken_permissions, attempt_effective_uid, TestCase,
+)
 from ..testtools import create_zfs_pool
 
 _require_installed = skipUnless(which("flocker-volume"),
@@ -50,7 +51,7 @@ class FlockerVolumeTests(TestCase):
 
     @_require_installed
     def setUp(self):
-        pass
+        super(FlockerVolumeTests, self).setUp()
 
     def test_version(self):
         """``flocker-volume --version`` returns the current version."""

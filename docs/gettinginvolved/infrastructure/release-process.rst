@@ -6,7 +6,7 @@ Release Process
 
 .. note::
 
-   Make sure to follow the `latest documentation <http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html>`_ when doing a release.
+   Make sure to follow the `latest documentation <http://clusterhq-staging-docs.s3.amazonaws.com/master/gettinginvolved/infrastructure/release-process.html>`_ when doing a release.
 
 Outcomes
 ========
@@ -18,7 +18,6 @@ By the end of the release process we will have:
 - CentOS 7 RPMs for software on the node and client,
 - Ubuntu 14.04 DEBs for software on the node and client,
 - Ubuntu 15.10 DEBs for software on the node and client,
-- a Vagrant base tutorial image,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_, and
 - an updated Homebrew recipe.
 
@@ -169,7 +168,7 @@ It is important to check that the code in the release branch is working before i
 
 .. note::
 
-   Make sure to follow the `latest review process <http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html#pre-tag-review>`_ when reviewing a release.
+   Make sure to follow the `latest review process <http://clusterhq-staging-docs.s3.amazonaws.com/master/gettinginvolved/infrastructure/release-process.html#pre-tag-review>`_ when reviewing a release.
 
 #. Check the changes in the Pull Request:
 

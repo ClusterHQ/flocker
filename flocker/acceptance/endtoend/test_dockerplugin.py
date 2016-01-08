@@ -4,24 +4,32 @@
 Tests for the Flocker Docker plugin.
 """
 
-from twisted.internet import reactor
-from twisted.trial.unittest import SkipTest
-
+from datetime import timedelta
 from distutils.version import LooseVersion
+
+from testtools import run_test_with
+
+from twisted.internet import reactor
+
+from hypothesis.strategies import integers
+
+from bitmath import GiB
 
 from eliot import Message
 
 from ...common import loop_until
 from ...common.runner import run_ssh
 
+from ...dockerplugin.test.test_api import volume_expression
+
 from ...testtools import (
-    AsyncTestCase, random_name, flaky,
+    AsyncTestCase, random_name, find_free_port, flaky, async_runner,
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
     get_docker_client, verify_socket, check_http_server, DatasetBackend,
     extract_external_port,
-    create_dataset,
+    create_dataset, require_moving_backend,
 )
 
 from ..scripts import SCRIPTS
@@ -41,7 +49,7 @@ class DockerPluginTests(AsyncTestCase):
         client_version = LooseVersion(client.version()['Version'])
         minimum_version = LooseVersion(required_version)
         if client_version < minimum_version:
-            raise SkipTest(
+            self.skipTest(
                 'This test requires at least Docker {}. '
                 'Actual version: {}'.format(minimum_version, client_version)
             )
@@ -135,22 +143,66 @@ class DockerPluginTests(AsyncTestCase):
             Docker.
         :returns: The result of the API call.
         """
-        # XXX: replace down to addCleanup with:
-        #
-        # result = client.create_volume(name, u'flocker', driver_opts)
-        #
-        # Once version 1.5.1+ of docker-py is released. It is currently fixed
-        # at head, but version 1.5.0 unfortunately has the wrong endpoint for
-        # creating a volume.
-        url = client._url('/volumes/create')
-        data = {
-            'Name': name,
-            'Driver': u'flocker',
-            'DriverOpts': driver_opts,
-        }
-        result = client._result(client._post_json(url, data=data), True)
+        result = client.create_volume(name, u'flocker', driver_opts)
         self.addCleanup(client.remove_volume, name)
         return result
+
+    def _test_sized_vol_container(self, cluster, node):
+        """
+        Create a volume with a size, then create a
+        container that can use that volume and run lsbk to test
+        its size. An http server inside the container uses lsblk to
+        return the size of the volume when path is not "/is_http".
+
+        :param cluster: flocker cluster
+        :param node: node the contianer and volume will be on.
+        """
+        client = get_docker_client(cluster, node.public_address)
+        volume_name = random_name(self)
+        size = integers(min_value=75, max_value=100).example()
+        expression = volume_expression.example()
+        size_opt = "".join(str(size)) + expression
+        size_bytes = int(GiB(size).to_Byte().value)
+        self._create_volume(client, volume_name,
+                            driver_opts={'size': size_opt})
+        http_port = 8080
+        host_port = find_free_port()[1]
+        self.run_python_container(
+            cluster, node.public_address,
+            {"host_config": client.create_host_config(
+                binds=["{}:/sizedvoldata".format(volume_name)],
+                port_bindings={http_port: host_port},
+                restart_policy={"Name": "always"},
+                privileged=True),
+             "ports": [http_port]},
+            SCRIPTS.child(b"lsblkhttp.py"),
+            [u"/sizedvoldata"], client=client)
+
+        d = assert_http_server(
+            self, node.public_address, host_port,
+            expected_response=str(size_bytes))
+
+        def _get_datasets(unused_arg):
+            return cluster.client.list_datasets_configuration()
+        d.addCallback(_get_datasets)
+
+        def _verify_volume_metadata_size(datasets):
+            dataset = next(d for d in datasets
+                           if d.metadata.get(u'name') == volume_name)
+            self.assertEqual(int(dataset.metadata.get(u'maximum_size')),
+                             size_bytes)
+        d.addCallback(_verify_volume_metadata_size)
+
+        return d
+
+    @require_cluster(1)
+    def test_create_sized_volume_with_v2_plugin_api(self, cluster):
+        """
+        Docker can run a container with a provisioned volumes with a
+        specific size.
+        """
+        self.require_docker('1.9.0', cluster)
+        return self._test_sized_vol_container(cluster, cluster.nodes[0])
 
     def _test_create_container(self, cluster, volume_name=None):
         """
@@ -241,7 +293,7 @@ class DockerPluginTests(AsyncTestCase):
 
             self.assertEqual(
                 EBSMandatoryProfileAttributes.SILVER.value.volume_type.value,
-                ebs_volume.type)
+                ebs_volume.volume_type)
 
         create_container.addCallback(_verify_created_volume_is_silver)
 
@@ -412,7 +464,10 @@ class DockerPluginTests(AsyncTestCase):
         """
         return self._test_move(cluster, cluster.nodes[0], cluster.nodes[0])
 
+    @require_moving_backend
     @flaky(u'FLOC-3346')
+    # Test is very slow on Rackspace, it seems:
+    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     @require_cluster(2)
     def test_move_volume_different_node(self, cluster):
         """

@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.node._change``.
@@ -10,7 +10,6 @@ from zope.interface import implementer
 
 from pyrsistent import PClass, field
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import FirstError, Deferred, succeed, fail
 from twisted.python.components import proxyForInterface
 
@@ -22,7 +21,7 @@ from ..testtools import (
     CONTROLLABLE_ACTION_TYPE, ControllableAction, ControllableDeployer,
     DummyDeployer
 )
-from ...testtools import CustomException
+from ...testtools import CustomException, TestCase
 
 from .. import IStateChange, sequentially, in_parallel, run_state_change, NoOp
 from .._change import LOG_IN_PARALLEL, LOG_SEQUENTIALLY
@@ -231,7 +230,7 @@ def _test_nested_change(case, outer_factory, inner_factory):
     )
 
 
-class SequentiallyTests(SynchronousTestCase):
+class SequentiallyTests(TestCase):
     """
     Tests for handling of ``sequentially`` by ``run_state_changes``.
     """
@@ -334,7 +333,7 @@ class SequentiallyTests(SynchronousTestCase):
         self.assertEqual(sequentially(changes=[NoOp(), NoOp()]), NoOp())
 
 
-class InParallelTests(SynchronousTestCase):
+class InParallelTests(TestCase):
     """
     Tests for handling of ``in_parallel`` by ``run_state_changes``.
     """
@@ -395,7 +394,6 @@ class InParallelTests(SynchronousTestCase):
         result = run_state_change(change, DEPLOYER)
         failure = self.failureResultOf(result, FirstError)
         self.assertEqual(failure.value.subFailure.type, CustomException)
-        self.flushLoggedErrors(CustomException)
 
     def test_changes_run_after_exception(self):
         """
@@ -413,7 +411,6 @@ class InParallelTests(SynchronousTestCase):
         change = in_parallel(changes=subchanges)
         result = run_state_change(change, DEPLOYER)
         self.failureResultOf(result, FirstError)
-        self.flushLoggedErrors(CustomException)
         self.assertEqual(
             (some_change.called, other_change.called),
             (True, True),
@@ -431,9 +428,9 @@ class InParallelTests(SynchronousTestCase):
         result = run_state_change(change, DEPLOYER)
         failure = self.failureResultOf(result, FirstError)
         self.assertEqual(failure.value.subFailure.type, RuntimeError)
-        self.flushLoggedErrors(RuntimeError)
 
-    def test_failure_all_logged(self):
+    @capture_logging(None)
+    def test_failure_all_logged(self, logger):
         """
         When multiple changes passed to ``in_parallel`` fail,
         ``run_state_changes`` logs those failures.
@@ -449,7 +446,7 @@ class InParallelTests(SynchronousTestCase):
 
         self.assertEqual(
             len(subchanges),
-            len(self.flushLoggedErrors(ZeroDivisionError))
+            len(logger.flush_tracebacks(ZeroDivisionError))
         )
 
     def test_nested_in_parallel(self):
@@ -479,7 +476,7 @@ class InParallelTests(SynchronousTestCase):
         self.assertEqual(in_parallel(changes=[NoOp(), NoOp()]), NoOp())
 
 
-class RunStateChangeTests(SynchronousTestCase):
+class RunStateChangeTests(TestCase):
     """
     Direct unit tests for ``run_state_change``.
     """

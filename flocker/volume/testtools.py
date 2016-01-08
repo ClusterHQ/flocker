@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Testing utilities provided by ``flocker.volume``.
@@ -14,10 +14,9 @@ from characteristic import attributes
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 from twisted.internet import reactor
-from twisted.trial.unittest import SynchronousTestCase
 
 from ..common import ProcessNode
-from ..testtools import run_process
+from ..testtools import TestCase, run_process
 from ._ipc import RemoteVolumeManager
 
 from .filesystems.zfs import StoragePool
@@ -180,7 +179,7 @@ def make_volume_options_tests(make_options, extra_arguments=None):
     def parseOptions(options, argv):
         options.parseOptions(argv + extra_arguments)
 
-    class VolumeOptionsTests(SynchronousTestCase):
+    class VolumeOptionsTests(TestCase):
         """
         Tests for ``Options`` subclasses decorated with
         ``flocker_volume_options``.

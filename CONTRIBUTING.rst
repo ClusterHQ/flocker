@@ -81,7 +81,9 @@ Install Flocker's development dependencies in a ``virtualenv`` by running the fo
 
    cd /vagrant
    mkvirtualenv flocker
-   pip install --editable .[dev]
+   pip install --process-dependency-links --editable .[dev]
+
+.. Need --process-dependency-links while are using a fork of testtools.
 
 .. _ZFS: http://zfsonlinux.org
 .. _Docker: https://www.docker.com/

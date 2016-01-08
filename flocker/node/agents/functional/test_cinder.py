@@ -1,4 +1,4 @@
-# Copyright ClusterHQ Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
@@ -24,7 +24,6 @@ from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
-from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
 from flocker.ca import (
     RootCredential, AUTHORITY_CERTIFICATE_FILENAME, NodeCredential
@@ -33,14 +32,16 @@ from flocker.ca import (
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests,
+    make_iblockdeviceapi_tests, make_icloudapi_tests,
 )
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
     get_minimum_allocatable_size, get_openstack_region_for_test,
 )
-from ....testtools import REALISTIC_BLOCKDEVICE_SIZE, flaky, run_process
+from ....testtools import (
+    REALISTIC_BLOCKDEVICE_SIZE, TestCase, flaky, run_process,
+)
 
 from ..cinder import (
     get_keystone_session, get_cinder_v1_client, get_nova_v2_client,
@@ -95,8 +96,6 @@ def cinderblockdeviceapi_for_test(test_case):
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
 
 
-# ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
-# ``IBlockDeviceAPI``. Skip the rest of the tests for now.
 class CinderBlockDeviceAPIInterfaceTests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=(
@@ -119,7 +118,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         try:
             config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
         return get_cinder_v1_client(session, region)
@@ -183,7 +182,21 @@ class CinderBlockDeviceAPIInterfaceTests(
             self).test_get_device_path_device()
 
 
-class CinderHttpsTests(SynchronousTestCase):
+class CinderCloudAPIInterfaceTests(
+        make_icloudapi_tests(
+            blockdevice_api_factory=(
+                lambda test_case: cinderblockdeviceapi_for_test(
+                    test_case=test_case,
+                )
+            ),
+        )
+):
+    """
+    ``ICloudAPI`` adherence tests for ``CinderBlockDeviceAPI``.
+    """
+
+
+class CinderHttpsTests(TestCase):
     """
     Test connections to HTTPS-enabled OpenStack.
     """
@@ -209,7 +222,7 @@ class CinderHttpsTests(SynchronousTestCase):
         try:
             config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
         config['peer_verify'] = False
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
@@ -227,7 +240,7 @@ class CinderHttpsTests(SynchronousTestCase):
         try:
             config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
-            raise SkipTest(str(e))
+            self.skipTest(str(e))
         config['backend'] = 'openstack'
         config['auth_plugin'] = 'password'
         config['password'] = 'password'
@@ -364,7 +377,7 @@ class OpenStackFixture(object):
         self.cinder.volumes.delete(volume.id)
 
 
-class CinderAttachmentTests(SynchronousTestCase):
+class CinderAttachmentTests(TestCase):
     """
     Cinder volumes can be attached and return correct device path.
     """
@@ -417,7 +430,7 @@ class CinderAttachmentTests(SynchronousTestCase):
         self.assertEqual(device_path.realpath(), new_device)
 
 
-class VirtIOCinderAttachmentTests(SynchronousTestCase):
+class VirtIOCinderAttachmentTests(TestCase):
     @require_virtio
     def setUp(self):
         super(VirtIOCinderAttachmentTests, self).setUp()
@@ -610,11 +623,12 @@ class FakeTime(object):
         self._current_time += interval
 
 
-class BlockDeviceAPIDestroyTests(SynchronousTestCase):
+class BlockDeviceAPIDestroyTests(TestCase):
     """
     Test for ``cinder.CinderBlockDeviceAPI.destroy_volume``
     """
     def setUp(self):
+        super(BlockDeviceAPIDestroyTests, self).setUp()
         self.api = cinderblockdeviceapi_for_test(test_case=self)
 
     def test_destroy_timesout(self):

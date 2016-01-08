@@ -1,4 +1,4 @@
-# Copyright ClusterHQ Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for ``flocker.testtools``.
@@ -6,12 +6,10 @@ Tests for ``flocker.testtools``.
 
 from subprocess import CalledProcessError
 
-from twisted.trial.unittest import SynchronousTestCase
-
-from flocker.testtools import run_process
+from flocker.testtools import run_process, TestCase
 
 
-class RunProcessTests(SynchronousTestCase):
+class RunProcessTests(TestCase):
     """
     Tests for ``run_process``.
     """

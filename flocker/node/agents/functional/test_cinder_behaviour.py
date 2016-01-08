@@ -1,11 +1,11 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Test for real world behaviour of Cinder implementations to validate some of our
 basic assumptions/understandings of how Cinder works in the real world.
 """
 
-from twisted.trial.unittest import SkipTest, SynchronousTestCase
+from unittest import SkipTest
 
 from ..cinder import (
     get_keystone_session, get_cinder_v1_client, wait_for_volume_state
@@ -16,7 +16,7 @@ from ..test.blockdevicefactory import (
     get_openstack_region_for_test,
     get_blockdevice_config,
 )
-from ....testtools import random_name
+from ....testtools import TestCase, random_name
 
 from .logging import CINDER_VOLUME
 
@@ -40,11 +40,12 @@ def cinder_volume_manager():
 # ``make_icindervolumemanager_tests`` instead.
 # https://clusterhq.atlassian.net/browse/FLOC-1846
 
-class VolumesCreateTests(SynchronousTestCase):
+class VolumesCreateTests(TestCase):
     """
     Tests for ``cinder.Client.volumes.create``.
     """
     def setUp(self):
+        super(VolumesCreateTests, self).setUp()
         self.cinder_volumes = cinder_volume_manager()
 
     def test_create_metadata_is_listed(self):
@@ -78,11 +79,12 @@ class VolumesCreateTests(SynchronousTestCase):
         )
 
 
-class VolumesSetMetadataTests(SynchronousTestCase):
+class VolumesSetMetadataTests(TestCase):
     """
     Tests for ``cinder.Client.volumes.set_metadata``.
     """
     def setUp(self):
+        super(VolumesSetMetadataTests, self).setUp()
         self.cinder_volumes = cinder_volume_manager()
 
     def test_updated_metadata_is_listed(self):

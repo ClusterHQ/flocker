@@ -70,6 +70,8 @@ To see the supported values for each option, run:
 
    admin/run-acceptance-tests --help
 
+.. _acceptance-testing-configuration-file:
+
 Configuration File
 ==================
 
@@ -101,35 +103,6 @@ The top-level mapping may also contain any number of computer-resource provider 
 These are used to provide required parameters to the cluster runner selected by the ``--provider`` option.
 Configuration is loaded from the item in the top-level mapping with a key matching the value given to ``--provider``.
 
-Vagrant
-=======
-
-The Vagrant cluster runner does not require any configuration and so does not require an item in the configuration file.
-
-You will need a ssh agent running with access to the insecure vagrant private key:
-
-.. prompt:: bash $
-
-  ssh-add ~/.vagrant.d/insecure_private_key
-
-
-.. The following step will go away once FLOC-1163 is addressed.
-
-You will also need the tutorial vagrant box BuildBot has created from the release branch.
-The URL can be found by examining the "upload-base-box" step of the ``flocker-vagrant-tutorial-box`` builder.
-The URL will look like ``http://build.clusterhq.com/results/vagrant/<branch>/flocker-tutorial.json``.
-
-.. prompt:: bash $
-
-   vagrant box add <URL>
-
-Ensure that they all pass, with no skips:
-
-.. prompt:: bash $
-
-  admin/run-acceptance-tests --distribution centos-7 --provider vagrant
-
-
 .. _acceptance-testing-rackspace-config:
 
 Rackspace
@@ -154,9 +127,8 @@ You will need a ssh agent running with access to the corresponding private key.
 
 Rackspace can use these dataset backends:
 
-* :ref:`OpenStack<openstack-dataset-backend>`.
-* :ref:`ZFS<zfs-dataset-backend>`.
-* :ref:`Loopback<loopback-dataset-backend>`.
+* :ref:`OpenStack<openstack-dataset-backend>`
+* :ref:`Loopback<loopback-dataset-backend>`
 
 .. prompt:: bash $
 
@@ -183,14 +155,14 @@ To run the acceptance tests on AWS, you need:
      secret_access_token: <aws secret access token>
      keyname: <ssh-key-name>
      security_groups: ["<permissive security group>"]
+     instance_type: <instance type, e.g. "m3.large">
 
 You will need a ssh agent running with access to the corresponding private key.
 
 AWS can use these dataset backends:
 
-* :ref:`AWS<aws-dataset-backend>`.
-* :ref:`ZFS<zfs-dataset-backend>`.
-* :ref:`Loopback<loopback-dataset-backend>`.
+* :ref:`AWS<aws-dataset-backend>`
+* :ref:`Loopback<loopback-dataset-backend>`
 
 If you're using the AWS dataset backend make sure the regions and zones are the same both here and there!
 
@@ -236,7 +208,10 @@ In this case the acceptance tests need a hint in order to map the private IP add
 E.g. When a test needs to verify that a container on the node is listening on an expected port or to communicate directly with the Docker API on that node.
 The mapping is supplied to the tests in the ``FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS`` environment variable.
 
-If you create nodes using ``run-acceptance-tests --runner=aws --keep`` the command will print out the node addresses when it exits. E.g.
+.. _acceptance-testing-cluster-config:
+
+If you create nodes using ``run-acceptance-tests --keep`` the command will print out the cluster configuration when it exits.
+For example:
 
 .. code-block:: console
 

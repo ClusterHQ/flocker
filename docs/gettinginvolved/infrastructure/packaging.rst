@@ -13,7 +13,9 @@ To build omnibus packages, create a VirtualEnv and install Flocker then its rele
    cd /path/to/flocker
    mkvirtualenv flocker-packaging
    pip install .
-   pip install Flocker[dev]
+   pip install --process-dependency-links .[dev]
+
+.. Need --process-dependency-links while we're using a fork of testtools.
 
 Then run the following command from a clean checkout of the Flocker repository:
 
@@ -91,29 +93,6 @@ To make the entire bucket public, this bucket has the following policy::
 
 A policy can be set by going to a bucket's "Properties", "Permissions", then "Add bucket policy".
 
-``clusterhq-dev-archive``
--------------------------
-
-BuildBot puts Vagrant boxes in the ``clusterhq-dev-archive``.
-
-This has a similar policy to the ``clusterhq-archive`` bucket but is more restrictive in that only the keys with the prefix "vagrant/" are public.
-
-This bucket has the following policy::
-
-   {
-   	"Version": "2008-10-17",
-   	"Id": "PolicyForPublicAccess",
-   	"Statement": [
-   		{
-   			"Sid": "1",
-   			"Effect": "Allow",
-   			"Principal": "*",
-   			"Action": "s3:GetObject",
-   			"Resource": "arn:aws:s3:::clusterhq-dev-archive/vagrant/*"
-   		}
-   	]
-   }
-
 ``clusterhq-release`` package
 -----------------------------
 
@@ -121,12 +100,8 @@ RPM-based distributions tend to bundle ``yum`` repository definitions in ``*-rel
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
-XXX This should be a Python script with tests which can be run on the :doc:`Flocker development machine <vagrant>`, see :issue:`1530`.
-
-To build and upload these packages, on a machine with the operating system which the package is for
-(an easy way to do this is to use the :doc:`Flocker development machine <vagrant>`),
-set up `gsutil` with S3 credentials,
-go to the relevant directory in `admin/release-packaging` and run:
+To build and upload these packages, set up `gsutil` with S3 credentials on a machine with the operating system for which the package is for.
+Go to the relevant directory in :file:`admin/release-packaging` and run:
 
 .. prompt:: bash $
 

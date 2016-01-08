@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for :module:`flocker.node.script`.
@@ -20,7 +20,6 @@ from zope.interface.verify import verifyObject
 
 from twisted.internet.defer import Deferred
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
 from twisted.python.runtime import platform
 
@@ -39,7 +38,7 @@ from ..agents.cinder import CinderBlockDeviceAPI
 from ..agents.ebs import EBSBlockDeviceAPI
 
 from .._loop import AgentLoopService
-from ...testtools import MemoryCoreReactor, random_name
+from ...testtools import MemoryCoreReactor, TestCase, random_name
 from ...ca.testtools import get_credential_sets
 
 from .dummybackend import DUMMY_API
@@ -119,12 +118,13 @@ class DummyAgentService(PClass):
         return self.loop_service
 
 
-class DatasetServiceFactoryTests(SynchronousTestCase):
+class DatasetServiceFactoryTests(TestCase):
     """
     Generic tests for ``DatasetServiceFactory``, independent of the storage
     driver being used.
     """
     def setUp(self):
+        super(DatasetServiceFactoryTests, self).setUp()
         setup_config(self)
 
     def test_config_validated(self):
@@ -182,7 +182,7 @@ def agent_service_setup(test):
     )
 
 
-class AgentServiceFromConfigurationTests(SynchronousTestCase):
+class AgentServiceFromConfigurationTests(TestCase):
     """
     Tests for ``AgentService.from_configuration``
     """
@@ -230,11 +230,13 @@ class AgentServiceFromConfigurationTests(SynchronousTestCase):
         )
 
 
-class AgentServiceGetAPITests(SynchronousTestCase):
+class AgentServiceGetAPITests(TestCase):
     """
     Tests for ``AgentService.get_api``.
     """
-    setUp = agent_service_setup
+    def setUp(self):
+        super(AgentServiceGetAPITests, self).setUp()
+        agent_service_setup(self)
 
     def test_backend_selection(self):
         """
@@ -356,6 +358,7 @@ class AgentServiceGetAPITests(SynchronousTestCase):
                 "access_key_id": "XXXXXXXXXX",
                 "secret_access_key": "YYYYYYYYYY",
                 "cluster_id": "123456789",
+                "validate_region": False,
             }
         )
         ebs = agent_service.get_api()
@@ -405,11 +408,13 @@ class AgentServiceGetAPITests(SynchronousTestCase):
                          "built-in backend nor a 3rd party module.")
 
 
-class AgentServiceDeployerTests(SynchronousTestCase):
+class AgentServiceDeployerTests(TestCase):
     """
     Tests for ``AgentService.get_deployer``.
     """
-    setUp = agent_service_setup
+    def setUp(self):
+        super(AgentServiceDeployerTests, self).setUp()
+        agent_service_setup(self)
 
     def test_backend_selection(self):
         """
@@ -464,11 +469,13 @@ class AgentServiceDeployerTests(SynchronousTestCase):
         )
 
 
-class AgentServiceLoopTests(SynchronousTestCase):
+class AgentServiceLoopTests(TestCase):
     """
     Tests for ``AgentService.get_loop_service``.
     """
-    setUp = agent_service_setup
+    def setUp(self):
+        super(AgentServiceLoopTests, self).setUp()
+        agent_service_setup(self)
 
     @skipUnless(platform.isLinux(), "get_era() only supports Linux.")
     def test_agentloopservice(self):
@@ -493,11 +500,12 @@ class AgentServiceLoopTests(SynchronousTestCase):
         )
 
 
-class AgentServiceFactoryTests(SynchronousTestCase):
+class AgentServiceFactoryTests(TestCase):
     """
     Tests for ``AgentServiceFactory``.
     """
     def setUp(self):
+        super(AgentServiceFactoryTests, self).setUp()
         setup_config(self)
 
     def service_factory(self, deployer_factory):
@@ -647,11 +655,12 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         )
 
 
-class AgentScriptTests(SynchronousTestCase):
+class AgentScriptTests(TestCase):
     """
     Tests for ``AgentScript``.
     """
     def setUp(self):
+        super(AgentScriptTests, self).setUp()
         self.reactor = MemoryCoreReactor()
         self.options = DatasetAgentOptions()
 
@@ -739,12 +748,13 @@ def make_amp_agent_options_tests(options_type):
 
     :param options_type: An ``Options`` subclass  to be tested.
 
-    :return: A ``SynchronousTestCase`` subclass defining tests for that options
+    :return: A ``TestCase`` subclass defining tests for that options
         type.
     """
 
-    class Tests(SynchronousTestCase):
+    class Tests(TestCase):
         def setUp(self):
+            super(Tests, self).setUp()
             self.options = options_type()
             self.scratch_directory = FilePath(self.mktemp())
             self.scratch_directory.makedirs()
@@ -782,12 +792,13 @@ def make_amp_agent_options_tests(options_type):
     return Tests
 
 
-class ValidateConfigurationTests(SynchronousTestCase):
+class ValidateConfigurationTests(TestCase):
     """
     Tests for :func:`validate_configuration`.
     """
 
     def setUp(self):
+        super(ValidateConfigurationTests, self).setUp()
         # This is a sample working configuration which tests can modify.
         self.configuration = {
             u"control-service": {
@@ -943,11 +954,12 @@ class ContainerAgentOptionsTests(
     """
 
 
-class GetExternalIPTests(SynchronousTestCase):
+class GetExternalIPTests(TestCase):
     """
     Tests for ``_get_external_ip``.
     """
     def setUp(self):
+        super(GetExternalIPTests, self).setUp()
         server = socket.socket()
         server.bind(('127.0.0.1', 0))
         server.listen(5)

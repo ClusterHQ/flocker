@@ -6,11 +6,8 @@ Driver for the control service benchmarks.
 from eliot import start_action
 from eliot.twisted import DeferredContext
 
-from twisted.python.filepath import FilePath
 from twisted.internet.task import cooperate
-from twisted.internet.defer import Deferred, logError, maybeDeferred, succeed
-
-from flocker.apiclient import FlockerClient
+from twisted.internet.defer import Deferred, logError, maybeDeferred
 
 
 def bypass(result, func, *args, **kw):
@@ -49,20 +46,23 @@ def sample(operation, metric, name):
 
         def run_probe(probe):
             probing = metric.measure(probe.run)
-            probing.addCallbacks(
-                lambda interval: dict(success=True, value=interval),
-                lambda reason: dict(
-                    success=False, reason=reason.getTraceback()),
+            probing.addCallback(
+                lambda measurement: dict(success=True, value=measurement)
             )
             probing.addCallback(bypass, probe.cleanup)
 
             return probing
         sampling.addCallback(run_probe)
-        sampling.addActionFinish()
-        return sampling.result
+
+        # Convert an error running the probe into a failed sample.
+        def convert_to_result(failure):
+            return dict(success=False, reason=failure.getTraceback())
+        sampling.addErrback(convert_to_result)
+
+        return sampling.addActionFinish()
 
 
-def benchmark(scenario, operation, metric, num_samples=3):
+def benchmark(scenario, operation, metric, num_samples):
     """
     Perform benchmarking of the operation within a scenario.
 
@@ -107,42 +107,27 @@ def benchmark(scenario, operation, metric, num_samples=3):
 
 
 def driver(
-    reactor, config, scenario_factory, operation_factory, metric_factory,
-    result, output
+    reactor, cluster, scenario_factory, operation_factory, metric_factory,
+    num_samples, result, output
 ):
     """
     :param reactor: Reactor to use.
-    :param config: Configuration read from options.
+    :param BenchmarkCluster cluster: Benchmark cluster.
     :param callable scenario_factory: A load scenario factory.
     :param callable operation_factory: An operation factory.
     :param callable metric_factory: A metric factory.
+    :param int num_samples: Number of samples to take.
     :param result: A dictionary which will be updated with values to
         create a JSON result.
     :param output: A callable to receive the JSON structure, for
         printing or storage.
     """
 
-    if config['control']:
-        cert_directory = FilePath(config['certs'])
-        control_service = FlockerClient(
-            reactor,
-            host=config['control'],
-            port=4523,
-            ca_cluster_path=cert_directory.child(b"cluster.crt"),
-            cert_path=cert_directory.child(b"user.crt"),
-            key_path=cert_directory.child(b"user.key"),
-        )
-
-        d = control_service.version()
-    else:
-        # Only valid for operation 'no-op'
-        control_service = None
-        d = succeed({u'flocker': None})
+    d = cluster.get_control_service(reactor).version()
 
     def add_control_service(version, result):
         result['control_service'] = dict(
-            host=config['control'],
-            port=4523,
+            host=cluster.control_node_address().compressed,
             flocker_version=version[u"flocker"],
         )
 
@@ -150,9 +135,10 @@ def driver(
 
     def run_benchmark(ignored):
         return benchmark(
-            scenario_factory(reactor, control_service),
-            operation_factory(reactor, control_service),
-            metric_factory(reactor, control_service),
+            scenario_factory(reactor, cluster),
+            operation_factory(reactor, cluster),
+            metric_factory(reactor, cluster),
+            num_samples,
         )
 
     d.addCallback(run_benchmark)

@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Generic tests for filesystem APIs.
@@ -12,11 +12,11 @@ from __future__ import absolute_import
 from characteristic import attributes
 from zope.interface.verify import verifyObject
 
-from twisted.trial.unittest import TestCase
 from twisted.internet.defer import gatherResults
 from twisted.application.service import IService
 
 from ...testtools import (
+    AsyncTestCase,
     assertNoFDsLeaked, assert_equal_comparison, assert_not_equal_comparison)
 
 from ..testtools import service_for_pool
@@ -37,7 +37,7 @@ def make_ifilesystemsnapshots_tests(fixture):
     :param fixture: A fixture that returns a :class:`IFilesystemSnapshots`
         provider.
     """
-    class IFilesystemSnapshotsTests(TestCase):
+    class IFilesystemSnapshotsTests(AsyncTestCase):
         """
         Tests for :class:`IFilesystemSnapshots` implementors.
 
@@ -169,7 +169,7 @@ def make_istoragepool_tests(fixture, snapshot_factory):
     :param snapshot_factory: A callable that takes a :class:`IFilesystem`
         and returns a corresponding :class:`IFilesystemSnapshots`
     """
-    class IStoragePoolTests(TestCase):
+    class IStoragePoolTests(AsyncTestCase):
         """Tests for a :class:`IStoragePool` implementation and its
         corresponding :class:`IFilesystem` implementation.
 

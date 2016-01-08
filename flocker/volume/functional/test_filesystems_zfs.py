@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Functional tests for ZFS filesystem implementation.
@@ -15,7 +15,6 @@ import errno
 
 from twisted.internet import reactor
 from twisted.internet.task import cooperate
-from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from ..test.filesystemtests import (
@@ -30,6 +29,7 @@ from ..filesystems.zfs import (
 from ..service import Volume, VolumeName
 from .._model import VolumeSize
 from ..testtools import create_zfs_pool, service_for_pool
+from ...testtools import AsyncTestCase, TestCase
 
 
 class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
@@ -72,7 +72,7 @@ class VolumeToDatasetTests(TestCase):
                          b"my-uuid.myns.myvolume")
 
 
-class StoragePoolTests(TestCase):
+class StoragePoolTests(AsyncTestCase):
     """
     ZFS-specific ``StoragePool`` tests.
     """
@@ -399,7 +399,7 @@ class StoragePoolTests(TestCase):
         return d
 
 
-class IncrementalPushTests(TestCase):
+class IncrementalPushTests(AsyncTestCase):
     """
     Tests for incremental push based on ZFS snapshots.
     """
@@ -457,7 +457,7 @@ class IncrementalPushTests(TestCase):
         return loading
 
 
-class FilesystemTests(TestCase):
+class FilesystemTests(AsyncTestCase):
     """
     ZFS-specific tests for ``Filesystem``.
     """
@@ -536,6 +536,10 @@ class FilesystemTests(TestCase):
             MY_VOLUME, size=VolumeSize(maximum_size=maximum_size))
         creating = pool.create(volume)
 
+        def write_and_flush(file_object, data):
+            file_object.write(data)
+            file_object.flush()
+
         def created(filesystem):
             path = filesystem.get_path()
             # Try to write one byte more than the maximum_size of data.
@@ -545,10 +549,9 @@ class FilesystemTests(TestCase):
                 for i in range(maximum_size / chunk_size):
                     fObj.write(chunk)
                 fObj.flush()
-                with self.assertRaises(IOError) as ctx:
-                    fObj.write(b"x")
-                    fObj.flush()
-                self.assertEqual(ctx.exception.args[0], errno.EDQUOT)
+                exception = self.assertRaises(
+                    IOError, write_and_flush, fObj, b'x')
+                self.assertEqual(exception.args[0], errno.EDQUOT)
 
         creating.addCallback(created)
         return creating
