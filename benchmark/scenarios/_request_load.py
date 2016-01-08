@@ -3,7 +3,6 @@
 Request load scenario for the control service benchmarks.
 """
 from itertools import repeat
-from time import time
 
 from zope.interface import implementer
 from eliot import start_action, write_failure, Message
@@ -109,12 +108,12 @@ class RequestLoadScenario(object):
             write_failure(result)
 
         for i in range(self.request_rate):
-            t0 = time()
+            t0 = self.reactor.seconds()
 
             d = self.scenario_setup.make_request()
 
             def get_time(_ignore):
-                return time() - t0
+                return self.reactor.seconds() - t0
             d.addCallback(get_time)
 
             self.rate_measurer.request_sent()
