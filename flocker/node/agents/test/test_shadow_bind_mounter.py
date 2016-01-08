@@ -5,10 +5,32 @@ from uuid import uuid4
 from pyrsistent import PClass, field
 from twisted.python.filepath import FilePath
 
-from ....testtools import TestCase
+from ....testtools import TestCase, run_process, _CalledProcessError
 from .test_blockdevice_manager import blockdevice_manager_for_test
 
 from ..shadow_bind_mounter import create_tmpfs_shadow_mount
+
+
+def write_as_docker(directory, filename, content):
+    """
+    Write content to a file in a directory using docker volume mounts.
+
+    :param FilePath directory: The directory to bind mount into the container.
+    :param unicode filename: The name of the file to create in the bind mount.
+    :param unicode content: The content to write to the container.
+    """
+    container_path = FilePath('/vol')
+    run_process([
+        "docker",
+        "run",  # Run a container.
+        "--rm",  # Remove the container once it exits.
+        # Bind mount the passed in directory into the container
+        "-v", "%s:%s" % (directory.path, container_path.path),
+        "busybox",  # Run the busybox image.
+        # Use sh to echo the content into the file in the bind mount.
+        "/bin/sh", "-c", "echo -n %s > %s" % (
+            content, container_path.child(filename).path)
+    ])
 
 
 class TestTmpfsShadowMount(PClass):
@@ -93,3 +115,18 @@ class CreateShadowMountTests(TestCase):
                                   self._blockdevice_manager)
         write_file.setContent(content)
         self.assertEquals(read_file.getContent(), content)
+
+    def test_even_docker_cant_write(self):
+        """
+        Docker should not be able to create a volume mount inside the read only
+        directory.
+        """
+        ro_dir = self._make_dir()
+        create_tmpfs_shadow_mount(self._make_dir(),
+                                  ro_dir,
+                                  self._blockdevice_manager)
+        content = unicode(uuid4())
+        self.assertRaises(
+            _CalledProcessError,
+            lambda: write_as_docker(ro_dir.child('mount'), 'file', content))
+        self.assertFalse(ro_dir.child('mount').exists())
