@@ -198,3 +198,19 @@ class BenchmarkTest(AsyncTestCase):
             FakeMetric(count(5)),
             3)
         self.assertFailure(samples_ready, RuntimeError)
+
+    @capture_logging(None)
+    def test_sample_count(self, _logger):
+        """
+        The sample count determines the number of samples.
+        """
+        samples_ready = benchmark(
+            FakeScenario(),
+            FakeOperation(repeat(True)),
+            FakeMetric(count(5)),
+            5)
+
+        def check(samples):
+            self.assertEqual(len(samples), 5)
+        samples_ready.addCallback(check)
+        return samples_ready

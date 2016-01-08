@@ -48,7 +48,7 @@ class ReadRequest(object):
 
 def read_request_load_scenario(
     reactor, cluster, method='version', request_rate=10,
-    sample_size=DEFAULT_SAMPLE_SIZE, timeout=45
+    sample_size=DEFAULT_SAMPLE_SIZE, timeout=45, tolerance_percentage=0.2
 ):
     """
     Factory that will initialise and return an excenario that places
@@ -61,6 +61,10 @@ def read_request_load_scenario(
         the rate.
     :param timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
+    :param tolerance_percentage: error percentage in the rate that is
+        considered valid. For example, if we request a ``request_rate``
+        of 20, and we give a tolerance_percentage of 0.2 (20%), anything
+        in [16,20] will be a valid rate.
 
     :return: a ``RequestLoadScenario`` initialised to be a read load
         scenario.
@@ -73,4 +77,5 @@ def read_request_load_scenario(
         request_rate=request_rate,
         sample_size=sample_size,
         timeout=timeout,
+        tolerance_percentage=tolerance_percentage,
     )
