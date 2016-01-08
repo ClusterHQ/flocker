@@ -1,5 +1,9 @@
 .. _authentication-docker:
 
+==================================
+Configuring Cluster Authentication
+==================================
+
 .. include:: ../installation/configuring-authentication.rst
    :start-after: .. begin-body-config-authentication
    :end-before: .. end-body-config-authentication
