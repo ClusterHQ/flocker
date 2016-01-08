@@ -45,7 +45,7 @@ The following instructions will take you through installing Flocker with the Ins
 Full Installation
 =================
 
-To get the full Flocker functionality, the following installation steps will take you through installing the :ref:`Flocker client <installing-flocker-cli>`, the :ref:`Flocker node services <installing-flocker-node>`.
+To get the full Flocker functionality, the following installation steps will take you through installing the Flocker client and the Flocker node services.
 
 .. XXX this introduction could be improved with an image. See FLOC-2077
 

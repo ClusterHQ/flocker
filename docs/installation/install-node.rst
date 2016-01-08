@@ -40,14 +40,14 @@ Before you begin to install the Flocker node services, you will need the followi
 Helpful Guides for Setting Up Nodes
 ===================================
 
-If you do not have any nodes, the following guides will help you set some up, with either AWS or Rackspace:
+If you do not have any nodes, the following guides will help you set some up, with either AWS or Rackspace.
+
+.. note:: If you set up nodes with either AWS or Rackspace, you'll need to come back to the installation steps below to install the ``flocker-node`` packages specific to your operating system.
+
+.. end-body-installing-node-guides
 
 * :ref:`aws-install`
 * :ref:`rackspace-install`
-
-If you set up nodes with either AWS or Rackspace, you'll need to come back to the installation steps below to install the ``flocker-node`` packages specific to your operating system.
-
-.. end-body-installing-node-guides
 
 .. _centos-7-install:
 
