@@ -34,10 +34,12 @@ Step 2
 
 - Create a 2 node Flocker cluster:
 
+.. TODO: customize CloudFormation link below to parameterize region.
+
 .. raw:: html
 
   <div style="margin:2em;">
-      <a href="https://console.aws.amazon.com/cloudformation/home#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json" class="button" target="_blank">Create Cluster</a>
+      <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json" class="button" target="_blank">Create Cluster</a>
   </div>
 
 .. TODO: Paramterize number of cluster nodes.
