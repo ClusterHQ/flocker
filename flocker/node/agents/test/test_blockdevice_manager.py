@@ -6,9 +6,12 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 
 from uuid import uuid4
 
+from pyrsistent import PClass, field
 from testtools import ExpectedException
 from testtools.matchers import Not, FileExists
-
+from twisted.python.components import proxyForInterface
+from twisted.python.filepath import FilePath
+from zope.interface import Interface, implementer
 from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase
@@ -31,6 +34,20 @@ from .test_blockdevice import (
     LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
     mountroot_for_test,
 )
+
+
+def blockdevice_manager_for_test(test_case):
+    """
+    Creates a blockdevice_manager that cleans itself up during test cleanup.
+
+    Cleanup is defined as unmounting all bind mounts, tmpfs mounts, and
+    blockdevice mounts.
+
+    :param test_case: The :class:`TestCase` to use to add cleanup callbacks.
+    """
+    manager = CleanupBlockDeviceManager(BlockDeviceManager())
+    test_case.addCleanup(manager.cleanup)
+    return manager
 
 
 class BlockDeviceManagerTests(TestCase):
@@ -233,8 +250,8 @@ class BlockDeviceManagerTests(TestCase):
 
     def test_make_tmpfs_mount(self):
         """
-        make_tmpfs_mount should create a tmpfs mountpoint that can be written
-        to. Once the mount is unmounted all files should be gone.
+        make_tmpfs_mount creates a tmpfs mountpoint that can be written to.
+        Once the mount is unmounted all files are gone.
         """
         mountpoint = self._get_directory_for_mount()
 
@@ -257,3 +274,181 @@ class BlockDeviceManagerTests(TestCase):
         non_existent = self._get_directory_for_mount().child('non_existent')
         with ExpectedException(MakeTmpfsMountError, '.*non_existent.*'):
             self.manager_under_test.make_tmpfs_mount(non_existent)
+
+
+class _ICleanupOperation(Interface):
+    """
+    Interface for cleanup operations.
+    """
+
+    def execute(blockdevice_manager):
+        """
+        Perform the cleanup operation.
+
+        :param blockdevice_manager: The :class:`IBlockDeviceManager` provider
+            to use to execute the cleanup.
+        """
+
+
+@implementer(_ICleanupOperation)
+class _UnmountCleanup(PClass):
+    """
+    Object for cleanup by unmounting.
+
+    :ivar FilePath path: The path to unmount.
+    """
+    path = field(type=FilePath)
+
+    def execute(self, blockdevice_manager):
+        blockdevice_manager.unmount(self.path)
+
+
+class CleanupBlockDeviceManager(proxyForInterface(IBlockDeviceManager)):
+    """
+    Proxies to another :class:`IBlockDeviceManager` provider, and records every
+    created mount, symlink, etc. for cleanup later.
+
+    This is a test helper class for tests that use
+    :class:`IBlockDeviceManager`, and don't want to manually manage cleanup of
+    all of the mounts and symlinks.
+
+    Note: This does not behave precisely correct for mounted blockdevices that
+    are unmounted by mount point.
+
+    :ivar _cleanup_operations: A list of operations to perform upon cleanup in
+        reverse order. These must provide :class:`_ICleanupOperation`.
+    """
+    def __init__(self, original):
+        super(CleanupBlockDeviceManager, self).__init__(original)
+        self._cleanup_operations = []
+
+    def mount(self, blockdevice, mountpoint):
+        self._cleanup_operations.append(_UnmountCleanup(path=blockdevice))
+        self.original.mount(blockdevice, mountpoint)
+
+    def unmount(self, unmount_path):
+        unmount_index = next(iter(
+            -index
+            for index, op in enumerate(reversed(self._cleanup_operations), 1)
+            if op == _UnmountCleanup(path=unmount_path)
+        ), None)
+        if unmount_path is not None:
+            self._cleanup_operations.pop(unmount_index)
+        self.original.unmount(unmount_path)
+
+    def make_tmpfs_mount(self, mountpoint):
+        self._cleanup_operations.append(_UnmountCleanup(path=mountpoint))
+        self.original.make_tmpfs_mount(mountpoint)
+
+    def bind_mount(self, source_path, mountpoint):
+        self._cleanup_operations.append(_UnmountCleanup(path=mountpoint))
+        self.original.bind_mount(source_path, mountpoint)
+
+    def cleanup(self):
+        """
+        Perform all cleanup operations.
+        """
+        for operation in reversed(self._cleanup_operations):
+            operation.execute(self.original)
+
+
+class CleanupBlockDeviceManagerTests(TestCase):
+    """
+    Test for :class:`CleanupBlockDeviceManager`.
+    """
+
+    def setUp(self):
+        super(CleanupBlockDeviceManagerTests, self).setUp()
+        self.loopback_api = loopbackblockdeviceapi_for_test(self)
+        self.manager_under_test = CleanupBlockDeviceManager(
+            BlockDeviceManager())
+        self.mountroot = mountroot_for_test(self)
+
+    def _get_directory_for_mount(self):
+        """
+        Construct a temporary directory to be used as a mountpoint.
+        """
+        directory = self.mountroot.child(str(uuid4()))
+        directory.makedirs()
+        return directory
+
+    def _get_free_blockdevice(self):
+        """
+        Construct a new blockdevice for testing purposes.
+        """
+        volume = self.loopback_api.create_volume(
+            dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
+        self.loopback_api.attach_volume(
+            volume.blockdevice_id, self.loopback_api.compute_instance_id())
+        return self.loopback_api.get_device_path(volume.blockdevice_id)
+
+    def test_mount_cleaned_up(self):
+        """
+        The cleanup implementation cleans up mounts.
+        """
+        blockdevice = self._get_free_blockdevice()
+        self.manager_under_test.make_filesystem(blockdevice, 'ext4')
+        mountdir = self._get_directory_for_mount()
+        self.manager_under_test.mount(blockdevice, mountdir)
+        self.assertEqual(len(self.manager_under_test._cleanup_operations), 1)
+        self.assertIn(
+            self.manager_under_test._cleanup_operations[0].path,
+            [blockdevice, mountdir])
+
+    def test_unmounted_not_cleaned_up(self):
+        """
+        The cleanup implementation not cleanup mounts that are unmounted.
+        """
+        blockdevice = self._get_free_blockdevice()
+        self.manager_under_test.make_filesystem(blockdevice, 'ext4')
+        mountdir = self._get_directory_for_mount()
+        self.manager_under_test.mount(blockdevice, mountdir)
+        self.manager_under_test.unmount(blockdevice)
+        self.assertEqual(len(self.manager_under_test._cleanup_operations), 0)
+
+    def test_clean_up_from_end(self):
+        """
+        The cleanup implementation not cleanup mounts that are unmounted. These
+        are removed in reverse order.
+        """
+        blockdevice_1 = self._get_free_blockdevice()
+        blockdevice_2 = self._get_free_blockdevice()
+        self.manager_under_test.make_filesystem(blockdevice_1, 'ext4')
+        self.manager_under_test.make_filesystem(blockdevice_2, 'ext4')
+        mountdir_1 = self._get_directory_for_mount()
+        mountdir_2 = self._get_directory_for_mount()
+        mountdir_3 = self._get_directory_for_mount()
+        mountdir_4 = self._get_directory_for_mount()
+        self.manager_under_test.mount(blockdevice_1, mountdir_1)
+        self.manager_under_test.mount(blockdevice_2, mountdir_2)
+        self.manager_under_test.mount(blockdevice_1, mountdir_3)
+        self.manager_under_test.mount(blockdevice_2, mountdir_4)
+        self.manager_under_test.unmount(blockdevice_1)
+        self.assertEqual(
+            list(x.path for x in self.manager_under_test._cleanup_operations),
+            [blockdevice_1, blockdevice_2, blockdevice_2])
+
+    def test_tmpfs_mount_cleaned_up(self):
+        """
+        The cleanup implementation cleans up tmpfs mounts.
+        """
+        mountdir = self._get_directory_for_mount()
+        self.manager_under_test.make_tmpfs_mount(mountdir)
+        self.assertEqual(len(self.manager_under_test._cleanup_operations), 1)
+        self.assertEqual(
+            self.manager_under_test._cleanup_operations[0].path,
+            mountdir)
+        self.manager_under_test.unmount(mountdir)
+
+    def test_bind_mount_cleaned_up(self):
+        """
+        The cleanup implementation cleans up bind mounts.
+        """
+        bounddir = self._get_directory_for_mount()
+        mountdir = self._get_directory_for_mount()
+        self.manager_under_test.bind_mount(bounddir, mountdir)
+        self.assertEqual(len(self.manager_under_test._cleanup_operations), 1)
+        self.assertEqual(
+            self.manager_under_test._cleanup_operations[0].path,
+            mountdir)
+        self.manager_under_test.unmount(mountdir)

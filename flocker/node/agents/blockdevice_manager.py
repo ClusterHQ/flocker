@@ -100,12 +100,12 @@ class MakeFilesystemError(Exception):
         return self.__repr__()
 
 
-@attributes(["blockdevice", "source_message"])
+@attributes(["unmount_target", "source_message"])
 class UnmountError(Exception):
-    """Raised from errors while unmounting a blockdevice.
+    """Raised from errors while unmounting a path.
 
-    :ivar FilePath blockdevice: The path to the blockdevice that was
-        being unmounted when the error occurred.
+    :ivar FilePath unmount_target: The path to the blockdevice or the
+        mountpoint that was being unmounted when the error occurred.
     :ivar unicode source_message: The error message describing the error.
     """
 
@@ -160,11 +160,12 @@ class IBlockDeviceManager(Interface):
             user kill signals, so this may even be raised on successful mounts.
         """
 
-    def unmount(blockdevice):
+    def unmount(unmount_target):
         """
-        Unmounts the blockdevice at blockdevice.path
+        Unmounts the path at unmount_target.path
 
-        :param FilePath blockdevice: The path to the block device to unmount.
+        :param FilePath unmount_target: The path of either a blockdevice or
+            mountpoint to unmount.
 
         :raises: ``UnmountError`` on any failure from the system. This includes
             user kill signals, so this may even be raised on successful runs of
@@ -299,10 +300,10 @@ class BlockDeviceManager(PClass):
             raise MountError(blockdevice=blockdevice, mountpoint=mountpoint,
                              source_message=result.error_message)
 
-    def unmount(self, blockdevice):
-        result = _run_command([b"umount", blockdevice.path])
+    def unmount(self, unmount_target):
+        result = _run_command([b"umount", unmount_target.path])
         if not result.succeeded:
-            raise UnmountError(blockdevice=blockdevice,
+            raise UnmountError(unmount_target=unmount_target,
                                source_message=result.error_message)
 
     def get_mounts(self):
