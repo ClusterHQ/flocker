@@ -6,6 +6,7 @@ from pyrsistent import PClass, field
 from twisted.python.filepath import FilePath
 
 from ....testtools import TestCase, run_process, _CalledProcessError
+from ...testtools import if_docker_configured
 from .test_blockdevice_manager import blockdevice_manager_for_test
 
 from ..shadow_bind_mounter import create_tmpfs_shadow_mount
@@ -116,9 +117,10 @@ class CreateShadowMountTests(TestCase):
         write_file.setContent(content)
         self.assertEquals(read_file.getContent(), content)
 
-    def test_even_docker_cant_write(self):
+    @if_docker_configured
+    def test_docker_cant_write(self):
         """
-        Docker should not be able to create a volume mount inside the read only
+        Docker is not able to create a volume mount inside the read only
         directory.
         """
         ro_dir = self._make_dir()
