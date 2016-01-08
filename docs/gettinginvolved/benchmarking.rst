@@ -137,6 +137,10 @@ Scenario Types
 .. option:: read-request-load
 
    Create additional load on the system by performing read requests.
+
+   Specify the operation to be performed using an additional ``method`` property.
+   The value must be the name of a zero-parameter method in the ``flocker.apiclient.IFlockerAPIV1Client`` interface, and defaults to ``version``.
+
    Specify the rate of requests to perform per second using an additional ``request_rate`` property.
    The default is 10 requests per second.
 
@@ -145,6 +149,20 @@ Scenario Types
 
    Specify a timeout for establishing the scenario using an additional ``timeout`` property.
    The default is 45 seconds.
+
+.. option:: write-request-load
+
+   Create additional load on the system by performing write requests, specifically a dataset move that has no real effect (target = source).
+
+   Specify the rate of requests to perform per second using an additional ``request_rate`` property.
+   The default is 10 requests per second.
+
+   Specify the number of samples to be collected when sampling the request rate using an additional ``sample_size`` property.
+   The default is 5 samples.
+
+   Specify a timeout for establishing the scenario using an additional ``timeout`` property.
+   The default is 45 seconds.
+
 
 Operation Types
 ~~~~~~~~~~~~~~~

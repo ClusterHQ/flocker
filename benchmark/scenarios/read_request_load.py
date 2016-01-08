@@ -7,7 +7,10 @@ from zope.interface import implementer
 
 from twisted.internet.defer import succeed
 
+from flocker.apiclient import IFlockerAPIV1Client
+
 from .._interfaces import IRequestScenarioSetup
+from .._method import validate_no_arg_method
 from ._request_load import RequestLoadScenario, DEFAULT_SAMPLE_SIZE
 
 
@@ -16,11 +19,12 @@ class ReadRequest(object):
     """
     Implementation of the setup and request maker for the read load
     scenario.
-    :ivar reactor: Reactor to use.
-    :ivar cluster: ``BenchmarkCluster`` containing the control service.
+
+    :ivar Callable[[], Deferred[Any]] request: Callable to perform the
+        read request.
     """
-    def __init__(self, reactor, cluster):
-        self.control_service = cluster.get_control_service(reactor)
+    def __init__(self, request):
+        self._request = request
 
     def make_request(self):
         """
@@ -28,9 +32,9 @@ class ReadRequest(object):
         It will list the nodes on the cluster given when initialising
         the ``ReadRequest`` class
 
-        :return: A ``Deferred`` that fires when the nodes have been listed.
+        :return: A ``Deferred`` that fires when the request has been performed.
         """
-        return self.control_service.list_nodes()
+        return self._request()
 
     def run_setup(self):
         """
@@ -42,15 +46,17 @@ class ReadRequest(object):
         return succeed(None)
 
 
-def read_request_load_scenario(reactor, cluster, request_rate=10,
-                               sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
-                               tolerance_percentage=0.2):
+def read_request_load_scenario(
+    reactor, cluster, method='version', request_rate=10,
+    sample_size=DEFAULT_SAMPLE_SIZE, timeout=45, tolerance_percentage=0.2
+):
     """
     Factory that will initialise and return an excenario that places
     load on the cluster by performing read requests at a specified rate.
 
     :param reactor: Reactor to use.
     :param cluster: ``BenchmarkCluster`` containing the control service.
+    :param method: Method of ``IFlockerAPIV1Client`` to call.
     :param request_rate: The target number of requests per second.
     :param sample_size: The number of samples to collect when measuring
         the rate.
@@ -64,9 +70,11 @@ def read_request_load_scenario(reactor, cluster, request_rate=10,
     :return: a ``RequestLoadScenario`` initialised to be a read load
         scenario.
     """
+    validate_no_arg_method(IFlockerAPIV1Client, method)
+    request = getattr(cluster.get_control_service(reactor), method)
     return RequestLoadScenario(
         reactor,
-        ReadRequest(reactor, cluster),
+        ReadRequest(request),
         request_rate=request_rate,
         sample_size=sample_size,
         timeout=timeout,

@@ -7,12 +7,9 @@ from eliot.testing import capture_logging
 
 from twisted.internet.defer import succeed, Deferred
 from twisted.internet.task import Clock
-from twisted.python.components import proxyForInterface
 from twisted.python.failure import Failure
 
-from flocker.apiclient._client import (
-    IFlockerAPIV1Client, FakeFlockerClient, Node
-)
+from flocker.apiclient._client import FakeFlockerClient, Node
 from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
@@ -24,26 +21,27 @@ from benchmark.scenarios import (
 DEFAULT_VOLUME_SIZE = 1073741824
 
 
-class RequestDroppingFakeFlockerClient(
-    proxyForInterface(IFlockerAPIV1Client)
-):
+class RequestDroppingFakeFlockerClient:
     """
     A ``FakeFlockerClient`` that can drop alternating requests.
     """
     def __init__(self, client, reactor):
-        super(RequestDroppingFakeFlockerClient, self).__init__(client)
         self.drop_requests = False
         self._dropped_last_request = False
 
-    def list_nodes(self):
-        if not self.drop_requests:
-            return succeed(True)
-        else:
-            if self._dropped_last_request:
-                self._dropped_last_request = False
+    # Every attribute access is for a no-arg method.  Return a function
+    # that drops every second request if ``drop_requests`` is True.
+    def __getattr__(self, name):
+        def f():
+            if not self.drop_requests:
                 return succeed(True)
-            self._dropped_last_request = True
-        return Deferred()
+            else:
+                if self._dropped_last_request:
+                    self._dropped_last_request = False
+                    return succeed(True)
+                self._dropped_last_request = True
+            return Deferred()
+        return f
 
 
 class FakeNetworkError(Exception):
@@ -52,36 +50,37 @@ class FakeNetworkError(Exception):
     """
 
 
-class RequestErrorFakeFlockerClient(
-    proxyForInterface(IFlockerAPIV1Client)
-):
+class RequestErrorFakeFlockerClient:
     """
     A ``FakeFlockerClient`` that can result in failed requests.
     """
     def __init__(self, client, reactor):
-        super(RequestErrorFakeFlockerClient, self).__init__(client)
         self.fail_requests = False
         self.reactor = reactor
         self.delay = 1
 
-    def list_nodes(self):
-        if not self.fail_requests:
-            return succeed(True)
-        else:
-            def fail_later(secs):
-                d = Deferred()
-                self.reactor.callLater(
-                    secs, d.errback, Failure(FakeNetworkError())
-                )
-                return d
-            return fail_later(self.delay)
+    # Every attribute access is for a no-arg method.  Return a function
+    # that fails slowly if ``fail_requests`` is True.
+    def __getattr__(self, name):
+        def f():
+            if not self.fail_requests:
+                return succeed(True)
+            else:
+                def fail_later(secs):
+                    d = Deferred()
+                    self.reactor.callLater(
+                        secs, d.errback, Failure(FakeNetworkError())
+                    )
+                    return d
+                return fail_later(self.delay)
+        return f
 
 
 class read_request_load_scenarioTest(TestCase):
     """
     ``read_request_load_scenario`` tests
     """
-    def make_cluster(self, FlockerClient):
+    def make_cluster(self, make_flocker_client):
         """
         Create a cluster that can be used by the scenario tests.
         """
@@ -89,7 +88,7 @@ class read_request_load_scenarioTest(TestCase):
         node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
         return BenchmarkCluster(
             node1.public_address,
-            lambda reactor: FlockerClient(
+            lambda reactor: make_flocker_client(
                 FakeFlockerClient([node1, node2]), reactor
             ),
             {node1.public_address, node2.public_address},
