@@ -72,35 +72,16 @@ Configuring Flocker
 
 Once you have installed Flocker you will need to complete the following configuration steps in order to start using your cluster:
 
-.. toctree::
-   :maxdepth: 2
-
-   ../installation/configuring-authentication
-   ../installation/generate-api-certificates
-   ../installation/enabling-control-service
-   ../installation/configuring-nodes-storage
-   ../installation/enabling-agent-service
-
 .. end-body-configuring-flocker
 
-.. begin-body-configuring-flocker-docker
-
-Configuring Flocker
-===================
-
-Once you have installed Flocker you will need to complete the following configuration steps in order to start using your cluster:
-
 .. toctree::
    :maxdepth: 2
 
    ../installation/configuring-authentication
    ../installation/generate-api-certificates
-   ../installation/generate-api-plugin
    ../installation/enabling-control-service
    ../installation/configuring-nodes-storage
    ../installation/enabling-agent-service
-
-.. end-body-configuring-flocker-docker
 
 .. begin-body-controlling-flocker
 
