@@ -66,19 +66,31 @@ class DatasetAPITests(AsyncTestCase):
 
         # Once created, request to move the dataset to node2
         def move_dataset(dataset):
+            print 'in move dataset'
+            print dataset
+            print dataset.__class__
+
             dataset_moving = cluster.client.move_dataset(
                 UUID(cluster.nodes[1].uuid), dataset.dataset_id)
 
             # Wait for the dataset to be moved; we expect the state to
             # match that of the originally created dataset in all ways
             # other than the location.
+            print 'ehm two'
             moved_dataset = dataset.set(
                 primary=UUID(cluster.nodes[1].uuid))
+            print 'three?'
             dataset_moving.addCallback(
                 lambda dataset: cluster.wait_for_dataset(moved_dataset))
+            print 'aha four'
             return dataset_moving
 
         waiting_for_create.addCallback(move_dataset)
+        print 'waitin to create'
+        print cluster
+        print cluster.__class__
+        print cluster.client
+        print cluster.client.__class__
         return waiting_for_create
 
     @flaky(u'FLOC-3196')
