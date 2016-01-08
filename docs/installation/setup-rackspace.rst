@@ -4,6 +4,8 @@
 Setting Up Nodes Using Rackspace
 ================================
 
+.. begin-body
+
 You can get a Flocker cluster running using Rackspace.
 You'll need to setup at least two nodes.
 
@@ -23,6 +25,8 @@ You'll need to setup at least two nodes.
    .. prompt:: bash alice@mercury:~$
 
       ssh root@203.0.113.109
+
+.. end-body
 
 #. Go to the installation instructions specific to your operating system in :ref:`installing-flocker-node`, to install ``clusterhq-flocker-node`` on each node in your cluster:
 

@@ -4,6 +4,8 @@
 Installing the Flocker Client
 =============================
 
+.. begin-body-installing-client-intro
+
 The following sections describe how to install the Flocker client on your platform:
 
 .. contents::
@@ -11,7 +13,11 @@ The following sections describe how to install the Flocker client on your platfo
    :backlinks: none
    :depth: 2
 
+.. end-body-installing-client-intro
+
 .. _installing-flocker-cli-ubuntu-15.10:
+
+.. begin-body-installing-client-Ubuntu-15.10
 
 Installing on Ubuntu 15.10 (64-bit)
 ===================================
@@ -19,14 +25,16 @@ Installing on Ubuntu 15.10 (64-bit)
 .. note:: 
    These instructions require that you have ``sudo`` access.
 
-   If you are using a 32-bit Ubuntu platform, see the instructions for  :ref:`installing-flocker-cli-linux`.
-
 On Ubuntu 15.10 (64-bit), the Flocker CLI can be installed from the ClusterHQ repository:
 
 .. task:: cli_pkg_install ubuntu-15.10
    :prompt: alice@mercury:~$
 
+.. end-body-installing-client-Ubuntu-15.10
+
 .. _installing-flocker-cli-ubuntu-14.04:
+
+.. begin-body-installing-client-Ubuntu-14.04
 
 Installing on Ubuntu 14.04 (64-bit)
 ===================================
@@ -34,14 +42,16 @@ Installing on Ubuntu 14.04 (64-bit)
 .. note:: 
    These instructions require that you have ``sudo`` access.
 
-   If you are using a 32-bit Ubuntu platform, see the instructions for  :ref:`installing-flocker-cli-linux`.
-
 On Ubuntu 14.04 (64-bit), the Flocker CLI can be installed from the ClusterHQ repository:
 
 .. task:: cli_pkg_install ubuntu-14.04
    :prompt: alice@mercury:~$
 
+.. end-body-installing-client-Ubuntu-14.04
+
 .. _installing-flocker-cli-linux:
+
+.. begin-body-installing-client-linux
 
 Installing on Other Linux Distributions
 =======================================
@@ -60,7 +70,6 @@ To install these prerequisites with the ``yum`` package manager, run:
 .. task:: cli_pip_prereqs yum
    :prompt: alice@mercury:~$
 
-
 To install these prerequisites with the ``apt`` package manager, run:
 
 .. task:: cli_pip_prereqs apt
@@ -78,6 +87,10 @@ Whenever you need to run Flocker CLI commands, ensure you are in the virtualenv:
    alice@mercury:~$ source flocker-client/bin/activate
    alice@mercury:~$ flocker-deploy --version
    |latest-installable|
+
+.. end-body-installing-client-linux
+
+.. begin-body-installing-client-OSX
 
 Installing on OS X
 ==================
@@ -112,10 +125,8 @@ The ``flocker-deploy`` command line program will now be available:
    alice@mercury:~$ flocker-deploy --version
    |latest-installable|
 
-Next Step
-=========
-
-The next section describes your next step - :ref:`Installing the Flocker Node Services<installing-flocker-node>`.
-
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
+
+.. end-body-installing-client-OSX
+

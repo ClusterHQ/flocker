@@ -45,9 +45,13 @@ The following instructions will take you through installing Flocker with the Ins
 Full Installation
 =================
 
-To get the full Flocker functionality, the following installation steps will take you through installing the :ref:`Flocker client <installing-flocker-cli>`, the :ref:`Flocker node services <installing-flocker-node>`.
+To get the full Flocker functionality, the following installation steps will take you through installing the Flocker client and the Flocker node services.
 
 .. XXX this introduction could be improved with an image. See FLOC-2077
+
+.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
+
+.. end-body-full-installation
 
 .. toctree::
    :maxdepth: 2
@@ -55,15 +59,11 @@ To get the full Flocker functionality, the following installation steps will tak
    ../installation/install-client
    ../installation/install-node
 
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
-
 .. toctree::
    :hidden:
 
    ../installation/setup-aws
    ../installation/setup-rackspace
-
-.. end-body-full-installation
 
 .. begin-body-configuring-flocker
 
@@ -72,35 +72,16 @@ Configuring Flocker
 
 Once you have installed Flocker you will need to complete the following configuration steps in order to start using your cluster:
 
-.. toctree::
-   :maxdepth: 2
-
-   ../installation/configuring-authentication
-   ../installation/generate-api-certificates
-   ../installation/enabling-control-service
-   ../installation/configuring-nodes-storage
-   ../installation/enabling-agent-service
-
 .. end-body-configuring-flocker
 
-.. begin-body-configuring-flocker-docker
-
-Configuring Flocker
-===================
-
-Once you have installed Flocker you will need to complete the following configuration steps in order to start using your cluster:
-
 .. toctree::
    :maxdepth: 2
 
    ../installation/configuring-authentication
    ../installation/generate-api-certificates
-   ../installation/generate-api-plugin
    ../installation/enabling-control-service
    ../installation/configuring-nodes-storage
    ../installation/enabling-agent-service
-
-.. end-body-configuring-flocker-docker
 
 .. begin-body-controlling-flocker
 

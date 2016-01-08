@@ -4,11 +4,13 @@
 Generating an API Client Certificate
 ====================================
 
+.. begin-body
+
 To send instructions to the :ref:`Flocker control service <control-service>`, whether it is via the API directly, or the CLI, or by any other method, you will need to follow the instructions below to generate an API client certificate:
 
 #. Generate an API client certificate:
 
-   Run the following command from the directory which contains the certificate authority files generated when you first installed the cluster. For more information, see :ref:`authentication`.
+   Run the following command from the directory which contains the certificate authority files generated when you first installed the cluster.
 
    Replace ``<client_name>`` with a unique identifier for an API client.
 
@@ -49,7 +51,7 @@ OS X
 ----
 
 Make sure you know the common name of the client certificate you will use.
-If you just generated the certificate following the :ref:`instructions above <generate-api>`, the common name is ``user-<client_name>`` where ``<client_name>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
+By following the instructions in this document, the common name is ``user-<client_name>``, where ``<client_name>`` is whatever argument you passed to ``flocker-ca generate-api-certificate``.
 If you're not sure what the username is, you can find the common name like this:
 
 .. prompt:: bash $ auto
@@ -78,3 +80,5 @@ Linux
          https://172.16.255.250:4523/v1/configuration/containers
 
 You can read more about how Flocker's authentication layer works in the :ref:`security and authentication guide <security>`.
+
+.. end-body

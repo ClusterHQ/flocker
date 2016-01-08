@@ -6,7 +6,7 @@ Generating an API Client Certificate for the Flocker Plugin for Docker
 
 The Flocker plugin for Docker requires access to the Flocker REST API.
 To use the plugin, you will need to create an API client certificate and key for a user named ``plugin`` on each node. 
-For more information, see the :ref:`generate-api` instructions.
+For more information, see the :ref:`generate-api-docker` instructions.
 
 #. Generate an API client certificate for a user named ``plugin``:
 

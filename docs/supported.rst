@@ -147,7 +147,7 @@ Supported Infrastructure & Storage
     <img src="_images/coming-soon.png" style="height:25px; margin:2px; margin-left:20px; border:1px solid #ddd;" title="Coming soon"> = Coming soon
     <div style="clear:both; margin-top:20px;"></div>
 
-.. XXX This link probably needs to go somewhere, but not here: Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<agent-yml>` topic.
+.. XXX This link probably needs to go somewhere, but not here: Configuration details for each of the backends can be found in the :ref:`Configuring the Nodes and Storage Backends<configuring-nodes-backends>` topic.
 
 .. note:: If you wish to use a storage device that is not supported by Flocker or an existing plugin, you can implement this support yourself.
           For more information, see :ref:`contribute-flocker-driver`.

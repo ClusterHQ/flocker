@@ -4,6 +4,8 @@
 OpenStack Block Device Backend Configuration
 ============================================
 
+.. begin-body
+
 The OpenStack backend uses Cinder volumes as the storage for datasets.
 This backend can be used with Flocker dataset agent nodes run by OpenStack Nova.
 The configuration item to use OpenStack should look like:
@@ -71,3 +73,5 @@ For example:
 To find the requirements for other plugins, see the appropriate documentation in the OpenStack project or provided with the plugin.
 
 .. _OpenStack authentication plugin selected: http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name
+
+.. end-body

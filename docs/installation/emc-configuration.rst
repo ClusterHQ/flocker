@@ -4,6 +4,8 @@
 EMC Block Device Backend Configuration
 ======================================
 
+.. begin-body
+
 EMC provide plugins for Flocker integration with `ScaleIO`_, `XtremIO`_ and `VMAX`_.
 For more information, including installation, testing and usage instructions, visit the following links to their GitHub repositories:
 
@@ -20,3 +22,4 @@ For more information, including installation, testing and usage instructions, vi
 .. _EMC XtremIO Flocker driver on GitHub: https://github.com/emccorp/xtremio-flocker-driver
 .. _EMC VMAX Flocker driver on GitHub: https://github.com/emccorp/vmax-flocker-driver
 
+.. end-body

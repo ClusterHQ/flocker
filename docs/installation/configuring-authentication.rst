@@ -4,15 +4,15 @@
 Configuring Cluster Authentication
 ==================================
 
+.. begin-body-config-authentication
+
 Prerequisites
 =============
 
 Before you begin to configure authentication for your cluster, you will need to have completed the following:
 
 * Installed the ``flocker-cli`` on your local machine.
-  For more information, see :ref:`installing-flocker-cli`.
 * Installed ``flocker-node`` on each of your nodes.
-  For more information, see :ref:`installing-flocker-node`.
 * Chosen on which of your nodes you want to host the Flocker control service.
 
 Summary
@@ -164,7 +164,6 @@ Steps
 
    If you haven't done this already, you'll need to repeat steps 7, 8, 9 and 10 for each node (including the control service node if it is acting as a Flocker agent node).
 
-The next topic is :ref:`generate-api`, which is used to identify yourself when sending instructions to the control service.
+.. end-body-config-authentication
 
-If you have chosen to install :ref:`plugin` you will also need to create API client certificates for the plugin, as it requires access to the Flocker REST API.
-In addition to the :ref:`generate-api` steps, you will also need to complete the instructions in :ref:`generate-api-docker-plugin` .
+The next topic is :ref:`generate-api`, which is used to identify yourself when sending instructions to the control service.

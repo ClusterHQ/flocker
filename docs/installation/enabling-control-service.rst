@@ -4,6 +4,8 @@
 Enabling the Flocker Control Service 
 ====================================
 
+.. begin-body
+
 The control service is the brain of Flocker; it can live anywhere in your cluster, and enabling it is an essential step in setting up your cluster.
 
 For more information about the control service, see :ref:`architecture`.
@@ -45,3 +47,5 @@ On AWS, an external firewall is used instead, which will need to be configured s
 
 .. _FirewallD documentation: https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Security_Guide/sec-Using_Firewalls.html
 .. _UFW documentation: https://help.ubuntu.com/community/UFW
+
+.. end-body
