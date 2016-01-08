@@ -37,4 +37,4 @@ Next Step
 =========
 
 The installation of the Flocker clients, node services and the Flocker plugin for Docker is now complete.
-To enable these services, and to configure your cluster security and backend, please move on to :ref:`post-installation-configuration-docker`.
+To enable these services, and to configure your cluster security and backend, please move on to :ref:`post-installation-configuration-with-docker`.
