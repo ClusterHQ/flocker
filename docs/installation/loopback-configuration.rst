@@ -4,6 +4,8 @@
 Loopback Block Device Backend Configuration (INTERNAL TESTING)
 ==============================================================
 
+.. begin-body
+
 The Loopback backend uses node-local storage as storage for datasets.
 It has no data movement functionality.
 It serves primarily as a development and testing tool for the other block device backend implementations.
@@ -18,3 +20,5 @@ The configuration item to use Loopback should look like:
       "root_path": "/var/lib/flocker/loopback"
 
 The ``root_path`` is a local path on each Flocker dataset agent node where dataset storage will reside.
+
+.. end-body

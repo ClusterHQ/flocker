@@ -4,6 +4,8 @@
 VMware Block Device Backend Configuration
 =========================================
 
+.. begin-body
+
 VMware provides a plugin for Flocker integration with `vSphere`_, allowing Dockerized applications to use vSphere storage.
 This driver allows you to provision persistent data volumes on VMware's vSphere storage data stores (VMFS, NFS, VSAN, VVOL).
 
@@ -13,3 +15,5 @@ For more information, visit the following GitHub repository: `VMware vSphere Flo
 
 .. _vSphere: http://www.vmware.com/products/vsphere/
 .. _VMware vSphere Flocker driver on GitHub: https://github.com/vmware/vsphere-flocker-driver
+
+.. end-body

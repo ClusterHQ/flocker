@@ -4,6 +4,8 @@
 Amazon AWS / EBS Block Device Backend Configuration
 ===================================================
 
+.. begin-body
+
 The AWS backend uses EBS volumes as the storage for datasets.
 This backend can be used when Flocker dataset agents are run on EC2 instances.
 The configuration item to use AWS should look like:
@@ -34,4 +36,4 @@ If no profile is specified, then a bronze volume is created, which is consistent
 	After configuration you are subject to the normal performance guarantees that EBS provides.
 	For further information, see the `Amazon EBS Product Details <https://aws.amazon.com/ebs/details/>`_.
 
-
+.. end-body
