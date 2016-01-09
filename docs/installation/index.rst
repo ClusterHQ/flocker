@@ -12,7 +12,7 @@ Use the Flocker Installer if you want to get started with Flocker quickly, but i
 .. note:: 
    The Installer is one of our :ref:`Labs projects <labs-projects>`, so is currently experimental.
    Because Installer is still experimental, it is currently only available for Ubuntu 14.04 on AWS with an EBS backend.
-   Other configurations (for example, CentOS or OpenStack) are possible via the :ref:`official long-form install docs <installing-flocker>`.
+   Other configurations (for example, CentOS or OpenStack) are possible via the full installation docs.
    
    If you get an error response from any of the commands in this guide, please `report a bug <https://github.com/clusterhq/unofficial-flocker-tools/issues>`_, pasting the ``install-log.txt`` file you will find in the current directory.
 
