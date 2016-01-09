@@ -1,4 +1,4 @@
-.. _rackspace-install:
+.. Single Source Instructions
 
 ================================
 Setting Up Nodes Using Rackspace
@@ -27,8 +27,3 @@ You'll need to setup at least two nodes.
       ssh root@203.0.113.109
 
 .. end-body
-
-#. Go to the installation instructions specific to your operating system in :ref:`installing-flocker-node`, to install ``clusterhq-flocker-node`` on each node in your cluster:
-
-   * :ref:`centos-7-install`
-   * :ref:`ubuntu-14.04-install`

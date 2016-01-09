@@ -42,8 +42,7 @@ If you do not have any nodes, the following guides will help you set some up, wi
 
 .. end-body-installing-node-guides
 
-* :ref:`aws-install`
-* :ref:`rackspace-install`
+.. XXX In the integration specific documentation, links to the guides appear here
 
 .. begin-body-installing-node-centos
 

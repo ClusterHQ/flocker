@@ -15,7 +15,6 @@ Next Release
 * The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
 * The :ref:`Flocker Plugin for Docker<plugin>` now solely relies on the metadata key ``"name"`` to find datasets.
 * Now supporting Ubuntu-15.10 instead of Ubuntu-15.04 for the flocker client.
-  See :ref:`installing-flocker-cli-ubuntu-15.10`.
 * Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they don't need to be skipped anymore.
 * Added documentation for the :ref:`EMC VMAX <emc-dataset-backend>` driver.
 
@@ -151,7 +150,6 @@ v1.0
 * Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
   See :ref:`contribute-flocker-driver`.
 * It is now necessary to specify a dataset backend for each agent node.
-  See :ref:`post-installation-configuration`.
 * Flocker-initiated communication is secured with TLS.
   See :ref:`authentication`.
 * ``flocker-deploy`` now requires the hostname of the control service as its first argument.
@@ -159,7 +157,6 @@ v1.0
   See :ref:`api`.
 * Removed support for installing ``flocker-node`` on Fedora 20.
 * Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
-  See :ref:`installing-flocker-cli-ubuntu-14.04` and ``installing-flocker-cli-ubuntu-15.04``.
 * Bug fixes and improvements focused on security and stability across platforms.
 
 v0.4
@@ -168,7 +165,7 @@ v0.4
 * New :ref:`REST API<api>` for managing datasets.
 * Applications can now be configured with a :ref:`restart policy<restart configuration>`.
 * Volumes can now be configured with a :ref:`maximum size<volume configuration>`.
-* Documentation now includes :ref:`instructions for installing flocker-node on CentOS 7<centos-7-install>`.
+* Documentation now includes instructions for installing flocker-node on CentOS 7.
 * SELinux must be disabled before installing Flocker.
   A future version of Flocker may provide a different integration strategy.
 
@@ -183,7 +180,7 @@ v0.3.1
 
 * Applications can now be :ref:`configured with a CPU and memory limit<configuration>`.
 * Documentation now includes instructions for installing flocker-node on Fedora 20.
-* Documentation now includes instructions for deploying ``flocker-node`` on three popular cloud services: :ref:`Amazon EC2<aws-install>`, :ref:`Rackspace<rackspace-install>`, and DigitalOcean.
+* Documentation now includes instructions for deploying ``flocker-node`` on three popular cloud services: Amazon EC2, Rackspace<rackspace-install, and DigitalOcean.
 
 v0.3
 ----

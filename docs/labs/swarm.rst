@@ -6,8 +6,8 @@ Flocker with Swarm
 
 With the :ref:`plugin`, and with Swarm support for the ``--volume-driver`` option, you can use Flocker together with Docker Swarm.
 
-First, you need to :ref:`install Flocker <quick-start-installer>` and :ref:`plugin`.
-You can use our experimental  :ref:`Flocker Installer <quick-start-installer>` to do this.
+First, you need to install Flocker and :ref:`plugin`.
+You can use our experimental Flocker Installer to do this.
 
 Then, you need a version of Swarm that supports Flocker volumes.
 
