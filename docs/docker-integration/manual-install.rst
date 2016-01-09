@@ -23,6 +23,12 @@ Manually Installing Flocker with Docker Swarm
    install-client
    install-node
 
+.. toctree::
+   :hidden:
+   
+   setup-aws
+   setup-rackspace
+
 .. _post-installation-configuration-with-docker:
 
 .. include:: ../installation/index.rst
