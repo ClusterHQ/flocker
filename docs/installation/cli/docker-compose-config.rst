@@ -1,3 +1,5 @@
+.. Single Source Instructions
+
 .. _fig-compatible-config:
 
 ===================================================

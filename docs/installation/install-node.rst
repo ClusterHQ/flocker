@@ -1,4 +1,4 @@
-.. _installing-flocker-node:
+.. Single Source Instructions
 
 ====================================
 Installing the Flocker Node Services
@@ -9,8 +9,6 @@ Installing the Flocker Node Services
 The following instructions describe how to install the ``clusterhq-flocker node`` package, and the optional ``clusterhq-flocker-docker-plugin`` package on each of the nodes in your cluster.
 
 .. end-body-installing-node-intro
-
-.. _installing-flocker-node-prereq:
 
 .. begin-body-installing-node-prereqs
 
@@ -33,8 +31,6 @@ Before you begin to install the Flocker node services, you will need the followi
 
 .. end-body-installing-node-prereqs
 
-.. _helpful-guides:
-
 .. begin-body-installing-node-guides
 
 Helpful Guides for Setting Up Nodes
@@ -48,8 +44,6 @@ If you do not have any nodes, the following guides will help you set some up, wi
 
 * :ref:`aws-install`
 * :ref:`rackspace-install`
-
-.. _centos-7-install:
 
 .. begin-body-installing-node-centos
 
@@ -93,8 +87,6 @@ Installing on CentOS 7
           You will need to make sure `Docker (at least 1.8) is installed`_ and running.
 
 .. end-body-installing-node-centos
-
-.. _ubuntu-14.04-install:
 
 .. begin-body-installing-node-ubuntu
 
