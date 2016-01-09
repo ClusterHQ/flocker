@@ -143,9 +143,9 @@ for i in range(NUM_NODES):
         user_data += sibling_lines(SWARM_MANAGER_SETUP)
         template.add_output([
             Output(
-                "FlockerControlIP",
-                Description="Public IP address of the Flocker Control node"
-                            "and Docker Swarm Manager.",
+                "ControlNodeIP",
+                Description="Public IP of Flocker Control and "
+                            "Docker Swarm Manager.",
                 Value=GetAtt(ec2_instance, "PublicIp"),
             )
         ])
@@ -154,9 +154,9 @@ for i in range(NUM_NODES):
         user_data += sibling_lines(SWARM_NODE_SETUP)
         template.add_output([
             Output(
-                "FlockerNode{}IP".format(i),
-                Description="Public IP address of a node running Flocker agent"
-                            "and Docker Swarm agent.",
+                "AgentNode{}IP".format(i),
+                Description="Public IP of Agent Node for Flocker and "
+                            "Docker Swarm.",
                 Value=GetAtt(ec2_instance, "PublicIp"),
             )
         ])
@@ -198,7 +198,7 @@ template.add_resource(client_instance)
 
 template.add_output([
     Output(
-        "ClientIP",
+        "ClientNodeIP",
         Description="Public IP address of the client node.",
         Value=GetAtt(client_instance, "PublicIp"),
     )
@@ -214,13 +214,13 @@ template.add_output([
 template.add_output(Output(
     "S3BucketName",
     Value=Ref(s3bucket),
-    Description="Name of S3 bucket to hold cluster configuration files."
+    Description="Name of S3 bucket that holds cluster configuration."
 ))
 template.add_output(Output(
     "SwarmDockerHost",
     Value=Join("", ["export DOCKER_HOST=",
                GetAtt(control_service_instance, "PublicIp"), ":2376"]),
-    Description="Please point DOCKER_HOST at Swarm Manager."
+    Description="DOCKER_HOST setting to talk to Docker Swarm Manager."
 ))
 
 base_url = "https://resources.console.aws.amazon.com/r/group#sharedgroup="
@@ -255,7 +255,7 @@ for part in iparts:
         new_parts.append(variables[key])
 
 template.add_output(Output(
-    "ResourceGroup",
+    "CloudFormationStackView",
     Value=Join("", new_parts),
     Description="A view of all the resources in this stack."
 ))
