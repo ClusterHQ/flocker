@@ -2,7 +2,6 @@
 
 from uuid import uuid4
 
-from pyrsistent import PClass, field
 from twisted.python.filepath import FilePath
 
 from ....testtools import TestCase, run_process, _CalledProcessError
@@ -32,42 +31,6 @@ def write_as_docker(directory, filename, content):
         "/bin/sh", "-c", "echo -n %s > %s" % (
             content, container_path.child(filename).path)
     ])
-
-
-class TestTmpfsShadowMount(PClass):
-    """
-    Return value type for :func:`create_tmpfs_shadow_mount_for_test`.
-
-    :ivar FilePath backing_directory: The backing_directory for the tmpfs
-        shadow mount.
-    :ivar FilePath read_only_directory: The read only directory for the tmpfs
-        shadow mount.
-    """
-    backing_directory = field(type=FilePath)
-    read_only_directory = field(type=FilePath)
-
-
-def create_tmpfs_shadow_mount_for_test(test_case):
-    """
-    Create a tmpfs shadow mount that will be cleaned up at the end of the test.
-
-    :param TestCase test_case: The test case to use to add the addCleanup
-        callbacks to.
-
-    :returns TestTmpfsShadowMount: A nice wrapper object with the backing
-        directory and the read only directory of the tmpfs shadow mount.
-    """
-    result = TestTmpfsShadowMount(
-        backing_directory=FilePath(test_case.mktemp()),
-        read_only_directory=FilePath(test_case.mktemp()),
-    )
-    test_case.addCleanup(result.backing_directory.remove)
-    test_case.addCleanup(result.read_only_directory.remove)
-    blockdevice_manager = blockdevice_manager_for_test(test_case)
-    create_tmpfs_shadow_mount(result.backing_directory,
-                              result.read_only_directory,
-                              blockdevice_manager)
-    return result
 
 
 class CreateShadowMountTests(TestCase):

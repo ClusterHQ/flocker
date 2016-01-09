@@ -108,8 +108,8 @@ from ...testtools import (
     compute_cluster_state, if_docker_configured, ControllableAction,
 )
 from ....testtools import (
-    REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
-    AsyncTestCase, TestCase,
+    REALISTIC_BLOCKDEVICE_SIZE, run_process, _CalledProcessError,
+    make_with_init_tests, random_name, AsyncTestCase, TestCase,
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
@@ -120,6 +120,8 @@ from ....control._model import Leases
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
 from ....common import interface_decorator, RACKSPACE_MINIMUM_VOLUME_SIZE
+
+from ..testtools import create_tmpfs_shadow_mount_for_test
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
@@ -143,6 +145,9 @@ DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
         'maximum_size': integers(min_value=1),
         'mount_point': builds(FilePath, sampled_from([
             '/flocker/abc', '/flocker/xyz',
+        ])),
+        'share_path': builds(FilePath, sampled_from([
+            '/flocker/v1/abc', '/flocker/v1/xyz',
         ])),
         'blockdevice_id': just(u''),  # This gets overriden below.
         'device_path': builds(FilePath, sampled_from([
@@ -168,6 +173,9 @@ DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
                              values=_METADATA_STRATEGY),
     'mount_point': builds(FilePath, sampled_from([
         '/flocker/abc', '/flocker/xyz',
+    ])),
+    'share_path': builds(FilePath, sampled_from([
+        '/flocker/v1/abc', '/flocker/v1/xyz',
     ])),
 }
 
@@ -318,12 +326,14 @@ def create_blockdevicedeployer(
     async_api = _SyncToThreadedAsyncAPIAdapter(
         _sync=api, _reactor=NonReactor(), _threadpool=NonThreadPool(),
     )
+    tmpfs_shadow_mount = create_tmpfs_shadow_mount_for_test(test_case)
     return BlockDeviceDeployer(
         hostname=hostname,
         node_uuid=node_uuid,
         block_device_api=api,
         _async_block_device_api=async_api,
-        mountroot=mountroot_for_test(test_case),
+        mountroot=tmpfs_shadow_mount.backing_directory,
+        sharedroot=tmpfs_shadow_mount.read_only_directory,
         block_device_manager=block_device_manager,
     )
 
@@ -1264,18 +1274,19 @@ class _WriteVerifyingExternalClient(object):
         # The path for docker to expose within the container. Docker will bind
         # mount mountdir to this location within the container.
         container_path = FilePath('/vol')
-        process_result = run_process([
-            "docker",
-            "run",  # Run a container.
-            "--rm",  # Remove the container once it exits.
-            # Bind mount the passed in directory into the container
-            "-v", "%s:%s" % (mountdir.path, container_path.path),
-            "busybox",  # Run the busybox image.
-            # Use sh to echo the content into the file in the bind mount.
-            "/bin/sh", "-c", "echo -n %s > %s" % (
-                content, container_path.child(filename).path)
-        ])
-        if process_result.status != 0:
+        try:
+            run_process([
+                "docker",
+                "run",  # Run a container.
+                "--rm",  # Remove the container once it exits.
+                # Bind mount the passed in directory into the container
+                "-v", "%s:%s" % (mountdir.path, container_path.path),
+                "busybox",  # Run the busybox image.
+                # Use sh to echo the content into the file in the bind mount.
+                "/bin/sh", "-c", "echo -n %s > %s" % (
+                    content, container_path.child(filename).path)
+            ])
+        except _CalledProcessError:
             raise _WriteError()
 
     def _has_file_with_content(self, filename, content):
@@ -1308,7 +1319,7 @@ class _WriteVerifyingExternalClient(object):
             test_mountpoint.remove()
         return result
 
-    def invariant(self, case, current_local_state):
+    def invariant(self, case, test_objects):
         """
         An invariant that should always hold. Specifically, after the path to a
         dataset is known by the cluster then writes to that path should either
@@ -1316,25 +1327,35 @@ class _WriteVerifyingExternalClient(object):
         should fail.
 
         :param case: A ``TestCase`` to use for making assertions.
-        :param current_local_state: A callable that returns the current local
-            state from the deployer.
+        :param BlockDeviceCalculatorTestObjects test_objects: Object used to
+            get the current state of the local node and the current desired
+            dataset state.
         """
         dataset = unicode(self._dataset_id)
 
         # First inspect the local state to see if there is a new mountpoint
         # that we should try to use to attempt to write to the dataset.
-        local_state = current_local_state()
+        local_state = test_objects.current_local_state()
+        desired_dataset = test_objects.current_desired_datasets().get(
+            self._dataset_id, None)
+        converging_on_manifest = False
+        if desired_dataset:
+            converging_on_manifest =  (
+                desired_dataset.state == DatasetStates.MOUNTED)
         write_to_current_path_should_succeed = False
 
         if local_state:
             discovered_dataset = local_state.datasets.get(self._dataset_id)
 
             if discovered_dataset:
-                # If the dataset is mounted, the write should succeed.
+                # If the dataset is mounted and we are currently converging
+                # toward a manifested dataset, the write should succeed.
                 write_to_current_path_should_succeed = (
-                    discovered_dataset.state == DatasetStates.MOUNTED)
+                    discovered_dataset.state == DatasetStates.MOUNTED and
+                    converging_on_manifest
+                )
 
-                current_path = getattr(discovered_dataset, 'mount_point', None)
+                current_path = getattr(discovered_dataset, 'share_path', None)
                 if current_path:
                     self._known_mountpoints.add(current_path)
 
@@ -1398,6 +1419,8 @@ class BlockDeviceCalculatorTestObjects(object):
     :ivar UUID _dataset_id: The dataset_id of the dataset under test.
     :ivar DesiredDataset inial_dataset: The first dataset state to converge to.
     :ivar DesiredDataset next_dataset: The second dataset state to converge to.
+    :ivar _desired_datasets: An iterable of the desired datasets that are
+        currently being converged upon.
     """
 
     def __init__(self, test_case, two_dataset_states, deployer=None):
@@ -1421,6 +1444,7 @@ class BlockDeviceCalculatorTestObjects(object):
             for d in two_dataset_states
         ]
         self._local_state = None
+        self._desired_datasets = []
 
     def _fixup_dataset_state(self, dataset_state):
         """
@@ -1439,10 +1463,16 @@ class BlockDeviceCalculatorTestObjects(object):
         """
         mount_point = self.deployer._mountpath_for_dataset_id(
             unicode(self.dataset_id))
+        share_path = self.deployer._sharepath_for_dataset_id(
+            unicode(self.dataset_id))
         if getattr(dataset_state,
                    'mount_point',
                    _NoSuchThing) is not _NoSuchThing:
             dataset_state = dataset_state.set(mount_point=mount_point)
+        if getattr(dataset_state,
+                   'share_path',
+                   _NoSuchThing) is not _NoSuchThing:
+            dataset_state = dataset_state.set(share_path=share_path)
         return dataset_state
 
     def discover_state(self):
@@ -1468,6 +1498,16 @@ class BlockDeviceCalculatorTestObjects(object):
         """
         return self._local_state
 
+    def current_desired_datasets(self):
+        """
+        Gets the cached value for what was being converged upon the last time
+        a convergence step was run.
+
+        :returns: The desired datasets that are being converged upon.
+        :rtype: Mapping from ``UUID`` to ``DesiredDataset``.
+        """
+        return self._desired_datasets
+
     def run_convergence_step(self, desired_datasets):
         """
         Run one step of the calculator.
@@ -1475,6 +1515,7 @@ class BlockDeviceCalculatorTestObjects(object):
         :param desired_datasets: The dataset state to converge to.
         :type desired_datasets: Mapping from ``UUID`` to ``DesiredDataset``.
         """
+        self._desired_datasets = desired_datasets
         self._local_state = self.discover_state()
         local_datasets = self._local_state.datasets
         changes = self.deployer.calculator.calculate_changes_for_datasets(
@@ -1599,8 +1640,8 @@ class BlockDeviceCalculatorTests(TestCase):
         This would represent an agent like docker attempting to use a path
         before or after flocker was ready for it to use the path.
         """
-        self.skipTest(
-            'Currently this fails as the path is writable after unmount.')
+        #self.skipTest(
+        #    'Currently this fails as the path is writable after unmount.')
 
         callback = _MutableCallback()
 
@@ -1623,8 +1664,7 @@ class BlockDeviceCalculatorTests(TestCase):
                 actual_blockdevice_manager)
 
             callback.callback = partial(
-                external_agent.invariant, self,
-                test_objects.current_local_state)
+                external_agent.invariant, self, test_objects)
 
             test_objects.run_sequential_convergence_test()
         finally:
@@ -2072,21 +2112,22 @@ class ScenarioMixin(object):
     )
 
     MOUNT_ROOT = FilePath('/flocker')
+    MOUNT_POINT = MOUNT_ROOT.child(unicode(DATASET_ID))
     MOUNTED_DISCOVERED_DATASET = DiscoveredDataset(
         dataset_id=DATASET_ID,
         blockdevice_id=BLOCKDEVICE_ID,
         state=DatasetStates.MOUNTED,
         maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
         device_path=FilePath('/dev/xvdf'),
-        mount_point=MOUNT_ROOT,
+        mount_point=MOUNT_POINT,
+        share_path=MOUNT_POINT,
     )
     MOUNTED_DESIRED_DATASET = DesiredDataset(
         state=DatasetStates.MOUNTED,
         dataset_id=DATASET_ID,
         maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-        mount_point=MOUNT_ROOT.child(
-            unicode(DATASET_ID)
-        ),
+        mount_point=MOUNT_POINT,
+        share_path=MOUNT_POINT,
     )
 
 

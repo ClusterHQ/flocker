@@ -6,13 +6,8 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 
 from uuid import uuid4
 
-from characteristic import attributes
-from pyrsistent import PClass, field
 from testtools import ExpectedException
 from testtools.matchers import Not, FileExists
-from twisted.python.components import proxyForInterface
-from twisted.python.filepath import FilePath
-from zope.interface import Interface, implementer
 from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase
@@ -36,19 +31,7 @@ from .test_blockdevice import (
     mountroot_for_test,
 )
 
-
-def blockdevice_manager_for_test(test_case):
-    """
-    Creates a blockdevice_manager that cleans itself up during test cleanup.
-
-    Cleanup is defined as unmounting all bind mounts, tmpfs mounts, and
-    blockdevice mounts.
-
-    :param test_case: The :class:`TestCase` to use to add cleanup callbacks.
-    """
-    manager = CleanupBlockDeviceManager(BlockDeviceManager())
-    test_case.addCleanup(manager.cleanup)
-    return manager
+from ..testtools import CleanupBlockDeviceManager
 
 
 class BlockDeviceManagerTests(TestCase):
@@ -275,109 +258,6 @@ class BlockDeviceManagerTests(TestCase):
         non_existent = self._get_directory_for_mount().child('non_existent')
         with ExpectedException(MakeTmpfsMountError, '.*non_existent.*'):
             self.manager_under_test.make_tmpfs_mount(non_existent)
-
-
-@attributes(["error"])
-class CleanupError(Exception):
-    """
-    Wrapper for errors that might occur during cleanup, but should not stop
-    cleanup. This is specifically for errors like an UnmountError which might
-    occur if we are attempting to clean up a mount that was not mounted
-    successfully, but we had no way of verifying that.
-
-    :ivar error: The original error.
-    """
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class _ICleanupOperation(Interface):
-    """
-    Interface for cleanup operations.
-    """
-
-    def execute(blockdevice_manager):
-        """
-        Perform the cleanup operation.
-
-        :param blockdevice_manager: The :class:`IBlockDeviceManager` provider
-            to use to execute the cleanup.
-
-        :raises CleanupError: If an error occurs that does not indicate a bug
-            in the code and should not stop cleanup execution.
-        """
-
-
-@implementer(_ICleanupOperation)
-class _UnmountCleanup(PClass):
-    """
-    Object for cleanup by unmounting.
-
-    :ivar FilePath path: The path to unmount.
-    """
-    path = field(type=FilePath)
-
-    def execute(self, blockdevice_manager):
-        try:
-            blockdevice_manager.unmount(self.path)
-        except UnmountError as e:
-            raise CleanupError(error=e)
-
-
-class CleanupBlockDeviceManager(proxyForInterface(IBlockDeviceManager)):
-    """
-    Proxies to another :class:`IBlockDeviceManager` provider, and records every
-    created mount, symlink, etc. for cleanup later.
-
-    This is a test helper class for tests that use
-    :class:`IBlockDeviceManager`, and don't want to manually manage cleanup of
-    all of the mounts and symlinks.
-
-    Note: This does not behave precisely correct for mounted blockdevices that
-    are unmounted by mount point.
-
-    :ivar _cleanup_operations: A list of operations to perform upon cleanup in
-        reverse order. These must provide :class:`_ICleanupOperation`.
-    """
-    def __init__(self, original):
-        super(CleanupBlockDeviceManager, self).__init__(original)
-        self._cleanup_operations = []
-
-    def mount(self, blockdevice, mountpoint):
-        self._cleanup_operations.append(_UnmountCleanup(path=blockdevice))
-        return self.original.mount(blockdevice, mountpoint)
-
-    def unmount(self, unmount_path):
-        unmount_index = next(iter(
-            -index
-            for index, op in enumerate(reversed(self._cleanup_operations), 1)
-            if op == _UnmountCleanup(path=unmount_path)
-        ), None)
-        if unmount_path is not None:
-            self._cleanup_operations.pop(unmount_index)
-        return self.original.unmount(unmount_path)
-
-    def make_tmpfs_mount(self, mountpoint):
-        self._cleanup_operations.append(_UnmountCleanup(path=mountpoint))
-        return self.original.make_tmpfs_mount(mountpoint)
-
-    def bind_mount(self, source_path, mountpoint):
-        self._cleanup_operations.append(_UnmountCleanup(path=mountpoint))
-        return self.original.bind_mount(source_path, mountpoint)
-
-    def cleanup(self):
-        """
-        Perform all cleanup operations.
-        """
-        cleanup_errors = []
-        for operation in reversed(self._cleanup_operations):
-            try:
-                operation.execute(self.original)
-            except CleanupError as e:
-                cleanup_errors.append(e)
-        if cleanup_errors:
-            raise cleanup_errors[0].error
 
 
 class CleanupBlockDeviceManagerTests(TestCase):
