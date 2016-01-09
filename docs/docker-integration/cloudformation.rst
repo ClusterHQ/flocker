@@ -73,6 +73,11 @@ Step 4
 
 .. |swarm_status| image:: ../images/swarm-status.png
 
+- Connect to the client IP, and check that ``flockerctl`` lists two nodes and zero datasets in the cluster:
+  |flockerctl-status|
+
+.. |flockerctl-status| image: ../images/flockerctl-status.png
+
 Your cluster is now ready for workloads!
 
 Next steps
