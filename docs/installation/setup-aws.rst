@@ -90,6 +90,6 @@ You can also refer to `the full documentation for interacting with EC2 from Amaz
 .. end-body
 
 .. XXX - this section not included in the single sourcing - each integration should write its own final step:
-#. Go to the installation instructions specific to your operating system in :ref:`installing-flocker-node`, to install ``clusterhq-flocker-node`` on each node in your cluster:
-   * :ref:`centos-7-install`
-   * :ref:`ubuntu-14.04-install`
+Go to the installation instructions specific to your operating system in :ref:`installing-flocker-node`, to install ``clusterhq-flocker-node`` on each node in your cluster:
+:ref:`centos-7-install`
+:ref:`ubuntu-14.04-install`
