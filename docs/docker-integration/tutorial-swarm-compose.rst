@@ -89,7 +89,7 @@ If you want to specify a size or a profile for the volume before creating it, ru
 
 .. prompt:: bash $
 
-   docker volume create -d flocker postgres -o size 10G -o profile bronze
+   docker volume create -d flocker -o size=10G -o profile=bronze --name=postgres2
 
 .. TODO link to a page documenting how to configure volume hub keys
 
