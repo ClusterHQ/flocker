@@ -76,11 +76,11 @@ These Docker compose files both look like this, except the ``node2`` file has ``
 .. literalinclude:: tutorial-downloads/flocker-swarm-tutorial-node1.yml
    :language: yaml
 
-* The ``moby-counter`` app container is exposed on port 80
-* The app is configured with the same database credentials as the database
-* The ``postgres`` container uses a ``volume_driver`` of ``flocker`` and uses a named Flocker volume called ``postgres``
+* The ``moby-counter`` app container is exposed on port 80.
+* The app is configured with the same database credentials as the database.
+* The ``postgres`` container uses a ``volume_driver`` of ``flocker`` and uses a named Flocker volume called ``postgres``.
 
-  * Flocker will automatically provision this volume on-demand if it doesn't already exist
+  * Flocker will automatically provision this volume on-demand if it doesn't already exist.
 
 Step 2.1: Optionally specify size and profile
 ---------------------------------------------
