@@ -4,8 +4,8 @@
 
 /* XXX START Temporary stylings for reorg-integrations-FLOC-3718 branch */
 
-.pods-eq {
-    margin-top: 24px;
+.pods-eq,
+.pods-solo {
     overflow: hidden;
 }
 
@@ -48,7 +48,8 @@
 }
 
 .pod-boxout span {
-	height: 80px;
+	height: 70px;
+	margin-bottom: 16px;
 	display: block;
 	font-family: "Soho Gothic W01 Regular";
 } 
@@ -63,10 +64,32 @@
 .pod-boxout--minor span {
 	height: auto;
 	margin-top: 10px;
+	margin-bottom: 0;
+}
+
+.pod-boxout--tutorial {
+	background-color: #eee;
+}
+
+.pod-boxout--solo span,
+.pod-boxout--tutorial span {
+	height: auto;
+	margin-bottom: 16px;
 }
 
 .pod-boxout--minor .button {
 	background-color: #333;
+}
+
+.pod-boxout--minor img {
+	width: 20px;
+	height: 20px;
+	float: left;
+	margin-right: 4px;
+}
+
+.pod-boxout.pod-boxout--2up img {
+	max-width: 66%;
 }
 
 @media screen and (min-width: 450px) {
@@ -83,13 +106,6 @@
 	}
 }
 
-.pod-boxout--minor img {
-	width: 20px;
-	height: 20px;
-	float: left;
-	margin-right: 4px;
-}
-
 @media screen and (min-width: 530px) {
 	.pod-eq {
 		display: -webkit-flex;
@@ -104,6 +120,18 @@
 		display: inline-block;
 		width: 32%;
 		margin-left: 2%;
+	}
+	.pod-boxout--2up {
+		width: 48%;
+		padding: 1.5em;
+	}
+	.pod-boxout--solo,
+	.pod-boxout--tutorial {
+		padding: 1.5em;
+	}
+	.pods-solo .pod-boxout {
+		float: none;
+		width: 100%;	
 	}
 	.pod-boxout:first-child {
 		margin-left: 0;
@@ -248,8 +276,26 @@ li.button.menu a:hover {
 
 h1, h2, h3, h4, h5 {
     font-family:'Soho Gothic W01 Medium';
-    padding-bottom: 25px;
+    margin-bottom: 1em;
+    /*padding-bottom: 25px;
     padding-top: 25px;
+    */
+}
+
+.page h1 {
+	font-size: 36px;
+	margin-bottom: 0.525em;
+	font-family:'Soho Gothic W01 Regular';
+}
+
+.page h2, .page h3 {
+	font-size: 20px;
+	margin-top: 1.2em;
+}
+
+.page h4, .page h5, .page h6 {
+	font-size: 18px;
+	margin-top: 1.8em;
 }
 
 a.headerlink {
@@ -472,7 +518,7 @@ a.download:before {
     max-width: 100%;
 }
 
-.page ul, ol {
+.page ul, .page ol, page p {
     color: #646570;
     font-family: lato;
     margin-bottom: 10px;
