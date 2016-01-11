@@ -702,13 +702,6 @@ class AttachVolume(PClass):
         return attaching
 
 
-ACTION_NEEDED = ActionType(
-    u"agent:blockdevice:action_needed:BUGGY_CODE",
-    [DATASET_ID], [],
-    u"If you see this logged that means an ActionNeeded was run, which in"
-    u"theory should never happen.")
-
-
 @implementer(IStateChange)
 @provider(IDatasetStateChangeFactory)
 class ActionNeeded(PClass):
@@ -725,9 +718,9 @@ class ActionNeeded(PClass):
     """
     dataset_id = field(type=UUID, mandatory=True)
 
-    @property
-    def eliot_action(self):
-        return ACTION_NEEDED(_logger, dataset_id=self.dataset_id)
+    # Nominal interface compliance; we don't expect this to be ever run,
+    # it's just a marker object basically.
+    eliot_action = None
 
     @classmethod
     def from_state_and_config(cls, discovered_dataset, desired_dataset):
@@ -1422,7 +1415,7 @@ Desired = Discovered = DatasetStates
 DATASET_TRANSITIONS = TransitionTable.create({
     Desired.MOUNTED: {
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
-        # Other node will need to detach first, but we we need to
+        # Other node will need to deatch first, but we we need to
         # wake up to notice that it has detached.
         Discovered.ATTACHED_ELSEWHERE: ActionNeeded,
         Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
@@ -1433,7 +1426,7 @@ DATASET_TRANSITIONS = TransitionTable.create({
         # XXX FLOC-2206
         # Can't create non-manifest datasets yet.
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
-        # Other node will detach
+        # Other node will deatch
         Discovered.ATTACHED_ELSEWHERE: DoNothing,
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,

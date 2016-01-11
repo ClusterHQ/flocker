@@ -5067,16 +5067,6 @@ class ActionNeededTests(
     """
     Tests for ``ActionNeeded``\ 's ``IStateChange`` implementation.
     """
-    def test_run(self):
-        """
-        If run, ``ActionNeeded`` fails with a ``NotImplementedError``.
-
-        It's never supposed to run, but if it does it should fail with an
-        appropriate meaningful error, thus this test.
-        """
-        action = ActionNeeded(dataset_id=uuid4())
-        self.failureResultOf(run_state_change(action, None),
-                             NotImplementedError)
 
 
 class AllocatedSizeTypeTests(TestCase):
