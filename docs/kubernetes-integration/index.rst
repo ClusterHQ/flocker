@@ -50,7 +50,7 @@ Other tutorials can be found on our blog.
 Learn more about the integration
 ================================
 
-To learn about the details of how this integration works, read :ref:`about`.
+To learn about the details of how this integration works, read :ref:`about-kubernetes-integration`.
 
 .. toctree::
    :hidden:

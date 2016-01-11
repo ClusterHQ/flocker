@@ -43,7 +43,7 @@ Manually Installing Flocker with Kubernetes
    configuring-nodes-storage
    enabling-agent-service
 
-.. _manually-install-swarm:
+.. _manually-install-kubernetes:
 
 Manually Installing Kubernetes
 ==============================

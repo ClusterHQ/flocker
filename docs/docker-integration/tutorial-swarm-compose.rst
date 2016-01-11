@@ -148,7 +148,7 @@ To clean up, run:
 
 Note that this will delete the ``postgres`` volume.
 
-To understand why we need to use ``flockerctl`` to destroy the volume, see the :ref:`concepts` section.
+To understand why we need to use ``flockerctl`` to destroy the volume, see the :ref:`concepts-docker-integration` section.
 
 Next steps
 ==========

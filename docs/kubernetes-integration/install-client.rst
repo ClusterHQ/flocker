@@ -30,13 +30,13 @@ Installing the Flocker Client
    :start-after: .. begin-body-installing-client-linux
    :end-before: .. end-body-installing-client-linux
 
-.. _installing-client-OSX:
+.. _installing-client-OSX-kubernetes:
 
 .. include:: ../installation/install-client.rst
    :start-after: .. begin-body-installing-client-OSX
    :end-before: .. end-body-installing-client-OSX
 
-.. _postinstall-nextstep:
+.. _postinstall-nextstep-kubernetes:
 
 Next Step
 =========
