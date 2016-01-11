@@ -16,7 +16,7 @@ from flocker.testtools import TestCase
 
 from benchmark.script import (
     BenchmarkOptions, get_cluster, validate_configuration, get_config_by_name,
-    parse_userdata,
+    parse_userdata, main
 )
 
 
@@ -519,3 +519,72 @@ class UserDataTests(TestCase):
                 'Invalid user data', exception.args[0]
             )
             self.assertIn(options.getUsage(), captured_stderr())
+
+
+class MainTests(TestCase):
+
+    def setUp(self):
+        super(MainTests, self).setUp()
+
+    def get_default_environ(self):
+        return {
+            'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': '107374182400',
+            'FLOCKER_ACCEPTANCE_CONTROL_NODE': _ENV_CONTROL_SERVICE_ADDRESS,
+            'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS':
+                '{"172.31.37.0": "52.11.208.0", "172.31.47.0": "52.32.250.0"}',
+            'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': 'aws',
+            'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
+                '/tmp/tmp84DVr3/dataset-backend.yml',
+            'FLOCKER_ACCEPTANCE_NUM_AGENT_NODES': '2',
+            'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH': '/tmp/tmpSvE7ug',
+            'USER': 'user',
+        }
+
+    def call_main(self, args, environ):
+        """
+        Call the script main and return the arguments to driver.
+        """
+        result = {}
+
+        def check(driver, args):
+            (
+                result['cluster'],
+                result['scenario_factory'],
+                result['operation_factory'],
+                result['metric_factory'],
+                result['num_samples'],
+                result['result'],
+                result['output'],
+            ) = args
+
+        yaml = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), 'benchmark.yml'
+        )
+        argv = ['benchmark', '--config', yaml] + args
+        main(argv, environ, react=check)
+        return result
+
+    def test_options_samples(self):
+        """
+        The --samples flag gets read as the num_samples value.
+        """
+        result = self.call_main(['--samples', '4'], self.get_default_environ())
+        self.assertEqual(result['num_samples'], 4)
+
+    def test_options_samples_default(self):
+        """
+        The --samples flag has a default value.
+        """
+        result = self.call_main([], self.get_default_environ())
+        self.assertIsInstance(result['num_samples'], int)
+
+    def test_options_samples_invalid(self):
+        """
+        The script fails for an invalid --samples flag.
+        """
+        with capture_stderr():
+            exception = self.assertRaises(
+                SystemExit, self.call_main, ['--samples', 'X'],
+                self.get_default_environ()
+            )
+        self.assertIn('Invalid sample count', exception.args[0])

@@ -3113,6 +3113,39 @@ class IBlockDeviceAPITestsMixin(object):
     """
     this_node = None
 
+    def repeat_retries(self):
+        """
+        @return: An iterable of delay intervals, measured in seconds, used
+             to retry in ``repeat_until_consistent``. By default only one
+             try is allowed; subclasses can override to change this
+             policy.
+        """
+        return [0]
+
+    def repeat_until_consistent(self, f, *args, **kwargs):
+        """
+        Repeatedly call a function with given arguments until AssertionErrors
+        stop or configured number of repetitions are reached.
+
+        Some backends are eventually consistent, which means results of
+        listing volumes may not reflect actions immediately. So for
+        read-only operations that rely on listing we want to be able to
+        retry.
+
+        Retry policy can be changed by overriding the ``repeat_retries``
+        method.
+
+        @param f: Function to call.
+        @param args: Arguments for ``f``.
+        @param kwargs: Keyword arguments for ``f``.
+        """
+        for step in self.repeat_retries():
+            try:
+                return f(*args, **kwargs)
+            except AssertionError as e:
+                time.sleep(step)
+        raise e
+
     def _verify_volume_size(self, requested_size, expected_volume_size):
         """
         Assert the implementation of
@@ -3135,32 +3168,36 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=dataset_id,
             size=requested_size,
         )
-        # Attach it, so that we can measure its size, as reported by
-        # the kernel of the machine to which it's attached.
-        self.api.attach_volume(
-            volume.blockdevice_id, attach_to=self.this_node,
-        )
-        # Reload the volume using ``IBlockDeviceAPI.list_volumes`` in
-        # case the implementation hasn't verified that the requested
-        # size has actually been stored.
-        volume = get_blockdevice_volume(self.api, volume.blockdevice_id)
-
-        device_path = self.api.get_device_path(volume.blockdevice_id).path
-
-        command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
-                   b"--output", b"SIZE", device_path.encode("ascii")]
-        command_output = check_output(command).split(b'\n')[0]
-        device_size = int(command_output.strip().decode("ascii"))
         if self.device_allocation_unit is None:
             expected_device_size = expected_volume_size
         else:
             expected_device_size = allocated_size(
                 self.device_allocation_unit, expected_volume_size
             )
-        self.assertEqual(
-            (expected_volume_size, expected_device_size),
-            (volume.size, device_size)
+
+        # Attach it, so that we can measure its size, as reported by
+        # the kernel of the machine to which it's attached.
+        self.api.attach_volume(
+            volume.blockdevice_id, attach_to=self.this_node,
         )
+
+        def validate(volume):
+            # Reload the volume using ``IBlockDeviceAPI.list_volumes`` in
+            # case the implementation hasn't verified that the requested
+            # size has actually been stored.
+            volume = get_blockdevice_volume(self.api, volume.blockdevice_id)
+
+            device_path = self.api.get_device_path(volume.blockdevice_id).path
+
+            command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
+                       b"--output", b"SIZE", device_path.encode("ascii")]
+            command_output = check_output(command).split(b'\n')[0]
+            device_size = int(command_output.strip().decode("ascii"))
+            self.assertEqual(
+                (expected_volume_size, expected_device_size),
+                (volume.size, device_size)
+            )
+        self.repeat_until_consistent(validate, volume)
 
     def test_interface(self):
         """
@@ -3198,7 +3235,8 @@ class IBlockDeviceAPITestsMixin(object):
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
             size=self.minimum_allocatable_size)
-        self.assertIn(new_volume, self.api.list_volumes())
+        self.repeat_until_consistent(
+            lambda: self.assertIn(new_volume, self.api.list_volumes()))
 
     def test_listed_volume_attributes(self):
         """
@@ -3212,12 +3250,19 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=expected_dataset_id,
             size=self.minimum_allocatable_size,
         )
-        [listed_volume] = self.api.list_volumes()
 
-        self.assertEqual(
-            (expected_dataset_id, self.minimum_allocatable_size),
-            (listed_volume.dataset_id, listed_volume.size)
-        )
+        def validate():
+            listed_volumes = self.api.list_volumes()
+            # Ideally we wouldn't two two assertions, but it's the easiest
+            # thing to do that works with the retry logic.
+            self.assertEqual(len(listed_volumes), 1)
+            listed_volume = listed_volumes[0]
+
+            self.assertEqual(
+                (expected_dataset_id, self.minimum_allocatable_size),
+                (listed_volume.dataset_id, listed_volume.size)
+            )
+        self.repeat_until_consistent(validate)
 
     def test_created_volume_attributes(self):
         """
@@ -3345,7 +3390,9 @@ class IBlockDeviceAPITestsMixin(object):
             blockdevice_id=new_volume.blockdevice_id,
             attach_to=self.this_node,
         )
-        self.assertEqual([expected_volume], self.api.list_volumes())
+        self.repeat_until_consistent(
+            lambda: self.assertEqual([expected_volume],
+                                     self.api.list_volumes()))
 
     def test_list_attached_and_unattached(self):
         """
@@ -3364,10 +3411,11 @@ class IBlockDeviceAPITestsMixin(object):
             blockdevice_id=new_volume2.blockdevice_id,
             attach_to=self.this_node,
         )
-        self.assertItemsEqual(
-            [new_volume1, attached_volume],
-            self.api.list_volumes()
-        )
+        self.repeat_until_consistent(
+            lambda: self.assertItemsEqual(
+                [new_volume1, attached_volume],
+                self.api.list_volumes()
+            ))
 
     def test_multiple_volumes_attached_to_host(self):
         """
@@ -3388,10 +3436,11 @@ class IBlockDeviceAPITestsMixin(object):
             volume2.blockdevice_id, attach_to=self.this_node,
         )
 
-        self.assertItemsEqual(
-            [attached_volume1, attached_volume2],
-            self.api.list_volumes()
-        )
+        self.repeat_until_consistent(
+            lambda: self.assertItemsEqual(
+                [attached_volume1, attached_volume2],
+                self.api.list_volumes()
+            ))
 
     def test_get_device_path_unknown_volume(self):
         """
@@ -3489,7 +3538,9 @@ class IBlockDeviceAPITestsMixin(object):
             size=self.minimum_allocatable_size,
         )
         self.api.destroy_volume(volume.blockdevice_id)
-        self.assertEqual([unrelated], self.api.list_volumes())
+        self.repeat_until_consistent(
+            lambda: self.assertEqual([unrelated],
+                                     self.api.list_volumes()))
 
     def _destroyed_volume(self):
         """
@@ -3580,10 +3631,11 @@ class IBlockDeviceAPITestsMixin(object):
 
         self.api.detach_volume(volume.blockdevice_id)
 
-        self.assertEqual(
-            {unrelated, volume.set(attached_to=None)},
-            set(self.api.list_volumes())
-        )
+        self.repeat_until_consistent(
+            lambda: self.assertEqual(
+                {unrelated, volume.set(attached_to=None)},
+                set(self.api.list_volumes())
+            ))
 
         detached_error = fail_mount(device_path)
 
@@ -3611,10 +3663,11 @@ class IBlockDeviceAPITestsMixin(object):
         reattached_volume = self.api.attach_volume(
             volume.blockdevice_id, attach_to=self.this_node
         )
-        self.assertEqual(
-            (attached_volume, [attached_volume]),
-            (reattached_volume, self.api.list_volumes())
-        )
+        self.repeat_until_consistent(
+            lambda: self.assertEqual(
+                (attached_volume, [attached_volume]),
+                (reattached_volume, self.api.list_volumes())
+            ))
 
     def test_attach_destroyed_volume(self):
         """

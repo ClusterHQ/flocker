@@ -62,7 +62,7 @@ def sample(operation, metric, name):
         return sampling.addActionFinish()
 
 
-def benchmark(scenario, operation, metric, num_samples=3):
+def benchmark(scenario, operation, metric, num_samples):
     """
     Perform benchmarking of the operation within a scenario.
 
@@ -108,7 +108,7 @@ def benchmark(scenario, operation, metric, num_samples=3):
 
 def driver(
     reactor, cluster, scenario_factory, operation_factory, metric_factory,
-    result, output
+    num_samples, result, output
 ):
     """
     :param reactor: Reactor to use.
@@ -116,6 +116,7 @@ def driver(
     :param callable scenario_factory: A load scenario factory.
     :param callable operation_factory: An operation factory.
     :param callable metric_factory: A metric factory.
+    :param int num_samples: Number of samples to take.
     :param result: A dictionary which will be updated with values to
         create a JSON result.
     :param output: A callable to receive the JSON structure, for
@@ -137,6 +138,7 @@ def driver(
             scenario_factory(reactor, cluster),
             operation_factory(reactor, cluster),
             metric_factory(reactor, cluster),
+            num_samples,
         )
 
     d.addCallback(run_benchmark)
