@@ -11,15 +11,18 @@ cd /tmp/docker-swarm-tls-config
 # Get expect to autofill openssl inputs
 sudo apt-get install -y expect
 
+PASSPHRASE=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+
 # Generate CA private and public keys
 echo > /tmp/docker-swarm-tls-config/createca1.exp << EOF
 #!/usr/bin/expect -f
 set timeout -1
 spawn openssl genrsa -passout stdin -aes256 -out ca-key.pem 4096
 match_max 100000
-send -- "welcome\r"
+send -- "${PASSPHRASE}\r"
 expect eof
 EOF
+chmod +x /tmp/docker-swarm-tls-config/createca1.exp
 /tmp/docker-swarm-tls-config/createca1.exp
 
 echo > /tmp/docker-swarm-tls-config/createca2.exp << EOF
@@ -28,7 +31,7 @@ set timeout -1
 spawn openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem
 match_max 100000
 expect -exact "Enter pass phrase for ca-key.pem:"
-send -- "welcome\r"
+send -- "${PASSPHRASE}\r"
 expect -exact "\r
 You are about to be asked to enter information that will be incorporated\r
 into your certificate request.\r
@@ -59,6 +62,7 @@ Email Address \[\]:"
 send -- "\r"
 expect eof
 EOF
+chmod +x /tmp/docker-swarm-tls-config/createca2.exp
 /tmp/docker-swarm-tls-config/createca2.exp
 
 # Create server key and CSR.
@@ -76,9 +80,10 @@ expect -exact "Signature ok\r
 subject=/CN=172.31.14.86\r
 Getting CA Private Key\r
 Enter pass phrase for ca-key.pem:"
-send -- "welcome\r"
+send -- "${PASSPHRASE}\r"
 expect eof
 EOF
+chmod +x /tmp/docker-swarm-tls-config/createserver.exp
 /tmp/docker-swarm-tls-config/createserver.exp
 
 # Create client key.
@@ -94,15 +99,13 @@ expect -exact "Signature ok\r
 subject=/CN=client\r
 Getting CA Private Key\r
 Enter pass phrase for ca-key.pem:"
-send -- "welcome\r"
+send -- "${PASSPHRASE}\r"
 expect eof
 EOF
+chmod +x /tmp/docker-swarm-tls-config/createclient.exp
 /tmp/docker-swarm-tls-config/createclient.exp
 
 # Set permissions.
 rm -v client.csr server.csr
 chmod -v 0400 ca-key.pem key.pem server-key.pem
 chmod -v 0444 ca.pem server-cert.pem cert.pem
-
-
-
