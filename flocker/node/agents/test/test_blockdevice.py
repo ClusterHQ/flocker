@@ -11,7 +11,7 @@ import time
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output, check_call
 from stat import S_IRWXU
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -61,7 +61,7 @@ from ..blockdevice import (
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     UnmountBlockDevice, DetachVolume, AttachVolume,
-    CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
+    CreateFilesystem, DestroyVolume, MountBlockDevice,
 
     DATASET_TRANSITIONS, IDatasetStateChangeFactory,
     ICalculator, NOTHING_TO_DO,
@@ -99,7 +99,7 @@ from ..loopback import (
 from ....common.algebraic import tagged_union_strategy
 
 
-from ... import run_state_change, in_parallel, ILocalState, IStateChange
+from ... import run_state_change, in_parallel, ILocalState, IStateChange, NoOp
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
     compute_cluster_state,
@@ -2671,7 +2671,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(
-            in_parallel(changes=[ActionNeeded(dataset_id=dataset_id)]),
+            in_parallel(changes=[NoOp(sleep=timedelta(seconds=3))]),
             changes
         )
 
@@ -5043,30 +5043,6 @@ class AttachVolumeTests(
         self.assertEqual(
             bad_blockdevice_id, failure.value.blockdevice_id
         )
-
-
-class ActionNeededInitTests(
-    make_with_init_tests(
-        record_type=ActionNeeded,
-        kwargs=dict(dataset_id=uuid4()),
-        expected_defaults=dict(),
-    )
-):
-    """
-    Tests for ``ActionNeeded`` initialization.
-    """
-
-
-class ActionNeededTests(
-    make_istatechange_tests(
-        ActionNeeded,
-        dict(dataset_id=uuid4()),
-        dict(dataset_id=uuid4()),
-    )
-):
-    """
-    Tests for ``ActionNeeded``\ 's ``IStateChange`` implementation.
-    """
 
 
 class AllocatedSizeTypeTests(TestCase):
