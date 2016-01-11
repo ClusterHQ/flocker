@@ -1,8 +1,8 @@
-# -*- test-case-name: flocker.node.agents.functional.test_pd -*-
+# -*- test-case-name: flocker.node.agents.functional.test_gce -*-
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
-A PD implementation of the ``IBlockDeviceAPI``.
+A GCE Persistent Disk (PD) implementation of the ``IBlockDeviceAPI``.
 
 The following resources are helpful to referrence while maintaining this
 driver:
@@ -100,10 +100,10 @@ def _extract_attached_to(disk):
 
 
 @implementer(IBlockDeviceAPI)
-class PDBlockDeviceAPI(object):
+class GCEBlockDeviceAPI(object):
     """
-    A PD implementation of ``IBlockDeviceAPI`` which creates block devices in a
-    GCE project.
+    A GCE Persistent Disk (PD) implementation of ``IBlockDeviceAPI`` which
+    creates block devices in a GCE project.
 
     Constraints imposed from GCE:
         - GCE does not have a grab-bag of metadata you can attach to disks.
@@ -154,7 +154,7 @@ class PDBlockDeviceAPI(object):
 
     def __init__(self, cluster_id, project, zone):
         """
-        Initialize the PDBlockDeviceAPI.
+        Initialize the GCEBlockDeviceAPI.
 
         :param unicode project: The project where all GCE operations will take
             place.

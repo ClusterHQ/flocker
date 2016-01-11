@@ -28,7 +28,7 @@ from twisted.python.constants import Names, NamedConstant
 
 from ..cinder import cinder_from_configuration
 from ..ebs import EBSBlockDeviceAPI, ec2_client
-from ..pd import PDBlockDeviceAPI
+from ..gce import GCEBlockDeviceAPI
 from ..test.test_blockdevice import detach_destroy_volumes
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
 from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
@@ -216,15 +216,16 @@ def _aws(cluster_id, config):
 
 def _gce(cluster_id, config):
     """
-    Create an IBlockDeviceAPI provider configured to use the GCE PD
-    region where the server that is running this code is running.
+    Create an IBlockDeviceAPI provider configured to use the GCE
+    persisten device region where the server that is running this
+    code is running.
 
     :param cluster_id: The flocker cluster id.
     :param config: Any additional configuration (possibly provider-specific)
-        necessary to authenticate a PD session.
-    :return: A PDBlockDeviceAPI instance.
+        necessary to authenticate a Persistent Disk session.
+    :return: A GCEBlockDeviceAPI instance.
     """
-    return PDBlockDeviceAPI(cluster_id=cluster_id, **config)
+    return GCEBlockDeviceAPI(cluster_id=cluster_id, **config)
 
 # Map provider labels to IBlockDeviceAPI factory.
 _BLOCKDEVICE_TYPES = {
