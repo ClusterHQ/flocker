@@ -1,13 +1,15 @@
 web:
-  image: myechuri/moby-counter-postgres
+  image: binocarlos/moby-counter
   ports:
      -  "80:80"
   environment:
+     - "constraint:flocker-node==2"
      - "USE_POSTGRES_HOST=postgres"
      - "POSTGRES_USER=flocker"
      - "POSTGRES_PASSWORD=flockerdemo"
   links:
      - "postgres:postgres"
+  entrypoint: "node server-postgres.js"
 postgres:
   image: postgres
   ports:
