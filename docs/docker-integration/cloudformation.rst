@@ -17,15 +17,75 @@ The below steps enable you to deploy a Flocker Swarm cluster with the following 
 
 .. image:: ../images/cloudformation.png
 
-Step 1
-------
-
-Create and save an AWS EC2 Key Pair:
-
-- Create an AWS EC2 Key Pair in the target region for Flocker cluster: https://console.aws.amazon.com/ec2/v2/home?region=us-east-1
-  |keypair|
-
-.. |keypair| image:: ../images/keypair.png
+.. raw:: html
+	
+	<div class="step-stages step-stages--3up">
+		<div class="step-stages__excerpt">
+			<h2 class="step-stages__heading">Step 1</h2>
+			<p>The AWS key pair uses public-key cryptography to provide secure login to your AWS cluster.</p>
+		</div>
+		<div class="step-stages__step first">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="ttps://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+		<div class="step-stages__step">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="ttps://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+		<div class="step-stages__step">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="ttps://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+	</div>
+	
+	<div class="step-stages step-stages--3up">
+		<div class="step-stages__excerpt">
+			<h2 class="step-stages__heading">Step 2</h2>
+			<p>The AWS key pair uses public-key cryptography to provide secure login to your AWS cluster.</p>
+			<a href="#" class="button">Button Label</a>
+		</div>
+		<div class="step-stages__step first">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="ttps://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+		<div class="step-stages__step">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="ttps://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+		<div class="step-stages__step">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="ttps://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+	</div>
+	
+	<div class="step-stages step-stages--3up">
+		<div class="step-stages__excerpt">
+			<h2 class="step-stages__heading">Step 3</h2>
+			<p>The AWS key pair uses public-key cryptography to provide secure login to your AWS cluster.</p>
+		</div>
+		<div class="step-stages__step first">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="ttps://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+		<div class="step-stages__step">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="ttps://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+		<div class="step-stages__step">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="ttps://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+	</div>
+	
 
 Step 2
 ------
