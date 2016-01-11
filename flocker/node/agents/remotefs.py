@@ -19,15 +19,21 @@ from .. import IStateChange
 # XXX infrastructure that should probably be in shared module, not in
 # blockdevice:
 from .blockdevice import (
-    IDatasetStateChangeFactory, ICalculator, PollUntilAttached, TransitionTable,
-    DoNothing,
+    IDatasetStateChangeFactory, PollUntilAttached,
+    TransitionTable, DoNothing, BlockDeviceCalculator,
 )
 
 from ...common.algebraic import TaggedUnionInvariant
 
 
 class RemoteFilesystem(PClass):
+    """
+    In general case probably can't tell if filesystem is already mounted
+    elsewhere or not... so omit that information.
+    """
     dataset_id = field(type=UUID)
+    # If None, not mounted locally:
+    mount_point = field(type=(None.__class__, FilePath))
 
 
 class IRemoteFilesystemAPI(Interface):
@@ -45,6 +51,10 @@ class IRemoteFilesystemAPI(Interface):
         pass
 
     def mount(dataset_id, path):
+        """
+        Unlike IBlockDeviceAPI we assume mounting *must* happen on local
+        machine, so need for compute instance ID or anything of the sort.
+        """
         pass
 
     def unmount(dataset_id, path):
@@ -54,14 +64,11 @@ class IRemoteFilesystemAPI(Interface):
 class DatasetStates(Names):
     """
     States that a ``Dataset`` can be in.
-
     """
     # Doesn't exist yet.
     NON_EXISTENT = NamedConstant()
-    # Exists, but attached elsewhere
-    ATTACHED_ELSEWHERE = NamedConstant()
-    # Exists, but not attached
-    NON_MANIFEST = NamedConstant()
+    # Exists, but not mounted on this machine:
+    NOT_MOUNTED = NamedConstant()
     # Mounted on this node
     MOUNTED = NamedConstant()
     # Deleted from the driver
@@ -87,8 +94,7 @@ class DiscoveredDataset(PClass):
     __invariant__ = TaggedUnionInvariant(
         tag_attribute='state',
         attributes_for_tag={
-            DatasetStates.ATTACHED_ELSEWHERE: set(),
-            DatasetStates.NON_MANIFEST: set(),
+            DatasetStates.NOT_MOUNTED: set(),
             DatasetStates.MOUNTED: {'mount_point'},
         },
     )
@@ -113,7 +119,7 @@ class DesiredDataset(PClass):
     __invariant__ = TaggedUnionInvariant(
         tag_attribute='state',
         attributes_for_tag={
-            DatasetStates.NON_MANIFEST: {"metadata"},
+            DatasetStates.NOT_MOUNTED: {"metadata"},
             DatasetStates.MOUNTED: {"mount_point", "metadata"},
             DatasetStates.DELETED: set(),
         },
@@ -219,3 +225,7 @@ DATASET_TRANSITIONS = TransitionTable.create({
     },
 })
 del Desired, Discovered
+
+# Nothing particularly BlockDevice-specific about the class:
+CALCULATOR = BlockDeviceCalculator(
+    transitions=DATASET_TRANSITIONS, dataset_states=DatasetStates)

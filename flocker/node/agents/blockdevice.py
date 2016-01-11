@@ -1445,6 +1445,7 @@ class BlockDeviceCalculator(PClass):
     transitions = field(TransitionTable, mandatory=True,
                         factory=TransitionTable.create,
                         initial=DATASET_TRANSITIONS)
+    dataset_states = field(initial=DatasetStates)
 
     def _calculate_dataset_change(self, discovered_dataset, desired_dataset):
         """
@@ -1460,12 +1461,12 @@ class BlockDeviceCalculator(PClass):
         # we detach it.
         desired_state = (desired_dataset.state
                          if desired_dataset is not None
-                         else DatasetStates.NON_MANIFEST)
+                         else self.dataset_states.NON_MANIFEST)
         # If we haven't discovered a dataset, then it is doesn't
         # exist.
         discovered_state = (discovered_dataset.state
                             if discovered_dataset is not None
-                            else DatasetStates.NON_EXISTENT)
+                            else self.dataset_states.NON_EXISTENT)
         if desired_state != discovered_state:
             transition = self.transitions[desired_state][discovered_state]
             return transition.from_state_and_config(
