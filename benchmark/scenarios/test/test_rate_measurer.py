@@ -31,10 +31,10 @@ class RateMeasurerTest(TestCase):
         :param num_requests: The number of request we want to receive.
         :param num_samples: The number of samples to collect.
         """
-        calltime = 5
+        call_duration = 5
         for i in range(num_samples):
             for i in range(num_requests):
-                rate_measurer.response_received(calltime)
+                rate_measurer.response_received(call_duration)
             rate_measurer.update_rate()
 
     def failed_requests(self, rate_measurer, num_failures, num_samples):
@@ -149,7 +149,7 @@ class RateMeasurerTest(TestCase):
 
         self.assertEqual(0, r.outstanding())
 
-    def test_calltime_stats(self):
+    def test_call_duration_stats(self):
         """
         Calltime stats reflect response calls.
         """
@@ -167,7 +167,7 @@ class RateMeasurerTest(TestCase):
         self.assertEqual(
             r.get_metrics(),
             {
-                'calltimes': {5: 20},
+                'call_durations': {5: 20},
                 'errors': {'fail': 5},
                 'ok_count': 20,
                 'err_count': 5,

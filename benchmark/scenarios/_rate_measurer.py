@@ -14,7 +14,7 @@ class RateMeasurer(object):
     :ivar _received: The number of received requests recorded.
     :ivar _error_count: The number of failed requests recorded.
     :ivar _rate: The current rate.
-    :ivar Mapping[int, int] _calltimes: The number of times a call took
+    :ivar Mapping[int, int] _call_durations: The number of times a call took
         the given time (rounded down to whole seconds).
     :ivar Mapping[str, int] _errors: The number of times the given error
         message was received.
@@ -27,7 +27,7 @@ class RateMeasurer(object):
         self._received = 0
         self._error_count = 0
         self._rate = 0
-        self._calltimes = {}
+        self._call_durations = {}
         self._errors = {}
 
     def request_sent(self):
@@ -36,15 +36,15 @@ class RateMeasurer(object):
         """
         self._sent += 1
 
-    def response_received(self, calltime):
+    def response_received(self, duration):
         """
         Increase the number of received requests.
 
-        :param float calltime: Time to perform call
+        :param float duration: Time taken to perform call
         """
         self._received += 1
-        calltime = int(calltime)
-        self._calltimes[calltime] = self._calltimes.get(calltime, 0) + 1
+        duration = int(duration)
+        self._call_durations[duration] = self._call_durations.get(duration, 0) + 1
 
     def request_failed(self, failure):
         """
@@ -82,7 +82,7 @@ class RateMeasurer(object):
         Return the collected metrics.
         """
         return {
-            'calltimes': self._calltimes,
+            'call_durations': self._call_durations,
             'errors': self._errors,
             'ok_count': self._received,
             'err_count': self._error_count,
