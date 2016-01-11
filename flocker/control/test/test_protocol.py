@@ -47,7 +47,7 @@ from .._protocol import (
 from .._clusterstate import ClusterStateService
 from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
-    Dataset, DeploymentState, NonManifestDatasets,
+    Dataset, DeploymentState, NonManifestDatasets, ChangeSource,
 )
 from .._persistence import ConfigurationPersistenceService, wire_encode
 from .clusterstatetools import advance_some, advance_rest
@@ -561,7 +561,8 @@ class ControlAMPTests(ControlTestCase):
         sent = []
         self.patch_call_remote(sent, self.protocol)
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
-        self.control_amp_service.cluster_state.apply_changes([NODE_STATE])
+        self.control_amp_service.cluster_state.apply_changes_from_source(
+            ChangeSource(), [NODE_STATE])
 
         self.protocol.makeConnection(StringTransportWithAbort())
         cluster_state = self.control_amp_service.cluster_state.as_deployment()

@@ -26,6 +26,15 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 
 
+def change_source_from_clock(clock):
+    """
+    :param Clock clock:
+    """
+    source = ChangeSource()
+    source.set_last_activity(clock.seconds())
+    return source
+
+
 class ClusterStateServiceTests(TestCase):
     """
     Tests for ``ClusterStateService``.
@@ -56,7 +65,7 @@ class ClusterStateServiceTests(TestCase):
         given node state.
         """
         service = self.service()
-        service.apply_changes([self.WITH_APPS])
+        service.apply_changes_from_source(ChangeSource(), [self.WITH_APPS])
         self.assertEqual(
             service.as_deployment(),
             DeploymentState(nodes=[self.WITH_APPS])
@@ -68,7 +77,8 @@ class ClusterStateServiceTests(TestCase):
         to the ``Node`` instances it creates.
         """
         service = self.service()
-        service.apply_changes([self.WITH_MANIFESTATION])
+        service.apply_changes_from_source(
+            ChangeSource(), [self.WITH_MANIFESTATION])
         self.assertEqual(
             service.as_deployment(),
             DeploymentState(nodes={self.WITH_MANIFESTATION})
@@ -80,7 +90,7 @@ class ClusterStateServiceTests(TestCase):
         updates the information it knows about.
         """
         service = self.service()
-        service.apply_changes([
+        service.apply_changes_from_source(ChangeSource(), [
             NodeState(hostname=u"host1", applications=[APP1]),
             NodeState(hostname=u"host1", applications=None,
                       manifestations={
@@ -102,7 +112,7 @@ class ClusterStateServiceTests(TestCase):
         of that hostname.
         """
         service = self.service()
-        service.apply_changes([
+        service.apply_changes_from_source(ChangeSource(), [
             NodeState(hostname=u"host1", applications=[APP1]),
             NodeState(hostname=u"host1", applications=[APP2]),
         ])
@@ -117,7 +127,7 @@ class ClusterStateServiceTests(TestCase):
         ``ClusterStateService.as_deployment``.
         """
         service = self.service()
-        service.apply_changes([
+        service.apply_changes_from_source(ChangeSource(), [
             NodeState(hostname=u"host1", applications=[APP1]),
             NodeState(hostname=u"host2", applications=[APP2]),
         ])
@@ -138,7 +148,7 @@ class ClusterStateServiceTests(TestCase):
         """
         identifier = uuid4()
         service = self.service()
-        service.apply_changes([
+        service.apply_changes_from_source(ChangeSource(), [
             NodeState(hostname=u"host1", uuid=identifier,
                       manifestations={
                           MANIFESTATION.dataset_id:
@@ -157,7 +167,7 @@ class ClusterStateServiceTests(TestCase):
         (in seconds) old are wiped.
         """
         service = self.service()
-        service.apply_changes([self.WITH_APPS])
+        service.apply_changes_from_source(ChangeSource(), [self.WITH_APPS])
         advance_rest(self.clock)
         before_wipe_state = service.as_deployment()
         advance_some(self.clock)
@@ -212,11 +222,13 @@ class ClusterStateServiceTests(TestCase):
                                devices={}, paths={})
 
         # Some changes are applied at T1
-        service.apply_changes([app_node])
+        service.apply_changes_from_source(
+            change_source_from_clock(self.clock), [app_node])
 
         # A little time passes (T2) and some unrelated changes are applied.
         advance_some(self.clock)
-        service.apply_changes([app_node_2])
+        service.apply_changes_from_source(
+            change_source_from_clock(self.clock), [app_node_2])
 
         # Enough additional time passes (T3) to reach EXPIRATION_TIME from T1
         advance_rest(self.clock)
@@ -239,11 +251,13 @@ class ClusterStateServiceTests(TestCase):
         """
         service = self.service()
         # Some changes are applied at T1
-        service.apply_changes([self.WITH_APPS])
+        service.apply_changes_from_source(
+            change_source_from_clock(self.clock), [self.WITH_APPS])
 
         # Some time passes (T2) and the same changes are re-applied
         advance_some(self.clock)
-        service.apply_changes([self.WITH_APPS])
+        service.apply_changes_from_source(
+            change_source_from_clock(self.clock), [self.WITH_APPS])
 
         # Enough time passes (T3) to reach EXPIRATION_TIME from T1 but not T2
         advance_rest(self.clock)

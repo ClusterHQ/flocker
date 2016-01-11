@@ -20,7 +20,7 @@ from twisted.web.server import Site
 from twisted.internet.ssl import DefaultOpenSSLContextFactory
 
 from ...control import (
-    FlockerConfiguration, model_from_configuration, NodeState)
+    FlockerConfiguration, model_from_configuration, NodeState, ChangeSource)
 
 from ...control.httpapi import ConfigurationAPIUserV1
 from ...control._persistence import ConfigurationPersistenceService
@@ -57,7 +57,8 @@ class FlockerDeployTests(AsyncTestCase):
         self.persistence_service.startService()
         self.cluster_state_service = ClusterStateService(reactor)
         self.cluster_state_service.startService()
-        self.cluster_state_service.apply_changes(
+        self.cluster_state_service.apply_changes_from_source(
+            ChangeSource(),
             [NodeState(uuid=uuid4(), hostname=ip)
              for ip in COMPLEX_DEPLOYMENT_YAML[u"nodes"].keys()])
         self.addCleanup(self.cluster_state_service.stopService)
