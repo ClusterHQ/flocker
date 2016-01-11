@@ -886,7 +886,6 @@ def initialize_release(version, path, top_level):
     release_repo = Repo.init(release_path.path)
     release_origin = release_repo.create_remote('origin', REMOTE_URL)
     release_origin.fetch()
-    release_origin.pull(release_origin.refs[0].remote_head)
 
     sys.stdout.write("Checking out master...\n")
     release_repo.git.checkout("master")
