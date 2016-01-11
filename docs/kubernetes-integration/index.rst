@@ -1,8 +1,8 @@
 .. _kubernetes-integration:
 
-=========================
-> Flocker with Kubernetes
-=========================
+==========
+Kubernetes
+==========
 
 Flocker Installation Options
 ============================

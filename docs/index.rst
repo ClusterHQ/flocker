@@ -15,35 +15,31 @@ Installing Flocker
     <p>To install Flocker, you first need to choose which stack you using.</p>
     <p>Flocker adds support for stateful containers to a range of container orchestration frameworks.</p>
 
-    <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
-    <div class="big-box orchestration recommended">
-	    Docker, Swarm, Compose
-		<img src="_images/docker.png" style="width:80px;"/>
-		<br />
-        <div style="position:relative; top:2em;">
-        <a href="docker-integration/" class="button">Install</a>
-        <em style="font-size:small;">easiest</em>
-        </div>
+	<!-- This too needs to become Sphinx directives, rather than raw HTML. -->
+	<div class="pods-eq">
+	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
+			<img src="_images/docker2x.png" alt="Docker logo"/>
+			<span>Docker, Swarm, Compose <em>Fastest</em></span>
+	        <a href="docker-integration/" class="button button--fast">Install</a>
+	    </div>
+	    
+	    <div class="pod-boxout pod-boxout--orchestration">
+			<img src="_images/kubernetes2x.png" alt="Kubernetes logo"/>
+			<span>Kubernetes</span>
+	        <a href="kubernetes-integration/" class="button">Install</a>
+	    </div>
+	    
+	    <div class="pod-boxout pod-boxout--orchestration">
+			<img src="_images/mesos2x.png" alt="mesos logo"/>
+			<span>Mesos</span>
+	        <a href="mesos-integration/" class="button">Install</a>
+	    </div>
+	</div>
+	
+	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
+		<span><img src="_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install using something else</span>
+        <a href="flocker-standalone/" class="button">Install</a>
     </div>
-    <div class="big-box orchestration harder">
-		Kubernetes
-		<img src="_images/kubernetes.png" style="width:70px;"/>
-        <br />
-        <a href="kubernetes-integration/" class="button" style="position:relative; top: 2em">Install</a>
-    </div>
-    <div class="big-box orchestration harder">
-		Mesos
-		<img src="_images/mesos.png" style="width:70px;"/>
-        <br />
-        <a href="mesos-integration/" class="button" style="position:relative; top: 2em">Install</a>
-    </div>
-    <div class="big-box orchestration harder">
-		Other
-	 	<img src="_images/questionmark.png" style="width:80px;"/>
-        <br />
-        <a href="flocker-standalone/" class="button" style="position:relative; top: 2em">Install</a>
-    </div>
-    <div style="clear:both;"></div>
 
 Is your favourite orchestration framework missing?
 Let us know with the form below!
@@ -51,11 +47,11 @@ Let us know with the form below!
 .. toctree::
    :maxdepth: 2
 
-   supported
    docker-integration/index
    kubernetes-integration/index
    mesos-integration/index
    flocker-standalone/index
+   supported
    flocker-features/index
    reference/index
    labs/index
@@ -77,10 +73,10 @@ Let us know with the form below!
 
    <div style="display:none;">
 
-.. image:: images/docker.png
-.. image:: images/kubernetes.png
-.. image:: images/mesos.png
-.. image:: images/questionmark.png
+.. image:: images/docker2x.png
+.. image:: images/kubernetes2x.png
+.. image:: images/mesos2x.png
+.. image:: images/icon-question2x.png
 
 .. raw:: html
 

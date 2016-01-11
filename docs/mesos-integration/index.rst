@@ -1,8 +1,8 @@
 .. _mesos-integration:
 
-====================
-> Flocker with Mesos
-====================
+=====
+Mesos
+=====
 
 Flocker Installation Options
 ============================

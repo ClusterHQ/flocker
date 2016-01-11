@@ -1,6 +1,121 @@
 /* Docs */
 
+
+
 /* XXX START Temporary stylings for reorg-integrations-FLOC-3718 branch */
+
+.pods-eq {
+    margin-top: 24px;
+    overflow: hidden;
+}
+
+.pod-boxout {
+	border: 1px solid #cccccc;
+	padding: 1em;
+	text-align: center;
+    margin-bottom: 16px;
+}
+
+.pod-boxout--recommended {
+	border-color: #00a99d;
+}
+
+.pod-boxout--minor {
+	display: block;
+	overflow: hidden;
+	background-color: #eee;
+}
+
+.pod-boxout img {
+	max-width: 90%;
+	height: auto;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 12px;
+}
+
+.pod-boxout .button {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 12px;
+	width: auto;
+}
+
+.pod-boxout .button--fast {
+	background-color: #00a99d;
+}
+
+.pod-boxout span {
+	height: 80px;
+	display: block;
+	font-family: "Soho Gothic W01 Regular";
+} 
+
+.pod-boxout span em {
+	margin-top: 6px;
+	display: block;
+	color: #00a99d;
+	font-style: normal;
+} 
+
+.pod-boxout--minor span {
+	height: auto;
+	margin-top: 10px;
+}
+
+.pod-boxout--minor .button {
+	background-color: #333;
+}
+
+@media screen and (min-width: 450px) {
+	.pod-boxout--minor span {
+		width: 75%;
+		float: left;
+		display: inline-block;
+		text-align: left;
+	}
+	.pod-boxout--minor .button {
+		float: right;
+		width: 100px;
+		margin-top: 0;
+	}
+}
+
+.pod-boxout--minor img {
+	width: 20px;
+	height: 20px;
+	float: left;
+	margin-right: 4px;
+}
+
+@media screen and (min-width: 530px) {
+	.pod-eq {
+		display: -webkit-flex;
+	    display: -ms-flexbox;
+	    display: flex;
+	    -webkit-flex-wrap: wrap;
+	    -ms-flex-wrap: wrap;
+	    flex-wrap: wrap;
+	}
+	.pod-boxout {
+		float: left;
+		display: inline-block;
+		width: 32%;
+		margin-left: 2%;
+	}
+	.pod-boxout:first-child {
+		margin-left: 0;
+	}
+	.pod-boxout--minor {
+		width: 100%;
+		display: block;
+		margin-left: 0;
+	}
+}
+
+/*
 
 .wide-box {
     border:1px solid black;
@@ -16,6 +131,7 @@
 }
 
 .harder {
+
 }
 
 .big-box {
@@ -45,7 +161,10 @@
     border-color: #D69A00;
 }
 
+*/
 /* XXX END Temporary stylings for reorg-integrations-FLOC-3718 branch */
+
+
 
 /* Nav Style from website */
 
