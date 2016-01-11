@@ -3,6 +3,13 @@
 
 """
 A PD implementation of the ``IBlockDeviceAPI``.
+
+The following resources are helpful to referrence while maintaining this
+driver:
+- Rest API: https://cloud.google.com/compute/docs/reference/latest/
+- Python Client: https://cloud.google.com/compute/docs/tutorials/python-guide
+- Python API: https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/
+- Python Oauth: https://developers.google.com/identity/protocols/OAuth2ServiceAccount#authorizingrequests
 """
 
 import requests
@@ -138,9 +145,9 @@ class PDBlockDeviceAPI(object):
         - dataset_id is a pure function of blockdevice_id and vice versa.
         - You can have multiple clusters within the same project.
         - Multiple clusters within the same project cannot have datasets with
-            the same UUID. **
+            the same UUID.
         - We could add filtering by cluster by filtering on description.
-        - The path of the volume (or at least the path to a symlink to a path
+        - The path of the device (or at least the path to a symlink to a path
             of the volume) is a pure function of blockdevice_id.
     """
     # TODO(mewert): Logging throughout.
@@ -304,11 +311,6 @@ class PDBlockDeviceAPI(object):
         for e in errors:
             if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
                 raise AlreadyAttachedVolume(blockdevice_id)
-
-        # TODO(mewert): This is sort of bad to just add an extra API call here
-        #               for no reason ($10 says we don't even use the size).
-        #               Put this behind a method call so we can add caching
-        #               disk size later.
         disk = self._compute.disks().get(project=self._project,
                                          zone=self._zone,
                                          disk=blockdevice_id).execute()
