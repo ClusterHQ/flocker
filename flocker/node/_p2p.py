@@ -20,7 +20,7 @@ from eliot import write_failure, Logger, start_action
 
 from twisted.internet.defer import gatherResults
 
-from . import IStateChange, in_parallel, sequentially, NoOp
+from . import IStateChange, in_parallel, sequentially
 
 from ..control._model import (
     DatasetChanges, DatasetHandoff, NodeState, Manifestation, Dataset,

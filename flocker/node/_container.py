@@ -16,7 +16,7 @@ from eliot import Message, Logger, start_action
 
 from twisted.internet.defer import fail, succeed
 
-from . import IStateChange, in_parallel, sequentially, NoOp
+from . import IStateChange, in_parallel, sequentially
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 
 from ..control._model import (
