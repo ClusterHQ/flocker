@@ -10,7 +10,7 @@ Flocker Installation Options
 .. raw:: html
 
     <div class="wide-box">
-        Install Flocker manually to deploy it on infrastructure other than AWS.
+        Install Flocker manually
         <br />
         <br />
         <a href="manual-install.html" class="button">Manual Installation</a>
