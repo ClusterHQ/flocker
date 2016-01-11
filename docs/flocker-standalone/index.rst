@@ -1,8 +1,8 @@
 .. _flocker-standalone:
 
-============================
-> Flocker with Other Systems
-============================
+=============
+Other Systems
+=============
 
 Flocker Installation Options
 ============================

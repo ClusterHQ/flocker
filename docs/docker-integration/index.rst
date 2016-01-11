@@ -1,8 +1,8 @@
 .. _docker-integration:
 
-=====================================
-> Flocker with Docker, Swarm, Compose
-=====================================
+======================
+Docker, Swarm, Compose
+======================
 
 Flocker Installation Options
 ============================
