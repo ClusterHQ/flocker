@@ -16,6 +16,7 @@ Deployment Architecture
 The below steps enable you to deploy a Flocker Swarm cluster with the following layout, deploying four EC2 instances:
 
 .. image:: ../images/cloudformation.png
+    :width: 75%
 
 Step 1
 ------
