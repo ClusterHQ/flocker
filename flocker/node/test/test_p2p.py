@@ -6,7 +6,7 @@ Tests for ``flocker.node._p2p``.
 
 
 from uuid import UUID, uuid4
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pytz import UTC
 
@@ -511,7 +511,7 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
 
         changes = api.calculate_changes(desired, current,
                                         NodeLocalState(node_state=node_state))
-        self.assertEqual(NO_CHANGES, changes)
+        self.assertEqual(NoOp(sleep=timedelta(seconds=60)), changes)
 
     def test_volume_handoff(self):
         """
@@ -776,7 +776,7 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
 
         changes = api.calculate_changes(desired, current,
                                         NodeLocalState(node_state=node_state))
-        expected = NO_CHANGES
+        expected = NoOp(sleep=timedelta(seconds=60))
         self.assertEqual(expected, changes)
 
     def test_different_node_is_ignorant(self):
