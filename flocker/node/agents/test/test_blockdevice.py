@@ -537,11 +537,12 @@ class BlockDeviceDeployerLocalStateTests(TestCase):
 
     def test_mounted_dataset(self):
         """
-        When there is a a dataset in the ``MOUNTED`` state,
-        it is reported as a manifest dataset.
+        When there is a dataset in the ``MOUNTED`` state, it is reported as a
+        manifest dataset.
         """
         dataset_id = uuid4()
         mount_point = FilePath('/mount/point')
+        share_path = FilePath('/share/path')
         device_path = FilePath('/dev/xvdf')
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=self.node_uuid,
@@ -554,6 +555,7 @@ class BlockDeviceDeployerLocalStateTests(TestCase):
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device_path,
                     mount_point=mount_point,
+                    share_path=share_path,
                 ),
             },
         )
@@ -571,7 +573,7 @@ class BlockDeviceDeployerLocalStateTests(TestCase):
                     )
                 },
                 paths={
-                    unicode(dataset_id): mount_point
+                    unicode(dataset_id): share_path
                 },
                 devices={
                     dataset_id: device_path,
@@ -870,6 +872,7 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device,
                     mount_point=mount_point,
+                    share_path=mount_point,
                 ),
             ],
         )
@@ -1340,7 +1343,7 @@ class _WriteVerifyingExternalClient(object):
             self._dataset_id, None)
         converging_on_manifest = False
         if desired_dataset:
-            converging_on_manifest =  (
+            converging_on_manifest = (
                 desired_dataset.state == DatasetStates.MOUNTED)
         write_to_current_path_should_succeed = False
 
@@ -1640,9 +1643,6 @@ class BlockDeviceCalculatorTests(TestCase):
         This would represent an agent like docker attempting to use a path
         before or after flocker was ready for it to use the path.
         """
-        #self.skipTest(
-        #    'Currently this fails as the path is writable after unmount.')
-
         callback = _MutableCallback()
 
         actual_blockdevice_manager = BlockDeviceManager()
@@ -2213,6 +2213,7 @@ def local_state_from_shared_state(
                 device_path=node_state.devices[dataset_id],
                 blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
                 mount_point=node_state.paths[unicode(dataset_id)],
+                share_path=node_state.paths[unicode(dataset_id)],
             )
 
     return BlockDeviceDeployerLocalState(
@@ -2380,6 +2381,9 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
                     device_path=FilePath(b"/dev/sda"),
                     mount_point=FilePath(b"/flocker").child(
+                        bytes(self.DATASET_ID),
+                    ),
+                    share_path=FilePath(b"/flocker").child(
                         bytes(self.DATASET_ID),
                     ),
                 ),

@@ -1524,7 +1524,9 @@ class BlockDeviceDeployer(PClass):
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
     :ivar FilePath sharedroot: The parent directory for all dataset paths that
-        will be shared externally.
+        will be shared externally. Defaults to being the same as mountroot.
+        This is designed to either be the mountroot or be a directory that is
+        bind mounted read only to the mountroot.
     :ivar _async_block_device_api: An object to override the value of the
         ``async_block_device_api`` property.  Used by tests.  Should be
         ``None`` in real-world use.
@@ -1539,7 +1541,7 @@ class BlockDeviceDeployer(PClass):
     _profiled_blockdevice_api = field(mandatory=True, initial=None)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
-    sharedroot = field(type=FilePath, initial=FilePath(b"/flocker/v2"))
+    sharedroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     poll_interval = timedelta(seconds=60.0)
     block_device_manager = field(initial=BlockDeviceManager())
     calculator = field(
