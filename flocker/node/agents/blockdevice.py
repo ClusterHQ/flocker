@@ -710,40 +710,6 @@ class AttachVolume(PClass):
 
 @implementer(IStateChange)
 @provider(IDatasetStateChangeFactory)
-class ActionNeeded(PClass):
-    """
-    We need to take some action on a dataset but lack the necessary
-    information to do so.
-
-    Creating this is still useful insofar as it may let the convergence
-    loop know that it should wake up and do discovery, which would allow
-    us to get the actual ``IStateChange`` calculated.
-
-    :ivar UUID dataset_id: The unique identifier of the dataset associated with
-        the volume to attach.
-    """
-    dataset_id = field(type=UUID, mandatory=True)
-
-    # Nominal interface compliance; we don't expect this to be ever run,
-    # it's just a marker object basically.
-    eliot_action = None
-
-    @classmethod
-    def from_state_and_config(cls, discovered_dataset, desired_dataset):
-        return cls(
-            dataset_id=discovered_dataset.dataset_id,
-        )
-
-    def run(self, deployer):
-        """
-        This should not ever be run; doing so suggests a bug somewhere.
-        """
-        return fail(NotImplementedError(
-            "This should never happen when calculating in anger."))
-
-
-@implementer(IStateChange)
-@provider(IDatasetStateChangeFactory)
 class DetachVolume(PClass):
     """
     Detach a volume from the node it is currently attached to.
@@ -1405,6 +1371,10 @@ class TransitionTable(CheckedPMap):
         __invariant__ = lambda k, v: provides(IDatasetStateChangeFactory)(v)
 
 
+# If we've nothing to do we want to sleep for no more than a minute:
+NOTHING_TO_DO = NoOp(sleep=timedelta(seconds=60))
+
+
 @provider(IDatasetStateChangeFactory)
 class DoNothing(PClass):
     """
@@ -1412,7 +1382,24 @@ class DoNothing(PClass):
     """
     @staticmethod
     def from_state_and_config(discovered_dataset, desired_dataset):
-        return NoOp()
+        return NOTHING_TO_DO
+
+
+@provider(IDatasetStateChangeFactory)
+class PollUntilAttached(PClass):
+    """
+    Wake up more frequently to see if remote node has detached a volume we
+    wish to attach.
+
+    This polling will not be necessary once FLOC-3834 is done, since we
+    will no longer conflate local and remote state. Remote updates will
+    therefore suffice to wake us up immediately once the remote node
+    detaches the volume.
+    """
+    @staticmethod
+    def from_state_and_config(discovered_dataset, desired_dataset):
+        return NoOp(sleep=timedelta(seconds=3))
+
 
 # Mapping from desired and discovered dataset state to
 # IStateChange factory. (The factory is expected to take
@@ -1421,9 +1408,10 @@ Desired = Discovered = DatasetStates
 DATASET_TRANSITIONS = TransitionTable.create({
     Desired.MOUNTED: {
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
-        # Other node will need to deatch first, but we we need to
-        # wake up to notice that it has detached.
-        Discovered.ATTACHED_ELSEWHERE: ActionNeeded,
+        # Other node will need to detach first, but we need to wake up to
+        # notice that it has detached until FLOC-3834 makes that info part
+        # of cluster state. So we need to poll... but not too often:
+        Discovered.ATTACHED_ELSEWHERE: PollUntilAttached,
         Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
         Discovered.NON_MANIFEST: AttachVolume,
         DatasetStates.ATTACHED: MountBlockDevice,
@@ -1432,7 +1420,7 @@ DATASET_TRANSITIONS = TransitionTable.create({
         # XXX FLOC-2206
         # Can't create non-manifest datasets yet.
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
-        # Other node will deatch
+        # Other node will detach:
         Discovered.ATTACHED_ELSEWHERE: DoNothing,
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
@@ -1491,7 +1479,7 @@ class BlockDeviceCalculator(PClass):
                 desired_dataset=desired_dataset,
             )
         else:
-            return NoOp()
+            return NOTHING_TO_DO
 
     def calculate_changes_for_datasets(
         self, discovered_datasets, desired_datasets
@@ -1542,7 +1530,6 @@ class BlockDeviceDeployer(PClass):
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     sharedroot = field(type=FilePath, initial=FilePath(b"/flocker"))
-    poll_interval = timedelta(seconds=60.0)
     block_device_manager = field(initial=BlockDeviceManager())
     calculator = field(
         invariant=provides(ICalculator),
@@ -1830,7 +1817,7 @@ class BlockDeviceDeployer(PClass):
         # deletion or handoffs. Eventually this will rely on leases instead.
         # https://clusterhq.atlassian.net/browse/FLOC-1425.
         if local_node_state.applications is None:
-            return NoOp()
+            return NOTHING_TO_DO
 
         desired_datasets = self._calculate_desired_state(
             configuration=configuration,

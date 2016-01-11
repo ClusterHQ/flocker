@@ -238,8 +238,6 @@ class ApplicationNodeDeployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    poll_interval = timedelta(seconds=1.0)
-
     def __init__(self, hostname, docker_client=None, network=None,
                  node_uuid=None):
         if node_uuid is None:
@@ -712,4 +710,6 @@ class ApplicationNodeDeployer(object):
         start_restart = start_containers + restart_containers
         if start_restart:
             phases.append(in_parallel(changes=start_restart))
-        return sequentially(changes=phases)
+
+        return sequentially(changes=phases,
+                            sleep_when_empty=timedelta(seconds=1))

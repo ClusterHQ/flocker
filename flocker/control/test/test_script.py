@@ -3,18 +3,19 @@
 from twisted.python.filepath import FilePath
 
 from ..script import ControlOptions, ControlScript
-from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin, TestCase
+from ...testtools import (
+    MemoryCoreReactor, make_standard_options_test, TestCase,
+)
 from .._clusterstate import ClusterStateService
 from ..httpapi import REST_API_PORT
 
 from ...ca.testtools import get_credential_sets
 
 
-class ControlOptionsTests(StandardOptionsTestsMixin, TestCase):
+class ControlOptionsTests(make_standard_options_test(ControlOptions)):
     """
     Tests for ``ControlOptions``.
     """
-    options = ControlOptions
 
     def test_default_port(self):
         """
