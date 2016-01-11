@@ -915,7 +915,8 @@ def initialize_release(version, path, top_level):
         os.environ["LDFLAGS"] = '-L{}/lib" CFLAGS="-I{}/include'.format(
             brew_openssl, brew_openssl)
     check_call(
-        ["pip install -e .[dev]"], shell=True, stdout=open(os.devnull, 'w'))
+        ["pip install --process-dependency-links -e .[dev]"], shell=True,
+        stdout=open(os.devnull, 'w'))
 
     sys.stdout.write("Updating LICENSE file...\n")
     update_license_file(list(), top_level)
