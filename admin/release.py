@@ -886,7 +886,6 @@ def initialize_release(version, path, top_level):
     release_repo = Repo.init(release_path.path)
     release_origin = release_repo.create_remote('origin', REMOTE_URL)
     release_origin.fetch()
-    release_origin.pull(release_origin.refs[0].remote_head)
 
     sys.stdout.write("Checking out master...\n")
     release_repo.git.checkout("master")
@@ -916,7 +915,8 @@ def initialize_release(version, path, top_level):
         os.environ["LDFLAGS"] = '-L{}/lib" CFLAGS="-I{}/include'.format(
             brew_openssl, brew_openssl)
     check_call(
-        ["pip install -e .[dev]"], shell=True, stdout=open(os.devnull, 'w'))
+        ["pip install --process-dependency-links -e .[dev]"], shell=True,
+        stdout=open(os.devnull, 'w'))
 
     sys.stdout.write("Updating LICENSE file...\n")
     update_license_file(list(), top_level)

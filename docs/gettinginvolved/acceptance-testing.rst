@@ -155,6 +155,7 @@ To run the acceptance tests on AWS, you need:
      secret_access_token: <aws secret access token>
      keyname: <ssh-key-name>
      security_groups: ["<permissive security group>"]
+     instance_type: <instance type, e.g. "m3.large">
 
 You will need a ssh agent running with access to the corresponding private key.
 

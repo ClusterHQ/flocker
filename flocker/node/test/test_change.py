@@ -4,7 +4,7 @@
 Tests for ``flocker.node._change``.
 """
 
-from unittest import SkipTest
+from datetime import timedelta
 
 from zope.interface import implementer
 
@@ -169,35 +169,19 @@ class InParallelIStateChangeTests(
         self.assertEqual(2, the_change.value)
 
 
-class NoOpIStateChangeTests(make_istatechange_tests(NoOp, {}, {})):
+class NoOpIStateChangeTests(make_istatechange_tests(
+        NoOp, {"sleep": timedelta(seconds=1)},
+        {"sleep": timedelta(seconds=2)})):
     """
     Tests for the ``IStateChange`` implementation provided by ``NoOp``.
-
-    Inherits some equality/inequality tests we need to override because
-    they assume instances can be different, which is not the case for
-    ``NoOp``.
     """
-    def test_equality(self):
-        """
-        All instances are equal.
-
-        Overrides test in base class.
-        """
-        self.assertTrue(NoOp() == NoOp())
-
-    def test_notequality(self):
-        """
-        Not relevant for ``NoOp``.
-
-        Overrides test in base class.
-        """
-        raise SkipTest("All NoOp instances are equal.")
-
     def test_run(self):
         """
         ``NoOp.run`` returns a fired ``Deferred``.
         """
-        self.assertEqual(self.successResultOf(NoOp().run(None)), None)
+        self.assertEqual(
+            self.successResultOf(NoOp(sleep=timedelta(seconds=0.0)).run(None)),
+            None)
 
 
 def _test_nested_change(case, outer_factory, inner_factory):
@@ -324,13 +308,29 @@ class SequentiallyTests(TestCase):
         """
         ``sequentially`` with no sub-changes becomes a ``NoOp``.
         """
-        self.assertEqual(sequentially(changes=[]), NoOp())
+        self.assertEqual(sequentially(changes=[]),
+                         NoOp(sleep=timedelta(seconds=60)))
+
+    def test_empty_specific_sleep(self):
+        """
+        ``sequentially`` with no sub-changes and a specified sleep becomes a
+        ``NoOp`` with that sleep interval.
+        """
+        sleep = timedelta(seconds=3.7)
+        self.assertEqual(sequentially(changes=[], sleep_when_empty=sleep),
+                         NoOp(sleep=sleep))
 
     def test_noops(self):
         """
-        ``sequentially`` with only ``NoOp`` sub-changes becomes a ``NoOp``.
+        ``sequentially`` with only ``NoOp`` sub-changes becomes a ``NoOp``
+        with sleep set to the minimal value of the sub-changes' sleep
+        value.
         """
-        self.assertEqual(sequentially(changes=[NoOp(), NoOp()]), NoOp())
+        self.assertEqual(
+            sequentially(changes=[NoOp(sleep=timedelta(seconds=0.3)),
+                                  NoOp(sleep=timedelta(seconds=0.1)),
+                                  NoOp(sleep=timedelta(seconds=0.2))]),
+            NoOp(sleep=timedelta(seconds=0.1)))
 
 
 class InParallelTests(TestCase):
@@ -467,13 +467,29 @@ class InParallelTests(TestCase):
         """
         ``in_parallel`` with no sub-changes becomes a ``NoOp``.
         """
-        self.assertEqual(in_parallel(changes=[]), NoOp())
+        self.assertEqual(in_parallel(changes=[]),
+                         NoOp(sleep=timedelta(seconds=60)))
+
+    def test_empty_specific_sleep(self):
+        """
+        ``in_parallel`` with no sub-changes and a specified sleep becomes a
+        ``NoOp`` with that sleep interval.
+        """
+        sleep = timedelta(seconds=3.7)
+        self.assertEqual(in_parallel(changes=[], sleep_when_empty=sleep),
+                         NoOp(sleep=sleep))
 
     def test_noops(self):
         """
-        ``in_parallel`` with only ``NoOp`` sub-changes becomes a ``NoOp``.
+        ``in_parallel`` with only ``NoOp`` sub-changes becomes a ``NoOp`` with
+        sleep set to the minimum value of the sub-changes' sleep
+        attribute.
         """
-        self.assertEqual(in_parallel(changes=[NoOp(), NoOp()]), NoOp())
+        self.assertEqual(
+            in_parallel(changes=[NoOp(sleep=timedelta(seconds=0.3)),
+                                 NoOp(sleep=timedelta(seconds=0.1)),
+                                 NoOp(sleep=timedelta(seconds=0.2))]),
+            NoOp(sleep=timedelta(seconds=0.1)))
 
 
 class RunStateChangeTests(TestCase):

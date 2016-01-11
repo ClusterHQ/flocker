@@ -993,9 +993,7 @@ run_trial_modules: &run_trial_modules
   - flocker.docs
   - flocker.dockerplugin
   - flocker.node.test
-  - flocker.node.functional.test_docker.GenericDockerClientTests
-  - flocker.node.functional.test_docker.IDockerClientNamespacedTests
-  - flocker.node.functional.test_docker.NamespacedDockerClientTests
+  - flocker.node.functional.test_docker
   - flocker.node.functional.test_script
   - flocker.node.functional.test_deploy
   - flocker.provision
