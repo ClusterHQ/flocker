@@ -858,6 +858,7 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         )
         device = self.api.get_device_path(volume.blockdevice_id)
         mount_point = self.deployer.mountroot.child(bytes(dataset_id))
+        share_path = self.deployer.sharedroot.child(bytes(dataset_id))
         mount_point.makedirs()
         make_filesystem(device, block_device=True)
         mount(device, mount_point)
@@ -872,7 +873,7 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device,
                     mount_point=mount_point,
-                    share_path=mount_point,
+                    share_path=share_path,
                 ),
             ],
         )
