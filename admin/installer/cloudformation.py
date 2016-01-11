@@ -145,7 +145,7 @@ for i in range(NUM_NODES):
             Output(
                 "ControlNodeIP",
                 Description="Public IP of Flocker Control and "
-                            "Docker Swarm Manager.",
+                            "Swarm Manager.",
                 Value=GetAtt(ec2_instance, "PublicIp"),
             )
         ])
@@ -155,8 +155,7 @@ for i in range(NUM_NODES):
         template.add_output([
             Output(
                 "AgentNode{}IP".format(i),
-                Description="Public IP of Agent Node for Flocker and "
-                            "Docker Swarm.",
+                Description="Public IP of Agent Node for Flocker and Swarm.",
                 Value=GetAtt(ec2_instance, "PublicIp"),
             )
         ])
@@ -220,7 +219,7 @@ template.add_output(Output(
     "SwarmDockerHost",
     Value=Join("", ["export DOCKER_HOST=",
                GetAtt(control_service_instance, "PublicIp"), ":2376"]),
-    Description="DOCKER_HOST setting to talk to Docker Swarm Manager."
+    Description="DOCKER_HOST setting to talk to Swarm Manager."
 ))
 
 base_url = "https://resources.console.aws.amazon.com/r/group#sharedgroup="
