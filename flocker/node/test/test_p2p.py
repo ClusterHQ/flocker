@@ -6,7 +6,7 @@ Tests for ``flocker.node._p2p``.
 
 
 from uuid import UUID, uuid4
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pytz import UTC
 
@@ -16,7 +16,7 @@ from twisted.internet.defer import fail, Deferred
 from twisted.python.filepath import FilePath
 
 from .. import (
-    P2PManifestationDeployer,
+    P2PManifestationDeployer, NoOp,
 )
 from ...control import (
     Application, DockerImage, Deployment, Node,
@@ -239,6 +239,9 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
             manifestation)
 
 
+NO_CHANGES = NoOp(sleep=timedelta(seconds=1))
+
+
 class P2PManifestationDeployerLeaseTests(TestCase):
     """
     Tests for impact of leases on
@@ -301,7 +304,7 @@ class P2PManifestationDeployerLeaseTests(TestCase):
         changes = self.changes_when_leased(
             MANIFESTATION.transform(("dataset", "deleted"), True),
             MANIFESTATION)
-        self.assertEqual(sequentially(changes=[]), changes)
+        self.assertEqual(NO_CHANGES, changes)
 
     def test_no_resize_if_leased(self):
         """
@@ -310,7 +313,7 @@ class P2PManifestationDeployerLeaseTests(TestCase):
         """
         changes = self.changes_when_leased(
             MANIFESTATION_WITH_SIZE, MANIFESTATION)
-        self.assertEqual(sequentially(changes=[]), changes)
+        self.assertEqual(NO_CHANGES, changes)
 
     def test_no_handoff_if_leased_on_different_node(self):
         """
@@ -322,7 +325,7 @@ class P2PManifestationDeployerLeaseTests(TestCase):
             MANIFESTATION, MANIFESTATION,
             # lease:       destination:  origin:
             self.NODE_ID2, self.NODE_ID, self.NODE_ID2)
-        self.assertEqual(sequentially(changes=[]), changes)
+        self.assertEqual(NO_CHANGES, changes)
 
     def test_handoff_if_leased_on_destination_node(self):
         """
@@ -412,7 +415,7 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
         )
         changes = api.calculate_changes(desired, current,
                                         NodeLocalState(node_state=node_state))
-        self.assertEqual(sequentially(changes=[]), changes)
+        self.assertEqual(NO_CHANGES, changes)
 
     def test_no_resize_if_in_use(self):
         """
@@ -443,7 +446,7 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
         changes = api.calculate_changes(
             desired, current, NodeLocalState(node_state=current_node))
 
-        expected = sequentially(changes=[])
+        expected = NO_CHANGES
         self.assertEqual(expected, changes)
 
     def test_no_handoff_if_in_use(self):
@@ -480,7 +483,7 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
 
         changes = api.calculate_changes(desired, current,
                                         NodeLocalState(node_state=node_state))
-        self.assertEqual(sequentially(changes=[]), changes)
+        self.assertEqual(NO_CHANGES, changes)
 
     def test_no_handoff_if_destination_unknown(self):
         """
@@ -508,7 +511,7 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
 
         changes = api.calculate_changes(desired, current,
                                         NodeLocalState(node_state=node_state))
-        self.assertEqual(sequentially(changes=[]), changes)
+        self.assertEqual(NoOp(sleep=timedelta(seconds=60)), changes)
 
     def test_volume_handoff(self):
         """
@@ -577,7 +580,7 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
 
         changes = api.calculate_changes(
             desired, current, NodeLocalState(node_state=current_node))
-        expected = sequentially(changes=[])
+        expected = NO_CHANGES
         self.assertEqual(expected, changes)
 
     def test_metadata_does_not_cause_changes(self):
@@ -621,7 +624,7 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
 
         changes = api.calculate_changes(desired, current,
                                         NodeLocalState(node_state=node_state))
-        self.assertEqual(changes, sequentially(changes=[]))
+        self.assertEqual(changes, NO_CHANGES)
 
     def test_dataset_created(self):
         """
@@ -773,7 +776,7 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
 
         changes = api.calculate_changes(desired, current,
                                         NodeLocalState(node_state=node_state))
-        expected = sequentially(changes=[])
+        expected = NoOp(sleep=timedelta(seconds=60))
         self.assertEqual(expected, changes)
 
     def test_different_node_is_ignorant(self):
