@@ -801,6 +801,25 @@ class ConvergenceLoopFSMTests(TestCase):
                  post=0),  # slept full poll interval, new iteration
         )
 
+    def test_shorter_sleep(self):
+        """
+        When a sleeping convergence loop gets an update and sees if it should
+        wake up, if the result is a ``NoOp`` with a shorter remaining
+        duration the sleep is appropriately shortened.
+        """
+        loop = self.convergence_iteration(
+            initial_action=NO_OP,
+            later_actions=[NoOp(sleep=timedelta(seconds=17))])
+
+        # An update received while sleeping:
+        loop.receive(_ClientStatusUpdate(
+            client=self.make_amp_client([self.local_state]),
+            configuration=self.configuration, state=self.cluster_state))
+
+        [delayed_call] = self.reactor.getDelayedCalls()
+        delay = delayed_call.getTime() - self.reactor.seconds()
+        self.assertEqual(delay, 17)
+
     def assert_woken_up(self, loop):
         """
         When a new configuraton and cluster state are fed to a sleeping

@@ -409,8 +409,13 @@ class ConvergenceLoop(object):
             changes = None
         if not isinstance(changes, NoOp):
             self.fsm.receive(ConvergenceLoopInputs.WAKEUP)
-        # XXX else reset wakeup delay to lowest of calculated sleep
-        # interval and existing delay
+        else:
+            # Check if the calculated NoOp suggests an earlier wakeup than
+            # currently planned:
+            remaining = self._sleep_timeout.getTime() - self.reactor.seconds()
+            calculated = changes.sleep.total_seconds()
+            if calculated < remaining:
+                self._sleep_timeout.reset(calculated)
 
     def _send_state_to_control_service(self, state_changes):
         context = LOG_SEND_TO_CONTROL_SERVICE(
