@@ -1399,6 +1399,10 @@ class TransitionTable(CheckedPMap):
         __invariant__ = lambda k, v: provides(IDatasetStateChangeFactory)(v)
 
 
+# If we've nothing to do we want to sleep for no more than a minute:
+NOTHING_TO_DO = NoOp(sleep=timedelta(seconds=60))
+
+
 @provider(IDatasetStateChangeFactory)
 class DoNothing(PClass):
     """
@@ -1406,7 +1410,7 @@ class DoNothing(PClass):
     """
     @staticmethod
     def from_state_and_config(discovered_dataset, desired_dataset):
-        return NoOp()
+        return NOTHING_TO_DO
 
 # Mapping from desired and discovered dataset state to
 # IStateChange factory. (The factory is expected to take
@@ -1485,7 +1489,7 @@ class BlockDeviceCalculator(PClass):
                 desired_dataset=desired_dataset,
             )
         else:
-            return NoOp()
+            return NOTHING_TO_DO
 
     def calculate_changes_for_datasets(
         self, discovered_datasets, desired_datasets
@@ -1531,7 +1535,6 @@ class BlockDeviceDeployer(PClass):
     _profiled_blockdevice_api = field(mandatory=True, initial=None)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
-    poll_interval = timedelta(seconds=60.0)
     block_device_manager = field(initial=BlockDeviceManager())
     calculator = field(
         invariant=provides(ICalculator),
@@ -1798,7 +1801,7 @@ class BlockDeviceDeployer(PClass):
         # deletion or handoffs. Eventually this will rely on leases instead.
         # https://clusterhq.atlassian.net/browse/FLOC-1425.
         if local_node_state.applications is None:
-            return NoOp()
+            return NOTHING_TO_DO
 
         desired_datasets = self._calculate_desired_state(
             configuration=configuration,

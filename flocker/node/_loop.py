@@ -407,8 +407,10 @@ class ConvergenceLoop(object):
             # responsive.
             write_traceback()
             changes = None
-        if changes != NoOp():
+        if not isinstance(changes, NoOp):
             self.fsm.receive(ConvergenceLoopInputs.WAKEUP)
+        # XXX else reset wakeup delay to lowest of calculated sleep
+        # interval and existing delay
 
     def _send_state_to_control_service(self, state_changes):
         context = LOG_SEND_TO_CONTROL_SERVICE(
@@ -485,12 +487,12 @@ class ConvergenceLoop(object):
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state, local_state
             )
-            if action == NoOp():
-                # We've converged, we can sleep for deployer poll
-                # interval. We add some jitter so not all agents wake up
-                # at exactly the same time, to reduce load on system:
+            if isinstance(action, NoOp):
+                # We've converged, we can sleep for NoOp's sleep duration.
+                # We add some jitter so not all agents wake up at exactly
+                # the same time, to reduce load on system:
                 sleep_duration = _Sleep.with_jitter(
-                    self.deployer.poll_interval.total_seconds())
+                    action.sleep.total_seconds())
             else:
                 # We're going to do some work, we should do another
                 # iteration quickly in case there's followup work:

@@ -64,7 +64,7 @@ from ..blockdevice import (
     CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
 
     DATASET_TRANSITIONS, IDatasetStateChangeFactory,
-    ICalculator,
+    ICalculator, NOTHING_TO_DO,
 
     DiscoveredDataset, DesiredDataset, DatasetStates,
 
@@ -99,7 +99,7 @@ from ..loopback import (
 from ....common.algebraic import tagged_union_strategy
 
 
-from ... import run_state_change, in_parallel, ILocalState, NoOp, IStateChange
+from ... import run_state_change, in_parallel, ILocalState, IStateChange
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
     compute_cluster_state,
@@ -1140,7 +1140,7 @@ class BlockDeviceCalculatorInterfaceTests(
 
 
 class RecordingCalculatorInterfaceTests(
-    make_icalculator_tests(lambda: RecordingCalculator(NoOp()))
+    make_icalculator_tests(lambda: RecordingCalculator(NOTHING_TO_DO))
 ):
     """
     Tests for ``RecordingCalculator``'s implementation of ``ICalculator``.
@@ -1361,7 +1361,7 @@ def assert_desired_datasets(
     :type additional_node_config: ``set`` of ``Node``s
     :param Leases leases: Leases to include in the cluster configration.
     """
-    calculator = RecordingCalculator(NoOp())
+    calculator = RecordingCalculator(NOTHING_TO_DO)
     deployer = deployer.set(calculator=calculator)
     cluster_configuration = Deployment(
         nodes={
@@ -1908,7 +1908,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
 
         assert_calculated_changes(
             self, local_state, local_config, set(),
-            NoOp(),
+            NOTHING_TO_DO,
         )
 
     def test_deleted_ignored(self):
@@ -3075,7 +3075,7 @@ class BlockDeviceDeployerCalculateChangesTests(
             nonmanifest_datasets=[],
             additional_node_states=set(),
             additional_node_config=set(),
-            expected_changes=NoOp(),
+            expected_changes=NOTHING_TO_DO,
             local_state=self.local_state,
         )
 

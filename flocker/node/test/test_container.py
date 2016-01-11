@@ -5,6 +5,7 @@ Tests for ``flocker.node._container``.
 """
 
 from uuid import UUID, uuid4
+from datetime import timedelta
 
 from ipaddr import IPAddress
 
@@ -873,7 +874,7 @@ def no_change():
     Construct the exact ``IStateChange`` that ``ApplicationNodeDeployer``
     returns when it doesn't want to make any changes.
     """
-    return NoOp()
+    return NoOp(sleep=timedelta(seconds=1))
 
 
 class ApplicationNodeDeployerCalculateVolumeChangesTests(TestCase):
