@@ -9,7 +9,6 @@ web:
      - "POSTGRES_PASSWORD=flockerdemo"
   links:
      - "postgres:postgres"
-  entrypoint: "node server-postgres.js"
 postgres:
   image: postgres
   ports:
