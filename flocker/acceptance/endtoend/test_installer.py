@@ -127,11 +127,11 @@ def cleanup(test_case, local_certs_path):
     user_credential = UserCredential.from_files(user_cert, user_key)
     cluster = Cluster(
         control_node=ControlService(
-            public_address=test_case.node0.encode("ascii")),
+            public_address=test_case.agent_node_1.encode("ascii")),
         nodes=[],
         treq=treq_with_authentication(
             reactor, cluster_cert, user_cert, user_key),
-        client=FlockerClient(reactor, test_case.node0.encode("ascii"),
+        client=FlockerClient(reactor, test_case.agent_node_1.encode("ascii"),
                              REST_API_PORT, cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
         cluster_uuid=user_credential.cluster_uuid,
@@ -260,10 +260,11 @@ class DockerComposeTests(AsyncTestCase):
         stack_report = create_cloudformation_stack()
         outputs = stack_report['Outputs']
         self.stack_id = stack_report['StackId']
-        self.client_ip = get_output(outputs, 'ClientIP')
-        self.node0 = get_output(outputs, 'FlockerNode0IP')
-        self.node1 = get_output(outputs, 'FlockerNode1IP')
-        self.docker_host = self.node0 + ':2376'
+        self.client_ip = get_output(outputs, 'ClientNodeIP')
+        self.agent_node_1 = get_output(outputs, 'AgentNode1IP')
+        self.agent_node_2 = get_output(outputs, 'AgentNode2IP')
+        self.control_node_ip = get_output(outputs, 'ControlNodeIP')
+        self.docker_host = self.control_node_ip + ':2376'
         local_certs_path = self.mktemp()
         print "WAITING FOR CLIENT NODE"
         check_call(
@@ -285,14 +286,14 @@ class DockerComposeTests(AsyncTestCase):
 
         d.addCallback(
             lambda ignored: remote_postgres(
-                self.client_ip, self.node0,
+                self.client_ip, self.agent_node_1,
                 RECREATE_STATEMENT + INSERT_STATEMENT
             )
         )
 
         d.addCallback(
             lambda ignored: remote_postgres(
-                self.client_ip, self.node0, SELECT_STATEMENT
+                self.client_ip, self.agent_node_1, SELECT_STATEMENT
             )
         )
 
@@ -319,7 +320,7 @@ class DockerComposeTests(AsyncTestCase):
         d.addCallback(
             lambda ignored: remote_postgres(
                 self.client_ip,
-                self.node1, SELECT_STATEMENT
+                self.agent_node_2, SELECT_STATEMENT
             )
         )
 
