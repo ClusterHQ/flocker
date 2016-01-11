@@ -1,4 +1,4 @@
-.. _about:
+.. _about-docker-integration:
 
 About this integration
 ======================
@@ -11,7 +11,7 @@ It allows you to control Flocker directly from the Docker CLI or a Docker Compos
 
 It also works in multi-host environments where you're using Docker Swarm.
 
-.. _concepts:
+.. _concepts-docker-integration:
 
 Concepts
 ========
