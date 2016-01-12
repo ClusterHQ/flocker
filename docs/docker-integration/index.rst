@@ -32,7 +32,7 @@ Flocker Installation Options
 
 .. _docker-tutorials:
 
-Follow a tutorial
+Follow a Tutorial
 =================
 
 .. raw:: html
@@ -52,8 +52,8 @@ Other tutorials can be found on our blog.
 
    tutorial-swarm-compose
    
-Learn more about the integration
-================================
+Learn More
+==========
 
 To learn about the details of how this integration works, read :ref:`about-docker-integration`.
 

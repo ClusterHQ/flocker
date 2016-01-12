@@ -3,6 +3,7 @@
 =====
 Mesos
 =====
+
 I suggest adding a paragraph here or removing the above heading all together, as two headings in a run looks quite untidy and also, somewhat defeats the point of having headings as separation. 
 
 
@@ -26,7 +27,7 @@ Flocker Installation Options
 
 .. _mesos-tutorials:
 
-Follow a tutorial
+Follow a Tutorial
 =================
 
 .. raw:: html
@@ -47,8 +48,8 @@ Other tutorials can be found on our blog.
    tutorial-mesos
 
 
-Learn more about the integration
-================================
+Learn More
+==========
 
 To learn about the details of how this integration works, read :ref:`about-mesos-integration`.
 

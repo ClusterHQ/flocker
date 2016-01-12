@@ -27,7 +27,7 @@ Flocker Installation Options
 
 .. _kubernetes-tutorials:
 
-Follow a tutorial
+Follow a Tutorial
 =================
 
 .. raw:: html
@@ -47,9 +47,8 @@ Other tutorials can be found on our blog.
 
    tutorial-kubernetes
 
-
-Learn more about the integration
-================================
+Learn More
+==========
 
 To learn about the details of how this integration works, read :ref:`about-kubernetes-integration`.
 
