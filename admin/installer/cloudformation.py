@@ -21,6 +21,7 @@ CLIENT_WAIT_HANDLE = u"ClientReadySignal"
 CLIENT_WAIT_CONDITION = u"ClientSetup"
 S3_SETUP = 'setup_s3.sh'
 DOCKER_SETUP = 'setup_docker.sh'
+DOCKER_SWARM_CERT_SETUP = 'docker-swarm-ceritificate-generator.sh'
 SWARM_MANAGER_SETUP = 'setup_swarm_manager.sh'
 SWARM_NODE_SETUP = 'setup_swarm_node.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
@@ -134,6 +135,7 @@ for i in range(NUM_NODES):
         'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
     ]
 
+    user_data += sibling_lines(DOCKER_SWARM_CERT_SETUP)
     user_data += sibling_lines(DOCKER_SETUP)
     user_data += sibling_lines(S3_SETUP)
 
