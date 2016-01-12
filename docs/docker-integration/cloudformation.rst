@@ -10,7 +10,7 @@
 Installing Flocker with Swarm on AWS using CloudFormation
 =========================================================
 
-The steps in this guide enable you to quickly deploy a Flocker Swarm cluster, which uses four AWS EC2 instances.
+The steps in this guide enable you to quickly deploy a Flocker/Swarm cluster, which uses four AWS EC2 instances.
 
 .. figure:: ../images/cloudformation.png
     :scale: 95%
@@ -90,6 +90,27 @@ The steps in this guide enable you to quickly deploy a Flocker Swarm cluster, wh
 		</div>
 	</div>
 	
+	<div class="step-stages step-stages--3up">
+		<div class="step-stages__excerpt">
+			<h2 class="step-stages__heading">Step 4</h2>
+			<p>Monitor stack completion message.</p>
+		</div>
+		<div class="step-stages__step first">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+		<div class="step-stages__step">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+		<div class="step-stages__step">
+			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<span>Create and save an AWS EC2 Key Pair</span> 
+			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+		</div>
+	</div>
 
 Step 2
 ------
