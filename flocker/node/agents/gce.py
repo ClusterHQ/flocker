@@ -255,7 +255,7 @@ class GCEBlockDeviceAPI(object):
     def compute_instance_id(self):
         """
         GCE does operations based on the `name` of resources, and also
-        assigns the name
+        assigns the name to the hostname
         """
         # TODO(mewert): Consider getting this from the metadata server instead.
         #               Technically people can change their hostname.
