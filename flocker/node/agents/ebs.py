@@ -484,7 +484,7 @@ def _expected_device(requested_device):
 
 
 def ec2_client(region, zone, access_key_id,
-               secret_access_key, validate_region=True):
+               secret_access_key, session_token=None, validate_region=True):
     """
     Establish connection to EC2 client.
 
@@ -492,6 +492,7 @@ def ec2_client(region, zone, access_key_id,
     :param str zone: The zone for the EC2 region to connect to.
     :param str access_key_id: "aws_access_key_id" credential for EC2.
     :param str secret_access_key: "aws_secret_access_key" EC2 credential.
+    :param str session_token: "aws_session_token" EC2 credential.
     :param bool validate_region: Flag indicating whether to validate the
         region and zone by calling out to AWS.
 
@@ -507,7 +508,8 @@ def ec2_client(region, zone, access_key_id,
     # errors is already set in botocore.
     connection = boto3.session.Session(
         aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key
+        aws_secret_access_key=secret_access_key,
+        aws_session_token=session_token,
     )
     connection._session.set_config_variable(
         'metadata_service_num_attempts', BOTO_NUM_RETRIES)
@@ -565,7 +567,7 @@ def _get_volume_tag(volume, name):
 class _EC2(PClass):
     """
     :ivar str zone: The name of the zone for the connection.
-    :ivar boto3.resources.factory.ec2.ServiceResource: Object
+    :ivar boto3.resources.factory.ec2.ServiceResource connection: Object
         representing an EC2 resource.
     """
     zone = field(mandatory=True)
@@ -1353,8 +1355,10 @@ class EBSBlockDeviceAPI(object):
         return list(instance.id for instance in instances)
 
 
-def aws_from_configuration(region, zone, access_key_id, secret_access_key,
-                           cluster_id, validate_region=True):
+def aws_from_configuration(
+    region, zone, access_key_id, secret_access_key, cluster_id,
+    session_token=None, validate_region=True
+):
     """
     Build an ``EBSBlockDeviceAPI`` instance using configuration and
     credentials.
@@ -1369,6 +1373,7 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
     :param UUID cluster_id: The unique identifier of the cluster with which to
         associate the resulting object.  It will only manipulate volumes
         belonging to this cluster.
+    :param str session_token: The EC2 session token.
     :param bool validate_region: If False, do not attempt to validate the
         region and zone by calling out to AWS. Useful for testing.
 
@@ -1381,6 +1386,7 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
                 zone=zone,
                 access_key_id=access_key_id,
                 secret_access_key=secret_access_key,
+                session_token=session_token,
                 validate_region=validate_region,
             ),
             cluster_id=cluster_id,
