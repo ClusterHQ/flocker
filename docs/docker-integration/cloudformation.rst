@@ -114,3 +114,4 @@ The steps in this guide enable you to quickly deploy a Flocker/Swarm cluster, wh
 		<div class="step-stages__step">
 			<span> </span> 
 		</div>
+    </div>
