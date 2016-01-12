@@ -10,10 +10,11 @@ Installing Flocker
 
 .. _supported-orchestration-frameworks:
 
-.. raw:: html
+To install Flocker, you first need to choose which stack you are using.
 
-    <p>To install Flocker, you first need to choose which stack you using.</p>
-    <p>Flocker adds support for stateful containers to a range of container orchestration frameworks.</p>
+Flocker adds support for stateful containers to a range of container orchestration frameworks.
+
+.. raw:: html
 
 	<!-- This too needs to become Sphinx directives, rather than raw HTML. -->
 	<div class="pods-eq">
