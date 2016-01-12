@@ -15,9 +15,9 @@ from flocker.control.httpapi import REST_API_PORT
 class ScriptOptions(Options):
     optParameters = [
         ['control-node', None, None,
-         "The address of the cluster's control node"],
+         "The address of the cluster's control node."],
         ['cert-directory', None, None,
-         "The directory containing the cluster certificates"],
+         "The directory containing the cluster certificates."],
         ['timeout', None, 300,
          "The timeout in seconds for waiting until the operation is complete",
          int],
