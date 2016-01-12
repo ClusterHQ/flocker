@@ -27,7 +27,6 @@ class ScriptOptions(Options):
             raise UsageError("Certificates directory must be provided.")
 
 
-@inlineCallbacks
 def main(reactor, args, base_path, top_level):
     try:
         options = ScriptOptions()
@@ -46,7 +45,11 @@ def main(reactor, args, base_path, top_level):
     user_key = certificates_path.child(b"user.key")
     client = FlockerClient(reactor, options['control-node'], REST_API_PORT,
                            cluster_cert, user_cert, user_key)
+    return cleanup_cluster(client)
 
+
+@inlineCallbacks
+def cleanup_cluster(client):
     containers = yield client.list_containers_configuration()
     results = []
     for container in containers:
