@@ -26,22 +26,17 @@ The steps in this guide enable you to quickly deploy a Flocker/Swarm cluster, wh
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 1</h2>
-			<p>The AWS key pair uses public-key cryptography to provide secure login to your AWS cluster.</p>
+			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create and save an AWS EC2 Key Pair</a> in the target region for your Flocker cluster:</p>
 		</div>
 		<div class="step-stages__step first">
-			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span> </span> 
 		</div>
 		<div class="step-stages__step">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span>The AWS Key Pair uses public-key cryptography to provide secure login to your AWS cluster.</span>
 		</div>
 		<div class="step-stages__step">
-			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span></span>
 		</div>
 	</div>
 	
@@ -50,22 +45,22 @@ The steps in this guide enable you to quickly deploy a Flocker/Swarm cluster, wh
 			<h2 class="step-stages__heading">Step 2</h2>
 			<p>Create a 2 node Flocker cluster:</p>
 			<a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json" class="button" target="_blank" align="middle">Create Cluster</a>
-			<p>This button will open AWS CloudFormation in a new tab</p>
+			<p>(This button will open AWS CloudFormation in a new tab)</p>
 		</div>
 		<div class="step-stages__step first">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span>Enter a <code>Stack name</code>.</span>
+			<span>This can be any descriptive name.</span> 
 		</div>
 		<div class="step-stages__step">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span>Enter your <code>KeyName</code>.</span>
+			<span>This corresponds to the key you created in Step 1.</span> 
 		</div>
 		<div class="step-stages__step">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span>Enter your <code>AccessKeyID</code> and <code>SecretAccessKey</code>.</span> 
+			<span>These are your AWS access credentials, which you can access from <a href="https://console.aws.amazon.com/iam/home?nc2=h_m_sc#security_credential" target="_blank">here</a></span>
 		</div>
 	</div>
 	
@@ -75,99 +70,47 @@ The steps in this guide enable you to quickly deploy a Flocker/Swarm cluster, wh
 			<p>Monitor stack completion message.</p>
 		</div>
 		<div class="step-stages__step first">
-			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span> </span> 
 		</div>
 		<div class="step-stages__step">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span> </span> 
 		</div>
 		<div class="step-stages__step">
-			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span> </span> 
 		</div>
 	</div>
 	
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 4</h2>
-			<p>Monitor stack completion message.</p>
+			<p>Complete your installation.</p>
 		</div>
 		<div class="step-stages__step first">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span>Under the <b>Outputs</b> tab, gather your <code>ClientIP</code> and <code>SwarmDockerHost</code> info.</span> 
 		</div>
 		<div class="step-stages__step">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span>Connect to the client IP, and check that <code>docker info</code> lists two hosts in the cluster.</span> 
 		</div>
 		<div class="step-stages__step">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Create and save an AWS EC2 Key Pair</span> 
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create an AWS EC2 Key Pair</a> in the target region for Flocker cluster: </p>
+			<span>Connect to the client IP, and check that <code>flockerctl</code> lists two nodes and zero datasets in the cluster. </span> 
 		</div>
 	</div>
-
-Step 2
-------
-
-- Select Flocker CloudFormation stack launch Region (currently defaults to ``us-east-1``).
-
-- Create a 2 node Flocker cluster:
-
-.. TODO: customize CloudFormation link below to parameterize region.
-
-.. raw:: html
-
-  <div style="margin:2em;">
-      <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json" class="button" target="_blank">Create Cluster</a>
-  </div>
-
-.. TODO: Paramterize number of cluster nodes.
-  
-.. _CreateCluster:
-
-- Fill in ``Stack name`` (any descriptive name), ``KeyName`` (corresponding to the key created in Step 1), ``AccessKeyID``, ``SecretAccessKey``.
-  The last two are your AWS access credentials, get these from `here <https://console.aws.amazon.com/iam/home?nc2=h_m_sc#security_credential>`_.
-  |parameters|
-
-.. |parameters| image:: ../images/parameters.png
-
-Step 3
-------
-
-- Monitor stack completion message |stack_completion|.
-
-.. |stack_completion| image:: ../images/stack.png
-
-Step 4
-------
-
-- Under ``Outputs`` tab, gather Client IP and Docker Swarm Host info:
-  |client_swarmhost|
-
-.. |client_swarmhost| image:: ../images/client-swarmhost.png
-
-
-- Connect to the client IP, and check that ``docker info`` lists two hosts in the cluster:
-  |swarm_status|
-
-.. |swarm_status| image:: ../images/swarm-status.png
-
-- Connect to the client IP, and check that ``flockerctl`` lists two nodes and zero datasets in the cluster:
-  |flockerctl-status|
-
-.. |flockerctl-status| image:: ../images/flockerctl-status.png
-
-Your cluster is now ready for workloads!
-
-Next steps
-----------
-.. TODO: make Try a tutorial link to the list of tutorials as soon as we have more than one
-
-:ref:`Try a tutorial <tutorial-swarm-compose>` to kick the tyres on your Flocker cluster with Docker Swarm!
+	
+	<div class="step-stages step-stages--3up">
+		<div class="step-stages__excerpt">
+			<h2 class="step-stages__heading">That's it!</h2>
+			<p>Your cluster is now ready for workloads!</p>
+		</div>
+		<div class="step-stages__step first">
+			<span> </span> 
+		</div>
+		<div class="step-stages__step">
+			<a href="tutorial-swarm-compose.html" class="button">Try a Tutorial</a>
+		</div>
+		<div class="step-stages__step">
+			<span> </span> 
+		</div>
