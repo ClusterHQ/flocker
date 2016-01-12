@@ -38,7 +38,6 @@ class NoLoadScenario(object):
         """
         Stop the scenario from being maintained.
 
-        :return: A Deferred that fires when the desired scenario is
-            stopped.
+        :return Deferred[None]: No scenario metrics.
         """
-        return succeed(self)
+        return succeed(None)
