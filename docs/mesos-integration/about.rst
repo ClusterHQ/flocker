@@ -1,6 +1,7 @@
 .. _about-mesos-integration:
 
-About this integration
+======================
+About This Integration
 ======================
 
 .. _concepts-mesos-integration:

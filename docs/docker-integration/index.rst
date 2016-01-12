@@ -3,6 +3,7 @@
 ======================
 Docker, Swarm, Compose
 ======================
+
 I suggest adding a paragraph here or removing the above heading all together, as two headings in a run looks quite untidy and also, somewhat defeats the point of having headings as separation. 
 
 
@@ -33,8 +34,6 @@ Flocker Installation Options
 
 Follow a tutorial
 =================
-Other tutorials can be found on our blog.
-* TODO: link to other tutorials on our blog
 
 .. raw:: html
 
@@ -44,6 +43,9 @@ Other tutorials can be found on our blog.
 		    <a href="tutorial-swarm-compose.html" class="button">Follow Tutorial</a>
 	    </div>
     </div>
+
+Other tutorials can be found on our blog.
+* TODO: link to other tutorials on our blog
 
 .. toctree::
    :hidden:

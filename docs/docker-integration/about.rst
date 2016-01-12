@@ -1,6 +1,7 @@
 .. _about-docker-integration:
 
-About this integration
+======================
+About This Integration
 ======================
 
 Flocker integrates with the Docker Engine, Docker Swarm and/or Docker Compose via the Flocker Plugin for Docker.

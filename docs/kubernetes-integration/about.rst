@@ -1,6 +1,7 @@
 .. _about-kubernetes-integration:
 
-About this integration
+======================
+About This Integration
 ======================
 
 .. _concepts-kubernetes-integration:
