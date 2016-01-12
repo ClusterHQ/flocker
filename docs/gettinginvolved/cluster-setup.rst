@@ -199,3 +199,36 @@ Or you can run, for example, the acceptance tests against the created cluster:
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
+=====================================
+Cleaning Up the Cluster Configuration
+=====================================
+
+A cluster can be used to test various configurations.
+There is a tool to delete all containers and datasets in the cluster,
+so that it can be re-used for testing a different configuration.
+
+.. prompt:: bash $
+
+   admin/cleanup-cluster <options>
+
+
+The :program:`admin/cleanup-cluster` script has several options:
+
+.. program:: admin/cleanup-cluster
+
+.. option:: --control-node <address>
+
+   Specifies the internet address of the control node of the cluster.
+
+.. option:: --cert-directory <directory>
+
+   Specifies the directory that contains the cluster certificates.
+
+.. option:: --timeout <seconds>
+
+   Specifies the timeout of waiting for the configuration changes to take effect
+   or, in other words, for the cluster to converge.
+
+The script waits for the deletions to take effect.
+After the script successfully finishes the cluster should be in a converged state
+with no containers and datasets.
