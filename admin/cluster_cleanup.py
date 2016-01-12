@@ -18,6 +18,9 @@ class ScriptOptions(Options):
          "The address of the cluster's control node"],
         ['cert-directory', None, None,
          "The directory containing the cluster certificates"],
+        ['timeout', None, 300,
+         "The timeout in seconds for waiting until the operation is complete",
+         int],
     ]
 
     def postOptions(self):
@@ -45,11 +48,11 @@ def main(reactor, args, base_path, top_level):
     user_key = certificates_path.child(b"user.key")
     client = FlockerClient(reactor, options['control-node'], REST_API_PORT,
                            cluster_cert, user_cert, user_key)
-    return cleanup_cluster(client)
+    return cleanup_cluster(client, options['timeout'])
 
 
 @inlineCallbacks
-def cleanup_cluster(client):
+def cleanup_cluster(client, timeout):
     containers = yield client.list_containers_configuration()
     results = []
     for container in containers:
@@ -62,7 +65,7 @@ def cleanup_cluster(client):
         d.addCallback(lambda containers: not containers)
         return d
 
-    yield loop_until(client._reactor, containers_deleted, repeat(1, 300))
+    yield loop_until(client._reactor, containers_deleted, repeat(1, timeout))
 
     datasets = yield client.list_datasets_configuration()
     results = []
@@ -76,4 +79,4 @@ def cleanup_cluster(client):
         d.addCallback(lambda datasets: not datasets.datasets)
         return d
 
-    yield loop_until(client._reactor, datasets_deleted, repeat(1, 300))
+    yield loop_until(client._reactor, datasets_deleted, repeat(1, timeout))
