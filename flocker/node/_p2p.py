@@ -208,8 +208,6 @@ class P2PManifestationDeployer(object):
     :ivar unicode hostname: The hostname of the node that this is running on.
     :ivar VolumeService volume_service: The volume manager for this node.
     """
-    poll_interval = timedelta(seconds=1.0)
-
     def __init__(self, hostname, volume_service, node_uuid=None):
         if node_uuid is None:
             # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
@@ -318,7 +316,9 @@ class P2PManifestationDeployer(object):
                 DeleteDataset(dataset=dataset)
                 for dataset in deleting
                 ]))
-        return sequentially(changes=phases)
+
+        return sequentially(changes=phases,
+                            sleep_when_empty=timedelta(seconds=1))
 
 
 def find_dataset_changes(uuid, current_state, desired_state):
