@@ -238,7 +238,7 @@ def delete_cloudformation_stack(stack_id):
     )
 
     check_call(
-        ['aws', 'cloudformation', 'delete-stack',
+        ['aws', '--region', REGION, 'cloudformation', 'delete-stack',
          '--stack-name', stack_id]
     )
 
