@@ -13,4 +13,5 @@ docker run --rm swarm create > /tmp/swarm-config/swarm_cluster_id
 
 # Start the Swarm manager
 swarm_cluster_id=$(cat /tmp/swarm-config/swarm_cluster_id)
-docker run -d -p 2376:2375 swarm manage token://$swarm_cluster_id
+# docker run -d -p 2376:2375 swarm manage token://$swarm_cluster_id
+docker run -d -p 2376:2375 swarm manage --tlsverify token://$swarm_cluster_id
