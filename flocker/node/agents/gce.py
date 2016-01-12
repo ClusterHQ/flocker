@@ -4,12 +4,12 @@
 """
 A GCE Persistent Disk (PD) implementation of the ``IBlockDeviceAPI``.
 
-The following resources are helpful to referrence while maintaining this
+The following resources are helpful to refer to while maintaining this
 driver:
 - Rest API: https://cloud.google.com/compute/docs/reference/latest/
 - Python Client: https://cloud.google.com/compute/docs/tutorials/python-guide
-- Python API: https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/
-- Python Oauth: https://developers.google.com/identity/protocols/OAuth2ServiceAccount#authorizingrequests
+- Python API: https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/ # noqa
+- Python Oauth: https://developers.google.com/identity/protocols/OAuth2ServiceAccount#authorizingrequests # noqa
 """
 
 import requests
@@ -221,6 +221,10 @@ class GCEBlockDeviceAPI(object):
                 return latest_operation
             return None
 
+        # TODO(bcox) Perform a decent test of typical latencies for
+        # operations within GCE and use that information to determine
+        # an appropriate timeout. Until that is done, use the
+        # following arbitrary timeout.
         return poll_until(finished_operation_result, [1]*35)
 
     def allocation_unit(self):
@@ -234,7 +238,6 @@ class GCEBlockDeviceAPI(object):
 
     def list_volumes(self):
         # TODO(mewert) Walk the pages.
-        # TODO(mewert) Only get volumes for _this_ cluster.
         result = self._compute.disks().list(project=self._project,
                                             zone=self._zone).execute()
         return list(
@@ -251,16 +254,14 @@ class GCEBlockDeviceAPI(object):
 
     def compute_instance_id(self):
         """
-        GCE does operations based on the `name` of resources, and also assigns
-        the name
-
+        GCE does operations based on the `name` of resources, and also
+        assigns the name
         """
         # TODO(mewert): Consider getting this from the metadata server instead.
         #               Technically people can change their hostname.
         return unicode(gethostname())
 
     def create_volume(self, dataset_id, size):
-        # TODO(mewert): Set cluster_id in the metadata.
         blockdevice_id = _dataset_id_to_blockdevice_id(dataset_id)
         sizeGiB = int(Byte(size).to_GiB())
         config = dict(
@@ -274,6 +275,7 @@ class GCEBlockDeviceAPI(object):
 
         # TODO(mewert): Test creating a volume in cluster A in this project
         # with the same UUID as a volume in cluster B in the same project.
+        # make that the logs and errors make this error obvious to the user
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
             size=int(GiB(sizeGiB).to_Byte()),

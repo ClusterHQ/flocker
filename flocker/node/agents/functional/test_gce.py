@@ -4,11 +4,11 @@
 Functional tests for ``flocker.node.agents.gce`` using a GCE cluster.
 
 In order to run these tests you'll need to define the following environment
-variables:
+variables::
 
-``FLOCKER_FUNCTIONAL_TEST=TRUE
-FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$HOME/acceptance.yml
-FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=gce``
+    FLOCKER_FUNCTIONAL_TEST=TRUE
+    FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$HOME/acceptance.yml
+    FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=gce
 
 The configuration stanza for the GCE backend should resemble:
 ``
