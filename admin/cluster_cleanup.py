@@ -53,6 +53,14 @@ def main(reactor, args, base_path, top_level):
 
 @inlineCallbacks
 def cleanup_cluster(client, timeout):
+    """
+    Delete all containers and datasets in the given cluster.
+
+    :param FlockerClient client: The API client instance for the cluster.
+    :param int timeout: A timeout in seconds for waiting until the deletions
+        take effect.
+    :returns: Deferred that fires when the clean up is complete.
+    """
     containers = yield client.list_containers_configuration()
     results = []
     for container in containers:
