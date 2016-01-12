@@ -224,11 +224,14 @@ The :program:`admin/cleanup-cluster` script has several options:
 
    Specifies the directory that contains the cluster certificates.
 
-.. option:: --timeout <seconds>
+.. option:: --wait <seconds>
 
    Specifies the timeout of waiting for the configuration changes to take effect
    or, in other words, for the cluster to converge.
+   If this parameter is not set, then no waiting is done.
 
-The script waits for the deletions to take effect.
+If :option:`--wait` is used the script waits for the deletions to take effect.
 After the script successfully finishes the cluster should be in a converged state
 with no containers and datasets.
+If :option:`--wait` is not specified, then the script exits after the deletion
+requests are aknowledged without waiting for the cluster to converge.

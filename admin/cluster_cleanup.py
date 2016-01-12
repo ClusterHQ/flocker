@@ -18,9 +18,9 @@ class ScriptOptions(Options):
          "The address of the cluster's control node."],
         ['cert-directory', None, None,
          "The directory containing the cluster certificates."],
-        ['timeout', None, 300,
-         "The timeout in seconds for waiting until the operation is complete",
-         int],
+        ['wait', None, None,
+         "The timeout in seconds for waiting until the operation is complete. "
+         "No waiting is done by default."]
     ]
 
     def postOptions(self):
@@ -28,6 +28,11 @@ class ScriptOptions(Options):
             raise UsageError("Control node address must be provided.")
         if not self['cert-directory']:
             raise UsageError("Certificates directory must be provided.")
+        if self['wait'] is not None:
+            try:
+                self['wait'] = int(self['wait'])
+            except ValueError:
+                raise UsageError("The wait timeout must be an integer.")
 
 
 def main(reactor, args, base_path, top_level):
@@ -48,43 +53,50 @@ def main(reactor, args, base_path, top_level):
     user_key = certificates_path.child(b"user.key")
     client = FlockerClient(reactor, options['control-node'], REST_API_PORT,
                            cluster_cert, user_cert, user_key)
-    return cleanup_cluster(client, options['timeout'])
+    return cleanup_cluster(client, options['wait'])
 
 
 @inlineCallbacks
-def cleanup_cluster(client, timeout):
+def cleanup_cluster(client, timeout=None):
     """
     Delete all containers and datasets in the given cluster.
 
     :param FlockerClient client: The API client instance for the cluster.
-    :param int timeout: A timeout in seconds for waiting until the deletions
-        take effect.
-    :returns: Deferred that fires when the clean up is complete.
+    :param timeout: A timeout in seconds for waiting until the deletions
+        take effect if not ``None``, otherwise there is no waiting.
+    :type timeout: int or None
+    :returns: Deferred that fires when the clean up is complete if
+        :param:`timeout` is not None, otherwise the Deferred fires
+        when the deletion requests are aknowledged.
     """
-    containers = yield client.list_containers_configuration()
+    containers_configuration = yield client.list_containers_configuration()
     results = []
-    for container in containers:
+    for container in containers_configuration:
         print "deleting container", container.name
         results.append(client.delete_container(container.name))
     yield gather_deferreds(results)
 
-    def containers_deleted():
-        d = client.list_containers_state()
-        d.addCallback(lambda containers: not containers)
-        return d
-
-    yield loop_until(client._reactor, containers_deleted, repeat(1, timeout))
-
-    datasets = yield client.list_datasets_configuration()
+    datasets_configuration = yield client.list_datasets_configuration()
     results = []
-    for dataset in datasets:
+    for dataset in datasets_configuration:
         print "deleting dataset with id", dataset.dataset_id
         results.append(client.delete_dataset(dataset.dataset_id))
     yield gather_deferreds(results)
 
-    def datasets_deleted():
-        d = client.list_datasets_state()
-        d.addCallback(lambda datasets: not datasets)
-        return d
-
-    yield loop_until(client._reactor, datasets_deleted, repeat(1, timeout))
+    if timeout is not None:
+        print "waiting for all containers to get deleted"
+        yield loop_until(
+            client._reactor,
+            lambda: client.list_containers_state().addCallback(
+                lambda containers: not containers
+            ),
+            repeat(1, timeout)
+        )
+        print "waiting for all datasets to get deleted"
+        yield loop_until(
+            client._reactor,
+            lambda: client.list_datasets_state().addCallback(
+                lambda datasets: not datasets
+            ),
+            repeat(1, timeout)
+        )
