@@ -108,7 +108,7 @@ from ...testtools import (
     compute_cluster_state, if_docker_configured, ControllableAction,
 )
 from ....testtools import (
-    REALISTIC_BLOCKDEVICE_SIZE, run_process, _CalledProcessError,
+    REALISTIC_BLOCKDEVICE_SIZE, run_process, ProcessError,
     make_with_init_tests, random_name, AsyncTestCase, TestCase,
 )
 from ....control import (
@@ -121,7 +121,7 @@ from ....control._model import Leases
 from ....common.test.test_thread import NonThreadPool, NonReactor
 from ....common import interface_decorator, RACKSPACE_MINIMUM_VOLUME_SIZE
 
-from ..testtools import create_tmpfs_shadow_mount_for_test
+from ..testtools import create_tmpfs_shadow_mount_for_test, write_as_docker
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
@@ -1275,22 +1275,9 @@ class _WriteVerifyingExternalClient(object):
             volume.
         :param unicode content: The content to write to the file.
         """
-        # The path for docker to expose within the container. Docker will bind
-        # mount mountdir to this location within the container.
-        container_path = FilePath('/vol')
         try:
-            run_process([
-                "docker",
-                "run",  # Run a container.
-                "--rm",  # Remove the container once it exits.
-                # Bind mount the passed in directory into the container
-                "-v", "%s:%s" % (mountdir.path, container_path.path),
-                "busybox",  # Run the busybox image.
-                # Use sh to echo the content into the file in the bind mount.
-                "/bin/sh", "-c", "echo -n %s > %s" % (
-                    content, container_path.child(filename).path)
-            ])
-        except _CalledProcessError:
+            write_as_docker(mountdir, filename, content)
+        except ProcessError:
             raise _WriteError()
 
     def _has_file_with_content(self, filename, content):

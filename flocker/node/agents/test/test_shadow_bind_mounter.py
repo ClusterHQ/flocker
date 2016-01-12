@@ -4,33 +4,11 @@ from uuid import uuid4
 
 from twisted.python.filepath import FilePath
 
-from ....testtools import TestCase, run_process, _CalledProcessError
+from ....testtools import TestCase, ProcessError
 from ...testtools import if_docker_configured
-from ..testtools import blockdevice_manager_for_test
+from ..testtools import blockdevice_manager_for_test, write_as_docker
 
 from ..shadow_bind_mounter import create_tmpfs_shadow_mount
-
-
-def write_as_docker(directory, filename, content):
-    """
-    Write content to a file in a directory using docker volume mounts.
-
-    :param FilePath directory: The directory to bind mount into the container.
-    :param unicode filename: The name of the file to create in the bind mount.
-    :param unicode content: The content to write to the container.
-    """
-    container_path = FilePath('/vol')
-    run_process([
-        "docker",
-        "run",  # Run a container.
-        "--rm",  # Remove the container once it exits.
-        # Bind mount the passed in directory into the container
-        "-v", "%s:%s" % (directory.path, container_path.path),
-        "busybox",  # Run the busybox image.
-        # Use sh to echo the content into the file in the bind mount.
-        "/bin/sh", "-c", "echo -n %s > %s" % (
-            content, container_path.child(filename).path)
-    ])
 
 
 class CreateShadowMountTests(TestCase):
@@ -92,6 +70,6 @@ class CreateShadowMountTests(TestCase):
                                   self._blockdevice_manager)
         content = unicode(uuid4())
         self.assertRaises(
-            _CalledProcessError,
+            ProcessError,
             lambda: write_as_docker(ro_dir.child('mount'), 'file', content))
         self.assertFalse(ro_dir.child('mount').exists())

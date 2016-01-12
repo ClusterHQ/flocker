@@ -386,10 +386,10 @@ class CleanupBlockDeviceManagerTests(TestCase):
         The cleanup implementation cleans up bind mounts.
         """
         bounddir = self._get_directory_for_mount()
-        mountdir = self._get_directory_for_mount()
-        self.manager_under_test.bind_mount(mountdir, bounddir)
+        basedir = self._get_directory_for_mount()
+        self.manager_under_test.bind_mount(basedir, bounddir)
         self.assertEqual(len(self.manager_under_test._cleanup_operations), 1)
         self.assertEqual(
             self.manager_under_test._cleanup_operations[0].path,
-            mountdir)
-        self.manager_under_test.unmount(mountdir)
+            bounddir)
+        self.manager_under_test.unmount(bounddir)

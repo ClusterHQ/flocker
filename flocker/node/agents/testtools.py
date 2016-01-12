@@ -15,13 +15,39 @@ from .cinder import (
     ICinderVolumeManager, INovaVolumeManager,
 )
 
-from ...testtools import TestCase
+from ...testtools import TestCase, run_process
 
 from .blockdevice_manager import (
     BlockDeviceManager, IBlockDeviceManager, UnmountError
 )
 
 from .shadow_bind_mounter import create_tmpfs_shadow_mount
+
+
+def write_as_docker(directory, filename, content):
+    """
+    Write content to a file in a directory using docker volume mounts.
+
+    :param FilePath directory: The directory to bind mount into the container.
+    :param unicode filename: The name of the file to create in the bind mount.
+    :param unicode content: The content to write to the container.
+
+    :raises flocker.testtools.ProcesError: If the docker command fails.
+    """
+    # The path for docker to expose within the container. Docker will bind
+    # mount mountdir to this location within the container.
+    container_path = FilePath('/vol')
+    run_process([
+        "docker",
+        "run",  # Run a container.
+        "--rm",  # Remove the container once it exits.
+        # Bind mount the passed in directory into the container
+        "-v", "%s:%s" % (directory.path, container_path.path),
+        "busybox",  # Run the busybox image.
+        # Use sh to echo the content into the file in the bind mount.
+        "/bin/sh", "-c", "echo -n %s > %s" % (
+            content, container_path.child(filename).path)
+    ])
 
 
 class ICinderVolumeManagerTestsMixin(object):
