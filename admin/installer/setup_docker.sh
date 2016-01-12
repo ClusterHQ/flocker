@@ -3,6 +3,7 @@
 set -ex
 
 : ${node_number:?}
+: ${s3_bucket:?}
 
 # Turn off TLS authentication.
 # cat <<EOF > /etc/default/docker
@@ -14,7 +15,7 @@ ROOT_DOCKER_TLS_CONFIG_DIRECTORY="/.docker/"
 UBUNTU_HOME="/home/ubuntu"
 rm -rf ${ROOT_DOCKER_TLS_CONFIG_DIRECTORY} ${UBUNTU_HOME}/.docker
 mkdir -p ${ROOT_DOCKER_TLS_CONFIG_DIRECTORY}
-s3cmd get --recursive --config=/root/.s3cfg s3://${S3_BUCKET}/docker-swarm-tls-config/ "${ROOT_DOCKER_TLS_CONFIG_DIRECTORY}"
+s3cmd get --recursive --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/ "${ROOT_DOCKER_TLS_CONFIG_DIRECTORY}"
 cp -r "${ROOT_DOCKER_TLS_CONFIG_DIRECTORY}" "${UBUNTU_HOME}"
 
 

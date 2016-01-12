@@ -21,7 +21,7 @@ CLIENT_WAIT_HANDLE = u"ClientReadySignal"
 CLIENT_WAIT_CONDITION = u"ClientSetup"
 S3_SETUP = 'setup_s3.sh'
 DOCKER_SETUP = 'setup_docker.sh'
-DOCKER_SWARM_CERT_SETUP = 'docker-swarm-ceritificate-generator.sh'
+DOCKER_SWARM_CERT_GENERATOR = 'docker-swarm-ceritificate-generator.sh'
 SWARM_MANAGER_SETUP = 'setup_swarm_manager.sh'
 SWARM_NODE_SETUP = 'setup_swarm_node.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
@@ -126,7 +126,7 @@ for i in range(NUM_NODES):
         Handle=Ref(wait_condition_handle),
         Timeout="600",
     )
-    template.add_resource(wait_condition)
+    # template.add_resource(wait_condition)
 
     user_data = base_user_data[:]
     user_data += [
@@ -135,13 +135,13 @@ for i in range(NUM_NODES):
         'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
     ]
 
-    user_data += sibling_lines(DOCKER_SWARM_CERT_SETUP)
-    user_data += sibling_lines(DOCKER_SETUP)
     user_data += sibling_lines(S3_SETUP)
 
     if i == 0:
         control_service_instance = ec2_instance
         user_data += sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
+        user_data += sibling_lines(DOCKER_SWARM_CERT_GENERATOR)
+        user_data += sibling_lines(DOCKER_SETUP)
         user_data += sibling_lines(SWARM_MANAGER_SETUP)
         template.add_output([
             Output(
@@ -153,6 +153,7 @@ for i in range(NUM_NODES):
         ])
     else:
         ec2_instance.DependsOn = control_service_instance.name
+        user_data += sibling_lines(DOCKER_SETUP)
         user_data += sibling_lines(SWARM_NODE_SETUP)
         template.add_output([
             Output(
@@ -182,13 +183,14 @@ wait_condition = WaitCondition(
     Handle=Ref(wait_condition_handle),
     Timeout="600",
 )
-template.add_resource(wait_condition)
+# template.add_resource(wait_condition)
 
 user_data = base_user_data[:]
 user_data += [
     'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
 ]
 user_data += sibling_lines(S3_SETUP)
+user_data += sibling_lines(DOCKER_SETUP)
 user_data += sibling_lines(CLIENT_SETUP)
 user_data += sibling_lines(SIGNAL_CONFIG_COMPLETION)
 
