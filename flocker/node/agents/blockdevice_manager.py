@@ -87,6 +87,19 @@ class MakeTmpfsMountError(Exception):
         return self.__repr__()
 
 
+@attributes(["mountpoint", "source_message"])
+class ShareMountError(Exception):
+    """
+    Raised from errors while sharing a mount.
+
+    :ivar FilePath mountpoint: The mountpoint for the operation.
+    :ivar unicode source_message: The error message describing the error.
+    """
+
+    def __str__(self):
+        return self.__repr__()
+
+
 @attributes(["blockdevice", "source_message"])
 class MakeFilesystemError(Exception):
     """Raised from errors while making a filesystem on a blockdevice.
@@ -218,6 +231,19 @@ class IBlockDeviceManager(Interface):
             successful mounts.
         """
 
+    def share_mount(mountpoint):
+        """
+        Sets the mount up to be a shared mount. See `man mount` for details of
+        the --make-shared flag.
+
+        :param FilePath mountpoint: The target path to make into a shared
+            mount.
+
+        :raises: ``ShareMountError`` on any failure from the system. This
+            includes user kill signals, so this may even be raised on
+            successful calls to `mount`.
+        """
+
 
 class _CommandResult(PClass):
     """
@@ -334,3 +360,10 @@ class BlockDeviceManager(PClass):
         if not result.succeeded:
             raise MakeTmpfsMountError(mountpoint=mountpoint,
                                       source_message=result.error_message)
+
+    def share_mount(self, mountpoint):
+        result = _run_command(
+            [b"mount", "--make-shared", mountpoint.path])
+        if not result.succeeded:
+            raise ShareMountError(mountpoint=mountpoint,
+                                  source_message=result.error_message)

@@ -23,6 +23,7 @@ def create_tmpfs_shadow_mount(backing_directory, read_only_directory,
     if not backing_directory.exists():
         backing_directory.makedirs()
     blockdevice_manager.make_tmpfs_mount(backing_directory)
+    blockdevice_manager.share_mount(backing_directory)
     blockdevice_manager.remount(backing_directory, Permissions.READ_ONLY)
     if not read_only_directory.exists():
         read_only_directory.makedirs()

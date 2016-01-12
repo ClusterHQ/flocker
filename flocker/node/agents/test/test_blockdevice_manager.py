@@ -22,6 +22,7 @@ from ..blockdevice_manager import (
     MountInfo,
     Permissions,
     RemountError,
+    ShareMountError,
     UnmountError,
 )
 
@@ -175,6 +176,8 @@ class BlockDeviceManagerTests(TestCase):
         src_directory = self._get_directory_for_mount()
         target_directory = self._get_directory_for_mount()
         self.manager_under_test.bind_mount(src_directory, target_directory)
+        self.addCleanup(
+            lambda: self.manager_under_test.unmount(target_directory))
         for create, view in [(target_directory, src_directory),
                              (src_directory, target_directory)]:
             filename = str(uuid4())
@@ -258,6 +261,36 @@ class BlockDeviceManagerTests(TestCase):
         non_existent = self._get_directory_for_mount().child('non_existent')
         with ExpectedException(MakeTmpfsMountError, '.*non_existent.*'):
             self.manager_under_test.make_tmpfs_mount(non_existent)
+
+    def test_shared_mount(self):
+        """
+        If a mount is shared then submounts are reflected in directories that
+        are bind mounted.
+        """
+        bounddir = self._get_directory_for_mount()
+        mountdir = self._get_directory_for_mount()
+        submountdir = mountdir.child('sub')
+        submountclone = bounddir.child('sub')
+        self.manager_under_test.make_tmpfs_mount(mountdir)
+        self.addCleanup(lambda: self.manager_under_test.unmount(mountdir))
+        self.manager_under_test.share_mount(mountdir)
+        self.manager_under_test.bind_mount(mountdir, bounddir)
+        self.addCleanup(lambda: self.manager_under_test.unmount(bounddir))
+        submountdir.makedirs()
+        self.manager_under_test.make_tmpfs_mount(submountdir)
+        self.addCleanup(lambda: self.manager_under_test.unmount(submountdir))
+        submountdir.child('subsub').touch()
+        self.assertThat(submountclone.child('subsub').path, FileExists())
+
+    def test_shared_mount_failure(self):
+        """
+        Attempting to share a directory that is not a mount raises a
+        :class:`ShareMountError` that has the name of the attempted mount
+        point.
+        """
+        fakemountdir = self._get_directory_for_mount().child('fakeyfake')
+        with ExpectedException(ShareMountError, '.*fakeyfake.*'):
+            self.manager_under_test.share_mount(fakemountdir)
 
 
 class CleanupBlockDeviceManagerTests(TestCase):
@@ -354,7 +387,7 @@ class CleanupBlockDeviceManagerTests(TestCase):
         """
         bounddir = self._get_directory_for_mount()
         mountdir = self._get_directory_for_mount()
-        self.manager_under_test.bind_mount(bounddir, mountdir)
+        self.manager_under_test.bind_mount(mountdir, bounddir)
         self.assertEqual(len(self.manager_under_test._cleanup_operations), 1)
         self.assertEqual(
             self.manager_under_test._cleanup_operations[0].path,
