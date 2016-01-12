@@ -28,8 +28,6 @@ Flocker Installation Options
 
 Follow a tutorial
 =================
-Other tutorials can be found on our blog.
-* TODO: link to other tutorials on our blog
 
 .. raw:: html
 
@@ -39,6 +37,9 @@ Other tutorials can be found on our blog.
 		     <a href="tutorial-mesos.html" class="button">Follow Tutorial</a>
 	    </div>
 	</div>
+
+Other tutorials can be found on our blog.
+* TODO: link to other tutorials on our blog
 
 .. toctree::
    :hidden:
