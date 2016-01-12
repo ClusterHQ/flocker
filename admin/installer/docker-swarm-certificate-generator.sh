@@ -1,36 +1,35 @@
 #!/bin/bash
-# Generate certs for {Docker, Swarm} TLS.
+# Generate certs for {Docker, Swarm} TLS and start Swarm Manager.
 set -ex
 
 : ${s3_bucket:?}
-
-rm -rf /tmp/docker-swarm-tls-config
-mkdir -p /tmp/docker-swarm-tls-config
-cd /tmp/docker-swarm-tls-config
 
 # Get expect to autofill openssl inputs
 sudo apt-get install -y expect
 
 PASSPHRASE=$(dd bs=18 count=1 if=/dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 
+DOCKER_CERT_HOME='/root/.docker'
+mkdir -p ${DOCKER_CERT_HOME}
+
 # Generate CA private and public keys
-cat > /tmp/docker-swarm-tls-config/createca1.exp << EOF
+cat > ${DOCKER_CERT_HOME}/createca1.exp << EOF
 #!/usr/bin/expect -f
 set timeout -1
-spawn openssl genrsa -passout stdin -aes256 -out ca-key.pem 4096
+spawn openssl genrsa -passout stdin -aes256 -out ${DOCKER_CERT_HOME}/ca-key.pem 4096
 match_max 100000
 send -- "${PASSPHRASE}\r"
 expect eof
 EOF
-chmod +x /tmp/docker-swarm-tls-config/createca1.exp
-/tmp/docker-swarm-tls-config/createca1.exp
+chmod +x ${DOCKER_CERT_HOME}/createca1.exp
+${DOCKER_CERT_HOME}/createca1.exp
 
-cat > /tmp/docker-swarm-tls-config/createca2.exp << EOF
+cat > ${DOCKER_CERT_HOME}/createca2.exp << EOF
 #!/usr/bin/expect -f
 set timeout -1
-spawn openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem
+spawn openssl req -new -x509 -days 365 -key ${DOCKER_CERT_HOME}/ca-key.pem -sha256 -out ${DOCKER_CERT_HOME}/ca.pem
 match_max 100000
-expect -exact "Enter pass phrase for ca-key.pem:"
+expect -exact "Enter pass phrase for ${DOCKER_CERT_HOME}/ca-key.pem:"
 send -- "${PASSPHRASE}\r"
 expect -exact "\r
 You are about to be asked to enter information that will be incorporated\r
@@ -62,53 +61,54 @@ Email Address \[\]:"
 send -- "\r"
 expect eof
 EOF
-chmod +x /tmp/docker-swarm-tls-config/createca2.exp
-/tmp/docker-swarm-tls-config/createca2.exp
+chmod +x ${DOCKER_CERT_HOME}/createca2.exp
+${DOCKER_CERT_HOME}/createca2.exp
 
-# Create server key and CSR.
-openssl genrsa -out server-key.pem 4096
-openssl req -subj "/CN=$(/usr/bin/ec2metadata --local-ipv4)" -sha256 -new -key server-key.pem -out server.csr
+# Create swarm manager key and CSR.
+openssl genrsa -out ${DOCKER_CERT_HOME}/swarm-manager-key.pem 4096
+openssl req -subj "/CN=$(/usr/bin/ec2metadata --local-ipv4)" -sha256 -new -key ${DOCKER_CERT_HOME}/swarm-manager-key.pem -out ${DOCKER_CERT_HOME}/swarm-manager.csr
 
-# Sign server public key with CA.
-echo subjectAltName = IP:$(/usr/bin/ec2metadata --local-ipv4),IP:127.0.0.1 > /tmp/docker-swarm-tls-config/extfile.cnf
-cat > /tmp/docker-swarm-tls-config/createserver.exp << EOF
+# Sign swarm manager public key with CA.
+echo subjectAltName = IP:$(/usr/bin/ec2metadata --local-ipv4),IP:127.0.0.1 > ${DOCKER_CERT_HOME}/extfile.cnf
+echo extendedKeyUsage = clientAuth,serverAuth >> extfile.cnf
+cat > ${DOCKER_CERT_HOME}/createswarmmanager.exp << EOF
 #!/usr/bin/expect -f
 set timeout -1
-spawn openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -extfile extfile.cnf
+spawn openssl x509 -req -days 365 -sha256 -in ${DOCKER_CERT_HOME}/swarm-manager.csr -CA ${DOCKER_CERT_HOME}/ca.pem -CAkey ${DOCKER_CERT_HOME}/ca-key.pem -CAcreateserial -out ${DOCKER_CERT_HOME}/swarm-manager-cert.pem -extfile ${DOCKER_CERT_HOME}/extfile.cnf
 match_max 100000
 expect -exact "Signature ok\r
 subject=/CN=$(/usr/bin/ec2metadata --local-ipv4)\r
 Getting CA Private Key\r
-Enter pass phrase for ca-key.pem:"
+Enter pass phrase for ${DOCKER_CERT_HOME}/ca-key.pem:"
 send -- "${PASSPHRASE}\r"
 expect eof
 EOF
-chmod +x /tmp/docker-swarm-tls-config/createserver.exp
-/tmp/docker-swarm-tls-config/createserver.exp
+chmod +x ${DOCKER_CERT_HOME}/createswarmmanager.exp
+${DOCKER_CERT_HOME}/createswarmmanager.exp
 
 # Create client key.
-openssl genrsa -out key.pem 4096
-openssl req -subj '/CN=client' -new -key key.pem -out client.csr
-echo extendedKeyUsage = clientAuth,serverAuth > extfile.cnf
-cat > /tmp/docker-swarm-tls-config/createclient.exp << EOF
+openssl genrsa -out ${DOCKER_CERT_HOME}/key.pem 4096
+openssl req -subj '/CN=client' -new -key ${DOCKER_CERT_HOME}/key.pem -out ${DOCKER_CERT_HOME}/client.csr
+echo extendedKeyUsage = clientAuth,serverAuth > ${DOCKER_CERT_HOME}/extfile.cnf
+cat > ${DOCKER_CERT_HOME}/createclient.exp << EOF
 #!/usr/bin/expect -f
 set timeout -1
-spawn openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out cert.pem -extfile extfile.cnf
+spawn openssl x509 -req -days 365 -sha256 -in ${DOCKER_CERT_HOME}/client.csr -CA ${DOCKER_CERT_HOME}/ca.pem -CAkey ${DOCKER_CERT_HOME}/ca-key.pem -CAcreateserial -out ${DOCKER_CERT_HOME}/cert.pem -extfile ${DOCKER_CERT_HOME}/extfile.cnf
 match_max 100000
 expect -exact "Signature ok\r
 subject=/CN=client\r
 Getting CA Private Key\r
-Enter pass phrase for ca-key.pem:"
+Enter pass phrase for ${DOCKER_CERT_HOME}/ca-key.pem:"
 send -- "${PASSPHRASE}\r"
 expect eof
 EOF
-chmod +x /tmp/docker-swarm-tls-config/createclient.exp
-/tmp/docker-swarm-tls-config/createclient.exp
+chmod +x ${DOCKER_CERT_HOME}/createclient.exp
+${DOCKER_CERT_HOME}/createclient.exp
 
 # Set permissions.
-rm -v client.csr server.csr
-chmod -v 0400 ca-key.pem key.pem server-key.pem
-chmod -v 0444 ca.pem server-cert.pem cert.pem
+chmod -v 0400 ${DOCKER_CERT_HOME}/ca-key.pem
+chmod -v 0444 ${DOCKER_CERT_HOME}/ca.pem
 
 # Push certs to S3 bucket.
-/usr/bin/s3cmd put --config=/root/.s3cfg --recursive /tmp/docker-swarm-tls-config/ s3://${s3_bucket}/docker-swarm-tls-config/
+/usr/bin/s3cmd put --config=/root/.s3cfg ${DOCKER_CERT_HOME}/ca.pem s3://${s3_bucket}/docker-swarm-tls-config/ca.pem
+/usr/bin/s3cmd put --config=/root/.s3cfg ${DOCKER_CERT_HOME}/ca-key.pem s3://${s3_bucket}/docker-swarm-tls-config/ca-key.pem

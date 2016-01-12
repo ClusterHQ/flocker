@@ -11,7 +11,7 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
-NUM_NODES = 3
+NUM_NODES = 2
 AGENT_NODE_NAME_TEMPLATE = u"AgentNode{index}"
 CONTROL_NODE_NAME = u"ControlNode"
 CLIENT_NODE_NAME = u"ClientNode"
@@ -126,7 +126,7 @@ for i in range(NUM_NODES):
         Handle=Ref(wait_condition_handle),
         Timeout="600",
     )
-    template.add_resource(wait_condition)
+    # template.add_resource(wait_condition)
 
     user_data = base_user_data[:]
     user_data += [
@@ -183,42 +183,30 @@ wait_condition = WaitCondition(
     Handle=Ref(wait_condition_handle),
     Timeout="600",
 )
-template.add_resource(wait_condition)
+# template.add_resource(wait_condition)
 
 user_data = base_user_data[:]
 user_data += [
     'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
 ]
 user_data += sibling_lines(S3_SETUP)
-user_data += sibling_lines(DOCKER_SETUP)
+# user_data += sibling_lines(DOCKER_SETUP)
 user_data += sibling_lines(CLIENT_SETUP)
 user_data += sibling_lines(SIGNAL_CONFIG_COMPLETION)
 
 client_instance.UserData = Base64(Join("", user_data))
 client_instance.DependsOn = control_service_instance.name
 
-template.add_resource(client_instance)
+# template.add_resource(client_instance)
 
-template.add_output([
-    Output(
-        "ClientNodeIP",
-        Description="Public IP address of the client node.",
-        Value=GetAtt(client_instance, "PublicIp"),
-    )
-])
+# template.add_output([
+#   Output(
+#       "ClientNodeIP",
+#       Description="Public IP address of the client node.",
+#       Value=GetAtt(client_instance, "PublicIp"),
+#   )
+# ])
 
-template.add_output([
-    Output(
-        "AvailabilityZone",
-        Description="Availability Zone of the newly created EC2 instances.",
-        Value=zone,
-    ),
-])
-template.add_output(Output(
-    "S3BucketName",
-    Value=Ref(s3bucket),
-    Description="Name of S3 bucket that holds cluster configuration."
-))
 template.add_output(Output(
     "SwarmDockerHost",
     Value=Join("", ["export DOCKER_HOST=",
