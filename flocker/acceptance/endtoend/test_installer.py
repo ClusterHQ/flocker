@@ -127,12 +127,14 @@ def cleanup(test_case, local_certs_path):
     user_credential = UserCredential.from_files(user_cert, user_key)
     cluster = Cluster(
         control_node=ControlService(
-            public_address=test_case.agent_node_1.encode("ascii")),
+            public_address=test_case.control_node_ip.encode("ascii")),
         nodes=[],
         treq=treq_with_authentication(
             reactor, cluster_cert, user_cert, user_key),
-        client=FlockerClient(reactor, test_case.agent_node_1.encode("ascii"),
-                             REST_API_PORT, cluster_cert, user_cert, user_key),
+        client=FlockerClient(
+            reactor, test_case.control_node_ip.encode("ascii"),
+            REST_API_PORT, cluster_cert, user_cert, user_key
+        ),
         certificates_path=certificates_path,
         cluster_uuid=user_credential.cluster_uuid,
     )
