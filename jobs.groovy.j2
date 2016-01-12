@@ -732,6 +732,7 @@ for (job_type_entry in GLOBAL_CONFIG.job_type) {
                 triggers build_triggers('cron', job_values.at, "${branchName}")
                 scm build_scm("${git_url}", "${branchName}")
                 steps build_steps(dashProject, dashBranchName, _job_name, job_values)
+                publishers build_publishers(job_values)
             }
         }
     }
