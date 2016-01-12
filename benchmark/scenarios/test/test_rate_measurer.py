@@ -31,7 +31,7 @@ class RateMeasurerTest(TestCase):
         :param num_requests: The number of request we want to receive.
         :param num_samples: The number of samples to collect.
         """
-        call_duration = 5
+        call_duration = 4.567
         for i in range(num_samples):
             for i in range(num_requests):
                 rate_measurer.response_received(call_duration)
@@ -167,7 +167,7 @@ class RateMeasurerTest(TestCase):
         self.assertEqual(
             r.get_metrics(),
             {
-                'call_durations': {5: 20},
+                'call_durations': {4.6: 20},
                 'errors': {'fail': 5},
                 'ok_count': 20,
                 'err_count': 5,

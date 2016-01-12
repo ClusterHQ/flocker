@@ -15,7 +15,7 @@ class RateMeasurer(object):
     :ivar _error_count: The number of failed requests recorded.
     :ivar _rate: The current rate.
     :ivar Mapping[int, int] _call_durations: The number of times a call took
-        the given time (rounded down to whole seconds).
+        the given time (rounded to 1 decimal place).
     :ivar Mapping[str, int] _errors: The number of times the given error
         message was received.
     """
@@ -43,8 +43,8 @@ class RateMeasurer(object):
         :param float duration: Time taken to perform call
         """
         self._received += 1
-        duration = int(duration)
-        self._call_durations[duration] = self._call_durations.get(duration, 0) + 1
+        key = round(duration, 1)
+        self._call_durations[key] = self._call_durations.get(key, 0) + 1
 
     def request_failed(self, failure):
         """
