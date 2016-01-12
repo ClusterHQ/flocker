@@ -11,7 +11,7 @@ cd /tmp/docker-swarm-tls-config
 # Get expect to autofill openssl inputs
 sudo apt-get install -y expect
 
-PASSPHRASE=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+PASSPHRASE=$(dd bs=18 count=1 if=/dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 
 # Generate CA private and public keys
 cat > /tmp/docker-swarm-tls-config/createca1.exp << EOF
@@ -77,7 +77,7 @@ set timeout -1
 spawn openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -extfile extfile.cnf
 match_max 100000
 expect -exact "Signature ok\r
-subject=/CN=172.31.14.86\r
+subject=/CN=$(/usr/bin/ec2metadata --local-ipv4)\r
 Getting CA Private Key\r
 Enter pass phrase for ca-key.pem:"
 send -- "${PASSPHRASE}\r"
