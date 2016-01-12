@@ -1,3 +1,5 @@
+# Requirements for developing and testing flocker above what is already
+# required from requirements.txt.
 alabaster==0.7.6
 apache-libcloud==0.17.0
 awscli==1.9.17
