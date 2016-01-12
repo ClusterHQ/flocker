@@ -14,7 +14,7 @@ sudo apt-get install -y expect
 PASSPHRASE=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 
 # Generate CA private and public keys
-echo > /tmp/docker-swarm-tls-config/createca1.exp << EOF
+cat > /tmp/docker-swarm-tls-config/createca1.exp << EOF
 #!/usr/bin/expect -f
 set timeout -1
 spawn openssl genrsa -passout stdin -aes256 -out ca-key.pem 4096
@@ -25,7 +25,7 @@ EOF
 chmod +x /tmp/docker-swarm-tls-config/createca1.exp
 /tmp/docker-swarm-tls-config/createca1.exp
 
-echo > /tmp/docker-swarm-tls-config/createca2.exp << EOF
+cat > /tmp/docker-swarm-tls-config/createca2.exp << EOF
 #!/usr/bin/expect -f
 set timeout -1
 spawn openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem
@@ -71,7 +71,7 @@ openssl req -subj "/CN=$(/usr/bin/ec2metadata --local-ipv4)" -sha256 -new -key s
 
 # Sign server public key with CA.
 echo subjectAltName = IP:$(/usr/bin/ec2metadata --local-ipv4),IP:127.0.0.1 > /tmp/docker-swarm-tls-config/extfile.cnf
-echo > /tmp/docker-swarm-tls-config/createserver.exp << EOF
+cat > /tmp/docker-swarm-tls-config/createserver.exp << EOF
 #!/usr/bin/expect -f
 set timeout -1
 spawn openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -extfile extfile.cnf
@@ -90,7 +90,7 @@ chmod +x /tmp/docker-swarm-tls-config/createserver.exp
 openssl genrsa -out key.pem 4096
 openssl req -subj '/CN=client' -new -key key.pem -out client.csr
 echo extendedKeyUsage = clientAuth > extfile.cnf
-echo > /tmp/docker-swarm-tls-config/createclient.exp << EOF
+cat > /tmp/docker-swarm-tls-config/createclient.exp << EOF
 #!/usr/bin/expect -f
 set timeout -1
 spawn openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out cert.pem -extfile extfile.cnf
@@ -109,3 +109,6 @@ chmod +x /tmp/docker-swarm-tls-config/createclient.exp
 rm -v client.csr server.csr
 chmod -v 0400 ca-key.pem key.pem server-key.pem
 chmod -v 0444 ca.pem server-cert.pem cert.pem
+
+# Push certs to S3 bucket.
+/usr/bin/s3cmd put --config=/root/.s3cfg --recursive /tmp/docker-swarm-tls-config/ s3://${s3_bucket}/docker-swarm-tls-config/
