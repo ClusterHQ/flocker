@@ -69,7 +69,7 @@ def cleanup_cluster(client, timeout):
     yield gather_deferreds(results)
 
     def containers_deleted():
-        d = client.list_containers_configuration()
+        d = client.list_containers_state()
         d.addCallback(lambda containers: not containers)
         return d
 
@@ -83,8 +83,8 @@ def cleanup_cluster(client, timeout):
     yield gather_deferreds(results)
 
     def datasets_deleted():
-        d = client.list_datasets_configuration()
-        d.addCallback(lambda datasets: not datasets.datasets)
+        d = client.list_datasets_state()
+        d.addCallback(lambda datasets: not datasets)
         return d
 
     yield loop_until(client._reactor, datasets_deleted, repeat(1, timeout))
