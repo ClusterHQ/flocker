@@ -195,6 +195,7 @@ html > body h2.step-stages__heading {
 
 .step-stages__excerpt .button {
 	margin-top: 16px;
+	margin-bottom: 16px;
 	margin-left: auto;
 	margin-right: auto;
 	display: block;
