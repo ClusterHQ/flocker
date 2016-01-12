@@ -195,7 +195,6 @@ html > body h2.step-stages__heading {
 
 .step-stages__excerpt .button {
 	margin-top: 16px;
-	margin-bottom: 16px;
 	margin-left: auto;
 	margin-right: auto;
 	display: block;
@@ -763,16 +762,8 @@ a.download:before {
 @media all and (min-width: 1200px) {
     /* lg */
     body {
-        background: linear-gradient(to right,
-             #646570,
-             #646570 25%,
-             white 25%) center repeat-y,
-         linear-gradient(to right,
-             #646570,
-             #646570 50%,
-             white 50%) center repeat-y;
+        background: linear-gradient(to right, #646570, #646570 25%, white 25%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
         background-size: 1170px, 100%;
-        background-position: -1px 0;
     }
 
     .menu ul.menu li {
