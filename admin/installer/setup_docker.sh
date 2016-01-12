@@ -11,7 +11,7 @@ set -ex
 # EOF
 
 # Get TLS from S3 bucket.
-ROOT_DOCKER_TLS_CONFIG_DIRECTORY="/.docker/"
+ROOT_DOCKER_TLS_CONFIG_DIRECTORY="/root/.docker/"
 UBUNTU_HOME="/home/ubuntu"
 rm -rf ${ROOT_DOCKER_TLS_CONFIG_DIRECTORY} ${UBUNTU_HOME}/.docker
 mkdir -p ${ROOT_DOCKER_TLS_CONFIG_DIRECTORY}

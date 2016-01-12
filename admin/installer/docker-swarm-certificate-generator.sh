@@ -89,7 +89,7 @@ chmod +x /tmp/docker-swarm-tls-config/createserver.exp
 # Create client key.
 openssl genrsa -out key.pem 4096
 openssl req -subj '/CN=client' -new -key key.pem -out client.csr
-echo extendedKeyUsage = clientAuth > extfile.cnf
+echo extendedKeyUsage = clientAuth,serverAuth > extfile.cnf
 cat > /tmp/docker-swarm-tls-config/createclient.exp << EOF
 #!/usr/bin/expect -f
 set timeout -1

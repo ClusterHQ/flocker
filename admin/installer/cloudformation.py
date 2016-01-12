@@ -21,7 +21,7 @@ CLIENT_WAIT_HANDLE = u"ClientReadySignal"
 CLIENT_WAIT_CONDITION = u"ClientSetup"
 S3_SETUP = 'setup_s3.sh'
 DOCKER_SETUP = 'setup_docker.sh'
-DOCKER_SWARM_CERT_GENERATOR = 'docker-swarm-ceritificate-generator.sh'
+DOCKER_SWARM_CERT_GENERATOR = 'docker-swarm-certificate-generator.sh'
 SWARM_MANAGER_SETUP = 'setup_swarm_manager.sh'
 SWARM_NODE_SETUP = 'setup_swarm_node.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
@@ -126,7 +126,7 @@ for i in range(NUM_NODES):
         Handle=Ref(wait_condition_handle),
         Timeout="600",
     )
-    # template.add_resource(wait_condition)
+    template.add_resource(wait_condition)
 
     user_data = base_user_data[:]
     user_data += [
@@ -183,7 +183,7 @@ wait_condition = WaitCondition(
     Handle=Ref(wait_condition_handle),
     Timeout="600",
 )
-# template.add_resource(wait_condition)
+template.add_resource(wait_condition)
 
 user_data = base_user_data[:]
 user_data += [
