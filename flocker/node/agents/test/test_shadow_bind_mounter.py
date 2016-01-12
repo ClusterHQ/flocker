@@ -6,7 +6,7 @@ from twisted.python.filepath import FilePath
 
 from ....testtools import TestCase, run_process, _CalledProcessError
 from ...testtools import if_docker_configured
-from .test_blockdevice_manager import blockdevice_manager_for_test
+from ..testtools import blockdevice_manager_for_test
 
 from ..shadow_bind_mounter import create_tmpfs_shadow_mount
 
