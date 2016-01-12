@@ -10,13 +10,10 @@
 Quick Installation of Flocker with Swarm on AWS
 ===============================================
 
-Deployment Architecture
------------------------
-
 The below steps enable you to deploy a Flocker Swarm cluster with the following layout, deploying four EC2 instances:
 
 .. image:: ../images/cloudformation.png
-    :width: 75%
+    :width: 95%
 
 .. source material for this image: https://drive.google.com/open?id=0ByymF9bLBknGeXlPX1pTdXVZOGM
 
