@@ -1,6 +1,7 @@
 .. _about-docker-integration:
 
-About this integration
+======================
+About This Integration
 ======================
 
 Flocker integrates with the Docker Engine, Docker Swarm and/or Docker Compose via the Flocker Plugin for Docker.
@@ -16,7 +17,7 @@ It also works in multi-host environments where you're using Docker Swarm.
 Concepts
 ========
 
-Docker volume
+Docker Volume
 -------------
 
 When a Docker volume is created with the ``flocker`` volume driver, either explicitly with ``docker volume create`` or implicitly by ``docker-compose up``, a Docker volume will get created on one or more Docker hosts.
@@ -29,7 +30,7 @@ This is because Flocker volumes are persistent and live beyond the lifecycle of 
 
 To delete a Flocker volume, use ``flockerctl``.
 
-Flocker volumes
+Flocker Volumes
 ---------------
 
 Flocker volumes represent actual underlying storage, typically allocated from IaaS block device provider, such as EBS.
