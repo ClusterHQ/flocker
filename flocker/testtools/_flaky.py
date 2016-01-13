@@ -77,7 +77,7 @@ def _get_flaky_annotation(case):
     return getattr(method, _FLAKY_ATTRIBUTE, None)
 
 
-def _get_invariants(x):
+def _flaky_invariants(x):
     return (
         (x.max_runs >= x.min_passes, "Can't pass more than we run"),
         (len(x.jira_keys) > 0, "Must provide a jira key"),
@@ -92,7 +92,7 @@ class _FlakyAnnotation(PClass):
                        invariant=lambda x: (x > 0, "must pass at least once"))
     jira_keys = pset_field(unicode, optional=False)
 
-    __invariant__ = _get_invariants
+    __invariant__ = _flaky_invariants
 
     def to_dict(self):
         return {
