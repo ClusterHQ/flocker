@@ -117,4 +117,3 @@ class IRequestScenarioSetup(Interface):
         :return: ``Deferred`` that fires when the REST request has been
             completed, and returns the results of the request.
         """
-

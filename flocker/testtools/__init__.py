@@ -36,6 +36,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
+from twisted.internet.base import _ThreePhaseEvent
 from twisted.internet.task import Clock
 from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone
@@ -769,7 +770,6 @@ not_root = skipIf(os.getuid() == 0, "Must not run as root.")
 
 # TODO: This should be provided by Twisted (also it should be more complete
 # instead of 1/3rd done).
-from twisted.internet.base import _ThreePhaseEvent
 
 
 @implementer(IReactorCore)

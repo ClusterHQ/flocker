@@ -1685,9 +1685,9 @@ class LeaseTests(TestCase):
             self.now, self.dataset_id, node2.uuid
         )
         expected_error = (
-            u"Cannot acquire lease " + unicode(self.dataset_id)
-            + " for node " + unicode(node2.uuid)
-            + u": Lease already held by another node"
+            u"Cannot acquire lease " + unicode(self.dataset_id) +
+            u" for node " + unicode(node2.uuid) +
+            u": Lease already held by another node"
         )
         self.assertEqual(
             exception.message, expected_error
