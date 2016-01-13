@@ -81,7 +81,7 @@ def remote_docker_compose(client_ip, docker_host, compose_file_path, *args):
         reactor,
         'ubuntu',
         client_ip,
-        ('DOCKER_HOST={}'.format(docker_host),
+        ('DOCKER_TLS_VERIFY=1', 'DOCKER_HOST={}'.format(docker_host),
          'docker-compose', '--file', compose_file_path) + args,
         handle_stdout=docker_compose_output.append
     )
@@ -253,7 +253,7 @@ class DockerComposeTests(AsyncTestCase):
         self.agent_node_1 = get_output(outputs, 'AgentNode1IP')
         self.agent_node_2 = get_output(outputs, 'AgentNode2IP')
         self.control_node_ip = get_output(outputs, 'ControlNodeIP')
-        self.docker_host = self.control_node_ip + ':2376'
+        self.docker_host = 'tcp://' + self.control_node_ip + ':2376'
         local_certs_path = self.mktemp()
         check_call(
             ['scp', '-o', 'StrictHostKeyChecking no', '-r',
