@@ -6,36 +6,6 @@ Various utilities to help with unit and functional testing.
 
 from __future__ import absolute_import
 
-__all__ = [
-    'AsyncTestCase',
-    'CustomException',
-    'DockerImageBuilder',
-    'FakeProcessReactor',
-    'FakeSysModule',
-    'FlockerScriptTestsMixin',
-    'MemoryCoreReactor',
-    'REALISTIC_BLOCKDEVICE_SIZE',
-    'make_standard_options_tests',
-    'TestCase',
-    'assertContainsAll',
-    'assertNoFDsLeaked',
-    'assert_equal_comparison',
-    'assert_not_equal_comparison',
-    'async_runner',
-    'attempt_effective_uid',
-    'find_free_port',
-    'flaky',
-    'help_problems',
-    'if_root',
-    'logged_run_process',
-    'make_script_tests',
-    'make_with_init_tests',
-    'not_root',
-    'random_name',
-    'run_process',
-    'skip_on_broken_permissions',
-]
-
 import gc
 import io
 import socket
@@ -80,8 +50,37 @@ from ._base import AsyncTestCase, TestCase, async_runner
 from ._flaky import flaky
 from .. import __version__
 from ..common import RACKSPACE_MINIMUM_VOLUME_SIZE
-from ..common.script import (
-    FlockerScriptRunner, ICommandLineScript)
+from ..common.script import FlockerScriptRunner, ICommandLineScript
+
+__all__ = [
+    'AsyncTestCase',
+    'CustomException',
+    'DockerImageBuilder',
+    'FakeProcessReactor',
+    'FakeSysModule',
+    'FlockerScriptTestsMixin',
+    'MemoryCoreReactor',
+    'REALISTIC_BLOCKDEVICE_SIZE',
+    'make_standard_options_tests',
+    'TestCase',
+    'assertContainsAll',
+    'assertNoFDsLeaked',
+    'assert_equal_comparison',
+    'assert_not_equal_comparison',
+    'async_runner',
+    'attempt_effective_uid',
+    'find_free_port',
+    'flaky',
+    'help_problems',
+    'if_root',
+    'logged_run_process',
+    'make_script_tests',
+    'make_with_init_tests',
+    'not_root',
+    'random_name',
+    'run_process',
+    'skip_on_broken_permissions',
+]
 
 REALISTIC_BLOCKDEVICE_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
 

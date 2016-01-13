@@ -47,6 +47,8 @@ from .agents.blockdevice import (
 from .agents.loopback import (
     LoopbackBlockDeviceAPI,
 )
+from .agents.cinder import cinder_from_configuration
+from .agents.ebs import aws_from_configuration
 from ..ca import ControlServicePolicy, NodeCredential
 from ..common._era import get_era
 
@@ -451,9 +453,6 @@ class BackendDescription(PClass):
             value in DeployerType.iterconstants(), "Unknown deployer_type"
         ),
     )
-
-from .agents.cinder import cinder_from_configuration
-from .agents.ebs import aws_from_configuration
 
 # These structures should be created dynamically to handle plug-ins
 _DEFAULT_BACKENDS = [

@@ -1661,9 +1661,10 @@ class LeaseTests(TestCase):
             self.dataset_id, node2.uuid
         )
         expected_error = (
-            u"Cannot release lease " + unicode(self.dataset_id)
-            + " for node " + unicode(node2.uuid)
-            + u": Lease already held by another node"
+            u"Cannot release lease {} for node {}: "
+            u"Lease already held by another node".format(
+                unicode(self.dataset_id), unicode(node2.uuid)
+            )
         )
         self.assertEqual(
             exception.message, expected_error

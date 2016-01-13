@@ -96,8 +96,7 @@ class TaggedUnionInvariantTests(TestCase):
         state = args['state']
         invariant = AlgebraicType.__invariant__
         extra_attributes = (
-            invariant._all_attributes
-            - invariant.attributes_for_tag[state]
+            invariant._all_attributes - invariant.attributes_for_tag[state]
         )
         assume(extra_attributes)
         extra_attribute = choice(sorted(extra_attributes))
@@ -158,8 +157,8 @@ class TaggedUnionInvariantTests(TestCase):
 
     @given(
         state=st.sampled_from(
-            pset(States.iterconstants())
-            - AlgebraicType.__invariant__._allowed_tags
+            pset(States.iterconstants()) -
+            AlgebraicType.__invariant__._allowed_tags
         ),
         extra_value=st.booleans(),
     )

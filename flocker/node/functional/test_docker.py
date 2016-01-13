@@ -6,6 +6,7 @@ Functional tests for :module:`flocker.node._docker`.
 
 from __future__ import absolute_import
 
+from functools import partial
 import time
 import socket
 
@@ -158,7 +159,7 @@ class GenericDockerClientTests(AsyncTestCase):
         client = self.make_client()
 
         if retry_on_port_collision:
-            add = lambda **kw: add_with_port_collision_retry(client, **kw)
+            add = partial(add_with_port_collision_retry, client)
         else:
             add = client.add
 
