@@ -94,7 +94,7 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 		</div>
 		<div class="step-stages__step first">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Under the <b>Outputs</b> tab, gather your <code>ClientIP</code> and <code>SwarmDockerHost</code> info.</span> 
+			<span>Under the <b>Outputs</b> tab, gather your <code>ClientIP</code>, <code>DockerTLSCertDirectory</code> and <code>SwarmDockerHost</code> info.</span> 
 		</div>
 		<div class="step-stages__step">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
