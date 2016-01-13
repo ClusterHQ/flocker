@@ -92,13 +92,13 @@ class TestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
     def setUp(self):
-        super(TestCase, self).setUp()
         log.msg("--> Begin: %s <--" % (self.id()))
+        super(TestCase, self).setUp()
         self.useFixture(_SplitEliotLogs())
 
     def tearDown(self):
-        super(TestCase, self).tearDown()
         log.msg("--> End: %s <--" % (self.id()))
+        super(TestCase, self).tearDown()
 
 
 def async_runner(timeout):
@@ -148,13 +148,13 @@ class AsyncTestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
     def setUp(self):
-        super(AsyncTestCase, self).setUp()
         log.msg("--> Begin: %s <--" % (self.id()))
+        super(AsyncTestCase, self).setUp()
         self.useFixture(_SplitEliotLogs())
 
     def tearDown(self):
-        super(AsyncTestCase, self).tearDown()
         log.msg("--> End: %s <--" % (self.id()))
+        super(AsyncTestCase, self).tearDown()
 
     def assertFailure(self, deferred, exception):
         """
