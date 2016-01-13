@@ -1435,7 +1435,7 @@ class BlockDeviceCalculatorTestObjects(object):
             for d in two_dataset_states
         ]
         self._local_state = None
-        self._desired_datasets = []
+        self._desired_datasets = {}
 
     def _fixup_dataset_state(self, dataset_state):
         """
@@ -1651,8 +1651,20 @@ class BlockDeviceCalculatorTests(TestCase):
                 mountroot_for_test(self),
                 actual_blockdevice_manager)
 
-            callback.callback = partial(
-                external_agent.invariant, self, test_objects)
+            non_side_effect_methods = frozenset(['has_filesystem',
+                                                 'get_mounts'])
+
+            # Only run the invariant check on methods of the
+            # IBlockDeviceManager that actually change the state of the
+            # machine.
+            def run_invariant_on_side_effect_method(method_name):
+                if method_name not in non_side_effect_methods:
+                    return external_agent.invariant(self, test_objects)
+
+            callback.callback = run_invariant_on_side_effect_method
+
+            # Verify the invariant holds at the start of the test.
+            external_agent.invariant(self, test_objects)
 
             test_objects.run_sequential_convergence_test()
         finally:
@@ -5721,21 +5733,22 @@ def make_icloudapi_tests(
     return Tests
 
 
-def _surround_with_callbacks_decorator(method_name, callback, proxy_object):
+def _append_callback_decorator(method_name, callback, proxy_object):
     """
     Creates a method that proxies to ``getattr(proxy_object, method_name)`` and
-    calls callback before and after.
+    calls callback after.
 
     :param method_name: The name of the method that should be called.
     :param callback: The callback to call before and after calling the method.
+        This callback is given a method_name keyword argument with the name of
+        the method that is being wrapped.
     :param proxy_object: The object to proxy the invocation to.
     """
 
     def proxied_function(self, *args, **kwargs):
         method = getattr(proxy_object, method_name)
-        callback()  # Before method call.
         result = method(*args, **kwargs)
-        callback()  # After method call.
+        callback(method_name=method_name)  # After method call.
         return result
 
     return proxied_function
@@ -5744,18 +5757,19 @@ def _surround_with_callbacks_decorator(method_name, callback, proxy_object):
 def create_callback_blockdevice_manager_proxy(proxy_object, callback):
     """
     Creates a provider of ``IBlockDeviceManager`` that proxies to another
-    ``IBlockDeviceManager`` provider and calls a callback before and after
-    each call to the underlying object. This enables tests where you want to
-    inject code before or after any calls to the underlying API.
+    ``IBlockDeviceManager`` provider and calls a callback after each call to
+    the underlying object. This enables tests where you want to inject code
+    after any calls to the underlying API.
 
     :param proxy_object: The ``IBlockDeviceManager`` provider that is being
         proxied to.
-    :param callback: The callback to be called before and after every call to a
-        method of ``proxy_object``.
+    :param callback: The callback to be called after every call to a method of
+        ``proxy_object``.  This callback is given a method_name keyword
+        argument with the name of the method that was just called.
     """
     @interface_decorator("callback_blockdevice_manager",
                          IBlockDeviceManager,
-                         _surround_with_callbacks_decorator,
+                         _append_callback_decorator,
                          callback,
                          proxy_object)
     class BlockDeviceManagerCallbackProxy(object):
