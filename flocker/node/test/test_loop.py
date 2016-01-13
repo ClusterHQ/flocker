@@ -15,7 +15,6 @@ from machinist import LOG_FSM_TRANSITION
 
 from pyrsistent import pset
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactorClock
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred, fail
@@ -28,7 +27,7 @@ from twisted.test.iosim import connectedServerAndClient
 from ...testtools.amp import (
     FakeAMPClient, DelayedAMPClient, connected_amp_protocol,
 )
-from ...testtools import CustomException
+from ...testtools import CustomException, TestCase
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
@@ -47,6 +46,9 @@ from ...control.test.test_protocol import iconvergence_agent_tests_factory
 from .. import NoOp
 
 
+NO_OP = NoOp(sleep=timedelta(seconds=300))
+
+
 class StubFSM(object):
     """
     A finite state machine look-alike that just records inputs.
@@ -58,11 +60,12 @@ class StubFSM(object):
         self.inputted.append(symbol)
 
 
-class ClusterStatusFSMTests(SynchronousTestCase):
+class ClusterStatusFSMTests(TestCase):
     """
     Tests for the cluster status FSM.
     """
     def setUp(self):
+        super(ClusterStatusFSMTests, self).setUp()
         self.convergence_loop = StubFSM()
         self.fsm = build_cluster_status_fsm(self.convergence_loop)
 
@@ -247,7 +250,7 @@ def no_action():
     return ControllableAction(result=succeed(None))
 
 
-class SleepTests(SynchronousTestCase):
+class SleepTests(TestCase):
     """
     Tests for ``_Sleep``.
     """
@@ -270,7 +273,7 @@ class SleepTests(SynchronousTestCase):
                  spread=True))
 
 
-class ConvergenceLoopFSMTests(SynchronousTestCase):
+class ConvergenceLoopFSMTests(TestCase):
     """
     Tests for FSM created by ``build_convergence_loop_fsm``.
     """
@@ -668,7 +671,6 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.deployer = deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state), succeed(local_state)],
             [initial_action] + later_actions,
-            poll_interval=timedelta(seconds=300),
         )
         client = self.make_amp_client([local_state])
         self.reactor = reactor = Clock()
@@ -717,7 +719,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         # Later calculations will return a NoOp(), indicating no need to
         # wake up:
-        loop = self.convergence_iteration(later_actions=[NoOp(), NoOp()])
+        loop = self.convergence_iteration(later_actions=[NO_OP, NO_OP])
         node_state = NodeState(hostname=u'192.0.3.5')
         changed_configuration = Deployment(
             nodes=frozenset([to_node(node_state)]))
@@ -749,7 +751,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         # Later calculations will return a NoOp(), indicating no need to
         # wake up:
-        loop = self.convergence_iteration(later_actions=[NoOp(), NoOp()])
+        loop = self.convergence_iteration(later_actions=[NO_OP, NO_OP])
         remaining_discover_calls = len(self.deployer.local_states)
 
         # An update received while sleeping:
@@ -764,10 +766,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
     def test_longer_sleep_when_converged(self):
         """
         When a convergence loop results in a ``NoOp`` the sleep is based on
-        that configured on the ``Deployer``.
+        that configured in the returned NoOp.
         """
-        loop = self.convergence_iteration(initial_action=NoOp(),
-                                          later_actions=[NoOp(), NoOp()])
+        loop = self.convergence_iteration(initial_action=NO_OP,
+                                          later_actions=[NO_OP, NO_OP])
 
         # An update received while sleeping:
         loop.receive(_ClientStatusUpdate(
@@ -793,11 +795,30 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertEqual(
             dict(long_enough=(delay > 200),
                  pre=pre_sleep, mid=mid_sleep, post=post_sleep),
-            dict(long_enough=True,  # deployer has 300s sleep with jitter added
+            dict(long_enough=True,  # NO_OP has 300s sleep with jitter added
                  pre=1,  # no new iteration yet
                  mid=1,  # slept not quite enough, so still no new iteration
                  post=0),  # slept full poll interval, new iteration
         )
+
+    def test_shorter_sleep(self):
+        """
+        When a sleeping convergence loop gets an update and sees if it should
+        wake up, if the result is a ``NoOp`` with a shorter remaining
+        duration the sleep is appropriately shortened.
+        """
+        loop = self.convergence_iteration(
+            initial_action=NO_OP,
+            later_actions=[NoOp(sleep=timedelta(seconds=17))])
+
+        # An update received while sleeping:
+        loop.receive(_ClientStatusUpdate(
+            client=self.make_amp_client([self.local_state]),
+            configuration=self.configuration, state=self.cluster_state))
+
+        [delayed_call] = self.reactor.getDelayedCalls()
+        delay = delayed_call.getTime() - self.reactor.seconds()
+        self.assertEqual(delay, 17)
 
     def assert_woken_up(self, loop):
         """
@@ -1136,11 +1157,12 @@ class UpdateNodeEraLocator(CommandLocator):
         return {}
 
 
-class AgentLoopServiceTests(SynchronousTestCase):
+class AgentLoopServiceTests(TestCase):
     """
     Tests for ``AgentLoopService``.
     """
     def setUp(self):
+        super(AgentLoopServiceTests, self).setUp()
         self.deployer = ControllableDeployer(u"127.0.0.1", [], [])
         self.reactor = MemoryReactorClock()
         self.service = AgentLoopService(

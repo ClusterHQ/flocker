@@ -151,7 +151,7 @@ class DockerImage(PClass):
 
     @property
     def full_name(self):
-        return "{repository}:{tag}".format(
+        return u"{repository}:{tag}".format(
             repository=self.repository, tag=self.tag)
 
     @classmethod

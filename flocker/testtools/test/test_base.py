@@ -38,11 +38,14 @@ from testtools.matchers import (
     Not,
     PathExists,
     StartsWith,
+    IsInstance,
 )
-from twisted.internet.defer import succeed, fail
-from twisted.python.filepath import FilePath
 
-from .. import CustomException, AsyncTestCase
+from twisted.internet.defer import Deferred, succeed, fail
+from twisted.python.filepath import FilePath
+from twisted.python.failure import Failure
+
+from .. import CustomException, AsyncTestCase, TestCase
 from .._base import (
     make_temporary_directory,
     _SplitEliotLogs,
@@ -393,3 +396,40 @@ class AssertFailureTests(TesttoolsTestCase):
         self.assertThat(
             result,
             has_results(tests_run=Equals(1)))
+
+
+class ResultOfAssertionsTests(TestCase):
+    """
+    Bare minimum of testing for the Deferred result-related assertions borrowed
+    from Twisted.
+
+    These tests aren't more thorough because we don't implement them in
+    Flocker.  We just want to verify we've glued in the Twisted implementation
+    successfully.
+    """
+    def test_assertNoResult(self):
+        """
+        ``flocker.testtools.TestCase.assertNoResult`` works like
+        ``twisted.trial.unittest.SynchronousTestCase.assertNoResult``.
+        """
+        self.assertNoResult(Deferred())
+
+    def test_successResultOf(self):
+        """
+        ``flocker.testtools.TestCase.successResultOf`` works like
+        ``twisted.trial.unittest.SynchronousTestCase.successResultOf``.
+        """
+        self.assertThat(
+            self.successResultOf(succeed(3)),
+            Equals(3),
+        )
+
+    def test_failureResultOf(self):
+        """
+        ``flocker.testtools.TestCase.failureResultOf`` works like
+        ``twisted.trial.unittest.SynchronousTestCase.failureResultOf``.
+        """
+        self.assertThat(
+            self.failureResultOf(fail(CustomException()), CustomException),
+            IsInstance(Failure),
+        )

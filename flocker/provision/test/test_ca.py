@@ -7,13 +7,13 @@ Tests for cluster certificate generation.
 from unittest import skipUnless
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.procutils import which
 
+from ...testtools import TestCase
 from .. import Certificates
 
 
-class CertificatesGenerateTests(SynchronousTestCase):
+class CertificatesGenerateTests(TestCase):
     """
     Tests for ``Certificates.generate``.
     """
@@ -26,7 +26,7 @@ class CertificatesGenerateTests(SynchronousTestCase):
         """
         output = FilePath(self.mktemp())
         output.makedirs()
-        Certificates.generate(output, b"some-service", 2)
+        Certificates.generate(output, b"some-service", 2, b"test-cluster")
 
         self.assertEqual(
             {

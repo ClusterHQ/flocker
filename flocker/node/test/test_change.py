@@ -4,13 +4,12 @@
 Tests for ``flocker.node._change``.
 """
 
-from unittest import SkipTest
+from datetime import timedelta
 
 from zope.interface import implementer
 
 from pyrsistent import PClass, field
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import FirstError, Deferred, succeed, fail
 from twisted.python.components import proxyForInterface
 
@@ -22,7 +21,7 @@ from ..testtools import (
     CONTROLLABLE_ACTION_TYPE, ControllableAction, ControllableDeployer,
     DummyDeployer
 )
-from ...testtools import CustomException
+from ...testtools import CustomException, TestCase
 
 from .. import IStateChange, sequentially, in_parallel, run_state_change, NoOp
 from .._change import LOG_IN_PARALLEL, LOG_SEQUENTIALLY
@@ -170,35 +169,19 @@ class InParallelIStateChangeTests(
         self.assertEqual(2, the_change.value)
 
 
-class NoOpIStateChangeTests(make_istatechange_tests(NoOp, {}, {})):
+class NoOpIStateChangeTests(make_istatechange_tests(
+        NoOp, {"sleep": timedelta(seconds=1)},
+        {"sleep": timedelta(seconds=2)})):
     """
     Tests for the ``IStateChange`` implementation provided by ``NoOp``.
-
-    Inherits some equality/inequality tests we need to override because
-    they assume instances can be different, which is not the case for
-    ``NoOp``.
     """
-    def test_equality(self):
-        """
-        All instances are equal.
-
-        Overrides test in base class.
-        """
-        self.assertTrue(NoOp() == NoOp())
-
-    def test_notequality(self):
-        """
-        Not relevant for ``NoOp``.
-
-        Overrides test in base class.
-        """
-        raise SkipTest("All NoOp instances are equal.")
-
     def test_run(self):
         """
         ``NoOp.run`` returns a fired ``Deferred``.
         """
-        self.assertEqual(self.successResultOf(NoOp().run(None)), None)
+        self.assertEqual(
+            self.successResultOf(NoOp(sleep=timedelta(seconds=0.0)).run(None)),
+            None)
 
 
 def _test_nested_change(case, outer_factory, inner_factory):
@@ -231,7 +214,7 @@ def _test_nested_change(case, outer_factory, inner_factory):
     )
 
 
-class SequentiallyTests(SynchronousTestCase):
+class SequentiallyTests(TestCase):
     """
     Tests for handling of ``sequentially`` by ``run_state_changes``.
     """
@@ -325,16 +308,32 @@ class SequentiallyTests(SynchronousTestCase):
         """
         ``sequentially`` with no sub-changes becomes a ``NoOp``.
         """
-        self.assertEqual(sequentially(changes=[]), NoOp())
+        self.assertEqual(sequentially(changes=[]),
+                         NoOp(sleep=timedelta(seconds=60)))
+
+    def test_empty_specific_sleep(self):
+        """
+        ``sequentially`` with no sub-changes and a specified sleep becomes a
+        ``NoOp`` with that sleep interval.
+        """
+        sleep = timedelta(seconds=3.7)
+        self.assertEqual(sequentially(changes=[], sleep_when_empty=sleep),
+                         NoOp(sleep=sleep))
 
     def test_noops(self):
         """
-        ``sequentially`` with only ``NoOp`` sub-changes becomes a ``NoOp``.
+        ``sequentially`` with only ``NoOp`` sub-changes becomes a ``NoOp``
+        with sleep set to the minimal value of the sub-changes' sleep
+        value.
         """
-        self.assertEqual(sequentially(changes=[NoOp(), NoOp()]), NoOp())
+        self.assertEqual(
+            sequentially(changes=[NoOp(sleep=timedelta(seconds=0.3)),
+                                  NoOp(sleep=timedelta(seconds=0.1)),
+                                  NoOp(sleep=timedelta(seconds=0.2))]),
+            NoOp(sleep=timedelta(seconds=0.1)))
 
 
-class InParallelTests(SynchronousTestCase):
+class InParallelTests(TestCase):
     """
     Tests for handling of ``in_parallel`` by ``run_state_changes``.
     """
@@ -395,7 +394,6 @@ class InParallelTests(SynchronousTestCase):
         result = run_state_change(change, DEPLOYER)
         failure = self.failureResultOf(result, FirstError)
         self.assertEqual(failure.value.subFailure.type, CustomException)
-        self.flushLoggedErrors(CustomException)
 
     def test_changes_run_after_exception(self):
         """
@@ -413,7 +411,6 @@ class InParallelTests(SynchronousTestCase):
         change = in_parallel(changes=subchanges)
         result = run_state_change(change, DEPLOYER)
         self.failureResultOf(result, FirstError)
-        self.flushLoggedErrors(CustomException)
         self.assertEqual(
             (some_change.called, other_change.called),
             (True, True),
@@ -431,9 +428,9 @@ class InParallelTests(SynchronousTestCase):
         result = run_state_change(change, DEPLOYER)
         failure = self.failureResultOf(result, FirstError)
         self.assertEqual(failure.value.subFailure.type, RuntimeError)
-        self.flushLoggedErrors(RuntimeError)
 
-    def test_failure_all_logged(self):
+    @capture_logging(None)
+    def test_failure_all_logged(self, logger):
         """
         When multiple changes passed to ``in_parallel`` fail,
         ``run_state_changes`` logs those failures.
@@ -449,7 +446,7 @@ class InParallelTests(SynchronousTestCase):
 
         self.assertEqual(
             len(subchanges),
-            len(self.flushLoggedErrors(ZeroDivisionError))
+            len(logger.flush_tracebacks(ZeroDivisionError))
         )
 
     def test_nested_in_parallel(self):
@@ -470,16 +467,32 @@ class InParallelTests(SynchronousTestCase):
         """
         ``in_parallel`` with no sub-changes becomes a ``NoOp``.
         """
-        self.assertEqual(in_parallel(changes=[]), NoOp())
+        self.assertEqual(in_parallel(changes=[]),
+                         NoOp(sleep=timedelta(seconds=60)))
+
+    def test_empty_specific_sleep(self):
+        """
+        ``in_parallel`` with no sub-changes and a specified sleep becomes a
+        ``NoOp`` with that sleep interval.
+        """
+        sleep = timedelta(seconds=3.7)
+        self.assertEqual(in_parallel(changes=[], sleep_when_empty=sleep),
+                         NoOp(sleep=sleep))
 
     def test_noops(self):
         """
-        ``in_parallel`` with only ``NoOp`` sub-changes becomes a ``NoOp``.
+        ``in_parallel`` with only ``NoOp`` sub-changes becomes a ``NoOp`` with
+        sleep set to the minimum value of the sub-changes' sleep
+        attribute.
         """
-        self.assertEqual(in_parallel(changes=[NoOp(), NoOp()]), NoOp())
+        self.assertEqual(
+            in_parallel(changes=[NoOp(sleep=timedelta(seconds=0.3)),
+                                 NoOp(sleep=timedelta(seconds=0.1)),
+                                 NoOp(sleep=timedelta(seconds=0.2))]),
+            NoOp(sleep=timedelta(seconds=0.1)))
 
 
-class RunStateChangeTests(SynchronousTestCase):
+class RunStateChangeTests(TestCase):
     """
     Direct unit tests for ``run_state_change``.
     """

@@ -1,9 +1,0 @@
-[Unit]
-Description=Flocker Control Agent Socket
-
-[Socket]
-ListenStream=4524
-Service=flocker-control.service
-
-[Install]
-WantedBy=sockets.target

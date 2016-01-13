@@ -2,6 +2,19 @@ scenarios:
   - name: default
     type: no-load
 
+  - name: read-request-5
+    type: read-request-load
+    request_rate: 5
+
+  - name: list-container-state-4
+    type: read-request-load
+    method: list_containers_state
+    request_rate: 4
+
+  - name: write-request-5
+    type: write-request-load
+    request_rate: 5
+
 operations:
   - name: default
     type: read-request
@@ -23,6 +36,9 @@ operations:
 
   - name: create-dataset
     type: create-dataset
+
+  - name: create-container
+    type: create-container
 
 metrics:
   - name: default

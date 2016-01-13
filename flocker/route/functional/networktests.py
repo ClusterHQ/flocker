@@ -6,8 +6,8 @@ Generic tests for ``flocker.route.INetwork`` implementations.
 
 from zope.interface.verify import verifyObject
 from ipaddr import IPAddress
-from twisted.trial.unittest import SynchronousTestCase
 
+from ...testtools import TestCase
 from .. import INetwork, OpenPort
 
 
@@ -21,12 +21,13 @@ def make_network_tests(make_network):
     :return: A ``TestCase`` subclass which defines a number of
         ``INetwork``-related tests.
     """
-    class NetworkTests(SynchronousTestCase):
+    class NetworkTests(TestCase):
         """
         Tests for the self-consistency of the behavior of an ``INetwork``
         implementation.
         """
         def setUp(self):
+            super(NetworkTests, self).setUp()
             self.network = make_network()
 
         def test_interface(self):

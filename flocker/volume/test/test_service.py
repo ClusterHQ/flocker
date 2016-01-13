@@ -18,7 +18,6 @@ from zope.interface.verify import verifyObject
 from twisted.application.service import IService, Service
 from twisted.internet.task import Clock
 from twisted.python.filepath import FilePath, Permissions
-from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from ..service import (
     VolumeService, CreateConfigurationError, Volume, VolumeName,
@@ -34,8 +33,9 @@ from ..testtools import create_volume_service
 from ...common import FakeNode
 from ...testtools import (
     skip_on_broken_permissions, attempt_effective_uid, make_with_init_tests,
-    assert_equal_comparison, assert_not_equal_comparison,
-    )
+    assert_equal_comparison, assert_not_equal_comparison, AsyncTestCase,
+    TestCase,
+)
 
 
 class VolumeNameInitializationTests(make_with_init_tests(
@@ -235,7 +235,7 @@ MY_VOLUME = VolumeName(namespace=u"myns", dataset_id=u"myvolume")
 MY_VOLUME2 = VolumeName(namespace=u"myns", dataset_id=u"myvolume2")
 
 
-class VolumeServiceAPITests(TestCase):
+class VolumeServiceAPITests(AsyncTestCase):
     """Tests for the ``VolumeService`` API."""
 
     def test_set_maximum_size(self):
@@ -753,6 +753,7 @@ class VolumeTests(TestCase):
     """
 
     def setUp(self):
+        super(VolumeTests, self).setUp()
         self.size = VolumeSize(maximum_size=12345)
 
     def test_equality(self):
@@ -844,6 +845,7 @@ class VolumeOwnerChangeTests(TestCase):
         """
         Create a ``VolumeService`` pointing at a new pool.
         """
+        super(VolumeOwnerChangeTests, self).setUp()
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         self.service = VolumeService(FilePath(self.mktemp()), pool,
                                      reactor=Clock())
@@ -892,7 +894,7 @@ class VolumeOwnerChangeTests(TestCase):
         self.assertEqual({new_volume}, volumes)
 
 
-class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
+class VolumeScriptCreateVolumeServiceTests(TestCase):
     """
     Tests for ``VolumeScript._create_volume_service``.
     """
@@ -990,7 +992,7 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
         self.assertIs(expected, service)
 
 
-class VolumeScriptMainTests(SynchronousTestCase):
+class VolumeScriptMainTests(TestCase):
     """
     Tests for ``VolumeScript.main``.
     """

@@ -7,13 +7,13 @@ Tests for top-level ``flocker`` package.
 from sys import executable
 from subprocess import check_output, STDOUT
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 import flocker
+from ..testtools import TestCase
 
 
-class WarningsTests(SynchronousTestCase):
+class WarningsTests(TestCase):
     """
     Tests for warning suppression.
     """
