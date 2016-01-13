@@ -1,10 +1,10 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
+from __future__ import absolute_import
+
 """
 Various utilities to help with unit and functional testing.
 """
-
-from __future__ import absolute_import
 
 import gc
 import io
@@ -59,10 +59,9 @@ __all__ = [
     'DockerImageBuilder',
     'FakeProcessReactor',
     'FakeSysModule',
-    'FlockerScriptTestsMixin',
     'MemoryCoreReactor',
     'REALISTIC_BLOCKDEVICE_SIZE',
-    'make_standard_options_tests',
+    'make_standard_options_test',
     'TestCase',
     'assertContainsAll',
     'assertNoFDsLeaked',
