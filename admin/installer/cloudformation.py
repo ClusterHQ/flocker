@@ -191,7 +191,6 @@ user_data += [
     'node_number="{}"\n'.format("-1"),
 ]
 user_data += sibling_lines(S3_SETUP)
-# user_data += sibling_lines(DOCKER_SETUP)
 user_data += sibling_lines(CLIENT_SETUP)
 user_data += sibling_lines(SIGNAL_CONFIG_COMPLETION)
 
@@ -209,12 +208,17 @@ template.add_output([
 ])
 
 template.add_output(Output(
-    "ClientDockerConfiguration",
+    "ClientConfigDockerSwarmHost",
     Value=Join("",
-               ["Swarm DOCKER_HOST: tcp://",
-                GetAtt(control_service_instance, "PublicIp"), ":2376",
-                " TLS certificate location: /root/.docker"]),
-    Description="Client configuration to communicate with Swarm Manager."
+               ["export DOCKER_HOST=tcp://",
+                GetAtt(control_service_instance, "PublicIp"), ":2376"]),
+    Description="Client config: Swarm Manager's DOCKER_HOST setting."
+))
+
+template.add_output(Output(
+    "ClientConfigDockerTLS",
+    Value="export DOCKER_TLS_VERIFY=1",
+    Description="Client config: Enable TLS client for Swarm."
 ))
 
 base_url = "https://resources.console.aws.amazon.com/r/group#sharedgroup="
