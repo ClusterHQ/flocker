@@ -27,12 +27,13 @@ In addition to the mandatory properties shown, there are some optional propertie
    An AWS session token.
    This allows cross-account access.
    It is mainly useful for testing since session tokens only last for a short time.
+   See http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html for more information on when session tokens are required.
 
 .. option:: validate_region
 
    Boolean indicating whether to validate the supplied region.
    This defaults to True.
-   It is set to False for testing purposes.
+   It is set to False for internal testing.
 
 The Amazon AWS / EBS driver maintained by ClusterHQ provides :ref:`storage-profiles`.
 The three available profiles are:
