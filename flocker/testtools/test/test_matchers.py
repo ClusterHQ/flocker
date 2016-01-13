@@ -2,7 +2,6 @@
 
 from hypothesis import given
 from testtools.matchers import AfterPreprocessing, Equals, Is, Not, PathExists
-from twisted.python.filepath import FilePath
 
 
 from .. import TestCase
@@ -41,14 +40,14 @@ class PathExistsTests(TestCase):
         """
         If the path does not exist, path_exists does not match.
         """
-        path = FilePath(self.mktemp())
+        path = self.make_temporary_path()
         self.assertThat(path, Not(path_exists()))
 
     def test_file_exists(self):
         """
         If there is a file at path, path_exists matches.
         """
-        path = FilePath(self.mktemp())
+        path = self.make_temporary_path()
         path.setContent('foo')
         self.assertThat(path, path_exists())
 
@@ -56,12 +55,15 @@ class PathExistsTests(TestCase):
         """
         If there is a directory at path, path_exists matches.
         """
-        path = FilePath(self.mktemp())
+        path = self.make_temporary_path()
         path.makedirs()
         self.assertThat(path, path_exists())
 
     @given(paths)
     def test_equivalent_to_standard_path_exists(self, path):
+        """
+        path_exists is to FilePaths what PathExists is to normal paths.
+        """
         self.assertThat(
             path_exists().match(path),
             is_equivalent_mismatch(PathExists().match(path.path)),
