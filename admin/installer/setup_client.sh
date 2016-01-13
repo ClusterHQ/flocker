@@ -26,5 +26,5 @@ mkdir -p /etc/flocker
 s3cmd_wrapper get --recursive --config=/root/.s3cfg s3://${s3_bucket}/flocker-config/ /etc/flocker
 
 # Get certs for talking to Docker Swarm
-s3cmd get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/client-cert.pem "${DOCKER_CERT_HOME}"/client-cert.pem
-s3cmd get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/client-key.pem "${DOCKER_CERT_HOME}"/client-key.pem
+s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/client-cert.pem "${DOCKER_CERT_HOME}"/client-cert.pem
+s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/client-key.pem "${DOCKER_CERT_HOME}"/client-key.pem
