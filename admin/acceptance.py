@@ -133,10 +133,11 @@ def run_tests(reactor, cluster, trial_args):
         ['trial'] + list(trial_args),
         env=extend_environ(
             **get_trial_environment(cluster)
-        )).addCallbacks(
-            callback=lambda _: 0,
-            errback=check_result,
-            )
+        )
+    ).addCallbacks(
+        callback=lambda _: 0,
+        errback=check_result,
+    )
 
 
 class ClusterIdentity(PClass):
@@ -398,7 +399,7 @@ def _save_backend_configuration(dataset_backend_name,
     dataset_path = FilePath(mkdtemp()).child('dataset-backend.yml')
     print("Saving dataset backend config to: {}".format(dataset_path.path))
     dataset_path.setContent(yaml.safe_dump(
-            {dataset_backend_name.name: dataset_backend_configuration}))
+        {dataset_backend_name.name: dataset_backend_configuration}))
     return dataset_path
 
 
