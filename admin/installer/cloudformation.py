@@ -211,8 +211,8 @@ template.add_output([
 template.add_output(Output(
     "ClientDockerConfiguration",
     Value=Join("",
-               ["Swarm DOCKER_HOST:",
-                GetAtt(control_service_instance, "PublicIp"), ":2376,",
+               ["Swarm DOCKER_HOST: ",
+                GetAtt(control_service_instance, "PublicIp"), ":2376",
                 "TLS certificate location: /root/.docker"]),
     Description="Client configuration to communicate with Swarm Manager."
 ))
