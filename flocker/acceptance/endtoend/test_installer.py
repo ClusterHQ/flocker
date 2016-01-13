@@ -88,7 +88,7 @@ def remote_postgres(client_ip, host, command):
          '--command={}'.format(command)),
         handle_stdout=postgres_output.append
     )
-    d.addCallbacko(
+    d.addCallback(
         lambda process_result: (process_result, postgres_output)
     )
     return d
