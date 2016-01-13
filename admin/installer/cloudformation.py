@@ -188,24 +188,25 @@ wait_condition = WaitCondition(
 user_data = base_user_data[:]
 user_data += [
     'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
+    'node_number="{}"\n'.format("-1"),
 ]
 user_data += sibling_lines(S3_SETUP)
-# user_data += sibling_lines(DOCKER_SETUP)
+user_data += sibling_lines(DOCKER_SETUP)
 user_data += sibling_lines(CLIENT_SETUP)
 user_data += sibling_lines(SIGNAL_CONFIG_COMPLETION)
 
 client_instance.UserData = Base64(Join("", user_data))
 client_instance.DependsOn = control_service_instance.name
 
-# template.add_resource(client_instance)
+template.add_resource(client_instance)
 
-# template.add_output([
-#   Output(
-#       "ClientNodeIP",
-#       Description="Public IP address of the client node.",
-#       Value=GetAtt(client_instance, "PublicIp"),
-#   )
-# ])
+template.add_output([
+    Output(
+        "ClientNodeIP",
+        Description="Public IP address of the client node.",
+        Value=GetAtt(client_instance, "PublicIp"),
+    )
+])
 
 template.add_output(Output(
     "SwarmDockerHost",
