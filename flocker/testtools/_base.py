@@ -31,6 +31,7 @@ except ImportError:
     )
 
 
+from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
 
@@ -92,7 +93,12 @@ class TestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
 
     def setUp(self):
         super(TestCase, self).setUp()
+        log.msg("--> Begin: %s <--" % (self.id()))
         self.useFixture(_SplitEliotLogs())
+
+    def tearDown(self):
+        super(TestCase, self).tearDown()
+        log.msg("--> End: %s <--" % (self.id()))
 
 
 def async_runner(timeout):
@@ -143,7 +149,12 @@ class AsyncTestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
 
     def setUp(self):
         super(AsyncTestCase, self).setUp()
+        log.msg("--> Begin: %s <--" % (self.id()))
         self.useFixture(_SplitEliotLogs())
+
+    def tearDown(self):
+        super(AsyncTestCase, self).tearDown()
+        log.msg("--> End: %s <--" % (self.id()))
 
     def assertFailure(self, deferred, exception):
         """
