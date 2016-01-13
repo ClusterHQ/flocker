@@ -45,6 +45,9 @@ class RunOptions(CommonOptions):
          "Configuration to use for each application container."],
         ['purpose', None, 'testing',
          "Purpose of the cluster recorded in its metadata where possible."],
+        ['cert-directory', None, None,
+         "Directory for storing the cluster certificates. "
+         "If not specified, then a temporary directory is used."],
     ]
 
     optFlags = [
@@ -79,6 +82,24 @@ class RunOptions(CommonOptions):
                 "Purpose may have only alphanumeric symbols and dash. " +
                 "Found {!r}".format('purpose')
             )
+
+        if self['cert-directory']:
+            # The path should not exist or it should be an empty directory.
+            cert_path = FilePath(self['cert-directory'])
+            if cert_path.exists():
+                if not cert_path.isdir():
+                    raise UsageError(
+                        "{} is not a directory".format(self['cert-directory'])
+                    )
+                if cert_path.listdir():
+                    raise UsageError(
+                        "{} is not empty".format(self['cert-directory'])
+                    )
+            else:
+                cert_path.makedirs()
+
+            self['cert-directory'] = cert_path
+
         # This is run last as it creates the actual "runner" object
         # based on the provided parameters.
         super(RunOptions, self).postOptions()
