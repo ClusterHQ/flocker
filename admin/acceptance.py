@@ -1049,7 +1049,7 @@ def capture_upstart(reactor, host, output_file):
     # reach the end of the file, as we expect the logs to keep being generated
     results = []
     for (directory, service) in [
-            (b"flocker", b"flocker-control")
+            (b"flocker", b"flocker-control"),
             (b"flocker", b"flocker-dataset-agent"),
             (b"flocker", b"flocker-container-agent"),
             (b"flocker", b"flocker-docker-plugin"),
