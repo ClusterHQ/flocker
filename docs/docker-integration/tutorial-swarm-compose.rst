@@ -1,7 +1,7 @@
 .. _tutorial-swarm-compose:
 
 ===================================================
-Tutorial: using Flocker with Docker, Swarm, Compose
+Tutorial: Using Flocker with Docker, Swarm, Compose
 ===================================================
 
 This tutorial will guide you through deploying an app made up of two containers:
@@ -14,8 +14,8 @@ You will use Docker Compose to deploy the app on a Swarm cluster using Flocker a
 You will then move both containers from one node to another by changing the Swarm constraints in the Docker Compose file and re-deploying.
 The app should keep its data!
 
-You will need
-=============
+What You'll Need
+================
 
 * A Flocker cluster with Swarm installed.
 
@@ -23,16 +23,19 @@ You will need
 
 * A Client machine with Docker Compose and access to the Swarm master.
 
-  * If you used our :ref:`CloudFormation installer <cloudformation>` the "Client" VM is preconfigured with Docker Compose, so log into that:
+  * If you used our :ref:`CloudFormation installer <cloudformation>` the "Client" VM is preconfigured with Docker Compose, so ssh into that:
 
     .. prompt:: bash $
 
         ssh -i <YourKey> ubuntu@<ClientIP>
 
-    where ``<YourKey>`` is the path to the key you downloaded from AWS, and ``<ClientIP>`` is the Client IP you got from the CloudFormation Outputs tab.
-    If you used our CloudFormation installer, the rest of this tutorial assumes you are logged into the Client node.
+    ``<YourKey>`` is the path to the key you downloaded from AWS.
+   
+    ``<ClientIP>`` is the Client IP you got from the CloudFormation Outputs tab.
+	
+    If you have used our CloudFormation installer, the rest of this tutorial assumes you are logged into the Client node.
 
-  * Otherwise, `install Docker Compose <https://docs.docker.com/compose/install/>`_ on any machine which has network access to the Swarm master you created when you installed Swarm.
+  * Alternatively, `install Docker Compose <https://docs.docker.com/compose/install/>`_ on any machine which has network access to the Swarm master that you created when you installed Swarm.
 
 Step 1: Set ``DOCKER_HOST``
 ===========================
