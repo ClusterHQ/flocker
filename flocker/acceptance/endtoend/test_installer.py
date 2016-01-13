@@ -6,6 +6,7 @@ Tests for AWS CloudFormation installer.
 
 from datetime import timedelta
 import json
+from itertools import repeat
 import os
 from subprocess import check_call, check_output
 import time
@@ -103,32 +104,14 @@ def get_stack_report(stack_id):
     return results['Stacks'][0]
 
 
-def wait_for_stack_status(stack_id, target_status, time_limit=600):
-    start_time = time.time()
-    while True:
+def wait_for_stack_status(stack_id, target_status):
+    def predicate():
         stack_report = get_stack_report(stack_id)
         current_status = stack_report['StackStatus']
         if current_status == target_status:
             return stack_report
-        time_running = time.time() - start_time
-        if time_running > time_limit:
-            Message.new(
-                message='Timeout waiting for stack target status',
-                stack_id=stack_id,
-                target_status=target_status,
-                current_status=current_status,
-            ).write()
-            return False
-        else:
-            Message.new(
-                message='Waiting for stack target status',
-                stack_id=stack_id,
-                target_status=target_status,
-                current_status=current_status,
-                time_running=time_running,
-            ).write()
 
-            time.sleep(10)
+    return loop_until(reactor, predicate, repeat(1, 600))
 
 
 def create_cloudformation_stack():
@@ -146,8 +129,7 @@ def create_cloudformation_stack():
     output = json.loads(output)
     stack_id = output['StackId']
     Message.new(cloudformation_stack_id=stack_id)
-    stack_report = wait_for_stack_status(stack_id, 'CREATE_COMPLETE')
-    return stack_report
+    return wait_for_stack_status(stack_id, 'CREATE_COMPLETE')
 
 
 def delete_cloudformation_stack(stack_id):
@@ -181,18 +163,24 @@ class DockerComposeTests(AsyncTestCase):
     run_tests_with = async_runner(timeout=timedelta(minutes=20))
 
     def setUp(self):
-        stack_report = create_cloudformation_stack()
-        outputs = stack_report['Outputs']
-        self.stack_id = stack_report['StackId']
-        self.client_ip = get_output(outputs, 'ClientNodeIP')
-        self.agent_node_1 = get_output(outputs, 'AgentNode1IP')
-        self.agent_node_2 = get_output(outputs, 'AgentNode2IP')
-        self.control_node_ip = get_output(outputs, 'ControlNodeIP')
-        self.docker_host = 'tcp://' + self.control_node_ip + ':2376'
-        self.addCleanup(self._cleanup_compose)
-        self.addCleanup(self._cleanup_flocker)
-        # self.addCleanup(delete_cloudformation_stack, self.stack_id)
-        return super(DockerComposeTests, self).setUp()
+        d = maybeDeferred(super(DockerComposeTests, self).setUp)
+        d.addCallback(
+            lambda ignored: create_cloudformation_stack()
+        )
+
+        def record_stack_info(stack_report):
+            outputs = stack_report['Outputs']
+            self.stack_id = stack_report['StackId']
+            self.client_ip = get_output(outputs, 'ClientNodeIP')
+            self.agent_node_1 = get_output(outputs, 'AgentNode1IP')
+            self.agent_node_2 = get_output(outputs, 'AgentNode2IP')
+            self.control_node_ip = get_output(outputs, 'ControlNodeIP')
+            self.docker_host = 'tcp://' + self.control_node_ip + ':2376'
+            self.addCleanup(self._cleanup_compose)
+            self.addCleanup(self._cleanup_flocker)
+            self.addCleanup(delete_cloudformation_stack, self.stack_id)
+        d.addCallback(record_stack_info)
+        return d
 
     def _cleanup_flocker(self):
         local_certs_path = self.mktemp()
