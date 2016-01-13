@@ -15,4 +15,4 @@ docker run --rm -v ${DOCKER_CERT_HOME}:${DOCKER_CERT_HOME} swarm create > /tmp/s
 
 # Start the Swarm manager
 swarm_cluster_id=$(cat /tmp/swarm-config/swarm_cluster_id)
-docker run -d -v ${DOCKER_CERT_HOME}:${DOCKER_CERT_HOME} -p 2376:2375 swarm manage --tlsverify --tlscacert=${DOCKER_CERT_HOME}/ca.pem --tlskey=${DOCKER_CERT_HOME}/node-key.pem --tlscert=${DOCKER_CERT_HOME}/node-cert.pem token://$swarm_cluster_id
+docker run -d -v ${DOCKER_CERT_HOME}:${DOCKER_CERT_HOME} -p 2376:2375 swarm manage --tlsverify --tlscacert=${DOCKER_CERT_HOME}/ca.pem --tlskey=${DOCKER_CERT_HOME}/key.pem --tlscert=${DOCKER_CERT_HOME}/cert.pem token://$swarm_cluster_id
