@@ -60,21 +60,6 @@ POSTGRESQL_USERNAME = 'flocker'
 POSTGRESQL_PASSWORD = 'flocker'
 
 
-def remote_command(node, *args):
-    command_output = []
-    d = run_ssh(
-        reactor,
-        'ubuntu',
-        node,
-        args,
-        handle_stdout=command_output.append
-    )
-    d.addCallback(
-        lambda process_result: (process_result, command_output)
-    )
-    return d
-
-
 def remote_docker_compose(client_ip, docker_host, compose_file_path, *args):
     docker_compose_output = []
     d = run_ssh(
