@@ -259,6 +259,7 @@ class GenericDockerClientTests(AsyncTestCase):
         'which requires Docker-1.6.0 or newer. '
         'See https://docs.docker.com/registry/deploying/ for details.'
     )
+    @flaky(u"FLOC-3843")
     def test_private_registry_image(self):
         """
         ``DockerClient.add`` can start containers based on an image from a
