@@ -94,56 +94,6 @@ def remote_postgres(client_ip, host, command):
     return d
 
 
-def cleanup(test_case, local_certs_path):
-    certificates_path = FilePath(local_certs_path)
-    cluster_cert = certificates_path.child(b"cluster.crt")
-    user_cert = certificates_path.child(b"user1.crt")
-    user_key = certificates_path.child(b"user1.key")
-    user_credential = UserCredential.from_files(user_cert, user_key)
-    cluster = Cluster(
-        control_node=ControlService(
-            public_address=test_case.control_node_ip.encode("ascii")),
-        nodes=[],
-        treq=treq_with_authentication(
-            reactor, cluster_cert, user_cert, user_key),
-        client=FlockerClient(
-            reactor, test_case.control_node_ip.encode("ascii"),
-            REST_API_PORT, cluster_cert, user_cert, user_key
-        ),
-        certificates_path=certificates_path,
-        cluster_uuid=user_credential.cluster_uuid,
-    )
-    d_node1_compose = remote_docker_compose(test_case.client_ip,
-                                            test_case.docker_host,
-                                            COMPOSE_NODE0, 'stop')
-    d_node1_compose.addCallback(
-        lambda ignored: remote_docker_compose(
-            test_case.client_ip,
-            test_case.docker_host,
-            COMPOSE_NODE0, 'rm', '-f'
-        )
-    )
-
-    d_node2_compose = remote_docker_compose(
-        test_case.client_ip, test_case.docker_host, COMPOSE_NODE1, 'stop')
-    d_node2_compose.addCallback(
-        lambda ignored: remote_docker_compose(
-            test_case.client_ip, test_case.docker_host, COMPOSE_NODE1,
-            'rm', '-f')
-    )
-
-    d = gather_deferreds([d_node1_compose, d_node2_compose])
-    d.addCallback(
-        lambda ignored: cluster.clean_nodes()
-    )
-
-    d.addCallback(
-        lambda ignored: delete_cloudformation_stack(test_case.stack_id)
-    )
-
-    return d
-
-
 def get_stack_report(stack_id):
     output = check_output(
         ['aws', '--region', REGION, 'cloudformation', 'describe-stacks',
@@ -239,15 +189,62 @@ class DockerComposeTests(AsyncTestCase):
         self.agent_node_2 = get_output(outputs, 'AgentNode2IP')
         self.control_node_ip = get_output(outputs, 'ControlNodeIP')
         self.docker_host = 'tcp://' + self.control_node_ip + ':2376'
+        self.addCleanup(self._cleanup_compose)
+        self.addCleanup(self._cleanup_flocker)
+        # self.addCleanup(delete_cloudformation_stack, self.stack_id)
+        return super(DockerComposeTests, self).setUp()
+
+    def _cleanup_flocker(self):
         local_certs_path = self.mktemp()
         check_call(
             ['scp', '-o', 'StrictHostKeyChecking no', '-r',
              'ubuntu@{}:/etc/flocker'.format(self.client_ip),
              local_certs_path]
         )
-        # self.addCleanup(cleanup, self, local_certs_path)
-        d = maybeDeferred(super(DockerComposeTests, self).setUp)
-        return d
+        certificates_path = FilePath(local_certs_path)
+        cluster_cert = certificates_path.child(b"cluster.crt")
+        user_cert = certificates_path.child(b"user1.crt")
+        user_key = certificates_path.child(b"user1.key")
+        user_credential = UserCredential.from_files(user_cert, user_key)
+        cluster = Cluster(
+            control_node=ControlService(
+                public_address=self.control_node_ip.encode("ascii")),
+            nodes=[],
+            treq=treq_with_authentication(
+                reactor, cluster_cert, user_cert, user_key),
+            client=FlockerClient(
+                reactor, self.control_node_ip.encode("ascii"),
+                REST_API_PORT, cluster_cert, user_cert, user_key
+            ),
+            certificates_path=certificates_path,
+            cluster_uuid=user_credential.cluster_uuid,
+        )
+        cluster.clean_nodes()
+
+    def _cleanup_compose(self):
+        d_node1_compose = remote_docker_compose(
+            self.client_ip,
+            self.docker_host,
+            COMPOSE_NODE0, 'stop'
+        )
+        d_node1_compose.addCallback(
+            lambda ignored: remote_docker_compose(
+                self.client_ip,
+                self.docker_host,
+                COMPOSE_NODE0, 'rm', '-f'
+            )
+        )
+
+        d_node2_compose = remote_docker_compose(
+            self.client_ip, self.docker_host, COMPOSE_NODE1, 'stop'
+        )
+        d_node2_compose.addCallback(
+            lambda ignored: remote_docker_compose(
+                self.client_ip, self.docker_host, COMPOSE_NODE1,
+                'rm', '-f'
+            )
+        )
+        return gather_deferreds([d_node1_compose, d_node2_compose])
 
     def test_docker_compose_up_postgres(self):
         """
