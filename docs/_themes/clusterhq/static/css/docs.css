@@ -416,13 +416,12 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu {
-    background-color: #646570;
 }
 
 .contents-menu>ul {
     list-style: none;
     padding: 0;
-    font-size: 1.4em;
+    font-size: 1.2em;
     font-family: lato;
     color: #FFFFFF;
     width: 100%;
@@ -430,11 +429,11 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 
 .contents-menu>ul  a {
     text-decoration: none;
-    color: #ffffff;
+    color: #999;
 }
 
 .contents-menu>ul  a:hover {
-    color: #9ac4c4;
+    color: #bbb;
 }
 
 .contents-menu>ul li{
@@ -442,9 +441,8 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu>ul>li {
-    border-top: solid #a2dad7 1px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: 5px;
+    padding-bottom: 5px;
 }
 
 .contents-menu>ul>li:first-child {
@@ -452,11 +450,11 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu>ul>li>ul>li {
-    font-size: 0.7em;
+    font-size: 0.8em;
 }
 
 .contents-menu>ul  ul>li:first-child {
-    padding-top: 15px;
+    padding-top: 10px;
 }
 
 .contents-menu>ul  ul>li {
@@ -464,7 +462,7 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu>ul .current>a {
-    color: #9ac4c4;
+    color: #444;
 }
 
 .contents-menu>ul ul:not(.current){
@@ -664,8 +662,6 @@ a.download:before {
 @media all and (min-width: 768px) {
     /* sm */
     body {
-        background: linear-gradient(to right, #646570, #646570 35%, white 35%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
-        background-size: 1170px, 100%;
     }
     
     .menubar {
@@ -736,8 +732,6 @@ a.download:before {
 @media all and (min-width: 992px) {
     /* md */
     body {
-        background: linear-gradient(to right, #646570, #646570 30%, white 30%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
-        background-size: 1170px, 100%;
     }
     
     .menubar {
@@ -762,8 +756,6 @@ a.download:before {
 @media all and (min-width: 1200px) {
     /* lg */
     body {
-        background: linear-gradient(to right, #646570, #646570 25%, white 25%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
-        background-size: 1170px, 100%;
     }
 
     .menu ul.menu li {
