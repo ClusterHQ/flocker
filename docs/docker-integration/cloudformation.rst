@@ -38,7 +38,7 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 			<span> </span> 
 		</div>
 		<div class="step-stages__step">
-			<img src="/_images/tutorial-swarm-compose/01-keys-menu.png" alt="AWS keys"/>
+			<img src="/_images/01-keys-menu.png" alt="AWS keys"/>
 			<span>The AWS Key Pair uses public-key cryptography to provide secure login to your AWS cluster.</span>
 		</div>
 		<div class="step-stages__step">
