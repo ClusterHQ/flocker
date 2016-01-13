@@ -397,13 +397,18 @@ h1, h2, h3, h4, h5 {
 	font-family:'Soho Gothic W01 Regular';
 }
 
-.page h2, .page h3 {
+.page h2 {
 	font-size: 20px;
 	margin-top: 1.2em;
 }
 
+.page h3 {
+	font-size: 16px;
+	margin-top: 1.2em;
+}
+
 .page h4, .page h5, .page h6 {
-	font-size: 18px;
+	font-size: 14px;
 	margin-top: 1.8em;
 }
 

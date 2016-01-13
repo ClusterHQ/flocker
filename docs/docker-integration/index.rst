@@ -37,14 +37,16 @@ Follow a Tutorial
 
 .. raw:: html
 
-    <div class="pods-solo">
-	    <div class="pod-boxout pod-boxout--tutorial">
+    <div class="pods-eq">
+	    <div class="pod-boxout pod-boxout--2up pod-boxout--tutorial">
 		   <span>Tutorial: using Flocker with Docker Swarm and Compose</span>
 		    <a href="tutorial-swarm-compose.html" class="button">Follow Tutorial</a>
 	    </div>
     </div>
 
-Other tutorials can be found on our blog.
+Other tutorials
+---------------
+
 * TODO: link to other tutorials on our blog
 
 .. toctree::
