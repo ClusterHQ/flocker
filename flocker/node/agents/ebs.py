@@ -43,7 +43,7 @@ from .blockdevice import (
     MandatoryProfiles, ICloudAPI,
 )
 
-from ..script import StorageInitializationError
+from ..exceptions import StorageInitializationError
 
 from ...control import pmap_field
 
