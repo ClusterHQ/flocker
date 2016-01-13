@@ -4,7 +4,7 @@
 Manually Installing Flocker with Kubernetes
 ===========================================
 
-#. Follow the :ref:`full-installation-with-kubernetes` steps, to install Flocker.
+#. Follow the :ref:`full-installation-with-kubernetes` steps.
 #. Follow the :ref:`post-installation-configuration-with-kubernetes` steps, to configure authentication and your chosen backend.
    These steps also include the enablement of the control service and the agent services. 
 #. Install :ref:`Kubernetes <manually-install-kubernetes>`.
