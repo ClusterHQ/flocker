@@ -11,6 +11,7 @@ import time
 import socket
 
 from eliot.testing import capture_logging, assertHasMessage
+from eliot import Message
 
 from requests.exceptions import ReadTimeout
 from docker.errors import APIError
@@ -277,7 +278,7 @@ class GenericDockerClientTests(AsyncTestCase):
         as long as it's running on the local host.
         """
         registry_listening = self.run_registry()
-
+        import pdb;pdb.set_trace()
         def tag_and_push_image(registry):
             client = dockerpy_client()
             image_name = ANY_IMAGE
