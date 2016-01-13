@@ -16,13 +16,13 @@ s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-t
 s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/passphrase.txt "${DOCKER_CERT_HOME}"/passphrase.txt
 PASSPHRASE=`eval cat ${DOCKER_CERT_HOME}/passphrase.txt`
 
-pushd ${DOCKER_CERT_HOME}
 # Create node key and CSR.
+pushd ${DOCKER_CERT_HOME}
 openssl genrsa -out node-key.pem 4096
 openssl req -subj "/CN=$(/usr/bin/ec2metadata --public-ipv4)" -sha256 -new -key ${DOCKER_CERT_HOME}/node-key.pem -out ${DOCKER_CERT_HOME}/node.csr
 
 # Sign node public key with CA.
-echo subjectAltName = IP:$(/usr/bin/ec2metadata --local-ipv4),IP:$(/usr/bin/ec2metadata --public-ipv4),IP:127.0.0.1 > ${DOCKER_CERT_HOME}/extfile.cnf
+echo subjectAltName = IP:$(/usr/bin/ec2metadata --public-ipv4),IP:127.0.0.1 > ${DOCKER_CERT_HOME}/extfile.cnf
 echo extendedKeyUsage = clientAuth,serverAuth >> ${DOCKER_CERT_HOME}/extfile.cnf
 cat > ${DOCKER_CERT_HOME}/createnode.exp << EOF
 #!/usr/bin/expect -f
@@ -48,6 +48,9 @@ EOF
 
 # Remove the docker machine ID (this is a cloned AMI)
 rm -f /etc/docker/key.json
+
 # Restart which will stop any existing containers.
 service docker restart
+
+# Wait for a bit because docker is not ready to handle requests immediately.
 sleep 10

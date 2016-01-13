@@ -11,7 +11,7 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
-NUM_NODES = 2
+NUM_NODES = 3
 AGENT_NODE_NAME_TEMPLATE = u"AgentNode{index}"
 CONTROL_NODE_NAME = u"ControlNode"
 CLIENT_NODE_NAME = u"ClientNode"
@@ -126,7 +126,7 @@ for i in range(NUM_NODES):
         Handle=Ref(wait_condition_handle),
         Timeout="600",
     )
-    # template.add_resource(wait_condition)
+    template.add_resource(wait_condition)
 
     user_data = base_user_data[:]
     user_data += [
@@ -183,7 +183,7 @@ wait_condition = WaitCondition(
     Handle=Ref(wait_condition_handle),
     Timeout="600",
 )
-# template.add_resource(wait_condition)
+template.add_resource(wait_condition)
 
 user_data = base_user_data[:]
 user_data += [

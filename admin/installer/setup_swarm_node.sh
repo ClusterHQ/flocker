@@ -11,4 +11,4 @@ swarm_cluster_id=$(s3cmd_wrapper get --config=/root/.s3cfg s3://${s3_bucket}/swa
 
 # Start the Swarm node.
 docker pull swarm:1.0.1
-docker run -d -v ${DOCKER_CERT_HOME}:${DOCKER_CERT_HOME} swarm join --addr=$(/usr/bin/ec2metadata --local-ipv4):2375 token://$swarm_cluster_id
+docker run -d -v ${DOCKER_CERT_HOME}:${DOCKER_CERT_HOME} swarm join --addr=$(/usr/bin/ec2metadata --public-ipv4):2375 token://$swarm_cluster_id
