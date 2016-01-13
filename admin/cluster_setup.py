@@ -39,12 +39,12 @@ class RunOptions(CommonOptions):
     description = "Set up a Flocker cluster."
 
     optParameters = [
-        ['apps-per-node', None, 0, 'Number of application containers per node',
-         int],
+        ['apps-per-node', None, 0,
+         "Number of application containers per node.", int],
         ['app-template', None, None,
-         'Configuration to use for each application container'],
+         "Configuration to use for each application container."],
         ['purpose', None, 'testing',
-         "Purpose of the cluster recorded in its metadata where possible"],
+         "Purpose of the cluster recorded in its metadata where possible."],
     ]
 
     optFlags = [
