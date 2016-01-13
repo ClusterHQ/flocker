@@ -14,16 +14,19 @@ from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
 from twisted.python.constants import Names, NamedConstant
 
-from .. import IStateChange
+from .. import IStateChange, IDeployer
 
 # XXX infrastructure that should probably be in shared module, not in
 # blockdevice:
 from .blockdevice import (
-    IDatasetStateChangeFactory, PollUntilAttached,
+    IDatasetStateChangeFactory,
     TransitionTable, DoNothing, BlockDeviceCalculator,
 )
 
 from ...common.algebraic import TaggedUnionInvariant
+from ...control import (
+    Dataset, Manifestation, NodeState, NonManifestDatasets, ILocalState,
+)
 
 
 class RemoteFilesystem(PClass):
@@ -32,11 +35,24 @@ class RemoteFilesystem(PClass):
     elsewhere or not... so omit that information.
     """
     dataset_id = field(type=UUID)
-    # If None, not mounted locally:
-    mount_point = field(type=(None.__class__, FilePath))
+    # If None, not mounted locally (though might be mounted remotely):
+    local_mount_point = field(type=(None.__class__, FilePath))
 
 
 class IRemoteFilesystemAPI(Interface):
+    """
+    Some assumptions:
+
+    1. In the general case the remote filesystem server will not be able to
+       know what volumes are attached where. So we basically have to have all
+       nodes doing discovery of state as pertains themselves and others.
+
+    2. Mount/unmount can only be run locally.
+
+    3. Local mount points can only really be easily known by the backend
+       implementation. Otherwise we have to do some quite difficult or
+       perhaps impossible attempt to parse e.g. the output of ``mount``.
+    """
     def list():
         """
         :return: List of ``RemoteFilesystem``.
@@ -207,20 +223,17 @@ Desired = Discovered = DatasetStates
 DATASET_TRANSITIONS = TransitionTable.create({
     Desired.MOUNTED: {
         Discovered.NON_EXISTENT: Create,
-        Discovered.ATTACHED_ELSEWHERE: PollUntilAttached,
-        Discovered.NON_MANIFEST: Mount,
+        Discovered.NOT_MOUNTED: Mount,
         Discovered.MOUNTED: DoNothing,
     },
-    Desired.NON_MANIFEST: {
+    Desired.NOT_MOUNTED: {
         Discovered.NON_EXISTENT: Create,
-        Discovered.ATTACHED_ELSEWHERE: DoNothing,
-        Discovered.NON_MANIFEST: DoNothing,
+        Discovered.NOT_MOUNTED: DoNothing,
         Discovered.MOUNTED: Unmount,
     },
     Desired.DELETED: {
         Discovered.NON_EXISTENT: DoNothing,
-        Discovered.ATTACHED_ELSEWHERE: DoNothing,
-        Discovered.NON_MANIFEST: Destroy,
+        Discovered.NOT_MOUNTED: Destroy,
         Discovered.MOUNTED: Unmount,
     },
 })
@@ -229,3 +242,143 @@ del Desired, Discovered
 # Nothing particularly BlockDevice-specific about the class:
 CALCULATOR = BlockDeviceCalculator(
     transitions=DATASET_TRANSITIONS, dataset_states=DatasetStates)
+
+
+@implementer(ILocalState)
+class LocalState(PClass):
+    hostname = field(type=unicode, mandatory=True)
+    node_uuid = field(type=UUID, mandatory=True)
+    datasets = pmap_field(UUID, DiscoveredDataset)
+
+    def shared_state_changes(self):
+        """
+        Returns the NodeState and the NonManifestDatasets of the local state.
+        These are the only parts of the state that need to be sent to the
+        control service.
+        """
+        # XXX The structure of the shared state changes reflects the model
+        # currently used by the control service. However, that model doesn't
+        # seem to actually match what any consumer wants.
+        manifestations = {}
+        paths = {}
+        nonmanifest_datasets = {}
+
+        for dataset in self.datasets.values():
+            dataset_id = dataset.dataset_id
+            if dataset.state == DatasetStates.MOUNTED:
+                manifestations[unicode(dataset_id)] = Manifestation(
+                    dataset=Dataset(
+                        dataset_id=dataset_id,
+                        maximum_size=None,
+                    ),
+                    primary=True,
+                )
+                paths[unicode(dataset_id)] = dataset.mount_point
+            elif dataset.state == DatasetStates.NOT_MOUNTED:
+                # XXX this is a problem; if it's mounted somewhere else
+                # we'll stomp on each other...
+                nonmanifest_datasets[unicode(dataset_id)] = Dataset(
+                    dataset_id=dataset_id,
+                    maximum_size=None,
+                )
+
+        return (
+            NodeState(
+                uuid=self.node_uuid,
+                hostname=self.hostname,
+                manifestations=manifestations,
+                paths=paths,
+                devices={},
+                applications=None,
+            ),
+            NonManifestDatasets(
+                datasets=nonmanifest_datasets
+            ),
+        )
+
+
+@implementer(IDeployer)
+class RemoteFilesystemDeployer(PClass):
+    """
+    A lot of code can probably be shared with BlockDeviceDeployer.
+    """
+    hostname = field(type=unicode, mandatory=True)
+    node_uuid = field(type=UUID, mandatory=True)
+    api = field(mandatory=True)
+    mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
+
+    def discover_state(self, node_state):
+        datasets = {}
+
+        for remotefs in self.api.list():
+            if remotefs.local_mount_point is None:
+                datasets[remotefs.dataset_id] = DiscoveredDataset(
+                    state=DatasetStates.NOT_MOUNTED)
+            else:
+                datasets[remotefs.dataset_id] = DiscoveredDataset(
+                    state=DatasetStates.MOUNTED,
+                    mount_point=remotefs.local_mount_point)
+
+        local_state = LocalState(
+            node_uuid=self.node_uuid,
+            hostname=self.hostname,
+            datasets=datasets,
+        )
+
+        return succeed(local_state)
+
+    def _calculate_desired_for_manifestation(self, manifestation):
+        """
+        Get the ``DesiredDataset`` corresponding to a given manifestation.
+
+        :param Manifestation manifestation: The
+
+        :return: The ``DesiredDataset`` corresponding to the given
+            manifestation.
+        """
+        dataset_id = UUID(manifestation.dataset.dataset_id)
+        if manifestation.dataset.deleted:
+            return DesiredDataset(
+                state=DatasetStates.DELETED,
+                dataset_id=dataset_id,
+            )
+        else:
+            return DesiredDataset(
+                state=DatasetStates.MOUNTED,
+                dataset_id=dataset_id,
+                metadata=manifestation.dataset.metadata,
+                mount_point=self._mountpath_for_dataset_id(
+                    unicode(dataset_id)
+                ),
+            )
+
+    def _calculate_desired_state(
+        self, configuration, local_applications, local_datasets
+    ):
+        # XXX not bothering with NotInUse filtering
+        this_node_config = configuration.get_node(
+            self.node_uuid, hostname=self.hostname)
+
+        return {
+            UUID(manifestation.dataset.dataset_id):
+            self._calculate_desired_for_manifestation(
+                manifestation
+            )
+            for manifestation in this_node_config.manifestations.values()
+        }
+
+    def calculate_changes(self, configuration, cluster_state, local_state):
+        # XXX duplicates BlockDeviceDeployer.calculate_changes
+        local_node_state = cluster_state.get_node(self.node_uuid,
+                                                  hostname=self.hostname)
+
+        desired_datasets = self._calculate_desired_state(
+            configuration=configuration,
+            local_applications=local_node_state.applications,
+            local_datasets=local_state.datasets,
+        )
+
+        return self.calculator.calculate_changes_for_datasets(
+            discovered_datasets=local_state.datasets,
+            desired_datasets=desired_datasets,
+        )
