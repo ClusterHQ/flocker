@@ -209,10 +209,12 @@ template.add_output([
 ])
 
 template.add_output(Output(
-    "SwarmDockerHost",
-    Value=Join("", ["export DOCKER_HOST=",
-               GetAtt(control_service_instance, "PublicIp"), ":2376"]),
-    Description="DOCKER_HOST setting to talk to Swarm Manager."
+    "ClientDockerConfiguration",
+    Value=Join("",
+               ["Swarm DOCKER_HOST:",
+                GetAtt(control_service_instance, "PublicIp"), ":2376,",
+                "TLS certificate location: /root/.docker"]),
+    Description="Client configuration to communicate with Swarm Manager."
 ))
 
 base_url = "https://resources.console.aws.amazon.com/r/group#sharedgroup="
