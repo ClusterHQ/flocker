@@ -278,7 +278,7 @@ class GenericDockerClientTests(AsyncTestCase):
         as long as it's running on the local host.
         """
         registry_listening = self.run_registry()
-        import pdb;pdb.set_trace()
+        #import pdb;pdb.set_trace()
         def tag_and_push_image(registry):
             client = dockerpy_client()
             image_name = ANY_IMAGE
