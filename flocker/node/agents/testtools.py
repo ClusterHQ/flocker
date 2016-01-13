@@ -5,6 +5,7 @@ Test helpers for ``flocker.node.agents``.
 """
 
 from characteristic import attributes
+from fixtures import MethodFixture
 from pyrsistent import PClass, field
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
@@ -98,18 +99,17 @@ def make_inovavolumemanager_tests(client_factory):
     return Tests
 
 
-def blockdevice_manager_for_test(test_case):
+def blockdevice_manager_fixture():
     """
     Creates a blockdevice_manager that cleans itself up during test cleanup.
 
     Cleanup is defined as unmounting all bind mounts, tmpfs mounts, and
     blockdevice mounts.
 
-    :param test_case: The :class:`TestCase` to use to add cleanup callbacks.
+    :returns: A Fixture with a .obj attribute that is a blockdevice_manager.
     """
     manager = CleanupBlockDeviceManager(BlockDeviceManager())
-    test_case.addCleanup(manager.cleanup)
-    return manager
+    return MethodFixture(manager, None, manager.cleanup)
 
 
 @attributes(["error"])
@@ -244,7 +244,8 @@ def create_tmpfs_shadow_mount_for_test(test_case):
     )
     test_case.addCleanup(result.backing_directory.remove)
     test_case.addCleanup(result.read_only_directory.remove)
-    blockdevice_manager = blockdevice_manager_for_test(test_case)
+    blockdevice_manager = test_case.useFixture(
+        blockdevice_manager_fixture()).obj
     create_tmpfs_shadow_mount(result.backing_directory,
                               result.read_only_directory,
                               blockdevice_manager)

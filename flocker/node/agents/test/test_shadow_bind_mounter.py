@@ -6,7 +6,7 @@ from twisted.python.filepath import FilePath
 
 from ....testtools import TestCase, ProcessError
 from ...testtools import if_docker_configured
-from ..testtools import blockdevice_manager_for_test, write_as_docker
+from ..testtools import blockdevice_manager_fixture, write_as_docker
 
 from ..shadow_bind_mounter import create_tmpfs_shadow_mount
 
@@ -18,7 +18,8 @@ class CreateShadowMountTests(TestCase):
 
     def setUp(self):
         super(CreateShadowMountTests, self).setUp()
-        self._blockdevice_manager = blockdevice_manager_for_test(self)
+        self._blockdevice_manager = self.useFixture(
+            blockdevice_manager_fixture(self)).obj
 
     def _make_dir(self):
         """
