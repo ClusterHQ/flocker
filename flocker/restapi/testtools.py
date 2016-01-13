@@ -6,21 +6,25 @@ Public utilities for testing code that uses the REST API.
 
 from io import BytesIO
 from json import dumps, loads as _loads
+import os.path
 from itertools import count
 
 from jsonschema.exceptions import ValidationError
 
 from zope.interface import implementer
 
+from klein.app import KleinRequest
+from klein.interfaces import IKleinRequest
+
+from twisted.python.components import registerAdapter
 from twisted.python.log import err
 from twisted.web.iweb import IAgent, IResponse
 from twisted.internet.endpoints import TCP4ClientEndpoint, UNIXClientEndpoint
 from twisted.internet import defer
 from twisted.web.client import ProxyAgent, readBody, FileBodyProducer
-from twisted.web.server import NOT_DONE_YET, Site
+from twisted.web.server import NOT_DONE_YET, Site, Request
 from twisted.web.resource import getChildForRequest
-from twisted.trial.unittest import SynchronousTestCase, TestCase
-from twisted.web.http import urlparse, unquote
+from twisted.web.http import HTTPChannel, urlparse, unquote
 from twisted.internet.address import IPv4Address
 from twisted.test.proto_helpers import StringTransport
 from twisted.web.client import ResponseDone
@@ -32,6 +36,7 @@ from twisted.web.http_headers import Headers
 from pyrsistent import pmap
 
 from flocker.restapi._schema import getValidator
+from ..testtools import AsyncTestCase, TestCase
 
 
 __all__ = ["buildIntegrationTests", "dumps",
@@ -161,20 +166,20 @@ def extractSuccessfulJSONResult(response):
 
 def buildIntegrationTests(mixinClass, name, fixture):
     """
-    Build L{TestCase} classes that runs the tests in the mixin class with both
-    real and in-memory queries.
+    Build L{AsyncTestCase} classes that runs the tests in the mixin class with
+    both real and in-memory queries.
 
-    @param mixinClass: A mixin class for L{TestCase} that relies on having a
-        C{self.scenario}.
+    @param mixinClass: A mixin class for L{AsyncTestCase} that relies on having
+        a C{self.scenario}.
 
     @param name: A C{str}, the name of the test category.
 
-    :param fixture: A callable that takes a ``TestCase`` and returns a
+    :param fixture: A callable that takes an ``AsyncTestCase`` and returns a
         ``klein.Klein`` object.
 
-    @return: A pair of L{TestCase} classes.
+    @return: A pair of L{AsyncTestCase} classes.
     """
-    class RealTests(mixinClass, TestCase):
+    class RealTests(mixinClass, AsyncTestCase):
         """
         Tests that endpoints are available over the network interfaces that
         real API users will be connecting from.
@@ -195,7 +200,7 @@ def buildIntegrationTests(mixinClass, name, fixture):
             )
             super(RealTests, self).setUp()
 
-    class MemoryTests(mixinClass, TestCase):
+    class MemoryTests(mixinClass, AsyncTestCase):
         """
         Tests that endpoints are available in the appropriate place, without
         testing that the correct network interfaces are listened on.
@@ -214,26 +219,31 @@ def buildIntegrationTests(mixinClass, name, fixture):
 
 def build_UNIX_integration_tests(mixin_class, name, fixture):
     """
-    Build ``TestCase`` class that runs the tests in the mixin class with
+    Build ``AsyncTestCase`` class that runs the tests in the mixin class with
     real queries over a UNIX socket.
 
-    :param mixin_class: A mixin class for ``TestCase`` that relies on having a
-        ``self.scenario``.
+    :param mixin_class: A mixin class for ``AsyncTestCase`` that relies on
+        having a ``self.scenario``.
 
     :param name: A ``str``, the name of the test category.
 
-    :param fixture: A callable that takes a ``TestCase`` and returns a
+    :param fixture: A callable that takes a ``AsyncTestCase`` and returns a
         ``klein.Klein`` object.
 
-    :return: A L``TestCase`` class.
+    :return: A L``AsyncTestCase`` class.
     """
-    class RealTests(mixin_class, TestCase):
+    class RealTests(mixin_class, AsyncTestCase):
         """
         Tests that endpoints are available over the network interfaces that
         real API users will be connecting from.
         """
         def setUp(self):
-            path = self.mktemp()
+            # We use relpath as you can't bind to a path longer than 107
+            # chars. You can easily get an absolute path that long
+            # from mktemp, but rather strangely bind doesn't care
+            # how long the abspath is, so we call relpath here and
+            # it should work as long as our method names aren't too long
+            path = os.path.relpath(self.mktemp())
             self.app = fixture(self)
             self.port = reactor.listenUNIX(
                 path, Site(self.app.resource()),
@@ -246,11 +256,8 @@ def build_UNIX_integration_tests(mixin_class, name, fixture):
     RealTests.__module__ = mixin_class.__module__
     return RealTests
 
-
 # Fakes for testing Twisted Web servers.  Unverified.  Belongs in Twisted.
 # https://twistedmatrix.com/trac/ticket/3274
-from twisted.web.server import Request
-from twisted.web.http import HTTPChannel
 
 
 class EventChannel(object):
@@ -561,9 +568,6 @@ def render(resource, request):
 # exercise Klein-based code without trying to use the real request type.
 #
 # See https://github.com/twisted/klein/issues/31
-from twisted.python.components import registerAdapter
-from klein.app import KleinRequest
-from klein.interfaces import IKleinRequest
 registerAdapter(KleinRequest, _DummyRequest, IKleinRequest)
 
 
@@ -579,7 +583,7 @@ def build_schema_test(name, schema, schema_store,
     :param list failing_instances: Instances which should fail validation.
     :param list passing_instances: Instances which should pass validation.
 
-    :returns: The test case; a ``SynchronousTestCase`` subclass.
+    :returns: The test case; a ``TestCase`` subclass.
     """
     body = {
         'schema': schema,
@@ -601,7 +605,7 @@ def build_schema_test(name, schema, schema_store,
         test.__name__ = 'test_passes_validation_%d' % (i,)
         body[test.__name__] = test
 
-    return type(name, (SynchronousTestCase, object), body)
+    return type(name, (TestCase, object), body)
 
 
 class APIAssertionsMixin(object):

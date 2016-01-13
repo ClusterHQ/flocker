@@ -3,14 +3,14 @@
 Wallclock metric tests for the control service benchmarks.
 """
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.task import Clock
 from twisted.internet.defer import maybeDeferred
 
 from benchmark.metrics import WallClock
+from flocker.testtools import TestCase
 
 
-class WallClockTests(SynchronousTestCase):
+class WallClockTests(TestCase):
 
     def test_wallclock(self):
         """

@@ -8,9 +8,9 @@ from zope.interface.verify import verifyClass
 
 from twisted.internet.task import Clock
 from twisted.internet.threads import deferToThread
-from twisted.trial.unittest import SynchronousTestCase, TestCase
 
-from flocker.apiclient._client import FakeFlockerClient, Node
+from flocker.apiclient import FakeFlockerClient, Node
+from flocker.testtools import TestCase, AsyncTestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IMetric
@@ -18,22 +18,17 @@ from benchmark.metrics.cputime import (
     WALLCLOCK_LABEL, CPUTime, CPUParser, get_node_cpu_times, compute_change,
 )
 
+# Process 1 (usually `init`, `systemd`, or `launchd`) provides a process
+# name that is always present.
+_standard_process = subprocess.check_output(
+    ['ps', '-p', '1', '-o', 'comm=']
+).strip()
 
-# A process name that is expected to always be present on a distribution
-_always_present = {
-    'centos': 'systemd',
-    'Ubuntu': 'init',
-}
-_distribution = platform.linux_distribution(full_distribution_name=False)[0]
-_standard_process = _always_present.get(_distribution)
-
+# The command used to check cputimes only works on Linux
 on_linux = skipIf(platform.system() != 'Linux', 'Requires Linux')
 
-supported_linux = skipIf(
-    _standard_process is None, 'Requires supported version of Linux')
 
-
-class CPUParseTests(SynchronousTestCase):
+class CPUParseTests(TestCase):
     """
     Test parsing of CPU time command.
     """
@@ -73,18 +68,24 @@ class CPUParseTests(SynchronousTestCase):
         Line that doesn't fit expected pattern raises exception.
         """
         parser = CPUParser(Clock())
-        with self.assertRaises(ValueError) as e:
-            parser.lineReceived('Unexpected Error Message')
-        self.assertEqual(e.exception.args[-1], 'Unexpected Error Message')
+        exception = self.assertRaises(
+            ValueError,
+            parser.lineReceived,
+            'Unexpected Error Message'
+        )
+        self.assertEqual(exception.args[-1], 'Unexpected Error Message')
 
     def test_unexpected_parse(self):
         """
         Line that has incorrectly formatted time raises exception.
         """
         parser = CPUParser(Clock())
-        with self.assertRaises(ValueError) as e:
-            parser.lineReceived('proc 20:34')
-        self.assertEqual(e.exception.args[-1], 'proc 20:34')
+        exception = self.assertRaises(
+            ValueError,
+            parser.lineReceived,
+            'proc 20:34'
+        )
+        self.assertEqual(exception.args[-1], 'proc 20:34')
 
 
 class _LocalRunner(object):
@@ -102,12 +103,12 @@ class _LocalRunner(object):
         return deferToThread(self._run, command_args, handle_stdout)
 
 
-class GetNodeCPUTimeTests(TestCase):
+class GetNodeCPUTimeTests(AsyncTestCase):
     """
     Test ``get_node_cpu_times`` command.
     """
 
-    @supported_linux
+    @on_linux
     def test_get_node_cpu_times(self):
         """
         Success results in output of dictionary containing process names.
@@ -145,7 +146,7 @@ class GetNodeCPUTimeTests(TestCase):
         return d
 
 
-class ComputeChangesTests(SynchronousTestCase):
+class ComputeChangesTests(TestCase):
     """
     Test computation of CPU time change between two measurements.
     """
@@ -184,7 +185,7 @@ class ComputeChangesTests(SynchronousTestCase):
         self.assertNotIn('bar', result['node1'])
 
 
-class CPUTimeTests(TestCase):
+class CPUTimeTests(AsyncTestCase):
     """
     Test top-level CPU time metric.
     """
@@ -195,7 +196,7 @@ class CPUTimeTests(TestCase):
         """
         verifyClass(IMetric, CPUTime)
 
-    @supported_linux
+    @on_linux
     def test_cpu_time(self):
         """
         Fake Flocker cluster gives expected results.

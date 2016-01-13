@@ -10,10 +10,13 @@ import tempfile
 from ipaddr import IPAddress
 from jsonschema.exceptions import ValidationError
 
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.filepath import FilePath
+
+from flocker.testtools import TestCase
 
 from benchmark.script import (
-    BenchmarkOptions, get_cluster, validate_configuration, get_config_by_name
+    BenchmarkOptions, get_cluster, validate_configuration, get_config_by_name,
+    parse_userdata, main
 )
 
 
@@ -25,9 +28,11 @@ def capture_stderr():
     Call the returned context variable to obtain captured output.
     """
     s = StringIO()
-    out, sys.stderr = sys.stderr, s
-    yield s.getvalue
-    sys.stderr = out
+    saved, sys.stderr = sys.stderr, s
+    try:
+        yield s.getvalue
+    finally:
+        sys.stderr = saved
 
 # Addresses must be different, to check that environment is not used
 # during YAML tests.
@@ -41,12 +46,13 @@ agent_nodes: []
 ''' % _YAML_CONTROL_SERVICE_ADDRESS
 
 
-class ClusterConfigurationTests(SynchronousTestCase):
+class ClusterConfigurationTests(TestCase):
     """
     Tests for mapping cluster configuration to cluster.
     """
 
     def setUp(self):
+        super(ClusterConfigurationTests, self).setUp()
         self.environ = {
             'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': '107374182400',
             'FLOCKER_ACCEPTANCE_CONTROL_NODE': _ENV_CONTROL_SERVICE_ADDRESS,
@@ -114,9 +120,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options = BenchmarkOptions()
         options.parseOptions([])
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, {})
-            self.assertIn('not set', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, {},
+            )
+            self.assertIn('not set', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_missing_yaml_file(self):
@@ -131,9 +139,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options = BenchmarkOptions()
         options.parseOptions(['--cluster', tmpdir])
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
-            self.assertIn('not found', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
+            self.assertIn('not found', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_environment_invalid_control_node(self):
@@ -144,9 +154,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options.parseOptions([])
         self.environ['FLOCKER_ACCEPTANCE_CONTROL_NODE'] = 'notanipaddress'
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
-            self.assertIn('notanipaddress', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
+            self.assertIn('notanipaddress', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_environment_hostname_mapping_invalid_json(self):
@@ -157,9 +169,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options.parseOptions([])
         self.environ['FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS'] = '}'
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
-            self.assertIn('JSON', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
+            self.assertIn('JSON', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_environment_hostname_mapping_not_object(self):
@@ -172,9 +186,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
             '[{"notanipaddress": "notanipaddress"}]'
         )
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
-            self.assertIn('notanipaddress', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
+            self.assertIn('notanipaddress', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_environment_hostname_mapping_invalid_ipaddress(self):
@@ -187,9 +203,11 @@ class ClusterConfigurationTests(SynchronousTestCase):
             '{"notanipaddress": "notanipaddress"}'
         )
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
-            self.assertIn('notanipaddress', e.exception.args[0])
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
+            self.assertIn('notanipaddress', exception.args[0])
             self.assertIn(options.getUsage(), captured_stderr())
 
     def test_environment_invalid_volume_size(self):
@@ -200,20 +218,23 @@ class ClusterConfigurationTests(SynchronousTestCase):
         options.parseOptions([])
         self.environ['FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE'] = 'A'
         with capture_stderr() as captured_stderr:
-            with self.assertRaises(SystemExit) as e:
-                get_cluster(options, self.environ)
+            exception = self.assertRaises(
+                SystemExit,
+                get_cluster, options, self.environ,
+            )
             self.assertIn(
-                'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE', e.exception.args[0]
+                'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE', exception.args[0]
             )
             self.assertIn(options.getUsage(), captured_stderr())
 
 
-class ValidationTests(SynchronousTestCase):
+class ValidationTests(TestCase):
     """
     Tests for configuration file validation.
     """
 
     def setUp(self):
+        super(ValidationTests, self).setUp()
         self.config = {
             'scenarios': [
                 {
@@ -304,56 +325,69 @@ class ValidationTests(SynchronousTestCase):
         Rejects configuration file with missing scenarios attribute.
         """
         del self.config['scenarios']
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
     def test_missing_operations(self):
         """
         Rejects configuration file with missing operations attribute.
         """
         del self.config['operations']
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
     def test_missing_metrics(self):
         """
         Rejects configuration file with missing metrics attribute.
         """
         del self.config['metrics']
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
     def test_empty_scenarios(self):
         """
         Rejects configuration file with empty scenarios attribute.
         """
         self.config['scenarios'] = {}
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
     def test_empty_operations(self):
         """
         Rejects configuration file with empty operations attribute.
         """
         self.config['operations'] = {}
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
     def test_empty_metrics(self):
         """
         Rejects configuration file with empty metrics attribute.
         """
         self.config['metrics'] = {}
-        with self.assertRaises(ValidationError):
-            validate_configuration(self.config)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.config,
+        )
 
 
-class SubConfigurationTests(SynchronousTestCase):
+class SubConfigurationTests(TestCase):
     """
     Tests for getting sections from the configuration file.
     """
 
     def setUp(self):
+        super(SubConfigurationTests, self).setUp()
         self.config = {
             'scenarios': [
                 {
@@ -395,3 +429,162 @@ class SubConfigurationTests(SynchronousTestCase):
         """
         config = get_config_by_name(self.config['metrics'], 'default')
         self.assertEqual(config['name'], 'default')
+
+
+class UserDataTests(TestCase):
+    """
+    Test --userdata option.
+    """
+
+    def test_no_userdata(self):
+        """
+        Missing option adds nothing to result.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions([])
+        self.assertIs(parse_userdata(options), None)
+
+    def test_empty_userdata(self):
+        """
+        Empty option adds nothing to result.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', ''])
+        self.assertIs(parse_userdata(options), None)
+
+    def test_json_userdata(self):
+        """
+        JSON string adds to result.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', '{"branch": "master"}'])
+        self.assertEqual(parse_userdata(options), {"branch": "master"})
+
+    def test_json_file_userdata(self):
+        """
+        JSON file adds to result.
+        """
+        json_file = FilePath(self.mktemp())
+        with json_file.open('w') as f:
+            f.write('{"branch": "master"}\n')
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', '@{}'.format(json_file.path)])
+        self.assertEqual(parse_userdata(options), {"branch": "master"})
+
+    def test_invalid_json(self):
+        """
+        Invalid JSON string handled.
+        """
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', '"branch": "master"'])
+        with capture_stderr() as captured_stderr:
+            exception = self.assertRaises(
+                SystemExit, parse_userdata, options
+            )
+            self.assertIn(
+                'Invalid user data', exception.args[0]
+            )
+            self.assertIn(options.getUsage(), captured_stderr())
+
+    def test_invalid_path(self):
+        """
+        Non-existent file handled.
+        """
+        no_file = FilePath(self.mktemp())
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', '@{}'.format(no_file.path)])
+        with capture_stderr() as captured_stderr:
+            exception = self.assertRaises(
+                SystemExit, parse_userdata, options
+            )
+            self.assertIn(
+                'Invalid user data file', exception.args[0]
+            )
+            self.assertIn(options.getUsage(), captured_stderr())
+
+    def test_invalid_file_data(self):
+        """
+        Invalid file data handled.
+        """
+        invalid_file = FilePath(self.mktemp())
+        with invalid_file.open('w') as f:
+            f.write('hello\n')
+        options = BenchmarkOptions()
+        options.parseOptions(['--userdata', '@{}'.format(invalid_file.path)])
+        with capture_stderr() as captured_stderr:
+            exception = self.assertRaises(
+                SystemExit, parse_userdata, options
+            )
+            self.assertIn(
+                'Invalid user data', exception.args[0]
+            )
+            self.assertIn(options.getUsage(), captured_stderr())
+
+
+class MainTests(TestCase):
+
+    def setUp(self):
+        super(MainTests, self).setUp()
+
+    def get_default_environ(self):
+        return {
+            'FLOCKER_ACCEPTANCE_DEFAULT_VOLUME_SIZE': '107374182400',
+            'FLOCKER_ACCEPTANCE_CONTROL_NODE': _ENV_CONTROL_SERVICE_ADDRESS,
+            'FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS':
+                '{"172.31.37.0": "52.11.208.0", "172.31.47.0": "52.32.250.0"}',
+            'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': 'aws',
+            'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
+                '/tmp/tmp84DVr3/dataset-backend.yml',
+            'FLOCKER_ACCEPTANCE_NUM_AGENT_NODES': '2',
+            'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH': '/tmp/tmpSvE7ug',
+            'USER': 'user',
+        }
+
+    def call_main(self, args, environ):
+        """
+        Call the script main and return the arguments to driver.
+        """
+        result = {}
+
+        def check(driver, args):
+            (
+                result['cluster'],
+                result['scenario_factory'],
+                result['operation_factory'],
+                result['metric_factory'],
+                result['num_samples'],
+                result['result'],
+                result['output'],
+            ) = args
+
+        yaml = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), 'benchmark.yml'
+        )
+        argv = ['benchmark', '--config', yaml] + args
+        main(argv, environ, react=check)
+        return result
+
+    def test_options_samples(self):
+        """
+        The --samples flag gets read as the num_samples value.
+        """
+        result = self.call_main(['--samples', '4'], self.get_default_environ())
+        self.assertEqual(result['num_samples'], 4)
+
+    def test_options_samples_default(self):
+        """
+        The --samples flag has a default value.
+        """
+        result = self.call_main([], self.get_default_environ())
+        self.assertIsInstance(result['num_samples'], int)
+
+    def test_options_samples_invalid(self):
+        """
+        The script fails for an invalid --samples flag.
+        """
+        with capture_stderr():
+            exception = self.assertRaises(
+                SystemExit, self.call_main, ['--samples', 'X'],
+                self.get_default_environ()
+            )
+        self.assertIn('Invalid sample count', exception.args[0])

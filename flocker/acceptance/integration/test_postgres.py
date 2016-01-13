@@ -116,4 +116,4 @@ class PostgresIntegrationTests(make_dataset_integration_testcase(
     """
     @skipUnless(PG8000_INSTALLED, "pg8000 not installed")
     def setUp(self):
-        pass
+        super(PostgresIntegrationTests, self).setUp()

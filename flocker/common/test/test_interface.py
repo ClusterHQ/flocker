@@ -4,8 +4,6 @@
 Tests for ``flocker.common._interface``.
 """
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from eliot.testing import (
     assertHasMessage, capture_logging
 )
@@ -15,6 +13,7 @@ from pyrsistent import PClass, field, InvariantException
 from zope.interface import Interface, implementer
 
 from .. import interface_decorator, provides
+from ...testtools import TestCase
 
 
 # Eliot structures for testing ``interface_decorator``.
@@ -99,7 +98,7 @@ class LoggingDummy(object):
         self._dummy = dummy
 
 
-class InterfaceDecoratorTests(SynchronousTestCase):
+class InterfaceDecoratorTests(TestCase):
     """
     Tests for ``interface_decorator``.
     """
@@ -142,7 +141,7 @@ class InterfaceHolder(PClass):
     value = field(invariant=provides(IDummy), mandatory=True)
 
 
-class ProvidesTests(SynchronousTestCase):
+class ProvidesTests(TestCase):
     """
     Tests for ``provides``.
     """

@@ -6,17 +6,16 @@ Tests for ``flocker-benchmark``.
 
 import json
 
-from twisted.internet import reactor
-from twisted.trial.unittest import TestCase
-
 from ...common.runner import run_ssh
+from ...testtools import AsyncTestCase
 from ..testtools import require_cluster
 
 
-class BenchmarkTests(TestCase):
+class BenchmarkTests(AsyncTestCase):
     """
     Tests for ``flocker-benchmark``.
     """
+
     @require_cluster(1)
     def test_export(self, cluster):
         """
@@ -28,7 +27,7 @@ class BenchmarkTests(TestCase):
         def run_report():
             output = []
             return run_ssh(
-                reactor,
+                self.reactor,
                 'root',
                 node_address,
                 ['flocker-benchmark', 'hardware-report'],

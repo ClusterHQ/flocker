@@ -16,9 +16,9 @@ from subprocess import check_call
 from ipaddr import IPAddress, IPNetwork
 from eliot.testing import LoggedAction, validateLogging, assertHasAction
 
-from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 
+from ...testtools import AsyncTestCase
 from .. import make_host_network, OpenPort
 from .._logging import (
     CREATE_PROXY_TO, DELETE_PROXY, IPTABLES, DELETE_OPEN_PORT
@@ -107,7 +107,7 @@ _iptables_skip = skipUnless(
     "Cannot set up isolated environment without iptables-save.")
 
 
-class GetIPTablesTests(TestCase):
+class GetIPTablesTests(AsyncTestCase):
     """
     Tests for the iptables rule preserving helper.
     """
@@ -143,7 +143,7 @@ class IPTablesNetworkTests(make_network_tests(make_host_network)):
         super(IPTablesNetworkTests, self).setUp()
 
 
-class CreateTests(TestCase):
+class CreateTests(AsyncTestCase):
     """
     Tests for the creation of new external routing rules.
     """
@@ -154,6 +154,7 @@ class CreateTests(TestCase):
         Select some addresses between which to proxy and set up a server to act
         as the target of the proxying.
         """
+        super(CreateTests, self).setUp()
         self.namespace = create_network_namespace()
         self.addCleanup(self.namespace.restore)
 
@@ -328,13 +329,14 @@ class CreateTests(TestCase):
         self.assertEqual(ECONNREFUSED, exception.errno)
 
 
-class EnumerateTests(TestCase):
+class EnumerateTests(AsyncTestCase):
     """
     Tests for the enumerate of Flocker-managed external routing rules.
     """
     @_dependency_skip
     @_environment_skip
     def setUp(self):
+        super(EnumerateTests, self).setUp()
         self.addCleanup(create_network_namespace().restore)
         self.network = make_host_network()
 
@@ -349,13 +351,14 @@ class EnumerateTests(TestCase):
         self.assertEqual([proxy], self.network.enumerate_proxies())
 
 
-class DeleteTests(TestCase):
+class DeleteTests(AsyncTestCase):
     """
     Tests for the deletion of Flocker-managed external routing rules.
     """
     @_dependency_skip
     @_environment_skip
     def setUp(self):
+        super(DeleteTests, self).setUp()
         self.addCleanup(create_network_namespace().restore)
         self.network = make_host_network()
 
@@ -405,7 +408,7 @@ class DeleteTests(TestCase):
             actual)
 
 
-class DeleteOpenPortTests(TestCase):
+class DeleteOpenPortTests(AsyncTestCase):
     """
     Tests for ``HostNetwork.delete_open_port``.
     """
@@ -414,6 +417,7 @@ class DeleteOpenPortTests(TestCase):
     @_dependency_skip
     @_environment_skip
     def setUp(self):
+        super(DeleteOpenPortTests, self).setUp()
         self.addCleanup(create_network_namespace().restore)
         self.network = make_host_network()
 

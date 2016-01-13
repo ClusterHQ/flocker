@@ -11,7 +11,14 @@ unless Vagrant.has_plugin?('vagrant-reload')
 end
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = 'box-cutter/centos70'
+
+  config.vm.provider :virtualbox do |vb|
+    # VirtualBox 5 now supports paravirtualization
+    vb.customize("pre-boot", ["modifyvm", :id, "--paravirtprovider", "KVM"])
+    vb.customize [ "modifyvm", :id, "--memory", "1024" ]
+  end
+
+  config.vm.box = 'box-cutter/centos71'
   # Copy credential files
   config.vm.provision :file,
                       source: 'credentials',

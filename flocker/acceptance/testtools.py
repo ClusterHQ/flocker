@@ -16,7 +16,6 @@ import yaml
 import json
 import ssl
 
-from docker import Client
 from docker.tls import TLSConfig
 
 from twisted.web.http import OK, CREATED
@@ -37,7 +36,7 @@ from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
 
-from ..common import gather_deferreds, loop_until
+from ..common import gather_deferreds, loop_until, timeout
 from ..common.runner import download_file, run_ssh
 
 from ..control.httpapi import REST_API_PORT
@@ -45,6 +44,7 @@ from ..ca import treq_with_authentication, UserCredential
 from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.script import get_backend, get_api
+from ..node import dockerpy_client
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
@@ -110,8 +110,11 @@ def get_docker_client(cluster, address):
         # do verify certificate authority signed the server certificate:
         assert_hostname=False,
         verify=get_path(b"cluster.crt"))
-    return Client(base_url="https://{}:{}".format(address, DOCKER_PORT),
-                  tls=tls, timeout=100, version='1.21')
+
+    return dockerpy_client(
+        base_url="https://{}:{}".format(address, DOCKER_PORT),
+        tls=tls, timeout=100, version='1.21',
+    )
 
 
 def get_mongo_application():
@@ -753,19 +756,27 @@ class Cluster(PClass):
                     client.remove_container(container["Id"], force=True)
 
         def cleanup_flocker_containers(_):
-            return api_clean_state(
+            cleaning_containers = api_clean_state(
                 u"containers",
                 self.configured_containers,
                 self.current_containers,
                 lambda item: self.remove_container(item[u"name"]),
             )
+            return timeout(
+                reactor, cleaning_containers, 30,
+                Exception("Timed out cleaning up Flocker containers"),
+            )
 
         def cleanup_datasets(_):
-            return api_clean_state(
+            cleaning_datasets = api_clean_state(
                 u"datasets",
                 self.client.list_datasets_configuration,
                 self.client.list_datasets_state,
                 lambda item: self.client.delete_dataset(item.dataset_id),
+            )
+            return timeout(
+                reactor, cleaning_datasets, 60,
+                Exception("Timed out cleaning up datasets"),
             )
 
         def cleanup_leases():
@@ -781,7 +792,11 @@ class Cluster(PClass):
                     return gather_deferreds(release_list)
 
                 get_items.addCallback(release_all)
-                return get_items.addActionFinish()
+                releasing_leases = get_items.addActionFinish()
+                return timeout(
+                    reactor, releasing_leases, 20,
+                    Exception("Timed out cleaning up leases"),
+                )
 
         d = DeferredContext(cleanup_leases())
         d.addCallback(cleanup_flocker_containers)
