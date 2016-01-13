@@ -23,7 +23,7 @@ from ...common.runner import run_ssh
 from ...dockerplugin.test.test_api import volume_expression
 
 from ...testtools import (
-    AsyncTestCase, random_name, find_free_port, flaky, async_runner,
+    AsyncTestCase, random_name, flaky, async_runner,
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
@@ -166,17 +166,20 @@ class DockerPluginTests(AsyncTestCase):
         self._create_volume(client, volume_name,
                             driver_opts={'size': size_opt})
         http_port = 8080
-        host_port = find_free_port()[1]
-        self.run_python_container(
+
+        container_identifier = self.run_python_container(
             cluster, node.public_address,
             {"host_config": client.create_host_config(
                 binds=["{}:/sizedvoldata".format(volume_name)],
-                port_bindings={http_port: host_port},
+                port_bindings={http_port: 0},
                 restart_policy={"Name": "always"},
                 privileged=True),
              "ports": [http_port]},
             SCRIPTS.child(b"lsblkhttp.py"),
             [u"/sizedvoldata"], client=client)
+        host_port = extract_external_port(
+            client, container_identifier, http_port,
+        )
 
         d = assert_http_server(
             self, node.public_address, host_port,
