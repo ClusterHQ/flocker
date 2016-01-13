@@ -45,15 +45,23 @@ class _MktempMixin(object):
 
     def mktemp(self):
         """
-        Create a temporary directory that will be deleted on test completion.
+        Create a temporary path for use in tests.
 
         Provided for compatibility with Twisted's ``TestCase``.
 
-        :return: Path to the newly-created temporary directory.
+        :return: Path to non-existent file or directory.
         """
         # XXX: Should we provide a cleaner interface for people to use? One
         # that returns FilePath? One that returns a directory?
         return make_temporary_directory(self).child('temp').path
+
+    def make_temporary_path(self):
+        """
+        Create a temporary path for use in tests.
+
+        :return: Path to non-existent file or directory.
+        """
+        return make_temporary_directory(self).child('temp')
 
 
 class _DeferredAssertionMixin(object):

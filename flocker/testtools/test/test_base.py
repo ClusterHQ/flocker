@@ -119,6 +119,44 @@ class BaseTestCaseTests(TesttoolsTestCase):
         self.assertThat(path, FileContains('hello'))
 
     @given(base_test_cases)
+    def test_make_temporary_path_doesnt_exist(self, base_test_case):
+        """
+        ``make_temporary_path`` returns a path that doesn't exist inside a
+        directory that does.
+        """
+
+        class SomeTest(base_test_case):
+            def test_pass(self):
+                pass
+
+        test = SomeTest('test_pass')
+        temp_path = test.make_temporary_path()
+        self.addCleanup(_remove_dir, temp_path.parent())
+
+        self.expectThat(temp_path.parent().path, DirExists())
+        self.expectThat(temp_path.path, Not(PathExists()))
+        self.assertThat(temp_path, BelowPath(FilePath(os.getcwd())))
+
+    @given(base_test_cases)
+    def test_make_temporary_path_not_deleted(self, base_test_case):
+        """
+        ``make_temporary_path`` returns a path that's not deleted after the
+        test is run.
+        """
+        created_files = []
+
+        class SomeTest(base_test_case):
+            def test_create_file(self):
+                path = self.make_temporary_path()
+                created_files.append(path)
+                path.setContent('hello')
+
+        run_test(SomeTest('test_create_file'))
+        [path] = created_files
+        self.addCleanup(path.remove)
+        self.assertThat(path.path, FileContains('hello'))
+
+    @given(base_test_cases)
     def test_run_twice(self, base_test_case):
         """
         Tests can be run twice without errors.
