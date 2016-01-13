@@ -11,7 +11,6 @@ from subprocess import check_call, check_output
 import time
 
 from twisted.internet import reactor
-from twisted.internet.task import deferLater
 from twisted.internet.defer import maybeDeferred
 
 from twisted.python.filepath import FilePath
@@ -19,7 +18,7 @@ from eliot import Message
 
 
 from ...common.runner import run_ssh
-from ...common import gather_deferreds
+from ...common import gather_deferreds, loop_until
 from ...testtools import AsyncTestCase, async_runner
 from ..testtools import Cluster, ControlService
 from ...ca import treq_with_authentication, UserCredential
@@ -56,6 +55,9 @@ S3_CLOUDFORMATION_TEMPLATE = (
     'https://s3.amazonaws.com/'
     'installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json'
 )
+POSTGRESQL_PORT = 5432
+POSTGRESQL_USERNAME = 'flocker'
+POSTGRESQL_PASSWORD = 'flocker'
 
 
 def remote_command(node, *args):
@@ -91,18 +93,17 @@ def remote_docker_compose(client_ip, docker_host, compose_file_path, *args):
 
 def remote_postgres(client_ip, host, command):
     postgres_output = []
-    d = deferLater(
-        reactor,
-        60,
-        run_ssh,
+    d = run_ssh(
         reactor,
         'ubuntu',
         client_ip,
-        ('psql', 'postgres://flocker:flocker@' + host + ':5432',
+        ('psql',
+         'postgres://' + POSTGRESQL_USERNAME + ':' + POSTGRESQL_PASSWORD +
+         '@' + host + ':' + POSTGRESQL_PORT,
          '--command={}'.format(command)),
         handle_stdout=postgres_output.append
     )
-    d.addCallback(
+    d.addCallbacko(
         lambda process_result: (process_result, postgres_output)
     )
     return d
@@ -204,7 +205,7 @@ def create_cloudformation_stack():
         ['aws', '--region', REGION, 'cloudformation', 'create-stack',
          '--parameters', json.dumps(PARAMETERS),
          '--stack-name', stack_name,
-         '--template-body', S3_CLOUDFORMATION_TEMPLATE]
+         '--template-url', S3_CLOUDFORMATION_TEMPLATE]
     )
 
     output = json.loads(output)
@@ -259,7 +260,7 @@ class DockerComposeTests(AsyncTestCase):
              'ubuntu@{}:/etc/flocker'.format(self.client_ip),
              local_certs_path]
         )
-        self.addCleanup(cleanup, self, local_certs_path)
+        # self.addCleanup(cleanup, self, local_certs_path)
         d = maybeDeferred(super(DockerComposeTests, self).setUp)
         return d
 
@@ -269,7 +270,16 @@ class DockerComposeTests(AsyncTestCase):
         d = remote_docker_compose(
             self.client_ip, self.docker_host, COMPOSE_NODE0, 'up', '-d'
         )
-
+        # Wait until the remote PostgreSQL server is accepting connections.
+        d.addCallback(
+            lambda ignored: loop_until(
+                reactor,
+                lambda: remote_postgres(
+                    self.client_ip, self.agent_node_1, 'SELECT 1'
+                )
+                [1, 1, 1]
+            )
+        )
         d.addCallback(
             lambda ignored: remote_postgres(
                 self.client_ip, self.agent_node_1,
@@ -303,6 +313,16 @@ class DockerComposeTests(AsyncTestCase):
             )
         )
 
+        # Wait until the remote PostgreSQL server is accepting connections.
+        d.addCallback(
+            lambda ignored: loop_until(
+                reactor,
+                lambda: remote_postgres(
+                    self.client_ip, self.agent_node_1, 'SELECT 1'
+                )
+                [1, 1, 1]
+            )
+        )
         d.addCallback(
             lambda ignored: remote_postgres(
                 self.client_ip,
