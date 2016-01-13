@@ -5,7 +5,7 @@ Tests for the datasets REST API.
 """
 
 from uuid import UUID
-from unittest import SkipTest
+from unittest import SkipTest, skipIf
 from datetime import timedelta
 
 from testtools import run_test_with
@@ -109,6 +109,9 @@ class DatasetAPITests(AsyncTestCase):
         created.addCallback(delete_dataset)
         return created
 
+    @skipIf(True,
+            "Shutting down a node invalidates a public IP, which breaks all "
+            "kinds of things. So skip for now.")
     @require_moving_backend
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(2)
@@ -174,6 +177,3 @@ class DatasetAPITests(AsyncTestCase):
 
         waiting_for_shutdown.addCallback(move_dataset)
         return waiting_for_shutdown
-    test_dataset_move_from_dead_node.skip = (
-        "Shutting down a node invalidates a public IP, which breaks all "
-        "kinds of things. So skip for now.")
