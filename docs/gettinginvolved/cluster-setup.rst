@@ -234,4 +234,4 @@ If :option:`--wait` is used the script waits for the deletions to take effect.
 After the script successfully finishes the cluster should be in a converged state
 with no containers and datasets.
 If :option:`--wait` is not specified, then the script exits after the deletion
-requests are aknowledged without waiting for the cluster to converge.
+requests are acknowledged without waiting for the cluster to converge.
