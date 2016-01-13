@@ -15,7 +15,7 @@ Flocker Installation Options
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--recommended">
 		   <img src="/_images/amazon-docker2x.png" alt="Amazon AWS logo"/>
 		   <span>CloudFormation is the easiest way to get started on AWS.<em>Fastest</em></span>
-		    <a href="cloudformation.html" class="button">Install</a>
+		    <a href="cloudformation.html" class="button button--fast">Install</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up">
 		    <img src="/_images/default2x.png" aria-hidden="true" alt=""/>
