@@ -397,13 +397,18 @@ h1, h2, h3, h4, h5 {
 	font-family:'Soho Gothic W01 Regular';
 }
 
-.page h2, .page h3 {
+.page h2 {
 	font-size: 20px;
 	margin-top: 1.2em;
 }
 
+.page h3 {
+	font-size: 16px;
+	margin-top: 1.2em;
+}
+
 .page h4, .page h5, .page h6 {
-	font-size: 18px;
+	font-size: 14px;
 	margin-top: 1.8em;
 }
 
@@ -416,25 +421,24 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu {
-    background-color: #646570;
 }
 
 .contents-menu>ul {
     list-style: none;
     padding: 0;
-    font-size: 1.4em;
+    font-size: 1.1em;
     font-family: lato;
     color: #FFFFFF;
     width: 100%;
 }
 
-.contents-menu>ul  a {
+.contents-menu>ul a {
     text-decoration: none;
-    color: #ffffff;
+    color: #999;
 }
 
-.contents-menu>ul  a:hover {
-    color: #9ac4c4;
+.contents-menu>ul a:hover {
+    color: #bbb;
 }
 
 .contents-menu>ul li{
@@ -442,9 +446,8 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu>ul>li {
-    border-top: solid #a2dad7 1px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: 5px;
+    padding-bottom: 5px;
 }
 
 .contents-menu>ul>li:first-child {
@@ -452,11 +455,11 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu>ul>li>ul>li {
-    font-size: 0.7em;
+    font-size: 0.8em;
 }
 
 .contents-menu>ul  ul>li:first-child {
-    padding-top: 15px;
+    padding-top: 10px;
 }
 
 .contents-menu>ul  ul>li {
@@ -464,11 +467,11 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu>ul .current>a {
-    color: #9ac4c4;
+    color: #444;
 }
 
 .contents-menu>ul ul:not(.current){
-    display:none;
+    display: none;
 }
 
 .contents-menu>ul li.current ul{
@@ -478,9 +481,13 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 .mob-contents {
     font-size: 2em;
     font-family: lato;
-    color: white;
     padding: 20px 10px 20px 0px;
     margin-bottom: 15px;
+    background-color: #eee;
+    margin-left: -15px;
+    margin-right: -15px;
+    padding-right: 25px;
+    color: #eee;
 }
 
 .mob-contents .plus a {
@@ -664,8 +671,6 @@ a.download:before {
 @media all and (min-width: 768px) {
     /* sm */
     body {
-        background: linear-gradient(to right, #646570, #646570 35%, white 35%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
-        background-size: 1170px, 100%;
     }
     
     .menubar {
@@ -736,8 +741,6 @@ a.download:before {
 @media all and (min-width: 992px) {
     /* md */
     body {
-        background: linear-gradient(to right, #646570, #646570 30%, white 30%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
-        background-size: 1170px, 100%;
     }
     
     .menubar {
@@ -745,7 +748,6 @@ a.download:before {
     }
     
     .contents-menu>ul ul {
-        padding-left:30px;
     }
 
     .menu ul.menu {
@@ -762,8 +764,6 @@ a.download:before {
 @media all and (min-width: 1200px) {
     /* lg */
     body {
-        background: linear-gradient(to right, #646570, #646570 25%, white 25%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
-        background-size: 1170px, 100%;
     }
 
     .menu ul.menu li {

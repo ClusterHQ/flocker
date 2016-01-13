@@ -44,8 +44,8 @@ The following instructions will take you through installing Flocker with the Ins
 
 .. begin-body-full-installation
 
-Full Installation
-=================
+Installing Flocker
+==================
 
 To get the full Flocker functionality, the following installation steps will take you through installing the Flocker client and the Flocker node services.
 

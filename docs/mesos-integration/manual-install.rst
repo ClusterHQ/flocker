@@ -4,7 +4,7 @@
 Manually Installing Flocker with Mesos
 ===========================================
 
-#. Follow the :ref:`full-installation-with-mesos` steps, to install Flocker.
+#. Follow the :ref:`full-installation-with-mesos` steps.
 #. Follow the :ref:`post-installation-configuration-with-mesos` steps, to configure authentication and your chosen backend.
    These steps also include the enablement of the control service and the agent services. 
 #. Install :ref:`Mesos <manually-install-mesos>`.

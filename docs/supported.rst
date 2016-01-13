@@ -16,28 +16,30 @@ Supported Orchestration Frameworks
 
 .. raw:: html
 
-    <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
-    <div class="big-box orchestration">
-	    Docker, Swarm, Compose
-		<img src="_images/docker.png" style="width:50px;"/>
-		<br />
+	<div class="pods-eq">
+	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
+			<img src="_images/docker2x.png" alt="Docker logo"/>
+			<span>Docker, Swarm, Compose <em>Fastest</em></span>
+	        <a href="docker-integration/" class="button button--fast">Install</a>
+	    </div>
+	    
+	    <div class="pod-boxout pod-boxout--orchestration">
+			<img src="_images/kubernetes2x.png" alt="Kubernetes logo"/>
+			<span>Kubernetes</span>
+	        <a href="kubernetes-integration/" class="button">Install</a>
+	    </div>
+	    
+	    <div class="pod-boxout pod-boxout--orchestration">
+			<img src="_images/mesos2x.png" alt="mesos logo"/>
+			<span>Mesos</span>
+	        <a href="mesos-integration/" class="button">Install</a>
+	    </div>
+	</div>
+	
+	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
+		<span><img src="_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install Flocker without an Orchestration Framework</span>
+        <a href="flocker-standalone/" class="button">Install</a>
     </div>
-    <div class="big-box orchestration">
-		Kubernetes
-		<img src="_images/kubernetes.png" style="width:50px;"/>
-        <br />
-    </div>
-    <div class="big-box orchestration">
-		Mesos
-		<img src="_images/mesos.png" style="width:50px;"/>
-        <br />
-    </div>
-    <div class="big-box orchestration">
-		Other
-	 	<img src="_images/questionmark.png" style="width:50px;"/>
-        <br />
-    </div>
-    <div style="clear:both;"></div>
 
 
 Supported Infrastructure & Storage

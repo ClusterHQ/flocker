@@ -115,8 +115,11 @@
                 <!-- Menu area start -->
 
                 <ul>
-                    <!-- XXX hack to stop sub-elements of the docs homepage showing up -->
-                    <li class="toctree-l1" style="border-bottom: solid #a2dad7 1px; margin-bottom:-10px;"><a class="reference internal" href="/">Installing Flocker</a></li>
+                    {%- if pagename == "index" %}
+                        <li class="toctree-l1 current" style="margin-bottom:-10px;"><a class="reference internal current" href="/">Installing Flocker</a></li>
+                    {%- else %}
+                        <li class="toctree-l1" style="margin-bottom:-10px;"><a class="reference internal" href="/">Installing Flocker</a></li>
+                    {%- endif %}
                 </ul>
 
                 {{ toctree(collapse=true, maxdepth=2) }}
@@ -124,7 +127,7 @@
             </div>
 
             <!-- Main contents area -->
-            <div class="col-sm-8 col-sm-offset-1 page white-bg">
+            <div class="col-sm-9 page white-bg">
                 {%- if pagename != "search" %}
                 <form class="search" action="{{ pathto('search') }}" method="get" _lpchecked="1">
                     <input type="text" name="q" placeholder="Type here to search docs..." id="search">
@@ -269,6 +272,15 @@
                     </div>');
             }
         });
+
+        $('.contents-menu>ul>li:contains("Docker, Swarm, Compose")')
+            .prepend('<img src="/_images/docker2x.png" style="height:1em; margin-right:0.5em;">')
+        $('.contents-menu>ul>li:contains("Kubernetes")')
+            .prepend('<img src="/_images/kubernetes2x.png" style="height:1em; margin-right:0.5em;">')
+        $('.contents-menu>ul>li:contains("Mesos")')
+            .prepend('<img src="/_images/mesos2x.png" style="height:1em; margin-right:0.5em;">')
+        $('.contents-menu>ul>li:contains("Other Systems")')
+            .prepend('<img src="/_images/icon-question2x.png" style="padding:0 6px; height:1em; margin-right:0.5em;">')
     </script>
 
     <!-- Javascript include for form feedback submit -->
