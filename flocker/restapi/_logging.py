@@ -4,12 +4,12 @@
 This module defines the Eliot log events emitted by the API implementation.
 """
 
+from eliot import Field, ActionType
+
 __all__ = [
     "JSON_REQUEST",
     "REQUEST",
     ]
-
-from eliot import Field, ActionType
 
 LOG_SYSTEM = u"api"
 
