@@ -191,7 +191,7 @@ user_data += [
     'node_number="{}"\n'.format("-1"),
 ]
 user_data += sibling_lines(S3_SETUP)
-user_data += sibling_lines(DOCKER_SETUP)
+# user_data += sibling_lines(DOCKER_SETUP)
 user_data += sibling_lines(CLIENT_SETUP)
 user_data += sibling_lines(SIGNAL_CONFIG_COMPLETION)
 
@@ -211,9 +211,9 @@ template.add_output([
 template.add_output(Output(
     "ClientDockerConfiguration",
     Value=Join("",
-               ["Swarm DOCKER_HOST: ",
+               ["Swarm DOCKER_HOST: tcp://",
                 GetAtt(control_service_instance, "PublicIp"), ":2376",
-                "TLS certificate location: /root/.docker"]),
+                " TLS certificate location: /root/.docker"]),
     Description="Client configuration to communicate with Swarm Manager."
 ))
 
