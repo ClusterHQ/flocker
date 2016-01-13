@@ -1,12 +1,20 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 from hypothesis import given
-from testtools.matchers import AfterPreprocessing, Equals, Is, Not, PathExists
+from testtools.matchers import (
+    AfterPreprocessing,
+    DirExists,
+    Equals,
+    Is,
+    Not,
+    PathExists,
+)
 
 
 from .. import TestCase
 from ..strategies import paths
 from ..matchers import (
+    dir_exists,
     path_exists,
 )
 
@@ -67,4 +75,43 @@ class PathExistsTests(TestCase):
         self.assertThat(
             path_exists().match(path),
             is_equivalent_mismatch(PathExists().match(path.path)),
+        )
+
+
+class DirExistsTests(TestCase):
+    """
+    Tests for :py:func:`dir_exists`.
+    """
+
+    def test_does_not_exist(self):
+        """
+        If the path does not exist, dir_exists does not match.
+        """
+        path = self.make_temporary_path()
+        self.assertThat(path, Not(dir_exists()))
+
+    def test_file_exists(self):
+        """
+        If there is a file at path, dir_exists does not match.
+        """
+        path = self.make_temporary_path()
+        path.setContent('foo')
+        self.assertThat(path, Not(dir_exists()))
+
+    def test_dir_exists(self):
+        """
+        If there is a directory at path, dir_exists matches.
+        """
+        path = self.make_temporary_path()
+        path.makedirs()
+        self.assertThat(path, dir_exists())
+
+    @given(paths)
+    def test_equivalent_to_standard_dir_exists(self, path):
+        """
+        dir_exists is to FilePaths what DirExists is to normal paths.
+        """
+        self.assertThat(
+            dir_exists().match(path),
+            is_equivalent_mismatch(DirExists().match(path.path)),
         )
