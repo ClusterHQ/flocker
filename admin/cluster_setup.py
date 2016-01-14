@@ -143,11 +143,6 @@ def main(reactor, args, base_path, top_level):
                                )
         gather_deferreds(results)
 
-        if options['apps-per-node'] > 0:
-            config = _build_config(cluster, options['template'],
-                                   options['apps-per-node'])
-            yield _configure(reactor, cluster, config)
-
         result = 0
 
     except BaseException:
