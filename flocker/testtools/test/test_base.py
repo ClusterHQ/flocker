@@ -56,6 +56,7 @@ from ..strategies import fqpns
 from .._testhelpers import (
     base_test_cases,
     has_results,
+    make_test_case,
     only_skips,
     run_test,
 )
@@ -81,18 +82,12 @@ class BaseTestCaseTests(TesttoolsTestCase):
         result = run_test(test)
         self.assertThat(result, only_skips(1, [reason]))
 
-    @given(base_test_cases)
-    def test_mktemp_doesnt_exist(self, base_test_case):
+    @given(base_test_cases.map(make_test_case))
+    def test_mktemp_doesnt_exist(self, test):
         """
         ``mktemp`` returns a path that doesn't exist inside a directory that
         does.
         """
-
-        class SomeTest(base_test_case):
-            def test_pass(self):
-                pass
-
-        test = SomeTest('test_pass')
         temp_path = FilePath(test.mktemp())
         self.addCleanup(_remove_dir, temp_path.parent())
 
@@ -118,18 +113,12 @@ class BaseTestCaseTests(TesttoolsTestCase):
         self.addCleanup(os.unlink, path)
         self.assertThat(path, FileContains('hello'))
 
-    @given(base_test_cases)
-    def test_make_temporary_path_doesnt_exist(self, base_test_case):
+    @given(base_test_cases.map(make_test_case))
+    def test_make_temporary_path_doesnt_exist(self, test):
         """
         ``make_temporary_path`` returns a path that doesn't exist inside a
         directory that does.
         """
-
-        class SomeTest(base_test_case):
-            def test_pass(self):
-                pass
-
-        test = SomeTest('test_pass')
         temp_path = test.make_temporary_path()
         self.addCleanup(_remove_dir, temp_path.parent())
 
@@ -156,55 +145,36 @@ class BaseTestCaseTests(TesttoolsTestCase):
         self.addCleanup(path.remove)
         self.assertThat(path.path, FileContains('hello'))
 
-    @given(base_test_cases)
-    def test_make_temporary_directory_exists(self, base_test_case):
+    @given(base_test_cases.map(make_test_case))
+    def test_make_temporary_directory_exists(self, test):
         """
         ``make_temporary_directory`` returns a path to a directory.
         """
-
-        class SomeTest(base_test_case):
-            def test_pass(self):
-                pass
-
-        test = SomeTest('test_pass')
         temp_dir = test.make_temporary_directory()
         self.addCleanup(_remove_dir, temp_dir)
-
         self.assertThat(temp_dir, dir_exists())
 
-    @given(base_test_cases, binary(average_size=20))
-    def test_make_temporary_file_with_content(self, base_test_case, content):
+    @given(base_test_cases.map(make_test_case), binary(average_size=20))
+    def test_make_temporary_file_with_content(self, test, content):
         """
         ``make_temporary_file`` returns a path to an existing file.
         """
-        class SomeTest(base_test_case):
-            def test_pass(self):
-                pass
-
-        test = SomeTest('test_pass')
         temp_file = test.make_temporary_file(content)
         self.addCleanup(temp_file.remove)
-
         self.assertThat(temp_file, file_contents(Equals(content)))
 
-    @given(base_test_cases)
-    def test_make_temporary_file(self, base_test_case):
+    @given(base_test_cases.map(make_test_case))
+    def test_make_temporary_file(self, test):
         """
         ``make_temporary_file`` returns a path to an existing file. If no
         content is provided, defaults to an empty file.
         """
-        class SomeTest(base_test_case):
-            def test_pass(self):
-                pass
-
-        test = SomeTest('test_pass')
         temp_file = test.make_temporary_file()
         self.addCleanup(temp_file.remove)
-
         self.assertThat(temp_file, file_contents(Equals('')))
 
-    @given(base_test_cases)
-    def test_run_twice(self, base_test_case):
+    @given(base_test_cases.map(make_test_case))
+    def test_run_twice(self, test):
         """
         Tests can be run twice without errors.
 
@@ -213,12 +183,6 @@ class BaseTestCaseTests(TesttoolsTestCase):
         coverage is inadequate for a thorough fix. However, this will be
         enough to let us use ``trial -u`` (see FLOC-3462).
         """
-
-        class SomeTest(base_test_case):
-            def test_something(self):
-                pass
-
-        test = SomeTest('test_something')
         result = TestResult()
         test.run(result)
         test.run(result)

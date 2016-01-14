@@ -78,3 +78,19 @@ def run_test(case):
     result = unittest.TestResult()
     case.run(result)
     return result
+
+
+def make_test_case(base_case, behavior=lambda case: None):
+    """
+    Make a single test subclasses ``base_case`` and does ``behavior``.
+
+    :param type base_case: A ``TestCase`` class.
+    :param (TestCase -> A) behavior: The contents of the test. If not
+        specified, defaults to a passing test.
+
+    :rtype: ``base_case``
+    """
+    class FooTests(base_case):
+        def test_something(self):
+            pass
+    return FooTests('test_something')
