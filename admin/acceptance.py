@@ -367,7 +367,7 @@ def generate_certificates(cluster_name, cluster_id, nodes, cert_path):
     """
     Generate a new set of certificates for the given nodes.
 
-    :param bytes name: The name of the cluster.
+    :param bytes cluster_name: The name of the cluster.
     :param UUID cluster_id: The unique identifier of the cluster for which to
         generate the certificates.  If ``None`` then a new random identifier
         is generated.
