@@ -16,3 +16,13 @@ def make_file(path, content='', permissions=None):
     path.setContent(content)
     if permissions is not None:
         path.chmod(permissions)
+
+
+def make_directory(path):
+    """
+    Create a directory at ``path``.
+
+    :param FilePath path: The place to create a directory.
+    """
+    if not path.isdir():
+        path.makedirs()

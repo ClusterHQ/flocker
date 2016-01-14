@@ -14,7 +14,7 @@ from bitmath import GiB as _GiB
 from ._ipc import INode, FakeNode, ProcessNode
 from ._defer import gather_deferreds
 from ._thread import auto_threaded
-from ._filepath import make_file
+from ._filepath import make_directory, make_file
 from ._interface import interface_decorator, provides
 from ._net import get_all_ips, ipaddress_from_string
 from ._retry import (
@@ -36,7 +36,7 @@ __all__ = [
     'RACKSPACE_MINIMUM_VOLUME_SIZE',
     'DEVICEMAPPER_LOOPBACK_SIZE',
 
-    'make_file',
+    'make_directory', 'make_file',
 ]
 
 # This is currently set to the minimum size for a SATA based Rackspace Cloud
