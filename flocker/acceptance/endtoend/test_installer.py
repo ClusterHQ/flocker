@@ -47,7 +47,7 @@ PARAMETERS = [
 
 COMPOSE_NODE0 = '/home/ubuntu/postgres/docker-compose-node0.yml'
 COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
-RECREATE_STATEMENT = 'drop table if exists test; create table test(i int);'
+RECREATE_STATEMENT = 'create table test(i int);'
 INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
 
