@@ -23,20 +23,20 @@ To install Flocker, first choose which container stack you are using.
 			<span>Docker, Swarm, Compose <em>Fastest</em></span>
 	        <a href="docker-integration/" class="button button--fast">Install</a>
 	    </div>
-	    
+
 	    <div class="pod-boxout pod-boxout--orchestration">
 			<img src="_images/kubernetes2x.png" alt="Kubernetes logo"/>
 			<span>Kubernetes</span>
 	        <a href="kubernetes-integration/" class="button">Install</a>
 	    </div>
-	    
+
 	    <div class="pod-boxout pod-boxout--orchestration">
 			<img src="_images/mesos2x.png" alt="mesos logo"/>
 			<span>Mesos</span>
 	        <a href="mesos-integration/" class="button">Install</a>
 	    </div>
 	</div>
-	
+
 	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
 		<span><img src="_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install using something else</span>
         <a href="flocker-standalone/" class="button">Install</a>
@@ -71,9 +71,9 @@ Let us know with the form below!
    </style>
 
 .. toctree::
+   :hidden:
 
    version
-   installation/index
 
 .. What follows is a terrible hack to force sphinx to drag images into the build
 

@@ -223,21 +223,6 @@
             }
         });
     </script>
-    {% if theme_disqus_shortname %}
-        <script type="text/javascript">
-            var disqus_title = '{{ title|striptags|e }}{{ titlesuffix }}';
-            var disqus_identifier ='code' + '.' + "{{ theme_disqus_shortname }}" + window.location.pathname.replace('/', '.');
-
-            var disqus_shortname = "{{ theme_disqus_shortname }}";
-
-            (function() {
-                var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
-                dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
-                (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-            })();
-        </script>
-    {% endif %}
-
     <!-- 
         Optimizely: AB Testing tool
         Snippet generated from:

@@ -32,26 +32,27 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 1</h2>
-			<p>The AWS Key Pair uses public-key cryptography to provide secure login to your AWS cluster.</p>
+			<p>Create an AWS Key Pair for secure login to your cluster.</p>
+			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1" target="_blank">Click here</a> to create a key pair in us-east-1.</p>
 		</div>
 		<div class="step-stages__step first">
 			<img src="/_images/01-keys-menu.png" alt="AWS keys"/>
-			<span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create and save an AWS EC2 Key Pair</a> in us-east-1 region for your Flocker cluster</span>
+            <span>Click "Key Pairs" on the AWS console.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="/_images/02-create-key.png" alt="AWS keys"/>
-			<span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create and save an AWS EC2 Key Pair</a> in us-east-1 region for your Flocker cluster</span>
+            <span>Give your Key Pair a meaningful name, like flocker-test. You'll need this later.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="/_images/03-pem-downloaded.png" alt="AWS keys"/>
-			<span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create and save an AWS EC2 Key Pair</a> in us-east-1 region for your Flocker cluster</span>
+            <span>The private key (.pem file) will be downloaded onto your computer.</span>
 		</div>
 	</div>
 	
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 2</h2>
-			<p>Create a 2 node Flocker cluster:</p>
+			<p>Create a Flocker cluster:</p>
 			<a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json" class="button" target="_blank" align="middle">Create Cluster</a>
 			<p>(This button will open AWS CloudFormation in a new tab)</p>
 		</div>
