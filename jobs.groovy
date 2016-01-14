@@ -218,7 +218,7 @@ def build_triggers(_type, _value, _branch ) {
     param: git_url - example: https://github.com/clusterhq/flocker
     param: branch - remote branch name to configure
 */
-def build_scm(git_url, branchName) {
+def build_scm(git_url, branchName, isReleaseBuild) {
     return {
         git {
             remote {
@@ -240,12 +240,14 @@ def build_scm(git_url, branchName) {
             // clean the repository before merging (git reset --hard)
             clean(true)
             createTag(false)
-            // merge our branch with the master branch
-            mergeOptions {
-                remote('upstream')
-                branch('master')
-                // there are a few merge strategies available, recursive is the default one
-                strategy('recursive')
+            if (!isReleaseBuild) {
+                // merge our branch with the master branch
+                mergeOptions {
+                    remote('upstream')
+                    branch('master')
+                    // there are a few merge strategies available, recursive is the default one
+                    strategy('recursive')
+                }
             }
         }
     }
@@ -382,7 +384,7 @@ def build_tabs(dashBranchName) {
 }
 
 
-def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
+def define_job(dashBranchName, branchName, job_type, job_name, job_values, isReleaseBuild) {
     // apply config related to 'run_trial' jobs
     if (job_type == 'run_trial') {
         for (_module in job_values.with_modules) {
@@ -399,7 +401,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
                 directories_to_delete = ['${WORKSPACE}/_trial_temp',
                                          '${WORKSPACE}/.hypothesis']
                 wrappers build_wrappers(job_values, directories_to_delete)
-                scm build_scm(git_url, branchName)
+                scm build_scm(git_url, branchName, isReleaseBuild)
                 steps build_steps(dashProject, dashBranchName, _job_name, job_values)
                 publishers build_publishers(job_values)
             }
@@ -424,7 +426,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
                 directories_to_delete = ['${WORKSPACE}/_trial_temp',
                                          '${WORKSPACE}/.hypothesis']
                 wrappers build_wrappers(job_values, directories_to_delete)
-                scm build_scm(git_url, branchName)
+                scm build_scm(git_url, branchName, isReleaseBuild)
                 steps build_steps(dashProject, dashBranchName, _job_name, job_values)
                 publishers build_publishers(job_values)
             }
@@ -441,7 +443,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
-            scm build_scm(git_url, branchName)
+            scm build_scm(git_url, branchName, isReleaseBuild)
             // There is no module part for sphinx jobs so we can use job_name
             // unmodified.
             steps build_steps(dashProject, dashBranchName, job_name, job_values)
@@ -470,7 +472,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
 
                 directories_to_delete = ['${WORKSPACE}/repo' ]
                 wrappers build_wrappers(job_values, directories_to_delete)
-                scm build_scm(git_url, branchName)
+                scm build_scm(git_url, branchName, isReleaseBuild)
                 steps build_steps(dashProject, dashBranchName, _job_name, job_values)
                 publishers build_publishers(job_values)
             }
@@ -495,7 +497,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
 
             directories_to_delete = ['${WORKSPACE}/repo']
             wrappers build_wrappers(job_values, directories_to_delete)
-            scm build_scm(git_url, branchName)
+            scm build_scm(git_url, branchName, isReleaseBuild)
             // There is no module for run_client jobs so we can use job_name
             // unmodified.
             steps build_steps(dashProject, dashBranchName, job_name, job_values)
@@ -510,7 +512,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
-            scm build_scm("${git_url}", "${branchName}")
+            scm build_scm("${git_url}", "${branchName}", isReleaseBuild)
             // There is no module for omnibus jobs so we can use job_name
             // unmodified.
             steps build_steps(dashProject, dashBranchName, job_name, job_values)
@@ -525,7 +527,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
-            scm build_scm(git_url, branchName)
+            scm build_scm(git_url, branchName, isReleaseBuild)
             // There is no module for lint jobs so we can use job_name
             // unmodified.
             steps build_steps(dashProject, dashBranchName, job_name, job_values)
@@ -534,7 +536,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values) {
 }
 
 
-def build_multijob(dashBranchName, branchName) {
+def build_multijob(dashBranchName, branchName, isReleaseBuild) {
     // -------------------------------------------------------------------------
     // MULTIJOB CONFIGURATION BELOW
     // --------------------------------------------------------------------------
@@ -545,7 +547,7 @@ def build_multijob(dashBranchName, branchName) {
            the git repository so that we can track when changes are pushed upstream.
            We add a SCM block pointing to our flocker code base.
         */
-        scm build_scm(git_url, branchName)
+        scm build_scm(git_url, branchName, isReleaseBuild)
         /* By adding a trigger of type 'github' we enable automatic builds when
            changes are pushed to the repository.
            This however only happens for the master branch, no other branches are
@@ -668,15 +670,17 @@ def build_multijob(dashBranchName, branchName) {
 }
 
 
-/* --------------------
-   MAIN ACTION:
-   --------------------
-*/
-// Iterate over every branch, and create folders, jobs
-branches.each {
-    println("iterating over branch... ${it}")
-    branchName = it
-    dashBranchName = branchName.replace("/","-")
+def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseBuild) {
+    /*
+        Generate all the jobs for the specific branch.
+
+        :param unicode dashProject: the project name escaped with dashes
+        :param unicode dashBranchName: the branch name escaped with dashes
+        :param unicode branchName: the name of the branch for display - spaces
+             etc. allowed
+        :param bool isReleaseBuild: whether to generate a release build that
+             doesn't merge to master before performing operations.
+    */
 
     // create a folder for every branch: /git-username/git-repo/branch
     folder("${dashProject}/${dashBranchName}") {
@@ -692,12 +696,31 @@ branches.each {
         for (job_entry in job_type_entry.value) {
             job_name = job_entry.key
             job_values = job_entry.value
-            define_job(dashBranchName, branchName, job_type, job_name, job_values)
+            define_job(dashBranchName, branchName, job_type, job_name, job_values, isReleaseBuild)
         }
     }
 
     // create multijob that aggregates the individual jobs
-    build_multijob(dashBranchName, branchName)
+    build_multijob(dashBranchName, branchName, isReleaseBuild)
+}
+
+
+/* --------------------
+   MAIN ACTION:
+   --------------------
+*/
+// Iterate over every branch, and create folders, jobs
+branches.each {
+    println("iterating over branch... ${it}")
+    branchName = it
+    dashBranchName = branchName.replace("/","-")
+    isReleaseBuild = branchName.startsWith("target-branch-")
+
+    generate_jobs_for_branch(dashProject, dashBranchName, branchName, false)
+
+    if (isReleaseBuild) {
+        generate_jobs_for_branch(dashProject, "release-" + dashBranchName, "Release " + branchName, true)
+    }
 }
 
 
@@ -724,7 +747,7 @@ for (job_type_entry in GLOBAL_CONFIG.job_type) {
                 label(job_values.on_nodes_with_labels)
                 wrappers build_wrappers(job_values, [])
                 triggers build_triggers('cron', job_values.at, "${branchName}")
-                scm build_scm("${git_url}", "${branchName}")
+                scm build_scm("${git_url}", "${branchName}", false)
                 steps build_steps(dashProject, dashBranchName, _job_name, job_values)
                 publishers build_publishers(job_values)
             }
