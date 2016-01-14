@@ -207,7 +207,7 @@ class DockerComposeTests(AsyncTestCase):
             certificates_path=certificates_path,
             cluster_uuid=user_credential.cluster_uuid,
         )
-        cluster.clean_nodes()
+        return cluster.clean_nodes()
 
     def _cleanup_compose(self):
         d_node1_compose = remote_docker_compose(
