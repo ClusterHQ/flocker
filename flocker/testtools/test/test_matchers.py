@@ -185,6 +185,11 @@ class FileContainsTests(TestCase):
 
     @given(observed=binary(average_size=10), expected=binary(average_size=10))
     def test_file_exists_content_mismatch(self, observed, expected):
+        """
+        If the file exists, the content is matched against the given matcher.
+        If it mismatches, the message includes both the filename and the
+        message from the underlying matcher.
+        """
         assume(observed != expected)
         matcher = Equals(expected)
         path = self.make_temporary_path()
@@ -198,6 +203,10 @@ class FileContainsTests(TestCase):
 
     @given(content=binary(average_size=10))
     def test_file_exists_content_match(self, content):
+        """
+        If the file exists, the content is matched against the given matcher.
+        If it matches, then the overall matcher also matches.
+        """
         path = self.make_temporary_path()
         path.setContent(content)
         self.assertThat(path, file_contents(Equals(content)))
