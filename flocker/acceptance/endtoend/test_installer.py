@@ -246,7 +246,7 @@ class DockerComposeTests(AsyncTestCase):
                 reactor,
                 lambda: remote_postgres(
                     self.client_ip, self.agent_node_1, 'SELECT 1'
-                )
+                ),
                 [1, 1, 1]
             )
         )
@@ -289,10 +289,11 @@ class DockerComposeTests(AsyncTestCase):
                 reactor,
                 lambda: remote_postgres(
                     self.client_ip, self.agent_node_1, 'SELECT 1'
-                )
+                ),
                 [1, 1, 1]
             )
         )
+
         d.addCallback(
             lambda ignored: remote_postgres(
                 self.client_ip,
