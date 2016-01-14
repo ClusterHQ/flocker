@@ -35,6 +35,7 @@ from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
 
+from ..common import make_file
 from ._flaky import retry_flaky
 
 
@@ -71,16 +72,17 @@ class _MktempMixin(object):
         """
         return make_temporary_directory(_path_for_test(self))
 
-    def make_temporary_file(self, content=''):
+    def make_temporary_file(self, content='', permissions=None):
         """
         Create a temporary file for use in tests.
 
         :param str content: Content to write to the file.
+        :param int permissions: The permissions for the file
         :return: Path to file.
         :rtype: FilePath
         """
         path = self.make_temporary_path()
-        path.setContent(content)
+        make_file(path, content, permissions)
         return path
 
 
