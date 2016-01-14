@@ -5,8 +5,6 @@
         h1 { display:none; }
     </style>
 
-.. _storage-backends:
-
 ========================
 Supported Configurations
 ========================
@@ -41,6 +39,7 @@ Supported Orchestration Frameworks
         <a href="flocker-standalone/" class="button">Install</a>
     </div>
 
+.. _storage-backends:
 
 Supported Infrastructure & Storage
 ==================================
