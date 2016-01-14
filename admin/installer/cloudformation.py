@@ -1,5 +1,23 @@
-# Converted from EC2InstanceSample.template located at:
-# http://aws.amazon.com/cloudformation/aws-cloudformation-templates/
+"""
+Troposphere script to generate an AWS CloudFormation JSON template.
+
+Sample usage:
+python cloudformation.py > flocker-cluster.cloudformation.json
+
+Resulting JSON template has the following blueprint to describe the
+desired stack's resources and properties:
+1 Control Node with Flocker Control Service, (TLS-enabled) Swarm Manager,
+                    (TLS-enabled) Docker, Ubuntu 14.04
+2 Agent Nodes with Flocker Dataset Agent, Swarm Agent, (TLS-enabled) Docker,
+                   Ubuntu 14.04
+1 Client Node with Flockerctl, Docker, Docker-compose, Ubuntu 14.04
+
+To manifest the blueprint, please input the JSON template at AWS CloudFormation
+Create Stack console (after replacing ``us-east-1`` with your Region):
+https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new
+
+"""
+
 import json
 import os
 import re
@@ -30,34 +48,37 @@ CLIENT_SETUP = 'setup_client.sh'
 SIGNAL_CONFIG_COMPLETION = 'signal_config_completion.sh'
 
 
-def sibling_lines(filename):
+def _sibling_lines(filename):
+    """
+    Read file content into an output string.
+    """
     dirname = os.path.dirname(__file__)
     path = os.path.join(dirname, filename)
     with open(path, 'r') as f:
         return f.readlines()
 
+# Base JSON template.
 template = Template()
 
+# Keys corresponding to CloudFormation user Inputs.
 keyname_param = template.add_parameter(Parameter(
     "KeyName",
     Description="Name of an existing EC2 KeyPair to enable SSH "
                 "access to the instance",
     Type="String",
 ))
-
-
 access_key_id_param = template.add_parameter(Parameter(
     "AccessKeyID",
     Description="Your Amazon AWS access key ID",
     Type="String",
 ))
-
 secret_access_key_param = template.add_parameter(Parameter(
     "SecretAccessKey",
     Description="Your Amazon AWS secret access key.",
     Type="String",
 ))
 
+# Base AMIs.
 template.add_mapping(
     'RegionMap', {
         'us-east-1':      {"FlockerAMI": "ami-5f401635",
@@ -70,13 +91,17 @@ template.add_mapping(
 )
 
 instances = []
+
+# Select a random AvailabilityZone within given AWS Region.
 zone = Select(0, GetAZs(""))
 
+# S3 bucket to hold {Flocker, Docker, Swarm} configuration for distribution
+# between nodes.
 s3bucket = Bucket('ClusterConfig',
                   DeletionPolicy='Retain')
 template.add_resource(s3bucket)
 
-# Create SecurityGroup for cluster instances
+# Create SecurityGroup for cluster instances.
 instance_sg = template.add_resource(
     ec2.SecurityGroup(
         "InstanceSecurityGroup",
@@ -91,6 +116,8 @@ instance_sg = template.add_resource(
         ]
     )
 )
+
+# Base for post-boot {Flocker, Docker, Swarm} configuration on the nodes.
 base_user_data = [
     '#!/bin/bash\n',
     'aws_region="', Ref("AWS::Region"), '"\n',
@@ -109,6 +136,7 @@ for i in range(NUM_NODES):
     else:
         node_name = AGENT_NODE_NAME_TEMPLATE.format(index=i)
 
+    # Create an EC2 instance for the {Agent, Control} Node.
     ec2_instance = ec2.Instance(
         node_name,
         ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "FlockerAMI"),
@@ -118,6 +146,8 @@ for i in range(NUM_NODES):
         AvailabilityZone=zone,
     )
 
+    # WaitCondition and corresponding Handler to signal completion
+    # of {Flocker, Docker, Swarm} configuration on the node.
     wait_condition_handle = WaitConditionHandle(
         INFRA_WAIT_HANDLE_TEMPLATE.format(node=node_name))
     template.add_resource(wait_condition_handle)
@@ -135,14 +165,16 @@ for i in range(NUM_NODES):
         'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
     ]
 
-    user_data += sibling_lines(S3_SETUP)
+    # Setup S3 utilities to push/pull node-specific data to/from S3 bucket.
+    user_data += _sibling_lines(S3_SETUP)
 
     if i == 0:
+        # Control Node configuration.
         control_service_instance = ec2_instance
-        user_data += sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
-        user_data += sibling_lines(DOCKER_SWARM_CA_SETUP)
-        user_data += sibling_lines(DOCKER_SETUP)
-        user_data += sibling_lines(SWARM_MANAGER_SETUP)
+        user_data += _sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
+        user_data += _sibling_lines(DOCKER_SWARM_CA_SETUP)
+        user_data += _sibling_lines(DOCKER_SETUP)
+        user_data += _sibling_lines(SWARM_MANAGER_SETUP)
         template.add_output([
             Output(
                 "ControlNodeIP",
@@ -152,9 +184,10 @@ for i in range(NUM_NODES):
             )
         ])
     else:
+        # Agent Node configuration.
         ec2_instance.DependsOn = control_service_instance.name
-        user_data += sibling_lines(DOCKER_SETUP)
-        user_data += sibling_lines(SWARM_NODE_SETUP)
+        user_data += _sibling_lines(DOCKER_SETUP)
+        user_data += _sibling_lines(SWARM_NODE_SETUP)
         template.add_output([
             Output(
                 "AgentNode{}IP".format(i),
@@ -163,11 +196,12 @@ for i in range(NUM_NODES):
             )
         ])
 
-    user_data += sibling_lines(FLOCKER_CONFIGURATION_GETTER)
-    user_data += sibling_lines(SIGNAL_CONFIG_COMPLETION)
+    user_data += _sibling_lines(FLOCKER_CONFIGURATION_GETTER)
+    user_data += _sibling_lines(SIGNAL_CONFIG_COMPLETION)
     ec2_instance.UserData = Base64(Join("", user_data))
     template.add_resource(ec2_instance)
 
+# Client Node creation.
 client_instance = ec2.Instance(
     CLIENT_NODE_NAME,
     ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "ClientAMI"),
@@ -185,20 +219,20 @@ wait_condition = WaitCondition(
 )
 template.add_resource(wait_condition)
 
+# Client Node {Flockerctl, Docker-compose} configuration.
 user_data = base_user_data[:]
 user_data += [
     'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
     'node_number="{}"\n'.format("-1"),
 ]
-user_data += sibling_lines(S3_SETUP)
-user_data += sibling_lines(CLIENT_SETUP)
-user_data += sibling_lines(SIGNAL_CONFIG_COMPLETION)
-
+user_data += _sibling_lines(S3_SETUP)
+user_data += _sibling_lines(CLIENT_SETUP)
+user_data += _sibling_lines(SIGNAL_CONFIG_COMPLETION)
 client_instance.UserData = Base64(Join("", user_data))
 client_instance.DependsOn = control_service_instance.name
-
 template.add_resource(client_instance)
 
+# List of Output fields upon successful creation of the stack.
 template.add_output([
     Output(
         "ClientNodeIP",
@@ -206,7 +240,6 @@ template.add_output([
         Value=GetAtt(client_instance, "PublicIp"),
     )
 ])
-
 template.add_output(Output(
     "ClientConfigDockerSwarmHost",
     Value=Join("",
@@ -214,13 +247,11 @@ template.add_output(Output(
                 GetAtt(control_service_instance, "PublicIp"), ":2376"]),
     Description="Client config: Swarm Manager's DOCKER_HOST setting."
 ))
-
 template.add_output(Output(
     "ClientConfigDockerTLS",
     Value="export DOCKER_TLS_VERIFY=1",
     Description="Client config: Enable TLS client for Swarm."
 ))
-
 base_url = "https://resources.console.aws.amazon.com/r/group#sharedgroup="
 parameters = {
     "name": "%STACK_NAME%",
@@ -235,13 +266,10 @@ parameters = {
         }
     ]
 }
-
 parameter_string = json.dumps(parameters, separators=(',', ':'))
-
 variables = {
     "STACK_NAME": Ref('AWS::StackName')
 }
-
 pattern = r'%([A-Z_]+)%'
 parts = re.split(pattern, parameter_string)
 iparts = iter(parts)
@@ -257,5 +285,9 @@ template.add_output(Output(
     Value=Join("", new_parts),
     Description="A view of all the resources in this stack."
 ))
-
+template.add_output(Output(
+    "S3BucketName",
+    Value=Ref(s3bucket),
+    Description="Name of S3 bucket to hold cluster configuration files."
+))
 print(template.to_json())

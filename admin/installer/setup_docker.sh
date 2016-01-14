@@ -1,14 +1,14 @@
 #!/bin/bash
-# Get TLS certs and restart Docker daemon.
+# Get CA from S3 bucket, generate certificates for local node, and restart TLS-enabled Docker daemon.
 set -ex
 
 : ${node_number:?}
 : ${s3_bucket:?}
 
-# Get expect to autofill openssl inputs
+# Get expect to autofill openssl inputs.
 sudo apt-get install -y expect
 
-# Get TLS from S3 bucket.
+# Get CA from S3 bucket.
 DOCKER_CERT_HOME="/root/.docker"
 mkdir -p ${DOCKER_CERT_HOME}
 s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/ca.pem "${DOCKER_CERT_HOME}"/ca.pem
@@ -16,12 +16,12 @@ s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-t
 s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/passphrase.txt "${DOCKER_CERT_HOME}"/passphrase.txt
 PASSPHRASE=`eval cat ${DOCKER_CERT_HOME}/passphrase.txt`
 
-# Create node key and CSR.
+# Create key and CSR.
 pushd ${DOCKER_CERT_HOME}
 openssl genrsa -out key.pem 4096
 openssl req -subj "/CN=$(/usr/bin/ec2metadata --public-ipv4)" -sha256 -new -key ${DOCKER_CERT_HOME}/key.pem -out ${DOCKER_CERT_HOME}/node.csr
 
-# Sign node public key with CA.
+# Sign public key with CA.
 echo subjectAltName = IP:$(/usr/bin/ec2metadata --public-ipv4),IP:127.0.0.1 > ${DOCKER_CERT_HOME}/extfile.cnf
 echo extendedKeyUsage = clientAuth,serverAuth >> ${DOCKER_CERT_HOME}/extfile.cnf
 cat > ${DOCKER_CERT_HOME}/createnode.exp << EOF
@@ -39,18 +39,18 @@ EOF
 chmod +x ${DOCKER_CERT_HOME}/createnode.exp
 ${DOCKER_CERT_HOME}/createnode.exp
 
-# Set Docker defaults
+# Set Docker defaults to enable TLS, and tag the node with ``flocker-node`` number.
 cat > /etc/default/docker << EOF
 DOCKER_TLS_VERIFY=1
 DOCKER_CERT_PATH=/root/.docker
 DOCKER_OPTS="--tlsverify --tlscacert=${DOCKER_CERT_HOME}/ca.pem --tlscert=${DOCKER_CERT_HOME}/cert.pem --tlskey=${DOCKER_CERT_HOME}/key.pem -H unix:///var/run/docker.sock -H=0.0.0.0:2375 --label flocker-node=${node_number}"
 EOF
 
-# Remove the docker machine ID (this is a cloned AMI)
+# Remove the docker machine ID (since this is a cloned AMI).
 rm -f /etc/docker/key.json
 
-# Restart which will stop any existing containers.
+# Restart Docker to enable new default settings.
 service docker restart
 
-# Wait for a bit because docker is not ready to handle requests immediately.
+# Wait because Docker is not ready to handle requests immediately.
 sleep 10

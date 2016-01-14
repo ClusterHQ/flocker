@@ -1,7 +1,6 @@
 #!/bin/bash
-# S3 installer and configurator
+# Install and configure S3 with a minimal configuration file.
 #
-# Installs S3 and creates a minimal configuration file.
 set -ex
 
 : ${access_key_id:?}
@@ -16,7 +15,7 @@ EOF
 apt-get -y install s3cmd
 
 # Wrapper around S3 command to allow retry until
-# bucket of interest is populated.
+# bucket of interest is available and populated.
 s3cmd_wrapper ()
 {
     while ! /usr/bin/s3cmd --force $@; do

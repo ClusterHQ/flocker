@@ -7,35 +7,37 @@ set -ex
 DOCKER_CERT_HOME="/root/.docker"
 UBUNTU_HOME="/home/ubuntu"
 
+# Get Postgres image.
 apt-get update
 sudo apt-get install -y postgresql-client
 
+# Get docker-compose.
 curl -L https://github.com/docker/compose/releases/download/1.5.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
 mkdir -p /home/ubuntu/postgres
-
 curl https://raw.githubusercontent.com/ClusterHQ/flocker/flocker-cloudformation-FLOC-3709/admin/installer/postgres/docker-compose-node0.yml > /home/ubuntu/postgres/docker-compose-node0.yml
 curl https://raw.githubusercontent.com/ClusterHQ/flocker/flocker-cloudformation-FLOC-3709/admin/installer/postgres/docker-compose-node1.yml > /home/ubuntu/postgres/docker-compose-node1.yml
 
 chown --recursive ubuntu:ubuntu /home/ubuntu/postgres
 
-# Get uft-flocker-volumes
+# Get uft-flocker-volumes in order to use flockerctl.
 curl -sSL https://get.flocker.io/ | sh
 
+# Get Flocker certificates.
 mkdir -p /etc/flocker
 s3cmd_wrapper get --recursive --config=/root/.s3cfg s3://${s3_bucket}/flocker-config/ /etc/flocker
 
-# Get CA for Docker Swarm
+# Get CA for Docker Swarm.
 s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/ca.pem "${DOCKER_CERT_HOME}"/ca.pem
 s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/ca-key.pem "${DOCKER_CERT_HOME}"/ca-key.pem
 s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/passphrase.txt "${DOCKER_CERT_HOME}"/passphrase.txt
 PASSPHRASE=`eval cat ${DOCKER_CERT_HOME}/passphrase.txt`
  
-# Get expect to autofill openssl inputs
+# Get expect to autofill openssl inputs.
 sudo apt-get install -y expect
 
-# Generate Docker Swarm client cert
+# Generate Docker Swarm client certificates.
 pushd ${DOCKER_CERT_HOME}
 openssl genrsa -out ${DOCKER_CERT_HOME}/key.pem 4096
 openssl req -subj '/CN=client' -new -key ${DOCKER_CERT_HOME}/key.pem -out ${DOCKER_CERT_HOME}/client.csr
@@ -55,5 +57,5 @@ EOF
 chmod +x ${DOCKER_CERT_HOME}/createclient.exp
 ${DOCKER_CERT_HOME}/createclient.exp
 
-# Copy Docker Certs dir to home dir
+# Copy Docker Certificates directory to Ubuntu's home directory.
 cp -r ${DOCKER_CERT_HOME} ${UBUNTU_HOME}
