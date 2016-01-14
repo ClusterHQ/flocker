@@ -67,6 +67,7 @@ def remote_command(client_ip, command):
         reactor,
         'ubuntu',
         client_ip,
+        command,
         handle_stdout=process_output.append
     )
     d.addCallback(
@@ -273,7 +274,7 @@ class DockerComposeTests(AsyncTestCase):
         """
         def pull_postgres():
             return remote_docker(
-                self.client_ip, self.docker_host, 'pull', 'postgresql:latest'
+                self.client_ip, self.docker_host, 'pull', 'postgres:latest'
             )
         d = retry_failure(
             reactor=reactor,
