@@ -235,6 +235,33 @@ class DockerComposeTests(AsyncTestCase):
         )
         return gather_deferreds([d_node1_compose, d_node2_compose])
 
+    def _wait_for_postgres(self):
+        def trap(failure):
+            failure.trap(ProcessTerminated)
+            # psql returns 0 to the shell if it finished normally, 1 if a fatal
+            # error of its own occurs (e.g. out of memory, file not found), 2
+            # if the connection to the server went bad and the session was not
+            # interactive, and 3 if an error occurred in a script and the
+            # variable ON_ERROR_STOP was set.
+            # http://www.postgresql.org/docs/9.3/static/app-psql.html
+            if failure.value.exitCode == 2:
+                return False
+            else:
+                return failure
+
+        def predicate():
+            d = remote_postgres(
+                self.client_ip, self.agent_node_1, 'SELECT 1'
+            )
+            d.addErrback(trap)
+            return d
+
+        return loop_until(
+            reactor,
+            predicate,
+            repeat(1, 5)
+        )
+
     def test_docker_compose_up_postgres(self):
         """
         """
@@ -251,6 +278,7 @@ class DockerComposeTests(AsyncTestCase):
                 [1, 1, 1]
             )
         )
+        d.addCallback(self._wait_for_postgres)
         d.addCallback(
             lambda ignored: remote_postgres(
                 self.client_ip, self.agent_node_1,
@@ -284,16 +312,7 @@ class DockerComposeTests(AsyncTestCase):
             )
         )
 
-        # Wait until the remote PostgreSQL server is accepting connections.
-        d.addCallback(
-            lambda ignored: loop_until(
-                reactor,
-                lambda: remote_postgres(
-                    self.client_ip, self.agent_node_1, 'SELECT 1'
-                ),
-                [1, 1, 1]
-            )
-        )
+        d.addCallback(self._wait_for_postgres)
 
         d.addCallback(
             lambda ignored: remote_postgres(
