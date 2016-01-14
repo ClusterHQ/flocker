@@ -124,6 +124,16 @@ def _ensure_empty_directory(path):
         )
 
 
+def generate_managed_config(cluster):
+    addresses = list()
+    for node in cluster.agent_nodes:
+        if node.private_address is not None:
+            addresses.append([node.private_address, node.address])
+        else:
+            addresses.append(node.address)
+    return {"managed": {"addresses": addresses}}
+
+
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
     """
@@ -159,6 +169,10 @@ def main(reactor, args, base_path, top_level):
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
+        managed_config = options['cert-directory'].child("managed.yaml")
+        managed_config.setContent(
+            yaml.safe_dump(generate_managed_config(cluster))
+        )
         if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
