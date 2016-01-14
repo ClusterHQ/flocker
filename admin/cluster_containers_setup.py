@@ -35,10 +35,11 @@ class ContainerOptions(usage.Options):
          'Configuration to use for each application container'],
         ['control-node', None, None,
          'Public IP address of the control node'],
-        ['certificate-path', None, None,
+        ['cert-directory', None, None,
          'Location of the user and control certificates and user key'],
-        ['purpose', None, 'testing',
-         "Purpose of the cluster recorded in its metadata where possible"],
+        ['wait', None, None,
+         "The timeout in seconds for waiting until the operation is complete. "
+         "No waiting is done by default."],
         ['cluster', None, None,
          'Configuration of the cluster'],
     ]
@@ -46,8 +47,7 @@ class ContainerOptions(usage.Options):
     synopsis = ('Usage: setup-cluster-containers --app-per-node <containers'
                 'per node> --app-template <name of the file> '
                 '--control-node <IPAddress>'
-                '--certificate-path <path where all the certificates are>'
-                '[--purpose <string> (UNUSED)]'
+                '--cert-directory <path where all the certificates are>'
                 '[--cluster <file> (UNUSED)')
 
     def postOptions(self):
@@ -59,13 +59,29 @@ class ContainerOptions(usage.Options):
                 "app-template parameter must be provided if apps-per-node > 0"
             )
 
-        self['purpose'] = unicode(self['purpose'])
-        if any(x not in string.ascii_letters + string.digits + '-'
-               for x in self['purpose']):
-            raise usage.UsageError(
-                "Purpose may have only alphanumeric symbols and dash. " +
-                "Found {!r}".format('purpose')
-            )
+        if self['wait'] is not None:
+            try:
+                self['wait'] = int(self['wait'])
+            except ValueError:
+                raise usage.UsageError("The wait timeout must be an integer.")
+
+
+def main(reactor, argv):
+    environ = os.environ
+    try:
+        options = ContainerOptions()
+        options.parseOptions(argv[1:])
+    except usage.UsageError as e:
+        sys.stderr.write(e.args[0])
+        sys.stderr.write('\n\n')
+        sys.stderr.write(options.getSynopsis())
+        sys.stderr.write('\n')
+        sys.stderr.write(options.getUsage())
+        raise SystemExit(1)
+    container_deployment = ClusterContainerDeployment(reactor,
+                                                      environ,
+                                                      options)
+    return container_deployment.deploy_and_wait_for_creation()
 
 
 class ResponseError(Exception):
@@ -83,20 +99,30 @@ class ClusterContainerDeployment(object):
     Class that contains all the methods needed to deploy a new config in a
     cluster.
 
-    :ivar options:
-    :ivar application_template:
-    :ivar per_node:
-    :ivar control_node_address:
-    :ivar cluster_cert:
-    :ivar user_cert:
-    :ivar user_key:
-    :ivar client:
-    :ivar reactor:
-    :ivar nodes:
+    :ivar options: ``ContainerOptions`` with the options passed to the script
+    :ivar application_template: template of the containers to deploy.
+    :ivar per_node: number of containers and dataset per node.
+    :ivar control_node_address: public ip address of the control node.
+    :ivar cluster_cert: ``FilePath`` of the cluster certificate.
+    :ivar user_cert: ``FilePath`` of the user certificate.
+    :ivar user_key: ``FilePath`` of the user key.
+    :ivar client: ``FlockerClient`` conected to the cluster.
+    :ivar reactor: ``Reactor`` used by the client.
+    :ivar nodes: list of `Node` returned by client.list_nodes
     """
     def __init__(self, reactor, env, options):
+        """
+        ``ClusterContainerDeployment`` constructor.
+
+        :param reactor: ``Reactor`` we are using.
+        :param env: ``environ`` with the current environment.
+            NOTE: alternative of making it work with env variables pending
+            implementation
+        :param options: ``ContainerOptions`` with the options passed to the
+            the script.
+        """
         # XXX add the capability to use env variables if the options are not
-        # passed
+        # passed??
         # self.control_node_address = env['FLOCKER_ACCEPTANCE_CONTROL_NODE']
         # self.certificates_path = FilePath(
         #    env['FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH'])
@@ -105,11 +131,19 @@ class ClusterContainerDeployment(object):
             self.application_template = self.options['template']
             self.per_node = self.options['apps-per-node']
             self.control_node_address = self.options['control-node']
+            self.timeout = self.options['wait']
+            if self.timeout is None:
+                self.timeout = 100
         except Exception as e:
             sys.stderr.write("%s: %s\n" % ("Missing or wrong arguments", e))
+            sys.stderr.write(e.args[0])
+            sys.stderr.write('\n\n')
+            sys.stderr.write(options.getSynopsis())
+            sys.stderr.write('\n')
+            sys.stderr.write(options.getUsage())
             raise SystemExit(1)
 
-        certificates_path = FilePath(self.options['certificate-path'])
+        certificates_path = FilePath(self.options['cert-directory'])
         self.cluster_cert = certificates_path.child(b"cluster.crt")
         self.user_cert = certificates_path.child(b"user.crt")
         self.user_key = certificates_path.child(b"user.key")
@@ -119,6 +153,9 @@ class ClusterContainerDeployment(object):
         self._initialise_client()
 
     def _initialise_client(self):
+        """
+        Initialise flocker client.
+        """
         self.client = FlockerClient(
             self.reactor,
             self.control_node_address,
@@ -129,32 +166,63 @@ class ClusterContainerDeployment(object):
         )
 
     def _set_nodes(self, nodes):
+        """
+        Set the list of the nodes in the cluster.
+        """
         self.nodes = nodes
 
     def deploy(self):
+        """
+        Deploy the new configuration: create the requested containers
+        and dataset in the cluster nodes.
+
+        :return Deferred: that will fire once the request to create all
+            the containers and datasets has been sent.
+        """
+        print "Listing current nodes"
         d = self.client.list_nodes()
         d.addCallback(self._set_nodes)
+        print "Building config"
         d.addCallback(self._build_config)
+        print "Deploying new config"
         d.addCallback(self._configure)
         return d
 
     def is_datasets_deployment_complete(self):
+        """
+        Check if all the dataset have been created.
+
+        :return `Deferred`: that will fire once the list datasets call
+            has been completed, and which result will bee True if all the
+            dataset have been created, or false otherwise.
+        """
         number_of_datasets = self.per_node * len(self.nodes)
 
         d = self.client.list_datasets_state()
 
         def do_we_have_enough_datasets(datasets):
+            print ("Waiting for the datasets to be created"
+                   "(%d/%d)" % (len(datasets), number_of_datasets))
             return (len(datasets) >= number_of_datasets)
 
         d.addCallback(do_we_have_enough_datasets)
         return d
 
     def is_container_deployment_complete(self):
+        """
+        Check if all the containers have been created.
+
+        :return `Deferred`: that will fire once the list containers call
+            has been completed, and which result will bee True if all the
+            containers have been created, or False otherwise.
+        """
         number_of_containers = self.per_node * len(self.nodes)
 
         d = self.client.list_containers_state()
 
         def do_we_have_enough_containers(containers):
+            print ("Waiting for the containers to be created"
+                   "(%d/%d)" % (len(containers), number_of_containers))
             return (len(containers) >= number_of_containers)
 
         d.addCallback(do_we_have_enough_containers)
@@ -162,13 +230,19 @@ class ClusterContainerDeployment(object):
 
     @inlineCallbacks
     def deploy_and_wait_for_creation(self):
+        """
+        Function that will deploy the new configuration (create all the
+        dataset and container requested) and will only return once all
+        of them have been created.
+        """
         yield self.deploy()
+        print "Waiting for the containers to be created..."
         yield loop_until(self.reactor,
                          self.is_container_deployment_complete,
-                         repeat(2, 300))
+                         repeat(1, self.timeout))
         yield loop_until(self.reactor,
                          self.is_datasets_deployment_complete,
-                         repeat(2, 300))
+                         repeat(1, self.timeout))
 
     def _build_config(self, ignored):
         """
@@ -177,12 +251,8 @@ class ClusterContainerDeployment(object):
         The configuration consists of identically configured applications
         (containers) uniformly spread over all cluster nodes.
 
-        :param flocker.provision._common.Cluster cluster: The target cluster.
-        :param dict application_template: A dictionary that provides configuration
-                                      for an individual application.
-        :param int per_node: The number of applications to deploy on each cluster
-                             node.
-        :return dict: The deployment configuration.
+        :return dict: containing the json we need to send to compose to
+            create the datasets and containers we want.
         """
 
         application_root = {}
@@ -212,9 +282,8 @@ class ClusterContainerDeployment(object):
         """
         Configure the cluster with the given deployment configuration.
 
-        :param reactor: The reactor to use.
-        :param flocker.provision._common.Cluster cluster: The target cluster.
-        :param dict configuration: The deployment configuration.
+        :param dict configuration: dictionary with the configuration
+            to deploy.
         :return Deferred: Deferred that fires when the configuration is pushed
                           to the cluster's control agent.
         """
@@ -254,13 +323,3 @@ class ClusterContainerDeployment(object):
 
         return do_configure()
 
-
-
-def main(reactor, argv):
-    environ = os.environ
-    options = ContainerOptions()
-    options.parseOptions(argv[1:])
-    container_deployment = ClusterContainerDeployment(reactor,
-                                                      environ,
-                                                      options)
-    return container_deployment.deploy_and_wait_for_creation()
