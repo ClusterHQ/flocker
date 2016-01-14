@@ -13,13 +13,13 @@ import time
 
 from twisted.internet import reactor
 from twisted.internet.defer import maybeDeferred
-
+from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
 from eliot import Message
 
 
 from ...common.runner import run_ssh
-from ...common import gather_deferreds, loop_until
+from ...common import gather_deferreds, loop_until, retry_failure
 from ...testtools import AsyncTestCase, async_runner
 from ..testtools import Cluster, ControlService
 from ...ca import treq_with_authentication, UserCredential
@@ -61,38 +61,44 @@ POSTGRESQL_USERNAME = 'flocker'
 POSTGRESQL_PASSWORD = 'flocker'
 
 
-def remote_docker_compose(client_ip, docker_host, compose_file_path, *args):
-    docker_compose_output = []
+def remote_command(client_ip, command):
+    process_output = []
     d = run_ssh(
         reactor,
         'ubuntu',
         client_ip,
-        ('DOCKER_TLS_VERIFY=1', 'DOCKER_HOST={}'.format(docker_host),
-         'docker-compose', '--file', compose_file_path) + args,
-        handle_stdout=docker_compose_output.append
+        handle_stdout=process_output.append
     )
     d.addCallback(
-        lambda process_result: (process_result, docker_compose_output)
+        lambda process_result: (process_result, process_output)
     )
     return d
 
 
+def remote_docker(client_ip, docker_host, *args):
+    return remote_command(
+        client_ip,
+        ('DOCKER_TLS_VERIFY=1', 'DOCKER_HOST={}'.format(docker_host),
+         'docker') + args,
+    )
+
+
+def remote_docker_compose(client_ip, docker_host, compose_file_path, *args):
+    return remote_command(
+        client_ip,
+        ('DOCKER_TLS_VERIFY=1', 'DOCKER_HOST={}'.format(docker_host),
+         'docker-compose', '--file', compose_file_path) + args,
+    )
+
+
 def remote_postgres(client_ip, host, command):
-    postgres_output = []
-    d = run_ssh(
-        reactor,
-        'ubuntu',
+    return remote_command(
         client_ip,
         ('psql',
          'postgres://' + POSTGRESQL_USERNAME + ':' + POSTGRESQL_PASSWORD +
          '@' + host + ':' + str(POSTGRESQL_PORT),
          '--command={}'.format(command)),
-        handle_stdout=postgres_output.append
     )
-    d.addCallback(
-        lambda process_result: (process_result, postgres_output)
-    )
-    return d
 
 
 def get_stack_report(stack_id):
@@ -177,7 +183,7 @@ class DockerComposeTests(AsyncTestCase):
             self.control_node_ip = get_output(outputs, 'ControlNodeIP')
             self.docker_host = 'tcp://' + self.control_node_ip + ':2376'
             # Add cleanup operations in reverse order
-            self.addCleanup(delete_cloudformation_stack, self.stack_id)
+            # self.addCleanup(delete_cloudformation_stack, self.stack_id)
             self.addCleanup(self._cleanup_flocker)
             self.addCleanup(self._cleanup_compose)
         d.addCallback(record_stack_info)
@@ -265,17 +271,19 @@ class DockerComposeTests(AsyncTestCase):
     def test_docker_compose_up_postgres(self):
         """
         """
-        d = remote_docker_compose(
-            self.client_ip, self.docker_host, COMPOSE_NODE0, 'up', '-d'
+        def pull_postgres():
+            return remote_docker(
+                self.client_ip, self.docker_host, 'pull', 'postgresql:latest'
+            )
+        d = retry_failure(
+            reactor=reactor,
+            function=pull_postgres,
+            expected=(ProcessTerminated,),
+            steps=repeat(1, 5)
         )
-        # Wait until the remote PostgreSQL server is accepting connections.
         d.addCallback(
-            lambda ignored: loop_until(
-                reactor,
-                lambda: remote_postgres(
-                    self.client_ip, self.agent_node_1, 'SELECT 1'
-                ),
-                [1, 1, 1]
+            lambda ignored: remote_docker_compose(
+                self.client_ip, self.docker_host, COMPOSE_NODE0, 'up', '-d'
             )
         )
         d.addCallback(self._wait_for_postgres)
