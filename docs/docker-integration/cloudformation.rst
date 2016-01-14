@@ -94,21 +94,28 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 4</h2>
 			<p>Verify your installation.</p>
-            <p>Click on the "Outputs" tab for your stack. These values will be used for connecting to your cluster both for the next step and for tutorials you will go through.</p>
-			<img src="/_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation"/>
-            <div style="text-align: left">
+            <p>Click on the "Outputs" tab for your stack. These values will be used for connecting to your cluster both for the next step and for any tutorials you go through.</p>
+			<img src="/_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation" style="margin: 2em 0;"/>
+            <p>Now follow along with these commands to log in and verify your cluster is working. Where a command has a value <code>&lt;LikeThis&gt;</code>, use the values from the Outputs tab as shown above.</p>
+            <p>Where the commands have <code>&lt;KeyPath&gt;</code> which should be the path on your host to the <code>.pem</code> file you downloaded in Step 1, for example: <code>~/Downloads/flocker-test.pem</code>.</p>
+            <div style="text-align: left; margin: 2em 0;">
 
-.. prompt:: bash $
+.. prompt:: bash
 
-   foo
+   ssh -i <KeyPath> ubuntu@<ClientNodeIP>
+   export DOCKER_HOST=<ControlNodeIP>:2376
+   docker info |grep Nodes # should output "Nodes: 2"
+   export FLOCKER_CERTS_PATH=/etc/flocker
+   export FLOCKER_USER=user1
+   export FLOCKER_CONTROL_SERVICE=<ControlNodeIP>
+   flockerctl status # should show two nodes running
+   flockerctl ls # should show no datasets yet
+   # TODO make flockerctl work like this (with env vars)
 
 .. raw:: html
 
             </div>
-            
-			<span>Under the <b>Outputs</b> tab, gather your <code>ClientIP</code>, <code>DockerTLSCertDirectory</code> and <code>SwarmDockerHost</code> info.</span> 
-			<span>Connect to the client IP, and check that <code>docker info</code> lists two hosts in the cluster.</span> 
-			<span>Connect to the client IP, and check that <code>flockerctl</code> lists two nodes and zero datasets in the cluster. </span> 
+            <p>If the output matches, this shows that you have two nodes in your Swarm cluster and two nodes in your Flocker cluster!</p>            
 		</div>
 	</div>
 	
