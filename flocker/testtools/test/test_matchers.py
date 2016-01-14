@@ -1,6 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
-from hypothesis import given
+from hypothesis import assume, given
+from hypothesis.strategies import binary
 from testtools.matchers import (
     AfterPreprocessing,
     DirExists,
@@ -11,11 +12,11 @@ from testtools.matchers import (
     PathExists,
 )
 
-
 from .. import TestCase
 from ..strategies import paths
 from ..matchers import (
     dir_exists,
+    file_contents,
     file_exists,
     path_exists,
 )
@@ -155,3 +156,38 @@ class FileExistsTests(TestCase):
             file_exists().match(path),
             is_equivalent_mismatch(FileExists().match(path.path)),
         )
+
+
+class FileContainsTests(TestCase):
+    """
+    Tests for :py:func:`file_contains`.
+    """
+
+    def test_does_not_exist(self):
+        """
+        If the path does not exist, file_contains does not match.
+        """
+        path = self.make_temporary_path()
+        arbitrary_matcher = Is(None)
+        self.assertThat(path, Not(file_contents(arbitrary_matcher)))
+
+    def test_directory(self):
+        """
+        If the path is a directory, file_contains does not match.
+        """
+        path = self.make_temporary_directory()
+        arbitrary_matcher = Is(None)
+        self.assertThat(path, Not(file_contents(arbitrary_matcher)))
+
+    @given(observed=binary(average_size=10), expected=binary(average_size=10))
+    def test_file_exists_content_mismatch(self, observed, expected):
+        assume(observed != expected)
+        path = self.make_temporary_path()
+        path.setContent(observed)
+        self.assertThat(path, Not(file_contents(Equals(expected))))
+
+    @given(content=binary(average_size=10))
+    def test_file_exists_content_match(self, content):
+        path = self.make_temporary_path()
+        path.setContent(content)
+        self.assertThat(path, file_contents(Equals(content)))
