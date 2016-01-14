@@ -159,7 +159,7 @@ class BaseTestCaseTests(TesttoolsTestCase):
             test.getDetails(),
             ContainsDict({
                 'twisted-log': match_text_content(MatchesRegex(
-                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4} \[-\] foo$'
+                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4} \[-\] foo'
                 )),
             }))
 
@@ -183,7 +183,7 @@ class BaseTestCaseTests(TesttoolsTestCase):
             test.getDetails(),
             MatchesDict({
                 'twisted-log': match_text_content(MatchesRegex(
-                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4} \[-\] foo$'
+                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4} \[-\] foo'
                 )),
                 _SplitEliotLogs._ELIOT_LOG_DETAIL_NAME: match_text_content(
                     Contains("  message_type: 'foo'\n"
