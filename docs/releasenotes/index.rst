@@ -9,6 +9,9 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+This Release
+============
+
 v1.9.0
 ------
 
@@ -28,6 +31,13 @@ v1.9.0
 * The :ref:`Flocker Plugin for Docker<docker-plugin>` now supports specifying the size during volume creation.
 * Fixed a bug where Flocker would fail to service requests that had an unexpected format.
 
+Previous Releases
+=================
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
 
 v1.8.0
 ------
@@ -39,15 +49,6 @@ v1.8.0
   As a result we were able to remove a delay in startup time that was a temporary workaround for the issue.
 * Fixed a bug where datasets that hadn't had a filesystem created on them could never be mounted;
   existing flocker datasets without filesystems now have a filesystem created on them.
-
-Previous Releases
-=================
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
-
 
 v1.7.2
 ------
