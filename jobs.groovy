@@ -714,7 +714,8 @@ branches.each {
     println("iterating over branch... ${it}")
     branchName = it
     dashBranchName = branchName.replace("/","-")
-    isReleaseBuild = branchName.startsWith("target-branch-")
+    // our convention for release branches is release/flocker-<version>
+    isReleaseBuild = branchName.startsWith("release/*")
 
     generate_jobs_for_branch(dashProject, dashBranchName, branchName, false)
 
