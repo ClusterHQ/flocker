@@ -4,9 +4,10 @@
 Tutorial: Using Flocker with Docker, Swarm, Compose
 ===================================================
 
-This tutorial will guide you through deploying an app made up of two containers:
+For this tutorial, we've provided a simple app for you to deploy, made up of two containers:
 
-* A node.js application which puts Docker icons on the screen, and stores their locations in a database.
+* A node.js application called ``moby-counter``.
+  This app allows you to put Docker icons anywhere on your screen, and the locations are stored in a database.
 * A PostgreSQL database for the application, which is stateful, and needs a Flocker volume.
 
 You will use Docker Compose to deploy the app on a Swarm cluster using Flocker as a volume driver.
@@ -19,11 +20,11 @@ What You'll Need
 
 * A Flocker cluster with Swarm installed.
 
-  * Use one of our :ref:`Flocker with Swarm installation methods <docker-integration>` to get one.
+  * Use one of our :ref:`Flocker with Swarm installation options <docker-integration>` to get one.
 
 * A Client machine with Docker Compose and access to the Swarm master.
 
-  * If you used our :ref:`CloudFormation installer <cloudformation>` the "Client" VM is preconfigured with Docker Compose, so ssh into that:
+  * If you used our :ref:`CloudFormation installer <cloudformation>` the "Client" VM is preconfigured with Docker Compose, so use the following command to ssh into Compose:
 
     .. prompt:: bash $
 
@@ -33,35 +34,35 @@ What You'll Need
    
     ``<ClientIP>`` is the Client IP you got from the CloudFormation Outputs tab.
 	
-    If you have used our CloudFormation installer, the rest of this tutorial assumes you are logged into the Client node.
+    By using the CloudFormation installer, the rest of this tutorial will assume you are logged into the Client node.
 
-  * Alternatively, `install Docker Compose <https://docs.docker.com/compose/install/>`_ on any machine which has network access to the Swarm master that you created when you installed Swarm.
+  * Alternatively, install `Docker Compose <https://docs.docker.com/compose/install/>`_ on any machine which has network access to the Swarm master that you created when you installed Swarm.
 
 Step 1: Set ``DOCKER_HOST``
 ===========================
 
 Compose uses the environment variable ``DOCKER_HOST`` to know how to talk to the Swarm master.
-
 If you used our :ref:`CloudFormation installer <cloudformation>`, it is listed in the Outputs tab of your CloudFormation stack.
 
-For example:
+Use the following commmand to set the ``DOCKER_HOST`` environment variable:
 
 .. prompt:: bash $
 
    export DOCKER_HOST=<SwarmMaster>
 
-Where ``<SwarmMaster>`` is the address of your Swarm master, in the format ``ip:port``, e.g. ``1.2.3.4:2376``.
+``<SwarmMaster>`` is the address of your Swarm master, in the format ``ip:port``.
+For example, ``1.2.3.4:2376``.
 
 Step 2: Deploy the app on the first node
 ========================================
 
-Download the following two Docker Compose files to your Client machine, by right clicking and copying the link address:
+The two Docker Compose files below need to be saved on your Client machine, in a directory named :file:`swarm-compose-tutorial`.
 
 :download:`tutorial-downloads/flocker-swarm-tutorial-node1.yml`
 
 :download:`tutorial-downloads/flocker-swarm-tutorial-node2.yml`
 
-Example:
+You can either click the cloud icons to save the files locally, and then move them onto your Client machine using using a transfer medium such as SSH, SCP or SFTP, or right click each file, and copy the link address and run the following commands with the tutorial URLs:
 
 .. prompt:: bash $
 
@@ -72,9 +73,7 @@ Example:
 
 .. TODO: It would be much nicer if we had a Sphinx directive to output the URL of a download, so the user didn't have to right click and copy-paste here.
 
-Where ``<Tutorial1Url>`` and ``<Tutorial2Url>`` are the tutorial URLs from the links above.
-
-These Docker compose files both look like this, except the ``node2`` file has ``constraint:flocker-node==2`` instead of ``node==1``.
+The Docker Compose files both have the same layout, as illustrated below, except the ``node2`` file has ``constraint:flocker-node==2`` instead of ``node==1``.
 
 .. literalinclude:: tutorial-downloads/flocker-swarm-tutorial-node1.yml
    :language: yaml
