@@ -529,6 +529,7 @@ class GenericDockerClientTests(AsyncTestCase):
         d.addCallback(started)
         return d
 
+    @flaky(u"FLOC-3875")
     def test_pull_image_if_necessary(self):
         """
         The Docker image is pulled if it is unavailable locally.
