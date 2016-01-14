@@ -583,7 +583,7 @@ class ApplicationNodeDeployer(object):
         )
 
         return (
-            comparable_state != comparable_configuration
+            comparable_state != comparable_configuration or
 
             # Restart policies were briefly supported but they interact poorly
             # with system restarts.  They're disabled now (except for the
@@ -594,9 +594,9 @@ class ApplicationNodeDeployer(object):
             #
             # Also restart policies don't implement comparison usefully.  See
             # FLOC-2500.
-            or not isinstance(restart_state, RestartNever)
+            not isinstance(restart_state, RestartNever) or
 
-            or self._restart_for_volume_change(
+            self._restart_for_volume_change(
                 node_state, volume_state, volume_configuration
             )
         )

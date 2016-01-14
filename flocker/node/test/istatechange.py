@@ -4,10 +4,6 @@
 Helpers for tests for implementations of ``IStateChange``.
 """
 
-__all__ = [
-    "make_comparison_tests", "make_istatechange_tests",
-]
-
 from zope.interface.verify import verifyObject
 
 from zope.interface import implementer
@@ -21,6 +17,11 @@ from twisted.internet.defer import succeed
 
 from ...testtools import TestCase
 from .. import IStateChange
+
+
+__all__ = [
+    "make_comparison_tests", "make_istatechange_tests",
+]
 
 
 def make_comparison_tests(klass, kwargs1, kwargs2):

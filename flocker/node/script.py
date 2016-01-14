@@ -37,6 +37,7 @@ from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
+from .exceptions import StorageInitializationError
 from .diagnostics import (
     current_distribution, FlockerDebugArchive, DISTRIBUTION_BY_LABEL,
     lookup_distribution,
@@ -47,6 +48,8 @@ from .agents.blockdevice import (
 from .agents.loopback import (
     LoopbackBlockDeviceAPI,
 )
+from .agents.cinder import cinder_from_configuration
+from .agents.ebs import aws_from_configuration
 from ..ca import ControlServicePolicy, NodeCredential
 from ..common._era import get_era
 
@@ -55,22 +58,6 @@ __all__ = [
     "flocker_container_agent_main",
     "flocker_diagnostics_main",
 ]
-
-
-class StorageInitializationError(Exception):
-    """
-    Exception raised by a storage API factory in the event that
-    the backend could not be successfully initialized.
-
-    :param NamedConstant code: The ``StorageInitializationError`` constant
-        indicating the type of failure.
-    """
-    CONFIGURATION_ERROR = NamedConstant()
-    OPERATIVE_ERROR = NamedConstant()
-
-    def __init__(self, code, *args):
-        Exception.__init__(self, *args)
-        self.code = code
 
 
 def flocker_dataset_agent_main():
@@ -451,9 +438,6 @@ class BackendDescription(PClass):
             value in DeployerType.iterconstants(), "Unknown deployer_type"
         ),
     )
-
-from .agents.cinder import cinder_from_configuration
-from .agents.ebs import aws_from_configuration
 
 # These structures should be created dynamically to handle plug-ins
 _DEFAULT_BACKENDS = [

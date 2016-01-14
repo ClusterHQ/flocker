@@ -5,7 +5,10 @@ Tests for ``admin.acceptance``.
 
 import json
 from io import BytesIO
+from tempfile import mkdtemp
 from uuid import UUID
+
+from twisted.python.filepath import FilePath
 
 from zope.interface.verify import verifyObject
 
@@ -45,6 +48,7 @@ class ManagedRunnerTests(TestCase):
                 purpose=u'test',
                 prefix=u'test',
             ),
+            cert_path=FilePath(mkdtemp()),
         )
         self.assertTrue(
             verifyObject(IClusterRunner, runner)
@@ -63,7 +67,10 @@ class GenerateCertificatesTests(TestCase):
         node = ManagedNode(
             address=b"192.0.2.17", distribution=DISTRIBUTIONS[0],
         )
-        certificates = generate_certificates(b'cluster', cluster_id, [node])
+        path = FilePath(mkdtemp())
+        certificates = generate_certificates(b'cluster', cluster_id, [node],
+                                             path)
+        self.assertEqual(path, certificates.directory)
         root = RootCredential.from_path(certificates.directory)
         self.assertEqual(
             cluster_id,

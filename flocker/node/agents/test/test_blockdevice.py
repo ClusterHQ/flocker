@@ -159,9 +159,11 @@ _METADATA_STRATEGY = text(average_size=3, min_size=1, alphabet="CGAT")
 DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
     'dataset_id': uuids(),
     'maximum_size': integers(min_value=0).map(
-        lambda n:
-        LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        + n*LOOPBACK_ALLOCATION_UNIT),
+        lambda n: (
+            LOOPBACK_MINIMUM_ALLOCATABLE_SIZE +
+            n * LOOPBACK_ALLOCATION_UNIT
+        )
+    ),
     'metadata': dictionaries(keys=_METADATA_STRATEGY,
                              values=_METADATA_STRATEGY),
     'mount_point': builds(FilePath, sampled_from([
@@ -1159,8 +1161,10 @@ def compare_dataset_state(discovered_dataset, desired_dataset):
     :return: ``bool`` indicating if the datasets correspond.
     """
     if discovered_dataset is None:
-        return (desired_dataset is None
-                or desired_dataset.state == DatasetStates.DELETED)
+        return (
+            desired_dataset is None or
+            desired_dataset.state == DatasetStates.DELETED
+        )
     if desired_dataset is None:
         return discovered_dataset.state == DatasetStates.NON_MANIFEST
     if discovered_dataset.state != desired_dataset.state:
@@ -1320,8 +1324,8 @@ class BlockDeviceCalculatorTests(TestCase):
             DatasetStates.DELETED,
         ]),
         discovered_state=sampled_from(
-            DiscoveredDataset.__invariant__.attributes_for_tag.keys()
-            + [DatasetStates.NON_EXISTENT]
+            DiscoveredDataset.__invariant__.attributes_for_tag.keys() +
+            [DatasetStates.NON_EXISTENT]
         )
     )
     def test_all_transitions(self, desired_state, discovered_state):

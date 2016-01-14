@@ -434,12 +434,12 @@ def _is_known_retryable(exception):
     # A connection problem coming from the requests library used by docker-py
     if isinstance(exception, ConnectionError):
         if (
-            len(exception.args) > 0
-            and isinstance(exception.args[0], ProtocolError)
+            len(exception.args) > 0 and
+            isinstance(exception.args[0], ProtocolError)
         ):
             if (
-                len(exception.args[0].args) > 1
-                and isinstance(exception.args[0].args[1], socket_error)
+                len(exception.args[0].args) > 1 and
+                isinstance(exception.args[0].args[1], socket_error)
             ):
                 return exception.args[0].args[1].errno in {ECONNREFUSED}
 

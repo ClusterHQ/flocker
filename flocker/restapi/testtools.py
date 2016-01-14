@@ -13,14 +13,18 @@ from jsonschema.exceptions import ValidationError
 
 from zope.interface import implementer
 
+from klein.app import KleinRequest
+from klein.interfaces import IKleinRequest
+
+from twisted.python.components import registerAdapter
 from twisted.python.log import err
 from twisted.web.iweb import IAgent, IResponse
 from twisted.internet.endpoints import TCP4ClientEndpoint, UNIXClientEndpoint
 from twisted.internet import defer
 from twisted.web.client import ProxyAgent, readBody, FileBodyProducer
-from twisted.web.server import NOT_DONE_YET, Site
+from twisted.web.server import NOT_DONE_YET, Site, Request
 from twisted.web.resource import getChildForRequest
-from twisted.web.http import urlparse, unquote
+from twisted.web.http import HTTPChannel, urlparse, unquote
 from twisted.internet.address import IPv4Address
 from twisted.test.proto_helpers import StringTransport
 from twisted.web.client import ResponseDone
@@ -252,11 +256,8 @@ def build_UNIX_integration_tests(mixin_class, name, fixture):
     RealTests.__module__ = mixin_class.__module__
     return RealTests
 
-
 # Fakes for testing Twisted Web servers.  Unverified.  Belongs in Twisted.
 # https://twistedmatrix.com/trac/ticket/3274
-from twisted.web.server import Request
-from twisted.web.http import HTTPChannel
 
 
 class EventChannel(object):
@@ -567,9 +568,6 @@ def render(resource, request):
 # exercise Klein-based code without trying to use the real request type.
 #
 # See https://github.com/twisted/klein/issues/31
-from twisted.python.components import registerAdapter
-from klein.app import KleinRequest
-from klein.interfaces import IKleinRequest
 registerAdapter(KleinRequest, _DummyRequest, IKleinRequest)
 
 
