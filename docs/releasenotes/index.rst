@@ -22,7 +22,7 @@ v1.9.0
   See :ref:`installing-flocker-cli-ubuntu-15.10`.
 * Added documentation for the :ref:`EMC VMAX <emc-dataset-backend>` driver.
 * Region and zone configuration for AWS is now validated before use.
-* Flocker now reports an error when busy EBS volumes can not be detached.
+* Flocker now reports an error when busy EBS volumes cannot be detached.
 * Fixed a bug where Flocker would attempt to attach EBS volumes to device paths that are assigned to volumes attached outside of Flocker.
 * Flocker now supports all valid Docker container names.
 * The container API client now allows volumes to be attached to containers.
