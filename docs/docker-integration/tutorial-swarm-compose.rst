@@ -33,7 +33,7 @@ What You'll Need
    
     ``<ClientIP>`` is the Client IP you got from the CloudFormation Outputs tab.
 	
-    If you have used our CloudFormation installer, the rest of this tutorial assumes you are logged into the Client node.
+    If you have used the CloudFormation installer, the rest of this tutorial assumes you are logged into the Client node.
 
   * Alternatively, `install Docker Compose <https://docs.docker.com/compose/install/>`_ on any machine which has network access to the Swarm master that you created when you installed Swarm.
 
