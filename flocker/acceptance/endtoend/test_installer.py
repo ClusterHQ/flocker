@@ -159,11 +159,23 @@ class DockerComposeTests(AsyncTestCase):
     run_tests_with = async_runner(timeout=timedelta(minutes=20))
 
     def _stack_from_environment(self):
+        found = {}
         for variable_name in STACK_VARIABLES.keys():
-            setattr(self, variable_name, os.environ[variable_name.upper()])
-        return True
+            value = os.environ.get(variable_name.upper(), None)
+            if value is not None:
+                found[variable_name] = value
+                setattr(self, variable_name, value)
 
-    def __new_stack(self):
+        if found:
+            missing_keys = set(STACK_VARIABLES.keys()) - set(found.keys())
+            if missing_keys:
+                raise Exception('Missing Keys', missing_keys)
+            else:
+                return True
+        else:
+            return False
+
+    def _new_stack(self):
         access_key_id = os.environ['ACCESS_KEY_ID']
         secret_access_key = os.environ['SECRET_ACCESS_KEY']
         parameters = [
@@ -184,9 +196,6 @@ class DockerComposeTests(AsyncTestCase):
         d = create_cloudformation_stack(
             access_key_id, secret_access_key, parameters
         )
-        d.addCallback(
-            self.addCleanup, delete_cloudformation_stack, self.stack_id
-        )
 
         def set_stack_variables(stack_report):
             outputs = stack_report['Outputs']
@@ -195,6 +204,7 @@ class DockerComposeTests(AsyncTestCase):
                 setattr(
                     self, variable_name, get_output(outputs, stack_output_name)
                 )
+            self.addCleanup(delete_cloudformation_stack, self.stack_id)
         d.addCallback(set_stack_variables)
         return d
 
