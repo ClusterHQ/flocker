@@ -7,7 +7,6 @@ Tests for flocker base test cases.
 import errno
 import os
 import shutil
-import string
 import unittest
 
 from eliot import MessageType, fields
@@ -40,7 +39,6 @@ from testtools.matchers import (
     StartsWith,
     IsInstance,
 )
-
 from twisted.internet.defer import Deferred, succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
@@ -53,6 +51,7 @@ from .._base import (
     _iter_lines,
     _path_for_test_id,
 )
+from ..strategies import fqpns, identifiers
 from .._testhelpers import (
     base_test_cases,
     has_results,
@@ -307,10 +306,6 @@ class GetEliotDataTests(TesttoolsTestCase):
         self.assertThat(_get_eliot_data(logged_line), Equals(expected))
 
 
-identifier_characters = string.ascii_letters + string.digits + '_'
-identifiers = text(average_size=20, min_size=1, alphabet=identifier_characters)
-fqpns = lists(
-    identifiers, min_size=1, average_size=5).map(lambda xs: '.'.join(xs))
 tests = lists(identifiers, min_size=3, average_size=5).map(
     lambda xs: PlaceHolder('.'.join(xs)))
 

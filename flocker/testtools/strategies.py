@@ -1,5 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
+import string
+
 from hypothesis.strategies import lists, text
 from twisted.python.filepath import FilePath
 
@@ -23,4 +25,25 @@ paths = lists(path_segments).map(lambda ps: FilePath('/'.join(ps)))
 Paths
 
 e.g. '/usr/local', 'foo/bar/bar'.
+"""
+
+
+_identifier_characters = string.ascii_letters + string.digits + '_'
+
+
+identifiers = text(
+    average_size=20, min_size=1, alphabet=_identifier_characters)
+"""
+Python identifiers.
+
+e.g. ``Foo``, ``bar``.
+"""
+
+
+fqpns = lists(
+    identifiers, min_size=1, average_size=5).map(lambda xs: '.'.join(xs))
+"""
+Fully-qualified Python names.
+
+e.g. ``twisted.internet.defer.Deferred``, ``foo.bar.baz_qux``.
 """
