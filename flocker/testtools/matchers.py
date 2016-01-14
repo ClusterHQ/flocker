@@ -4,6 +4,9 @@
 testtools matchers used in Flocker tests.
 """
 
+from functools import partial
+import os
+
 from pyrsistent import PClass, field, pmap_field
 from testtools.content import Content
 from testtools.matchers import (
@@ -201,3 +204,11 @@ def file_contents(matcher):
             AfterPreprocessing(get_content, matcher, annotate=False)),
         first_only=True,
     )
+
+
+with_permissions = partial(
+    AfterPreprocessing,
+    lambda filepath: os.stat(filepath.path).st_mode & 07777)
+"""
+Match if path has the given permissions.
+"""
