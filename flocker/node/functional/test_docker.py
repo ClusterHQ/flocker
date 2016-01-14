@@ -278,7 +278,7 @@ class GenericDockerClientTests(AsyncTestCase):
         as long as it's running on the local host.
         """
         registry_listening = self.run_registry()
-        #import pdb;pdb.set_trace()
+
         def tag_and_push_image(registry):
             client = dockerpy_client()
             image_name = ANY_IMAGE
@@ -627,6 +627,7 @@ class GenericDockerClientTests(AsyncTestCase):
         :return: A ``Registry`` describing the registry which was started.
         """
         registry_name = random_name(self)
+        external_port = find_free_port()[1]
         registry_starting = self.start_container(
             unit_name=registry_name,
             image_name='registry:2',
@@ -635,32 +636,20 @@ class GenericDockerClientTests(AsyncTestCase):
                     internal_port=5000,
                     # Doesn't matter what port we expose this on.  We'll
                     # discover what was assigned later.
-                    external_port=0,
+                    external_port=external_port,
                 ),
             ],
             retry_on_port_collision=True,
         )
 
-        def extract_listening_port(client):
-            listing = client.list()
-            listing.addCallback(
-                lambda applications: list(
-                    next(iter(application.ports)).external_port
-                    for application
-                    in applications
-                )[0]
-            )
-            return listing
-        registry_starting.addCallback(extract_listening_port)
-
-        def wait_for_listening(external_port):
+        def wait_for_listening(_, external_port):
             registry = Registry(
                 name=registry_name, port=external_port,
             )
             registry_listening = self.request_until_response(registry.port)
             registry_listening.addCallback(lambda ignored: registry)
             return registry_listening
-        registry_starting.addCallback(wait_for_listening)
+        registry_starting.addCallback(wait_for_listening, external_port)
 
         return registry_starting
 
