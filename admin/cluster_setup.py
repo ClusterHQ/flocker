@@ -192,9 +192,16 @@ def _build_config(cluster, application_template, per_node):
     applications = {}
     application_root["version"] = 1
     application_root["applications"] = applications
+
+    def node_address(node):
+        if node.private_address is not None:
+            return node.private_address
+        else:
+            return node.address
+
     for node in cluster.agent_nodes:
         for i in range(per_node):
-            name = "app_%s_%d" % (node.private_address, i)
+            name = "app_%s_%d" % (node_address(node), i)
             applications[name] = deepcopy(application_template)
 
     deployment_root = {}
@@ -202,10 +209,11 @@ def _build_config(cluster, application_template, per_node):
     deployment_root["nodes"] = nodes
     deployment_root["version"] = 1
     for node in cluster.agent_nodes:
-        nodes[node.private_address] = []
+        address = node_address(node)
+        nodes[address] = list()
         for i in range(per_node):
-            name = "app_%s_%d" % (node.private_address, i)
-            nodes[node.private_address].append(name)
+            name = "app_%s_%d" % (address, i)
+            nodes[address].append(name)
 
     return {"applications": application_root,
             "deployment": deployment_root}
