@@ -13,6 +13,31 @@ from testtools.matchers import (
 )
 
 
+def after(function, annotate=False):
+    """
+    Return a function that takes matcher factories and constructs a matcher
+    that applies ``function`` to candidate matchees.
+
+    Like ``AfterPreprocessing``, but operates on matcher factories (e.g.
+    constructors) rather than matcher objects.
+
+    :param (A -> B) function: Function to apply to matchees before attempting
+        to match.
+    :param bool annotate: Whether to include a message saying that ``function``
+        was applied in the error message.
+
+    :return: New matcher factory.
+    :rtype: (*a -> **kw -> Matcher[A]) -> (*args -> **kwargs -> Matcher[B])
+    """
+    def decorated(matcher):
+        def make_matcher(*args, **kwargs):
+            return AfterPreprocessing(
+                function, matcher(*args, **kwargs), annotate=annotate)
+
+        return make_matcher
+    return decorated
+
+
 def _filepath_to_path(filepath):
     """
     Convert FilePath to a regular path.
@@ -20,25 +45,35 @@ def _filepath_to_path(filepath):
     return filepath.path
 
 
-def path_exists():
-    """
-    Match if a path exists on disk.
-    """
-    return AfterPreprocessing(_filepath_to_path, PathExists(), annotate=False)
+_on_filepath = after(_filepath_to_path)
 
 
-def dir_exists():
-    """
-    Match if a directory exists on disk.
-    """
-    return AfterPreprocessing(_filepath_to_path, DirExists(), annotate=False)
+path_exists = _on_filepath(PathExists)
+"""
+Match if a path exists on disk.
+
+For example::
+
+    self.assertThat('/bin/sh', path_exists())
+
+will probably pass on most Unix systems, but::
+
+    self.assertThat('/jml-is-awesome', path_exists())
+
+will most likely fail.
+"""
 
 
-def file_exists():
-    """
-    Match if a file exists on disk.
-    """
-    return AfterPreprocessing(_filepath_to_path, FileExists(), annotate=False)
+dir_exists = _on_filepath(DirExists)
+"""
+Match if a directory exists on disk.
+"""
+
+
+file_exists = _on_filepath(FileExists)
+"""
+Match if a file exists on disk.
+"""
 
 
 def _get_content(file_path):
