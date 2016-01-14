@@ -5,6 +5,7 @@ from testtools.matchers import (
     AfterPreprocessing,
     DirExists,
     Equals,
+    FileExists,
     Is,
     Not,
     PathExists,
@@ -15,6 +16,7 @@ from .. import TestCase
 from ..strategies import paths
 from ..matchers import (
     dir_exists,
+    file_exists,
     path_exists,
 )
 
@@ -114,4 +116,42 @@ class DirExistsTests(TestCase):
         self.assertThat(
             dir_exists().match(path),
             is_equivalent_mismatch(DirExists().match(path.path)),
+        )
+
+
+class FileExistsTests(TestCase):
+    """
+    Tests for :py:func:`file_exists`.
+    """
+
+    def test_does_not_exist(self):
+        """
+        If the path does not exist, file_exists does not match.
+        """
+        path = self.make_temporary_path()
+        self.assertThat(path, Not(file_exists()))
+
+    def test_file_exists(self):
+        """
+        If there is a file at path, file_exists matches.
+        """
+        path = self.make_temporary_path()
+        path.setContent('foo')
+        self.assertThat(path, file_exists())
+
+    def test_dir_exists(self):
+        """
+        If there is a directory at path, file_exists does not match.
+        """
+        path = self.make_temporary_directory()
+        self.assertThat(path, Not(file_exists()))
+
+    @given(paths)
+    def test_equivalent_to_standard_file_exists(self, path):
+        """
+        file_exists is to FilePaths what FileExists is to normal paths.
+        """
+        self.assertThat(
+            file_exists().match(path),
+            is_equivalent_mismatch(FileExists().match(path.path)),
         )
