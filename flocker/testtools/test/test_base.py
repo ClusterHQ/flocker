@@ -16,7 +16,7 @@ from hypothesis.strategies import binary, integers, lists, text
 # Use testtools' TestCase for most of these tests so that bugs in our base test
 # case classes don't invalidate the tests for those classes.
 from testtools import TestCase as TesttoolsTestCase
-from testtools import PlaceHolder, TestResult
+from testtools import TestResult
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
@@ -45,13 +45,14 @@ from twisted.python.failure import Failure
 
 from .. import CustomException, AsyncTestCase, TestCase
 from .._base import (
-    make_temporary_directory,
+
     _SplitEliotLogs,
     _get_eliot_data,
     _iter_lines,
     _path_for_test_id,
 )
-from ..strategies import fqpns, identifiers
+from ..matchers import dir_exists
+from ..strategies import fqpns
 from .._testhelpers import (
     base_test_cases,
     has_results,
@@ -154,6 +155,22 @@ class BaseTestCaseTests(TesttoolsTestCase):
         [path] = created_files
         self.addCleanup(path.remove)
         self.assertThat(path.path, FileContains('hello'))
+
+    @given(base_test_cases)
+    def test_make_temporary_directory_exists(self, base_test_case):
+        """
+        ``make_temporary_directory`` returns a path to a directory.
+        """
+
+        class SomeTest(base_test_case):
+            def test_pass(self):
+                pass
+
+        test = SomeTest('test_pass')
+        temp_dir = test.make_temporary_directory()
+        self.addCleanup(_remove_dir, temp_dir)
+
+        self.assertThat(temp_dir, dir_exists())
 
     @given(base_test_cases)
     def test_run_twice(self, base_test_case):
@@ -306,10 +323,6 @@ class GetEliotDataTests(TesttoolsTestCase):
         self.assertThat(_get_eliot_data(logged_line), Equals(expected))
 
 
-tests = lists(identifiers, min_size=3, average_size=5).map(
-    lambda xs: PlaceHolder('.'.join(xs)))
-
-
 class MakeTemporaryTests(TesttoolsTestCase):
     """
     Tests for code for making temporary files and directories for tests.
@@ -345,16 +358,6 @@ class MakeTemporaryTests(TesttoolsTestCase):
         """
         assume(test_id.count('.') < 2)
         self.assertRaises(ValueError, _path_for_test_id, test_id)
-
-    @given(tests)
-    def test_make_temporary_directory(self, test):
-        """
-        Given a test, make a temporary directory.
-        """
-        temp_dir = make_temporary_directory(test)
-        self.addCleanup(_remove_dir, temp_dir)
-        self.expectThat(temp_dir.path, DirExists())
-        self.assertThat(temp_dir, BelowPath(FilePath(os.getcwd())))
 
 
 def _remove_dir(path):
