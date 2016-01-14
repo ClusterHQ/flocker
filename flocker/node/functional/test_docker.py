@@ -11,7 +11,6 @@ import time
 import socket
 
 from eliot.testing import capture_logging, assertHasMessage
-from eliot import Message
 
 from requests.exceptions import ReadTimeout
 from docker.errors import APIError
@@ -642,7 +641,7 @@ class GenericDockerClientTests(AsyncTestCase):
             retry_on_port_collision=True,
         )
 
-        def wait_for_listening(_, external_port):
+        def wait_for_listening(external_port):
             registry = Registry(
                 name=registry_name, port=external_port,
             )
