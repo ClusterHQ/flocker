@@ -172,11 +172,13 @@ Match if a file exists on disk.
 
 def file_contents(matcher):
     """
-    Match if a files contents match ``matcher``.
+    Match if a file's contents match ``matcher``.
 
     For example::
 
-        self.assertThat('/foo/bar/baz', file_contents(Equals('hello world')))
+        self.assertThat(
+            FilePath('/foo/bar/baz'),
+            file_contents(Equals('hello world')))
 
     Will match if there is a file ``/foo/bar/baz`` and if its contents are
     exactly ``hello world``.

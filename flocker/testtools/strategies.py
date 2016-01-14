@@ -24,7 +24,7 @@ paths = lists(path_segments).map(lambda ps: FilePath('/'.join(ps)))
 """
 Paths
 
-e.g. '/usr/local', 'foo/bar/bar'.
+e.g. ``FilePath('/usr/local')``, ``FilePath('foo/bar/bar')``.
 """
 
 
