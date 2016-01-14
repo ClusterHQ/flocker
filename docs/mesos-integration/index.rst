@@ -42,8 +42,8 @@ Follow a Tutorial
 
 .. raw:: html
 
-     <div class="pods-solo">
-	    <div class="pod-boxout pod-boxout--tutorial">
+    <div class="pods-eq">
+	    <div class="pod-boxout pod-boxout--tutorial pod-boxout--2up">
 		   <span>Tutorial: using Flocker with Mesos</span>
 		     <a href="tutorial-mesos.html" class="button">Follow Tutorial</a>
 	    </div>
