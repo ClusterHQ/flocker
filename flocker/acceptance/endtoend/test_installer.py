@@ -242,7 +242,7 @@ class DockerComposeTests(AsyncTestCase):
         )
         return gather_deferreds([d_node1_compose, d_node2_compose])
 
-    def _wait_for_postgres(self):
+    def _wait_for_postgres(self, server_ip):
         def trap(failure):
             failure.trap(ProcessTerminated)
             # psql returns 0 to the shell if it finished normally, 1 if a fatal
@@ -258,7 +258,7 @@ class DockerComposeTests(AsyncTestCase):
 
         def predicate():
             d = remote_postgres(
-                self.client_ip, self.agent_node_1, 'SELECT 1'
+                self.client_node_ip, server_ip, 'SELECT 1'
             )
             d.addErrback(trap)
             return d
@@ -287,7 +287,9 @@ class DockerComposeTests(AsyncTestCase):
                 self.client_ip, self.docker_host, COMPOSE_NODE0, 'up', '-d'
             )
         )
-        d.addCallback(self._wait_for_postgres)
+        d.addCallback(
+            lambda ignored: self._wait_for_postgres(self.agent_node1_ip)
+        )
         d.addCallback(
             lambda ignored: remote_postgres(
                 self.client_ip, self.agent_node_1,
@@ -321,7 +323,9 @@ class DockerComposeTests(AsyncTestCase):
             )
         )
 
-        d.addCallback(self._wait_for_postgres)
+        d.addCallback(
+            lambda ignored: self._wait_for_postgres(self.agent_node2_ip)
+        )
 
         d.addCallback(
             lambda ignored: remote_postgres(
