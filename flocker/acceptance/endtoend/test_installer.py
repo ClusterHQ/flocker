@@ -85,7 +85,7 @@ def remote_postgres(client_ip, host, command):
         client_ip,
         ('psql',
          'postgres://' + POSTGRESQL_USERNAME + ':' + POSTGRESQL_PASSWORD +
-         '@' + host + ':' + POSTGRESQL_PORT,
+         '@' + host + ':' + str(POSTGRESQL_PORT),
          '--command={}'.format(command)),
         handle_stdout=postgres_output.append
     )
