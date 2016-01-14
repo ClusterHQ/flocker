@@ -26,24 +26,6 @@ from ...ca import treq_with_authentication, UserCredential
 from ...apiclient import FlockerClient
 from ...control.httpapi import REST_API_PORT
 
-REGION = os.environ['REGION']
-ACCESS_KEY_ID = os.environ['ACCESS_KEY_ID']
-SECRET_ACCESS_KEY = os.environ['SECRET_ACCESS_KEY']
-
-PARAMETERS = [
-    {
-        'ParameterKey': 'KeyName',
-        'ParameterValue': os.environ['KEY_NAME']
-    },
-    {
-        'ParameterKey': 'AccessKeyID',
-        'ParameterValue': os.environ['ACCESS_KEY_ID']
-    },
-    {
-        'ParameterKey': 'SecretAccessKey',
-        'ParameterValue': os.environ['SECRET_ACCESS_KEY']
-    }
-]
 
 COMPOSE_NODE0 = '/home/ubuntu/postgres/docker-compose-node0.yml'
 COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
@@ -104,7 +86,7 @@ def remote_postgres(client_ip, host, command):
 
 def get_stack_report(stack_id):
     output = check_output(
-        ['aws', '--region', REGION, 'cloudformation', 'describe-stacks',
+        ['aws', 'cloudformation', 'describe-stacks',
          '--stack-name', stack_id]
     )
     results = json.loads(output)
@@ -121,14 +103,14 @@ def wait_for_stack_status(stack_id, target_status):
     return loop_until(reactor, predicate, repeat(1, 600))
 
 
-def create_cloudformation_stack():
+def create_cloudformation_stack(access_key_id, secret_access_key, parameters):
     """
     """
     # Request stack creation.
     stack_name = CLOUDFORMATION_STACK_NAME + str(int(time.time()))
     output = check_output(
-        ['aws', '--region', REGION, 'cloudformation', 'create-stack',
-         '--parameters', json.dumps(PARAMETERS),
+        ['aws', 'cloudformation', 'create-stack',
+         '--parameters', json.dumps(parameters),
          '--stack-name', stack_name,
          '--template-url', S3_CLOUDFORMATION_TEMPLATE]
     )
@@ -150,7 +132,7 @@ def delete_cloudformation_stack(stack_id):
     )
 
     check_call(
-        ['aws', '--region', REGION, 'cloudformation', 'delete-stack',
+        ['aws', 'cloudformation', 'delete-stack',
          '--stack-name', stack_id]
     )
 
@@ -162,6 +144,13 @@ def get_output(outputs, key):
         if output['OutputKey'] == key:
             return output['OutputValue']
 
+STACK_VARIABLES = {
+    'client_node_ip': 'ClientNodeIP',
+    'agent_node1_ip': 'AgentNode1IP',
+    'agent_node2_ip': 'AgentNode2IP',
+    'control_node_ip': 'ControlNodeIP',
+}
+
 
 class DockerComposeTests(AsyncTestCase):
     """
@@ -169,32 +158,63 @@ class DockerComposeTests(AsyncTestCase):
     """
     run_tests_with = async_runner(timeout=timedelta(minutes=20))
 
-    def setUp(self):
-        d = maybeDeferred(super(DockerComposeTests, self).setUp)
+    def _stack_from_environment(self):
+        for variable_name in STACK_VARIABLES.keys():
+            setattr(self, variable_name, os.environ[variable_name.upper()])
+        return True
+
+    def __new_stack(self):
+        access_key_id = os.environ['ACCESS_KEY_ID']
+        secret_access_key = os.environ['SECRET_ACCESS_KEY']
+        parameters = [
+            {
+                'ParameterKey': 'KeyName',
+                'ParameterValue': os.environ['KEY_NAME']
+            },
+            {
+                'ParameterKey': 'AccessKeyID',
+                'ParameterValue': os.environ['ACCESS_KEY_ID']
+            },
+            {
+                'ParameterKey': 'SecretAccessKey',
+                'ParameterValue': os.environ['SECRET_ACCESS_KEY']
+            }
+        ]
+
+        d = create_cloudformation_stack(
+            access_key_id, secret_access_key, parameters
+        )
         d.addCallback(
-            lambda ignored: create_cloudformation_stack()
+            self.addCleanup, delete_cloudformation_stack, self.stack_id
         )
 
-        def record_stack_info(stack_report):
+        def set_stack_variables(stack_report):
             outputs = stack_report['Outputs']
             self.stack_id = stack_report['StackId']
-            self.client_ip = get_output(outputs, 'ClientNodeIP')
-            self.agent_node_1 = get_output(outputs, 'AgentNode1IP')
-            self.agent_node_2 = get_output(outputs, 'AgentNode2IP')
-            self.control_node_ip = get_output(outputs, 'ControlNodeIP')
+            for variable_name, stack_output_name in STACK_VARIABLES.items():
+                setattr(
+                    self, variable_name, get_output(outputs, stack_output_name)
+                )
+        d.addCallback(set_stack_variables)
+        return d
+
+    def setUp(self):
+        d = maybeDeferred(super(DockerComposeTests, self).setUp)
+
+        def setup_for_stack(ignored):
+            if not self._stack_from_environment():
+                return self._new_stack()
             self.docker_host = 'tcp://' + self.control_node_ip + ':2376'
-            # Add cleanup operations in reverse order
-            # self.addCleanup(delete_cloudformation_stack, self.stack_id)
             self.addCleanup(self._cleanup_flocker)
             self.addCleanup(self._cleanup_compose)
-        d.addCallback(record_stack_info)
+        d.addCallback(setup_for_stack)
         return d
 
     def _cleanup_flocker(self):
         local_certs_path = self.mktemp()
         check_call(
             ['scp', '-o', 'StrictHostKeyChecking no', '-r',
-             'ubuntu@{}:/etc/flocker'.format(self.client_ip),
+             'ubuntu@{}:/etc/flocker'.format(self.client_node_ip),
              local_certs_path]
         )
         certificates_path = FilePath(local_certs_path)
@@ -219,24 +239,24 @@ class DockerComposeTests(AsyncTestCase):
 
     def _cleanup_compose(self):
         d_node1_compose = remote_docker_compose(
-            self.client_ip,
+            self.client_node_ip,
             self.docker_host,
             COMPOSE_NODE0, 'stop'
         )
         d_node1_compose.addCallback(
             lambda ignored: remote_docker_compose(
-                self.client_ip,
+                self.client_node_ip,
                 self.docker_host,
                 COMPOSE_NODE0, 'rm', '-f'
             )
         )
 
         d_node2_compose = remote_docker_compose(
-            self.client_ip, self.docker_host, COMPOSE_NODE1, 'stop'
+            self.client_node_ip, self.docker_host, COMPOSE_NODE1, 'stop'
         )
         d_node2_compose.addCallback(
             lambda ignored: remote_docker_compose(
-                self.client_ip, self.docker_host, COMPOSE_NODE1,
+                self.client_node_ip, self.docker_host, COMPOSE_NODE1,
                 'rm', '-f'
             )
         )
@@ -266,7 +286,7 @@ class DockerComposeTests(AsyncTestCase):
         return loop_until(
             reactor,
             predicate,
-            repeat(1, 5)
+            repeat(10, 12)
         )
 
     def test_docker_compose_up_postgres(self):
@@ -274,7 +294,9 @@ class DockerComposeTests(AsyncTestCase):
         """
         def pull_postgres():
             return remote_docker(
-                self.client_ip, self.docker_host, 'pull', 'postgres:latest'
+                self.client_node_ip,
+                self.docker_host,
+                'pull', 'postgres:latest'
             )
         d = retry_failure(
             reactor=reactor,
@@ -284,7 +306,9 @@ class DockerComposeTests(AsyncTestCase):
         )
         d.addCallback(
             lambda ignored: remote_docker_compose(
-                self.client_ip, self.docker_host, COMPOSE_NODE0, 'up', '-d'
+                self.client_node_ip,
+                self.docker_host,
+                COMPOSE_NODE0, 'up', '-d'
             )
         )
         d.addCallback(
@@ -292,33 +316,33 @@ class DockerComposeTests(AsyncTestCase):
         )
         d.addCallback(
             lambda ignored: remote_postgres(
-                self.client_ip, self.agent_node_1,
+                self.client_node_ip, self.agent_node1_ip,
                 RECREATE_STATEMENT + INSERT_STATEMENT
             )
         )
 
         d.addCallback(
             lambda ignored: remote_postgres(
-                self.client_ip, self.agent_node_1, SELECT_STATEMENT
+                self.client_node_ip, self.agent_node1_ip, SELECT_STATEMENT
             )
         )
 
         d.addCallback(
             lambda ignored: remote_docker_compose(
-                self.client_ip, self.docker_host, COMPOSE_NODE0, 'stop'
+                self.client_node_ip, self.docker_host, COMPOSE_NODE0, 'stop'
             )
         )
 
         d.addCallback(
             lambda ignored: remote_docker_compose(
-                self.client_ip, self.docker_host,
+                self.client_node_ip, self.docker_host,
                 COMPOSE_NODE0, 'rm', '--force'
             )
         )
 
         d.addCallback(
             lambda ignored: remote_docker_compose(
-                self.client_ip, self.docker_host,
+                self.client_node_ip, self.docker_host,
                 COMPOSE_NODE1, 'up', '-d'
             )
         )
@@ -329,8 +353,8 @@ class DockerComposeTests(AsyncTestCase):
 
         d.addCallback(
             lambda ignored: remote_postgres(
-                self.client_ip,
-                self.agent_node_2, SELECT_STATEMENT
+                self.client_node_ip,
+                self.agent_node2_ip, SELECT_STATEMENT
             )
         )
 
