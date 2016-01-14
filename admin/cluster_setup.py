@@ -84,20 +84,8 @@ class RunOptions(CommonOptions):
             )
 
         if self['cert-directory']:
-            # The path should not exist or it should be an empty directory.
             cert_path = FilePath(self['cert-directory'])
-            if cert_path.exists():
-                if not cert_path.isdir():
-                    raise UsageError(
-                        "{} is not a directory".format(self['cert-directory'])
-                    )
-                if cert_path.listdir():
-                    raise UsageError(
-                        "{} is not empty".format(self['cert-directory'])
-                    )
-            else:
-                cert_path.makedirs()
-
+            _ensure_empty_directory(cert_path)
             self['cert-directory'] = cert_path
 
         # This is run last as it creates the actual "runner" object
@@ -110,6 +98,29 @@ class RunOptions(CommonOptions):
             purpose=purpose,
             prefix=purpose,
             name='{}-cluster'.format(purpose).encode("ascii"),
+        )
+
+
+def _ensure_empty_directory(path):
+    """
+    The path should not exist or it should be an empty directory.
+    If the path does not exist then a new directory is created.
+
+    :param FilePath path: The directory path to check or create.
+    """
+    if path.exists():
+        if not path.isdir():
+            raise UsageError("{} is not a directory".format(path.path))
+        if path.listdir():
+            raise UsageError("{} is not empty".format(path.path))
+        return
+
+    try:
+        path.makedirs()
+    except OSError as e:
+        raise UsageError(
+            "Can not create {}. {}: {}.".format(path.path, e.filename,
+                                                e.strerror)
         )
 
 
