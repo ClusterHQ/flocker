@@ -642,7 +642,7 @@ class GenericDockerClientTests(AsyncTestCase):
             retry_on_port_collision=True,
         )
 
-        def wait_for_listening(external_port):
+        def wait_for_listening(_, external_port):
             registry = Registry(
                 name=registry_name, port=external_port,
             )
