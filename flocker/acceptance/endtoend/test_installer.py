@@ -176,9 +176,10 @@ class DockerComposeTests(AsyncTestCase):
             self.agent_node_2 = get_output(outputs, 'AgentNode2IP')
             self.control_node_ip = get_output(outputs, 'ControlNodeIP')
             self.docker_host = 'tcp://' + self.control_node_ip + ':2376'
-            self.addCleanup(self._cleanup_compose)
-            self.addCleanup(self._cleanup_flocker)
+            # Add cleanup operations in reverse order
             self.addCleanup(delete_cloudformation_stack, self.stack_id)
+            self.addCleanup(self._cleanup_flocker)
+            self.addCleanup(self._cleanup_compose)
         d.addCallback(record_stack_info)
         return d
 
