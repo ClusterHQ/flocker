@@ -207,14 +207,25 @@ def main(reactor, args, base_path, top_level):
                 print("Didn't finish creating the cluster.")
                 runner.stop_cluster(reactor)
             else:
-                print("The following variables describe the cluster:")
                 environment_variables = get_trial_environment(cluster)
+                environment_strings = list()
                 for environment_variable in environment_variables:
-                    print("export {name}={value};".format(
-                        name=environment_variable,
-                        value=shell_quote(
-                            environment_variables[environment_variable]),
-                    ))
+                    environment_strings.append(
+                        "export {name}={value};\n".format(
+                            name=environment_variable,
+                            value=shell_quote(
+                                environment_variables[environment_variable]
+                            ),
+                        )
+                    )
+                environment = ''.join(environment_strings)
+                print("The following variables describe the cluster:")
+                print(environment)
+                env_file = options['cert-directory'].child("environment.env")
+                env_file.setContent(environment)
+                print("The variables are also saved in {}".format(
+                    env_file.path
+                ))
                 print("Be sure to preserve the required files.")
 
     raise SystemExit(result)
