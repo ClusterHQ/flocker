@@ -10,7 +10,6 @@ from distutils.version import LooseVersion
 from testtools import run_test_with
 
 from twisted.internet import reactor
-from twisted.trial.unittest import SkipTest
 
 from hypothesis.strategies import integers
 
@@ -47,7 +46,7 @@ class DockerPluginTests(AsyncTestCase):
         client_version = LooseVersion(client.version()['Version'])
         minimum_version = LooseVersion(required_version)
         if client_version < minimum_version:
-            raise SkipTest(
+            self.skipTest(
                 'This test requires at least Docker {}. '
                 'Actual version: {}'.format(minimum_version, client_version)
             )

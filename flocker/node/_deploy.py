@@ -58,15 +58,9 @@ class IDeployer(Interface):
     :ivar UUID node_uuid: The UUID of the node this deployer is running.
     :ivar unicode hostname: The hostname (really, IP) of the node this
         deployer is managing.
-    :ivar float poll_interval: Number of seconds to delay between
-        iterations of convergence loop that call ``discover_state()``, to
-        reduce impact of polling external resources. The actual delay may
-        be smaller if the convergence loop decides more work is necessary
-        in order to converge.
     """
     node_uuid = Attribute("")
     hostname = Attribute("")
-    poll_interval = Attribute("")
 
     def discover_state(local_state):
         """
@@ -91,13 +85,22 @@ class IDeployer(Interface):
         Calculate the state changes necessary to make the local state match the
         desired cluster configuration.
 
+        This is called in two situations:
+
+        1. A real convergence iteration, in which case the local state is
+           the immediately returned result of ``discover_state``.
+        2. To discover whether to wake up the loop when it is sleeping if
+           a new configuration or cluster state is received.
+
         Returning ``flocker.node.NoOp`` will result in the convergence
-        loop sleeping for the duration of ``poll_interval``. The sleep
-        will only be interrupted by a new configuration/cluster state
-        update from control service which would result in need to run some
-        ``IStateChange``. Thus even if no immediate changes are needed if
-        you want ``discover_state`` to be called more frequently than
-        ``poll_interval`` you should not return ``NoOp``.
+        loop sleeping for the duration of the specified sleep. If a new
+        cluster state or configuration are recieved by the loop then it
+        runs ``calculate_changes`` with cached local state and new
+        configuration and cluster state in order to figure out whether it
+        should interrupt the sleep. If this results in a ``IStateChange``
+        or a ``NoOp`` with a shorter sleep duration then the sleep is
+        appropriately curtailed (waking up immediately or with shorter
+        delay respectively) and a real convergence iteration is run.
 
         :param Deployment configuration: The intended configuration of all
             nodes.

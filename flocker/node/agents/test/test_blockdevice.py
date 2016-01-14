@@ -11,7 +11,7 @@ import time
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output, check_call
 from stat import S_IRWXU
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -34,6 +34,7 @@ from hypothesis.strategies import (
     dictionaries, tuples
 )
 
+from testtools.deferredruntest import SynchronousDeferredRunTest
 from testtools.matchers import Equals
 
 from twisted.internet import reactor
@@ -41,7 +42,6 @@ from twisted.internet.defer import succeed
 from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SkipTest
 
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
@@ -61,10 +61,10 @@ from ..blockdevice import (
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     UnmountBlockDevice, DetachVolume, AttachVolume,
-    CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
+    CreateFilesystem, DestroyVolume, MountBlockDevice,
 
     DATASET_TRANSITIONS, IDatasetStateChangeFactory,
-    ICalculator,
+    ICalculator, NOTHING_TO_DO,
 
     DiscoveredDataset, DesiredDataset, DatasetStates,
 
@@ -99,7 +99,7 @@ from ..loopback import (
 from ....common.algebraic import tagged_union_strategy
 
 
-from ... import run_state_change, in_parallel, ILocalState, NoOp, IStateChange
+from ... import run_state_change, in_parallel, ILocalState, IStateChange, NoOp
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
     compute_cluster_state,
@@ -159,9 +159,11 @@ _METADATA_STRATEGY = text(average_size=3, min_size=1, alphabet="CGAT")
 DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
     'dataset_id': uuids(),
     'maximum_size': integers(min_value=0).map(
-        lambda n:
-        LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        + n*LOOPBACK_ALLOCATION_UNIT),
+        lambda n: (
+            LOOPBACK_MINIMUM_ALLOCATABLE_SIZE +
+            n * LOOPBACK_ALLOCATION_UNIT
+        )
+    ),
     'metadata': dictionaries(keys=_METADATA_STRATEGY,
                              values=_METADATA_STRATEGY),
     'mount_point': builds(FilePath, sampled_from([
@@ -576,6 +578,10 @@ class BlockDeviceDeployerTests(
     """
     Tests for ``BlockDeviceDeployer``.
     """
+
+    # This test returns Deferreds but doesn't use the reactor. It uses
+    # NonReactor instead.
+    run_tests_with = SynchronousDeferredRunTest
 
 
 class BlockDeviceDeployerAsyncAPITests(TestCase):
@@ -1136,7 +1142,7 @@ class BlockDeviceCalculatorInterfaceTests(
 
 
 class RecordingCalculatorInterfaceTests(
-    make_icalculator_tests(lambda: RecordingCalculator(NoOp()))
+    make_icalculator_tests(lambda: RecordingCalculator(NOTHING_TO_DO))
 ):
     """
     Tests for ``RecordingCalculator``'s implementation of ``ICalculator``.
@@ -1153,8 +1159,10 @@ def compare_dataset_state(discovered_dataset, desired_dataset):
     :return: ``bool`` indicating if the datasets correspond.
     """
     if discovered_dataset is None:
-        return (desired_dataset is None
-                or desired_dataset.state == DatasetStates.DELETED)
+        return (
+            desired_dataset is None or
+            desired_dataset.state == DatasetStates.DELETED
+        )
     if desired_dataset is None:
         return discovered_dataset.state == DatasetStates.NON_MANIFEST
     if discovered_dataset.state != desired_dataset.state:
@@ -1312,8 +1320,8 @@ class BlockDeviceCalculatorTests(TestCase):
             DatasetStates.DELETED,
         ]),
         discovered_state=sampled_from(
-            DiscoveredDataset.__invariant__.attributes_for_tag.keys()
-            + [DatasetStates.NON_EXISTENT]
+            DiscoveredDataset.__invariant__.attributes_for_tag.keys() +
+            [DatasetStates.NON_EXISTENT]
         )
     )
     def test_all_transitions(self, desired_state, discovered_state):
@@ -1357,7 +1365,7 @@ def assert_desired_datasets(
     :type additional_node_config: ``set`` of ``Node``s
     :param Leases leases: Leases to include in the cluster configration.
     """
-    calculator = RecordingCalculator(NoOp())
+    calculator = RecordingCalculator(NOTHING_TO_DO)
     deployer = deployer.set(calculator=calculator)
     cluster_configuration = Deployment(
         nodes={
@@ -1904,7 +1912,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
 
         assert_calculated_changes(
             self, local_state, local_config, set(),
-            NoOp(),
+            NOTHING_TO_DO,
         )
 
     def test_deleted_ignored(self):
@@ -2667,7 +2675,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(
-            in_parallel(changes=[ActionNeeded(dataset_id=dataset_id)]),
+            in_parallel(changes=[NoOp(sleep=timedelta(seconds=3))]),
             changes
         )
 
@@ -3071,7 +3079,7 @@ class BlockDeviceDeployerCalculateChangesTests(
             nonmanifest_datasets=[],
             additional_node_states=set(),
             additional_node_config=set(),
-            expected_changes=NoOp(),
+            expected_changes=NOTHING_TO_DO,
             local_state=self.local_state,
         )
 
@@ -3109,6 +3117,39 @@ class IBlockDeviceAPITestsMixin(object):
     """
     this_node = None
 
+    def repeat_retries(self):
+        """
+        @return: An iterable of delay intervals, measured in seconds, used
+             to retry in ``repeat_until_consistent``. By default only one
+             try is allowed; subclasses can override to change this
+             policy.
+        """
+        return [0]
+
+    def repeat_until_consistent(self, f, *args, **kwargs):
+        """
+        Repeatedly call a function with given arguments until AssertionErrors
+        stop or configured number of repetitions are reached.
+
+        Some backends are eventually consistent, which means results of
+        listing volumes may not reflect actions immediately. So for
+        read-only operations that rely on listing we want to be able to
+        retry.
+
+        Retry policy can be changed by overriding the ``repeat_retries``
+        method.
+
+        @param f: Function to call.
+        @param args: Arguments for ``f``.
+        @param kwargs: Keyword arguments for ``f``.
+        """
+        for step in self.repeat_retries():
+            try:
+                return f(*args, **kwargs)
+            except AssertionError as e:
+                time.sleep(step)
+        raise e
+
     def _verify_volume_size(self, requested_size, expected_volume_size):
         """
         Assert the implementation of
@@ -3131,32 +3172,36 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=dataset_id,
             size=requested_size,
         )
-        # Attach it, so that we can measure its size, as reported by
-        # the kernel of the machine to which it's attached.
-        self.api.attach_volume(
-            volume.blockdevice_id, attach_to=self.this_node,
-        )
-        # Reload the volume using ``IBlockDeviceAPI.list_volumes`` in
-        # case the implementation hasn't verified that the requested
-        # size has actually been stored.
-        volume = get_blockdevice_volume(self.api, volume.blockdevice_id)
-
-        device_path = self.api.get_device_path(volume.blockdevice_id).path
-
-        command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
-                   b"--output", b"SIZE", device_path.encode("ascii")]
-        command_output = check_output(command).split(b'\n')[0]
-        device_size = int(command_output.strip().decode("ascii"))
         if self.device_allocation_unit is None:
             expected_device_size = expected_volume_size
         else:
             expected_device_size = allocated_size(
                 self.device_allocation_unit, expected_volume_size
             )
-        self.assertEqual(
-            (expected_volume_size, expected_device_size),
-            (volume.size, device_size)
+
+        # Attach it, so that we can measure its size, as reported by
+        # the kernel of the machine to which it's attached.
+        self.api.attach_volume(
+            volume.blockdevice_id, attach_to=self.this_node,
         )
+
+        def validate(volume):
+            # Reload the volume using ``IBlockDeviceAPI.list_volumes`` in
+            # case the implementation hasn't verified that the requested
+            # size has actually been stored.
+            volume = get_blockdevice_volume(self.api, volume.blockdevice_id)
+
+            device_path = self.api.get_device_path(volume.blockdevice_id).path
+
+            command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
+                       b"--output", b"SIZE", device_path.encode("ascii")]
+            command_output = check_output(command).split(b'\n')[0]
+            device_size = int(command_output.strip().decode("ascii"))
+            self.assertEqual(
+                (expected_volume_size, expected_device_size),
+                (volume.size, device_size)
+            )
+        self.repeat_until_consistent(validate, volume)
 
     def test_interface(self):
         """
@@ -3194,7 +3239,8 @@ class IBlockDeviceAPITestsMixin(object):
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
             size=self.minimum_allocatable_size)
-        self.assertIn(new_volume, self.api.list_volumes())
+        self.repeat_until_consistent(
+            lambda: self.assertIn(new_volume, self.api.list_volumes()))
 
     def test_listed_volume_attributes(self):
         """
@@ -3208,12 +3254,19 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=expected_dataset_id,
             size=self.minimum_allocatable_size,
         )
-        [listed_volume] = self.api.list_volumes()
 
-        self.assertEqual(
-            (expected_dataset_id, self.minimum_allocatable_size),
-            (listed_volume.dataset_id, listed_volume.size)
-        )
+        def validate():
+            listed_volumes = self.api.list_volumes()
+            # Ideally we wouldn't two two assertions, but it's the easiest
+            # thing to do that works with the retry logic.
+            self.assertEqual(len(listed_volumes), 1)
+            listed_volume = listed_volumes[0]
+
+            self.assertEqual(
+                (expected_dataset_id, self.minimum_allocatable_size),
+                (listed_volume.dataset_id, listed_volume.size)
+            )
+        self.repeat_until_consistent(validate)
 
     def test_created_volume_attributes(self):
         """
@@ -3341,7 +3394,9 @@ class IBlockDeviceAPITestsMixin(object):
             blockdevice_id=new_volume.blockdevice_id,
             attach_to=self.this_node,
         )
-        self.assertEqual([expected_volume], self.api.list_volumes())
+        self.repeat_until_consistent(
+            lambda: self.assertEqual([expected_volume],
+                                     self.api.list_volumes()))
 
     def test_list_attached_and_unattached(self):
         """
@@ -3360,10 +3415,11 @@ class IBlockDeviceAPITestsMixin(object):
             blockdevice_id=new_volume2.blockdevice_id,
             attach_to=self.this_node,
         )
-        self.assertItemsEqual(
-            [new_volume1, attached_volume],
-            self.api.list_volumes()
-        )
+        self.repeat_until_consistent(
+            lambda: self.assertItemsEqual(
+                [new_volume1, attached_volume],
+                self.api.list_volumes()
+            ))
 
     def test_multiple_volumes_attached_to_host(self):
         """
@@ -3384,10 +3440,11 @@ class IBlockDeviceAPITestsMixin(object):
             volume2.blockdevice_id, attach_to=self.this_node,
         )
 
-        self.assertItemsEqual(
-            [attached_volume1, attached_volume2],
-            self.api.list_volumes()
-        )
+        self.repeat_until_consistent(
+            lambda: self.assertItemsEqual(
+                [attached_volume1, attached_volume2],
+                self.api.list_volumes()
+            ))
 
     def test_get_device_path_unknown_volume(self):
         """
@@ -3485,7 +3542,9 @@ class IBlockDeviceAPITestsMixin(object):
             size=self.minimum_allocatable_size,
         )
         self.api.destroy_volume(volume.blockdevice_id)
-        self.assertEqual([unrelated], self.api.list_volumes())
+        self.repeat_until_consistent(
+            lambda: self.assertEqual([unrelated],
+                                     self.api.list_volumes()))
 
     def _destroyed_volume(self):
         """
@@ -3576,10 +3635,11 @@ class IBlockDeviceAPITestsMixin(object):
 
         self.api.detach_volume(volume.blockdevice_id)
 
-        self.assertEqual(
-            {unrelated, volume.set(attached_to=None)},
-            set(self.api.list_volumes())
-        )
+        self.repeat_until_consistent(
+            lambda: self.assertEqual(
+                {unrelated, volume.set(attached_to=None)},
+                set(self.api.list_volumes())
+            ))
 
         detached_error = fail_mount(device_path)
 
@@ -3607,10 +3667,11 @@ class IBlockDeviceAPITestsMixin(object):
         reattached_volume = self.api.attach_volume(
             volume.blockdevice_id, attach_to=self.this_node
         )
-        self.assertEqual(
-            (attached_volume, [attached_volume]),
-            (reattached_volume, self.api.list_volumes())
-        )
+        self.repeat_until_consistent(
+            lambda: self.assertEqual(
+                (attached_volume, [attached_volume]),
+                (reattached_volume, self.api.list_volumes())
+            ))
 
     def test_attach_destroyed_volume(self):
         """
@@ -3811,7 +3872,7 @@ def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
     """
     user_id = getuid()
     if user_id != 0:
-        raise SkipTest(
+        test_case.skipTest(
             "``LoopbackBlockDeviceAPI`` uses ``losetup``, "
             "which requires root privileges. "
             "Required UID: 0, Found UID: {!r}".format(user_id)
@@ -5039,30 +5100,6 @@ class AttachVolumeTests(
         self.assertEqual(
             bad_blockdevice_id, failure.value.blockdevice_id
         )
-
-
-class ActionNeededInitTests(
-    make_with_init_tests(
-        record_type=ActionNeeded,
-        kwargs=dict(dataset_id=uuid4()),
-        expected_defaults=dict(),
-    )
-):
-    """
-    Tests for ``ActionNeeded`` initialization.
-    """
-
-
-class ActionNeededTests(
-    make_istatechange_tests(
-        ActionNeeded,
-        dict(dataset_id=uuid4()),
-        dict(dataset_id=uuid4()),
-    )
-):
-    """
-    Tests for ``ActionNeeded``\ 's ``IStateChange`` implementation.
-    """
 
 
 class AllocatedSizeTypeTests(TestCase):

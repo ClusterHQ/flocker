@@ -4,13 +4,13 @@
 Unit tests for the Docker plugin script.
 """
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
+from ...testtools import TestCase
 from .._script import DockerPluginScript
 
 
-class DockerPluginScriptTests(SynchronousTestCase):
+class DockerPluginScriptTests(TestCase):
     """
     Tests for ``DockerPluginScript``.
     """

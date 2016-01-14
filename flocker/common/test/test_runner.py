@@ -7,12 +7,11 @@ import os
 
 from eliot.testing import capture_logging, assertHasMessage
 
-from twisted.trial.unittest import TestCase
 from twisted.python.failure import Failure
 from twisted.internet.error import ProcessDone, ProcessTerminated
 
 from flocker.testtools import (
-    MemoryCoreReactor, FakeProcessReactor,
+    MemoryCoreReactor, FakeProcessReactor, TestCase,
 )
 
 from ..runner import (

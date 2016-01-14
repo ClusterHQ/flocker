@@ -5,6 +5,7 @@ Tests for ``flocker.node._container``.
 """
 
 from uuid import UUID, uuid4
+from datetime import timedelta
 
 from ipaddr import IPAddress
 
@@ -873,7 +874,7 @@ def no_change():
     Construct the exact ``IStateChange`` that ``ApplicationNodeDeployer``
     returns when it doesn't want to make any changes.
     """
-    return NoOp()
+    return NoOp(sleep=timedelta(seconds=1))
 
 
 class ApplicationNodeDeployerCalculateVolumeChangesTests(TestCase):
@@ -1110,7 +1111,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         """
         assert_application_calculated_changes(
             self, EMPTY_NODESTATE, to_node(EMPTY_NODESTATE), set(),
-            sequentially(changes=[]),
+            NoOp(sleep=timedelta(seconds=1)),
         )
 
     def test_proxy_needs_creating(self):
@@ -1381,7 +1382,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[node_state]),
             local_state=NodeLocalState(node_state=node_state))
-        expected = sequentially(changes=[])
+        expected = NoOp(sleep=timedelta(seconds=1))
         self.assertEqual(expected, result)
 
     def test_node_not_described(self):

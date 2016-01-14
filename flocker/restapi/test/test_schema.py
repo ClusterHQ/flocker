@@ -5,15 +5,14 @@ Tests for ``flocker.restapi._schema``.
 
 import copy
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from jsonschema.exceptions import RefResolutionError, ValidationError
 
 from .._schema import (
     LocalRefResolver, SchemaNotProvided, getValidator, resolveSchema)
+from ...testtools import TestCase
 
 
-class LocalResolverTests(SynchronousTestCase):
+class LocalResolverTests(TestCase):
     """
     Tests for L{LocalRefResolver}.
     """
@@ -39,7 +38,7 @@ class LocalResolverTests(SynchronousTestCase):
         self.assertIsInstance(e.args[0], SchemaNotProvided)
 
 
-class GetValidatorTests(SynchronousTestCase):
+class GetValidatorTests(TestCase):
     """
     Tests for L{getValidator}.
     """
@@ -65,7 +64,7 @@ class GetValidatorTests(SynchronousTestCase):
         self.assertRaises(ValidationError, validator.validate, {})
 
 
-class ResolveSchemaTests(SynchronousTestCase):
+class ResolveSchemaTests(TestCase):
     """
     Tests for L{ResolveSchema}.
     """

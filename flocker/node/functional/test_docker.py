@@ -6,6 +6,7 @@ Functional tests for :module:`flocker.node._docker`.
 
 from __future__ import absolute_import
 
+from functools import partial
 import time
 import socket
 
@@ -158,7 +159,7 @@ class GenericDockerClientTests(AsyncTestCase):
         client = self.make_client()
 
         if retry_on_port_collision:
-            add = lambda **kw: add_with_port_collision_retry(client, **kw)
+            add = partial(add_with_port_collision_retry, client)
         else:
             add = client.add
 
@@ -259,6 +260,7 @@ class GenericDockerClientTests(AsyncTestCase):
         'which requires Docker-1.6.0 or newer. '
         'See https://docs.docker.com/registry/deploying/ for details.'
     )
+    @flaky(u"FLOC-3843")
     def test_private_registry_image(self):
         """
         ``DockerClient.add`` can start containers based on an image from a
@@ -1082,6 +1084,7 @@ class GenericDockerClientTests(AsyncTestCase):
         d.addCallback(self.assertEqual, "2")
         return d
 
+    @flaky([u'FLOC-3742', u'FLOC-3746'])
     def test_restart_policy_on_failure(self):
         """
         An container with a restart policy of on-failure is restarted
@@ -1093,6 +1096,7 @@ class GenericDockerClientTests(AsyncTestCase):
         d.addCallback(self.assertEqual, "2")
         return d
 
+    @flaky([u'FLOC-3742', u'FLOC-3746'])
     def test_restart_policy_on_failure_maximum_count(self):
         """
         A container with a restart policy of on-failure and a maximum

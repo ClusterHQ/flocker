@@ -8,7 +8,6 @@ from __future__ import print_function
 
 from OpenSSL.SSL import Context, TLSv1_METHOD, Error as SSLError
 
-from twisted.trial.unittest import TestCase
 from twisted.internet.endpoints import (
     SSL4ServerEndpoint, connectProtocol, SSL4ClientEndpoint,
     )
@@ -16,7 +15,7 @@ from twisted.internet import reactor
 from twisted.internet.defer import Deferred, gatherResults
 from twisted.internet.protocol import Protocol, ServerFactory
 
-from ...testtools import find_free_port
+from ...testtools import AsyncTestCase, find_free_port
 from .._validation import (
     ControlServicePolicy, amp_server_context_factory, rest_api_context_factory,
     )
@@ -143,7 +142,7 @@ def make_validation_tests(context_factory_fixture,
     bad_name, another_bad_name = {"user", "node", "control"}.difference(
         {non_bad})
 
-    class ValidationTests(TestCase):
+    class ValidationTests(AsyncTestCase):
         """
         Tests to ensure correct validation of a specific type of certificate.
 
@@ -152,6 +151,7 @@ def make_validation_tests(context_factory_fixture,
         :ivar CertificateSet another_ca: A different CA's certificates.
         """
         def setUp(self):
+            super(ValidationTests, self).setUp()
             self.good_ca, self.another_ca = get_credential_sets()
 
         def _handshake(self, credential):

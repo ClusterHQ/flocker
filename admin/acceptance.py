@@ -959,8 +959,10 @@ class CommonOptions(Options):
                  zone: <aws zone, e.g. "us-west-2a">
                  access_key: <aws access key>
                  secret_access_token: <aws secret access token>
+                 session_token: <optional session token>
                  keyname: <ssh-key-name>
                  security_groups: ["<permissive security group>"]
+                 instance_type: m3.large
 
         :see: :ref:`acceptance-testing-aws-config`
         """

@@ -4,10 +4,6 @@
 Helpers for tests for implementations of ``IStateChange``.
 """
 
-__all__ = [
-    "make_comparison_tests", "make_istatechange_tests",
-]
-
 from zope.interface.verify import verifyObject
 
 from zope.interface import implementer
@@ -17,10 +13,15 @@ from eliot import Logger, start_action
 from pyrsistent import PClass, field
 from characteristic import attributes
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import succeed
 
+from ...testtools import TestCase
 from .. import IStateChange
+
+
+__all__ = [
+    "make_comparison_tests", "make_istatechange_tests",
+]
 
 
 def make_comparison_tests(klass, kwargs1, kwargs2):
@@ -43,7 +44,7 @@ def make_comparison_tests(klass, kwargs1, kwargs2):
             return klass(**kwargs)
         return klass(**kwargs())
 
-    class Tests(SynchronousTestCase):
+    class Tests(TestCase):
         def test_equality(self):
             """
             Instances with the same arguments are equal.
