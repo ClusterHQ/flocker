@@ -32,7 +32,7 @@ Follow a Tutorial
 .. raw:: html
 
     <div class="pods-eq">
-	    <div class="pod-boxout pod-boxout--short pod-boxout--tutorial">
+	    <div class="pod-boxout pod-boxout--2up pod-boxout--tutorial">
 		   <span>Tutorial: using Flocker with Kubernetes</span>
 		     <a href="tutorial-kubernetes.html" class="button">Follow Tutorial</a>
 	    </div>
