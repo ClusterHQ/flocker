@@ -440,6 +440,10 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
                     textParam("TRIGGERED_BRANCH", branchName,
                               "Branch that triggered this job" )
                 }
+
+                // See above.
+                checkoutRetryCount(5)
+
                 // limit execution to jenkins slaves with a particular label
                 label(job_values.on_nodes_with_labels)
                 directories_to_delete = ['${WORKSPACE}/_trial_temp',
@@ -459,6 +463,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
                 textParam("TRIGGERED_BRANCH", branchName,
                           "Branch that triggered this job" )
             }
+            // See above.
+            checkoutRetryCount(5)
+
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
@@ -486,6 +493,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
                     textParam("TRIGGERED_BRANCH", branchName,
                               "Branch that triggered this job" )
                 }
+                // See above.
+                checkoutRetryCount(5)
+
                 // limit execution to jenkins slaves with a particular label
                 label(job_values.on_nodes_with_labels)
 
@@ -511,6 +521,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
                 textParam("TRIGGERED_BRANCH", branchName,
                           "Branch that triggered this job" )
             }
+            // See above.
+            checkoutRetryCount(5)
+
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
 
@@ -528,6 +541,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
     // apply config related to 'omnibus' jobs
     if (job_type == 'omnibus') {
         job("${dashProject}/${dashBranchName}/${job_name}") {
+            // See above.
+            checkoutRetryCount(5)
+
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
@@ -543,6 +559,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
     // apply config related to 'run_lint' jobs
     if (job_type == 'run_lint') {
         job("${dashProject}/${dashBranchName}/${job_name}") {
+            // See above.
+            checkoutRetryCount(5)
+
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
@@ -764,6 +783,9 @@ for (job_type_entry in GLOBAL_CONFIG.job_type) {
                     textParam("TRIGGERED_BRANCH", "${branchName}",
                               "Branch that triggered this job" )
                 }
+                // See above.
+                checkoutRetryCount(5)
+
                 label(job_values.on_nodes_with_labels)
                 wrappers build_wrappers(job_values, [])
                 triggers build_triggers('cron', job_values.at, "${branchName}")
