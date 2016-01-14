@@ -51,7 +51,7 @@ from .._base import (
     _iter_lines,
     _path_for_test_id,
 )
-from ..matchers import dir_exists
+from ..matchers import dir_exists, file_contents
 from ..strategies import fqpns
 from .._testhelpers import (
     base_test_cases,
@@ -171,6 +171,37 @@ class BaseTestCaseTests(TesttoolsTestCase):
         self.addCleanup(_remove_dir, temp_dir)
 
         self.assertThat(temp_dir, dir_exists())
+
+    @given(base_test_cases, binary(average_size=20))
+    def test_make_temporary_file_with_content(self, base_test_case, content):
+        """
+        ``make_temporary_file`` returns a path to an existing file.
+        """
+        class SomeTest(base_test_case):
+            def test_pass(self):
+                pass
+
+        test = SomeTest('test_pass')
+        temp_file = test.make_temporary_file(content)
+        self.addCleanup(temp_file.remove)
+
+        self.assertThat(temp_file, file_contents(Equals(content)))
+
+    @given(base_test_cases)
+    def test_make_temporary_file(self, base_test_case):
+        """
+        ``make_temporary_file`` returns a path to an existing file. If no
+        content is provided, defaults to an empty file.
+        """
+        class SomeTest(base_test_case):
+            def test_pass(self):
+                pass
+
+        test = SomeTest('test_pass')
+        temp_file = test.make_temporary_file()
+        self.addCleanup(temp_file.remove)
+
+        self.assertThat(temp_file, file_contents(Equals('')))
 
     @given(base_test_cases)
     def test_run_twice(self, base_test_case):

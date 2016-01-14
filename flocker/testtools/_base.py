@@ -71,6 +71,18 @@ class _MktempMixin(object):
         """
         return make_temporary_directory(_path_for_test(self))
 
+    def make_temporary_file(self, content=''):
+        """
+        Create a temporary file for use in tests.
+
+        :param str content: Content to write to the file.
+        :return: Path to file.
+        :rtype: FilePath
+        """
+        path = self.make_temporary_path()
+        path.setContent(content)
+        return path
+
 
 class _DeferredAssertionMixin(object):
     """
