@@ -45,15 +45,43 @@ class _MktempMixin(object):
 
     def mktemp(self):
         """
-        Create a temporary directory that will be deleted on test completion.
+        Create a temporary path for use in tests.
 
         Provided for compatibility with Twisted's ``TestCase``.
 
-        :return: Path to the newly-created temporary directory.
+        :return: Path to non-existent file or directory.
         """
-        # XXX: Should we provide a cleaner interface for people to use? One
-        # that returns FilePath? One that returns a directory?
-        return make_temporary_directory(self).child('temp').path
+        return self.make_temporary_path().path
+
+    def make_temporary_path(self):
+        """
+        Create a temporary path for use in tests.
+
+        :return: Path to non-existent file or directory.
+        :rtype: FilePath
+        """
+        return self.make_temporary_directory().child('temp')
+
+    def make_temporary_directory(self):
+        """
+        Create a temporary directory for use in tests.
+
+        :return: Path to directory.
+        :rtype: FilePath
+        """
+        return make_temporary_directory(_path_for_test(self))
+
+    def make_temporary_file(self, content=''):
+        """
+        Create a temporary file for use in tests.
+
+        :param str content: Content to write to the file.
+        :return: Path to file.
+        :rtype: FilePath
+        """
+        path = self.make_temporary_path()
+        path.setContent(content)
+        return path
 
 
 class _DeferredAssertionMixin(object):
@@ -322,16 +350,25 @@ def _path_for_test_id(test_id, max_segment_length=32):
         segment[:max_segment_length] for segment in test_id.rsplit('.', 2))
 
 
-def make_temporary_directory(test):
+def _path_for_test(test):
     """
-    Create a temporary directory for use in ``test``.
+    Get the temporary directory path for a test.
+    """
+    return FilePath(_path_for_test_id(test.id()))
 
-    :param TestCase test: A TestCase
+
+def make_temporary_directory(base_path):
+    """
+    Create a temporary directory beneath ``base_path``.
+
+    It is the responsibility of the caller to delete the temporary directory.
+
+    :param FilePath base_path: Base directory for the temporary directory.
+        Will be created if it does not exist.
     :return: The FilePath to a newly-created temporary directory, created
         beneath the current working directory.
     """
-    path = FilePath(_path_for_test_id(test.id()))
-    if not path.exists():
-        path.makedirs()
-    temp_dir = tempfile.mkdtemp(dir=path.path)
+    if not base_path.exists():
+        base_path.makedirs()
+    temp_dir = tempfile.mkdtemp(dir=base_path.path)
     return FilePath(temp_dir)
