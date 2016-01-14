@@ -94,13 +94,19 @@ def get_stack_report(stack_id):
 
 
 def wait_for_stack_status(stack_id, target_status):
+    Message.log(
+        function='wait_for_stack_status',
+        stack_id=stack_id,
+        target_status=target_status,
+    )
+
     def predicate():
         stack_report = get_stack_report(stack_id)
         current_status = stack_report['StackStatus']
         if current_status == target_status:
             return stack_report
 
-    return loop_until(reactor, predicate, repeat(1, 600))
+    return loop_until(reactor, predicate, repeat(10, 60))
 
 
 def create_cloudformation_stack(access_key_id, secret_access_key, parameters):
@@ -211,13 +217,17 @@ class DockerComposeTests(AsyncTestCase):
     def setUp(self):
         d = maybeDeferred(super(DockerComposeTests, self).setUp)
 
-        def setup_for_stack(ignored):
+        def setup_stack(ignored):
             if not self._stack_from_environment():
                 return self._new_stack()
+        d.addCallback(setup_stack)
+
+        def stack_ready(ignored):
             self.docker_host = 'tcp://' + self.control_node_ip + ':2376'
             self.addCleanup(self._cleanup_flocker)
             self.addCleanup(self._cleanup_compose)
-        d.addCallback(setup_for_stack)
+        d.addCallback(stack_ready)
+
         return d
 
     def _cleanup_flocker(self):
