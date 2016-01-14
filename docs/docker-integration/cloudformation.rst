@@ -32,17 +32,19 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 1</h2>
-			<p><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create and save an AWS EC2 Key Pair</a> in the target region for your Flocker cluster:</p>
+			<p>The AWS Key Pair uses public-key cryptography to provide secure login to your AWS cluster.</p>
 		</div>
 		<div class="step-stages__step first">
-			<span> </span> 
+			<img src="/_images/01-keys-menu.png" alt="AWS keys"/>
+			<span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create and save an AWS EC2 Key Pair</a> in us-east-1 region for your Flocker cluster</span>
 		</div>
 		<div class="step-stages__step">
-			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>The AWS Key Pair uses public-key cryptography to provide secure login to your AWS cluster.</span>
+			<img src="/_images/02-create-key.png" alt="AWS keys"/>
+			<span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create and save an AWS EC2 Key Pair</a> in us-east-1 region for your Flocker cluster</span>
 		</div>
 		<div class="step-stages__step">
-			<span></span>
+			<img src="/_images/03-pem-downloaded.png" alt="AWS keys"/>
+			<span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1">Create and save an AWS EC2 Key Pair</a> in us-east-1 region for your Flocker cluster</span>
 		</div>
 	</div>
 	
@@ -94,7 +96,7 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 		</div>
 		<div class="step-stages__step first">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span>Under the <b>Outputs</b> tab, gather your <code>ClientIP</code> and <code>SwarmDockerHost</code> info.</span> 
+			<span>Under the <b>Outputs</b> tab, gather your <code>ClientIP</code>, <code>DockerTLSCertDirectory</code> and <code>SwarmDockerHost</code> info.</span> 
 		</div>
 		<div class="step-stages__step">
 			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
@@ -121,3 +123,19 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 			<span> </span> 
 		</div>
     </div>
+
+
+.. raw:: html
+
+   <div style="display:none;">
+
+.. image:: /images/tutorial-swarm-compose/01-keys-menu.png
+.. image:: /images/tutorial-swarm-compose/02-create-key.png
+.. image:: /images/tutorial-swarm-compose/03-pem-downloaded.png
+.. image:: /images/tutorial-swarm-compose/11-cloudformation-stackname.png
+.. image:: /images/tutorial-swarm-compose/12-cloudformation-settings.png
+.. image:: /images/tutorial-swarm-compose/13-cloudformation-create.png
+
+.. raw:: html
+
+   </div>

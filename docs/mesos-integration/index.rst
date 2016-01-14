@@ -4,8 +4,10 @@
 Mesos
 =====
 
-I suggest adding a paragraph here or removing the above heading all together, as two headings in a run looks quite untidy and also, somewhat defeats the point of having headings as separation. 
+Flocker works with Mesos via two different integration paths:
 
+* With Marathon and Flocker Plugin for Docker to provide storage to Dockerized applications running on Marathon.
+* With the `Mesos-Flocker Isolator <http://flocker.mesosframeworks.com/>`_ to provide storage to any Mesos framework or application.
 
 Flocker Installation Options
 ============================
@@ -20,8 +22,16 @@ Flocker Installation Options
 	    </div>
 	</div>
 
+
+.. the following causes the toctree to be hidden on page but not in the navigation, meaning that when on the linked page, the navigation shows you where you are, which is crucial for UX.
+
+.. raw:: html
+
+   <style>
+   .toctree-wrapper { display: none; }
+   </style>
+
 .. toctree::
-   :hidden:
 
    manual-install
 
@@ -39,8 +49,10 @@ Follow a Tutorial
 	    </div>
 	</div>
 
-Other tutorials can be found on our blog.
-* TODO: link to other tutorials on our blog
+Learn more on our blog
+----------------------
+
+* `Demo: High Availability with Marathon and Flocker <https://clusterhq.com/2015/10/06/marathon-ha-demo/>`_
 
 .. toctree::
    :hidden:

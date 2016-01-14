@@ -4,8 +4,8 @@
 Docker, Swarm, Compose
 ======================
 
-I suggest adding a paragraph here or removing the above heading all together, as two headings in a run looks quite untidy and also, somewhat defeats the point of having headings as separation. 
-
+Flocker works with Docker, Swarm and Compose via the Flocker Plugin for Docker.
+Follow an installation tutorial to get started.
 
 Flocker Installation Options
 ============================
@@ -15,7 +15,7 @@ Flocker Installation Options
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--recommended">
 		   <img src="/_images/amazon-docker2x.png" alt="Amazon AWS logo"/>
 		   <span>CloudFormation is the easiest way to get started on AWS.<em>Fastest</em></span>
-		    <a href="cloudformation.html" class="button">Install</a>
+		    <a href="cloudformation.html" class="button button--fast">Install</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up">
 		    <img src="/_images/default2x.png" aria-hidden="true" alt=""/>
@@ -24,8 +24,15 @@ Flocker Installation Options
 	    </div>
 	</div>
 
+.. the following causes the toctree to be hidden on page but not in the navigation, meaning that when on the linked page, the navigation shows you where you are, which is crucial for UX.
+
+.. raw:: html
+
+   <style>
+   .toctree-wrapper { display: none; }
+   </style>
+
 .. toctree::
-   :hidden:
 
    cloudformation
    manual-install
@@ -44,10 +51,13 @@ Follow a Tutorial
 	    </div>
     </div>
 
-Other tutorials
----------------
+Learn more on our blog
+----------------------
 
-* TODO: link to other tutorials on our blog
+* `Tutorial: PostgreSQL on Docker with Flocker <https://clusterhq.com/2016/01/08/tutorial-flocker-volume-driver-postgres/>`_
+* `Walkthrough: Docker Volumes vs Docker Volumes with Flocker <https://clusterhq.com/2015/12/09/difference-docker-volumes-flocker-volumes/>`_
+* `Deploying and migrating an Elasticsearch-Logstash-Kibana stack using Docker Part 1 <https://clusterhq.com/2016/01/12/a-single-node-elk-flocker/>`_
+* `Deploying and migrating an Elasticsearch-Logstash-Kibana stack using Docker Part 2 <https://clusterhq.com/2016/01/12/b-multinode-elk-flocker/>`_
 
 .. toctree::
    :hidden:

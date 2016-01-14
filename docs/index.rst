@@ -10,9 +10,9 @@ Installing Flocker
 
 .. _supported-orchestration-frameworks:
 
-To install Flocker, you first need to choose which stack you are using.
+Flocker allows you to launch and move stateful containers, like databases, using a scheduler of your choice.
 
-Flocker adds support for stateful containers to a range of container orchestration frameworks.
+To install Flocker, first choose which container stack you are using.
 
 .. raw:: html
 
@@ -62,8 +62,15 @@ Let us know with the form below!
 
 .. The version page is used only for a version of the documentation to know what the latest version is.
 
+.. the following causes the toctree to be hidden on page but not in the navigation, meaning that when on the linked page, the navigation shows you where you are, which is crucial for UX.
+
+.. raw:: html
+
+   <style>
+   .toctree-wrapper { display: none; }
+   </style>
+
 .. toctree::
-   :hidden:
 
    version
    installation/index

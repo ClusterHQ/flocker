@@ -4,8 +4,7 @@
 Kubernetes
 ==========
 
-I suggest adding a paragraph here or removing the above heading all together, as two headings in a run looks quite untidy and also, somewhat defeats the point of having headings as separation. 
-
+Flocker works with Kubernetes 1.1 or later via the built-in Flocker driver for Kubernetes.
 
 Flocker Installation Options
 ============================
@@ -20,8 +19,15 @@ Flocker Installation Options
 	    </div>
 	</div>
 
+.. the following causes the toctree to be hidden on page but not in the navigation, meaning that when on the linked page, the navigation shows you where you are, which is crucial for UX.
+
+.. raw:: html
+
+   <style>
+   .toctree-wrapper { display: none; }
+   </style>
+
 .. toctree::
-   :hidden:
 
    manual-install
 
@@ -32,15 +38,17 @@ Follow a Tutorial
 
 .. raw:: html
 
-    <div class="pods-solo">
-	    <div class="pod-boxout pod-boxout--tutorial">
+    <div class="pods-eq">
+	    <div class="pod-boxout pod-boxout--2up pod-boxout--tutorial">
 		   <span>Tutorial: using Flocker with Kubernetes</span>
 		     <a href="tutorial-kubernetes.html" class="button">Follow Tutorial</a>
 	    </div>
 	</div>
 
-Other tutorials can be found on our blog.
-* TODO: link to other tutorials on our blog
+Learn more on our blog
+----------------------
+
+* `Demo: High Availability with Kubernetes and Flocker <https://clusterhq.com/2015/12/22/ha-demo-kubernetes-flocker/>`_
 
 .. toctree::
    :hidden:
