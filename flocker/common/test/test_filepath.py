@@ -26,14 +26,23 @@ class MakeFileTests(TestCase):
     Tests for :py:func:`make_file`.
     """
 
-    @given(content=binary(average_size=20), permissions=permissions)
-    def test_make_file(self, content, permissions):
+    @given(content=binary(average_size=20), perms=permissions)
+    def test_make_file(self, content, perms):
         """
         ``make_file`` creates a file with the given content and permissions.
         """
         path = self.make_temporary_path()
-        make_file(path, content, permissions)
+        make_file(path, content, perms)
         self.addCleanup(path.remove)
-        self.expectThat(path, with_permissions(Equals(permissions)))
+        self.expectThat(path, with_permissions(Equals(perms)))
         path.chmod(0600)
         self.assertThat(path, file_contents(Equals(content)))
+
+    def test_make_file_defaults(self):
+        """
+        By default, ``make_file`` creates an empty file.
+        """
+        path = self.make_temporary_path()
+        make_file(path)
+        self.addCleanup(path.remove)
+        self.assertThat(path, file_contents(Equals('')))
