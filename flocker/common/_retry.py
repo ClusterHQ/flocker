@@ -260,23 +260,35 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
     :return: An Effect that does what ``effect`` does, but retrying on
         exception.
     """
-    end_time = time() + timeout
+    class State(object):
+        end_time = None
+        wait_time = None
 
-    def should_retry(e):
-        if time() >= end_time:
+    def should_retry(exc_info):
+        # This is the wrong time to compute end_time.  It's a lot simpler to do
+        # this than to hook into the effect being wrapped and record the time
+        # it starts to run.  Perhaps implementing that would be a nice thing to
+        # do later.
+        #
+        # Anyway, make note of when we want to be finished if we haven't yet
+        # done so.
+        if State.end_time is None:
+            State.end_time = time() + timeout
+
+        if time() >= State.end_time:
             return Effect(Constant(False))
         else:
-            retry_delay = should_retry.wait_secs.total_seconds()
+            retry_delay = State.wait_time.total_seconds()
             effect = Effect(Delay(retry_delay)).on(
                 success=lambda x: Effect(Constant(True))
             )
 
             if backoff:
-                should_retry.wait_secs *= 2
+                State.wait_time *= 2
 
             return effect
 
-    should_retry.wait_secs = retry_wait
+    State.wait_time = retry_wait
 
     return retry(effect, should_retry)
 
