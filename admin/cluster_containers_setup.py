@@ -1,12 +1,11 @@
-
-import string
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 import yaml
 import os
 import sys
+
 from copy import deepcopy
 from json import dumps
 from itertools import repeat
-
 from treq import json_content
 
 from twisted.internet.defer import inlineCallbacks
