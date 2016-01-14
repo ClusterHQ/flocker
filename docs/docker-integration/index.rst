@@ -4,8 +4,8 @@
 Docker, Swarm, Compose
 ======================
 
-I suggest adding a paragraph here or removing the above heading all together, as two headings in a run looks quite untidy and also, somewhat defeats the point of having headings as separation. 
-
+Flocker works with Docker, Swarm and Compose via the Flocker Plugin for Docker.
+Follow an installation tutorial to get started.
 
 Flocker Installation Options
 ============================
@@ -44,10 +44,13 @@ Follow a Tutorial
 	    </div>
     </div>
 
-Other tutorials
----------------
+Learn more on our blog
+----------------------
 
-* TODO: link to other tutorials on our blog
+* `Tutorial: PostgreSQL on Docker with Flocker <https://clusterhq.com/2016/01/08/tutorial-flocker-volume-driver-postgres/>`_
+* `Walkthrough: Docker Volumes vs Docker Volumes with Flocker <https://clusterhq.com/2015/12/09/difference-docker-volumes-flocker-volumes/>`_
+* `Deploying and migrating an Elasticsearch-Logstash-Kibana stack using Docker Part 1 <https://clusterhq.com/2016/01/12/a-single-node-elk-flocker/>`_
+* `Deploying and migrating an Elasticsearch-Logstash-Kibana stack using Docker Part 2 <https://clusterhq.com/2016/01/12/b-multinode-elk-flocker/>`_
 
 .. toctree::
    :hidden:
