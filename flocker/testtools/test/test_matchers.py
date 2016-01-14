@@ -169,7 +169,9 @@ class FileContainsTests(TestCase):
         """
         path = self.make_temporary_path()
         arbitrary_matcher = Is(None)
-        self.assertThat(path, Not(file_contents(arbitrary_matcher)))
+        mismatch = file_contents(arbitrary_matcher).match(path)
+        self.assertThat(
+            mismatch.describe(), Equals('%s does not exist.' % (path.path)))
 
     def test_directory(self):
         """
@@ -177,14 +179,22 @@ class FileContainsTests(TestCase):
         """
         path = self.make_temporary_directory()
         arbitrary_matcher = Is(None)
-        self.assertThat(path, Not(file_contents(arbitrary_matcher)))
+        mismatch = file_contents(arbitrary_matcher).match(path)
+        self.assertThat(
+            mismatch.describe(), Equals('%s is not a file.' % (path.path)))
 
     @given(observed=binary(average_size=10), expected=binary(average_size=10))
     def test_file_exists_content_mismatch(self, observed, expected):
         assume(observed != expected)
+        matcher = Equals(expected)
         path = self.make_temporary_path()
         path.setContent(observed)
-        self.assertThat(path, Not(file_contents(Equals(expected))))
+        mismatch = file_contents(matcher).match(path)
+        self.assertThat(
+            mismatch.describe(),
+            Equals(
+                '%s has unexpected contents:\n%s' %
+                (path.path, matcher.match(observed).describe())))
 
     @given(content=binary(average_size=10))
     def test_file_exists_content_match(self, content):
