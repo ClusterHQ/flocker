@@ -71,43 +71,43 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 		</div>
 	</div>
 
-    .. image:: /images/tutorial-swarm-compose/21-refresh.png
-    .. image:: /images/tutorial-swarm-compose/22-create-in-progress.png
-    .. image:: /images/tutorial-swarm-compose/23-create-complete.png
-	
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 3</h2>
 			<p>Wait for the cluster to come up. This can take 5-10 minutes.</p>
 		</div>
 		<div class="step-stages__step first">
-			<img src="/_images/21-refresh.png" alt="Click create"/>
-			<span>Click "Next" twice and then click "Create" to create your cluster.</span>
+			<img src="/_images/21-refresh.png" alt="Refresh button on CloudFormation console"/>
+			<span>The stack may not show up immediately. Click the refresh button a few times to see it show up.</span>
 		</div>
 		<div class="step-stages__step">
-			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
-			<span> </span> 
+			<img src="/_images/22-create-in-progress.png" alt="Stack create in progress message"/>
+			<span>Once the stack shows up, it will stay in CREATE_IN_PROGRESS state for 5-10 minutes. Wait for it to transition to...</span> 
 		</div>
 		<div class="step-stages__step">
-			<span> </span> 
+			<img src="/_images/23-create-complete.png" alt="Stack create create complete message"/>
+			<span>... CREATE_COMPLETE state. Then click the "Outputs" tab...</span> 
 		</div>
 	</div>
 	
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 4</h2>
-			<p>Complete your installation.</p>
-		</div>
-		<div class="step-stages__step first">
-			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
+			<p>Verify your installation.</p>
+            <p>Click on the "Outputs" tab for your stack. These values will be used for connecting to your cluster both for the next step and for tutorials you will go through.</p>
+			<img src="/_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation"/>
+            <div style="text-align: left">
+
+.. prompt:: bash $
+
+   foo
+
+.. raw:: html
+
+            </div>
+            
 			<span>Under the <b>Outputs</b> tab, gather your <code>ClientIP</code>, <code>DockerTLSCertDirectory</code> and <code>SwarmDockerHost</code> info.</span> 
-		</div>
-		<div class="step-stages__step">
-			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
 			<span>Connect to the client IP, and check that <code>docker info</code> lists two hosts in the cluster.</span> 
-		</div>
-		<div class="step-stages__step">
-			<img src="http://filldunphy.com/780/439" alt="Relevent alt tag"/>
 			<span>Connect to the client IP, and check that <code>flockerctl</code> lists two nodes and zero datasets in the cluster. </span> 
 		</div>
 	</div>
@@ -142,6 +142,7 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 .. image:: /images/tutorial-swarm-compose/21-refresh.png
 .. image:: /images/tutorial-swarm-compose/22-create-in-progress.png
 .. image:: /images/tutorial-swarm-compose/23-create-complete.png
+.. image:: /images/tutorial-swarm-compose/31-stack-outputs.png
 
 .. raw:: html
 
