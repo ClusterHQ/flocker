@@ -52,7 +52,7 @@ Step 1: Set ``DOCKER_HOST``
 Compose uses the environment variable ``DOCKER_HOST`` to know how to talk to the Swarm master.
 If you used the :ref:`CloudFormation installer <cloudformation>`, it is listed in the Outputs tab of your CloudFormation stack.
 
-Use the following commmand to set the ``DOCKER_HOST`` environment variable:
+Use the following commands to set the ``DOCKER_HOST`` and ``DOCKER_TLS_VERIFY`` environment variables:
 
 .. prompt:: bash $
 
