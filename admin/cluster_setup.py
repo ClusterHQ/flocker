@@ -133,7 +133,10 @@ def generate_managed_config(cluster):
             addresses.append([node.private_address, node.address])
         else:
             addresses.append(node.address)
-    return {"managed": {"addresses": addresses}}
+    config = dict()
+    config["addresses"] = addresses
+    config["upgrade"] = True
+    return {"managed": config}
 
 
 @inlineCallbacks
