@@ -562,6 +562,92 @@ class APITestsMixin(APIAssertionsMixin):
                                  {u"Implements": [u"VolumeDriver"]},
                                  additional_headers={b"Host": [""]})
 
+    def test_get(self):
+        """
+        ``/VolumeDriver.Get`` returns the mount path of the given volume if
+        it is currently known.
+        """
+        name = u"myvol"
+
+        d = self.create(name)
+        # The dataset arrives as state:
+        d.addCallback(lambda _: self.flocker_client.synchronize_state())
+
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/VolumeDriver.Mount", {u"Name": name}, OK))
+        d.addCallback(lambda _:
+                      self.flocker_client.list_datasets_configuration())
+        d.addCallback(lambda datasets_config:
+                      self.assertResult(
+                          b"POST", b"/VolumeDriver.Get",
+                          {u"Name": name}, OK,
+                          {u"Err": u"",
+                           u"Volume": {
+                               u"Name": name,
+                               u"Mountpoint": u"/flocker/{}".format(
+                                   datasets_config.datasets.keys()[0])}}))
+        return d
+
+    def test_get_existing(self):
+        """
+        ``/VolumeDriver.Get`` returns the mount path of the given volume if
+        it is currently known, including for a dataset that was created
+        not by the plugin.
+        """
+        name = u"myvol"
+
+        d = self.flocker_client.create_dataset(
+            self.NODE_A, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name})
+
+        def created(dataset):
+            self.flocker_client.synchronize_state()
+            return self.assertResult(
+                b"POST", b"/VolumeDriver.Get",
+                {u"Name": name}, OK,
+                {u"Err": u"",
+                 u"Volume": {
+                     u"Name": name,
+                     u"Mountpoint":
+                     u"/flocker/{}".format(dataset.dataset_id)}})
+        d.addCallback(created)
+        return d
+
+    def test_unknown_get(self):
+        """
+        ``/VolumeDriver.Get`` returns an error when asked for the mount path
+        of a non-existent volume.
+        """
+        name = u"myvol"
+        return self.assertResult(
+            b"POST", b"/VolumeDriver.Get",
+            {u"Name": name}, OK,
+            {u"Err": u"Could not find volume with given name."})
+
+    def test_non_local_get(self):
+        """
+        ``/VolumeDriver.Get`` returns an empty mount point when asked about a
+        volume that is not mounted locally.
+        """
+        name = u"myvol"
+        dataset_id = uuid4()
+
+        # Create dataset on node B:
+        d = self.flocker_client.create_dataset(
+            self.NODE_B, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name},
+            dataset_id=dataset_id)
+        d.addCallback(lambda _: self.flocker_client.synchronize_state())
+
+        # Ask for path on node A:
+        d.addCallback(lambda _:
+                      self.assertResult(
+                          b"POST", b"/VolumeDriver.Get",
+                          {u"Name": name}, OK,
+                          {u"Err": u"",
+                           u"Volume": {
+                               u"Name": name,
+                               u"Mountpoint": u""}}))
+        return d
+
 
 def _build_app(test):
     test.initialize()
