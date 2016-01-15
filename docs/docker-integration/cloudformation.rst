@@ -113,11 +113,11 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
    ssh -i <KeyPath> ubuntu@<ClientNodeIP> # enter "yes" if prompted
    export FLOCKER_CERTS_PATH=/etc/flocker
    export FLOCKER_USER=user1
-   export FLOCKER_CONTROL_SERVICE=<ControlNodeIP>
-   flockerctl status # should show two nodes running
+   export FLOCKER_CONTROL_SERVICE=<ControlNodeIP> # not ClientNodeIP!
+   flockerctl status # should list two servers (nodes) running
    flockerctl ls # should show no datasets yet
    export DOCKER_TLS_VERIFY=1
-   export DOCKER_HOST=<ControlNodeIP>:2376 # not ClientNodeIP!
+   export DOCKER_HOST=<ControlNodeIP>:2376
    docker info |grep Nodes # should output "Nodes: 2"
 
 .. raw:: html
