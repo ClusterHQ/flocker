@@ -20,7 +20,7 @@ class CreateShadowMountTests(TestCase):
     def setUp(self):
         super(CreateShadowMountTests, self).setUp()
         self._blockdevice_manager = self.useFixture(
-            blockdevice_manager_fixture(self)).obj
+            blockdevice_manager_fixture()).obj
 
     def _make_dir(self):
         """
