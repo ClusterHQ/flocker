@@ -28,6 +28,7 @@ For more information read the :ref:`cluster architecture<architecture>` document
 
    api
    deprecated_api
+   leases
 
 .. XXX: Improvements to the API (create collapse directive) requires Engineering effort:
 .. https://clusterhq.atlassian.net/browse/FLOC-2094
