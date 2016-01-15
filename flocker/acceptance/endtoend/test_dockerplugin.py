@@ -485,7 +485,7 @@ class DockerPluginTests(AsyncTestCase):
         def created(_):
             client = get_docker_client(
                 cluster, cluster.nodes[0].public_address)
-            our_volume = [v[u"Driver"] for v in client.volumes()
+            our_volume = [v[u"Driver"] for v in client.volumes()[u"Volumes"]
                           if v[u"Name"] == name]
             self.assertEqual(our_volume, [u"flocker"])
         d.addCallback(created)
