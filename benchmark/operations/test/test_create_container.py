@@ -16,7 +16,7 @@ from flocker.testtools import TestCase
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IOperation, IProbe
 from benchmark.operations.create_container import (
-    CreateContainer, CreateContainerProbe,
+    CreateContainer, CreateContainerProbe, DEFAULT_TIMEOUT,
 )
 from benchmark.operations._common import EmptyClusterError
 
@@ -83,6 +83,43 @@ class CreateContainerTests(TestCase):
 
         # The Deferred fires once the container has been created.
         self.successResultOf(d)
+
+    def test_create_container_timeout(self):
+        """
+        CreateContainer probe times-out if container not created.
+        """
+        clock = Clock()
+
+        node_id = uuid4()
+        node = Node(uuid=node_id, public_address=IPAddress('10.0.0.1'))
+        control_service = FakeFlockerClient([node], node_id)
+
+        cluster = BenchmarkCluster(
+            IPAddress('10.0.0.1'),
+            lambda reactor: control_service,
+            {},
+            None,
+        )
+        operation = CreateContainer(clock, cluster)
+        d = operation.get_probe()
+
+        def run_probe(probe):
+            def cleanup(result):
+                cleaned_up = probe.cleanup()
+                cleaned_up.addCallback(lambda _ignored: result)
+                return cleaned_up
+            d = probe.run()
+            d.addCallback(cleanup)
+            return d
+        d.addCallback(run_probe)
+
+        clock.advance(DEFAULT_TIMEOUT)
+
+        # No control_service.synchronize_state() call, so cluster state
+        # never shows container is created.
+
+        # The Deferred fails if container not created within 10 minutes.
+        self.failureResultOf(d)
 
     def test_empty_cluster(self):
         """

@@ -10,14 +10,17 @@ from pyrsistent import PClass, field
 from zope.interface import implementer
 
 from flocker.apiclient import MountedDataset
-from flocker.common import gather_deferreds, loop_until
+from flocker.common import gather_deferreds, loop_until, timeout as _timeout
 from flocker.control import DockerImage
 
 from benchmark._interfaces import IProbe, IOperation
 from benchmark.operations._common import select_node
 
 
-def loop_until_state_found(reactor, get_states, state_matches):
+DEFAULT_TIMEOUT = 600
+
+
+def loop_until_state_found(reactor, get_states, state_matches, timeout):
     """
     Loop until a state has been reached.
 
@@ -25,6 +28,7 @@ def loop_until_state_found(reactor, get_states, state_matches):
         of states.
     :param state_matches: Callable that accepts a state parameter, and
         returns a boolean indicating whether the state matches.
+    :param int timeout: Maximum seconds to wait for state to be found.
     :return Deferred[Any]: The matching state.
     """
     def state_reached():
@@ -39,11 +43,14 @@ def loop_until_state_found(reactor, get_states, state_matches):
 
         return d
 
-    return loop_until(reactor, state_reached)
+    d = loop_until(reactor, state_reached)
+    _timeout(reactor, d, timeout)
+    return d
 
 
 def create_dataset(
-    reactor, control_service, node_uuid, dataset_id, volume_size
+    reactor, control_service, node_uuid, dataset_id, volume_size,
+    timeout=DEFAULT_TIMEOUT
 ):
     """
     Create a dataset, then wait for it to be mounted.
@@ -54,6 +61,7 @@ def create_dataset(
     :param UUID node_uuid: Node on which to create dataset.
     :param UUID dataset_id: ID for created dataset.
     :param int volume_size: Size of volume in bytes.
+    :param int timeout: Maximum seconds to wait for dataset to be mounted.
     :return Deferred[DatasetState]: The state of the created dataset.
     """
 
@@ -73,7 +81,7 @@ def create_dataset(
     d.addCallback(
         lambda dataset: loop_until_state_found(
             reactor, control_service.list_datasets_state,
-            partial(dataset_matches, dataset)
+            partial(dataset_matches, dataset), timeout
         )
     )
 
@@ -81,7 +89,8 @@ def create_dataset(
 
 
 def create_container(
-    reactor, control_service, node_uuid, name, image, volumes=None
+    reactor, control_service, node_uuid, name, image, volumes=None,
+    timeout=DEFAULT_TIMEOUT
 ):
     """
     Create a container, then wait for it to be running.
@@ -94,6 +103,7 @@ def create_container(
     :param DockerImage image: Docker image for the container.
     :param Optional[Sequence[MountedDataset]] volumes: Volumes to attach
         to the container.
+    :param int timeout: Maximum seconds to wait for container to be created.
     :return Deferred[ContainerState]: The state of the created container.
     """
 
@@ -109,7 +119,7 @@ def create_container(
     d.addCallback(
         lambda container: loop_until_state_found(
             reactor, control_service.list_containers_state,
-            partial(container_matches, container)
+            partial(container_matches, container), timeout
         )
     )
 
