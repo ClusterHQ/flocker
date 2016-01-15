@@ -382,7 +382,7 @@ def _get_compute_id(local_ips, id_to_node_ips):
     Compute the instance ID of the local machine.
 
     Expectation is that our local IPs intersect with one (only) of the
-    remote nodes' IPs.
+    remote nodes' sets of IPs.
 
     :param set local_ips: The local machine's IPs.
     :param id_to_node_ips: Mapping from instance IDs to sets of IPs, as
@@ -392,10 +392,7 @@ def _get_compute_id(local_ips, id_to_node_ips):
     """
     matching_instances = []
     for server_id, api_addresses in id_to_node_ips.items():
-        # Only do subset comparison if there were *some* IP addresses;
-        # non-ACTIVE servers will have an empty list of IP addresses and
-        # lead to incorrect matches.
-        if api_addresses and api_addresses.issubset(local_ips):
+        if api_addresses.intersection(local_ips):
             matching_instances.append(server_id)
 
     # If we've got this correct there should only be one matching instance.
