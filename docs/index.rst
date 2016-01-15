@@ -55,7 +55,6 @@ Let us know with the form below!
    supported
    flocker-features/index
    reference/index
-   labs/index
    releasenotes/index
    faq/index
    gettinginvolved/index

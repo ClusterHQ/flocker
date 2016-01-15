@@ -1,37 +1,70 @@
 .. _labs-volumes-cli:
 
-=====================
-Prototype Volumes CLI
-=====================
+==============
+``flockerctl``
+==============
 
-Flocker includes a powerful volumes API.
-However it does not yet include a native CLI.
+.. raw:: html
 
-This prototype demonstrates such a CLI, which has simple commands for listing nodes, creating volumes, and moving them around.
-This can be used in conjunction with the Flocker plugin for Docker, see :ref:`this demo <labs-demo>` (the volumes CLI makes an appearance at the end).
+    <style>
+	   .labs {
+	       background: url(/_images/experimental.png) no-repeat #BCED91;
+		   background-size:30px; background-position: 30px 20px;
+		   padding-right:20px;
+	   }
+	   
+	</style>
+	
+    <div class="admonition labs">
+        <p>This page describes one of our experimental projects, developed to less rigorous quality and testing standards than the mainline Flocker distribution. It is not built with production-readiness in mind.</p>
+	</div>
+
+.. raw:: html
+
+   <div style="display:none;">
+
+.. image:: /images/experimental.png
+
+.. raw:: html
+
+   </div>
+
+``flockerctl`` is a CLI for controlling the Flocker Control Service.
+It is specific to datasets, and should not be confused with ``flocker-deploy`` (which is deprecated) or ``flocker-ca`` (which can be used as part of the manual initial configuration of a cluster's certificates).
+
+``flockerctl`` has commands for listing nodes, creating volumes, and moving them around.
+It supports supplying metadata such as size, name and :ref:`storage-profiles`.
 
 Install & Configure
 ===================
 
-First, you need to install Flocker, you can use our experimental Flocker Installer to do this.
-The Flocker Volumes CLI will be installed as part of this process, called ``flocker-volumes``.
+``flockerctl`` is packaged along with the :ref:`labs-installer`.
+You don't have to use the labs installer in order to use ``flockerctl``, though.
+You can use ``flockerctl`` with Flocker installed via :ref:`any installation mechanism <supported-orchestration-frameworks>`.
 
-To connect to the Flocker Control Service, the CLI will need a ``cluster.yml`` file that describes your cluster.
-It will also need access to the TLS certificates that were created when you provisioned your cluster.
+Install it with:
 
-If you have used our installer tool - you will have already created such a file.  The TLS certificates will have been generated in the same folder after you have run the ``flocker-config`` command.
+.. prompt:: bash $
 
-You can read more about generating these certificates in the documentation for our :ref:`Flocker installer <labs-installing-unofficial-flocker-tools>`.
+   curl -sSL https://get.flocker.io |sh
+
+If you use the :ref:`labs-installer` to install your cluster ``flockerctl`` will work with the ``cluster.yml`` file that it generates and figure out how to connect to your cluster based on that.
+
+If you have used an alternative method to create your cluster, such as a manual installation or our :ref:`CloudFormation installer <cloudformation>`, you will need to set some environment variables for ``flockerctl`` to pick up:
+
+* ``FLOCKER_CERTS_PATH`` - typically ``/etc/flocker`` if you're running ``flockerctl`` from a node in the cluster, otherwise, where your certificates are stored.
+* ``FLOCKER_USER`` - the name of a flocker user which has ``.key`` and ``.crt`` file in the certs path.
+* ``FLOCKER_CONTROL_SERVICE`` - the address (DNS name or IP address) of the control service. The name you use should match up with the name you specified when creating the cluster certificates.
 
 Running the CLI
 ===============
 
-The command for the CLI tool is ``flocker-volumes``.  If you run this command in the same folder as your ``cluster.yml`` file - it will use the settings in the file.  If you run it from elsewhere - you need to tell the CLI some additional options.
+The command for the CLI tool is ``flockerctl``.  If you run this command in the same folder as your ``cluster.yml`` file - it will use the settings in the file.  If you run it from elsewhere - you need to tell the CLI some additional options.
 
-Here is the output of the ``flocker-volumes --help`` command, where you can see the supported options::
+Here is the output of the ``flockerctl --help`` command, where you can see the supported options::
 
-    $ flocker-volumes --help
-    Usage: flocker-volumes [options]
+    $ flockerctl --help
+    Usage: flockerctl [options]
     Options:
           --cluster-yml=      Location of cluster.yml file (makes other options
                               unnecessary) [default: ./cluster.yml]
@@ -55,7 +88,7 @@ So - to test that the CLI is installed properly - we can do this command:
 
 .. prompt:: bash $
 
-    flocker-volumes --version
+    flockerctl --version
 
 Listing Nodes
 =============
@@ -64,7 +97,7 @@ You can list the nodes in your cluster using this command:
 
 .. prompt:: bash $
 
-    flocker-volumes list-nodes
+    flockerctl list-nodes
 
 It will produce output like this::
 
@@ -76,7 +109,7 @@ This shows short ID's for the nodes.  To show the full ID's for each node:
 
 .. prompt:: bash $
 
-    flocker-volumes list-nodes -l
+    flockerctl list-nodes -l
 
 It will produce output like this::
 
@@ -88,7 +121,7 @@ Here is the output of the help for ``list-nodes``
 
 .. prompt:: bash $
 
-    flocker-volumes list-nodes --help
+    flockerctl list-nodes --help
 
 It will produce output like this::
 
@@ -106,7 +139,7 @@ Here is an example of a CLI command to create a volume:
 
 .. prompt:: bash $
 
-    flocker-volumes create \
+    flockerctl create \
         --node 1acbab49 \
         --size 50Gb \
         --metadata "name=apples,size=medium"
@@ -121,14 +154,14 @@ Here is the output of the help for ``create``
 
 .. prompt:: bash $
 
-    flocker-volumes create --help
+    flockerctl create --help
 
 It will produce output like this::
 
-    Usage: flocker-volumes [options] create [options]
+    Usage: flockerctl [options] create [options]
     Options:
       -n, --node=      Initial primary node for dataset (any unique prefix of node
-                       uuid, see flocker-volumes list-nodes)
+                       uuid, see flockerctl list-nodes)
       -m, --metadata=  Set volume metadata ("a=b,c=d")
       -s, --size=      Set size in bytes (default), k, M, G, T
           --version    Display Twisted version and exit.
@@ -139,7 +172,7 @@ List Volumes
 
 To list the volumes in your cluster - use the ``list`` command::
 
-    $ flocker-volumes list
+    $ flockerctl list
     DATASET                                SIZE      METADATA                  STATUS         SERVER
     9026a6f5-8c74-485d-84a9-a8b41e5b8e66   50.00G    name=apples,size=medium   attached       1acbab49 (172.16.70.251)
     b180f7bb-71f4-4acd-82c7-20f4bbd80a21   100.00G   name=apples               attached       1acbab49 (172.16.70.251)
@@ -148,11 +181,11 @@ Here is the output of the help for ``list``
 
 .. prompt:: bash $
 
-    flocker-volumes list --help
+    flockerctl list --help
 
 It will produce output like this::
 
-    Usage: flocker-volumes [options] list [options]
+    Usage: flockerctl [options] list [options]
     Options:
       -d, --deleted  Show deleted datasets
       -l, --long     Show long UUIDs
@@ -167,7 +200,7 @@ To move a volume from one node to another - use the ``move`` command.
 
 .. prompt:: bash $
 
-    flocker-volumes move \
+    flockerctl move \
         --dataset 9026a6f5 \
         --target 5d74f5be
 
@@ -177,11 +210,11 @@ Here is the output of the help for ``move``
 
 .. prompt:: bash $
 
-    flocker-volumes move --help
+    flockerctl move --help
 
 It will produce output like this::
 
-    Usage: flocker-volumes [options] move [options]
+    Usage: flockerctl [options] move [options]
     Options:
       -d, --dataset=      Dataset to move (uuid)
       -t, --destination=  New primary node (uuid) to move the dataset to
@@ -196,7 +229,7 @@ To mark a volume as destroyed - use the ``destroy`` command.
 
 .. prompt:: bash $
 
-    flocker-volumes destroy \
+    flockerctl destroy \
         --dataset 9026a6f5
 
 This command would destroy the ``9026a6f5`` dataset.
@@ -205,11 +238,11 @@ Here is the output of the help for ``destroy``.
 
 .. prompt:: bash $
 
-    flocker-volumes destroy --help
+    flockerctl destroy --help
 
 It will produce output like this::
 
-    Usage: flocker-volumes [options] destroy [options]
+    Usage: flockerctl [options] destroy [options]
     Options:
       -d, --dataset=  Dataset to destroy
           --version   Display Twisted version and exit.
