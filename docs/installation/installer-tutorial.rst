@@ -1,8 +1,10 @@
-.. _short-tutorial:
+.. Single Source Instructions
 
 =================================================
 Short Tutorial: Deploy and Migrate a Stateful App
 =================================================
+
+.. begin-body
 
 When you have completed the steps in :ref:`labs-installing-unofficial-flocker-tools` (or installed and configured Flocker via the full installing docs, you can use the following steps to deploy a highly sophisticated stateful app to test out Flocker:
 
@@ -49,3 +51,5 @@ When you have completed the steps in :ref:`labs-installing-unofficial-flocker-to
    Nice.
 
 If you now want to clean up your volumes, your instances and your local files, follow the instructions in :ref:`clean-your-cluster`.
+
+.. end-body

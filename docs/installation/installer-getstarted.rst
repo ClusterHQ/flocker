@@ -1,8 +1,10 @@
-.. _labs-installing-unofficial-flocker-tools:
+.. Single Source Instructions
 
 ==================================
 Getting Started with the Installer
 ==================================
+
+.. begin-body
 
 #. Installing the Installer:
 
@@ -128,3 +130,5 @@ Getting Started with the Installer
    You can see that there are no volumes yet.
 
 Now that you have a Flocker cluster, if you want a short demonstration of deploying and migrating a stateful application, see our :ref:`short tutorial <short-tutorial>`.
+
+.. end-body
