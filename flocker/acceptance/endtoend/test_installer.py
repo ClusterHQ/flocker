@@ -241,8 +241,13 @@ class DockerComposeTests(AsyncTestCase):
             certificates_path=local_certs_path,
             num_agent_nodes=2,
             hostname_to_public_address={},
+            username='user1',
         )
-        d.addCallback(lambda cluster: cluster.clean_nodes())
+        d.addCallback(
+            lambda cluster: cluster.clean_nodes(
+                remove_foreign_containers=False
+            )
+        )
         return d
 
     def _cleanup_compose(self):
