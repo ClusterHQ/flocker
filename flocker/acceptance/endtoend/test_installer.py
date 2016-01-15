@@ -31,7 +31,7 @@ INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
 
 CLOUDFORMATION_STACK_NAME = 'testinstallerstack'
-S3_CLOUDFORMATION_TEMPLATE = (
+CLOUDFORMATION_TEMPLATE_URL = (
     'https://s3.amazonaws.com/'
     'installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json'
 )
@@ -106,7 +106,8 @@ def wait_for_stack_status(stack_id, target_status):
     return loop_until(reactor, predicate, repeat(10, 60))
 
 
-def create_cloudformation_stack(access_key_id, secret_access_key, parameters):
+def create_cloudformation_stack(template_url, access_key_id,
+                                secret_access_key, parameters):
     """
     """
     # Request stack creation.
@@ -115,9 +116,8 @@ def create_cloudformation_stack(access_key_id, secret_access_key, parameters):
         ['aws', 'cloudformation', 'create-stack',
          '--parameters', json.dumps(parameters),
          '--stack-name', stack_name,
-         '--template-url', S3_CLOUDFORMATION_TEMPLATE]
+         '--template-url', template_url]
     )
-
     output = json.loads(output)
     stack_id = output['StackId']
     Message.new(cloudformation_stack_id=stack_id)
@@ -179,6 +179,11 @@ class DockerComposeTests(AsyncTestCase):
             return False
 
     def _new_stack(self):
+        template_url = os.environ.get('CLOUDFORMATION_TEMPLATE_URL')
+        if template_url is None:
+            self.skipTest(
+                'CLOUDFORMATION_TEMPLATE_URL environment variable not found. '
+            )
         access_key_id = os.environ['ACCESS_KEY_ID']
         secret_access_key = os.environ['SECRET_ACCESS_KEY']
         parameters = [
@@ -197,6 +202,7 @@ class DockerComposeTests(AsyncTestCase):
         ]
 
         d = create_cloudformation_stack(
+            template_url,
             access_key_id, secret_access_key, parameters
         )
 
