@@ -124,6 +124,10 @@ Now deploy the app by running:
 ..   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume in use by the ``postgres`` container.
 
 Open ``<AgentNode1IP>`` in a browser, and click around to add some Docker logos on the screen.
+For example:
+
+.. figure:: ../images/node1.png
+
 The locations of the logos get stored (persisted) in the PostgreSQL database, and saved to the Flocker volume.
 
 Step 3: Move the app
@@ -147,6 +151,9 @@ Flocker will detach and attach the storage so that the container starts up with 
 ..   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume being moved from node 1 to node 2 and the new container being started up.
 
 Open ``<AgentNode2IP>`` in a browser, and you'll be able to see that your data has persisted!
+For example:
+
+.. figure:: ../images/node2.png
 
 Cleaning up
 ===========
@@ -186,7 +193,4 @@ Now try deploying your own Docker Compose app!
 
 Or, try one of our other :ref:`Docker Tutorials <docker-tutorials>`.
 
-Notes
-=====
-
-Because we do not have a networking solution in this example, we use Swarm constraints to force both containers to be on the same node each time we deploy them so that regular Docker links work.
+.. note:: Because we do not have a networking solution in this example, we use Swarm constraints to force both containers to be on the same node each time we deploy them so that regular Docker links work.
