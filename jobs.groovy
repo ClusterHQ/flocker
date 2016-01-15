@@ -221,6 +221,14 @@ def build_triggers(_type, _value, _branch ) {
 def build_scm(git_url, branchName, isReleaseBuild) {
     return {
         git {
+            // The default clone timeout is 10 minutes.  Lower this a bit
+            // because checking out Flocker takes less than a minute (Jan 2016)
+            // but completely stalls from time to time.  We want to hit the
+            // timeout for the stalled case as quickly as we can so a retry
+            // (which will hopefully succeed) can be attempted.  See the
+            // checkoutRetryCount setting elsewhere.
+            cloneTimeout(2)
+
             remote {
                 // our remote will be called 'upstream'
                 name("upstream")
@@ -441,6 +449,17 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
                     textParam("TRIGGERED_BRANCH", branchName,
                               "Branch that triggered this job" )
                 }
+
+                // Allow some attempts to checkout the source to fail, since
+                // doing so depends on a third-party, network-accessible resource.
+                //
+                // Unfortunately, this *may* not actually work due to bugs in
+                // Jenkins or the Git SCM plugin:
+                //
+                //     https://issues.jenkins-ci.org/browse/JENKINS-14575
+                //
+                checkoutRetryCount(5)
+
                 // limit execution to jenkins slaves with a particular label
                 label(job_values.on_nodes_with_labels)
                 directories_to_delete = ['${WORKSPACE}/_trial_temp',
@@ -466,6 +485,10 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
                     textParam("TRIGGERED_BRANCH", branchName,
                               "Branch that triggered this job" )
                 }
+
+                // See above.
+                checkoutRetryCount(5)
+
                 // limit execution to jenkins slaves with a particular label
                 label(job_values.on_nodes_with_labels)
                 directories_to_delete = ['${WORKSPACE}/_trial_temp',
@@ -485,6 +508,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
                 textParam("TRIGGERED_BRANCH", branchName,
                           "Branch that triggered this job" )
             }
+            // See above.
+            checkoutRetryCount(5)
+
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
@@ -512,6 +538,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
                     textParam("TRIGGERED_BRANCH", branchName,
                               "Branch that triggered this job" )
                 }
+                // See above.
+                checkoutRetryCount(5)
+
                 // limit execution to jenkins slaves with a particular label
                 label(job_values.on_nodes_with_labels)
 
@@ -537,6 +566,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
                 textParam("TRIGGERED_BRANCH", branchName,
                           "Branch that triggered this job" )
             }
+            // See above.
+            checkoutRetryCount(5)
+
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
 
@@ -554,6 +586,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
     // apply config related to 'omnibus' jobs
     if (job_type == 'omnibus') {
         job("${dashProject}/${dashBranchName}/${job_name}") {
+            // See above.
+            checkoutRetryCount(5)
+
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
@@ -569,6 +604,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
     // apply config related to 'run_lint' jobs
     if (job_type == 'run_lint') {
         job("${dashProject}/${dashBranchName}/${job_name}") {
+            // See above.
+            checkoutRetryCount(5)
+
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
@@ -790,6 +828,9 @@ for (job_type_entry in GLOBAL_CONFIG.job_type) {
                     textParam("TRIGGERED_BRANCH", "${branchName}",
                               "Branch that triggered this job" )
                 }
+                // See above.
+                checkoutRetryCount(5)
+
                 label(job_values.on_nodes_with_labels)
                 wrappers build_wrappers(job_values, [])
                 triggers build_triggers('cron', job_values.at, "${branchName}")
