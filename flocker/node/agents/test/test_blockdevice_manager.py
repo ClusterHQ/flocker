@@ -7,7 +7,7 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 from uuid import uuid4
 
 from testtools import ExpectedException
-from testtools.matchers import Not, FileExists
+from testtools.matchers import Not, FileExists, HasLength
 from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase
@@ -331,7 +331,8 @@ class CleanupBlockDeviceManagerTests(TestCase):
         self.manager_under_test.make_filesystem(blockdevice, 'ext4')
         mountdir = self._get_directory_for_mount()
         self.manager_under_test.mount(blockdevice, mountdir)
-        self.assertEqual(len(self.manager_under_test._cleanup_operations), 1)
+        self.assertThat(self.manager_under_test._cleanup_operations,
+                        HasLength(1))
         self.assertIn(
             self.manager_under_test._cleanup_operations[0].path,
             [blockdevice, mountdir])

@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 from twisted.python.filepath import FilePath
+from testtools.matchers import Not, FileExists
 
 from ....testtools import TestCase, ProcessError
 from ...testtools import if_docker_configured
@@ -74,3 +75,25 @@ class CreateShadowMountTests(TestCase):
             ProcessError,
             lambda: write_as_docker(ro_dir.child('mount'), 'file', content))
         self.assertFalse(ro_dir.child('mount').exists())
+
+    def test_cleared_on_unmount(self):
+        """
+        The shadow backing directory is cleared when it is unmounted.
+        """
+        backing_directory = self._make_dir()
+        ro_dir = self._make_dir()
+        backing_directory.makedirs()
+        ro_dir.makedirs()
+        content = unicode(uuid4())
+        filename = unicode(uuid4())
+        write_file = backing_directory.child(filename)
+        read_file = ro_dir.child(filename)
+        create_tmpfs_shadow_mount(backing_directory,
+                                  ro_dir,
+                                  self._blockdevice_manager)
+        write_file.setContent(content)
+        self.assertEquals(read_file.getContent(), content)
+        self._blockdevice_manager.unmount(ro_dir)
+        self._blockdevice_manager.unmount(backing_directory)
+        self.assertThat(write_file.path, Not(FileExists()))
+        self.assertThat(read_file.path, Not(FileExists()))

@@ -333,7 +333,7 @@ def create_blockdevicedeployer(
         block_device_api=api,
         _async_block_device_api=async_api,
         mountroot=tmpfs_shadow_mount.backing_directory,
-        sharedroot=tmpfs_shadow_mount.read_only_directory,
+        shared_root=tmpfs_shadow_mount.read_only_directory,
         block_device_manager=block_device_manager,
     )
 
@@ -858,7 +858,7 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         )
         device = self.api.get_device_path(volume.blockdevice_id)
         mount_point = self.deployer.mountroot.child(bytes(dataset_id))
-        share_path = self.deployer.sharedroot.child(bytes(dataset_id))
+        share_path = self.deployer.shared_root.child(bytes(dataset_id))
         mount_point.makedirs()
         make_filesystem(device, block_device=True)
         mount(device, mount_point)

@@ -91,7 +91,9 @@ class DiscoveredDataset(PClass):
     :ivar FilePath mount_point: The absolute path to the location on the node
         where the dataset will be mounted.
     :ivar FilePath share_path: The absolute path to the location on the node
-        where the dataset is available for use by an external client.
+        where the dataset is available for use by an external client.  This may
+        be different than mount_point in scenarios where read-only bind mounts
+        are used to protect the path that is shared with clients.
     """
     state = field(
         invariant=lambda state: (state in DatasetStates.iterconstants(),
@@ -1511,7 +1513,7 @@ class BlockDeviceDeployer(PClass):
         profiles.
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
-    :ivar FilePath sharedroot: The parent directory for all dataset paths that
+    :ivar FilePath shared_root: The parent directory for all dataset paths that
         will be shared externally. Defaults to being the same as mountroot.
         This is designed to either be the mountroot or be a directory that is
         bind mounted read only to the mountroot.
@@ -1529,7 +1531,7 @@ class BlockDeviceDeployer(PClass):
     _profiled_blockdevice_api = field(mandatory=True, initial=None)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
-    sharedroot = field(type=FilePath, initial=FilePath(b"/flocker"))
+    shared_root = field(type=FilePath, initial=FilePath(b"/flocker"))
     block_device_manager = field(initial=BlockDeviceManager())
     calculator = field(
         invariant=provides(ICalculator),
@@ -1645,6 +1647,11 @@ class BlockDeviceDeployer(PClass):
                 share_path = self._sharepath_for_dataset_id(
                     unicode(dataset_id)
                 )
+
+                # If the mount point for this dataset is in the current
+                # system mounts and the blockdevice that is mounted there is
+                # the blockdevice for this dataset, then the dataset is
+                # considered to be in state MOUNTED.
                 if (
                     mount_point in raw_state.system_mounts and
                     raw_state.system_mounts[mount_point] == device_path
@@ -1717,7 +1724,7 @@ class BlockDeviceDeployer(PClass):
 
         :returns: A ``FilePath`` of the shared path.
         """
-        return self.sharedroot.child(dataset_id.encode("ascii"))
+        return self.shared_root.child(dataset_id.encode("ascii"))
 
     def _calculate_desired_for_manifestation(self, manifestation):
         """
