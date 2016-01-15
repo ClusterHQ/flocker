@@ -18,8 +18,7 @@ from eliot import writeFailure
 from eliot.twisted import DeferredContext
 
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import CancelledError
-from twisted.internet.defer import maybeDeferred
+from twisted.internet.defer import CancelledError, gatherResults, maybeDeferred
 from twisted.web.http import OK
 
 from klein import Klein
@@ -396,3 +395,37 @@ class VolumePlugin(object):
                         u"Mountpoint": path}}
         d.addCallback(got_path)
         return d.result
+
+    @app.route("/VolumeDriver.List", methods=["POST"])
+    @_endpoint(u"List")
+    def volumedriver_list(self):
+        """
+        Return information about the current state of all volumes.
+
+        :return: Result indicating success.
+        """
+        listing = DeferredContext(
+            self._flocker_client.list_datasets_configuration())
+
+        def got_configured(configured):
+            results = []
+            for dataset in configured:
+                # Datasets without a name can't be used by the Docker plugin:
+                if u"name" not in dataset.metadata:
+                    continue
+                name = dataset.metadata[u"name"]
+                d = self._get_path_from_dataset_id(dataset.dataset_id)
+                d.addCallback(lambda path: (path, name))
+                results.append(d)
+            return gatherResults(results)
+
+        listing.addCallback(got_configured)
+
+        def got_paths(results):
+            return {u"Err": u"",
+                    u"Volumes": sorted([
+                        {u"Name": name,
+                         u"Mountpoint": u"" if path is None else path.path}
+                        for (path, name) in results])}
+        listing.addCallback(got_paths)
+        return listing.result

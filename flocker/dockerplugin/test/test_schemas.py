@@ -123,3 +123,37 @@ GetTests = build_schema_test(
                 "Name": "x",
                 "Mountpoint": "/x/"}},
         ])
+
+
+ListTests = build_schema_test(
+        name=str("GetTests"),
+        schema={"$ref": "/endpoints.json#/definitions/List"},
+        schema_store=SCHEMAS,
+        failing_instances=[
+            # Wrong types:
+            [], "", None,
+            # Missing field:
+            {}, {"Volumes": []},
+            # Wrong fields:
+            {"Result": "hello"},
+            # Extra field:
+            {"Err": "", "Volumes": [], "extra": "y"},
+            # Missing field:
+            {"Err": "", "Volumes": [{"Mountpoint": "/y"}]},
+            {"Err": "", "Volumes": [{"Name": "/x"}]},
+            # Extra field:
+            {"Err": "", "Volumes": [{"Name": "/x",
+                                     "Mountpoint": "y",
+                                     "extra": "r"}]},
+        ],
+        passing_instances=[
+            {"Err": "Something went wrong."},
+            {"Err": "", "Volumes": [
+                {"Name": "x",
+                 "Mountpoint": "/x/"}]},
+            {"Err": "", "Volumes": [
+                {"Name": "y",
+                 "Mountpoint": "/y/"},
+                {"Name": "x",
+                 "Mountpoint": "/x/"}]},
+        ])

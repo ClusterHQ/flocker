@@ -7,3 +7,17 @@ definitions:
     type:
       - "string"
       - "null"
+
+  VolumeInspect:
+    title: "Volume info"
+    description: "Volume information for Get and List."
+    type: object
+    properties:
+      Mountpoint:
+        type: string
+      Name:
+        type: string
+    required:
+      - "Mountpoint"
+      - "Name"
+    additionalProperties: false

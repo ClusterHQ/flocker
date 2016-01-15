@@ -10,6 +10,7 @@ from bitmath import TiB, GiB, MiB, KiB, Byte
 
 from twisted.web.http import OK, NOT_ALLOWED, NOT_FOUND
 from twisted.internet.task import Clock, LoopingCall
+from twisted.internet.defer import gatherResults
 
 from hypothesis import given
 from hypothesis.strategies import (
@@ -646,6 +647,59 @@ class APITestsMixin(APIAssertionsMixin):
                            u"Volume": {
                                u"Name": name,
                                u"Mountpoint": u""}}))
+        return d
+
+    def test_list(self):
+        """
+        ``/VolumeDriver.List`` returns the mount path of the given volume if
+        it is currently known and an empty mount point for non-local
+        volumes.
+        """
+        name = u"myvol"
+        remote_name = u"myvol3"
+
+        d = gatherResults([
+            self.flocker_client.create_dataset(
+                self.NODE_A, int(DEFAULT_SIZE.to_Byte()),
+                metadata={u"name": name}),
+            self.flocker_client.create_dataset(
+                self.NODE_B, int(DEFAULT_SIZE.to_Byte()),
+                metadata={u"name": remote_name})])
+
+        # The datasets arrive as state:
+        d.addCallback(lambda _: self.flocker_client.synchronize_state())
+        d.addCallback(lambda _:
+                      self.flocker_client.list_datasets_configuration())
+        d.addCallback(lambda datasets_config:
+                      self.assertResult(
+                          b"POST", b"/VolumeDriver.List",
+                          {}, OK,
+                          {u"Err": u"",
+                           u"Volumes": sorted([
+                               {u"Name": name,
+                                u"Mountpoint": u"/flocker/{}".format(
+                                    [key for (key, value)
+                                     in datasets_config.datasets.items()
+                                     if value.metadata["name"] == name][0])},
+                               {u"Name": remote_name,
+                                u"Mountpoint": u""},
+                           ])}))
+        return d
+
+    def test_list_no_metadata_name(self):
+        """
+        ``/VolumeDriver.List`` omits volumes that don't have a metadata field
+        for their name.
+        """
+        d = self.flocker_client.create_dataset(self.NODE_A,
+                                               int(DEFAULT_SIZE.to_Byte()),
+                                               metadata={})
+        d.addCallback(lambda _:
+                      self.assertResult(
+                          b"POST", b"/VolumeDriver.List",
+                          {}, OK,
+                          {u"Err": u"",
+                           u"Volumes": []}))
         return d
 
 
