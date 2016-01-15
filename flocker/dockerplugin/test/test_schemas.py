@@ -32,10 +32,10 @@ def build_simple_test(command_name):
             # Wrong Err types:
             {"Err": 1}, {"Err": {}},
             # Extra field:
-            {"Err": None, "Extra": ""},
+            {"Err": "", "Extra": ""},
         ],
         passing_instances=[
-            {"Err": None},
+            {"Err": ""},
             {"Err": "Something went wrong!"},
         ])
 
@@ -84,11 +84,11 @@ def build_path_result_tests(name):
             # Wrong fields:
             {"Result": "hello"},
             # Extra field:
-            {"Err": None, "Mountpoint": "/x", "extra": "y"},
+            {"Err": "", "Mountpoint": "/x", "extra": "y"},
         ],
         passing_instances=[
             {"Err": "Something went wrong."},
-            {"Err": None, "Mountpoint": "/x/"},
+            {"Err": "", "Mountpoint": "/x/"},
         ])
 
 MountTests = build_path_result_tests("Mount")
