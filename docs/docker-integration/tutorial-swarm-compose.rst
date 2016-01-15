@@ -24,25 +24,30 @@ What You'll Need
 
 * A Client machine with Docker Compose and access to the Swarm master.
 
-  * If you used our :ref:`CloudFormation installer <cloudformation>` the "Client" VM is preconfigured with Docker Compose, so use the following command to ssh into Compose:
-
-    .. prompt:: bash $
-
-        ssh -i <YourKey> ubuntu@<ClientIP>
-
-    ``<YourKey>`` is the path to the key you downloaded from AWS.
+  * If you used the :ref:`CloudFormation installer <cloudformation>`:
    
-    ``<ClientIP>`` is the Client IP you got from the CloudFormation Outputs tab.
-	
-    By using the CloudFormation installer, the rest of this tutorial will assume you are logged into the Client node.
+    * The Client EC2 instance is preconfigured with Docker Compose.
+      Use the following command to ssh in:
+            
+      .. prompt:: bash $
 
-  * Alternatively, install `Docker Compose <https://docs.docker.com/compose/install/>`_ on any machine which has network access to the Swarm master that you created when you installed Swarm.
+          ssh -i <KeyPath> ubuntu@<ClientNodeIP>
+
+      ``<KeyPath>`` is the path on your machine to the ``.pem`` file you downloaded from AWS, for example: ``~/Downloads/flocker-test.pem``.
+   
+      ``<ClientNodeIP>`` is the Client IP you got from the CloudFormation Outputs tab.
+	
+    * The rest of this tutorial will assume you are logged into the Client instance.
+
+  * If you did not use the CloudFormation installer:
+    
+    * Install `Docker Compose <https://docs.docker.com/compose/install/>`_ on any machine which has network access to the Swarm master that you created when you installed Swarm manually.
 
 Step 1: Set ``DOCKER_HOST``
 ===========================
 
 Compose uses the environment variable ``DOCKER_HOST`` to know how to talk to the Swarm master.
-If you used our :ref:`CloudFormation installer <cloudformation>`, it is listed in the Outputs tab of your CloudFormation stack.
+If you used the :ref:`CloudFormation installer <cloudformation>`, it is listed in the Outputs tab of your CloudFormation stack.
 
 Use the following commmand to set the ``DOCKER_HOST`` environment variable:
 

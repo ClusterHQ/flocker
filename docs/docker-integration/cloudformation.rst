@@ -119,6 +119,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
    export DOCKER_TLS_VERIFY=1
    export DOCKER_HOST=<ControlNodeIP>:2376
    docker info |grep Nodes # should output "Nodes: 2"
+   exit
 
 .. raw:: html
 
