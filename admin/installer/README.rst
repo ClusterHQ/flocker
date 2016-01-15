@@ -58,7 +58,7 @@ If you want to test new additions to the installer, and want to preserve stack s
 One of my stack nodes failed to bring up Flocker/Docker/Swarm. How do i debug?
 ------------------------------------------------------------------------------
 
-On the corresponding EC2 instance, please look at ``/var/log/cloud-init-output.log`` to triage which stage of `UserData`_ failed. The `UserData`_ script for this instance is located at ``/var/lib/cloud/instance/user-data.txt``.
+On the corresponding EC2 instance, please look at ``/var/log/cloud-init-output.log`` to triage which stage of `UserData`_ failed.
 
 ```
 root@ip-172-31-0-121:/var/log# tail /var/log/cloud-init-output.log 
@@ -75,7 +75,9 @@ root@ip-172-31-0-121:/var/log# tail /var/log/cloud-init-output.log
 root@ip-172-31-0-121:/var/log#
 ```
 
-``/var/lib/cloud/instance/user-data.txt`` can also be handy while prototyping enchancements to the installer. For example, if you would like to add Kubernetes as the scheduler, edit ``/var/lib/cloud/instance/user-data.txt`` to add Kubernetes setup, test on the EC2 instance, then add the working bash script to ``cloudformation.py``.
+Contents of ``/var/log/cloud-init-output.log`` are also avaiable via instance `SystemLog`_.
+
+The `UserData`_ script for this instance is located at ``/var/lib/cloud/instance/user-data.txt``. This can be handy to reproduce a bug, and while prototyping enchancements to the installer. For example, if you would like to add Kubernetes as the scheduler, edit ``/var/lib/cloud/instance/user-data.txt`` to add Kubernetes setup, test on the EC2 instance, then add the working bash script to ``cloudformation.py``.
 
 .. _UserData: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html#instancedata-add-user-data
 .. _AWS::EC2::Instance: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-instance.html
@@ -86,3 +88,4 @@ root@ip-172-31-0-121:/var/log#
 .. _InputParameters: http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
 .. _troposphere: https://github.com/cloudtools/troposphere
 .. _RollbackOnFailure: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-add-tags.html?icmpid=docs_cfn_console
+.. _SystemLog: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-console.html#instance-console-console-output
