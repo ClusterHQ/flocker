@@ -115,7 +115,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
    export FLOCKER_USER=user1
    export FLOCKER_CONTROL_SERVICE=<ControlNodeIP> # not ClientNodeIP!
    flockerctl status # should list two servers (nodes) running
-   flockerctl ls # should show no datasets yet
+   flockerctl ls # should display no datasets yet
    export DOCKER_TLS_VERIFY=1
    export DOCKER_HOST=<ControlNodeIP>:2376
    docker info |grep Nodes # should output "Nodes: 2"
