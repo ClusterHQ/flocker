@@ -171,10 +171,15 @@ def main(reactor, args, base_path, top_level):
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
-        managed_config = options['cert-directory'].child("managed.yaml")
-        managed_config.setContent(
-            yaml.safe_dump(generate_managed_config(cluster))
+
+        managed_config_file = options['cert-directory'].child("managed.yaml")
+        managed_config = dict()
+        managed_config.update(options['config'])
+        managed_config.update(generate_managed_config(cluster))
+        managed_config_file.setContent(
+            yaml.safe_dump(managed_config, default_flow_style=False)
         )
+
         if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
