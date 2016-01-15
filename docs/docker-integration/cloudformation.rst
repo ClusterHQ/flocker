@@ -10,13 +10,11 @@
 Installing Flocker with Swarm on AWS using CloudFormation
 =========================================================
 
-The steps in this guide enable you to quickly deploy a Flocker/Swarm cluster, which uses four AWS EC2 instances.
-
-This diagram illustrates the cluster of four EC2 instances created by completing the CloudFormation steps below, and what each node in the cluster is running.
+The steps in this guide enable you to quickly deploy a Flocker/Swarm cluster, as illustrated below, which will create four EC2 instances on your AWS account:
 
 .. raw:: html
 	
-	<div style="width:60%; margin-left:auto; margin-right:auto; margin-bottom:2em;">
+	<div style="width:80%; margin-left:auto; margin-right:auto; margin-bottom:2em;">
 	
 .. figure:: ../images/cloudformation.png
     :alt: A diagram illustrating a cluster of four AWS EC2 instances running Flocker with Docker Swarm.
@@ -24,6 +22,9 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 .. raw:: html
 	
 	</div>
+
+Follow the steps below to create your cluster.
+Once it's up and running we'll guide you through a tutorial to deploy a sample app.
 
 .. source material for this image: https://drive.google.com/open?id=0ByymF9bLBknGeXlPX1pTdXVZOGM
 
@@ -36,11 +37,11 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 		</div>
 		<div class="step-stages__step first">
 			<img src="/_images/01-keys-menu.png" alt="AWS key pairs section in console"/>
-            <span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#KeyPairs:sort=keyName" target="_blank">Log in to the AWS console</a>, "N. Virginia" region, "Key Pairs" section.</span>
+            <span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#KeyPairs:sort=keyName" target="_blank">Log in to the AWS console</a>. This will open "N. Virginia" region, "Key Pairs" section.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="/_images/02-create-key.png" alt="Creating a new AWS key pair"/>
-            <span>Give your key pair a meaningful name, like <strong>flocker-test</strong>. You'll need this later.</span>
+            <span>Click "Create Key Pair". Give your key pair a meaningful name, like <strong>flocker-test</strong>. You'll need this later.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="/_images/03-pem-downloaded.png" alt="A downloaded pem file"/>
@@ -59,11 +60,11 @@ This diagram illustrates the cluster of four EC2 instances created by completing
 		</div>
 		<div class="step-stages__step first">
 			<img src="/_images/11-cloudformation-stackname.png" alt="Specifying the stack name"/>
-			<span>Enter a <code>Stack name</code>. This can be any descriptive name.</span> 
+			<span>Click "Next". Enter a <code>Stack name</code>. This can be any descriptive name.</span> 
 		</div>
 		<div class="step-stages__step">
 			<img src="/_images/12-cloudformation-settings.png" alt="Fill in cloudformation settings"/>
-			<span>Enter your AWS <code>AccessKeyID</code> and <code>SecretAccessKey</code> which you can access from <a href="https://console.aws.amazon.com/iam/home?nc2=h_m_sc#security_credential" target="_blank">here</a> and your <code>KeyName</code> from Step 1.</span>
+			<span>Enter your <code>KeyName</code> from Step 1. Then enter your AWS <code>AccessKeyID</code> and <code>SecretAccessKey</code>. If you don't know these, you can generate new credentials on your <a href="https://console.aws.amazon.com/iam/home#users" target="_blank">IAM Users</a> page. Click on your user and go to the "Security Credentials" tab, then click "Create Access Key", and then click "Show User Security Credentials".</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="/_images/13-cloudformation-create.png" alt="Click create"/>
