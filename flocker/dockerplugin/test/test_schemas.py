@@ -93,3 +93,33 @@ def build_path_result_tests(name):
 
 MountTests = build_path_result_tests("Mount")
 PathTests = build_path_result_tests("Path")
+
+
+GetTests = build_schema_test(
+        name=str("GetTests"),
+        schema={"$ref": "/endpoints.json#/definitions/Get"},
+        schema_store=SCHEMAS,
+        failing_instances=[
+            # Wrong types:
+            [], "", None,
+            # Missing field:
+            {}, {"Volume": "/x"},
+            # Wrong fields:
+            {"Result": "hello"},
+            # Extra field:
+            {"Err": "", "Volume": {"Name": "x",
+                                   "Mountpoint": "/y"}, "extra": "y"},
+            # Missing field:
+            {"Err": "", "Volume": {"Mountpoint": "/y"}},
+            {"Err": "", "Volume": {"Name": "/x"}},
+            # Extra field:
+            {"Err": "", "Volume": {"Name": "/x",
+                                   "Mountpoint": "y",
+                                   "extra": "r"}},
+        ],
+        passing_instances=[
+            {"Err": "Something went wrong."},
+            {"Err": "", "Volume": {
+                "Name": "x",
+                "Mountpoint": "/x/"}},
+        ])

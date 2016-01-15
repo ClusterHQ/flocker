@@ -69,3 +69,24 @@ definitions:
     required:
       - "Err"
     additionalProperties: false
+
+  Get:
+    description: "Get response."
+    type: object
+    properties:
+      Err:
+        '$ref': 'types.json#/definitions/Err'
+      Volume:
+        type: object
+        properties:
+          Mountpoint:
+            type: string
+          Name:
+            type: string
+        required:
+          - "Mountpoint"
+          - "Name"
+        additionalProperties: false
+    required:
+      - "Err"
+    additionalProperties: false

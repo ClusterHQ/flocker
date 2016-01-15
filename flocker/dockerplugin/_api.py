@@ -371,3 +371,28 @@ class VolumePlugin(object):
                         u"Mountpoint": path.path}
         d.addCallback(got_path)
         return d.result
+
+    @app.route("/VolumeDriver.Get", methods=["POST"])
+    @_endpoint(u"Get")
+    def volumedriver_get(self, Name):
+        """
+        Return information about the current state of a particular volume.
+
+        :param unicode Name: The name of the volume.
+
+        :return: Result indicating success.
+        """
+        d = DeferredContext(self._dataset_id_for_name(Name))
+        d.addCallback(self._get_path_from_dataset_id)
+
+        def got_path(path):
+            if path is None:
+                path = u""
+            else:
+                path = path.path
+            return {u"Err": u"",
+                    u"Volume": {
+                        u"Name": Name,
+                        u"Mountpoint": path}}
+        d.addCallback(got_path)
+        return d.result
