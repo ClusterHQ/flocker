@@ -19,6 +19,10 @@ Flocker Installation Options
 		   <span>Install Flocker manually</span>
 		     <a href="manual-install.html" class="button">Manual Installation</a>
 	    </div>
+	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
+		   <span>Labs Installer</span>
+		     <a href="installer.html" class="button">Manual Installation</a>
+	    </div>
 	</div>
 
 .. the following causes the toctree to be hidden on page but not in the navigation, meaning that when on the linked page, the navigation shows you where you are, which is crucial for UX.
