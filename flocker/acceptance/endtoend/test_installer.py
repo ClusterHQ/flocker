@@ -317,7 +317,7 @@ class DockerComposeTests(AsyncTestCase):
         return loop_until(
             reactor,
             predicate,
-            repeat(10, 12)
+            repeat(1, 10)
         )
 
     def test_docker_compose_up_postgres(self):
