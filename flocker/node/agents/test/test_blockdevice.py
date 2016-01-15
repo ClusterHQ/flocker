@@ -1383,7 +1383,8 @@ class _WriteVerifyingExternalClient(object):
                     self._has_file_with_content(filename, random_string),
                     "Successfully wrote to a path gotten from flocker(%s), "
                     "but the write was not persisted to the backing block "
-                    "device(%s)." % (path_to_write, self._device_path))
+                    "device(%s)." % (path.child(filename).path,
+                                     self._device_path))
 
 
 def _empty_node_state(deployer):
