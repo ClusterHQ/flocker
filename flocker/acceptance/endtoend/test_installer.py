@@ -454,13 +454,6 @@ class DockerComposeTests(AsyncTestCase):
                 RECREATE_STATEMENT + INSERT_STATEMENT
             )
         )
-        # Check that the record can be retrieved.
-        # XXX May not be necessary.
-        d.addCallback(
-            lambda ignored: remote_postgres(
-                self.client_node_ip, self.agent_node1_ip, SELECT_STATEMENT
-            )
-        )
         # Stop and then remove the container
         d.addCallback(
             lambda ignored: remote_docker_compose(
