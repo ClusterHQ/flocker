@@ -2,10 +2,11 @@
 import yaml
 import os
 import sys
-
 from copy import deepcopy
 from json import dumps
 from itertools import repeat
+from ipaddr import IPAddress
+
 from treq import json_content
 
 from twisted.internet.defer import inlineCallbacks
@@ -21,10 +22,8 @@ from flocker.ca import treq_with_authentication
 
 class ContainerOptions(usage.Options):
     """
-    Parses the options pased as an argument to the create container script.
+    Parses the options passed as an argument to the create container script.
     """
-    # XXX mandatory options
-    # XXX validations
     description = "Set up containers in a Flocker cluster."
 
     optParameters = [
@@ -39,25 +38,45 @@ class ContainerOptions(usage.Options):
         ['wait', None, None,
          "The timeout in seconds for waiting until the operation is complete. "
          "No waiting is done by default."],
-        ['cluster', None, None,
-         'Configuration of the cluster'],
     ]
 
     synopsis = ('Usage: setup-cluster-containers --app-per-node <containers'
                 'per node> --app-template <name of the file> '
                 '--control-node <IPAddress>'
                 '--cert-directory <path where all the certificates are>'
-                '[--cluster <file> (UNUSED)')
+                '[--wait <seconds to wait>]')
 
     def postOptions(self):
+        # Mnadatory parameters
+        # Validate template
         if self['app-template'] is not None:
             template_file = FilePath(self['app-template'])
             self['template'] = yaml.safe_load(template_file.getContent())
-        elif self['apps-per-node'] > 0:
+        else:
             raise usage.UsageError(
-                "app-template parameter must be provided if apps-per-node > 0"
+                "app-template parameter must be provided"
             )
+        # Validate app per node
+        if self['apps-per-node'] is None:
+            raise usage.UsageError("apps-per-node is a mandatory parameter")
+        else:
+            try:
+                self['apps-per-node'] = int(self['apps-per-node'])
+            except ValueError:
+                raise usage.UsageError("apps-per-node has to be an integer")
+        # Validate control node
+        if self['control-node'] is None:
+            raise usage.UsageError("control-node is a mandatory parameter")
+        else:
+            try:
+                IPAddress(self['control-node'])
+            except ValueError:
+                raise usage.UsageError("control-node has to be an IP address")
+        # Validate certificate directory
+        if self['cert-directory'] is None:
+            raise usage.UsageError("'cert-directory is a mandatory parameter")
 
+        # Validate optional parameters
         if self['wait'] is not None:
             try:
                 self['wait'] = int(self['wait'])
@@ -120,11 +139,6 @@ class ClusterContainerDeployment(object):
         :param options: ``ContainerOptions`` with the options passed to the
             the script.
         """
-        # XXX add the capability to use env variables if the options are not
-        # passed??
-        # self.control_node_address = env['FLOCKER_ACCEPTANCE_CONTROL_NODE']
-        # self.certificates_path = FilePath(
-        #    env['FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH'])
         self.options = options
         try:
             self.application_template = self.options['template']
