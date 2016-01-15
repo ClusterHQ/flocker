@@ -21,7 +21,7 @@ Flocker Installation Options
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
 		   <span>Labs Installer</span>
-		     <a href="installer.html" class="button">Manual Installation</a>
+		     <a href="installer.html" class="button">Installation</a>
 	    </div>
 	</div>
 
@@ -36,3 +36,4 @@ Flocker Installation Options
 .. toctree::
 
    manual-install
+   installer
