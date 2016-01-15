@@ -134,6 +134,7 @@ Now we will demonstrate stopping the app on one machine and starting it on the o
 
 .. prompt:: bash $
 
+   docker-compose -f flocker-swarm-tutorial-node1.yml stop
    docker-compose -f flocker-swarm-tutorial-node1.yml rm -f
    docker-compose -f flocker-swarm-tutorial-node2.yml up -d
 
@@ -150,16 +151,28 @@ Open ``http://<AgentNode2IP>/`` in a browser, and you'll be able to see that you
 Cleaning up
 ===========
 
-To clean up, run:
+To clean up the containers and Docker's references to the volumes, run:
 
 .. prompt:: bash $
 
-   docker-compose -f flocker-swarm-tutorial-node2.yml rm -f
-   flockerctl destroy postgres
+   docker-compose -f flocker-swarm-tutorial-node1.yml stop
+   docker-compose -f flocker-swarm-tutorial-node1.yml rm -f
+   docker volume rm postgres
 
-Note that this will delete the ``postgres`` volume.
+To actually delete the volumes, we need to use ``flockerctl``.
+To understand why, see the :ref:`concepts-docker-integration` section.
 
-To understand why we need to use ``flockerctl`` to destroy the volume, see the :ref:`concepts-docker-integration` section.
+.. prompt:: bash $
+
+   unset DOCKER_HOST
+   unset DOCKER_TLS_VERIFY
+   export FLOCKER_CERTS_PATH=/etc/flocker
+   export FLOCKER_USER=user1
+   export FLOCKER_CONTROL_SERVICE=<ControlNodeIP>
+   flockerctl ls
+   flockerctl destroy -d <DatasetID> # use <DatasetID> from output above
+
+Note that this will destroy the ``postgres`` volume and all the data in it.
 
 Next steps
 ==========
