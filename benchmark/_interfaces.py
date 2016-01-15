@@ -34,7 +34,7 @@ class IScenario(Interface):
         """
         Stop the scenario from being maintained.
 
-        :return: A Deferred that fires when the desired scenario is stopped.
+        :return Deferred[Optional[Dict[unicode, Any]]]: Scenario metrics.
         """
 
 
@@ -117,4 +117,3 @@ class IRequestScenarioSetup(Interface):
         :return: ``Deferred`` that fires when the REST request has been
             completed, and returns the results of the request.
         """
-

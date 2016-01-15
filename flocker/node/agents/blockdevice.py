@@ -784,8 +784,7 @@ def allocated_size(allocation_unit, requested_size):
     requested_size = int(requested_size)
 
     previous_interval_size = (
-        (requested_size // allocation_unit)
-        * allocation_unit
+        (requested_size // allocation_unit) * allocation_unit
     )
     if previous_interval_size < requested_size:
         return previous_interval_size + allocation_unit
@@ -1361,6 +1360,10 @@ class BlockDeviceDeployerLocalState(PClass):
         )
 
 
+def _provides_IDatasetStateChangeFactory(k, v):
+    return provides(IDatasetStateChangeFactory)(v)
+
+
 class TransitionTable(CheckedPMap):
     """
     Mapping from desired and discovered dataset state to
@@ -1370,7 +1373,7 @@ class TransitionTable(CheckedPMap):
 
     class __value_type__(CheckedPMap):
         __key_type__ = NamedConstant
-        __invariant__ = lambda k, v: provides(IDatasetStateChangeFactory)(v)
+        __invariant__ = _provides_IDatasetStateChangeFactory
 
 
 # If we've nothing to do we want to sleep for no more than a minute:
@@ -1628,7 +1631,7 @@ class BlockDeviceDeployer(PClass):
         DISCOVERED_RAW_STATE(raw_state=result).write()
         return result
 
-    def discover_state(self, node_state):
+    def discover_state(self, cluster_state):
         """
         Find all datasets that are currently associated with this host and
         return a ``BlockDeviceDeployerLocalState`` containing all the datasets

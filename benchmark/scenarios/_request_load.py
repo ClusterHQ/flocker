@@ -128,10 +128,19 @@ class RequestLoadScenario(object):
             write_failure(result)
 
         for i in range(self.request_rate):
+            t0 = self.reactor.seconds()
+
             d = self.scenario_setup.make_request()
+
+            def get_time(_ignore):
+                return self.reactor.seconds() - t0
+            d.addCallback(get_time)
+
             self.rate_measurer.request_sent()
-            d.addCallbacks(self.rate_measurer.response_received,
-                           errback=handle_request_error)
+            d.addCallbacks(
+                self.rate_measurer.response_received,
+                handle_request_error
+            )
 
     def _fail(self, exception):
         """
@@ -223,7 +232,7 @@ class RequestLoadScenario(object):
         Stop the scenario from being maintained by stopping all the
         loops that may be executing.
 
-        :return: A ``Deferred`` that fires when the scenario has stopped.
+        :return Deferred[Optional[Dict[unicode, Any]]]: Scenario metrics.
         """
         self.is_started = False
         if self.monitor_loop.running:
@@ -248,6 +257,15 @@ class RequestLoadScenario(object):
             action_type=u'flocker:benchmark:scenario:stop',
             scenario='request_load'
         ):
+            def no_outstanding_requests():
+                return self.rate_measurer.outstanding() == 0
+
+            scenario_stopped = loop_until(self.reactor,
+                                          no_outstanding_requests,
+                                          repeat(1))
+            timeout(self.reactor, scenario_stopped, self.timeout)
+            scenario = DeferredContext(scenario_stopped)
+
             def handle_timeout(failure):
                 failure.trap(CancelledError)
                 msg = (
@@ -257,16 +275,10 @@ class RequestLoadScenario(object):
                     num_requests=outstanding_requests
                 )
                 Message.log(key='force_stop_request', value=msg)
+            scenario.addErrback(handle_timeout)
 
-            def no_outstanding_requests():
-                return self.rate_measurer.outstanding() == 0
+            def return_metrics(_ignore):
+                return self.rate_measurer.get_metrics()
+            scenario.addCallback(return_metrics)
 
-            scenario_stopped = loop_until(self.reactor,
-                                          no_outstanding_requests,
-                                          repeat(1))
-            timeout(self.reactor, scenario_stopped, self.timeout)
-            scenario_stopped.addErrback(handle_timeout)
-
-            scenario = DeferredContext(scenario_stopped)
-            scenario.addActionFinish()
-            return scenario.result
+            return scenario.addActionFinish()

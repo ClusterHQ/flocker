@@ -630,7 +630,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                                          hostname=api.hostname),
                     application=app
                 ).run(api)
-        d = api.discover_state(current_state)
+        cluster_state = DeploymentState(nodes={current_state})
+        d = api.discover_state(cluster_state)
 
         self.assertEqual(NodeState(uuid=api.node_uuid, hostname=api.hostname,
                                    applications=expected_applications),

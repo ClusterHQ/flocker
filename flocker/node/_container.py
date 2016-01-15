@@ -411,7 +411,7 @@ class ApplicationNodeDeployer(object):
             )
         )
 
-    def discover_state(self, local_state):
+    def discover_state(self, cluster_state):
         """
         List all the ``Application``\ s running on this node.
 
@@ -431,6 +431,8 @@ class ApplicationNodeDeployer(object):
             ``Application`` and ports. ``NodeState.manifestations`` and
             ``NodeState.paths`` will not be filled in.
         """
+        local_state = cluster_state.get_node(self.node_uuid,
+                                             hostname=self.hostname)
         if local_state.manifestations is None:
             # Without manifestations we don't know if local applications'
             # volumes are manifestations or not. Rather than return
@@ -581,7 +583,7 @@ class ApplicationNodeDeployer(object):
         )
 
         return (
-            comparable_state != comparable_configuration
+            comparable_state != comparable_configuration or
 
             # Restart policies were briefly supported but they interact poorly
             # with system restarts.  They're disabled now (except for the
@@ -592,9 +594,9 @@ class ApplicationNodeDeployer(object):
             #
             # Also restart policies don't implement comparison usefully.  See
             # FLOC-2500.
-            or not isinstance(restart_state, RestartNever)
+            not isinstance(restart_state, RestartNever) or
 
-            or self._restart_for_volume_change(
+            self._restart_for_volume_change(
                 node_state, volume_state, volume_configuration
             )
         )
