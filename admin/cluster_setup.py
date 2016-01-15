@@ -3,6 +3,7 @@
 Set up a Flocker cluster.
 """
 
+import stat
 import string
 import sys
 import yaml
@@ -117,6 +118,7 @@ def _ensure_empty_directory(path):
 
     try:
         path.makedirs()
+        path.chmod(stat.S_IRWXU)
     except OSError as e:
         raise UsageError(
             "Can not create {}. {}: {}.".format(path.path, e.filename,
