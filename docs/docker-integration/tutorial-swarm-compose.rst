@@ -13,7 +13,7 @@ For this tutorial, we've provided a simple app for you to deploy, made up of two
 You will use Docker Compose to deploy the app on a Swarm cluster using Flocker as a volume driver.
 
 You will then move both containers from one node to another by changing the Swarm constraints in the Docker Compose file and re-deploying.
-The app should keep its data!
+The app will keep its data!
 
 What You'll Need
 ================
