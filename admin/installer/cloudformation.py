@@ -2,7 +2,7 @@
 Troposphere script to generate an AWS CloudFormation JSON template.
 
 Sample usage:
-python cloudformation.py > flocker-cluster.cloudformation.json
+python cloudformation.py > /tmp/flocker-cluster.cloudformation.json
 
 Resulting JSON template has the following blueprint to describe the
 desired stack's resources and properties:
@@ -76,6 +76,8 @@ secret_access_key_param = template.add_parameter(Parameter(
 ))
 
 # Base AMIs.
+# Currently, we supply AMIs for US regions.
+# Non-US regions will be supported in future.
 template.add_mapping(
     'RegionMap', {
         'us-east-1':      {"FlockerAMI": "ami-5f401635",
