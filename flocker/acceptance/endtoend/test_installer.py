@@ -15,16 +15,13 @@ from twisted.internet import reactor
 from twisted.internet.defer import maybeDeferred
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
-from eliot import Message
 
+from eliot import Message
 
 from ...common.runner import run_ssh
 from ...common import gather_deferreds, loop_until, retry_failure
 from ...testtools import AsyncTestCase, async_runner
-from ..testtools import Cluster, ControlService
-from ...ca import treq_with_authentication, UserCredential
-from ...apiclient import FlockerClient
-from ...control.httpapi import REST_API_PORT
+from ..testtools import connected_cluster
 
 
 COMPOSE_NODE0 = '/home/ubuntu/postgres/docker-compose-node0.yml'
@@ -232,31 +229,21 @@ class DockerComposeTests(AsyncTestCase):
         return d
 
     def _cleanup_flocker(self):
-        local_certs_path = self.mktemp()
+        local_certs_path = FilePath(self.mktemp())
         check_call(
             ['scp', '-o', 'StrictHostKeyChecking no', '-r',
              'ubuntu@{}:/etc/flocker'.format(self.client_node_ip),
-             local_certs_path]
+             local_certs_path.path]
         )
-        certificates_path = FilePath(local_certs_path)
-        cluster_cert = certificates_path.child(b"cluster.crt")
-        user_cert = certificates_path.child(b"user1.crt")
-        user_key = certificates_path.child(b"user1.key")
-        user_credential = UserCredential.from_files(user_cert, user_key)
-        cluster = Cluster(
-            control_node=ControlService(
-                public_address=self.control_node_ip.encode("ascii")),
-            nodes=[],
-            treq=treq_with_authentication(
-                reactor, cluster_cert, user_cert, user_key),
-            client=FlockerClient(
-                reactor, self.control_node_ip.encode("ascii"),
-                REST_API_PORT, cluster_cert, user_cert, user_key
-            ),
-            certificates_path=certificates_path,
-            cluster_uuid=user_credential.cluster_uuid,
+        d = connected_cluster(
+            reactor=reactor,
+            control_node=self.control_node_ip,
+            certificates_path=local_certs_path,
+            num_agent_nodes=2,
+            hostname_to_public_address={},
         )
-        return cluster.clean_nodes()
+        d.addCallback(lambda cluster: cluster.clean_nodes())
+        return d
 
     def _cleanup_compose(self):
         d_node1_compose = remote_docker_compose(

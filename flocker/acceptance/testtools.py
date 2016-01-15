@@ -812,30 +812,10 @@ class Cluster(PClass):
         return d
 
 
-def _get_test_cluster(reactor):
-    """
-    Build a ``Cluster`` instance.
-
-    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
-    """
-    control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
-
-    if control_node is None:
-        raise SkipTest(
-            "Set acceptance testing control node IP address using the " +
-            "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
-
-    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_NUM_AGENT_NODES')
-
-    if agent_nodes_env_var is None:
-        raise SkipTest(
-            "Set the number of configured acceptance testing nodes using the "
-            "FLOCKER_ACCEPTANCE_NUM_AGENT_NODES environment variable.")
-
-    num_agent_nodes = int(agent_nodes_env_var)
-
-    certificates_path = FilePath(
-        environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
+def connected_cluster(
+        reactor, control_node, certificates_path, num_agent_nodes,
+        hostname_to_public_address
+):
     cluster_cert = certificates_path.child(b"cluster.crt")
     user_cert = certificates_path.child(b"user.crt")
     user_key = certificates_path.child(b"user.key")
@@ -851,14 +831,10 @@ def _get_test_cluster(reactor):
         cluster_uuid=user_credential.cluster_uuid,
     )
 
-    hostname_to_public_address_env_var = environ.get(
-        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
-    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
-
     # Wait until nodes are up and running:
     def nodes_available():
         Message.new(
-            message_type="acceptance:get_test_cluster:polling",
+            message_type="acceptance:testtools:cluster:polling",
         ).write()
 
         def failed_query(failure):
@@ -895,6 +871,44 @@ def _get_test_cluster(reactor):
     agents_connected.addCallback(lambda nodes: cluster.set(
         "nodes", map(node_from_dict, nodes)))
     return agents_connected
+
+
+def _get_test_cluster(reactor):
+    """
+    Build a ``Cluster`` instance.
+
+    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
+    """
+    control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
+
+    if control_node is None:
+        raise SkipTest(
+            "Set acceptance testing control node IP address using the " +
+            "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
+
+    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_NUM_AGENT_NODES')
+
+    if agent_nodes_env_var is None:
+        raise SkipTest(
+            "Set the number of configured acceptance testing nodes using the "
+            "FLOCKER_ACCEPTANCE_NUM_AGENT_NODES environment variable.")
+
+    num_agent_nodes = int(agent_nodes_env_var)
+
+    certificates_path = FilePath(
+        environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
+
+    hostname_to_public_address_env_var = environ.get(
+        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
+    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
+
+    return connected_cluster(
+        reactor,
+        control_node,
+        certificates_path,
+        num_agent_nodes,
+        hostname_to_public_address
+    )
 
 
 def require_cluster(num_nodes, required_backend=None):
