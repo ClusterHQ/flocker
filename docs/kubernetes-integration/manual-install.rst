@@ -53,4 +53,4 @@ Follow the `Manual Kubernetes installation <http://kubernetes.io/gettingstarted/
 Next step
 =========
 
-:ref:`Try a tutorial <kubernetes-tutorials>` to kick the tyres on your Flocker cluster with Kubernetes!
+:ref:`Try a tutorial <kubernetes-tutorials>` to kick the tires on your Flocker cluster with Kubernetes!

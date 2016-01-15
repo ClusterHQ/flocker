@@ -55,4 +55,4 @@ Follow the `Manual Docker Swarm installation <https://docs.docker.com/swarm/inst
 Next step
 =========
 
-:ref:`Try a tutorial <docker-tutorials>` to kick the tyres on your Flocker cluster with Docker Swarm!
+:ref:`Try a tutorial <docker-tutorials>` to kick the tires on your Flocker cluster with Docker Swarm!

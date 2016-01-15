@@ -53,4 +53,4 @@ Follow the `Manual Mesos installation <http://mesos.apache.org/gettingstarted/>`
 Next step
 =========
 
-:ref:`Try a tutorial <mesos-tutorials>` to kick the tyres on your Flocker cluster with Mesos!
+:ref:`Try a tutorial <mesos-tutorials>` to kick the tires on your Flocker cluster with Mesos!
