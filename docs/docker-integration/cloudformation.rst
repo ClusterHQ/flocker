@@ -130,7 +130,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">That's it!</h2>
-			<p>Your cluster is now ready for workloads!</p>
+			<p>Your cluster is now ready for workloads.</p>
 		</div>
 		<div class="step-stages__step first">
 			<span> </span> 
