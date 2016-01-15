@@ -123,7 +123,7 @@ Now deploy the app by running:
 
 ..   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume in use by the ``postgres`` container.
 
-Open ``http://<AgentNode1IP>/`` in a browser, and click around to add some Docker logos on the screen.
+Open ``<AgentNode1IP>`` in a browser, and click around to add some Docker logos on the screen.
 The locations of the logos get stored (persisted) in the PostgreSQL database, and saved to the Flocker volume.
 
 Step 3: Move the app
@@ -146,7 +146,7 @@ Flocker will detach and attach the storage so that the container starts up with 
 
 ..   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume being moved from node 1 to node 2 and the new container being started up.
 
-Open ``http://<AgentNode2IP>/`` in a browser, and you'll be able to see that your data has persisted!
+Open ``<AgentNode2IP>`` in a browser, and you'll be able to see that your data has persisted!
 
 Cleaning up
 ===========
@@ -157,6 +157,8 @@ To clean up the containers and Docker's references to the volumes, run:
 
    docker-compose -f flocker-swarm-tutorial-node1.yml stop
    docker-compose -f flocker-swarm-tutorial-node1.yml rm -f
+   docker-compose -f flocker-swarm-tutorial-node2.yml stop
+   docker-compose -f flocker-swarm-tutorial-node2.yml rm -f
    docker volume rm postgres
 
 To actually delete the volumes, we need to use ``flockerctl``.
