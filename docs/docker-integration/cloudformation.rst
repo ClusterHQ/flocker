@@ -117,7 +117,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
    flockerctl status # should list two servers (nodes) running
    flockerctl ls # should display no datasets yet
    export DOCKER_TLS_VERIFY=1
-   export DOCKER_HOST=<ControlNodeIP>:2376
+   export DOCKER_HOST=tcp://<ControlNodeIP>:2376
    docker info |grep Nodes # should output "Nodes: 2"
    exit
 

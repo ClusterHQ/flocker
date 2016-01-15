@@ -33,9 +33,9 @@ What You'll Need
 
           ssh -i <KeyPath> ubuntu@<ClientNodeIP>
 
-      ``<KeyPath>`` is the path on your machine to the ``.pem`` file you downloaded from AWS, for example: ``~/Downloads/flocker-test.pem``.
+    * ``<KeyPath>`` is the path on your machine to the ``.pem`` file you downloaded from AWS, for example: ``~/Downloads/flocker-test.pem``.
    
-      ``<ClientNodeIP>`` is the Client IP you got from the CloudFormation Outputs tab.
+    * You will need ``<ClientNodeIP>``, ``<ControlNodeIP>``, ``<AgentNode1IP>`` and ``<AgentNode2IP>`` from the CloudFormation Outputs tab.
 	
     * The rest of this tutorial will assume you are logged into the Client instance.
 
@@ -52,12 +52,12 @@ Step 1: Set ``DOCKER_HOST``
 Compose uses the environment variable ``DOCKER_HOST`` to know how to talk to the Swarm master.
 If you used the :ref:`CloudFormation installer <cloudformation>`, it is listed in the Outputs tab of your CloudFormation stack.
 
-Use the following commands to set the ``DOCKER_HOST`` and ``DOCKER_TLS_VERIFY`` environment variables:
+Use the following commands to set the ``DOCKER_TLS_VERIFY`` and ``DOCKER_HOST`` environment variables:
 
 .. prompt:: bash $
 
    export DOCKER_TLS_VERIFY=1
-   export DOCKER_HOST=<ControlNodeIP>:2376
+   export DOCKER_HOST=tcp://<ControlNodeIP>:2376
 
 ``<ControlNodeIP>`` is the IP address of your Swarm master.
 
@@ -70,7 +70,7 @@ The two Docker Compose files below need to be saved on your Client machine, in a
 
 :download:`tutorial-downloads/flocker-swarm-tutorial-node2.yml`
 
-You can either click the cloud icons to save the files locally, and then move them onto your Client machine using using a transfer medium such as SSH, SCP or SFTP, or right click each file, and copy the link address and run the following commands with the tutorial URLs:
+You can either click the cloud icons to save the files locally, and then move them onto your Client machine using using a transfer medium such as ``scp``, or right click each file, and copy the link address and run the following commands with the tutorial URLs:
 
 .. prompt:: bash $
 
@@ -95,19 +95,20 @@ The Docker Compose files both have the same layout, as illustrated below, except
 Step 2.1: Optionally specify size and profile
 ---------------------------------------------
 
-If you want to specify a size or a profile for the volume before creating it, run the following:
+The default size and :ref:`storage profile <storage-profiles>` when you run ``docker-compose up`` are 75G and silver.
+
+If you want to specify a custom size or profile for the volume before creating it, run the following:
 
 .. prompt:: bash $
 
-   docker volume create -d flocker -o size=10G -o profile=bronze --name=postgres
+   docker volume create -d flocker -o size=10G -o profile=bronze --name=postgres # expect "postgres"
 
 .. TODO link to a page documenting how to configure volume hub keys
 
-.. note::
+.. TODO Add this back in when tutorial includes volumehub settings
+.. .. note::
 
-   At this point if you gave the cluster a Volume Hub key, check the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume created but not used by any containers yet.
-
-Otherwise the volume will be automatically provisioned with default size (75G) and profile (silver) when you do ``docker-compose up`` below.
+..   At this point if you gave the cluster a Volume Hub key, check the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume created but not used by any containers yet.
 
 Step 2.2: Deploying the app
 ---------------------------
@@ -118,11 +119,11 @@ Now deploy the app by running:
 
    docker-compose -f flocker-swarm-tutorial-node1.yml up -d
 
-.. note::
+.. .. note::
 
-   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume in use by the ``postgres`` container.
+..   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume in use by the ``postgres`` container.
 
-Open ``http://<FlockerNode1IP>/`` in a browser, and click around to add some Docker logos on the screen.
+Open ``http://<AgentNode1IP>/`` in a browser, and click around to add some Docker logos on the screen.
 The locations of the logos get stored (persisted) in the PostgreSQL database, and saved to the Flocker volume.
 
 Step 3: Move the app
@@ -140,11 +141,11 @@ Note that we are destroying the first set of containers and then starting the se
 
 Flocker will detach and attach the storage so that the container starts up with the expected data.
 
-.. note::
+.. .. note::
 
-   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume being moved from node 1 to node 2 and the new container being started up.
+..   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume being moved from node 1 to node 2 and the new container being started up.
 
-Open ``http://<FlockerNode2IP>/`` in a browser, and you'll be able to see that your data has persisted!
+Open ``http://<AgentNode2IP>/`` in a browser, and you'll be able to see that your data has persisted!
 
 Cleaning up
 ===========
