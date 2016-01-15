@@ -60,7 +60,7 @@ One of my stack nodes failed to bring up Flocker/Docker/Swarm. How do i debug?
 
 On the corresponding EC2 instance, please look at ``/var/log/cloud-init-output.log`` to triage which stage of `UserData`_ failed.
 
-```
+`
 root@ip-172-31-0-121:/var/log# tail /var/log/cloud-init-output.log 
 < Date: Thu, 14 Jan 2016 19:32:17 GMT
 < x-amz-version-id: PSDeN4p4VIsbZIiEDmpLpOTB9IKgYflW
@@ -73,7 +73,7 @@ root@ip-172-31-0-121:/var/log# tail /var/log/cloud-init-output.log
         * Connection #0 to host cloudformation-waitcondition-us-east-1.s3.amazonaws.com left intact
           Cloud-init v. 0.7.5 finished at Thu, 14 Jan 2016 19:32:16 +0000. Datasource DataSourceEc2.  Up 111.13 seconds
 root@ip-172-31-0-121:/var/log#
-```
+`
 
 Contents of ``/var/log/cloud-init-output.log`` are also avaiable via instance `SystemLog`_.
 
