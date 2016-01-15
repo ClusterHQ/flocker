@@ -141,7 +141,7 @@ DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
     {
         'dataset_id': uuids(),
         'maximum_size': integers(min_value=1),
-        'shared_path': builds(FilePath, sampled_from([
+        'link_path': builds(FilePath, sampled_from([
             '/flocker/abc', '/flocker/xyz',
         ])),
         'mount_point': builds(FilePath, sampled_from([
@@ -171,7 +171,7 @@ DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
     ),
     'metadata': dictionaries(keys=_METADATA_STRATEGY,
                              values=_METADATA_STRATEGY),
-    'shared_path': builds(FilePath, sampled_from([
+    'link_path': builds(FilePath, sampled_from([
         '/flocker/abc', '/flocker/xyz',
     ])),
     'mount_point': builds(FilePath, sampled_from([
@@ -332,7 +332,7 @@ def create_blockdevicedeployer(
         block_device_api=api,
         _async_block_device_api=async_api,
         mountroot=mountroot_for_test(test_case),
-        sharedroot=sharedroot_for_test(test_case),
+        link_root=link_root_for_test(test_case),
         block_device_manager=block_device_manager,
     )
 
@@ -541,7 +541,7 @@ class BlockDeviceDeployerLocalStateTests(TestCase):
         """
         dataset_id = uuid4()
         mount_point = FilePath('/mount/point')
-        shared_path = FilePath('/shared/path')
+        link_path = FilePath('/link/path')
         device_path = FilePath('/dev/xvdf')
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=self.node_uuid,
@@ -554,7 +554,7 @@ class BlockDeviceDeployerLocalStateTests(TestCase):
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device_path,
                     mount_point=mount_point,
-                    shared_path=shared_path,
+                    link_path=link_path,
                 ),
             },
         )
@@ -572,7 +572,7 @@ class BlockDeviceDeployerLocalStateTests(TestCase):
                     )
                 },
                 paths={
-                    unicode(dataset_id): shared_path
+                    unicode(dataset_id): link_path
                 },
                 devices={
                     dataset_id: device_path,
@@ -1187,7 +1187,7 @@ def compare_dataset_state(discovered_dataset, desired_dataset):
     if discovered_dataset.state == DatasetStates.MANIFEST:
         return (
             discovered_dataset.mount_point == desired_dataset.mount_point and
-            discovered_dataset.shared_path == desired_dataset.shared_path
+            discovered_dataset.link_path == desired_dataset.link_path
         )
     elif discovered_dataset.state == DatasetStates.NON_MANIFEST:
         return True
@@ -1352,7 +1352,7 @@ class _WriteVerifyingExternalClient(object):
                 write_to_current_path_should_succeed = (
                     discovered_dataset.state == DatasetStates.MANIFEST)
 
-                current_path = getattr(discovered_dataset, 'shared_path', None)
+                current_path = getattr(discovered_dataset, 'link_path', None)
                 if current_path:
                     self._known_mountpoints.add(current_path)
 
@@ -1450,8 +1450,8 @@ class BlockDeviceCalculatorTestObjects(object):
 
         - Set the mountpoint to a real mountpoint in desired dataset states
           that have a mount point attribute.
-        - Set the shared path to a real shared path in desired dataset states
-          that have a shared_path attribute.
+        - Set the link path to a real link path in desired dataset states that
+          have a link_path attribute.
 
         :param DesiredDataset dataset_state: The state to fix up for this test
             run.
@@ -1465,12 +1465,12 @@ class BlockDeviceCalculatorTestObjects(object):
                    _NoSuchThing) is not _NoSuchThing:
             dataset_state = dataset_state.set(mount_point=mount_point)
 
-        shared_path = self.deployer._sharedpath_for_dataset_id(
+        link_path = self.deployer._link_path_for_dataset_id(
             unicode(self.dataset_id))
         if getattr(dataset_state,
-                   'shared_path',
+                   'link_path',
                    _NoSuchThing) is not _NoSuchThing:
-            dataset_state = dataset_state.set(shared_path=shared_path)
+            dataset_state = dataset_state.set(link_path=link_path)
         return dataset_state
 
     def discover_state(self):
@@ -1491,7 +1491,7 @@ class BlockDeviceCalculatorTestObjects(object):
         """
         Cleanup the mountpoints and the volumes used in an example.
         """
-        unlink_all(self.deployer.sharedroot)
+        unlink_all(self.deployer.link_root)
         umount_all(self.deployer.mountroot)
         detach_destroy_volumes(self.deployer.block_device_api)
 
@@ -2104,9 +2104,9 @@ class ScenarioMixin(object):
     )
 
     MOUNT_ROOT = FilePath('/var/flocker/mounts')
-    SHARED_ROOT = FilePath('/flocker')
+    LINK_ROOT = FilePath('/flocker')
     MOUNT_POINT = MOUNT_ROOT.child(unicode(DATASET_ID))
-    SHARED_PATH = SHARED_ROOT.child(unicode(DATASET_ID))
+    LINK_PATH = LINK_ROOT.child(unicode(DATASET_ID))
     MANIFEST_DISCOVERED_DATASET = DiscoveredDataset(
         dataset_id=DATASET_ID,
         blockdevice_id=BLOCKDEVICE_ID,
@@ -2114,14 +2114,14 @@ class ScenarioMixin(object):
         maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
         device_path=FilePath('/dev/xvdf'),
         mount_point=MOUNT_POINT,
-        shared_path=SHARED_PATH,
+        link_path=LINK_PATH,
     )
     MANIFEST_DESIRED_DATASET = DesiredDataset(
         state=DatasetStates.MANIFEST,
         dataset_id=DATASET_ID,
         maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
         mount_point=MOUNT_POINT,
-        shared_path=SHARED_PATH,
+        link_path=LINK_PATH,
     )
 
 
@@ -4633,18 +4633,18 @@ def unlink_all(root):
             child_path.remove()
 
 
-def sharedroot_for_test(test_case):
+def link_root_for_test(test_case):
     """
-    Create a shared root directory and unlink any symlinks beneath that
+    Create a link root directory and unlink any symlinks beneath that
     directory when the test exits.
 
     :param TestCase test_case: The ``TestCase`` which is being run.
     :returns: A ``FilePath`` for the newly created mount root.
     """
-    sharedroot = FilePath(test_case.mktemp()).child(unicode(uuid4()))
-    sharedroot.makedirs()
-    test_case.addCleanup(unlink_all, sharedroot)
-    return sharedroot
+    link_root = FilePath(test_case.mktemp()).child(unicode(uuid4()))
+    link_root.makedirs()
+    test_case.addCleanup(unlink_all, link_root)
+    return link_root
 
 
 _ARBITRARY_VOLUME = BlockDeviceVolume(
