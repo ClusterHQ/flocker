@@ -10,9 +10,9 @@ Installing Flocker
 
 .. _supported-orchestration-frameworks:
 
-Flocker allows you to launch and move stateful containers, like databases, using a scheduler of your choice.
+Flocker allows you to launch and move stateful containers, like databases, by integrating with a cluster manager of your choice.
 
-To install Flocker, first choose which container stack you are using.
+To install Flocker, first choose which cluster manager you are using.
 
 .. raw:: html
 
@@ -42,7 +42,7 @@ To install Flocker, first choose which container stack you are using.
         <a href="flocker-standalone/" class="button">Install</a>
     </div>
 
-Is your favourite orchestration framework missing?
+Is your favourite cluster manager missing?
 Let us know with the form below!
 
 .. toctree::
