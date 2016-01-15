@@ -1462,7 +1462,7 @@ class BlockDeviceCalculatorTestObjects(object):
                     _empty_node_state(self.deployer)
                 })
             )
-        ).datasets
+        )
         return local_state
 
     def cleanup_example(self):
