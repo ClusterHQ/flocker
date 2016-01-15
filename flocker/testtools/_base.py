@@ -81,9 +81,7 @@ class _MktempMixin(object):
         :return: Path to file.
         :rtype: FilePath
         """
-        path = self.make_temporary_path()
-        make_file(path, content, permissions)
-        return path
+        return make_file(self.make_temporary_path(), content, permissions)
 
 
 class _DeferredAssertionMixin(object):

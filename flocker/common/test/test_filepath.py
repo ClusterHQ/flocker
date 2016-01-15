@@ -35,8 +35,10 @@ class MakeFileTests(TestCase):
         path = self.make_temporary_path()
         make_file(path, content, perms)
         self.addCleanup(path.remove)
-        self.expectThat(path, with_permissions(Equals(perms)))
-        path.chmod(0600)
+        try:
+            self.assertThat(path, with_permissions(Equals(perms)))
+        finally:
+            path.chmod(0600)
         self.assertThat(path, file_contents(Equals(content)))
 
     def test_make_file_defaults(self):
@@ -72,7 +74,10 @@ class MakeDirectoryTests(TestCase):
 
     def test_make_directory_file_exists(self):
         """
-        If the file exists, ``make_directory`` does something.
+        If the file exists, ``make_directory`` raises an OSError with EEXIST.
+
+        There is no particular reason for this exception rather than any
+        other.
         """
         path = self.make_temporary_file()
         error = self.assertRaises(OSError, make_directory, path)
