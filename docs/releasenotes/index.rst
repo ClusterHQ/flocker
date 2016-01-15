@@ -12,6 +12,7 @@ You can learn more about where we might be going with future releases by:
 Next Next Release
 =================
 
+* The :ref:`Flocker Plugin for Docker<docker-plugin>` should support the direct volume listing and inspection functionality added to Docker 1.10.
 * Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
 
 Next Release
