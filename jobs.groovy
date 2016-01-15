@@ -573,6 +573,34 @@ def trigger_sub_job(context, name) {
 }
 
 
+def copy_artifacts_from(context, full_job_name, short_job_name, archive_artifacts) {
+    /*
+        Copy artifacts from another job to this one.
+
+        :param context: the context of the job that receives the copied
+            artifacts.
+        :param unicode full_job_name: the full path of the job.
+        :param unicode short_job_name: the name of the job without the full path.
+        :param list[str] archive_artifacts: the artifacts to archive as a
+             string glob patter.
+    */
+    for (artifact in archive_artifacts) {
+        context.copyArtifacts(full_job_name) {
+            optional(true)
+            includePatterns(artifact)
+            /* and place them under short_job_name/artifact on
+               the multijob workspace, so that we don't
+               overwrite them.  */
+            targetDirectory(short_job_name)
+            fingerprintArtifacts(true)
+            buildSelector {
+                workspace()
+            }
+        }
+    }
+}
+
+
 def build_multijob(dashBranchName, branchName, isReleaseBuild) {
     // -------------------------------------------------------------------------
     // MULTIJOB CONFIGURATION BELOW
@@ -653,26 +681,15 @@ def build_multijob(dashBranchName, branchName, isReleaseBuild) {
                     job_name = job_entry.key
                     job_values = job_entry.value
                     for (_module in job_values.with_modules) {
-                        _job_name = job_name + '_' + escape_name(_module)
                         /* no every job produces an artifact, so make sure wew
                            don't try to fetch artifacts for jobs that don't
                            produce them */
                         if (job_values.archive_artifacts) {
-                            for (artifact in job_values.archive_artifacts) {
-                                copyArtifacts(
-                                    full_job_name(dashProject, dashBranchName, _job_name)) {
-                                    optional(true)
-                                    includePatterns(artifact)
-                                    /* and place them under 'job name'/artifact on
-                                       the multijob workspace, so that we don't
-                                       overwrite them.  */
-                                    targetDirectory(_job_name)
-                                    fingerprintArtifacts(true)
-                                    buildSelector {
-                                        workspace()
-                                    }
-                                }
-                            }
+                            _job_name = job_entry.key + '_' + escape_name(_module)
+                            copy_artifacts_from(
+                                delegate, full_job_name(dashProject, dashBranchName, _job_name),
+                                 _job_name, job_values.archive_artifacts
+                            )
                         }
                     }
                 }
