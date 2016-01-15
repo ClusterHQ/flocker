@@ -41,7 +41,8 @@ SCHEMAS = {
     b'/endpoints.json': yaml.safe_load(
         SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
-
+# Metadata field we use to store volume names:
+NAME_FIELD = u"name"
 
 # The default size of a created volume. Pick a number that isn't the same
 # as devicemapper loopback size (100GiB) so we don't trigger
@@ -227,7 +228,7 @@ class VolumePlugin(object):
 
         def got_configured(configured):
             for dataset in configured:
-                if dataset.metadata.get(u"name") == name:
+                if dataset.metadata.get(NAME_FIELD) == name:
                     return dataset.dataset_id
             raise NOT_FOUND_RESPONSE
 
@@ -263,7 +264,7 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        metadata = {u"name": Name}
+        metadata = {NAME_FIELD: Name}
         opts = Opts or {}
         profile = opts.get(u"profile")
         if profile:
@@ -278,7 +279,7 @@ class VolumePlugin(object):
 
         def ensure_unique_name(configured):
             for dataset in configured:
-                if dataset.metadata.get(u"name") == Name:
+                if dataset.metadata.get(NAME_FIELD) == Name:
                     raise DatasetAlreadyExists
 
         creating = conditional_create(
@@ -411,9 +412,9 @@ class VolumePlugin(object):
             results = []
             for dataset in configured:
                 # Datasets without a name can't be used by the Docker plugin:
-                if u"name" not in dataset.metadata:
+                if NAME_FIELD not in dataset.metadata:
                     continue
-                name = dataset.metadata[u"name"]
+                name = dataset.metadata[NAME_FIELD]
                 d = self._get_path_from_dataset_id(dataset.dataset_id)
                 d.addCallback(lambda path: (path, name))
                 results.append(d)
