@@ -15,7 +15,6 @@ desired stack's resources and properties:
 To manifest the blueprint, please input the JSON template at AWS CloudFormation
 Create Stack console (after replacing ``us-east-1`` with your Region):
 https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new
-
 """
 
 import os
@@ -75,17 +74,30 @@ secret_access_key_param = template.add_parameter(Parameter(
     Type="String",
 ))
 
-# Base AMIs.
-# Currently, we supply AMIs for US regions.
-# Non-US regions will be supported in future.
+# Base AMIs pre-baked with the following products:
+# Docker 1.9.1
+# Flocker 1.9.0.dev1+1221.gde4c49f
+# Please update the version fields above when new AMIs are generated.
 template.add_mapping(
     'RegionMap', {
-        'us-east-1':      {"FlockerAMI": "ami-5f401635",
-                           "ClientAMI": "ami-86590fec"},
-        'us-west-1':      {"FlockerAMI": "ami-e83a5088",
-                           "ClientAMI": "ami-0a254f6a"},
-        'us-west-2':      {"FlockerAMI": "ami-bd2b35dc",
-                           "ClientAMI": "ami-fa2b359b"},
+        'us-east-1':      {"FlockerAMI": "ami-d81b3eb2",
+                           "ClientAMI": "ami-c61e3bac"},
+        'us-west-1':      {"FlockerAMI": "ami-2e10644e",
+                           "ClientAMI": "ami-aa1064ca"},
+        'us-west-2':      {"FlockerAMI": "ami-51879d30",
+                           "ClientAMI": "ami-8dbaa0ec"},
+        'eu-west-1':      {"FlockerAMI": "ami-6358f310",
+                           "ClientAMI": "ami-ef5bf09c"},
+        'eu-central-1':   {"FlockerAMI": "ami-32574e5e",
+                           "ClientAMI": "ami-6c544d00"},
+        'sa-east-1':      {"FlockerAMI": "ami-e4b73688",
+                           "ClientAMI": "ami-fdb43591"},
+        'ap-northeast-1': {"FlockerAMI": "ami-e71e2289",
+                           "ClientAMI": "ami-1a211d74"},
+        'ap-southeast-1': {"FlockerAMI": "ami-1bc10d78",
+                           "ClientAMI": "ami-cbc20ea8"},
+        'ap-southeast-2': {"FlockerAMI": "ami-c00b2ea3",
+                           "ClientAMI": "ami-c20b2ea1"},
     }
 )
 
@@ -143,6 +155,7 @@ for i in range(NUM_NODES):
         KeyName=Ref(keyname_param),
         SecurityGroups=[Ref(instance_sg)],
         AvailabilityZone=zone,
+        Tags=[{"Key": "Name", "Value": node_name}]
     )
 
     # WaitCondition and corresponding Handler to signal completion
@@ -173,6 +186,8 @@ for i in range(NUM_NODES):
         user_data += _sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
         user_data += _sibling_lines(DOCKER_SWARM_CA_SETUP)
         user_data += _sibling_lines(DOCKER_SETUP)
+
+        # Setup Swarm 1.0.1
         user_data += _sibling_lines(SWARM_MANAGER_SETUP)
         template.add_output([
             Output(
@@ -186,6 +201,8 @@ for i in range(NUM_NODES):
         # Agent Node configuration.
         ec2_instance.DependsOn = control_service_instance.name
         user_data += _sibling_lines(DOCKER_SETUP)
+
+        # Setup Swarm 1.0.1
         user_data += _sibling_lines(SWARM_NODE_SETUP)
         template.add_output([
             Output(
@@ -204,10 +221,11 @@ for i in range(NUM_NODES):
 client_instance = ec2.Instance(
     CLIENT_NODE_NAME,
     ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "ClientAMI"),
-    InstanceType="m3.large",
+    InstanceType="m3.medium",
     KeyName=Ref(keyname_param),
     SecurityGroups=[Ref(instance_sg)],
     AvailabilityZone=zone,
+    Tags=[{"Key": "Name", "Value": CLIENT_NODE_NAME}]
 )
 wait_condition_handle = WaitConditionHandle(CLIENT_WAIT_HANDLE)
 template.add_resource(wait_condition_handle)
@@ -252,7 +270,7 @@ template.add_output(Output(
     Description="Client config: Enable TLS client for Swarm."
 ))
 template.add_output(Output(
-    "S3BucketName",
+    "S3Bucket",
     Value=Ref(s3bucket),
     Description="Name of S3 bucket to hold cluster configuration files."
 ))
