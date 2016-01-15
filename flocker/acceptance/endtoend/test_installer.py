@@ -8,7 +8,7 @@ from datetime import timedelta
 import json
 from itertools import repeat
 import os
-from subprocess import check_call, check_output
+from subprocess import check_output
 import time
 
 from twisted.internet import reactor
@@ -130,11 +130,11 @@ def delete_cloudformation_stack(stack_id):
     result = get_stack_report(stack_id)
     outputs = result['Outputs']
     s3_bucket_name = get_output(outputs, 'S3BucketName')
-    check_call(
+    check_output(
         ['aws', 's3', 'rb', 's3://{}'.format(s3_bucket_name), '--force']
     )
 
-    check_call(
+    check_output(
         ['aws', 'cloudformation', 'delete-stack',
          '--stack-name', stack_id]
     )
@@ -230,7 +230,7 @@ class DockerComposeTests(AsyncTestCase):
 
     def _cleanup_flocker(self):
         local_certs_path = FilePath(self.mktemp())
-        check_call(
+        check_output(
             ['scp', '-o', 'StrictHostKeyChecking no', '-r',
              'ubuntu@{}:/etc/flocker'.format(self.client_node_ip),
              local_certs_path.path]
