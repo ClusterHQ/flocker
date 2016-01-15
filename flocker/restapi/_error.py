@@ -4,6 +4,12 @@ This module defines the presentation of error conditions that can be
 encountered by the implementation of the API.
 """
 
+from inspect import cleandoc
+
+from eliot import register_exception_extractor
+
+from twisted.web.http import BAD_REQUEST, FORBIDDEN, NOT_FOUND
+
 __all__ = [
     "BadRequest", "InvalidRequestJSON", "makeBadRequest",
 
@@ -15,12 +21,6 @@ __all__ = [
 
     "UNPROCESSABLE_REQUEST",
     ]
-
-from inspect import cleandoc
-
-from eliot import register_exception_extractor
-
-from twisted.web.http import BAD_REQUEST, FORBIDDEN, NOT_FOUND
 
 # HTTP response code indicating the request is syntactically correct but
 # semantically wrong, as defined in

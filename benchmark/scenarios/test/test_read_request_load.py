@@ -7,12 +7,9 @@ from eliot.testing import capture_logging
 
 from twisted.internet.defer import succeed, Deferred
 from twisted.internet.task import Clock
-from twisted.python.components import proxyForInterface
 from twisted.python.failure import Failure
 
-from flocker.apiclient._client import (
-    IFlockerAPIV1Client, FakeFlockerClient, Node
-)
+from flocker.apiclient._client import FakeFlockerClient, Node
 from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
@@ -24,26 +21,27 @@ from benchmark.scenarios import (
 DEFAULT_VOLUME_SIZE = 1073741824
 
 
-class RequestDroppingFakeFlockerClient(
-    proxyForInterface(IFlockerAPIV1Client)
-):
+class RequestDroppingFakeFlockerClient:
     """
     A ``FakeFlockerClient`` that can drop alternating requests.
     """
     def __init__(self, client, reactor):
-        super(RequestDroppingFakeFlockerClient, self).__init__(client)
         self.drop_requests = False
         self._dropped_last_request = False
 
-    def list_nodes(self):
-        if not self.drop_requests:
-            return succeed(True)
-        else:
-            if self._dropped_last_request:
-                self._dropped_last_request = False
+    # Every attribute access is for a no-arg method.  Return a function
+    # that drops every second request if ``drop_requests`` is True.
+    def __getattr__(self, name):
+        def f():
+            if not self.drop_requests:
                 return succeed(True)
-            self._dropped_last_request = True
-        return Deferred()
+            else:
+                if self._dropped_last_request:
+                    self._dropped_last_request = False
+                    return succeed(True)
+                self._dropped_last_request = True
+            return Deferred()
+        return f
 
 
 class FakeNetworkError(Exception):
@@ -52,36 +50,37 @@ class FakeNetworkError(Exception):
     """
 
 
-class RequestErrorFakeFlockerClient(
-    proxyForInterface(IFlockerAPIV1Client)
-):
+class RequestErrorFakeFlockerClient:
     """
     A ``FakeFlockerClient`` that can result in failed requests.
     """
     def __init__(self, client, reactor):
-        super(RequestErrorFakeFlockerClient, self).__init__(client)
         self.fail_requests = False
         self.reactor = reactor
         self.delay = 1
 
-    def list_nodes(self):
-        if not self.fail_requests:
-            return succeed(True)
-        else:
-            def fail_later(secs):
-                d = Deferred()
-                self.reactor.callLater(
-                    secs, d.errback, Failure(FakeNetworkError())
-                )
-                return d
-            return fail_later(self.delay)
+    # Every attribute access is for a no-arg method.  Return a function
+    # that fails slowly if ``fail_requests`` is True.
+    def __getattr__(self, name):
+        def f():
+            if not self.fail_requests:
+                return succeed(True)
+            else:
+                def fail_later(secs):
+                    d = Deferred()
+                    self.reactor.callLater(
+                        secs, d.errback, Failure(FakeNetworkError())
+                    )
+                    return d
+                return fail_later(self.delay)
+        return f
 
 
 class read_request_load_scenarioTest(TestCase):
     """
     ``read_request_load_scenario`` tests
     """
-    def make_cluster(self, FlockerClient):
+    def make_cluster(self, make_flocker_client):
         """
         Create a cluster that can be used by the scenario tests.
         """
@@ -89,7 +88,7 @@ class read_request_load_scenarioTest(TestCase):
         node2 = Node(uuid=uuid4(), public_address=IPAddress('10.0.0.2'))
         return BenchmarkCluster(
             node1.public_address,
-            lambda reactor: FlockerClient(
+            lambda reactor: make_flocker_client(
                 FakeFlockerClient([node1, node2]), reactor
             ),
             {node1.public_address, node2.public_address},
@@ -198,7 +197,8 @@ class read_request_load_scenarioTest(TestCase):
 
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
         sample_size = 5
-        s = read_request_load_scenario(c, cluster, sample_size=sample_size)
+        s = read_request_load_scenario(c, cluster, sample_size=sample_size,
+                                       tolerance_percentage=0)
 
         s.start()
 
@@ -216,6 +216,31 @@ class read_request_load_scenarioTest(TestCase):
         self.assertIsInstance(failure.value, RequestRateTooLow)
 
     @capture_logging(None)
+    def test_scenario_succeeds_when_rate_has_tolerated_drop(self, _logger):
+        """
+        ``read_request_load_scenario`` succeeds even if the rate drops,
+        if it is within the tolerance percentage.
+
+        Establish the requested rate by having the ``FakeFlockerClient``
+        respond to all requests, then lower the rate by dropping
+        alternate requests.
+        """
+        c = Clock()
+
+        cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
+        sample_size = 5
+        s = read_request_load_scenario(c, cluster, sample_size=sample_size,
+                                       tolerance_percentage=0.6)
+        cluster.get_control_service(c).drop_requests = True
+        d = s.start()
+        s.maintained().addBoth(lambda x: self.fail())
+        d.addCallback(lambda ignored: s.stop())
+        # Generate enough samples to finish the scenario
+        c.pump(repeat(1, sample_size*s.request_rate))
+
+        self.successResultOf(d)
+
+    @capture_logging(None)
     def test_scenario_throws_exception_if_requested_rate_not_reached(
         self, _logger
     ):
@@ -225,7 +250,7 @@ class read_request_load_scenarioTest(TestCase):
         """
         c = Clock()
         cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        s = read_request_load_scenario(c, cluster)
+        s = read_request_load_scenario(c, cluster, tolerance_percentage=0)
         cluster.get_control_service(c).drop_requests = True
         d = s.start()
 
@@ -287,7 +312,9 @@ class read_request_load_scenarioTest(TestCase):
         cluster = self.make_cluster(RequestErrorFakeFlockerClient)
         delay = 1
 
-        cluster.get_control_service(c).delay = delay
+        control_service = cluster.get_control_service(c)
+
+        control_service.delay = delay
         sample_size = 5
         s = read_request_load_scenario(
             c, cluster, request_rate=10, sample_size=sample_size
@@ -303,9 +330,9 @@ class read_request_load_scenarioTest(TestCase):
         # Force the control service to fail requests for one second.
         # These requests will fail after the delay period set in the
         # control service.
-        cluster.get_control_service(c).fail_requests = True
+        control_service.fail_requests = True
         c.advance(1)
-        cluster.get_control_service(c).fail_requests = False
+        control_service.fail_requests = False
 
         d.addCallback(lambda ignored: s.stop())
 
@@ -323,8 +350,7 @@ class read_request_load_scenarioTest(TestCase):
     def test_scenario_timeouts_if_requests_not_completed(self, _logger):
         """
         ``read_request_load_scenario`` should timeout if the outstanding
-        requests for the scenarion do not complete within the specified
-        time.
+        requests for the scenario do not complete within the specified time.
         """
         c = Clock()
 
@@ -334,9 +360,11 @@ class read_request_load_scenarioTest(TestCase):
             c, cluster, request_rate=10, sample_size=sample_size
         )
 
+        control_service = cluster.get_control_service(c)
+
         # Set the delay for the requests to be longer than the scenario
         # timeout
-        cluster.get_control_service(c).delay = s.timeout + 10
+        control_service.delay = s.timeout + 10
 
         d = s.start()
         s.maintained().addBoth(lambda x: self.fail())
@@ -345,9 +373,9 @@ class read_request_load_scenarioTest(TestCase):
         # requested rate.
         c.pump(repeat(1, sample_size))
 
-        cluster.get_control_service(c).fail_requests = True
+        control_service.fail_requests = True
         c.advance(1)
-        cluster.get_control_service(c).fail_requests = False
+        control_service.fail_requests = False
 
         d.addCallback(lambda ignored: s.stop())
 

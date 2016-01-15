@@ -34,6 +34,11 @@ The :program:`benchmark` script has the following command line options:
    The format of this file is specified in the :ref:`benchmarking-configuration-file` section below.
    Defaults to the file ``./benchmark.yml``.
 
+.. option:: --samples <integer>
+
+   Specifies the number of times to run the benchmark measurements.
+   Defaults to 3.
+
 .. option:: --scenario <scenario>
 
    Specifies the scenario to run the benchmark under.
@@ -52,6 +57,13 @@ The :program:`benchmark` script has the following command line options:
    Specifies the quantity to measure while the operation is performed.
    This is the ``name`` of a metric in the configuration file.
    Defaults to the name ``default``.
+
+.. option:: --userdata <json-data>
+
+   Specifies JSON data to be added to the result JSON.
+   If the value starts with ``@`` the remainder of the value is the name of a file containing JSON data.
+   Otherwise, the value must be a valid JSON structure.
+   The supplied data is added as the ``userdata`` property of the output result.
 
 
 .. _benchmarking-cluster-description:
@@ -125,6 +137,10 @@ Scenario Types
 .. option:: read-request-load
 
    Create additional load on the system by performing read requests.
+
+   Specify the operation to be performed using an additional ``method`` property.
+   The value must be the name of a zero-parameter method in the ``flocker.apiclient.IFlockerAPIV1Client`` interface, and defaults to ``version``.
+
    Specify the rate of requests to perform per second using an additional ``request_rate`` property.
    The default is 10 requests per second.
 
@@ -133,6 +149,20 @@ Scenario Types
 
    Specify a timeout for establishing the scenario using an additional ``timeout`` property.
    The default is 45 seconds.
+
+.. option:: write-request-load
+
+   Create additional load on the system by performing write requests, specifically a dataset move that has no real effect (target = source).
+
+   Specify the rate of requests to perform per second using an additional ``request_rate`` property.
+   The default is 10 requests per second.
+
+   Specify the number of samples to be collected when sampling the request rate using an additional ``sample_size`` property.
+   The default is 5 samples.
+
+   Specify a timeout for establishing the scenario using an additional ``timeout`` property.
+   The default is 45 seconds.
+
 
 Operation Types
 ~~~~~~~~~~~~~~~

@@ -62,7 +62,7 @@ def sample(operation, metric, name):
         return sampling.addActionFinish()
 
 
-def benchmark(scenario, operation, metric, num_samples=3):
+def benchmark(scenario, operation, metric, num_samples):
     """
     Perform benchmarking of the operation within a scenario.
 
@@ -70,11 +70,11 @@ def benchmark(scenario, operation, metric, num_samples=3):
     :param IOperation operation: An operation to perform.
     :param IMetric metric: A quantity to measure.
     :param int num_samples: Number of samples to take.
-    :return: Deferred firing with a list of samples. Each sample is a
-        dictionary containing a ``success`` boolean. If ``success is True``,
-        the dictionary also contains a ``value`` for the sample measurement.
-        If ``success is False``, the dictionary also contains a ``reason`` for
-        failure.
+    :return: Deferred firing with a tuple containing one list of
+        benchmark samples and one scenario metrics result. See the
+        ``sample`` function for the structure of the samples.  The
+        scenario metrics are a dictionary containing information about
+        the scenario.
     """
     scenario_established = scenario.start()
 
@@ -101,14 +101,25 @@ def benchmark(scenario, operation, metric, num_samples=3):
 
     benchmarking = scenario_established.addCallback(collect_samples)
 
-    benchmarking.addBoth(bypass, scenario.stop)
+    def stop_scenario(samples):
+        d = scenario.stop()
+
+        def combine_results(scenario_metrics):
+            return (samples, scenario_metrics)
+        d.addCallback(combine_results)
+
+        return d
+    benchmarking.addCallbacks(
+        stop_scenario,
+        bypass, errbackArgs=[scenario.stop]
+    )
 
     return benchmarking
 
 
 def driver(
     reactor, cluster, scenario_factory, operation_factory, metric_factory,
-    result, output
+    num_samples, result, output
 ):
     """
     :param reactor: Reactor to use.
@@ -116,6 +127,7 @@ def driver(
     :param callable scenario_factory: A load scenario factory.
     :param callable operation_factory: An operation factory.
     :param callable metric_factory: A metric factory.
+    :param int num_samples: Number of samples to take.
     :param result: A dictionary which will be updated with values to
         create a JSON result.
     :param output: A callable to receive the JSON structure, for
@@ -137,12 +149,16 @@ def driver(
             scenario_factory(reactor, cluster),
             operation_factory(reactor, cluster),
             metric_factory(reactor, cluster),
+            num_samples,
         )
 
     d.addCallback(run_benchmark)
 
-    def add_samples(samples, result):
+    def add_samples(outputs, result):
+        samples, scenario_metrics = outputs
         result['samples'] = samples
+        if scenario_metrics:
+            result['scenario']['metrics'] = scenario_metrics
         return result
 
     d.addCallback(add_samples, result)
