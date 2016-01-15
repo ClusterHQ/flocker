@@ -31,10 +31,7 @@ INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
 
 CLOUDFORMATION_STACK_NAME = 'testinstallerstack'
-CLOUDFORMATION_TEMPLATE_URL = (
-    'https://s3.amazonaws.com/'
-    'installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json'
-)
+
 POSTGRESQL_PORT = 5432
 POSTGRESQL_USERNAME = 'flocker'
 POSTGRESQL_PASSWORD = 'flocker'
