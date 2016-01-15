@@ -43,6 +43,9 @@ What You'll Need
     
     * Install `Docker Compose <https://docs.docker.com/compose/install/>`_ on any machine which has network access to the Swarm master that you created when you installed Swarm manually.
 
+    * The rest of this tutorial will assume you are logged into the machine you installed Compose on.
+
+
 Step 1: Set ``DOCKER_HOST``
 ===========================
 
@@ -53,10 +56,10 @@ Use the following commmand to set the ``DOCKER_HOST`` environment variable:
 
 .. prompt:: bash $
 
-   export DOCKER_HOST=<SwarmMaster>
+   export DOCKER_TLS_VERIFY=1
+   export DOCKER_HOST=<ControlNodeIP>:2376
 
-``<SwarmMaster>`` is the address of your Swarm master, in the format ``ip:port``.
-For example, ``1.2.3.4:2376``.
+``<ControlNodeIP>`` is the IP address of your Swarm master.
 
 Step 2: Deploy the app on the first node
 ========================================
