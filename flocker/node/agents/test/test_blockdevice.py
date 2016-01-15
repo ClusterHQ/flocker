@@ -34,8 +34,9 @@ from hypothesis.strategies import (
     dictionaries, tuples
 )
 
+from testtools.assertions import assert_that
 from testtools.deferredruntest import SynchronousDeferredRunTest
-from testtools.matchers import Equals
+from testtools.matchers import Equals, Not, Contains
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
@@ -1287,6 +1288,10 @@ class _WriteVerifyingExternalClient(object):
         """
         Imitate writing content to a file to a mounted directory using docker.
 
+        Asserts that either docker should fail to start the container or the
+        write should succeed. Specifically, this will raise an assertion error
+        if the docker command fails, but the command in the container was run.
+
         :param FilePath mountdir: The directory to be mounted as a docker
             volume.
         :param unicode filename: The name of the file to create in the docker
@@ -1295,7 +1300,8 @@ class _WriteVerifyingExternalClient(object):
         """
         try:
             write_as_docker(mountdir, filename, content)
-        except ProcessError:
+        except ProcessError as e:
+            assert_that(e.output, Not(Contains("CONTAINER_RUNNING")))
             raise _WriteError()
 
     def _has_file_with_content(self, filename, content):

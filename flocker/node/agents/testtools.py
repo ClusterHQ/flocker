@@ -29,6 +29,11 @@ def write_as_docker(directory, filename, content):
     """
     Write content to a file in a directory using docker volume mounts.
 
+    Note this will also print "CONTAINER_RUNNING" to STDOUT if the container
+    starts running. This can be used by callers to determine on failure if
+    docker failed to start the container or if the job in the container failed
+    to write the file.
+
     :param FilePath directory: The directory to bind mount into the container.
     :param unicode filename: The name of the file to create in the bind mount.
     :param unicode content: The content to write to the container.
@@ -46,7 +51,7 @@ def write_as_docker(directory, filename, content):
         "-v", "%s:%s" % (directory.path, container_path.path),
         "busybox",  # Run the busybox image.
         # Use sh to echo the content into the file in the bind mount.
-        "/bin/sh", "-c", "echo -n %s > %s" % (
+        "/bin/sh", "-c", "echo CONTAINER_RUNNING && echo -n %s > %s" % (
             content, container_path.child(filename).path)
     ])
 
