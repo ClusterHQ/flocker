@@ -355,6 +355,60 @@ dashProject = project.replace('/', '-')
 println("Creating folder ${dashProject}...")
 folder(dashProject) { displayName(dashProject) }
 
+
+def make_view(path, description, make_jobs) {
+    /*
+        Make a view tab.
+
+        :param unicode path: the url segment of the view, including project etc.
+            e.g. "flocker/master/acceptance"
+        :param unicode description: the description of the view.
+        :param callable make_jobs: a callable that will return the
+                the list of jobs to include when passed the view context,
+                something like:
+                    { context ->
+                        context.jobs {
+                            name("foo")
+                            regex("bar.*")
+                        }
+                    }
+    */
+
+    listView(path) {
+        delegate.description(description)
+        filterBuildQueue()
+        filterExecutors()
+        make_jobs(delegate)
+        columns {
+            status()
+            weather()
+            name()
+            lastSuccess()
+            lastFailure()
+            lastDuration()
+            buildButton()
+        }
+    }
+}
+
+make_view(
+    "${dashProject}/master", "Builds of master",
+    { context ->
+        context.jobs {
+            name("master")
+        }
+    }
+)
+
+make_view(
+    "${dashProject}/releases", "Release build",
+    { context ->
+        context.jobs {
+            regex("release-.*")
+        }
+    }
+)
+
 // branches contains the passed parameter RECONFIGURE_BRANCH from jenkins
 branches.add("${RECONFIGURE_BRANCH}")
 
@@ -363,23 +417,14 @@ def build_tabs(dashBranchName) {
     for (entry in GLOBAL_CONFIG.views) {
         name = "${dashProject}/${dashBranchName}/${entry.key}"
         println("creating tab ${name}...")
-        listView(name) {
-            description(entry.value.description)
-            filterBuildQueue()
-            filterExecutors()
-            jobs {
-                regex(entry.value.regex)
+        make_view(
+            name, entry.value.description,
+            { context ->
+                context.jobs {
+                    regex(entry.value.regex)
+                }
             }
-            columns {
-                status()
-                weather()
-                name()
-                lastSuccess()
-                lastFailure()
-                lastDuration()
-                buildButton()
-            }
-        }
+        )
     }
 }
 
