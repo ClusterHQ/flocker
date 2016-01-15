@@ -18,10 +18,7 @@ https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new
 
 """
 
-import json
 import os
-import re
-import urllib
 
 from troposphere import FindInMap, GetAtt, Base64, Join
 from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
@@ -251,39 +248,6 @@ template.add_output(Output(
     "ClientConfigDockerTLS",
     Value="export DOCKER_TLS_VERIFY=1",
     Description="Client config: Enable TLS client for Swarm."
-))
-base_url = "https://resources.console.aws.amazon.com/r/group#sharedgroup="
-parameters = {
-    "name": "%STACK_NAME%",
-    "regions": "all",
-    "resourceTypes": "all",
-    "tagFilters": [
-        {
-            "key": "aws:cloudformation:stack-name",
-            "values": [
-                "%STACK_NAME%"
-            ]
-        }
-    ]
-}
-parameter_string = json.dumps(parameters, separators=(',', ':'))
-variables = {
-    "STACK_NAME": Ref('AWS::StackName')
-}
-pattern = r'%([A-Z_]+)%'
-parts = re.split(pattern, parameter_string)
-iparts = iter(parts)
-new_parts = [base_url]
-for part in iparts:
-    new_parts.append(urllib.quote_plus(part))
-    key = next(iparts, None)
-    if key is not None:
-        new_parts.append(variables[key])
-
-template.add_output(Output(
-    "CloudFormationStackView",
-    Value=Join("", new_parts),
-    Description="A view of all the resources in this stack."
 ))
 template.add_output(Output(
     "S3BucketName",
