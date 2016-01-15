@@ -149,16 +149,16 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 
    <div style="display:none;">
 
-.. image:: /images/tutorial-swarm-compose/01-keys-menu.png
-.. image:: /images/tutorial-swarm-compose/02-create-key.png
-.. image:: /images/tutorial-swarm-compose/03-pem-downloaded.png
-.. image:: /images/tutorial-swarm-compose/11-cloudformation-stackname.png
-.. image:: /images/tutorial-swarm-compose/12-cloudformation-settings.png
-.. image:: /images/tutorial-swarm-compose/13-cloudformation-create.png
-.. image:: /images/tutorial-swarm-compose/21-refresh.png
-.. image:: /images/tutorial-swarm-compose/22-create-in-progress.png
-.. image:: /images/tutorial-swarm-compose/23-create-complete.png
-.. image:: /images/tutorial-swarm-compose/31-stack-outputs.png
+.. image:: /images/installer-swarm-compose/01-keys-menu.png
+.. image:: /images/installer-swarm-compose/02-create-key.png
+.. image:: /images/installer-swarm-compose/03-pem-downloaded.png
+.. image:: /images/installer-swarm-compose/11-cloudformation-stackname.png
+.. image:: /images/installer-swarm-compose/12-cloudformation-settings.png
+.. image:: /images/installer-swarm-compose/13-cloudformation-create.png
+.. image:: /images/installer-swarm-compose/21-refresh.png
+.. image:: /images/installer-swarm-compose/22-create-in-progress.png
+.. image:: /images/installer-swarm-compose/23-create-complete.png
+.. image:: /images/installer-swarm-compose/31-stack-outputs.png
 
 .. raw:: html
 
