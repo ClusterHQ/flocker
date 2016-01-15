@@ -176,8 +176,7 @@ class BlockDeviceManagerTests(TestCase):
         src_directory = self._get_directory_for_mount()
         target_directory = self._get_directory_for_mount()
         self.manager_under_test.bind_mount(src_directory, target_directory)
-        self.addCleanup(
-            lambda: self.manager_under_test.unmount(target_directory))
+        self.addCleanup(self.manager_under_test.unmount, target_directory)
         for create, view in [(target_directory, src_directory),
                              (src_directory, target_directory)]:
             filename = str(uuid4())
