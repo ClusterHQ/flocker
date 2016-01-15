@@ -867,13 +867,13 @@ class _ProcessResult(PClass):
     status = field(type=int, mandatory=True)
 
 
-class _CalledProcessError(CalledProcessError):
+class ProcessError(CalledProcessError):
     """
     Just like ``CalledProcessError`` except output is included in the string
     representation.
     """
     def __str__(self):
-        base = super(_CalledProcessError, self).__str__()
+        base = super(ProcessError, self).__str__()
         lines = "\n".join("    |" + line for line in self.output.splitlines())
         return base + " and output:\n" + lines
 
@@ -928,7 +928,7 @@ def logged_run_process(reactor, command):
 
     :return: A ``Deferred`` that calls back with ``_ProcessResult`` if the
         process exited successfully, or errbacks with
-        ``_CalledProcessError`` otherwise.
+        ``ProcessError`` otherwise.
     """
     d = Deferred()
     action = TWISTED_CHILD_PROCESS_ACTION(command=command)
@@ -940,7 +940,7 @@ def logged_run_process(reactor, command):
         def process_ended((reason, output)):
             status = reason.value.status
             if status:
-                raise _CalledProcessError(
+                raise ProcessError(
                     returncode=status, cmd=command, output=output)
             return _ProcessResult(
                 command=command,
@@ -980,7 +980,7 @@ def run_process(command, *args, **kwargs):
             status=result.status,
         ).write()
         if result.status:
-            raise _CalledProcessError(
+            raise ProcessError(
                 returncode=status, cmd=command, output=output,
             )
     return result

@@ -7,8 +7,7 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 from uuid import uuid4
 
 from testtools import ExpectedException
-from testtools.matchers import Not, FileExists
-
+from testtools.matchers import Not, FileExists, HasLength
 from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase
@@ -23,6 +22,7 @@ from ..blockdevice_manager import (
     MountInfo,
     Permissions,
     RemountError,
+    ShareMountError,
     UnmountError,
 )
 
@@ -31,6 +31,8 @@ from .test_blockdevice import (
     LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
     mountroot_for_test,
 )
+
+from ..testtools import CleanupBlockDeviceManager
 
 
 class BlockDeviceManagerTests(TestCase):
@@ -234,8 +236,8 @@ class BlockDeviceManagerTests(TestCase):
 
     def test_make_tmpfs_mount(self):
         """
-        make_tmpfs_mount should create a tmpfs mountpoint that can be written
-        to. Once the mount is unmounted all files should be gone.
+        make_tmpfs_mount creates a tmpfs mountpoint that can be written to.
+        Once the mount is unmounted all files are gone.
         """
         mountpoint = self._get_directory_for_mount()
 
@@ -258,3 +260,136 @@ class BlockDeviceManagerTests(TestCase):
         non_existent = self._get_directory_for_mount().child('non_existent')
         with ExpectedException(MakeTmpfsMountError, '.*non_existent.*'):
             self.manager_under_test.make_tmpfs_mount(non_existent)
+
+    def test_shared_mount(self):
+        """
+        If a mount is shared then submounts are reflected in directories that
+        are bind mounted.
+        """
+        bounddir = self._get_directory_for_mount()
+        mountdir = self._get_directory_for_mount()
+        submountdir = mountdir.child('sub')
+        submountclone = bounddir.child('sub')
+        self.manager_under_test.make_tmpfs_mount(mountdir)
+        self.addCleanup(lambda: self.manager_under_test.unmount(mountdir))
+        self.manager_under_test.share_mount(mountdir)
+        self.manager_under_test.bind_mount(mountdir, bounddir)
+        self.addCleanup(lambda: self.manager_under_test.unmount(bounddir))
+        submountdir.makedirs()
+        self.manager_under_test.make_tmpfs_mount(submountdir)
+        self.addCleanup(lambda: self.manager_under_test.unmount(submountdir))
+        submountdir.child('subsub').touch()
+        self.assertThat(submountclone.child('subsub').path, FileExists())
+
+    def test_shared_mount_failure(self):
+        """
+        Attempting to share a directory that is not a mount raises a
+        :class:`ShareMountError` that has the name of the attempted mount
+        point.
+        """
+        fakemountdir = self._get_directory_for_mount().child('fakeyfake')
+        with ExpectedException(ShareMountError, '.*fakeyfake.*'):
+            self.manager_under_test.share_mount(fakemountdir)
+
+
+class CleanupBlockDeviceManagerTests(TestCase):
+    """
+    Test for :class:`CleanupBlockDeviceManager`.
+    """
+
+    def setUp(self):
+        super(CleanupBlockDeviceManagerTests, self).setUp()
+        self.loopback_api = loopbackblockdeviceapi_for_test(self)
+        self.manager_under_test = CleanupBlockDeviceManager(
+            BlockDeviceManager())
+        self.mountroot = mountroot_for_test(self)
+
+    def _get_directory_for_mount(self):
+        """
+        Construct a temporary directory to be used as a mountpoint.
+        """
+        directory = self.mountroot.child(str(uuid4()))
+        directory.makedirs()
+        return directory
+
+    def _get_free_blockdevice(self):
+        """
+        Construct a new blockdevice for testing purposes.
+        """
+        volume = self.loopback_api.create_volume(
+            dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
+        self.loopback_api.attach_volume(
+            volume.blockdevice_id, self.loopback_api.compute_instance_id())
+        return self.loopback_api.get_device_path(volume.blockdevice_id)
+
+    def test_mount_cleaned_up(self):
+        """
+        The cleanup implementation cleans up mounts.
+        """
+        blockdevice = self._get_free_blockdevice()
+        self.manager_under_test.make_filesystem(blockdevice, 'ext4')
+        mountdir = self._get_directory_for_mount()
+        self.manager_under_test.mount(blockdevice, mountdir)
+        self.assertThat(self.manager_under_test._cleanup_operations,
+                        HasLength(1))
+        self.assertIn(
+            self.manager_under_test._cleanup_operations[0].path,
+            [blockdevice, mountdir])
+
+    def test_unmounted_not_cleaned_up(self):
+        """
+        The cleanup implementation not cleanup mounts that are unmounted.
+        """
+        blockdevice = self._get_free_blockdevice()
+        self.manager_under_test.make_filesystem(blockdevice, 'ext4')
+        mountdir = self._get_directory_for_mount()
+        self.manager_under_test.mount(blockdevice, mountdir)
+        self.manager_under_test.unmount(blockdevice)
+        self.assertEqual(len(self.manager_under_test._cleanup_operations), 0)
+
+    def test_clean_up_from_end(self):
+        """
+        The cleanup implementation not cleanup mounts that are unmounted. These
+        are removed in reverse order.
+        """
+        blockdevice_1 = self._get_free_blockdevice()
+        blockdevice_2 = self._get_free_blockdevice()
+        self.manager_under_test.make_filesystem(blockdevice_1, 'ext4')
+        self.manager_under_test.make_filesystem(blockdevice_2, 'ext4')
+        mountdir_1 = self._get_directory_for_mount()
+        mountdir_2 = self._get_directory_for_mount()
+        mountdir_3 = self._get_directory_for_mount()
+        mountdir_4 = self._get_directory_for_mount()
+        self.manager_under_test.mount(blockdevice_1, mountdir_1)
+        self.manager_under_test.mount(blockdevice_2, mountdir_2)
+        self.manager_under_test.mount(blockdevice_1, mountdir_3)
+        self.manager_under_test.mount(blockdevice_2, mountdir_4)
+        self.manager_under_test.unmount(blockdevice_1)
+        self.assertEqual(
+            list(x.path for x in self.manager_under_test._cleanup_operations),
+            [blockdevice_1, blockdevice_2, blockdevice_2])
+
+    def test_tmpfs_mount_cleaned_up(self):
+        """
+        The cleanup implementation cleans up tmpfs mounts.
+        """
+        mountdir = self._get_directory_for_mount()
+        self.manager_under_test.make_tmpfs_mount(mountdir)
+        self.assertEqual(len(self.manager_under_test._cleanup_operations), 1)
+        self.assertEqual(
+            self.manager_under_test._cleanup_operations[0].path,
+            mountdir)
+        self.manager_under_test.unmount(mountdir)
+
+    def test_bind_mount_cleaned_up(self):
+        """
+        The cleanup implementation cleans up bind mounts.
+        """
+        bounddir = self._get_directory_for_mount()
+        basedir = self._get_directory_for_mount()
+        self.manager_under_test.bind_mount(basedir, bounddir)
+        self.assertEqual(len(self.manager_under_test._cleanup_operations), 1)
+        self.assertEqual(
+            self.manager_under_test._cleanup_operations[0].path,
+            bounddir)
+        self.manager_under_test.unmount(bounddir)

@@ -99,6 +99,10 @@ class DiscoveredDataset(PClass):
         where the dataset will be mounted.
     :ivar FilePath link_path: The absolute path to the location where a symlink
         to the dataset will be placed.
+    :ivar FilePath share_path: The absolute path to the location on the node
+        where the dataset is available for use by an external client.  This may
+        be different than mount_point in scenarios where read-only bind mounts
+        are used to protect the path that is shared with clients.
     """
     state = field(
         invariant=lambda state: (state in DatasetStates.iterconstants(),
@@ -111,6 +115,7 @@ class DiscoveredDataset(PClass):
     device_path = field(FilePath)
     mount_point = field(FilePath)
     link_path = field(FilePath)
+    share_path = field(FilePath)
 
     __invariant__ = TaggedUnionInvariant(
         tag_attribute='state',
@@ -121,7 +126,7 @@ class DiscoveredDataset(PClass):
             DatasetStates.ATTACHED: {'device_path'},
             DatasetStates.MOUNTED: {'device_path', 'mount_point'},
             DatasetStates.SYMLINKED: {'device_path', 'mount_point',
-                                      'link_path'},
+                                      'link_path', 'share_path'},
         },
     )
 
@@ -143,6 +148,7 @@ class DesiredDataset(PClass):
     )
     mount_point = field(FilePath)
     link_path = field(FilePath)
+    share_path = field(FilePath)
     filesystem = field(unicode, initial=u"ext4", mandatory=True,
                        invariant=lambda v: (v == "ext4", "Must be 'ext4'."))
 
@@ -151,7 +157,7 @@ class DesiredDataset(PClass):
         attributes_for_tag={
             DatasetStates.NON_MANIFEST: {"maximum_size"},
             DatasetStates.MANIFEST: {
-                "maximum_size", "mount_point", "link_path"},
+                "maximum_size", "mount_point", "link_path", "share_path"},
             DatasetStates.DELETED: set(),
         },
     )
@@ -1370,7 +1376,7 @@ class RawState(PClass):
     :param devices: Mapping from dataset UUID to block device path containing
         filesystem of that dataset, on this particular node.
     :type devices: ``pmap`` of ``UUID`` to ``FilePath``
-    :param system_mounts: Mapping of block device path to mount point of all
+    :param system_mounts: Mapping of mount point to block device path of all
         mounts on this particular node.
     :type system_mounts: ``pmap`` of ``FilePath`` to ``FilePath``.
     :param devices_with_filesystems: ``PSet`` of ``FilePath`` including
@@ -1426,7 +1432,7 @@ class BlockDeviceDeployerLocalState(PClass):
                     ),
                     primary=True,
                 )
-                paths[unicode(dataset_id)] = dataset.link_path
+                paths[unicode(dataset_id)] = dataset.share_path
             elif dataset.state in (
                 DatasetStates.NON_MANIFEST, DatasetStates.ATTACHED,
                 DatasetStates.ATTACHED_NO_FILESYSTEM, DatasetStates.MOUNTED
@@ -1617,6 +1623,10 @@ class BlockDeviceDeployer(PClass):
         mounted.
     :ivar FilePath link_root: The directory where symlinks to mounted datasets
         will be created.
+    :ivar FilePath shared_root: The parent directory for all dataset paths that
+        will be shared externally. Defaults to being the same as mountroot.
+        This is designed to either be the mountroot or be a directory that is
+        bind mounted read only to the mountroot.
     :ivar _async_block_device_api: An object to override the value of the
         ``async_block_device_api`` property.  Used by tests.  Should be
         ``None`` in real-world use.
@@ -1633,6 +1643,7 @@ class BlockDeviceDeployer(PClass):
     mountroot = field(type=FilePath,
                       initial=FilePath(b"/var/lib/flocker/mounts"))
     link_root = field(type=FilePath, initial=FilePath(b"/flocker/v2"))
+    shared_root = field(type=FilePath, initial=FilePath(b"/flocker/v2"))
     block_device_manager = field(initial=BlockDeviceManager())
     calculator = field(
         invariant=provides(ICalculator),
@@ -1689,7 +1700,7 @@ class BlockDeviceDeployer(PClass):
         compute_instance_id = api.compute_instance_id()
         volumes = api.list_volumes()
         system_mounts = {
-            mount.blockdevice: mount.mountpoint
+            mount.mountpoint: mount.blockdevice
             for mount in self.block_device_manager.get_mounts()
         }
 
@@ -1756,9 +1767,17 @@ class BlockDeviceDeployer(PClass):
                 link_path = self._link_path_for_dataset_id(
                     unicode(dataset_id)
                 )
+                share_path = self._sharepath_for_dataset_id(
+                    unicode(dataset_id)
+                )
+
+                # If the mount point for this dataset is in the current
+                # system mounts and the blockdevice that is mounted there is
+                # the blockdevice for this dataset, then the dataset is
+                # considered to be in state MOUNTED.
                 if (
-                    device_path in raw_state.system_mounts and
-                    raw_state.system_mounts[device_path] == mount_point
+                    mount_point in raw_state.system_mounts and
+                    raw_state.system_mounts[mount_point] == device_path
                 ):
                     if (
                         link_path in raw_state.symlinks and
@@ -1772,6 +1791,7 @@ class BlockDeviceDeployer(PClass):
                             device_path=device_path,
                             mount_point=mount_point,
                             link_path=link_path,
+                            share_path=share_path,
                         )
                     else:
                         datasets[dataset_id] = DiscoveredDataset(
@@ -1843,6 +1863,17 @@ class BlockDeviceDeployer(PClass):
         """
         return self.link_root.child(dataset_id.encode("ascii"))
 
+    def _sharepath_for_dataset_id(self, dataset_id):
+        """
+        Calculate the shared path location for a dataset.
+
+        :param unicode dataset_id: The unique identifier of the dataset for
+            which to calculate a mount point.
+
+        :returns: A ``FilePath`` of the shared path.
+        """
+        return self.shared_root.child(dataset_id.encode("ascii"))
+
     def _calculate_desired_for_manifestation(self, manifestation):
         """
         Get the ``DesiredDataset`` corresponding to a given manifestation.
@@ -1875,6 +1906,9 @@ class BlockDeviceDeployer(PClass):
                     unicode(dataset_id)
                 ),
                 link_path=self._link_path_for_dataset_id(
+                    unicode(dataset_id)
+                ),
+                share_path=self._sharepath_for_dataset_id(
                     unicode(dataset_id)
                 ),
                 **common_args
@@ -1927,6 +1961,9 @@ class BlockDeviceDeployer(PClass):
                     unicode(dataset_id)
                 ),
                 link_path=self._link_path_for_dataset_id(
+                    unicode(dataset_id)
+                ),
+                share_path=self._sharepath_for_dataset_id(
                     unicode(dataset_id)
                 ),
             )
