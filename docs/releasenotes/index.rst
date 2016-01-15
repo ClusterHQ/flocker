@@ -13,6 +13,7 @@ Next Next Release
 =================
 
 * Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
+* Fixed bug in OpenStack Cinder backend where nodes with floating IPs could not be recognized.
 
 Next Release
 ============
