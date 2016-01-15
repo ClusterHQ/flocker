@@ -80,13 +80,11 @@ def run_test(case):
     return result
 
 
-def make_test_case(base_case, behavior=lambda case: None):
+def make_test_case(base_case):
     """
-    Make a single test subclasses ``base_case`` and does ``behavior``.
+    Make a single test that subclasses ``base_case`` and passes.
 
     :param type base_case: A ``TestCase`` class.
-    :param (TestCase -> A) behavior: The contents of the test. If not
-        specified, defaults to a passing test.
 
     :rtype: ``base_case``
     """

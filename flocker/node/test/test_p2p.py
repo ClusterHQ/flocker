@@ -138,7 +138,7 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
             u'example.com', self.volume_service, node_uuid=self.node_uuid)
         self.assertEqual(
             self.successResultOf(deployer.discover_state(
-                self.EMPTY_NODESTATE)).node_state,
+                DeploymentState(nodes={self.EMPTY_NODESTATE}))).node_state,
             NodeState(hostname=deployer.hostname,
                       uuid=deployer.node_uuid,
                       manifestations={}, paths={}, devices={},
@@ -171,7 +171,7 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
         """
         deployer = self._setup_datasets()
         node_state = self.successResultOf(deployer.discover_state(
-            self.EMPTY_NODESTATE)).node_state
+            DeploymentState(nodes={self.EMPTY_NODESTATE}))).node_state
         self.assertEqual(node_state.uuid, deployer.node_uuid)
 
     def test_discover_datasets(self):
@@ -179,7 +179,7 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
         All datasets on the node are added to ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_state(self.EMPTY_NODESTATE)
+        d = api.discover_state(DeploymentState(nodes={self.EMPTY_NODESTATE}))
 
         self.assertEqual(
             {self.DATASET_ID: Manifestation(
@@ -196,7 +196,7 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
         ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_state(self.EMPTY_NODESTATE)
+        d = api.discover_state(DeploymentState(nodes={self.EMPTY_NODESTATE}))
 
         self.assertEqual(
             {self.DATASET_ID:
@@ -231,7 +231,7 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
             self.volume_service,
             node_uuid=self.node_uuid,
         )
-        d = api.discover_state(self.EMPTY_NODESTATE)
+        d = api.discover_state(DeploymentState(nodes={self.EMPTY_NODESTATE}))
 
         self.assertEqual(
             self.successResultOf(d).node_state.manifestations[

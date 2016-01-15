@@ -39,12 +39,15 @@ class RunOptions(CommonOptions):
     description = "Set up a Flocker cluster."
 
     optParameters = [
-        ['apps-per-node', None, 0, 'Number of application containers per node',
-         int],
+        ['apps-per-node', None, 0,
+         "Number of application containers per node.", int],
         ['app-template', None, None,
-         'Configuration to use for each application container'],
+         "Configuration to use for each application container."],
         ['purpose', None, 'testing',
-         "Purpose of the cluster recorded in its metadata where possible"],
+         "Purpose of the cluster recorded in its metadata where possible."],
+        ['cert-directory', None, None,
+         "Directory for storing the cluster certificates. "
+         "If not specified, then a temporary directory is used."],
     ]
 
     optFlags = [
@@ -79,6 +82,12 @@ class RunOptions(CommonOptions):
                 "Purpose may have only alphanumeric symbols and dash. " +
                 "Found {!r}".format('purpose')
             )
+
+        if self['cert-directory']:
+            cert_path = FilePath(self['cert-directory'])
+            _ensure_empty_directory(cert_path)
+            self['cert-directory'] = cert_path
+
         # This is run last as it creates the actual "runner" object
         # based on the provided parameters.
         super(RunOptions, self).postOptions()
@@ -89,6 +98,29 @@ class RunOptions(CommonOptions):
             purpose=purpose,
             prefix=purpose,
             name='{}-cluster'.format(purpose).encode("ascii"),
+        )
+
+
+def _ensure_empty_directory(path):
+    """
+    The path should not exist or it should be an empty directory.
+    If the path does not exist then a new directory is created.
+
+    :param FilePath path: The directory path to check or create.
+    """
+    if path.exists():
+        if not path.isdir():
+            raise UsageError("{} is not a directory".format(path.path))
+        if path.listdir():
+            raise UsageError("{} is not empty".format(path.path))
+        return
+
+    try:
+        path.makedirs()
+    except OSError as e:
+        raise UsageError(
+            "Can not create {}. {}: {}.".format(path.path, e.filename,
+                                                e.strerror)
         )
 
 
@@ -192,9 +224,16 @@ def _build_config(cluster, application_template, per_node):
     applications = {}
     application_root["version"] = 1
     application_root["applications"] = applications
+
+    def node_address(node):
+        if node.private_address is not None:
+            return node.private_address
+        else:
+            return node.address
+
     for node in cluster.agent_nodes:
         for i in range(per_node):
-            name = "app_%s_%d" % (node.private_address, i)
+            name = "app_%s_%d" % (node_address(node), i)
             applications[name] = deepcopy(application_template)
 
     deployment_root = {}
@@ -202,10 +241,11 @@ def _build_config(cluster, application_template, per_node):
     deployment_root["nodes"] = nodes
     deployment_root["version"] = 1
     for node in cluster.agent_nodes:
-        nodes[node.private_address] = []
+        address = node_address(node)
+        nodes[address] = list()
         for i in range(per_node):
-            name = "app_%s_%d" % (node.private_address, i)
-            nodes[node.private_address].append(name)
+            name = "app_%s_%d" % (address, i)
+            nodes[address].append(name)
 
     return {"applications": application_root,
             "deployment": deployment_root}
