@@ -1,4 +1,4 @@
-.._labs-installer:
+.. _labs-installer:
 
 ==============
 Labs Installer
