@@ -1,25 +1,19 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 from ...testtools import (
-    FlockerScriptTestsMixin, StandardOptionsTestsMixin, TestCase,
+    make_flocker_script_test, make_standard_options_test, TestCase,
 )
 from ..script import CLIScript, CLIOptions
 
 
-class FlockerCLITests(FlockerScriptTestsMixin, TestCase):
+class FlockerCLITests(
+        make_flocker_script_test(CLIScript, CLIOptions, u'flocker')
+):
     """Tests for ``flocker`` CLI."""
-    script = CLIScript
-    options = CLIOptions
-    command_name = u'flocker'
 
 
-class CLIOptionsTests(StandardOptionsTestsMixin, TestCase):
+class CLIOptionsTests(make_standard_options_test(CLIOptions)):
     """Tests for :class:`CLIOptions`."""
-
-    # XXX: Actual tests live in StandardOptionsTestsMixin. FLOC-3794 says we
-    # should make those tests use a pattern similar to
-    # make_iblockdeviceapi_tests. tests
-    options = CLIOptions
 
 
 class FlockerCLIMainTests(TestCase):

@@ -160,9 +160,10 @@ class BenchmarkTest(AsyncTestCase):
             FakeMetric(count(5)),
             3)
 
-        def check(samples):
+        def check(outputs):
             self.assertEqual(
-                samples, [{'success': True, 'value': x} for x in [5, 6, 7]])
+                outputs,
+                ([{'success': True, 'value': x} for x in [5, 6, 7]], None))
         samples_ready.addCallback(check)
         return samples_ready
 
@@ -177,14 +178,17 @@ class BenchmarkTest(AsyncTestCase):
             FakeMetric(count(5)),
             3)
 
-        def check(samples):
+        def check(outputs):
             # We don't care about the actual value for reason.
-            for s in samples:
+            for s in outputs[0]:
                 if 'reason' in s:
                     s['reason'] = None
             self.assertEqual(
-                samples,
-                [{'success': False, 'reason': None} for x in [5, 6, 7]])
+                outputs,
+                (
+                    [{'success': False, 'reason': None} for x in [5, 6, 7]],
+                    None)
+                )
         samples_ready.addCallback(check)
         return samples_ready
 
@@ -198,3 +202,20 @@ class BenchmarkTest(AsyncTestCase):
             FakeMetric(count(5)),
             3)
         self.assertFailure(samples_ready, RuntimeError)
+
+    @capture_logging(None)
+    def test_sample_count(self, _logger):
+        """
+        The sample count determines the number of samples.
+        """
+        samples_ready = benchmark(
+            FakeScenario(),
+            FakeOperation(repeat(True)),
+            FakeMetric(count(5)),
+            5)
+
+        def check(outputs):
+            samples, scenario_metrics = outputs
+            self.assertEqual(len(samples), 5)
+        samples_ready.addCallback(check)
+        return samples_ready

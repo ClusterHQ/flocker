@@ -133,10 +133,11 @@ def run_tests(reactor, cluster, trial_args):
         ['trial'] + list(trial_args),
         env=extend_environ(
             **get_trial_environment(cluster)
-        )).addCallbacks(
-            callback=lambda _: 0,
-            errback=check_result,
-            )
+        )
+    ).addCallbacks(
+        callback=lambda _: 0,
+        errback=check_result,
+    )
 
 
 class ClusterIdentity(PClass):
@@ -232,9 +233,12 @@ class ManagedRunner(object):
     :ivar dict dataset_backend_configuration: The backend-specific
         configuration the nodes will be given for their dataset backend.
     :ivar ClusterIdentity identity: The identity information of the cluster.
+    :ivar FilePath cert_path: The directory where the cluster certificate
+        files will be placed.
     """
     def __init__(self, node_addresses, package_source, distribution,
-                 dataset_backend, dataset_backend_configuration, identity):
+                 dataset_backend, dataset_backend_configuration, identity,
+                 cert_path):
         """
         :param list: A ``list`` of public IP addresses or
             ``[private_address, public_address]`` lists.
@@ -264,6 +268,7 @@ class ManagedRunner(object):
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
         self.identity = identity
+        self.cert_path = cert_path
 
     def _upgrade_flocker(self, reactor, nodes, package_source):
         """
@@ -322,7 +327,8 @@ class ManagedRunner(object):
                 generate_certificates(
                     self.identity.name,
                     self.identity.id,
-                    self._nodes
+                    self._nodes,
+                    self.cert_path,
                 ),
                 self._nodes,
                 self.dataset_backend,
@@ -357,22 +363,24 @@ def _provider_for_cluster_id(dataset_backend):
     return Providers.UNSPECIFIED
 
 
-def generate_certificates(cluster_name, cluster_id, nodes):
+def generate_certificates(cluster_name, cluster_id, nodes, cert_path):
     """
     Generate a new set of certificates for the given nodes.
 
+    :param bytes cluster_name: The name of the cluster.
     :param UUID cluster_id: The unique identifier of the cluster for which to
         generate the certificates.  If ``None`` then a new random identifier
         is generated.
     :param list nodes: The ``INode`` providers that make up the cluster.
+    :param FilePath cert_path: The directory where the generated certificate
+        files are to be placed.
 
     :return: A ``Certificates`` instance referring to the newly generated
         certificates.
     """
-    certificates_path = FilePath(mkdtemp())
-    print("Generating certificates in: {}".format(certificates_path.path))
+    print("Generating certificates in: {}".format(cert_path.path))
     certificates = Certificates.generate(
-        certificates_path,
+        cert_path,
         nodes[0].address,
         len(nodes),
         cluster_name=cluster_name,
@@ -398,7 +406,7 @@ def _save_backend_configuration(dataset_backend_name,
     dataset_path = FilePath(mkdtemp()).child('dataset-backend.yml')
     print("Saving dataset backend config to: {}".format(dataset_path.path))
     dataset_path.setContent(yaml.safe_dump(
-            {dataset_backend_name.name: dataset_backend_configuration}))
+        {dataset_backend_name.name: dataset_backend_configuration}))
     return dataset_path
 
 
@@ -567,7 +575,7 @@ class VagrantRunner(object):
 
 
 @attributes(RUNNER_ATTRIBUTES + [
-    'provisioner', 'num_nodes', 'identity',
+    'provisioner', 'num_nodes', 'identity', 'cert_path',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
@@ -579,6 +587,8 @@ class LibcloudRunner(object):
         configured with.
     :ivar int num_nodes: The number of nodes in the cluster.
     :ivar ClusterIdentity identity: The identity information of the cluster.
+    :ivar FilePath cert_path: The directory where the cluster certificate
+        files will be placed.
     """
 
     def __init__(self):
@@ -657,7 +667,8 @@ class LibcloudRunner(object):
             generate_certificates(
                 self.identity.name,
                 self.identity.id,
-                self.nodes
+                self.nodes,
+                self.cert_path,
             ),
             self.nodes,
             self.dataset_backend,
@@ -788,6 +799,9 @@ class CommonOptions(Options):
         else:
             self['config'] = {}
 
+        if self.get('cert-directory') is None:
+            self['cert-directory'] = FilePath(mkdtemp())
+
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
@@ -890,6 +904,7 @@ class CommonOptions(Options):
             dataset_backend=dataset_backend,
             dataset_backend_configuration=self.dataset_backend_configuration(),
             identity=self._make_cluster_identity(dataset_backend),
+            cert_path=self['cert-directory'],
         )
 
     def _libcloud_runner(self, package_source, dataset_backend,
@@ -922,6 +937,7 @@ class CommonOptions(Options):
             variants=self['variants'],
             num_nodes=self['number-of-nodes'],
             identity=self._make_cluster_identity(dataset_backend),
+            cert_path=self['cert-directory'],
         )
 
     def _runner_RACKSPACE(self, package_source, dataset_backend,
@@ -959,8 +975,10 @@ class CommonOptions(Options):
                  zone: <aws zone, e.g. "us-west-2a">
                  access_key: <aws access key>
                  secret_access_token: <aws secret access token>
+                 session_token: <optional session token>
                  keyname: <ssh-key-name>
                  security_groups: ["<permissive security group>"]
+                 instance_type: m3.large
 
         :see: :ref:`acceptance-testing-aws-config`
         """

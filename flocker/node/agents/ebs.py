@@ -12,17 +12,12 @@ import time
 import logging
 import itertools
 
-# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
-# exception when we try an API call on an idled persistent connection.
-# See https://github.com/boto/boto3/issues/220
-from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
-    extract_from_urllib3,
-)
-extract_from_urllib3()
-
 import boto3
 
 from botocore.exceptions import ClientError, EndpointConnectionError
+from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
+    extract_from_urllib3,
+)
 
 # There is no boto3 equivalent of this yet.
 # See https://github.com/boto/boto3/issues/313
@@ -48,7 +43,7 @@ from .blockdevice import (
     MandatoryProfiles, ICloudAPI,
 )
 
-from ..script import StorageInitializationError
+from ..exceptions import StorageInitializationError
 
 from ...control import pmap_field
 
@@ -56,8 +51,13 @@ from ._logging import (
     AWS_ACTION, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
     BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE,
-    BOTO_LOG_RESULT
+    BOTO_LOG_RESULT, VOLUME_BUSY_MESSAGE,
 )
+
+# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
+# exception when we try an API call on an idled persistent connection.
+# See https://github.com/boto/boto3/issues/220
+extract_from_urllib3()
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
@@ -75,6 +75,8 @@ IOPS_MIN_SIZE = 4
 # for error details:
 NOT_FOUND = u'InvalidVolume.NotFound'
 INVALID_PARAMETER_VALUE = u'InvalidParameterValue'
+
+VOLUME_ATTACHMENT_BUSY = u"busy"
 
 
 # Register Eliot field extractor for ClientError responses.
@@ -276,6 +278,14 @@ class AttachFailed(Exception):
     """
 
 
+class VolumeBusy(Exception):
+    """
+    A volume could not be detached, due to being in busy state.
+    """
+    def __init__(self, volume):
+        Exception.__init__(self, volume.id, volume.attachments)
+
+
 class InvalidRegionError(Exception):
     """
     The supplied region is not a valid AWS endpoint.
@@ -474,7 +484,7 @@ def _expected_device(requested_device):
 
 
 def ec2_client(region, zone, access_key_id,
-               secret_access_key, validate_region=True):
+               secret_access_key, session_token=None, validate_region=True):
     """
     Establish connection to EC2 client.
 
@@ -482,6 +492,7 @@ def ec2_client(region, zone, access_key_id,
     :param str zone: The zone for the EC2 region to connect to.
     :param str access_key_id: "aws_access_key_id" credential for EC2.
     :param str secret_access_key: "aws_secret_access_key" EC2 credential.
+    :param str session_token: "aws_session_token" EC2 credential.
     :param bool validate_region: Flag indicating whether to validate the
         region and zone by calling out to AWS.
 
@@ -497,7 +508,8 @@ def ec2_client(region, zone, access_key_id,
     # errors is already set in botocore.
     connection = boto3.session.Session(
         aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key
+        aws_secret_access_key=secret_access_key,
+        aws_session_token=session_token,
     )
     connection._session.set_config_variable(
         'metadata_service_num_attempts', BOTO_NUM_RETRIES)
@@ -555,7 +567,7 @@ def _get_volume_tag(volume, name):
 class _EC2(PClass):
     """
     :ivar str zone: The name of the zone for the connection.
-    :ivar boto3.resources.factory.ec2.ServiceResource: Object
+    :ivar boto3.resources.factory.ec2.ServiceResource connection: Object
         representing an EC2 resource.
     """
     zone = field(mandatory=True)
@@ -1240,10 +1252,36 @@ class EBSBlockDeviceAPI(object):
             corresponding to the input blockdevice_id.
         :raises UnattachedVolume: If the BlockDeviceVolume for the
             blockdevice_id is not currently 'in-use'.
+        :raises VolumeBusy: If the volume's attachment state is busy.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         if ebs_volume.state != VolumeStates.IN_USE.value:
             raise UnattachedVolume(blockdevice_id)
+
+        # Unfortunately, if there the volume we're detaching is still mounted,
+        # AWS won't detach it but will not return an error when we
+        # attempt to detach either. This means we have to check the attachment
+        # state info here.
+        # See FLOC-3686.
+        # See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-detaching-volume.html # NOQA
+        if ebs_volume.attachments:
+            attachment_state = ebs_volume.attachments[0]['State']
+            if attachment_state == VOLUME_ATTACHMENT_BUSY:
+                logged_attachments = []
+                for attachment in ebs_volume.attachments:
+                    logged_attachments.append(
+                        dict(
+                            instance_id=attachment['InstanceId'],
+                            volume_id=attachment['VolumeId'],
+                            device=attachment['Device'],
+                            state=attachment['State'],
+                        )
+                    )
+                VOLUME_BUSY_MESSAGE(
+                    volume_id=ebs_volume.id,
+                    attachments=logged_attachments
+                ).write()
+                raise VolumeBusy(ebs_volume)
 
         self._detach_ebs_volume(blockdevice_id)
 
@@ -1317,8 +1355,10 @@ class EBSBlockDeviceAPI(object):
         return list(instance.id for instance in instances)
 
 
-def aws_from_configuration(region, zone, access_key_id, secret_access_key,
-                           cluster_id, validate_region=True):
+def aws_from_configuration(
+    region, zone, access_key_id, secret_access_key, cluster_id,
+    session_token=None, validate_region=True
+):
     """
     Build an ``EBSBlockDeviceAPI`` instance using configuration and
     credentials.
@@ -1333,6 +1373,7 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
     :param UUID cluster_id: The unique identifier of the cluster with which to
         associate the resulting object.  It will only manipulate volumes
         belonging to this cluster.
+    :param str session_token: The EC2 session token.
     :param bool validate_region: If False, do not attempt to validate the
         region and zone by calling out to AWS. Useful for testing.
 
@@ -1345,6 +1386,7 @@ def aws_from_configuration(region, zone, access_key_id, secret_access_key,
                 zone=zone,
                 access_key_id=access_key_id,
                 secret_access_key=secret_access_key,
+                session_token=session_token,
                 validate_region=validate_region,
             ),
             cluster_id=cluster_id,

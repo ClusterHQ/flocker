@@ -71,12 +71,29 @@ class RequestLoadScenario(object):
     :ivar is_started: boolean that will be set to True once the scenario has
         been started. The scenario cannot be started twice. If someone tries
         to do so, an exception will be raised.
+    :ivar rate_tolerated: rate that will be consigered big enough to be a valid
+        load given the request_rate requested and the tolerance_percentage.
     """
 
     def __init__(
         self, reactor, scenario_setup_instance, request_rate=10,
-        sample_size=DEFAULT_SAMPLE_SIZE, timeout=45
+        sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
+        tolerance_percentage=0.2
     ):
+        """
+        ``RequestLoadScenario`` constructor.
+
+        :param reactor: Reactor to use.
+        :param scenario_setup_instance: provider of the
+            ``IRequestScenarioSetup`` interface.
+        :param request_rate: target number of request per second.
+        :param sample_size: number of samples to collect when measuring
+            the rate.
+        :param tolerance_percentage: error percentage in the rate that is
+            considered valid. For example, if we request a ``request_rate``
+            of 20, and we give a tolerance_percentage of 0.2 (20%), anything
+            in [16,20] will be a valid rate.
+        """
         self.reactor = reactor
         self.scenario_setup = scenario_setup_instance
         self.request_rate = request_rate
@@ -91,6 +108,9 @@ class RequestLoadScenario(object):
         self.monitor_loop = LoopingCall(self.check_rate)
         self.monitor_loop.clock = self.reactor
         self.is_started = False
+        self.rate_tolerated = (
+            float(request_rate) - (request_rate*tolerance_percentage)
+        )
 
     def _request_and_measure(self, count):
         """
@@ -108,10 +128,19 @@ class RequestLoadScenario(object):
             write_failure(result)
 
         for i in range(self.request_rate):
+            t0 = self.reactor.seconds()
+
             d = self.scenario_setup.make_request()
+
+            def get_time(_ignore):
+                return self.reactor.seconds() - t0
+            d.addCallback(get_time)
+
             self.rate_measurer.request_sent()
-            d.addCallbacks(self.rate_measurer.response_received,
-                           errback=handle_request_error)
+            d.addCallbacks(
+                self.rate_measurer.response_received,
+                handle_request_error
+            )
 
     def _fail(self, exception):
         """
@@ -133,7 +162,7 @@ class RequestLoadScenario(object):
         :raise RequestOverload: if the scenario is overloaded.
         """
         rate = self.rate_measurer.rate()
-        if rate < self.request_rate:
+        if rate < self.rate_tolerated:
             self._fail(RequestRateTooLow(rate))
 
         elif self.rate_measurer.outstanding() > self.max_outstanding:
@@ -170,7 +199,7 @@ class RequestLoadScenario(object):
         self.loop.start(interval=1)
 
         def reached_target_rate():
-            return self.rate_measurer.rate() >= self.request_rate
+            return self.rate_measurer.rate() >= self.rate_tolerated
 
         def handle_timeout(failure):
             failure.trap(CancelledError)
@@ -203,7 +232,7 @@ class RequestLoadScenario(object):
         Stop the scenario from being maintained by stopping all the
         loops that may be executing.
 
-        :return: A ``Deferred`` that fires when the scenario has stopped.
+        :return Deferred[Optional[Dict[unicode, Any]]]: Scenario metrics.
         """
         self.is_started = False
         if self.monitor_loop.running:
@@ -228,6 +257,15 @@ class RequestLoadScenario(object):
             action_type=u'flocker:benchmark:scenario:stop',
             scenario='request_load'
         ):
+            def no_outstanding_requests():
+                return self.rate_measurer.outstanding() == 0
+
+            scenario_stopped = loop_until(self.reactor,
+                                          no_outstanding_requests,
+                                          repeat(1))
+            timeout(self.reactor, scenario_stopped, self.timeout)
+            scenario = DeferredContext(scenario_stopped)
+
             def handle_timeout(failure):
                 failure.trap(CancelledError)
                 msg = (
@@ -237,17 +275,10 @@ class RequestLoadScenario(object):
                     num_requests=outstanding_requests
                 )
                 Message.log(key='force_stop_request', value=msg)
+            scenario.addErrback(handle_timeout)
 
-            def no_outstanding_requests():
-                return self.rate_measurer.outstanding() == 0
+            def return_metrics(_ignore):
+                return self.rate_measurer.get_metrics()
+            scenario.addCallback(return_metrics)
 
-            scenario_stopped = loop_until(self.reactor,
-                                          no_outstanding_requests,
-                                          repeat(1))
-            timeout(self.reactor, scenario_stopped, self.timeout)
-            scenario_stopped.addErrback(handle_timeout)
-
-            scenario = DeferredContext(scenario_stopped)
-            scenario.addActionFinish()
-            return scenario.result
-
+            return scenario.addActionFinish()

@@ -15,9 +15,7 @@ from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IOperation
-from benchmark.operations.read_request import (
-    ReadRequest, InvalidMethod, validate_method_name
-)
+from benchmark.operations.read_request import ReadRequest
 
 
 class FastConvergingFakeFlockerClient(
@@ -51,41 +49,6 @@ class FastConvergingFakeFlockerClient(
         result = self.original.delete_container(*a, **kw)
         self.original.synchronize_state()
         return result
-
-
-class ValidMethodNameTests(TestCase):
-    """
-    Check that method name validation works.
-    """
-
-    def test_no_parameter_method(self):
-        name = 'version'
-        self.assertIn(name, IFlockerAPIV1Client.names())
-        validate_method_name(IFlockerAPIV1Client, name)
-
-    def test_method_with_parameters(self):
-        """
-        Rejects method that requires parameters.
-        """
-        name = 'create_dataset'
-        self.assertIn(name, IFlockerAPIV1Client.names())
-        self.assertRaises(
-            InvalidMethod,
-            validate_method_name,
-            IFlockerAPIV1Client, name,
-        )
-
-    def test_not_found_method(self):
-        """
-        Rejects name not found in interface.
-        """
-        name = 'non_existent'
-        self.assertNotIn(name, IFlockerAPIV1Client.names())
-        self.assertRaises(
-            InvalidMethod,
-            validate_method_name,
-            IFlockerAPIV1Client, name,
-        )
 
 
 class ReadRequestTests(TestCase):
