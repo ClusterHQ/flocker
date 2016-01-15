@@ -311,28 +311,6 @@ def build_steps(dash_project, dash_branch_name, job_name, job) {
                 shell(_step.cli.join("\n") + "\n")
             }
         }
-
-        /* not every job produces an artifact, so make sure we
-           don't try to fetch artifacts for jobs that don't
-           produce them */
-        if (job.archive_artifacts) {
-            for (artifact in job.archive_artifacts) {
-                copyArtifacts(
-                    "${dash_project}/${dash_branch_name}/${job_name}") {
-
-                    optional(true)
-                    includePatterns(artifact)
-                    /* and place them under 'job name'/artifact on
-                       the multijob workspace, so that we don't
-                       overwrite them.  */
-                    targetDirectory(job_name)
-                    fingerprintArtifacts(true)
-                    buildSelector {
-                        workspace()
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -348,7 +326,7 @@ branches = []
 String token = new File('/var/lib/jenkins/.github_token').text.trim()
 
 // Lets's call it ClusterHQ-Flocker instead of ClusterHQ/Flocker
-dashProject = project.replace('/', '-')
+dashProject = escape_name(project)
 
 // Create a basefolder for our project, it should look like:
 //   '<github username>-<git repository>'
@@ -433,7 +411,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
     // apply config related to 'run_trial' jobs
     if (job_type == 'run_trial') {
         for (_module in job_values.with_modules) {
-            _job_name = job_name + '_' + _module.replace('/', '_')
+            _job_name = job_name + '_' + escape_name(_module)
             job("${dashProject}/${dashBranchName}/${_job_name}") {
                 parameters {
                     // we pass the 'MODULE' parameter as the flocker module to test with trial
@@ -458,7 +436,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
     // apply config related to 'run_trial_storage_driver' jobs
     if (job_type == 'run_trial_for_storage_driver') {
         for (_module in job_values.with_modules) {
-            _job_name = job_name + '_' + _module.replace('/', '_')
+            _job_name = job_name + '_' + escape_name(_module)
             job("${dashProject}/${dashBranchName}/${_job_name}") {
                 parameters {
                     // we pass the 'MODULE' parameter as the flocker module to test with trial
@@ -500,7 +478,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
     // apply config related to 'run_acceptance' jobs
     if (job_type == 'run_acceptance') {
         for (_module in job_values.with_modules) {
-            _job_name = job_name + '_' + _module.replace('/', '_')
+            _job_name = job_name + '_' + escape_name(_module)
             job("${dashProject}/${dashBranchName}/${_job_name}") {
                 parameters {
                     // we pass the 'MODULE' parameter as the flocker module to test with trial
@@ -581,6 +559,17 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
 }
 
 
+def escape_name(name) {
+    /*
+        Escape a name to make it suitable for use in a path.
+
+        :param unicode name: the name to escape.
+        :return unicode: the escaped name.
+    */
+    return name.replace('/', '-')
+}
+
+
 def build_multijob(dashBranchName, branchName, isReleaseBuild) {
     // -------------------------------------------------------------------------
     // MULTIJOB CONFIGURATION BELOW
@@ -636,7 +625,7 @@ def build_multijob(dashBranchName, branchName, isReleaseBuild) {
                                      'run_acceptance']) {
                         for (job_entry in job_type_values) {
                             for (_module in job_entry.value.with_modules) {
-                                _job_name = job_entry.key + '_' + _module.replace('/', '_')
+                                _job_name = job_entry.key + '_' + escape_name(_module)
                                 job("${dashProject}/${dashBranchName}/${_job_name}")  {
                                     /* make sure we don't kill the parent multijob when we
                                        fail */
@@ -657,6 +646,40 @@ def build_multijob(dashBranchName, branchName, isReleaseBuild) {
                     }
                 }
             } /* ends parallel phase */
+
+            /* we've added the jobs to the multijob, we now need to fetch and
+               archive all the artifacts produced by the different jobs */
+            for (job_type_entry in GLOBAL_CONFIG.job_type) {
+                job_type = job_type_entry.key
+                for (job_entry in job_type_entry.value) {
+                    job_name = job_entry.key
+                    job_values = job_entry.value
+                    for (_module in job_values.with_modules) {
+                        _job_name = job_name + '_' + escape_name(_module)
+                        /* no every job produces an artifact, so make sure wew
+                           don't try to fetch artifacts for jobs that don't
+                           produce them */
+                        if (job_values.archive_artifacts) {
+                            for (artifact in job_values.archive_artifacts) {
+                                copyArtifacts(
+                                    "${dashProject}/${dashBranchName}/${_job_name}") {
+                                    optional(true)
+                                    includePatterns(artifact)
+                                    /* and place them under 'job name'/artifact on
+                                       the multijob workspace, so that we don't
+                                       overwrite them.  */
+                                    targetDirectory(_job_name)
+                                    fingerprintArtifacts(true)
+                                    buildSelector {
+                                        workspace()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
         }
 
         /* do an aggregation of all the test results */
@@ -758,7 +781,7 @@ def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseB
 branches.each {
     println("iterating over branch... ${it}")
     branchName = it
-    dashBranchName = branchName.replace("/","-")
+    dashBranchName = escape_name(branchName)
     // our convention for release branches is release/flocker-<version>
     isReleaseBuild = branchName.startsWith("release/*")
 
