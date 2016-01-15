@@ -123,7 +123,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 .. raw:: html
 
             </div>
-            <p>If the output matches, this shows that you have two nodes in your Swarm cluster and two nodes in your Flocker cluster!</p>            
+            <p>If the commands succeeded, then your Flocker/Swarm cluster is up and running.</p>
 		</div>
 	</div>
 	
