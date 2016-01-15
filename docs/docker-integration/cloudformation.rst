@@ -64,7 +64,11 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 		</div>
 		<div class="step-stages__step">
 			<img src="/_images/12-cloudformation-settings.png" alt="Fill in cloudformation settings"/>
-			<span>Enter your <code>KeyName</code> from Step 1. Then enter your AWS <code>AccessKeyID</code> and <code>SecretAccessKey</code>. If you don't know these, you can generate new credentials on your <a href="https://console.aws.amazon.com/iam/home#users" target="_blank">IAM Users</a> page. Click on your user and go to the "Security Credentials" tab, then click "Create Access Key", and then click "Show User Security Credentials".</span>
+			<span>Enter your <code>KeyName</code> from Step 1. Then enter your AWS <code>AccessKeyID</code> and <code>SecretAccessKey</code> credentials.</span><span>If you don't know these, <a href="javascript:void(0);" onclick="$('#iam-instructions').show();">click here</a>.</span>
+            <div id="iam-instructions" style="text-align:left; display:none;">
+                <span>You can generate new credentials on your <a href="https://console.aws.amazon.com/iam/home#users" target="_blank">IAM Users</a> page:</span>
+                <span><ul><li>Click on your user and go to the "Security Credentials" tab.</li><li>Click "Create Access Key".</li><li>Click "Show User Security Credentials".</li></ul></span>
+            </div>
 		</div>
 		<div class="step-stages__step">
 			<img src="/_images/13-cloudformation-create.png" alt="Click create"/>
@@ -87,23 +91,27 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 		</div>
 		<div class="step-stages__step">
 			<img src="/_images/23-create-complete.png" alt="Stack create create complete message"/>
-			<span>... CREATE_COMPLETE state. Then click the "Outputs" tab...</span> 
+			<span>... CREATE_COMPLETE state.</span> 
 		</div>
 	</div>
 	
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 4</h2>
-			<p>Verify your installation.</p>
-            <p>Click on the "Outputs" tab for your stack. These values will be used for connecting to your cluster both for the next step and for any tutorials you go through.</p>
+			<p>Verifying your installation.</p>
+            <p>Click on the "Outputs" tab for your stack. If this is not visible, click the drop down icon on the current tab.</p>
+            <p>The values displayed on this tab will be used for verifying your installation and also any tutorials you go through.</p>
 			<img src="/_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation" style="margin: 2em 0;"/>
-            <p>Now follow along with these commands to log in and verify your cluster is working. Where a command has a value <code>&lt;LikeThis&gt;</code>, use the values from the Outputs tab as shown above.</p>
-            <p>Where the commands have <code>&lt;KeyPath&gt;</code> which should be the path on your host to the <code>.pem</code> file you downloaded in Step 1, for example: <code>~/Downloads/flocker-test.pem</code>.</p>
+            <p>Now open a Terminal window, and run the following commands to log in and verify your cluster is working.</p>
+            <p>Where a command includes a string like <code>&lt;ClientNodeIP&gt;</code>, use the corresponding value from the Outputs tab.</p>
+            <p>Where a command has <code>&lt;KeyPath&gt;</code> this should be the path on your machine to the <code>.pem</code> file you downloaded in Step 1, for example: <code>~/Downloads/flocker-test.pem</code>.</p>
             <div style="text-align: left; margin: 2em 0;">
 
 .. prompt:: bash
 
-   ssh -i <KeyPath> ubuntu@<ClientNodeIP>
+   chmod 0600 <KeyPath>
+   ssh -i <KeyPath> ubuntu@<ClientNodeIP> # enter "yes" if prompted
+   export DOCKER_TLS_VERIFY=1
    export DOCKER_HOST=<ControlNodeIP>:2376
    docker info |grep Nodes # should output "Nodes: 2"
    export FLOCKER_CERTS_PATH=/etc/flocker
@@ -111,7 +119,6 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
    export FLOCKER_CONTROL_SERVICE=<ControlNodeIP>
    flockerctl status # should show two nodes running
    flockerctl ls # should show no datasets yet
-   # TODO make flockerctl work like this (with env vars)
 
 .. raw:: html
 
