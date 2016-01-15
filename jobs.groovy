@@ -648,35 +648,33 @@ def build_multijob(dashBranchName, branchName, isReleaseBuild) {
             } /* ends parallel phase */
 
             /* we've added the jobs to the multijob, we now need to fetch and
-               archive all the artifacts produced by the different jobs */
-            for (job_type_entry in GLOBAL_CONFIG.job_type) {
+               archive all the artifacts produced by the different jobs
+               Skip the cron jobs as they don't run from this multijob,
+               so the copied artifacts could be from a build of a previous
+               revision, which may confuse things. */
+            for (job_type_entry in GLOBAL_CONFIG.job_type.findAll { it.key != 'cronly_jobs' } ) {
                 job_type = job_type_entry.key
-                /* Skip the cron jobs as they don't run from this multijob,
-                   so the copied artifacts could be from a build of a previous
-                   revision, which may confuse things. */
-                if (job_type != 'cronly_jobs') {
-                    for (job_entry in job_type_entry.value) {
-                        job_name = job_entry.key
-                        job_values = job_entry.value
-                        for (_module in job_values.with_modules) {
-                            _job_name = job_name + '_' + escape_name(_module)
-                            /* no every job produces an artifact, so make sure wew
-                               don't try to fetch artifacts for jobs that don't
-                               produce them */
-                            if (job_values.archive_artifacts) {
-                                for (artifact in job_values.archive_artifacts) {
-                                    copyArtifacts(
-                                        "${dashProject}/${dashBranchName}/${_job_name}") {
-                                        optional(true)
-                                        includePatterns(artifact)
-                                        /* and place them under 'job name'/artifact on
-                                           the multijob workspace, so that we don't
-                                           overwrite them.  */
-                                        targetDirectory(_job_name)
-                                        fingerprintArtifacts(true)
-                                        buildSelector {
-                                            workspace()
-                                        }
+                for (job_entry in job_type_entry.value) {
+                    job_name = job_entry.key
+                    job_values = job_entry.value
+                    for (_module in job_values.with_modules) {
+                        _job_name = job_name + '_' + escape_name(_module)
+                        /* no every job produces an artifact, so make sure wew
+                           don't try to fetch artifacts for jobs that don't
+                           produce them */
+                        if (job_values.archive_artifacts) {
+                            for (artifact in job_values.archive_artifacts) {
+                                copyArtifacts(
+                                    "${dashProject}/${dashBranchName}/${_job_name}") {
+                                    optional(true)
+                                    includePatterns(artifact)
+                                    /* and place them under 'job name'/artifact on
+                                       the multijob workspace, so that we don't
+                                       overwrite them.  */
+                                    targetDirectory(_job_name)
+                                    fingerprintArtifacts(true)
+                                    buildSelector {
+                                        workspace()
                                     }
                                 }
                             }
