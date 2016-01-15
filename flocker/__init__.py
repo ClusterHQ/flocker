@@ -5,6 +5,8 @@ Flocker is an open-source container data volume manager for your
 Dockerized applications.
 """
 
+from ._version import get_versions
+
 # Default port for REST API:
 REST_API_PORT = 4523
 
@@ -43,7 +45,6 @@ _suppress_warnings()
 del _suppress_warnings
 
 
-from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
