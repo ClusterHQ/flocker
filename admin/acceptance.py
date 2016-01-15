@@ -1063,69 +1063,58 @@ def capture_upstart(reactor, host, output_file):
     """
     # note that we are using tail -F to keep retrying and not to exit when we
     # reach the end of the file, as we expect the logs to keep being generated
-    formatter = TailFormatter(output_file, host)
-    ran = run_ssh(
-        reactor=reactor,
-        host=host,
-        username='root',
-        command=[
-            b'tail',
-            b'-F',
-            b'/var/log/flocker/flocker-control.log',
-            b'/var/log/flocker/flocker-dataset-agent.log',
-            b'/var/log/flocker/flocker-container-agent.log',
-            b'/var/log/flocker/flocker-docker-plugin.log',
-            b'/var/log/upstart/docker.log',
-        ],
-        handle_stdout=formatter.handle_output_line,
-    )
-    ran.addErrback(write_failure, logger=None)
-    # Deliver a final empty line to process the last message
-    ran.addCallback(lambda ignored: formatter.handle_output_line(b""))
-    return ran
+    results = []
+    for (directory, service) in [
+            (b"flocker", b"flocker-control"),
+            (b"flocker", b"flocker-dataset-agent"),
+            (b"flocker", b"flocker-container-agent"),
+            (b"flocker", b"flocker-docker-plugin"),
+            (b"upstart", b"docker")]:
+        path = FilePath(b'/var/log/').child(directory).child(service + b'.log')
+        formatter = TailFormatter(output_file, host, service)
+        ran = run_ssh(
+            reactor=reactor,
+            host=host,
+            username='root',
+            command=[
+                b'tail',
+                b'-F',
+                path.path
+            ],
+            handle_stdout=formatter.handle_output_line,
+        )
+        ran.addErrback(write_failure, logger=None)
+        # Deliver a final empty line to process the last message
+        ran.addCallback(lambda ignored, formatter=formatter:
+                        formatter.handle_output_line(b""))
+        results.append(ran)
+    return gather_deferreds(results)
 
 
 class TailFormatter(object):
     """
     Formatter for the output of the ``tail`` commands that will produce logs
     with Eliot messages with the same format as the ones produced when
-    parsing journalctl output
+    parsing journalctl output.
 
     :ivar file output_file: log file where we want to write our log
     :ivar bytes _host: ip address or identifier of our host to be
         added to the Eliot messages
-    :ivar bytes service: optional initial name of the service. This initial
-        name shouldn't appear anywhere unless there is an error, as the first
-        line of the output of tail will be a file name, that will be used
-        to set the name of the service we are currently parsing
+    :ivar bytes service: Name of the service.
     """
-    def __init__(self, output_file, host, service="unknown"):
+    def __init__(self, output_file, host, service):
         self._output_file = output_file
         self._host = host
         self._service = service
-        # Note that the tail output will always be
-        # ==> name_of_the_service.log <==
-        # followed by a one or more lines of this log.
-        # The following regex will match the output to find out
-        # the name of the log we are currently reading
-        self._service_regexp = re.compile(
-            r"==> (?:/var/log/flocker/|/var/log/upstart/)(.*)\.log <==")
 
     def handle_output_line(self, line):
         """
-        Handles a line of the tail output, and checks if it is the name
-        of the service or an actual Eliot message
+        Handles a line of the tail output.
 
         :param line: The line read from the tail output.
         """
         if line:
-            service_match = self._service_regexp.search(line)
-
-            if service_match is not None:
-                self._service = service_match.groups()[0]
-
-            else:
-                self.print_line(self.parse_line(line))
+            self.print_line(self.parse_line(line))
 
     def parse_line(self, line):
         """
