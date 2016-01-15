@@ -320,7 +320,7 @@ class DockerComposeTests(AsyncTestCase):
         )
         d = connected_cluster(
             reactor=reactor,
-            control_node=self.control_node_ip,
+            control_node=self.control_node_ip.encode('ascii'),
             certificates_path=local_certs_path,
             num_agent_nodes=2,
             hostname_to_public_address={},
