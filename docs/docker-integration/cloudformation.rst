@@ -12,6 +12,8 @@ Installing Flocker with Swarm on AWS using CloudFormation
 
 The steps in this guide enable you to quickly deploy a Flocker/Swarm cluster, which uses four AWS EC2 instances.
 
+This diagram illustrates the cluster of four EC2 instances created by completing the CloudFormation steps below, and what each node in the cluster is running.
+
 .. raw:: html
 	
 	<div style="width:60%; margin-left:auto; margin-right:auto; margin-bottom:2em;">
@@ -22,8 +24,6 @@ The steps in this guide enable you to quickly deploy a Flocker/Swarm cluster, wh
 .. raw:: html
 	
 	</div>
-
-This diagram illustrates the cluster of four EC2 instances created by completing the CloudFormation steps below, and what each instance node in the cluster is running.
 
 .. source material for this image: https://drive.google.com/open?id=0ByymF9bLBknGeXlPX1pTdXVZOGM
 
