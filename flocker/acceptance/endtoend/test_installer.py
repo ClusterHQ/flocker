@@ -322,7 +322,13 @@ class DockerComposeTests(AsyncTestCase):
 
     def test_docker_compose_up_postgres(self):
         """
+        A Flocker cluster, built using the Cloudformation template, has a
+        client node. That node has ``docker-compose`` and templates. The first
+        template creates a PostgreSQL server on one node. The second template
+        moves the PostgreSQL server to the second node.
         """
+        # This isn't in the tutorial, but docker-compose doesn't retry failed
+        # pulls and pulls fail all the time.
         def pull_postgres():
             return remote_docker(
                 self.client_node_ip,
@@ -335,6 +341,8 @@ class DockerComposeTests(AsyncTestCase):
             expected=(ProcessTerminated,),
             steps=repeat(1, 5)
         )
+        # Create the PostgreSQL server on node1. A Flocker dataset will be
+        # created and attached by way of the Flocker Docker plugin.
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
@@ -342,53 +350,59 @@ class DockerComposeTests(AsyncTestCase):
                 COMPOSE_NODE0, 'up', '-d'
             )
         )
+        # Docker-compose blocks until the container is running but the the
+        # PostgreSQL server may not be ready to receive connections.
         d.addCallback(
             lambda ignored: self._wait_for_postgres(self.agent_node1_ip)
         )
+        # Create a database and insert a record.
         d.addCallback(
             lambda ignored: remote_postgres(
                 self.client_node_ip, self.agent_node1_ip,
                 RECREATE_STATEMENT + INSERT_STATEMENT
             )
         )
-
+        # Check that the record can be retrieved.
+        # XXX May not be necessary.
         d.addCallback(
             lambda ignored: remote_postgres(
                 self.client_node_ip, self.agent_node1_ip, SELECT_STATEMENT
             )
         )
-
+        # Stop and then remove the container
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip, self.docker_host, COMPOSE_NODE0, 'stop'
             )
         )
-
+        # Unless you remove the container, Swarm will refuse to start a new
+        # container on the other node.
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip, self.docker_host,
                 COMPOSE_NODE0, 'rm', '--force'
             )
         )
-
+        # Start the container on the other node.
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip, self.docker_host,
                 COMPOSE_NODE1, 'up', '-d'
             )
         )
-
+        # The database server won't be immediately ready to receive
+        # connections.
         d.addCallback(
             lambda ignored: self._wait_for_postgres(self.agent_node2_ip)
         )
-
+        # Select the record
         d.addCallback(
             lambda ignored: remote_postgres(
                 self.client_node_ip,
                 self.agent_node2_ip, SELECT_STATEMENT
             )
         )
-
+        # There should be a record and the value should be 1.
         d.addCallback(
             lambda (process_status, process_output): self.assertEqual(
                 "1", process_output[2].strip()
