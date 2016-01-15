@@ -48,7 +48,7 @@ Manually Installing Flocker with Mesos
 Manually Installing Mesos
 ==============================
 
-Follow the `Manual Mesos installation <http://mesos.io/gettingstarted/>`_ guide on each of your nodes.
+Follow the `Manual Mesos installation <http://mesos.apache.org/gettingstarted/>`_ guide on each of your nodes.
 
 Next step
 =========
