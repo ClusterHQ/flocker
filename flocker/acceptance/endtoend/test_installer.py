@@ -269,16 +269,28 @@ class DockerComposeTests(AsyncTestCase):
                 self.client_node_ip,
                 self.docker_host,
                 COMPOSE_NODE0, 'rm', '-f'
+            ).addErrback(
+                # This sometimes fails with exit code 255
+                # and a message ValueError: No JSON object could be decoded
+                lambda failure: failure.trap(ProcessTerminated)
             )
         )
-
         d_node2_compose = remote_docker_compose(
-            self.client_node_ip, self.docker_host, COMPOSE_NODE1, 'stop'
+            self.client_node_ip,
+            self.docker_host,
+            COMPOSE_NODE1,
+            'stop',
         )
         d_node2_compose.addCallback(
             lambda ignored: remote_docker_compose(
-                self.client_node_ip, self.docker_host, COMPOSE_NODE1,
+                self.client_node_ip,
+                self.docker_host,
+                COMPOSE_NODE1,
                 'rm', '-f'
+            ).addErrback(
+                # This sometimes fails with exit code 255
+                # and a message ValueError: No JSON object could be decoded
+                lambda failure: failure.trap(ProcessTerminated)
             )
         )
         return gather_deferreds([d_node1_compose, d_node2_compose])
