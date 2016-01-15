@@ -41,6 +41,11 @@ POSTGRESQL_PASSWORD = 'flocker'
 
 
 def remote_command(client_ip, command):
+    """
+    Run ``command`` on ``client_ip``.
+
+    :returns: A ``Deferred`` when the command has completed or failed.
+    """
     process_output = []
     d = run_ssh(
         reactor,
@@ -56,6 +61,14 @@ def remote_command(client_ip, command):
 
 
 def remote_docker(client_ip, docker_host, *args):
+    """
+    Run ``docker`` on ``client_ip``.
+
+    :param bytes docker_host: The DOCKER_HOST environment variable to set
+        before running ``docker``.
+    :param args: Other command line arguments to supply to ``docker``.
+    :returns: A ``Deferred`` when the command has completed or failed.
+    """
     return remote_command(
         client_ip,
         ('DOCKER_TLS_VERIFY=1', 'DOCKER_HOST={}'.format(docker_host),
@@ -64,6 +77,16 @@ def remote_docker(client_ip, docker_host, *args):
 
 
 def remote_docker_compose(client_ip, docker_host, compose_file_path, *args):
+    """
+    Run ``docker-compose`` on ``client_ip``.
+
+    :param bytes docker_host: The DOCKER_HOST environment variable to set
+        before running ``docker-compose``.
+    :param unicode compose_file_path: The absolute path to a ``docker-compose``
+        template file.
+    :param args: Other command line arguments to supply to ``docker-compose``.
+    :returns: A ``Deferred`` when the command has completed or failed.
+    """
     return remote_command(
         client_ip,
         ('DOCKER_TLS_VERIFY=1', 'DOCKER_HOST={}'.format(docker_host),
@@ -72,6 +95,13 @@ def remote_docker_compose(client_ip, docker_host, compose_file_path, *args):
 
 
 def remote_postgres(client_ip, host, command):
+    """
+    Run ``psql`` on ``client_ip``.
+
+    :param bytes host: The IP address of the PostgreSQL server to connect to.
+    :param unicode command: The command to run on the server.
+    :returns: A ``Deferred`` when the command has completed or failed.
+    """
     return remote_command(
         client_ip,
         ('psql',
@@ -82,6 +112,12 @@ def remote_postgres(client_ip, host, command):
 
 
 def get_stack_report(stack_id):
+    """
+    Get information about a Cloudformation stack.
+
+    :param unicode stack_id: The AWS cloudformation stack ID.
+    :returns: A ``dict`` of information about the stack.
+    """
     output = check_output(
         ['aws', 'cloudformation', 'describe-stacks',
          '--stack-name', stack_id]
@@ -91,6 +127,13 @@ def get_stack_report(stack_id):
 
 
 def wait_for_stack_status(stack_id, target_status):
+    """
+    Poll the status of a Cloudformation stack.
+
+    :param unicode stack_id: The AWS cloudformation stack ID.
+    :param unicode target_status: The desired stack status.
+    :returns: A ``Deferred`` which fires when the stack has ``target_status``.
+    """
     Message.log(
         function='wait_for_stack_status',
         stack_id=stack_id,
@@ -109,6 +152,10 @@ def wait_for_stack_status(stack_id, target_status):
 def create_cloudformation_stack(template_url, access_key_id,
                                 secret_access_key, parameters):
     """
+    Create a Cloudformation stack.
+
+    :param unicode stack_id: The AWS cloudformation stack ID.
+    :returns: A ``Deferred`` which fires when the stack has been created.
     """
     # Request stack creation.
     stack_name = CLOUDFORMATION_STACK_NAME + str(int(time.time()))
@@ -126,6 +173,10 @@ def create_cloudformation_stack(template_url, access_key_id,
 
 def delete_cloudformation_stack(stack_id):
     """
+    Delete a Cloudformation stack.
+
+    :param unicode stack_id: The AWS cloudformation stack ID.
+    :returns: A ``Deferred`` which fires when the stack has been deleted.
     """
     result = get_stack_report(stack_id)
     outputs = result['Outputs']
@@ -143,6 +194,14 @@ def delete_cloudformation_stack(stack_id):
 
 
 def get_output(outputs, key):
+    """
+    Parse and return values from a Cloudformation outputs list.
+
+    :param list outputs: A list of ``dict`` having items of `(`OutputKey``,
+        ``OutputValue``).
+    :param unicode key: The key for which to retrieve a value from ``outputs``.
+    :returns: A ``unicode`` value.
+    """
     for output in outputs:
         if output['OutputKey'] == key:
             return output['OutputValue']
@@ -162,6 +221,10 @@ class DockerComposeTests(AsyncTestCase):
     run_tests_with = async_runner(timeout=timedelta(minutes=20))
 
     def _stack_from_environment(self):
+        """
+        Look for environment variables describing an existing stack but skip
+        the test unless *all* the required variables are supplied.
+        """
         found = {}
         for variable_name in STACK_VARIABLES.keys():
             value = os.environ.get(variable_name.upper(), None)
@@ -179,6 +242,11 @@ class DockerComposeTests(AsyncTestCase):
             return False
 
     def _new_stack(self):
+        """
+        Create a new Cloudformation stack from a template URL supplied as an
+        environment variable. AWS credentials and Cloudformation parameter
+        values must also be supplied as environment variables.
+        """
         template_url = os.environ.get('CLOUDFORMATION_TEMPLATE_URL')
         if template_url is None:
             self.skipTest(
@@ -219,6 +287,10 @@ class DockerComposeTests(AsyncTestCase):
         return d
 
     def setUp(self):
+        """
+        Create a new stack or configure the test to operate on an existing
+        stack if the environment contains all the necessary IP addresses.
+        """
         d = maybeDeferred(super(DockerComposeTests, self).setUp)
 
         def setup_stack(ignored):
@@ -235,7 +307,15 @@ class DockerComposeTests(AsyncTestCase):
         return d
 
     def _cleanup_flocker(self):
+        """
+        Cleanup any Flocker volumes that were created during the tests.
+        """
         local_certs_path = FilePath(self.mktemp())
+        # Download the Flocker certificates from the client node so that we can
+        # connect to the control service from the machine running the tests.
+        # XXX Perhaps it'd be better to have a cluster cleanup tool available
+        # on the client which can also be run by people who are attempting the
+        # tutorial.
         check_output(
             ['scp', '-o', 'StrictHostKeyChecking no', '-r',
              'ubuntu@{}:/etc/flocker'.format(self.client_node_ip),
@@ -257,6 +337,12 @@ class DockerComposeTests(AsyncTestCase):
         return d
 
     def _cleanup_compose(self):
+        """
+        Run docker-compose stop and rm -f for both demo templates to stop and
+        remove all the containers that were created during the test.
+        Run serially because docker-compose + swarm sometimes fail when
+        commands are run in parallel.
+        """
         d_node1_compose = remote_docker_compose(
             self.client_node_ip,
             self.docker_host,
@@ -294,6 +380,15 @@ class DockerComposeTests(AsyncTestCase):
         return gather_deferreds([d_node1_compose, d_node2_compose])
 
     def _wait_for_postgres(self, server_ip):
+        """
+        Try to connect to the PostgreSQL server at ``server_ip`` once per
+        second until the server responds.
+
+        :param bytes server_ip: The IP address of the PostgreSQL server.
+        :returns: The result of the query if the query succeeds.
+        :raises: LoopExceeded if the query does not succeed after 10 connection
+            attempts.
+        """
         def trap(failure):
             failure.trap(ProcessTerminated)
             # psql returns 0 to the shell if it finished normally, 1 if a fatal
