@@ -58,12 +58,7 @@ If you want to test new additions to the installer, and want to preserve stack s
 One of my stack nodes failed to bring up Flocker/Docker/Swarm. How do i debug?
 ------------------------------------------------------------------------------
 
-On the corresponding EC2 instance, please look at ``/var/log/cloud-init-output.log`` to triage which stage of `UserData`_ failed.
-
-   .. prompt:: root@ip-172-31-0-121:/var/log# tail /var/log/cloud-init-output.log 
-      Cloud-init v. 0.7.5 finished at Thu, 14 Jan 2016 19:32:16 +0000. Datasource DataSourceEc2.  Up 111.13 seconds
-
-Contents of ``/var/log/cloud-init-output.log`` are also avaiable via instance `SystemLog`_.
+On the corresponding EC2 instance, please look at ``/var/log/cloud-init-output.log`` to triage which stage of `UserData`_ failed. Contents of ``/var/log/cloud-init-output.log`` are also avaiable via instance `SystemLog`_.
 
 The `UserData`_ script for this instance is located at ``/var/lib/cloud/instance/user-data.txt``. This can be handy to reproduce a bug, and while prototyping enchancements to the installer. For example, if you would like to add Kubernetes as the scheduler, edit ``/var/lib/cloud/instance/user-data.txt`` to add Kubernetes setup, test on the EC2 instance, then add the working bash script to ``cloudformation.py``.
 
