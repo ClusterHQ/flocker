@@ -419,6 +419,16 @@ class DockerComposeTests(AsyncTestCase):
         template creates a PostgreSQL server on one node. The second template
         moves the PostgreSQL server to the second node.
         """
+        # Publish the compose files to the client.
+        command = [
+            'scp', '-o', 'StrictHostKeyChecking no', '-r',
+            FilePath(__file__).parent().descendant(
+                ['installer', 'postgres']
+            ).path,
+            'ubuntu@{}:postgres'.format(self.client_node_ip)]
+
+        check_output(command)
+
         # This isn't in the tutorial, but docker-compose doesn't retry failed
         # pulls and pulls fail all the time.
         def pull_postgres():
