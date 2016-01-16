@@ -342,14 +342,12 @@ def create_blockdevicedeployer(
         _sync=api, _reactor=NonReactor(), _threadpool=NonThreadPool(),
     )
     tmpfs_shadow_mount = create_tmpfs_shadow_mount_for_test(test_case)
-    mountroot = FilePath(test_case.mktemp()).child(unicode(uuid4()))
-    mountroot.makedirs()
     return BlockDeviceDeployer(
         hostname=hostname,
         node_uuid=node_uuid,
         block_device_api=api,
         _async_block_device_api=async_api,
-        mountroot=mountroot,
+        mountroot=mountroot_for_test(test_case),
         link_root=tmpfs_shadow_mount.backing_directory,
         shared_root=tmpfs_shadow_mount.read_only_directory,
         block_device_manager=block_device_manager,
@@ -806,13 +804,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         self.api = loopbackblockdeviceapi_for_test(self)
         self.this_node = self.api.compute_instance_id()
         link_root = link_root_for_test(self)
-        mountroot = FilePath(self.mktemp()).child(unicode(uuid4()))
-        mountroot.makedirs()
         self.deployer = BlockDeviceDeployer(
             node_uuid=self.expected_uuid,
             hostname=self.expected_hostname,
             block_device_api=self.api,
-            mountroot=mountroot,
+            mountroot=mountroot_for_test(self),
             link_root=link_root,
             shared_root=link_root,
         )
