@@ -26,6 +26,19 @@ Control Node uploads Flocker certificates and agent.yml to the bucket; Agent Nod
 For Docker TLS, the Control Node uploads a Certificate Authority to the bucket.
 Agent Node(s) and Client Node create certificates for themselves using the CA downloaded from S3.
 
+Publishing CloudFormation template
+----------------------------------
+
+Generate CloudFormation JSON template:
+
+.. prompt:: bash #
+
+   python cloudformation.py > /tmp/flocker-cluster.cloudformation.json
+
+Publish template to `InstallerS3Bucket`_ .
+
+
+
 How are user-specific inputs (like AWS AccessKeyID) sourced?
 ------------------------------------------------------------
 
@@ -88,4 +101,5 @@ For example, if you would like to add Kubernetes as the scheduler, edit ``/var/l
 .. _troposphere: https://github.com/cloudtools/troposphere
 .. _RollbackOnFailure: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-add-tags.html?icmpid=docs_cfn_console
 .. _SystemLog: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-console.html#instance-console-console-output
+.. _InstallerS3Bucket: https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json
 

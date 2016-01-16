@@ -59,7 +59,7 @@ template = Template()
 
 # Keys corresponding to CloudFormation user Inputs.
 keyname_param = template.add_parameter(Parameter(
-    "KeyName",
+    "KeyPair",
     Description="Name of an existing EC2 KeyPair to enable SSH "
                 "access to the instance",
     Type="String",
