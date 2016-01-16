@@ -19,7 +19,7 @@ https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new
 
 import os
 
-from troposphere import FindInMap, GetAtt, Base64, Join
+from troposphere import FindInMap, GetAtt, Base64, Join, Tags
 from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
 from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
@@ -27,6 +27,7 @@ from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
 NUM_NODES = 3
 AGENT_NODE_NAME_TEMPLATE = u"AgentNode{index}"
+EC2_INSTANCE_NAME_TEMPLATE = u"{stack_name}_{node_type}"
 CONTROL_NODE_NAME = u"ControlNode"
 CLIENT_NODE_NAME = u"ClientNode"
 INFRA_WAIT_HANDLE_TEMPLATE = u"{node}FlockerSwarmReadySignal"
@@ -155,8 +156,7 @@ for i in range(NUM_NODES):
         KeyName=Ref(keyname_param),
         SecurityGroups=[Ref(instance_sg)],
         AvailabilityZone=zone,
-        Tags=[{"Key": "Name", "Value": node_name}]
-    )
+        Tags=Tags(Name=node_name))
 
     # WaitCondition and corresponding Handler to signal completion
     # of {Flocker, Docker, Swarm} configuration on the node.
@@ -225,8 +225,7 @@ client_instance = ec2.Instance(
     KeyName=Ref(keyname_param),
     SecurityGroups=[Ref(instance_sg)],
     AvailabilityZone=zone,
-    Tags=[{"Key": "Name", "Value": CLIENT_NODE_NAME}]
-)
+    Tags=Tags(Name=node_name))
 wait_condition_handle = WaitConditionHandle(CLIENT_WAIT_HANDLE)
 template.add_resource(wait_condition_handle)
 wait_condition = WaitCondition(
