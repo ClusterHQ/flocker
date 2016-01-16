@@ -367,7 +367,7 @@ class CleanupBlockDeviceManagerTests(TestCase):
         self.manager_under_test.unmount(blockdevice_1)
         self.assertEqual(
             list(x.path for x in self.manager_under_test._cleanup_operations),
-            [blockdevice_1, blockdevice_2, blockdevice_2])
+            [mountdir_1, mountdir_2, mountdir_4])
 
     def test_tmpfs_mount_cleaned_up(self):
         """

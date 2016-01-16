@@ -884,7 +884,6 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         )
         device = self.api.get_device_path(volume.blockdevice_id)
         mount_point = self.deployer.mountroot.child(bytes(dataset_id))
-        share_path = self.deployer.shared_root.child(bytes(dataset_id))
         mount_point.makedirs()
         make_filesystem(device, block_device=True)
         mount(device, mount_point)
@@ -2399,8 +2398,8 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
-                UnmountBlockDevice(dataset_id=self.DATASET_ID,
-                                   blockdevice_id=self.BLOCKDEVICE_ID)
+                RemoveMountSymlink(dataset_id=self.DATASET_ID,
+                                   link_path=self.LINK_PATH)
             ]),
             # Another node which is ignorant about its state:
             set([NodeState(hostname=u"1.2.3.4", uuid=uuid4())])
@@ -2878,6 +2877,31 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
     to unmounting of filesystems.
     """
+
+    def _one_mounted_dataset_state(self):
+        """
+        Generates a node state that is compatible with a single dataset in the
+        mounted state.
+        """
+        return self.ONE_DATASET_STATE.transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard,
+            ["paths"], {},
+        )
+
+    def _one_mounted_discovered_dataset_state(self):
+        """
+        Generates a discovered dataset state that is compatible with a single
+        dataset in the mounted state.
+        """
+        return DiscoveredDataset(
+            state=DatasetStates.MOUNTED,
+            dataset_id=self.DATASET_ID,
+            blockdevice_id=self.BLOCKDEVICE_ID,
+            maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
+            device_path=self.BLOCKDEVICE_PATH,
+            mount_point=self.MOUNT_POINT,
+        )
+
     def test_unmount_manifestation(self):
         """
         If the filesystem for a dataset is mounted on the node and the
@@ -2886,7 +2910,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         to unmount the filesystem.
         """
         # Give it a state that says it has a manifestation of the dataset.
-        node_state = self.ONE_DATASET_STATE
+        node_state = self._one_mounted_dataset_state()
 
         # Give it a configuration that says it shouldn't have that
         # manifestation.
@@ -2895,11 +2919,12 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, node_state, node_config, set(),
+            self, node_state, node_config, [self.MANIFESTATION.dataset],
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID,
                                    blockdevice_id=self.BLOCKDEVICE_ID)
-            ])
+            ]),
+            discovered_datasets=[self._one_mounted_discovered_dataset_state()],
         )
 
     def test_unmount_deleted_manifestation(self):
@@ -2910,7 +2935,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         unmount the filesystem.
         """
         # Give it a state that says it has a manifestation of the dataset.
-        node_state = self.ONE_DATASET_STATE
+        node_state = self._one_mounted_dataset_state()
 
         # Give it a configuration that says it shouldn't have that
         # manifestation.
@@ -2920,51 +2945,12 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, node_state, node_config, set(),
+            self, node_state, node_config, [self.MANIFESTATION.dataset],
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID,
                                    blockdevice_id=self.BLOCKDEVICE_ID)
-            ])
-        )
-
-    def test_no_unmount_if_in_use(self):
-        """
-        If a dataset should be unmounted *and* it is in use by an application,
-        no changes are made.
-        """
-        # State has a dataset in use by application
-        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
-
-        # Give it a configuration that says it shouldn't have that
-        # manifestation.
-        node_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        )
-
-        assert_calculated_changes(
-            self, local_state, node_config, set(),
-            in_parallel(changes=[]),
-        )
-
-    def test_no_unmount_if_leased(self):
-        """
-        If a dataset should be unmounted *and* it is leased on this node, no
-        changes are made.
-        """
-        # State has a dataset which is leased
-        local_state = self.ONE_DATASET_STATE
-        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
-                                  self.ONE_DATASET_STATE.uuid)
-
-        # Give it a configuration that says it shouldn't have that
-        # manifestation.
-        node_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        )
-
-        assert_calculated_changes(
-            self, local_state, node_config, set(),
-            in_parallel(changes=[]), leases=leases,
+            ]),
+            discovered_datasets=[self._one_mounted_discovered_dataset_state()],
         )
 
     def test_unmount_manifestation_when_leased_elsewhere(self):
@@ -2976,7 +2962,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         as the lease is for another node.
         """
         # Give it a state that says it has a manifestation of the dataset.
-        node_state = self.ONE_DATASET_STATE
+        node_state = self._one_mounted_dataset_state()
         leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
                                   uuid4())
 
@@ -2987,11 +2973,12 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, node_state, node_config, set(),
+            self, node_state, node_config, [self.MANIFESTATION.dataset],
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID,
                                    blockdevice_id=self.BLOCKDEVICE_ID)
             ]), leases=leases,
+            discovered_datasets=[self._one_mounted_discovered_dataset_state()],
         )
 
 
@@ -3466,7 +3453,7 @@ class BlockDeviceDeployerCalculateChangesTests(
         self.expected_change = ControllableAction(
             result=succeed(None),
         )
-        link_root=link_root_for_test(self)
+        link_root = link_root_for_test(self)
         self.deployer = BlockDeviceDeployer(
             node_uuid=ScenarioMixin.NODE_UUID,
             hostname=ScenarioMixin.NODE,
@@ -3563,6 +3550,46 @@ class BlockDeviceDeployerCalculateChangesTests(
             additional_node_config=set(),
             expected_changes=self.expected_change,
             local_state=self.local_state,
+        )
+
+    def test_no_removal_if_in_use(self):
+        """
+        If a dataset should be removed *and* it is in use by an application, no
+        changes are made.
+        """
+        # State has a dataset in use by application
+        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, local_state, node_config, [self.MANIFESTATION.dataset],
+            in_parallel(changes=[]),
+        )
+
+    def test_no_removal_if_leased(self):
+        """
+        If a dataset should be removed *and* it is leased on this node, no
+        changes are made.
+        """
+        # State has a dataset which is leased
+        local_state = self.ONE_DATASET_STATE
+        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
+                                  self.ONE_DATASET_STATE.uuid)
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, local_state, node_config, [self.MANIFESTATION.dataset],
+            in_parallel(changes=[]), leases=leases,
         )
 
 
