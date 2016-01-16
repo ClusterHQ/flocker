@@ -279,8 +279,8 @@ You can run them as follows:
 .. code-block:: console
 
    CLOUDFORMATION_TEMPLATE_URL=https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json \
-   KEY_NAME=<aws access key> \
-   ACCESS_KEY_ID=<aws secret access token> \
+   KEY_PAIR=<aws SSH key pair name> \
+   ACCESS_KEY_ID=<aws access key> \
    SECRET_ACCESS_KEY=<aws secret access token> \
    trial flocker.acceptance.endtoend.test_installer
 
