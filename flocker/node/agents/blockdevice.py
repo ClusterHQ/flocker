@@ -630,7 +630,7 @@ class RemoveMountSymlink(PClass):
     @classmethod
     def from_state_and_config(cls, discovered_dataset, desired_dataset):
         return cls(
-            dataset_id=desired_dataset.dataset_id,
+            dataset_id=discovered_dataset.dataset_id,
             link_path=discovered_dataset.link_path,
         )
 
@@ -1641,7 +1641,7 @@ class BlockDeviceDeployer(PClass):
     _profiled_blockdevice_api = field(mandatory=True, initial=None)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath,
-                      initial=FilePath(b"/var/lib/flocker/mounts"))
+                      initial=FilePath(b"/var/flocker/mounts"))
     link_root = field(type=FilePath, initial=FilePath(b"/flocker/v2"))
     shared_root = field(type=FilePath, initial=FilePath(b"/flocker/v2"))
     block_device_manager = field(initial=BlockDeviceManager())

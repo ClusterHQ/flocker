@@ -161,7 +161,9 @@ class _UnmountCleanup(PClass):
     def execute(self, blockdevice_manager):
         try:
             blockdevice_manager.unmount(self.path)
-        except UnmountError as e:
+        except UnmountError:
+            pass
+        except Exception as e:
             raise CleanupError(error=e)
 
 
@@ -184,17 +186,35 @@ class CleanupBlockDeviceManager(proxyForInterface(IBlockDeviceManager)):
         super(CleanupBlockDeviceManager, self).__init__(original)
         self._cleanup_operations = []
 
+    def _get_mount_point(self, unmount_target):
+        """
+        Translate an unmount_target to a mount path. This takes either a
+        mountpoint or a mounted block device. If the passed in argument is a
+        mounted block device this method returns the most recent mount of that
+        block device. Otherwise, it just returns the passed in argument.
+
+        :param FilePath unmount_target: A blockdevice or mountpoint to be
+            translated to a mountpoint.
+
+        :returns FilePath: The most recent mountpoint of a blockdevice if the
+            argument was the path to a blockdevice, or `unmount_target`.
+        """
+        return next((mount.mountpoint
+                     for mount in reversed(list(self.original.get_mounts()))
+                     if mount.blockdevice == unmount_target),
+                    unmount_target)
+
     def mount(self, blockdevice, mountpoint):
-        self._cleanup_operations.append(_UnmountCleanup(path=blockdevice))
+        self._cleanup_operations.append(_UnmountCleanup(path=mountpoint))
         return self.original.mount(blockdevice, mountpoint)
 
     def unmount(self, unmount_path):
         unmount_index = next(iter(
             -index
             for index, op in enumerate(reversed(self._cleanup_operations), 1)
-            if op == _UnmountCleanup(path=unmount_path)
+            if op == _UnmountCleanup(path=self._get_mount_point(unmount_path))
         ), None)
-        if unmount_path is not None:
+        if unmount_index is not None:
             self._cleanup_operations.pop(unmount_index)
         return self.original.unmount(unmount_path)
 
