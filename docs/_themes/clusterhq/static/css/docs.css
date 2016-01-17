@@ -1,10 +1,5 @@
 /* Docs */
 
-
-
-/* XXX START Temporary stylings for reorg-integrations-FLOC-3718 branch */
-
-
 /***************************** 
 Pods
 *****************************/
@@ -278,22 +273,26 @@ Legacy
 }
 
 .big-box {
-    border:2px solid #777;
+    border:1px solid #777;
     width:11em;
     height:11em;
     float:left;
     margin:0.5em;
     padding:0.5em;
     margin-top:20px; margin-bottom:20px;
+    text-align:center;
+	font-family: "Soho Gothic W01 Regular";
 }
 
 .small-box {
-    border:2px solid #777;
+    border:1px solid #777;
     width:7em;
     height:7em;
     float:left;
     margin:0.5em;
     padding:0.5em;
+    text-align:center;
+	font-family: "Soho Gothic W01 Regular";
 }
 
 .orchestration {
@@ -304,9 +303,11 @@ Legacy
     border-color: #D69A00;
 }
 
-/* XXX END Temporary stylings for reorg-integrations-FLOC-3718 branch */
-
-
+.labs {
+    background: url(../_images/experimental.png) no-repeat #BCED91;
+    background-size:30px; background-position: 30px 20px;
+    padding-right:20px;
+}
 
 /* Nav Style from website */
 
