@@ -1,8 +1,8 @@
 .. _labs-installing-unofficial-flocker-tools:
 
-==================================
-Getting Started with the Installer
-==================================
+========================
+Using the Labs Installer
+========================
 
 .. include:: ../installation/installer-getstarted.rst
    :start-after: .. begin-body
