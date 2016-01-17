@@ -1,5 +1,7 @@
 .. _labs-volumes-cli:
 
+.. _flockerctl:
+
 ==============
 ``flockerctl``
 ==============
