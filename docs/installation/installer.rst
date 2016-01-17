@@ -51,20 +51,19 @@ This diagram shows you what you are about to set up.
 Supported Configurations
 ========================
 
-The Labs Installer can be used in the following configurations.
-
-* **Supported configurations**
-
-  * Ubuntu 14.04 on AWS with EBS backend
+* Ubuntu 14.04 on AWS with EBS backend
 
 ..  * Ubuntu 14.04 on Rackspace with OpenStack backend
 ..  * Ubuntu 14.04 on private OpenStack cloud with OpenStack backend
 
-* **Experimental configurations**
+.. _labs-installer-coreos:
 
-  * CoreOS on AWS with EBS backend with containerized Flocker
+Experimental configurations
+===========================
 
-    * For more information on this configuration, see `Flocker on CoreOS <https://clusterhq.com/2015/09/01/flocker-runs-on-coreos/>`_ on our blog.
+* CoreOS on AWS with EBS backend with containerized Flocker
+
+  * For more information on this configuration, see `Flocker on CoreOS <https://clusterhq.com/2015/09/01/flocker-runs-on-coreos/>`_ on our blog.
 
 Other configurations (for example, CentOS or OpenStack) are possible via the :ref:`manual Flocker installation docs <installing-standalone-flocker>`.
 
