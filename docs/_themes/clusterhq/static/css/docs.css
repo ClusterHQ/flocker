@@ -303,7 +303,7 @@ Legacy
     border-color: #D69A00;
 }
 
-.labs {
+.admonition.labs {
     background: url(../_images/experimental.png) no-repeat #BCED91;
     background-size:30px; background-position: 30px 20px;
     padding-right:20px;
