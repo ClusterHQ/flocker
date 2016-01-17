@@ -23,7 +23,7 @@ Flocker Installation Options
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
 		   <span>Labs Installer
-           <em>Supports Ubuntu and CoreOS on AWS only</span>
+           <em>Supports Ubuntu and CoreOS on AWS only</em></span>
 		     <a href="installer.html" class="button">Installation</a>
 	    </div>
 	</div>

@@ -4,6 +4,6 @@
 Hedvig Block Device Backend Configuration
 =========================================
 
-.. include:: ../installation/convergeio-configuration.rst
+.. include:: ../installation/hedvig-configuration.rst
    :start-after: .. begin-body
    :end-before: .. end-body

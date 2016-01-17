@@ -4,37 +4,18 @@
 Mesos
 =====
 
-Flocker works with Mesos via two different integration paths:
+Flocker works with Mesos via two different integration paths.
 
+* With the `Mesos-Flocker Isolator <http://flocker.mesosframeworks.com/>`_ to provide storage to any Mesos framework and any application, whether Dockerized or not.
+  Currently experimental.
 * With Marathon and Flocker Plugin for Docker to provide storage to Dockerized applications running on Marathon.
-* With the `Mesos-Flocker Isolator <http://flocker.mesosframeworks.com/>`_ to provide storage to any Mesos framework or application.
-
-Flocker Installation Options
-============================
-
-.. raw:: html
-
-    <div class="pods-eq">
-	    <div class="pod-boxout pod-boxout--short pod-boxout--2up">
-		   <img src="../_images/mesos2x.png" alt="Mesos logo"/>
-		   <span>Install Flocker manually
-           <em><a href="../supported.html">Works with all Supported Configurations</a></em></span>
-		   <a href="manual-install.html" class="button">Install</a>
-	    </div>
-	</div>
-
-
-.. the following causes the toctree to be hidden on page but not in the navigation, meaning that when on the linked page, the navigation shows you where you are, which is crucial for UX.
+  `See our blog post for details <https://clusterhq.com/2015/10/06/marathon-ha-demo/>`_.
 
 .. raw:: html
 
    <style>
    .toctree-wrapper { display: none; }
    </style>
-
-.. toctree::
-
-   manual-install
 
 .. _mesos-tutorials:
 
@@ -45,8 +26,8 @@ Follow a Tutorial
 
     <div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--tutorial pod-boxout--2up">
-		   <span>Tutorial: using Flocker with Mesos</span>
-		     <a href="tutorial-mesos.html" class="button">Follow Tutorial</a>
+		   <span>Using Mesos isolator for Flocker</span>
+		     <a href="https://github.com/ClusterHQ/mesos-module-flocker" class="button" target="_blank">GitHub Readme</a>
 	    </div>
 	</div>
 
@@ -55,16 +36,10 @@ Learn more on our blog
 
 * `Demo: High Availability with Marathon and Flocker <https://clusterhq.com/2015/10/06/marathon-ha-demo/>`_
 
-.. toctree::
-   :hidden:
-
-   tutorial-mesos
-
-
 Learn More
 ==========
 
-To learn about the details of how this integration works, read :ref:`about-mesos-integration`.
+To learn about the details of how these integrations work, read :ref:`about-mesos-integration`.
 
 .. toctree::
    :hidden:

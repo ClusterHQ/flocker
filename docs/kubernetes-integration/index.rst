@@ -30,6 +30,7 @@ Flocker Installation Options
 
 .. toctree::
 
+   about
    manual-install
 
 .. _kubernetes-tutorials:
@@ -42,7 +43,7 @@ Follow a Tutorial
     <div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--tutorial">
 		   <span>Tutorial: using Flocker with Kubernetes</span>
-		     <a href="tutorial-kubernetes.html" class="button">Follow Tutorial</a>
+		     <a href="http://kubernetes.io/v1.1/examples/flocker/" target="_blank" class="button">Kubernetes Flocker Docs</a>
 	    </div>
 	</div>
 
@@ -50,11 +51,6 @@ Learn more on our blog
 ----------------------
 
 * `Demo: High Availability with Kubernetes and Flocker <https://clusterhq.com/2015/12/22/ha-demo-kubernetes-flocker/>`_
-
-.. toctree::
-   :hidden:
-
-   tutorial-kubernetes
 
 Learn More
 ==========

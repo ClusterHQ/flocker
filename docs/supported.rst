@@ -18,25 +18,25 @@ Supported Orchestration Frameworks
 	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
 			<img src="_images/docker2x.png" alt="Docker logo"/>
 			<span>Docker, Swarm, Compose <em>Fastest</em></span>
-	        <a href="docker-integration/" class="button button--fast">Install</a>
+	        <a href="docker-integration/" class="button button--fast">Learn more</a>
 	    </div>
 	    
 	    <div class="pod-boxout pod-boxout--orchestration">
 			<img src="_images/kubernetes2x.png" alt="Kubernetes logo"/>
 			<span>Kubernetes</span>
-	        <a href="kubernetes-integration/" class="button">Install</a>
+	        <a href="kubernetes-integration/" class="button">Learn more</a>
 	    </div>
 	    
 	    <div class="pod-boxout pod-boxout--orchestration">
 			<img src="_images/mesos2x.png" alt="mesos logo"/>
 			<span>Mesos</span>
-	        <a href="mesos-integration/" class="button">Install</a>
+	        <a href="mesos-integration/" class="button">Learn more</a>
 	    </div>
 	</div>
 	
 	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
 		<span><img src="_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install Flocker without an Orchestration Framework</span>
-        <a href="flocker-standalone/" class="button">Install</a>
+        <a href="flocker-standalone/" class="button">Learn more</a>
     </div>
 
 .. _storage-backends:
@@ -44,7 +44,7 @@ Supported Orchestration Frameworks
 Supported Infrastructure & Storage
 ==================================
 
-**IaaS block storage**
+**IaaS block storage**: when you're running Flocker on a specific type of public or private cloud
 
 .. raw:: html
 
@@ -71,7 +71,7 @@ Supported Infrastructure & Storage
     </div>
     <div style="clear:both;"></div>
 
-**Software defined storage**
+**Software defined storage**: can run on any infrastructure
 
 .. raw:: html
 
@@ -109,11 +109,10 @@ Supported Infrastructure & Storage
     </div>
     <div style="clear:both;"></div>
 
-**Hardware devices**
+**Hardware devices**: requires specific hardware in your data center
 
 .. raw:: html
 
-    <!-- This too needs to become Sphinx directives, rather than raw HTML. -->
     <div class="small-box storage">
 		<img src="_images/dell.png" style="height:35px;"/><br />SC Series
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">

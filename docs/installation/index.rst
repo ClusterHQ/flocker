@@ -12,7 +12,7 @@ Quick Start Flocker Installer
 Use the Flocker Installer if you want to get started with Flocker quickly, but in your own environment.
 
 .. note:: 
-   The Installer is one of our :ref:`Labs projects <labs-projects>`, so is currently experimental.
+   The Installer is one of our Labs projects, so is currently experimental.
    Because Installer is still experimental, it is currently only available for Ubuntu 14.04 on AWS with an EBS backend.
    Other configurations (for example, CentOS or OpenStack) are possible via the full installation docs.
    
