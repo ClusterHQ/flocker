@@ -304,7 +304,7 @@ Legacy
 }
 
 .admonition.labs {
-    background: url(../_images/experimental.png) no-repeat #BCED91;
+    background: url(../images/experimental.png) no-repeat #BCED91;
     background-size:30px; background-position: 30px 20px;
     padding-right:20px;
 }

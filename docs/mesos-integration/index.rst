@@ -8,14 +8,8 @@ Flocker works with Mesos via two different integration paths.
 
 * With the `Mesos-Flocker Isolator <http://flocker.mesosframeworks.com/>`_ to provide storage to any Mesos framework and any application, whether Dockerized or not.
   Currently experimental.
-* With Marathon and Flocker Plugin for Docker to provide storage to Dockerized applications running on Marathon.
+* With Marathon and the Flocker Plugin for Docker to provide storage to Dockerized applications running on Marathon.
   `See our blog post for details <https://clusterhq.com/2015/10/06/marathon-ha-demo/>`_.
-
-.. raw:: html
-
-   <style>
-   .toctree-wrapper { display: none; }
-   </style>
 
 .. _mesos-tutorials:
 
@@ -35,13 +29,3 @@ Learn more on our blog
 ----------------------
 
 * `Demo: High Availability with Marathon and Flocker <https://clusterhq.com/2015/10/06/marathon-ha-demo/>`_
-
-Learn More
-==========
-
-To learn about the details of how these integrations work, read :ref:`about-mesos-integration`.
-
-.. toctree::
-   :hidden:
-
-   about
