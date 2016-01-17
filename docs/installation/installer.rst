@@ -46,12 +46,12 @@ This diagram shows you what you are about to set up.
 * Installer provisions servers for you, and it writes a ``cluster.yml`` in your cluster directory containing the addresses of the servers.
 * You run the installer on the ``cluster.yml``.
 * Installer creates certificates for you, saves them in your cluster directory, installs Flocker and certificates on servers, and starts Flocker.
-* You can now interact with your Flocker cluster using the ``docker`` CLI on the nodes, or locally by using the ``uft-flocker-deploy`` tool or the ``uft-flocker-volumes`` tool.
+* You can now interact with your Flocker cluster using the ``docker`` CLI on the nodes, or locally by using the ``uft-flocker-deploy`` tool or the :ref:`flockerctl` tool.
 
 Supported Configurations
 ========================
 
-This Quick Start Installer can be used in the following configurations.
+The Labs Installer can be used in the following configurations.
 
 * **Supported configurations**
 
@@ -59,10 +59,12 @@ This Quick Start Installer can be used in the following configurations.
 
 ..  * Ubuntu 14.04 on Rackspace with OpenStack backend
 ..  * Ubuntu 14.04 on private OpenStack cloud with OpenStack backend
-..
-.. * **Experimental configurations**
-..
-..  * CoreOS on AWS with EBS backend
+
+* **Experimental configurations**
+
+  * CoreOS on AWS with EBS backend with containerized Flocker
+
+    * For more information on this configuration, see `Flocker on CoreOS <https://clusterhq.com/2015/09/01/flocker-runs-on-coreos/>`_ on our blog.
 
 Other configurations (for example, CentOS or OpenStack) are possible via the :ref:`manual Flocker installation docs <installing-standalone-flocker>`.
 
