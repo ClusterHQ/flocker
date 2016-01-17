@@ -30,6 +30,7 @@ Flocker Installation Options
 
 .. toctree::
 
+   about
    manual-install
 
 .. _kubernetes-tutorials:
