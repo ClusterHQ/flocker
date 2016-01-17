@@ -16,8 +16,9 @@ Flocker Installation Options
 
     <div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--short pod-boxout--2up">
-		   <img src="/_images/mesos2x.png" alt="Mesos logo"/>
-		   <span>Install Flocker manually</span>
+		   <img src="../_images/mesos2x.png" alt="Mesos logo"/>
+		   <span>Install Flocker manually
+           <em><a href="../supported.html">Works with all Supported Configurations</a></em></span>
 		   <a href="manual-install.html" class="button">Install</a>
 	    </div>
 	</div>

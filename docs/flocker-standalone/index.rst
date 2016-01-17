@@ -16,11 +16,14 @@ Flocker Installation Options
 
     <div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
-		   <span>Install Flocker manually</span>
+		   <span>Install Flocker manually
+           <em><a href="../supported.html">Works with all Supported Configurations</a></em></span>
+           </span>
 		     <a href="manual-install.html" class="button">Manual Installation</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
-		   <span>Labs Installer</span>
+		   <span>Labs Installer
+           <em>Supports Ubuntu and CoreOS on AWS only</span>
 		     <a href="installer.html" class="button">Installation</a>
 	    </div>
 	</div>

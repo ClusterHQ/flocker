@@ -36,15 +36,15 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 			<p>Create an AWS Key Pair for secure login to your cluster.</p>
 		</div>
 		<div class="step-stages__step first">
-			<img src="/_images/01-keys-menu.png" alt="AWS key pairs section in console"/>
+			<img src="../_images/01-keys-menu.png" alt="AWS key pairs section in console"/>
             <span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#KeyPairs:sort=keyName" target="_blank">Log in to the AWS console</a>. This will open "N. Virginia" region, "Key Pairs" section.</span>
 		</div>
 		<div class="step-stages__step">
-			<img src="/_images/02-create-key.png" alt="Creating a new AWS key pair"/>
+			<img src="../_images/02-create-key.png" alt="Creating a new AWS key pair"/>
             <span>Click "Create Key Pair". Give your key pair a meaningful name, like <strong>flocker-test</strong>. You'll need this later.</span>
 		</div>
 		<div class="step-stages__step">
-			<img src="/_images/03-pem-downloaded.png" alt="A downloaded pem file"/>
+			<img src="../_images/03-pem-downloaded.png" alt="A downloaded pem file"/>
             <span>The private key (.pem file) will be downloaded onto your computer.</span>
 		</div>
 	</div>
@@ -59,11 +59,11 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 			This button will open CloudFormation in a new tab.</p>
 		</div>
 		<div class="step-stages__step first">
-			<img src="/_images/11-cloudformation-stackname.png" alt="Specifying the stack name"/>
+			<img src="../_images/11-cloudformation-stackname.png" alt="Specifying the stack name"/>
 			<span>Click "Next". Enter a <code>Stack name</code>. This can be any descriptive name.</span> 
 		</div>
 		<div class="step-stages__step">
-			<img src="/_images/12-cloudformation-settings.png" alt="Fill in cloudformation settings"/>
+			<img src="../_images/12-cloudformation-settings.png" alt="Fill in cloudformation settings"/>
 			<span>Enter your <code>KeyName</code> from Step 1. Then enter your AWS <code>AccessKeyID</code> and <code>SecretAccessKey</code> credentials.</span><span>If you don't know these, <a href="javascript:void(0);" onclick="$('#iam-instructions').show();">click here</a>.</span>
             <div id="iam-instructions" style="text-align:left; display:none;">
                 <span>You can generate new credentials on your <a href="https://console.aws.amazon.com/iam/home#users" target="_blank">IAM Users</a> page:</span>
@@ -71,7 +71,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
             </div>
 		</div>
 		<div class="step-stages__step">
-			<img src="/_images/13-cloudformation-create.png" alt="Click create"/>
+			<img src="../_images/13-cloudformation-create.png" alt="Click create"/>
 			<span>Click "Next" twice and then click "Create" to create your cluster.</span>
 		</div>
 	</div>
@@ -82,15 +82,15 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 			<p>Wait for the cluster to come up. This can take 5-10 minutes.</p>
 		</div>
 		<div class="step-stages__step first">
-			<img src="/_images/21-refresh.png" alt="Refresh button on CloudFormation console"/>
+			<img src="../_images/21-refresh.png" alt="Refresh button on CloudFormation console"/>
 			<span>The stack may not show up immediately. Click the refresh button a few times to see it show up.</span>
 		</div>
 		<div class="step-stages__step">
-			<img src="/_images/22-create-in-progress.png" alt="Stack create in progress message"/>
+			<img src="../_images/22-create-in-progress.png" alt="Stack create in progress message"/>
 			<span>Once the stack shows up, it will stay in CREATE_IN_PROGRESS state for 5-10 minutes. Wait for it to transition to...</span> 
 		</div>
 		<div class="step-stages__step">
-			<img src="/_images/23-create-complete.png" alt="Stack create create complete message"/>
+			<img src="../_images/23-create-complete.png" alt="Stack create create complete message"/>
 			<span>... CREATE_COMPLETE state.</span> 
 		</div>
 	</div>
@@ -101,7 +101,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 			<p>Verifying your installation.</p>
             <p>Click on the "Outputs" tab for your stack. If this is not visible, click the drop down icon on the current tab.</p>
             <p>The values displayed on this tab will be used for verifying your installation and also any tutorials you go through.</p>
-			<img src="/_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation" style="margin: 2em 0;"/>
+			<img src="../_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation" style="margin: 2em 0;"/>
             <p>Now open a Terminal window, and run the following commands to log in and verify your cluster is working.</p>
             <p>Where a command includes a string like <code>&lt;ClientNodeIP&gt;</code>, use the corresponding value from the Outputs tab.</p>
             <p>Where a command has <code>&lt;KeyPath&gt;</code> this should be the path on your machine to the <code>.pem</code> file you downloaded in Step 1, for example: <code>~/Downloads/flocker-test.pem</code>.</p>
