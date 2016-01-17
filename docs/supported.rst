@@ -85,41 +85,41 @@ These software defined storage options can be run on any infrastructure, includi
 .. raw:: html
 
     <div class="big-box storage">
-		<img src="_images/ceph.png" style="width:30px; "/>
-        <br />
         Ceph
+        <br />
+		<img src="_images/ceph.png" style="width:30px; "/>
         <br />
         <img src="_images/experimental.png" style="height:25px; padding:2px 4px; border:1px solid #ddd;" title="Experimental (labs project)">
         <p style="margin-top:10px"><a href="https://github.com/ClusterHQ/ceph-flocker-driver" target="_blank">GitHub Repo</a></p>
     </div>
     <div class="big-box storage">
-		<img src="_images/emc.png" style="width:50px;" title="EMC" />
-        <br />
         ScaleIO
+        <br />
+		<img src="_images/emc.png" style="width:50px;" title="EMC" />
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
         <p style="margin-top:10px"><a href="flocker-standalone/emc-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
-		<img src="_images/hedvig.png" style="width:80px;" title="Hedvig" />
-        <br />
         Hedvig
+        <br />
+		<img src="_images/hedvig.png" style="width:80px;" title="Hedvig" />
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
         <p style="margin-top:10px"><a href="flocker-standalone/hedvig-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
-		<img src="_images/nexenta.png" style="width:60px;" title="Nexenta" />
-        <br />
         NexentaEdge
+        <br />
+		<img src="_images/nexenta.png" style="width:60px;" title="Nexenta" />
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
         <p style="margin-top:10px"><a href="flocker-standalone/nexenta-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
-		<img src="_images/convergeio.png" style="width:60px;" title="ConvergeIO" />
-        <br />
         ConvergeIO
+        <br />
+		<img src="_images/convergeio.png" style="width:60px;" title="ConvergeIO" />
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
         <p style="margin-top:10px"><a href="flocker-standalone/convergeio-configuration.html">Learn more</a></p>
@@ -134,41 +134,41 @@ These hardware storage options require specific physical hardware in your data c
 .. raw:: html
 
     <div class="big-box storage">
-		<img src="_images/dell.png" style="height:35px;"/>
+        Dell SC Series
         <br />
-        SC Series
+		<img src="_images/dell.png" style="height:35px;"/>
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
         <p style="margin-top:10px"><a href="flocker-standalone/dell-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
-		<img src="_images/emc.png" style="width:50px;"/>
+        EMC XtremIO, VMAX
         <br />
-        XtremIO, VMAX
+		<img src="_images/emc.png" style="width:50px;"/>
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
         <p style="margin-top:10px"><a href="flocker-standalone/emc-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
-		<img src="_images/netapp.png" style="width:20px;"/>
-        <br />
         NetApp OnTap
+        <br />
+		<img src="_images/netapp.png" style="width:20px;"/>
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
         <p style="margin-top:10px"><a href="flocker-standalone/netapp-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
-		<img src="_images/saratoga.png" style="width:50px;"/>
-        <br />
         Saratoga Speed
+        <br />
+		<img src="_images/saratoga.png" style="width:50px;"/>
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
         <p style="margin-top:10px"><a href="flocker-standalone/saratogaspeed-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
-		<img src="_images/huawei.png" style="width:50px;"/>
-        <br />
         Huawei
+        <br />
+		<img src="_images/huawei.png" style="width:50px;"/>
         <br />
         <img src="_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
         <p style="margin-top:10px"><a href="flocker-standalone/huawei.html">Learn more</a></p>
