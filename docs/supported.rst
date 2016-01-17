@@ -209,7 +209,7 @@ Supported Operating Systems
 		<img src="_images/coreos.png" style="width:40px;"/>
         <br />
         <img src="_images/experimental.png" style="height:25px; padding:2px 4px; border:1px solid #ddd;" title="Experimental (labs project)">
-        <p style="margin-top:10px"><a href="flocker-standalone/installer.html">Works with Labs Installer</a></p>
+        <p style="margin-top:10px"><a href="flocker-standalone/installer.html#experimental-configurations">Works with Labs Installer</a></p>
     </div>
     <div class="big-box">
         RHEL 7
