@@ -1,10 +1,12 @@
 .. Single Source Instructions
 
-==================================
-Getting Started with the Installer
-==================================
+========================
+Using the Labs Installer
+========================
 
 .. begin-body
+
+This guide will show you how to use the Labs Installer to deploy a Flocker cluster on AWS on Ubuntu.
 
 #. Installing the Installer:
 
@@ -35,7 +37,7 @@ Getting Started with the Installer
 
         uft-flocker-ca --version
 
-     This should return something like ``1.5.0``, showing you which version of the Flocker Client is installed.
+     This should return something like ``1.9.0``, showing you which version of the Flocker Client is installed.
 
 #. Make a local directory for your cluster files:
 
