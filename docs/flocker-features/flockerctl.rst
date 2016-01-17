@@ -55,7 +55,7 @@ If you use the :ref:`labs-installer` to install your cluster ``flockerctl`` will
 If you have used an alternative method to create your cluster, such as a manual installation or our :ref:`CloudFormation installer <cloudformation>`, you will need to set some environment variables for ``flockerctl`` to pick up:
 
 * ``FLOCKER_CERTS_PATH`` - typically ``/etc/flocker`` if you're running ``flockerctl`` from a node in the cluster, otherwise, where your certificates are stored.
-* ``FLOCKER_USER`` - the name of a flocker user which has ``.key`` and ``.crt`` file in the certs path.
+* ``FLOCKER_USER`` - the name of a flocker user which has ``.key`` and ``.crt`` file in the certs path. See :ref:`generate-api-standalone-flocker`.
 * ``FLOCKER_CONTROL_SERVICE`` - the address (DNS name or IP address) of the control service. The name you use should match up with the name you specified when creating the cluster certificates.
 
 Running the CLI
