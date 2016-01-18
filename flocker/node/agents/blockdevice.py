@@ -1732,12 +1732,14 @@ class BlockDeviceDeployer(PClass):
                     # in the filesystem yet.
                     pass
 
-        symlinks = {
-            link: link.realpath()
-            for link in iter(self.link_root.child(f)
-                             for f in self.link_root.listdir())
-            if link.islink()
-        }
+        symlinks = {}
+        if self.link_root.exists() and self.link_root.isdir():
+            symlinks = {
+                link: link.realpath()
+                for link in iter(self.link_root.child(f)
+                                 for f in self.link_root.listdir())
+                if link.islink()
+            }
 
         result = RawState(
             compute_instance_id=compute_instance_id,
