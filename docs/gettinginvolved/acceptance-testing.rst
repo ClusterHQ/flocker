@@ -153,6 +153,7 @@ To run the acceptance tests on AWS, you need:
      zone: <aws zone, e.g. "us-west-2a">
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
+     session_token: <optional aws session token>
      keyname: <ssh-key-name>
      security_groups: ["<permissive security group>"]
      instance_type: <instance type, e.g. "m3.large">

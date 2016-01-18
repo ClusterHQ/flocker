@@ -9,7 +9,6 @@ import os
 import pwd
 from unittest import skipIf, SkipTest
 from uuid import uuid4
-from datetime import timedelta
 from distutils.version import LooseVersion
 
 import psutil
@@ -166,9 +165,8 @@ class DummyDeployer(object):
     """
     hostname = u"127.0.0.1"
     node_uuid = uuid4()
-    poll_interval = timedelta(seconds=1.0)
 
-    def discover_state(self, node_state):
+    def discover_state(self, cluster_state):
         return succeed(DummyLocalState())
 
     def calculate_changes(self, desired_configuration, cluster_state,
@@ -181,8 +179,7 @@ class ControllableDeployer(object):
     """
     ``IDeployer`` whose results can be controlled for any ``NodeLocalState``.
     """
-    def __init__(self, hostname, local_states, calculated_actions,
-                 poll_interval=timedelta(seconds=1.0)):
+    def __init__(self, hostname, local_states, calculated_actions):
         """
         :param list local_states: A list of results to produce from
             ``discover_state``.  Each call to ``discover_state`` pops the first
@@ -190,16 +187,16 @@ class ControllableDeployer(object):
             is an exception, it is raised.  Otherwise it must be a
             ``Deferred`` that resolves to a ``NodeState``. This ``IDeployer``
             always returns a ``NodeLocalState`` from ``discover_state``.
-        :param poll_interval: How many seconds to sleep between iterations.
         """
         self.node_uuid = ip_to_uuid(hostname)
         self.hostname = hostname
         self.local_states = local_states
         self.calculated_actions = calculated_actions
         self.calculate_inputs = []
-        self.poll_interval = poll_interval
+        self.discover_inputs = []
 
-    def discover_state(self, node_state):
+    def discover_state(self, cluster_state):
+        self.discover_inputs.append(cluster_state)
         state = self.local_states.pop(0)
         if isinstance(state, Exception):
             raise state
@@ -276,7 +273,7 @@ def ideployer_tests_factory(fixture):
             # cache?
             self._deployer = self._make_deployer()
             result = self._deployer.discover_state(
-                NodeState(hostname=b"10.0.0.1"))
+                DeploymentState(nodes={NodeState(hostname=b"10.0.0.1")}))
             return result
 
         def test_discover_state_ilocalstate_result(self):

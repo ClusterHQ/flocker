@@ -6,17 +6,17 @@ Helpers for validating API input and output against JSON Schema.
 See https://python-jsonschema.readthedocs.org/en/v2.3.0/.
 """
 
+import copy
+
+from jsonschema.validators import RefResolver, validator_for
+from jsonschema import draft4_format_checker
+
 __all__ = [
     "SchemaNotProvided",
     "LocalRefResolver",
     "getValidator",
     "resolveSchema",
 ]
-
-import copy
-
-from jsonschema.validators import RefResolver, validator_for
-from jsonschema import draft4_format_checker
 
 
 class SchemaNotProvided(Exception):

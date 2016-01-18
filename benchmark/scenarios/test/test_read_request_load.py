@@ -312,7 +312,9 @@ class read_request_load_scenarioTest(TestCase):
         cluster = self.make_cluster(RequestErrorFakeFlockerClient)
         delay = 1
 
-        cluster.get_control_service(c).delay = delay
+        control_service = cluster.get_control_service(c)
+
+        control_service.delay = delay
         sample_size = 5
         s = read_request_load_scenario(
             c, cluster, request_rate=10, sample_size=sample_size
@@ -328,9 +330,9 @@ class read_request_load_scenarioTest(TestCase):
         # Force the control service to fail requests for one second.
         # These requests will fail after the delay period set in the
         # control service.
-        cluster.get_control_service(c).fail_requests = True
+        control_service.fail_requests = True
         c.advance(1)
-        cluster.get_control_service(c).fail_requests = False
+        control_service.fail_requests = False
 
         d.addCallback(lambda ignored: s.stop())
 
@@ -348,8 +350,7 @@ class read_request_load_scenarioTest(TestCase):
     def test_scenario_timeouts_if_requests_not_completed(self, _logger):
         """
         ``read_request_load_scenario`` should timeout if the outstanding
-        requests for the scenarion do not complete within the specified
-        time.
+        requests for the scenario do not complete within the specified time.
         """
         c = Clock()
 
@@ -359,9 +360,11 @@ class read_request_load_scenarioTest(TestCase):
             c, cluster, request_rate=10, sample_size=sample_size
         )
 
+        control_service = cluster.get_control_service(c)
+
         # Set the delay for the requests to be longer than the scenario
         # timeout
-        cluster.get_control_service(c).delay = s.timeout + 10
+        control_service.delay = s.timeout + 10
 
         d = s.start()
         s.maintained().addBoth(lambda x: self.fail())
@@ -370,9 +373,9 @@ class read_request_load_scenarioTest(TestCase):
         # requested rate.
         c.pump(repeat(1, sample_size))
 
-        cluster.get_control_service(c).fail_requests = True
+        control_service.fail_requests = True
         c.advance(1)
-        cluster.get_control_service(c).fail_requests = False
+        control_service.fail_requests = False
 
         d.addCallback(lambda ignored: s.stop())
 

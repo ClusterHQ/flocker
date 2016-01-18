@@ -1,40 +1,10 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
+from __future__ import absolute_import
+
 """
 Various utilities to help with unit and functional testing.
 """
-
-from __future__ import absolute_import
-
-__all__ = [
-    'AsyncTestCase',
-    'CustomException',
-    'DockerImageBuilder',
-    'FakeProcessReactor',
-    'FakeSysModule',
-    'FlockerScriptTestsMixin',
-    'MemoryCoreReactor',
-    'REALISTIC_BLOCKDEVICE_SIZE',
-    'make_standard_options_tests',
-    'TestCase',
-    'assertContainsAll',
-    'assertNoFDsLeaked',
-    'assert_equal_comparison',
-    'assert_not_equal_comparison',
-    'async_runner',
-    'attempt_effective_uid',
-    'find_free_port',
-    'flaky',
-    'help_problems',
-    'if_root',
-    'logged_run_process',
-    'make_script_tests',
-    'make_with_init_tests',
-    'not_root',
-    'random_name',
-    'run_process',
-    'skip_on_broken_permissions',
-]
 
 import gc
 import io
@@ -66,6 +36,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
+from twisted.internet.base import _ThreePhaseEvent
 from twisted.internet.task import Clock
 from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone
@@ -80,8 +51,36 @@ from ._base import AsyncTestCase, TestCase, async_runner
 from ._flaky import flaky
 from .. import __version__
 from ..common import RACKSPACE_MINIMUM_VOLUME_SIZE
-from ..common.script import (
-    FlockerScriptRunner, ICommandLineScript)
+from ..common.script import FlockerScriptRunner, ICommandLineScript
+
+__all__ = [
+    'AsyncTestCase',
+    'CustomException',
+    'DockerImageBuilder',
+    'FakeProcessReactor',
+    'FakeSysModule',
+    'MemoryCoreReactor',
+    'REALISTIC_BLOCKDEVICE_SIZE',
+    'make_standard_options_test',
+    'TestCase',
+    'assertContainsAll',
+    'assertNoFDsLeaked',
+    'assert_equal_comparison',
+    'assert_not_equal_comparison',
+    'async_runner',
+    'attempt_effective_uid',
+    'find_free_port',
+    'flaky',
+    'help_problems',
+    'if_root',
+    'logged_run_process',
+    'make_script_tests',
+    'make_with_init_tests',
+    'not_root',
+    'random_name',
+    'run_process',
+    'skip_on_broken_permissions',
+]
 
 REALISTIC_BLOCKDEVICE_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
 
@@ -770,7 +769,6 @@ not_root = skipIf(os.getuid() == 0, "Must not run as root.")
 
 # TODO: This should be provided by Twisted (also it should be more complete
 # instead of 1/3rd done).
-from twisted.internet.base import _ThreePhaseEvent
 
 
 @implementer(IReactorCore)

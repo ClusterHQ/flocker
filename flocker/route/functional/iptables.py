@@ -21,14 +21,16 @@ def get_iptables_rules():
     return [
         rule
         for rule in rules.splitlines()
-        # Comments don't matter.  They always differ because they
-        # include timestamps.
-        if not rule.startswith("#")
-        # Chain data could matter but doesn't.  The implementation
-        # doesn't mess with this stuff.  It typically differs in
-        # uninteresting ways - such as matched packet counters.
-        and not rule.startswith(":")
-        ]
+        if (
+            # Comments don't matter.  They always differ because they
+            # include timestamps.
+            not rule.startswith("#") and
+            # Chain data could matter but doesn't.  The implementation
+            # doesn't mess with this stuff.  It typically differs in
+            # uninteresting ways - such as matched packet counters.
+            not rule.startswith(":")
+        )
+    ]
 
 
 class _Namespace(object):

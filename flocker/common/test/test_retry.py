@@ -9,7 +9,7 @@ from itertools import repeat, count
 from functools import partial
 
 from testtools.matchers import (
-    MatchesPredicate, Equals, AllMatch, IsInstance, GreaterThan, raises
+    MatchesPredicate, Is, Equals, AllMatch, IsInstance, GreaterThan, raises
 )
 
 from eliot import MessageType, fields
@@ -582,7 +582,10 @@ class RetryEffectTests(TestCase):
     def get_time(self, times=None):
         if times is None:
             times = [1.0, 2.0, 3.0, 4.0, 5.0]
-        return lambda: times.pop(0)
+
+        def fake_time():
+            return times.pop(0)
+        return fake_time
 
     def test_immediate_success(self):
         """
@@ -688,6 +691,46 @@ class RetryEffectTests(TestCase):
         self.assertRaises(
             CustomException,
             perform_sequence, expected_intents, retrier
+        )
+
+    def test_timeout_measured_from_perform(self):
+        """
+        The timeout is measured from the time the effect is performed (not from
+        the time it is created).
+        """
+        timeout = 3.0
+        time = self.get_time([0.0] + list(timeout + i for i in range(10)))
+
+        exceptions = [Exception("One problem")]
+        result = object()
+
+        def tester():
+            if exceptions:
+                raise exceptions.pop()
+            return result
+
+        retrier = retry_effect_with_timeout(
+            Effect(Func(tester)),
+            timeout=3,
+            time=time,
+        )
+
+        # The retry effect has been created.  Advance time a little bit before
+        # performing it.
+        time()
+
+        expected_intents = [
+            # The first call raises an exception and should be retried even
+            # though (as a side-effect of the `time` call above) the timeout,
+            # as measured from when `retry_effect_with_timeout` was called, has
+            # already elapsed.
+            #
+            # There's no second intent because the second call to the function
+            # succeeds.
+            (Delay(1), lambda ignore: None),
+        ]
+        self.assertThat(
+            perform_sequence(expected_intents, retrier), Is(result)
         )
 
 

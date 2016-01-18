@@ -7,7 +7,6 @@ Tests for flocker base test cases.
 import errno
 import os
 import shutil
-import string
 import unittest
 
 from eliot import MessageType, fields
@@ -17,7 +16,7 @@ from hypothesis.strategies import binary, integers, lists, text
 # Use testtools' TestCase for most of these tests so that bugs in our base test
 # case classes don't invalidate the tests for those classes.
 from testtools import TestCase as TesttoolsTestCase
-from testtools import PlaceHolder, TestResult
+from testtools import TestResult
 from testtools.matchers import (
     AllMatch,
     AfterPreprocessing,
@@ -40,22 +39,24 @@ from testtools.matchers import (
     StartsWith,
     IsInstance,
 )
-
 from twisted.internet.defer import Deferred, succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 
 from .. import CustomException, AsyncTestCase, TestCase
 from .._base import (
-    make_temporary_directory,
+
     _SplitEliotLogs,
     _get_eliot_data,
     _iter_lines,
     _path_for_test_id,
 )
+from ..matchers import dir_exists, file_contents
+from ..strategies import fqpns
 from .._testhelpers import (
     base_test_cases,
     has_results,
+    make_test_case,
     only_skips,
     run_test,
 )
@@ -81,18 +82,12 @@ class BaseTestCaseTests(TesttoolsTestCase):
         result = run_test(test)
         self.assertThat(result, only_skips(1, [reason]))
 
-    @given(base_test_cases)
-    def test_mktemp_doesnt_exist(self, base_test_case):
+    @given(base_test_cases.map(make_test_case))
+    def test_mktemp_doesnt_exist(self, test):
         """
         ``mktemp`` returns a path that doesn't exist inside a directory that
         does.
         """
-
-        class SomeTest(base_test_case):
-            def test_pass(self):
-                pass
-
-        test = SomeTest('test_pass')
         temp_path = FilePath(test.mktemp())
         self.addCleanup(_remove_dir, temp_path.parent())
 
@@ -118,8 +113,68 @@ class BaseTestCaseTests(TesttoolsTestCase):
         self.addCleanup(os.unlink, path)
         self.assertThat(path, FileContains('hello'))
 
+    @given(base_test_cases.map(make_test_case))
+    def test_make_temporary_path_doesnt_exist(self, test):
+        """
+        ``make_temporary_path`` returns a path that doesn't exist inside a
+        directory that does.
+        """
+        temp_path = test.make_temporary_path()
+        self.addCleanup(_remove_dir, temp_path.parent())
+
+        self.expectThat(temp_path.parent().path, DirExists())
+        self.expectThat(temp_path.path, Not(PathExists()))
+        self.assertThat(temp_path, BelowPath(FilePath(os.getcwd())))
+
     @given(base_test_cases)
-    def test_run_twice(self, base_test_case):
+    def test_make_temporary_path_not_deleted(self, base_test_case):
+        """
+        ``make_temporary_path`` returns a path that's not deleted after the
+        test is run.
+        """
+        created_files = []
+
+        class SomeTest(base_test_case):
+            def test_create_file(self):
+                path = self.make_temporary_path()
+                created_files.append(path)
+                path.setContent('hello')
+
+        run_test(SomeTest('test_create_file'))
+        [path] = created_files
+        self.addCleanup(path.remove)
+        self.assertThat(path.path, FileContains('hello'))
+
+    @given(base_test_cases.map(make_test_case))
+    def test_make_temporary_directory_exists(self, test):
+        """
+        ``make_temporary_directory`` returns a path to a directory.
+        """
+        temp_dir = test.make_temporary_directory()
+        self.addCleanup(_remove_dir, temp_dir)
+        self.assertThat(temp_dir, dir_exists())
+
+    @given(base_test_cases.map(make_test_case), binary(average_size=20))
+    def test_make_temporary_file_with_content(self, test, content):
+        """
+        ``make_temporary_file`` returns a path to an existing file.
+        """
+        temp_file = test.make_temporary_file(content)
+        self.addCleanup(temp_file.remove)
+        self.assertThat(temp_file, file_contents(Equals(content)))
+
+    @given(base_test_cases.map(make_test_case))
+    def test_make_temporary_file(self, test):
+        """
+        ``make_temporary_file`` returns a path to an existing file. If no
+        content is provided, defaults to an empty file.
+        """
+        temp_file = test.make_temporary_file()
+        self.addCleanup(temp_file.remove)
+        self.assertThat(temp_file, file_contents(Equals('')))
+
+    @given(base_test_cases.map(make_test_case))
+    def test_run_twice(self, test):
         """
         Tests can be run twice without errors.
 
@@ -128,12 +183,6 @@ class BaseTestCaseTests(TesttoolsTestCase):
         coverage is inadequate for a thorough fix. However, this will be
         enough to let us use ``trial -u`` (see FLOC-3462).
         """
-
-        class SomeTest(base_test_case):
-            def test_something(self):
-                pass
-
-        test = SomeTest('test_something')
         result = TestResult()
         test.run(result)
         test.run(result)
@@ -159,7 +208,7 @@ class BaseTestCaseTests(TesttoolsTestCase):
             test.getDetails(),
             ContainsDict({
                 'twisted-log': match_text_content(MatchesRegex(
-                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4} \[-\] foo$'
+                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4} \[-\] foo'
                 )),
             }))
 
@@ -183,7 +232,7 @@ class BaseTestCaseTests(TesttoolsTestCase):
             test.getDetails(),
             MatchesDict({
                 'twisted-log': match_text_content(MatchesRegex(
-                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4} \[-\] foo$'
+                    r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4} \[-\] foo'
                 )),
                 _SplitEliotLogs._ELIOT_LOG_DETAIL_NAME: match_text_content(
                     Contains("  message_type: 'foo'\n"
@@ -269,14 +318,6 @@ class GetEliotDataTests(TesttoolsTestCase):
         self.assertThat(_get_eliot_data(logged_line), Equals(expected))
 
 
-identifier_characters = string.ascii_letters + string.digits + '_'
-identifiers = text(average_size=20, min_size=1, alphabet=identifier_characters)
-fqpns = lists(
-    identifiers, min_size=1, average_size=5).map(lambda xs: '.'.join(xs))
-tests = lists(identifiers, min_size=3, average_size=5).map(
-    lambda xs: PlaceHolder('.'.join(xs)))
-
-
 class MakeTemporaryTests(TesttoolsTestCase):
     """
     Tests for code for making temporary files and directories for tests.
@@ -312,16 +353,6 @@ class MakeTemporaryTests(TesttoolsTestCase):
         """
         assume(test_id.count('.') < 2)
         self.assertRaises(ValueError, _path_for_test_id, test_id)
-
-    @given(tests)
-    def test_make_temporary_directory(self, test):
-        """
-        Given a test, make a temporary directory.
-        """
-        temp_dir = make_temporary_directory(test)
-        self.addCleanup(_remove_dir, temp_dir)
-        self.expectThat(temp_dir.path, DirExists())
-        self.assertThat(temp_dir, BelowPath(FilePath(os.getcwd())))
 
 
 def _remove_dir(path):

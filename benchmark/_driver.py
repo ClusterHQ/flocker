@@ -70,11 +70,11 @@ def benchmark(scenario, operation, metric, num_samples):
     :param IOperation operation: An operation to perform.
     :param IMetric metric: A quantity to measure.
     :param int num_samples: Number of samples to take.
-    :return: Deferred firing with a list of samples. Each sample is a
-        dictionary containing a ``success`` boolean. If ``success is True``,
-        the dictionary also contains a ``value`` for the sample measurement.
-        If ``success is False``, the dictionary also contains a ``reason`` for
-        failure.
+    :return: Deferred firing with a tuple containing one list of
+        benchmark samples and one scenario metrics result. See the
+        ``sample`` function for the structure of the samples.  The
+        scenario metrics are a dictionary containing information about
+        the scenario.
     """
     scenario_established = scenario.start()
 
@@ -101,7 +101,18 @@ def benchmark(scenario, operation, metric, num_samples):
 
     benchmarking = scenario_established.addCallback(collect_samples)
 
-    benchmarking.addBoth(bypass, scenario.stop)
+    def stop_scenario(samples):
+        d = scenario.stop()
+
+        def combine_results(scenario_metrics):
+            return (samples, scenario_metrics)
+        d.addCallback(combine_results)
+
+        return d
+    benchmarking.addCallbacks(
+        stop_scenario,
+        bypass, errbackArgs=[scenario.stop]
+    )
 
     return benchmarking
 
@@ -143,8 +154,11 @@ def driver(
 
     d.addCallback(run_benchmark)
 
-    def add_samples(samples, result):
+    def add_samples(outputs, result):
+        samples, scenario_metrics = outputs
         result['samples'] = samples
+        if scenario_metrics:
+            result['scenario']['metrics'] = scenario_metrics
         return result
 
     d.addCallback(add_samples, result)

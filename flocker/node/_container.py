@@ -238,8 +238,6 @@ class ApplicationNodeDeployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    poll_interval = timedelta(seconds=1.0)
-
     def __init__(self, hostname, docker_client=None, network=None,
                  node_uuid=None):
         if node_uuid is None:
@@ -413,7 +411,7 @@ class ApplicationNodeDeployer(object):
             )
         )
 
-    def discover_state(self, local_state):
+    def discover_state(self, cluster_state):
         """
         List all the ``Application``\ s running on this node.
 
@@ -433,6 +431,8 @@ class ApplicationNodeDeployer(object):
             ``Application`` and ports. ``NodeState.manifestations`` and
             ``NodeState.paths`` will not be filled in.
         """
+        local_state = cluster_state.get_node(self.node_uuid,
+                                             hostname=self.hostname)
         if local_state.manifestations is None:
             # Without manifestations we don't know if local applications'
             # volumes are manifestations or not. Rather than return
@@ -583,7 +583,7 @@ class ApplicationNodeDeployer(object):
         )
 
         return (
-            comparable_state != comparable_configuration
+            comparable_state != comparable_configuration or
 
             # Restart policies were briefly supported but they interact poorly
             # with system restarts.  They're disabled now (except for the
@@ -594,9 +594,9 @@ class ApplicationNodeDeployer(object):
             #
             # Also restart policies don't implement comparison usefully.  See
             # FLOC-2500.
-            or not isinstance(restart_state, RestartNever)
+            not isinstance(restart_state, RestartNever) or
 
-            or self._restart_for_volume_change(
+            self._restart_for_volume_change(
                 node_state, volume_state, volume_configuration
             )
         )
@@ -712,4 +712,6 @@ class ApplicationNodeDeployer(object):
         start_restart = start_containers + restart_containers
         if start_restart:
             phases.append(in_parallel(changes=start_restart))
-        return sequentially(changes=phases)
+
+        return sequentially(changes=phases,
+                            sleep_when_empty=timedelta(seconds=1))

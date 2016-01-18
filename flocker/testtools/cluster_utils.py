@@ -25,6 +25,7 @@ class Providers(Values):
     UNSPECIFIED = ValueConstant(0)
     AWS = ValueConstant(1)
     OPENSTACK = ValueConstant(2)
+    GCE = ValueConstant(3)
 
 
 def _hashable(values):

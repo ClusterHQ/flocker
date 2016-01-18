@@ -14,6 +14,8 @@ providers.
 changes.
 """
 
+from datetime import timedelta
+
 from zope.interface import Interface, Attribute, implementer
 
 from pyrsistent import PVector, pvector, field, PClass
@@ -108,7 +110,7 @@ class _InParallel(PClass):
         ))
 
 
-def in_parallel(changes):
+def in_parallel(changes, sleep_when_empty=timedelta(seconds=60)):
     """
     Run a series of changes in parallel.
 
@@ -117,14 +119,19 @@ def in_parallel(changes):
     The order in which execution of the changes is started is unspecified.
     Comparison of the resulting object disregards the ordering of the changes.
 
-    @param changes: A sequence of ``IStateChange`` providers.
+    :param changes: A sequence of ``IStateChange`` providers.
+    :param timedelta sleep_when_empty: Sleep value for returned ``NoOp``
+        if no changes are given.
 
-    @return: ``IStateChange`` provider that will run given changes in
+    :return: ``IStateChange`` provider that will run given changes in
         parallel, or ``NoOp`` instance if changes are empty or all
-        ``NoOp``.
+        ``NoOp``. In former case sleep will be ``sleep_when_empty``, in
+        latter the minimum sleep of the ``NoOp`` instances.
     """
-    if all(c == NoOp() for c in changes):
-        return NoOp()
+    if all(isinstance(c, NoOp) for c in changes):
+        sleep = (min(c.sleep for c in changes) if changes
+                 else sleep_when_empty)
+        return NoOp(sleep=sleep)
     return _InParallel(changes=changes)
 
 
@@ -147,20 +154,25 @@ class _Sequentially(PClass):
         return d.result
 
 
-def sequentially(changes):
+def sequentially(changes, sleep_when_empty=timedelta(seconds=60)):
     """
     Run a series of changes in sequence, one after the other.
 
     Failures in earlier changes stop later changes.
 
-    @param changes: A sequence of ``IStateChange`` providers.
+    :param changes: A sequence of ``IStateChange`` providers.
+    :param timedelta sleep_when_empty: Sleep value for returned ``NoOp``
+        if no changes are given.
 
-    @return: ``IStateChange`` provider that will run given changes
+    :return: ``IStateChange`` provider that will run given changes
         serially, or ``NoOp`` instance if changes are empty or all
-        ``NoOp``.
+        ``NoOp``. In former case sleep will be ``sleep_when_empty``, in
+        latter the minimum sleep of the ``NoOp`` instances.
     """
-    if all(c == NoOp() for c in changes):
-        return NoOp()
+    if all(isinstance(c, NoOp) for c in changes):
+        sleep = (min(c.sleep for c in changes) if changes
+                 else sleep_when_empty)
+        return NoOp(sleep=sleep)
     return _Sequentially(changes=changes)
 
 
@@ -171,7 +183,12 @@ LOG_NOOP = ActionType("flocker:change:noop", [], [], "We've done nothing.")
 class NoOp(PClass):
     """
     Do nothing.
+
+    :param timedelta sleep: Tell the convergence loop how long to
+        sleep until waking up again.
     """
+    sleep = field(type=timedelta, mandatory=True)
+
     @property
     def eliot_action(self):
         return LOG_NOOP()
