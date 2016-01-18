@@ -6,7 +6,7 @@ Other Systems
 
 Flocker can be used with other systems by integrating them with the :ref:`api`.
 
-If you are interested in integrating Flocker with other systems, we would love to talk.
+If you are interested in integrating Flocker with other systems, we would love to hear from you.
 Please :ref:`talk-to-us`!
 
 Flocker Installation Options
@@ -19,12 +19,12 @@ Flocker Installation Options
 		   <span>Install Flocker manually
            <em><a href="../supported.html">Works with all Supported Configurations</a></em></span>
            </span>
-		     <a href="manual-install.html" class="button">Manual Installation</a>
+		     <a href="manual-install.html" class="button">Install Manually</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
-		   <span>Labs Installer
+		   <span>Use the Labs Installer
            <em>Supports Ubuntu and CoreOS on AWS only</em></span>
-		     <a href="installer.html" class="button">Installation</a>
+		     <a href="installer.html" class="button">Labs Installer</a>
 	    </div>
 	</div>
 

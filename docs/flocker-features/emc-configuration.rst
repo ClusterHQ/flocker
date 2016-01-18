@@ -1,8 +1,8 @@
 .. _emc-dataset-backend:
 
-======================================
-EMC Block Device Backend Configuration
-======================================
+========================
+EMC Block Device Backend
+========================
 
 .. begin-body
 

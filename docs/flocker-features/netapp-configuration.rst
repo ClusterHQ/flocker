@@ -1,8 +1,8 @@
 .. _netapp-backend:
 
-=========================================
-NetApp Block Device Backend Configuration
-=========================================
+===========================
+NetApp Block Device Backend
+===========================
 
 .. begin-body
 

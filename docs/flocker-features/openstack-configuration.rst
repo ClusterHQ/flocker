@@ -1,8 +1,8 @@
 .. _openstack-dataset-backend:
 
-============================================
-OpenStack Block Device Backend Configuration
-============================================
+==============================
+OpenStack Block Device Backend
+==============================
 
 .. begin-body
 

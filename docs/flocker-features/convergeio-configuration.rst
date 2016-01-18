@@ -1,8 +1,8 @@
 .. _convergeio-backend:
 
-=============================================
-ConvergeIO Block Device Backend Configuration
-=============================================
+===============================
+ConvergeIO Block Device Backend 
+===============================
 
 .. begin-body
 

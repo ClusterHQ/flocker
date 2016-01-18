@@ -1,8 +1,8 @@
 .. _hedvig-backend:
 
-=========================================
-Hedvig Block Device Backend Configuration
-=========================================
+===========================
+Hedvig Block Device Backend
+===========================
 
 .. begin-body
 

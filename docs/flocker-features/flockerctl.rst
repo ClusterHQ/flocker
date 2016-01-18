@@ -132,8 +132,8 @@ It will produce output like this::
         --version  Display Twisted version and exit.
         --help     Display this help and exit.
 
-Create a Volume
-===============
+Creating a Volume
+=================
 
 To create a volume you tell the CLI the ID of the node you want it attached to, the maximum size and some optional metadata.
 
@@ -169,8 +169,8 @@ It will produce output like this::
           --version    Display Twisted version and exit.
           --help       Display this help and exit.
 
-List Volumes
-============
+Listing Volumes
+===============
 
 To list the volumes in your cluster - use the ``list`` command::
 
@@ -195,8 +195,8 @@ It will produce output like this::
           --version  Display Twisted version and exit.
           --help     Display this help and exit.
 
-Move Volumes
-============
+Moving Volumes
+==============
 
 To move a volume from one node to another - use the ``move`` command.
 
@@ -224,8 +224,8 @@ It will produce output like this::
           --help          Display this help and exit.
 
 
-Destroy Volumes
-===============
+Destroying Volumes
+==================
 
 To mark a volume as destroyed - use the ``destroy`` command.
 

@@ -1,8 +1,8 @@
 .. _saratogaspeed-backend:
 
-=================================================
-Saratoga Speed Block Device Backend Configuration
-=================================================
+===================================
+Saratoga Speed Block Device Backend
+===================================
 
 .. begin-body
 

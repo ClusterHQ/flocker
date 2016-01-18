@@ -1,8 +1,8 @@
 .. _nexenta-backend:
 
-==============================================
-NexentaEdge Block Device Backend Configuration
-==============================================
+================================
+NexentaEdge Block Device Backend
+================================
 
 .. begin-body
 

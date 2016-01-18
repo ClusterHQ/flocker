@@ -1,8 +1,8 @@
 .. _loopback-dataset-backend:
 
-==============================================================
-Loopback Block Device Backend Configuration (INTERNAL TESTING)
-==============================================================
+================================================
+Loopback Block Device Backend (INTERNAL TESTING)
+================================================
 
 .. begin-body
 

@@ -78,7 +78,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
-			<h2 class="step-stages__heading">The Waiting Bit</h2>
+			<h2 class="step-stages__heading">The waiting bit!</h2>
 			<p>Wait for the cluster to come up. This can take 5-10 minutes.</p>
 		</div>
 		<div class="step-stages__step first">

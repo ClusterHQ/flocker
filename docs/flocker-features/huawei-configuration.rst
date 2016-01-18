@@ -1,8 +1,8 @@
 .. _huawei-backend:
 
-=========================================
-Huawei Block Device Backend Configuration
-=========================================
+===========================
+Huawei Block Device Backend
+===========================
 
 .. begin-body
 

@@ -1,8 +1,8 @@
 .. _aws-dataset-backend:
 
-===================================================
-Amazon AWS / EBS Block Device Backend Configuration
-===================================================
+=====================================
+Amazon AWS / EBS Block Device Backend 
+=====================================
 
 .. begin-body
 

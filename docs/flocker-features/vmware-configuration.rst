@@ -1,8 +1,8 @@
 .. _vmware-backend:
 
-=========================================
-VMware Block Device Backend Configuration
-=========================================
+===========================
+VMware Block Device Backend
+===========================
 
 .. begin-body
 

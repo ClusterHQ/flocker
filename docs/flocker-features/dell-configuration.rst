@@ -1,8 +1,8 @@
 .. _dell-dataset-backend:
 
-=================================================
-Dell SC Series Block Device Backend Configuration
-=================================================
+===================================
+Dell SC Series Block Device Backend
+===================================
 
 .. begin-body
 
