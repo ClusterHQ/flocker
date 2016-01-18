@@ -14,7 +14,6 @@ Next Release
 
 * Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
 
-
 This Release
 ============
 
