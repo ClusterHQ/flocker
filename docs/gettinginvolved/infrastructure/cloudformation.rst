@@ -52,7 +52,7 @@ Building CloudFormation Machine Images
 
 The Flocker virtual machine images used in the CloudFormation template can be built using a tool called Packer.
 The Flocker source repository has an ``admin/packer`` sub-directory which contains Packer templates and provisioning scripts.
-These are used to create Ubuntu AMI images for use in the Flocker Cloudformation demonstration environment.
+These are used to create Ubuntu AMI images for use in the Flocker CloudFormation demonstration environment.
 The images are built in two steps: Ubuntu + Docker base image then Flocker the image.
 This speeds up the build process because Docker does not have to be installed each time we update the Flocker image.
 It also allows control over the version of Docker in our demonstration environment.
