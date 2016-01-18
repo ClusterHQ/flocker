@@ -21,7 +21,7 @@ from pyrsistent import pmap
 
 from eliot.testing import capture_logging
 
-from .._api import VolumePlugin, DEFAULT_SIZE, parse_num
+from .._api import VolumePlugin, DEFAULT_SIZE, parse_num, NAME_FIELD
 from ...apiclient import FakeFlockerClient, Dataset, DatasetsConfiguration
 from ...testtools import CustomException, random_name
 
@@ -138,7 +138,7 @@ class APITestsMixin(APIAssertionsMixin):
                               Dataset(dataset_id=result[0].dataset_id,
                                       primary=self.NODE_A,
                                       maximum_size=int(DEFAULT_SIZE.to_Byte()),
-                                      metadata={u"name": name,
+                                      metadata={NAME_FIELD: name,
                                                 u"clusterhq:flocker:profile":
                                                 unicode(profile)})]))
         return d
@@ -167,7 +167,7 @@ class APITestsMixin(APIAssertionsMixin):
                               Dataset(dataset_id=result[0].dataset_id,
                                       primary=self.NODE_A,
                                       maximum_size=real_size,
-                                      metadata={u"name": name,
+                                      metadata={NAME_FIELD: name,
                                                 u"maximum_size":
                                                 unicode(real_size)})]))
         return d
@@ -248,7 +248,7 @@ class APITestsMixin(APIAssertionsMixin):
                               Dataset(dataset_id=result[0].dataset_id,
                                       primary=self.NODE_A,
                                       maximum_size=int(DEFAULT_SIZE.to_Byte()),
-                                      metadata={u"name": name})]))
+                                      metadata={NAME_FIELD: name})]))
         return d
 
     def test_create_duplicate_name(self):
@@ -260,7 +260,8 @@ class APITestsMixin(APIAssertionsMixin):
         # Create a dataset out-of-band with matching name but non-matching
         # dataset ID:
         d = self.flocker_client.create_dataset(
-            self.NODE_A, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name})
+            self.NODE_A, int(DEFAULT_SIZE.to_Byte()),
+            metadata={NAME_FIELD: name})
         d.addCallback(lambda _: self.create(name))
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
@@ -284,7 +285,7 @@ class APITestsMixin(APIAssertionsMixin):
             # its existence:
             d = self.flocker_client.create_dataset(
                 self.NODE_A, int(DEFAULT_SIZE.to_Byte()),
-                metadata={u"name": name})
+                metadata={NAME_FIELD: name})
             d.addCallback(lambda _: DatasetsConfiguration(
                 tag=u"1234", datasets={}))
             return d
@@ -322,7 +323,8 @@ class APITestsMixin(APIAssertionsMixin):
 
         # Create dataset on a different node:
         d = self.flocker_client.create_dataset(
-            self.NODE_B, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name},
+            self.NODE_B, int(DEFAULT_SIZE.to_Byte()),
+            metadata={NAME_FIELD: name},
             dataset_id=dataset_id)
 
         self._flush_volume_plugin_reactor_on_endpoint_render()
@@ -363,7 +365,8 @@ class APITestsMixin(APIAssertionsMixin):
         dataset_id = uuid4()
         # Create dataset on a different node:
         d = self.flocker_client.create_dataset(
-            self.NODE_B, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name},
+            self.NODE_B, int(DEFAULT_SIZE.to_Byte()),
+            metadata={NAME_FIELD: name},
             dataset_id=dataset_id)
 
         self._flush_volume_plugin_reactor_on_endpoint_render()
@@ -391,7 +394,8 @@ class APITestsMixin(APIAssertionsMixin):
         name = u"myvol"
 
         d = self.flocker_client.create_dataset(
-            self.NODE_A, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name})
+            self.NODE_A, int(DEFAULT_SIZE.to_Byte()),
+            metadata={NAME_FIELD: name})
 
         def created(dataset):
             self.flocker_client.synchronize_state()
@@ -454,7 +458,8 @@ class APITestsMixin(APIAssertionsMixin):
         name = u"myvol"
 
         d = self.flocker_client.create_dataset(
-            self.NODE_A, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name})
+            self.NODE_A, int(DEFAULT_SIZE.to_Byte()),
+            metadata={NAME_FIELD: name})
 
         def created(dataset):
             self.flocker_client.synchronize_state()
@@ -493,7 +498,8 @@ class APITestsMixin(APIAssertionsMixin):
 
         # Create dataset on node B:
         d = self.flocker_client.create_dataset(
-            self.NODE_B, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name},
+            self.NODE_B, int(DEFAULT_SIZE.to_Byte()),
+            metadata={NAME_FIELD: name},
             dataset_id=dataset_id)
         d.addCallback(lambda _: self.flocker_client.synchronize_state())
 
@@ -598,7 +604,8 @@ class APITestsMixin(APIAssertionsMixin):
         name = u"myvol"
 
         d = self.flocker_client.create_dataset(
-            self.NODE_A, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name})
+            self.NODE_A, int(DEFAULT_SIZE.to_Byte()),
+            metadata={NAME_FIELD: name})
 
         def created(dataset):
             self.flocker_client.synchronize_state()
@@ -634,7 +641,8 @@ class APITestsMixin(APIAssertionsMixin):
 
         # Create dataset on node B:
         d = self.flocker_client.create_dataset(
-            self.NODE_B, int(DEFAULT_SIZE.to_Byte()), metadata={u"name": name},
+            self.NODE_B, int(DEFAULT_SIZE.to_Byte()),
+            metadata={NAME_FIELD: name},
             dataset_id=dataset_id)
         d.addCallback(lambda _: self.flocker_client.synchronize_state())
 
@@ -661,10 +669,10 @@ class APITestsMixin(APIAssertionsMixin):
         d = gatherResults([
             self.flocker_client.create_dataset(
                 self.NODE_A, int(DEFAULT_SIZE.to_Byte()),
-                metadata={u"name": name}),
+                metadata={NAME_FIELD: name}),
             self.flocker_client.create_dataset(
                 self.NODE_B, int(DEFAULT_SIZE.to_Byte()),
-                metadata={u"name": remote_name})])
+                metadata={NAME_FIELD: remote_name})])
 
         # The datasets arrive as state:
         d.addCallback(lambda _: self.flocker_client.synchronize_state())
