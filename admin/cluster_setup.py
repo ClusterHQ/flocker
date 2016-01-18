@@ -126,17 +126,44 @@ def _ensure_empty_directory(path):
         )
 
 
-def generate_managed_config(cluster):
+def generate_managed_section(cluster):
+    """
+    Generate a managed configuration section for the given cluster.
+    The section describes the nodes comprising the cluster.
+
+    :param Cluster cluser: The cluster.
+    :return: The managed configuration.
+    :rtype: dict
+    """
     addresses = list()
     for node in cluster.agent_nodes:
         if node.private_address is not None:
             addresses.append([node.private_address, node.address])
         else:
             addresses.append(node.address)
-    config = dict()
-    config["addresses"] = addresses
-    config["upgrade"] = True
-    return {"managed": config}
+    return {
+        "managed": {
+            "addresses": addresses,
+            "upgrade": True,
+        }
+    }
+
+
+def create_managed_config(base_config, cluster):
+    """
+    Generate a full configuration from the given base configuration
+    by adding a managed section for the given cluster instance.
+    The base configuration should provide parameters like the dataset
+    backend configurations and the cluster metadata.
+
+    :param dict base_config: The base configuration.
+    :param Cluster cluser: The cluster.
+    :return: The new configuration with the managed section.
+    :rtype: dict
+    """
+    config = dict(base_config)
+    config.update(generate_managed_section(cluster))
+    return config
 
 
 @inlineCallbacks
@@ -176,9 +203,7 @@ def main(reactor, args, base_path, top_level):
         cluster = yield runner.start_cluster(reactor)
 
         managed_config_file = options['cert-directory'].child("managed.yaml")
-        managed_config = dict()
-        managed_config.update(options['config'])
-        managed_config.update(generate_managed_config(cluster))
+        managed_config = create_managed_config(options['config'], cluster)
         managed_config_file.setContent(
             yaml.safe_dump(managed_config, default_flow_style=False)
         )
