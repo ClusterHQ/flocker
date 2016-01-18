@@ -1,5 +1,3 @@
-.. Single Source Instructions
-
 .. _debugging-flocker:
 
 =========

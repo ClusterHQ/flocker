@@ -57,6 +57,7 @@ Please let us know with the form below!
    mesos-integration/index
    flocker-standalone/index
    supported
+   administering/index
    flocker-features/index
    reference/index
    releasenotes/index
