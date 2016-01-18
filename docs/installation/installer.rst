@@ -56,8 +56,6 @@ Supported Configurations
 ..  * Ubuntu 14.04 on Rackspace with OpenStack backend
 ..  * Ubuntu 14.04 on private OpenStack cloud with OpenStack backend
 
-.. _labs-installer-coreos:
-
 Experimental configurations
 ===========================
 

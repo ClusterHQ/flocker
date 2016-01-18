@@ -36,6 +36,7 @@ The following instructions will take you through installing Flocker with the Ins
 .. toctree::
    :maxdepth: 1
    
+   ../installation/installer
    ../installation/installer-getstarted
    ../installation/installer-tutorial
    ../installation/cluster-cleanup
