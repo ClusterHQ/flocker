@@ -67,9 +67,13 @@ Related Blog Articles
 Learn More
 ==========
 
-To learn more aboutthis integration works, see the following topics:
+To learn more about this integration, see the following topics:
+
+* :ref:`about-docker-integration`
+* :ref:`using-docker-plugin`
 
 .. toctree::
+   :hidden:
 
    about
    control-plugin
