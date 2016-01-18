@@ -7,7 +7,6 @@ Getting Involved
 .. toctree::
    :maxdepth: 2
 
-   virtual-machines
    contributing
    plugins/index
    acceptance-testing
