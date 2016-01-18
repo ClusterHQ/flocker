@@ -8,6 +8,7 @@ from itertools import repeat
 from ipaddr import IPAddress
 
 from treq import json_content
+from eliot import add_destination, Message, Field, MessageType
 
 from twisted.internet.defer import inlineCallbacks
 from twisted.python.filepath import FilePath
@@ -18,6 +19,16 @@ from flocker.common import loop_until
 from flocker.control.httpapi import REST_API_PORT
 from flocker.apiclient import FlockerClient
 from flocker.ca import treq_with_authentication
+from .acceptance import (
+    eliot_output,
+)
+
+_BENCHMARK_SETUP_ACTION = Field.forTypes(
+    "cluster_setup_action", [str], u"Action being currently executed.")
+
+BENCHMAR_ACTION = MessageType(
+    "admin:benchmarksetup:action", [_BENCHMARK_SETUP_ACTION],
+    u"Setup executing")
 
 
 class ContainerOptions(usage.Options):
@@ -86,6 +97,8 @@ class ContainerOptions(usage.Options):
 
 def main(reactor, argv):
     environ = os.environ
+    add_destination(eliot_output)
+
     try:
         options = ContainerOptions()
         options.parseOptions(argv[1:])
@@ -146,7 +159,8 @@ class ClusterContainerDeployment(object):
             self.control_node_address = self.options['control-node']
             self.timeout = self.options['wait']
             if self.timeout is None:
-                self.timeout = 100
+                # Wait two hours by default
+                self.timeout = 72000
         except Exception as e:
             sys.stderr.write("%s: %s\n" % ("Missing or wrong arguments", e))
             sys.stderr.write(e.args[0])
@@ -192,12 +206,12 @@ class ClusterContainerDeployment(object):
         :return Deferred: that will fire once the request to create all
             the containers and datasets has been sent.
         """
-        print "Listing current nodes"
+        Message.log(key="action", value="Listing current nodes")
         d = self.client.list_nodes()
         d.addCallback(self._set_nodes)
-        print "Building config"
+        Message.log(action="Building config")
         d.addCallback(self._build_config)
-        print "Deploying new config"
+        Message.log(action="Deploying new config")
         d.addCallback(self._configure)
         return d
 
@@ -214,8 +228,16 @@ class ClusterContainerDeployment(object):
         d = self.client.list_datasets_state()
 
         def do_we_have_enough_datasets(datasets):
-            print ("Waiting for the datasets to be created"
-                   "(%d/%d)" % (len(datasets), number_of_datasets))
+            msg = (
+                "Waiting for the datasets to be ready"
+                "Created {current_datasets} of {total_datasets}"
+
+            ).format(
+                current_datasets=len(datasets),
+                total_datasets=number_of_datasets,
+            )
+            Message.log(action=msg)
+
             return (len(datasets) >= number_of_datasets)
 
         d.addCallback(do_we_have_enough_datasets)
@@ -234,8 +256,15 @@ class ClusterContainerDeployment(object):
         d = self.client.list_containers_state()
 
         def do_we_have_enough_containers(containers):
-            print ("Waiting for the containers to be created"
-                   "(%d/%d)" % (len(containers), number_of_containers))
+            msg = (
+                "Waiting for the containers to be ready"
+                "Created {current_containers} of {total_containers}"
+
+            ).format(
+                current_containers=len(containers),
+                total_containers=number_of_containers,
+            )
+            Message.log(action=msg)
             return (len(containers) >= number_of_containers)
 
         d.addCallback(do_we_have_enough_containers)
@@ -249,12 +278,13 @@ class ClusterContainerDeployment(object):
         of them have been created.
         """
         yield self.deploy()
-        print "Waiting for the containers to be created..."
-        yield loop_until(self.reactor,
-                         self.is_container_deployment_complete,
-                         repeat(1, self.timeout))
+        Message.log(action="Waiting for the datasets to be created...")
         yield loop_until(self.reactor,
                          self.is_datasets_deployment_complete,
+                         repeat(1, self.timeout))
+        Message.log(action="Waiting for the containers to be created...")
+        yield loop_until(self.reactor,
+                         self.is_container_deployment_complete,
                          repeat(1, self.timeout))
 
     def _build_config(self, ignored):
