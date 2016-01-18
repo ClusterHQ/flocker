@@ -9,6 +9,11 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+Next Release
+============
+
+* Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
+
 This Release
 ============
 

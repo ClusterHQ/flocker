@@ -88,7 +88,8 @@ def pvector_field(item_type, optional=False, initial=()):
                            initial)
 
 
-_valid = lambda item: (True, "")
+def _valid(item):
+    return (True, "")
 
 
 _UNDEFINED = object()
@@ -508,9 +509,12 @@ class LeaseError(Exception):
         :param UUID node_id: The node UUID.
         :param unicode action: The action that failed.
         """
-        message = (u"Cannot " + action + " lease " + unicode(dataset_id)
-                   + u" for node " + unicode(node_id)
-                   + u": Lease already held by another node")
+        message = (
+            u"Cannot {} lease {} for node {}: "
+            u"Lease already held by another node".format(
+                action, unicode(dataset_id), unicode(node_id)
+            )
+        )
         return super(LeaseError, self).__init__(message)
 
 

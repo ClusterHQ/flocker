@@ -11,7 +11,7 @@ import time
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output, check_call
 from stat import S_IRWXU
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -61,10 +61,10 @@ from ..blockdevice import (
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     UnmountBlockDevice, DetachVolume, AttachVolume,
-    CreateFilesystem, DestroyVolume, MountBlockDevice, ActionNeeded,
+    CreateFilesystem, DestroyVolume, MountBlockDevice,
 
     DATASET_TRANSITIONS, IDatasetStateChangeFactory,
-    ICalculator,
+    ICalculator, NOTHING_TO_DO,
 
     DiscoveredDataset, DesiredDataset, DatasetStates,
 
@@ -99,7 +99,7 @@ from ..loopback import (
 from ....common.algebraic import tagged_union_strategy
 
 
-from ... import run_state_change, in_parallel, ILocalState, NoOp, IStateChange
+from ... import run_state_change, in_parallel, ILocalState, IStateChange, NoOp
 from ...testtools import (
     ideployer_tests_factory, to_node, assert_calculated_changes_for_deployer,
     compute_cluster_state,
@@ -159,9 +159,11 @@ _METADATA_STRATEGY = text(average_size=3, min_size=1, alphabet="CGAT")
 DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
     'dataset_id': uuids(),
     'maximum_size': integers(min_value=0).map(
-        lambda n:
-        LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
-        + n*LOOPBACK_ALLOCATION_UNIT),
+        lambda n: (
+            LOOPBACK_MINIMUM_ALLOCATABLE_SIZE +
+            n * LOOPBACK_ALLOCATION_UNIT
+        )
+    ),
     'metadata': dictionaries(keys=_METADATA_STRATEGY,
                              values=_METADATA_STRATEGY),
     'mount_point': builds(FilePath, sampled_from([
@@ -653,7 +655,9 @@ def assert_discovered_state(
         applications=None, manifestations=None, paths=None,
         devices=None,
     )
-    discovering = deployer.discover_state(previous_state)
+    discovering = deployer.discover_state(
+        DeploymentState(nodes={previous_state}),
+    )
     local_state = case.successResultOf(discovering)
 
     case.assertEqual(
@@ -1140,7 +1144,7 @@ class BlockDeviceCalculatorInterfaceTests(
 
 
 class RecordingCalculatorInterfaceTests(
-    make_icalculator_tests(lambda: RecordingCalculator(NoOp()))
+    make_icalculator_tests(lambda: RecordingCalculator(NOTHING_TO_DO))
 ):
     """
     Tests for ``RecordingCalculator``'s implementation of ``ICalculator``.
@@ -1157,8 +1161,10 @@ def compare_dataset_state(discovered_dataset, desired_dataset):
     :return: ``bool`` indicating if the datasets correspond.
     """
     if discovered_dataset is None:
-        return (desired_dataset is None
-                or desired_dataset.state == DatasetStates.DELETED)
+        return (
+            desired_dataset is None or
+            desired_dataset.state == DatasetStates.DELETED
+        )
     if desired_dataset is None:
         return discovered_dataset.state == DatasetStates.NON_MANIFEST
     if discovered_dataset.state != desired_dataset.state:
@@ -1225,10 +1231,12 @@ class BlockDeviceCalculatorTests(TestCase):
         Return the current state of datasets from the deployer.
         """
         return self.successResultOf(self.deployer.discover_state(
-            NodeState(
-                uuid=self.deployer.node_uuid,
-                hostname=self.deployer.hostname,
-            ),
+            DeploymentState(nodes={
+                NodeState(
+                    uuid=self.deployer.node_uuid,
+                    hostname=self.deployer.hostname,
+                ),
+            }),
         )).datasets
 
     def run_convergence_step(self, desired_datasets):
@@ -1316,8 +1324,8 @@ class BlockDeviceCalculatorTests(TestCase):
             DatasetStates.DELETED,
         ]),
         discovered_state=sampled_from(
-            DiscoveredDataset.__invariant__.attributes_for_tag.keys()
-            + [DatasetStates.NON_EXISTENT]
+            DiscoveredDataset.__invariant__.attributes_for_tag.keys() +
+            [DatasetStates.NON_EXISTENT]
         )
     )
     def test_all_transitions(self, desired_state, discovered_state):
@@ -1361,7 +1369,7 @@ def assert_desired_datasets(
     :type additional_node_config: ``set`` of ``Node``s
     :param Leases leases: Leases to include in the cluster configration.
     """
-    calculator = RecordingCalculator(NoOp())
+    calculator = RecordingCalculator(NOTHING_TO_DO)
     deployer = deployer.set(calculator=calculator)
     cluster_configuration = Deployment(
         nodes={
@@ -1908,7 +1916,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
 
         assert_calculated_changes(
             self, local_state, local_config, set(),
-            NoOp(),
+            NOTHING_TO_DO,
         )
 
     def test_deleted_ignored(self):
@@ -2671,7 +2679,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(
-            in_parallel(changes=[ActionNeeded(dataset_id=dataset_id)]),
+            in_parallel(changes=[NoOp(sleep=timedelta(seconds=3))]),
             changes
         )
 
@@ -3075,7 +3083,7 @@ class BlockDeviceDeployerCalculateChangesTests(
             nonmanifest_datasets=[],
             additional_node_states=set(),
             additional_node_config=set(),
-            expected_changes=NoOp(),
+            expected_changes=NOTHING_TO_DO,
             local_state=self.local_state,
         )
 
@@ -5096,30 +5104,6 @@ class AttachVolumeTests(
         self.assertEqual(
             bad_blockdevice_id, failure.value.blockdevice_id
         )
-
-
-class ActionNeededInitTests(
-    make_with_init_tests(
-        record_type=ActionNeeded,
-        kwargs=dict(dataset_id=uuid4()),
-        expected_defaults=dict(),
-    )
-):
-    """
-    Tests for ``ActionNeeded`` initialization.
-    """
-
-
-class ActionNeededTests(
-    make_istatechange_tests(
-        ActionNeeded,
-        dict(dataset_id=uuid4()),
-        dict(dataset_id=uuid4()),
-    )
-):
-    """
-    Tests for ``ActionNeeded``\ 's ``IStateChange`` implementation.
-    """
 
 
 class AllocatedSizeTypeTests(TestCase):

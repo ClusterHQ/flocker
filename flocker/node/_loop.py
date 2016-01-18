@@ -407,8 +407,15 @@ class ConvergenceLoop(object):
             # responsive.
             write_traceback()
             changes = None
-        if changes != NoOp():
+        if not isinstance(changes, NoOp):
             self.fsm.receive(ConvergenceLoopInputs.WAKEUP)
+        else:
+            # Check if the calculated NoOp suggests an earlier wakeup than
+            # currently planned:
+            remaining = self._sleep_timeout.getTime() - self.reactor.seconds()
+            calculated = changes.sleep.total_seconds()
+            if calculated < remaining:
+                self._sleep_timeout.reset(calculated)
 
     def _send_state_to_control_service(self, state_changes):
         context = LOG_SEND_TO_CONTROL_SERVICE(
@@ -452,14 +459,11 @@ class ConvergenceLoop(object):
             return succeed(None)
 
     def output_CONVERGE(self, context):
-        known_local_state = self.cluster_state.get_node(
-            self.deployer.node_uuid, hostname=self.deployer.hostname)
-
         with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
                           desired_configuration=self.configuration).context():
             with LOG_DISCOVERY(self.fsm.logger).context():
                 discover = DeferredContext(maybeDeferred(
-                    self.deployer.discover_state, known_local_state))
+                    self.deployer.discover_state, self.cluster_state))
                 discover.addActionFinish()
             d = DeferredContext(discover.result)
 
@@ -485,12 +489,12 @@ class ConvergenceLoop(object):
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state, local_state
             )
-            if action == NoOp():
-                # We've converged, we can sleep for deployer poll
-                # interval. We add some jitter so not all agents wake up
-                # at exactly the same time, to reduce load on system:
+            if isinstance(action, NoOp):
+                # We've converged, we can sleep for NoOp's sleep duration.
+                # We add some jitter so not all agents wake up at exactly
+                # the same time, to reduce load on system:
                 sleep_duration = _Sleep.with_jitter(
-                    self.deployer.poll_interval.total_seconds())
+                    action.sleep.total_seconds())
             else:
                 # We're going to do some work, we should do another
                 # iteration quickly in case there's followup work:
