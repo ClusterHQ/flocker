@@ -269,10 +269,10 @@ And then run the acceptance tests on those nodes using the following command:
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
 
-Cloudformation Installer Tests
+CloudFormation Installer Tests
 ==============================
 
-There are tests for the Flocker Cloudformation installer.
+There are tests for the Flocker CloudFormation installer.
 
 You can run them as follows:
 
@@ -285,7 +285,7 @@ You can run them as follows:
    trial flocker.acceptance.endtoend.test_installer
 
 
-This will create a new Cloudformation stack and perform the tests on it.
+This will create a new CloudFormation stack and perform the tests on it.
 
 .. note:: By default, the stack will be destroyed once the tests are complete.
           You can keep the stack by setting ``KEEP_STACK=TRUE`` in your environment.

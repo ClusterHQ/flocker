@@ -110,7 +110,7 @@ def remote_postgres(client_ip, host, command):
 
 def get_stack_report(stack_id):
     """
-    Get information about a Cloudformation stack.
+    Get information about a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
     :returns: A ``dict`` of information about the stack.
@@ -125,7 +125,7 @@ def get_stack_report(stack_id):
 
 def wait_for_stack_status(stack_id, target_status):
     """
-    Poll the status of a Cloudformation stack.
+    Poll the status of a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
     :param unicode target_status: The desired stack status.
@@ -149,7 +149,7 @@ def wait_for_stack_status(stack_id, target_status):
 def create_cloudformation_stack(template_url, access_key_id,
                                 secret_access_key, parameters):
     """
-    Create a Cloudformation stack.
+    Create a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
     :returns: A ``Deferred`` which fires when the stack has been created.
@@ -170,7 +170,7 @@ def create_cloudformation_stack(template_url, access_key_id,
 
 def delete_cloudformation_stack(stack_id):
     """
-    Delete a Cloudformation stack.
+    Delete a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
     :returns: A ``Deferred`` which fires when the stack has been deleted.
@@ -192,7 +192,7 @@ def delete_cloudformation_stack(stack_id):
 
 def get_output(outputs, key):
     """
-    Parse and return values from a Cloudformation outputs list.
+    Parse and return values from a CloudFormation outputs list.
 
     :param list outputs: A list of ``dict`` having items of `(`OutputKey``,
         ``OutputValue``).
@@ -240,8 +240,8 @@ class DockerComposeTests(AsyncTestCase):
 
     def _new_stack(self):
         """
-        Create a new Cloudformation stack from a template URL supplied as an
-        environment variable. AWS credentials and Cloudformation parameter
+        Create a new CloudFormation stack from a template URL supplied as an
+        environment variable. AWS credentials and CloudFormation parameter
         values must also be supplied as environment variables.
         """
         template_url = os.environ.get('CLOUDFORMATION_TEMPLATE_URL')
@@ -414,7 +414,7 @@ class DockerComposeTests(AsyncTestCase):
 
     def test_docker_compose_up_postgres(self):
         """
-        A Flocker cluster, built using the Cloudformation template, has a
+        A Flocker cluster, built using the CloudFormation template, has a
         client node. That node has ``docker-compose`` and templates. The first
         template creates a PostgreSQL server on one node. The second template
         moves the PostgreSQL server to the second node.
