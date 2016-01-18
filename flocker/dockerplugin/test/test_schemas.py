@@ -30,7 +30,7 @@ def build_simple_test(command_name):
             # Wrong fields:
             {"Result": "hello"},
             # Wrong Err types:
-            {"Err": 1}, {"Err": {}},
+            {"Err": 1}, {"Err": {}}, {"Err": None},
             # Extra field:
             {"Err": "", "Extra": ""},
         ],
