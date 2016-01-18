@@ -3,6 +3,7 @@
 Set up a Flocker cluster.
 """
 
+import stat
 import string
 import sys
 import yaml
@@ -117,11 +118,52 @@ def _ensure_empty_directory(path):
 
     try:
         path.makedirs()
+        path.chmod(stat.S_IRWXU)
     except OSError as e:
         raise UsageError(
             "Can not create {}. {}: {}.".format(path.path, e.filename,
                                                 e.strerror)
         )
+
+
+def generate_managed_section(cluster):
+    """
+    Generate a managed configuration section for the given cluster.
+    The section describes the nodes comprising the cluster.
+
+    :param Cluster cluser: The cluster.
+    :return: The managed configuration.
+    :rtype: dict
+    """
+    addresses = list()
+    for node in cluster.agent_nodes:
+        if node.private_address is not None:
+            addresses.append([node.private_address, node.address])
+        else:
+            addresses.append(node.address)
+    return {
+        "managed": {
+            "addresses": addresses,
+            "upgrade": True,
+        }
+    }
+
+
+def create_managed_config(base_config, cluster):
+    """
+    Generate a full configuration from the given base configuration
+    by adding a managed section for the given cluster instance.
+    The base configuration should provide parameters like the dataset
+    backend configurations and the cluster metadata.
+
+    :param dict base_config: The base configuration.
+    :param Cluster cluser: The cluster.
+    :return: The new configuration with the managed section.
+    :rtype: dict
+    """
+    config = dict(base_config)
+    config.update(generate_managed_section(cluster))
+    return config
 
 
 @inlineCallbacks
@@ -159,6 +201,13 @@ def main(reactor, args, base_path, top_level):
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
+
+        managed_config_file = options['cert-directory'].child("managed.yaml")
+        managed_config = create_managed_config(options['config'], cluster)
+        managed_config_file.setContent(
+            yaml.safe_dump(managed_config, default_flow_style=False)
+        )
+
         if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
@@ -193,14 +242,25 @@ def main(reactor, args, base_path, top_level):
                 print("Didn't finish creating the cluster.")
                 runner.stop_cluster(reactor)
             else:
-                print("The following variables describe the cluster:")
                 environment_variables = get_trial_environment(cluster)
+                environment_strings = list()
                 for environment_variable in environment_variables:
-                    print("export {name}={value};".format(
-                        name=environment_variable,
-                        value=shell_quote(
-                            environment_variables[environment_variable]),
-                    ))
+                    environment_strings.append(
+                        "export {name}={value};\n".format(
+                            name=environment_variable,
+                            value=shell_quote(
+                                environment_variables[environment_variable]
+                            ),
+                        )
+                    )
+                environment = ''.join(environment_strings)
+                print("The following variables describe the cluster:")
+                print(environment)
+                env_file = options['cert-directory'].child("environment.env")
+                env_file.setContent(environment)
+                print("The variables are also saved in {}".format(
+                    env_file.path
+                ))
                 print("Be sure to preserve the required files.")
 
     raise SystemExit(result)
