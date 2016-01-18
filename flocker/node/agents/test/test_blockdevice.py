@@ -5610,6 +5610,7 @@ class AttachVolumeTests(
             bad_blockdevice_id, failure.value.blockdevice_id
         )
 
+
 class CreateMountSymlinkInterfaceTests(
     make_istatechange_tests(
         CreateMountSymlink,
@@ -5622,6 +5623,7 @@ class CreateMountSymlinkInterfaceTests(
     """
     Tests for ``CreateMountSymlink``'s ``IStateChange`` compliance.
     """
+
 
 class CreateMountSymlinkTests(TestCase):
     """
@@ -5644,6 +5646,7 @@ class CreateMountSymlinkTests(TestCase):
         self.expectThat(symlink.realpath(), Equals(symlink_target),
                         'Symlink does not target expected path.')
 
+
 class RemoveMountSymlinkInterfaceTests(
     make_istatechange_tests(
         RemoveMountSymlink,
@@ -5654,6 +5657,7 @@ class RemoveMountSymlinkInterfaceTests(
     """
     Tests for ``RemoveMountSymlink``'s ``IStateChange`` compliance.
     """
+
 
 class RemoveMountSymlinkTests(TestCase):
     """
