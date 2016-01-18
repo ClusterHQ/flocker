@@ -20,12 +20,10 @@ from eliot import Message
 
 from ...common.runner import run_ssh
 from ...common import gather_deferreds, loop_until, retry_failure
-from ...testtools import AsyncTestCase, async_runner
+from ...testtools import AsyncTestCase, async_runner, random_name
 from ..testtools import connected_cluster
 
 
-COMPOSE_NODE0 = '/home/ubuntu/postgres/docker-compose-node0.yml'
-COMPOSE_NODE1 = '/home/ubuntu/postgres/docker-compose-node1.yml'
 RECREATE_STATEMENT = 'create table test(i int);'
 INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
@@ -343,13 +341,13 @@ class DockerComposeTests(AsyncTestCase):
         d_node1_compose = remote_docker_compose(
             self.client_node_ip,
             self.docker_host,
-            COMPOSE_NODE0, 'stop'
+            self.compose_node1, 'stop'
         )
         d_node1_compose.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                COMPOSE_NODE0, 'rm', '-f'
+                self.compose_node1, 'rm', '-f'
             ).addErrback(
                 # This sometimes fails with exit code 255
                 # and a message ValueError: No JSON object could be decoded
@@ -359,14 +357,14 @@ class DockerComposeTests(AsyncTestCase):
         d_node2_compose = remote_docker_compose(
             self.client_node_ip,
             self.docker_host,
-            COMPOSE_NODE1,
+            self.compose_node2,
             'stop',
         )
         d_node2_compose.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                COMPOSE_NODE1,
+                self.compose_node2,
                 'rm', '-f'
             ).addErrback(
                 # This sometimes fails with exit code 255
@@ -419,15 +417,26 @@ class DockerComposeTests(AsyncTestCase):
         template creates a PostgreSQL server on one node. The second template
         moves the PostgreSQL server to the second node.
         """
+        remote_compose_directory = random_name(self)
         # Publish the compose files to the client.
         command = [
             'scp', '-o', 'StrictHostKeyChecking no', '-r',
             FilePath(__file__).parent().descendant(
                 ['installer', 'postgres']
             ).path,
-            'ubuntu@{}:postgres'.format(self.client_node_ip)]
-
+            'ubuntu@{}:{}'.format(
+                self.client_node_ip,
+                remote_compose_directory
+            )
+        ]
         check_output(command)
+
+        self.compose_node1 = (
+            remote_compose_directory + "/docker-compose-node1.yml"
+        )
+        self.compose_node2 = (
+            remote_compose_directory + "/docker-compose-node2.yml"
+        )
 
         # This isn't in the tutorial, but docker-compose doesn't retry failed
         # pulls and pulls fail all the time.
@@ -449,7 +458,7 @@ class DockerComposeTests(AsyncTestCase):
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                COMPOSE_NODE0, 'up', '-d'
+                self.compose_node1, 'up', '-d'
             )
         )
         # Docker-compose blocks until the container is running but the the
@@ -467,7 +476,10 @@ class DockerComposeTests(AsyncTestCase):
         # Stop and then remove the container
         d.addCallback(
             lambda ignored: remote_docker_compose(
-                self.client_node_ip, self.docker_host, COMPOSE_NODE0, 'stop'
+                self.client_node_ip,
+                self.docker_host,
+                self.compose_node1,
+                'stop'
             )
         )
         # Unless you remove the container, Swarm will refuse to start a new
@@ -475,14 +487,14 @@ class DockerComposeTests(AsyncTestCase):
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip, self.docker_host,
-                COMPOSE_NODE0, 'rm', '--force'
+                self.compose_node1, 'rm', '--force'
             )
         )
         # Start the container on the other node.
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip, self.docker_host,
-                COMPOSE_NODE1, 'up', '-d'
+                self.compose_node2, 'up', '-d'
             )
         )
         # The database server won't be immediately ready to receive
