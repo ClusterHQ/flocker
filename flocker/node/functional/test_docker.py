@@ -260,7 +260,6 @@ class GenericDockerClientTests(AsyncTestCase):
         'which requires Docker-1.6.0 or newer. '
         'See https://docs.docker.com/registry/deploying/ for details.'
     )
-    @flaky(u"FLOC-3843")
     def test_private_registry_image(self):
         """
         ``DockerClient.add`` can start containers based on an image from a
@@ -529,6 +528,7 @@ class GenericDockerClientTests(AsyncTestCase):
         d.addCallback(started)
         return d
 
+    @flaky(u"FLOC-3875")
     def test_pull_image_if_necessary(self):
         """
         The Docker image is pulled if it is unavailable locally.
@@ -642,14 +642,13 @@ class GenericDockerClientTests(AsyncTestCase):
 
         def extract_listening_port(client):
             listing = client.list()
-            listing.addCallback(
-                lambda applications: list(
-                    next(iter(application.ports)).external_port
-                    for application
-                    in applications
-                )[0]
-            )
+
+            def listed(apps):
+                [app] = [app for app in apps if app.name == registry_name]
+                return next(iter(app.ports)).external_port
+            listing.addCallback(listed)
             return listing
+
         registry_starting.addCallback(extract_listening_port)
 
         def wait_for_listening(external_port):
@@ -659,6 +658,7 @@ class GenericDockerClientTests(AsyncTestCase):
             registry_listening = self.request_until_response(registry.port)
             registry_listening.addCallback(lambda ignored: registry)
             return registry_listening
+
         registry_starting.addCallback(wait_for_listening)
 
         return registry_starting

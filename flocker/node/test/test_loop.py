@@ -1142,6 +1142,23 @@ class ConvergenceLoopFSMTests(TestCase):
              [(NodeStateCommand, dict(state_changes=(local_state,)))],
              [(NodeStateCommand, dict(state_changes=(local_state2,)))]))
 
+    def test_discover_states_gets_cluster_state(self):
+        """
+        ``IDeployer.discover_state`` gets passed the entire cluster state.
+        """
+        cluster_state = DeploymentState(nodes={
+            NodeState(uuid=uuid4(), hostname=u"192.168.1.1"),
+        })
+        deployer = ControllableDeployer(u"192.168.1.1", [Deferred()], [])
+        loop = build_convergence_loop_fsm(Clock(), deployer)
+        loop.receive(_ClientStatusUpdate(client=FakeAMPClient(),
+                                         configuration=Deployment(),
+                                         state=cluster_state))
+        self.assertEqual(
+            deployer.discover_inputs,
+            [cluster_state],
+        )
+
 
 class UpdateNodeEraLocator(CommandLocator):
     """

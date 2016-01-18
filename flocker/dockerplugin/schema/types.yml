@@ -3,10 +3,9 @@ id: http://api.clusterhq.com/dockerplugin/types.json
 definitions:
   Err:
     title: "Error response"
-    description: "Null indicates success, non-empty string indicates error."
+    description: "Non-empty string indicates error."
     type:
       - "string"
-      - "null"
 
   VolumeInspect:
     title: "Volume info"
