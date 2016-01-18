@@ -39,6 +39,7 @@ DOCKER_SETUP = 'setup_docker.sh'
 DOCKER_SWARM_CA_SETUP = 'docker-swarm-ca-setup.sh'
 SWARM_MANAGER_SETUP = 'setup_swarm_manager.sh'
 SWARM_NODE_SETUP = 'setup_swarm_node.sh'
+VOLUMEHUB_SETUP = 'setup_volumehub.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
 FLOCKER_CONFIGURATION_GETTER = 'flocker-configuration-getter.sh'
 CLIENT_SETUP = 'setup_client.sh'
@@ -72,6 +73,15 @@ access_key_id_param = template.add_parameter(Parameter(
 secret_access_key_param = template.add_parameter(Parameter(
     "SecretAccessKey",
     Description="Your Amazon AWS secret access key.",
+    Type="String",
+))
+
+volumehub_cluster_token = template.add_parameter(Parameter(
+    "VolumeHubClusterToken",
+    Description=(
+        "Your Volume Hub cluster token. "
+        "Visit https://volumehub.clusterhq.com to generate a new token."
+    ),
     Type="String",
 ))
 
@@ -138,6 +148,7 @@ base_user_data = [
     'secret_access_key="', Ref(secret_access_key_param), '"\n',
     's3_bucket="', Ref(s3bucket), '"\n',
     'stack_name="', Ref("AWS::StackName"), '"\n',
+    'volumehub_cluster_token="', Ref(volumehub_cluster_token), '"\n',
     'node_count="{}"\n'.format(NUM_NODES),
     'apt-get update\n',
 ]
@@ -213,6 +224,7 @@ for i in range(NUM_NODES):
         ])
 
     user_data += _sibling_lines(FLOCKER_CONFIGURATION_GETTER)
+    user_data += _sibling_lines(VOLUMEHUB_SETUP)
     user_data += _sibling_lines(SIGNAL_CONFIG_COMPLETION)
     ec2_instance.UserData = Base64(Join("", user_data))
     template.add_resource(ec2_instance)
