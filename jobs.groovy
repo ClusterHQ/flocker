@@ -144,6 +144,82 @@ echo "Updating commit \$REMOTE_GIT_COMMIT with ${status} status."
 """
 }
 
+def folder_name(dashProject, dashBranchName) {
+    /*
+        Return the folder name (url path) given the constituent parts
+
+        :param unicode dashProject: the name of the top-level project,
+            escaped for use in a path.
+        :param unicode dashBranchName: the name of the branch,
+            escaped for use in a path.
+        :return unicode: the folder name for the branch
+    */
+    return "${dashProject}/${dashBranchName}"
+}
+
+
+def full_job_name(dashProject, dashBranchName, job_name) {
+    /*
+        Return the full job name (url path) given the constituent parts
+
+        :param unicode dashProject: the name of the top-level project,
+            escaped for use in a path.
+        :param unicode dashBranchName: the name of the branch,
+            escaped for use in a path.
+        :param unicode job_name: the sub-task name,
+            escaped for use in a path.
+        :return unicode: the full name
+    */
+    return folder_name(dashProject, dashBranchName) + "/${job_name}"
+}
+
+
+def escape_name(name) {
+    /*
+        Escape a name to make it suitable for use in a path.
+
+        :param unicode name: the name to escape.
+        :return unicode: the escaped name.
+    */
+    return name.replace('/', '-')
+}
+
+
+def make_view(path, description, make_jobs) {
+    /*
+        Make a view tab.
+
+        :param unicode path: the url segment of the view, including project etc.
+            e.g. "flocker/master/acceptance"
+        :param unicode description: the description of the view.
+        :param callable make_jobs: a callable that will return the
+                the list of jobs to include when passed the view context,
+                something like:
+                    { context ->
+                        context.jobs {
+                            name("foo")
+                            regex("bar.*")
+                        }
+                    }
+    */
+
+    listView(path) {
+        delegate.description(description)
+        filterBuildQueue()
+        filterExecutors()
+        make_jobs(delegate)
+        columns {
+            status()
+            weather()
+            name()
+            lastSuccess()
+            lastFailure()
+            lastDuration()
+            buildButton()
+        }
+    }
+}
+
 
 /* adds a list of common wrappers to the build jobs.
 
@@ -341,42 +417,6 @@ dashProject = escape_name(project)
 println("Creating folder ${dashProject}...")
 folder(dashProject) { displayName(dashProject) }
 
-
-def make_view(path, description, make_jobs) {
-    /*
-        Make a view tab.
-
-        :param unicode path: the url segment of the view, including project etc.
-            e.g. "flocker/master/acceptance"
-        :param unicode description: the description of the view.
-        :param callable make_jobs: a callable that will return the
-                the list of jobs to include when passed the view context,
-                something like:
-                    { context ->
-                        context.jobs {
-                            name("foo")
-                            regex("bar.*")
-                        }
-                    }
-    */
-
-    listView(path) {
-        delegate.description(description)
-        filterBuildQueue()
-        filterExecutors()
-        make_jobs(delegate)
-        columns {
-            status()
-            weather()
-            name()
-            lastSuccess()
-            lastFailure()
-            lastDuration()
-            buildButton()
-        }
-    }
-}
-
 make_view(
     "${dashProject}/master", "Builds of master",
     { context ->
@@ -416,11 +456,11 @@ def build_tabs(dashBranchName) {
 
 
 def define_job(dashBranchName, branchName, job_type, job_name, job_values, isReleaseBuild) {
-    // apply config related to 'run_trial' jobs
-    if (job_type == 'run_trial') {
+
+    if (job_type in ['run_trial', 'run_trial_for_storage_driver', 'run_acceptance']) {
         for (_module in job_values.with_modules) {
             _job_name = job_name + '_' + escape_name(_module)
-            job("${dashProject}/${dashBranchName}/${_job_name}") {
+            job(full_job_name(dashProject, dashBranchName, _job_name)) {
                 parameters {
                     // we pass the 'MODULE' parameter as the flocker module to test with trial
                     textParam("MODULE", _module, "Module to test" )
@@ -440,37 +480,12 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
 
                 // limit execution to jenkins slaves with a particular label
                 label(job_values.on_nodes_with_labels)
+                // _trial_temp and .hypothesis are for run_trial*
+                // and repo is for run_acceptance, but they are removed
+                // with rm -rf so we can get away with being overly broad
                 directories_to_delete = ['${WORKSPACE}/_trial_temp',
-                                         '${WORKSPACE}/.hypothesis']
-                wrappers build_wrappers(job_values, directories_to_delete)
-                scm build_scm(git_url, branchName, isReleaseBuild)
-                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
-                publishers build_publishers(job_values)
-            }
-        }
-    }
-
-    // XXX duplicate of run_trial jobs? if so we should combine::
-
-    // apply config related to 'run_trial_storage_driver' jobs
-    if (job_type == 'run_trial_for_storage_driver') {
-        for (_module in job_values.with_modules) {
-            _job_name = job_name + '_' + escape_name(_module)
-            job("${dashProject}/${dashBranchName}/${_job_name}") {
-                parameters {
-                    // we pass the 'MODULE' parameter as the flocker module to test with trial
-                    textParam("MODULE", _module, "Module to test" )
-                    textParam("TRIGGERED_BRANCH", branchName,
-                              "Branch that triggered this job" )
-                }
-
-                // See above.
-                checkoutRetryCount(5)
-
-                // limit execution to jenkins slaves with a particular label
-                label(job_values.on_nodes_with_labels)
-                directories_to_delete = ['${WORKSPACE}/_trial_temp',
-                                         '${WORKSPACE}/.hypothesis']
+                                         '${WORKSPACE}/.hypothesis',
+                                         '${WORKSPACE}/repo']
                 wrappers build_wrappers(job_values, directories_to_delete)
                 scm build_scm(git_url, branchName, isReleaseBuild)
                 steps build_steps(dashProject, dashBranchName, _job_name, job_values)
@@ -481,7 +496,7 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
 
     // apply config related to 'run_sphinx' jobs
     if (job_type == 'run_sphinx') {
-        job("${dashProject}/${dashBranchName}/${job_name}") {
+        job(full_job_name(dashProject, dashBranchName, job_name)) {
             parameters {
                 textParam("TRIGGERED_BRANCH", branchName,
                           "Branch that triggered this job" )
@@ -499,43 +514,9 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
         }
     }
 
-    // XXX possibly this is effectively the same as run_trial too?
-
-    // apply config related to 'run_acceptance' jobs
-    if (job_type == 'run_acceptance') {
-        for (_module in job_values.with_modules) {
-            _job_name = job_name + '_' + escape_name(_module)
-            job("${dashProject}/${dashBranchName}/${_job_name}") {
-                parameters {
-                    // we pass the 'MODULE' parameter as the flocker module to test with trial
-                    textParam("MODULE", _module, "Module to test")
-                    // the run_acceptance job produces a rpm/deb package which
-                    // is made available to the node/docker instance running in
-                    // the at a particular address on the jenkins slave (ex:
-                    // http://jenkins_slave/$RECONFIGURE_BRANCH/repo)
-                    textParam("TRIGGERED_BRANCH", branchName,
-                              "Branch that triggered this job" )
-                }
-                // See above.
-                checkoutRetryCount(5)
-
-                // limit execution to jenkins slaves with a particular label
-                label(job_values.on_nodes_with_labels)
-
-                directories_to_delete = ['${WORKSPACE}/repo' ]
-                wrappers build_wrappers(job_values, directories_to_delete)
-                scm build_scm(git_url, branchName, isReleaseBuild)
-                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
-                publishers build_publishers(job_values)
-            }
-        }
-    }
-
-    // XXX possibly the same as one of previous jobs?
-
     // apply config related to 'run_client' jobs
     if (job_type == 'run_client') {
-        job("${dashProject}/${dashBranchName}/${job_name}") {
+        job(full_job_name(dashProject, dashBranchName, job_name)) {
             parameters {
                 // the run_acceptance job produces a rpm/deb package which is
                 // made available to the node/docker instance running in the at
@@ -560,13 +541,10 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
         }
     }
 
-
-    // apply config related to 'omnibus' jobs
-    if (job_type == 'omnibus') {
-        job("${dashProject}/${dashBranchName}/${job_name}") {
+    if (job_type in ['omnibus', 'run_lint']) {
+        job(full_job_name(dashProject, dashBranchName, job_name)) {
             // See above.
             checkoutRetryCount(5)
-
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
@@ -577,34 +555,49 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
         }
     }
 
-    // XXX duplicate of 'omnibus', merge in later pass
+}
 
-    // apply config related to 'run_lint' jobs
-    if (job_type == 'run_lint') {
-        job("${dashProject}/${dashBranchName}/${job_name}") {
-            // See above.
-            checkoutRetryCount(5)
 
-            // limit execution to jenkins slaves with a particular label
-            label(job_values.on_nodes_with_labels)
-            wrappers build_wrappers(job_values, [])
-            scm build_scm(git_url, branchName, isReleaseBuild)
-            // There is no module for lint jobs so we can use job_name
-            // unmodified.
-            steps build_steps(dashProject, dashBranchName, job_name, job_values)
-        }
+def trigger_sub_job(context, name) {
+    /*
+        Trigger a sub-job in a multijob without killing the parent on failure
+
+        :param context: the multijob context to add the job to
+        :param name: the name of the sub-job to trigger
+    */
+    context.phaseJob(name) {
+        /* make sure we don't kill the parent multijob when we
+           fail */
+        killPhaseCondition("NEVER")
     }
 }
 
 
-def escape_name(name) {
+def copy_artifacts_from(context, full_job_name, short_job_name, archive_artifacts) {
     /*
-        Escape a name to make it suitable for use in a path.
+        Copy artifacts from another job to this one.
 
-        :param unicode name: the name to escape.
-        :return unicode: the escaped name.
+        :param context: the context of the job that receives the copied
+            artifacts.
+        :param unicode full_job_name: the full path of the job.
+        :param unicode short_job_name: the name of the job without the full path.
+        :param list[str] archive_artifacts: the artifacts to archive as a
+             string glob patter.
     */
-    return name.replace('/', '-')
+    for (artifact in archive_artifacts) {
+        context.copyArtifacts(full_job_name) {
+            optional(true)
+            includePatterns(artifact)
+            /* and place them under short_job_name/artifact on
+               the multijob workspace, so that we don't
+               overwrite them.  */
+            targetDirectory(short_job_name)
+            fingerprintArtifacts(true)
+            buildSelector {
+                workspace()
+            }
+        }
+    }
 }
 
 
@@ -664,22 +657,14 @@ def build_multijob(dashBranchName, branchName, isReleaseBuild) {
                         for (job_entry in job_type_values) {
                             for (_module in job_entry.value.with_modules) {
                                 _job_name = job_entry.key + '_' + escape_name(_module)
-                                job("${dashProject}/${dashBranchName}/${_job_name}")  {
-                                    /* make sure we don't kill the parent multijob when we
-                                       fail */
-                                    killPhaseCondition("NEVER")
-                                }
+                                trigger_sub_job(delegate, full_job_name(dashProject, dashBranchName, _job_name))
                             }
                         }
                     }
                     /* add the non-module style jobs */
                     if (job_type in ['run_sphinx', 'omnibus', 'run_lint', 'run_client']) {
                         for (job_entry  in job_type_values) {
-                            job("${dashProject}/${dashBranchName}/${job_entry.key}")  {
-                                /* make sure we don't kill the parent multijob when we
-                                   fail */
-                                killPhaseCondition("NEVER")
-                            }
+                            trigger_sub_job(delegate, full_job_name(dashProject, dashBranchName, job_entry.key))
                         }
                     }
                 }
@@ -696,26 +681,15 @@ def build_multijob(dashBranchName, branchName, isReleaseBuild) {
                     job_name = job_entry.key
                     job_values = job_entry.value
                     for (_module in job_values.with_modules) {
-                        _job_name = job_name + '_' + escape_name(_module)
                         /* no every job produces an artifact, so make sure wew
                            don't try to fetch artifacts for jobs that don't
                            produce them */
                         if (job_values.archive_artifacts) {
-                            for (artifact in job_values.archive_artifacts) {
-                                copyArtifacts(
-                                    "${dashProject}/${dashBranchName}/${_job_name}") {
-                                    optional(true)
-                                    includePatterns(artifact)
-                                    /* and place them under 'job name'/artifact on
-                                       the multijob workspace, so that we don't
-                                       overwrite them.  */
-                                    targetDirectory(_job_name)
-                                    fingerprintArtifacts(true)
-                                    buildSelector {
-                                        workspace()
-                                    }
-                                }
-                            }
+                            _job_name = job_entry.key + '_' + escape_name(_module)
+                            copy_artifacts_from(
+                                delegate, full_job_name(dashProject, dashBranchName, _job_name),
+                                 _job_name, job_values.archive_artifacts
+                            )
                         }
                     }
                 }
@@ -792,7 +766,7 @@ def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseB
     */
 
     // create a folder for every branch: /git-username/git-repo/branch
-    folder("${dashProject}/${dashBranchName}") {
+    folder(folder_name(dashProject, dashBranchName)) {
         displayName(branchName)
     }
 
@@ -805,7 +779,10 @@ def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseB
         for (job_entry in job_type_entry.value) {
             job_name = job_entry.key
             job_values = job_entry.value
-            define_job(dashBranchName, branchName, job_type, job_name, job_values, isReleaseBuild)
+            define_job(
+                dashBranchName, branchName, job_type, job_name, job_values,
+                isReleaseBuild
+            )
         }
     }
 
@@ -829,10 +806,12 @@ branches.each {
     generate_jobs_for_branch(dashProject, dashBranchName, branchName, false)
 
     if (isReleaseBuild) {
-        generate_jobs_for_branch(dashProject, "release-" + dashBranchName, "Release " + branchName, true)
+        generate_jobs_for_branch(
+            dashProject, "release-" + dashBranchName, "Release " + branchName,
+            true
+        )
     }
 }
-
 
 /* ------------------------------------------------------------------------- */
 /* CRON JOBS BELOW                                                           */
@@ -842,28 +821,28 @@ branches.each {
 /* As we only run them from the master branch, they get executed a few       */
 /* times a day based on a cron type schedule.                                */
 
-for (job_type_entry in GLOBAL_CONFIG.job_type) {
+cronly_jobs = GLOBAL_CONFIG.job_type.findAll { it.key == 'cronly_jobs' }
+
+for (job_type_entry in cronly_jobs) {
     job_type = job_type_entry.key
     for (job_entry in job_type_entry.value) {
         job_values = job_entry.value
-        /* apply config related to 'cronly_jobs' jobs */
-        if (job_type == 'cronly_jobs') {
-            _job_name = "_${job_entry.key}"
-            job("${dashProject}/${dashBranchName}/${_job_name}") {
-                parameters {
-                    textParam("TRIGGERED_BRANCH", "${branchName}",
-                              "Branch that triggered this job" )
-                }
-                // See above.
-                checkoutRetryCount(5)
-
-                label(job_values.on_nodes_with_labels)
-                wrappers build_wrappers(job_values, [])
-                triggers build_triggers('cron', job_values.at, "${branchName}")
-                scm build_scm("${git_url}", "${branchName}", false)
-                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
-                publishers build_publishers(job_values)
+        _job_name = "_${job_entry.key}"
+        job(full_job_name(dashProject, dashBranchName, _job_name)) {
+            parameters {
+                textParam("TRIGGERED_BRANCH", "${branchName}",
+                          "Branch that triggered this job" )
             }
+            // See above.
+            checkoutRetryCount(5)
+            label(job_values.on_nodes_with_labels)
+            wrappers build_wrappers(job_values, [])
+            triggers build_triggers('cron', job_values.at, "${branchName}")
+            scm build_scm("${git_url}", "${branchName}", false)
+            steps build_steps(
+                    dashProject, dashBranchName, _job_name, job_values
+            )
+            publishers build_publishers(job_values)
         }
     }
 }
