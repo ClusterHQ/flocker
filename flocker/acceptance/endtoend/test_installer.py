@@ -273,13 +273,13 @@ class DockerComposeTests(AsyncTestCase):
 
         def set_stack_variables(stack_report):
             outputs = stack_report['Outputs']
-            self.stack_id = stack_report['StackId']
+            stack_id = stack_report['StackId']
             for variable_name, stack_output_name in STACK_VARIABLES.items():
                 setattr(
                     self, variable_name, get_output(outputs, stack_output_name)
                 )
             if 'KEEP_STACK' not in os.environ:
-                self.addCleanup(delete_cloudformation_stack, self.stack_id)
+                self.addCleanup(delete_cloudformation_stack, stack_id)
         d.addCallback(set_stack_variables)
         return d
 
