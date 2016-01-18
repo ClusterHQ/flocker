@@ -108,14 +108,14 @@ class APITestsMixin(APIAssertionsMixin):
         ``/VolumeDriver.Remove`` returns a successful result.
         """
         return self.assertResult(b"POST", b"/VolumeDriver.Remove",
-                                 {u"Name": u"vol"}, OK, {u"Err": None})
+                                 {u"Name": u"vol"}, OK, {u"Err": u""})
 
     def test_unmount(self):
         """
         ``/VolumeDriver.Unmount`` returns a successful result.
         """
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
-                                 {u"Name": u"vol"}, OK, {u"Err": None})
+                                 {u"Name": u"vol"}, OK, {u"Err": u""})
 
     def test_create_with_profile(self):
         """
@@ -127,7 +127,7 @@ class APITestsMixin(APIAssertionsMixin):
         name = random_name(self)
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"profile": profile}},
-                              OK, {u"Err": None})
+                              OK, {u"Err": u""})
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(list)
@@ -154,7 +154,7 @@ class APITestsMixin(APIAssertionsMixin):
         size_opt = "".join(str(size))+expression
         d = self.assertResult(b"POST", b"/VolumeDriver.Create",
                               {u"Name": name, 'Opts': {u"size": size_opt}},
-                              OK, {u"Err": None})
+                              OK, {u"Err": u""})
 
         real_size = int(parse_num(size_opt).to_Byte())
         d.addCallback(
@@ -230,7 +230,7 @@ class APITestsMixin(APIAssertionsMixin):
         :return: ``Deferred`` that fires when the volume that was created.
         """
         return self.assertResult(b"POST", b"/VolumeDriver.Create",
-                                 {u"Name": name}, OK, {u"Err": None})
+                                 {u"Name": name}, OK, {u"Err": u""})
 
     def test_create_creates(self):
         """
@@ -335,7 +335,7 @@ class APITestsMixin(APIAssertionsMixin):
                       self.assertResult(
                           b"POST", b"/VolumeDriver.Mount",
                           {u"Name": name}, OK,
-                          {u"Err": None,
+                          {u"Err": u"",
                            u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
         d.addCallback(lambda _: self.flocker_client.list_datasets_state())
 
@@ -397,7 +397,7 @@ class APITestsMixin(APIAssertionsMixin):
             result = self.assertResult(
                 b"POST", b"/VolumeDriver.Mount",
                 {u"Name": name}, OK,
-                {u"Err": None,
+                {u"Err": u"",
                  u"Mountpoint": u"/flocker/{}".format(
                      dataset.dataset_id)})
             result.addCallback(lambda _:
@@ -439,7 +439,7 @@ class APITestsMixin(APIAssertionsMixin):
                       self.assertResult(
                           b"POST", b"/VolumeDriver.Path",
                           {u"Name": name}, OK,
-                          {u"Err": None,
+                          {u"Err": u"",
                            u"Mountpoint": u"/flocker/{}".format(
                                datasets_config.datasets.keys()[0])}))
         return d
@@ -460,7 +460,7 @@ class APITestsMixin(APIAssertionsMixin):
             return self.assertResult(
                 b"POST", b"/VolumeDriver.Path",
                 {u"Name": name}, OK,
-                {u"Err": None,
+                {u"Err": u"",
                  u"Mountpoint": u"/flocker/{}".format(dataset.dataset_id)})
         d.addCallback(created)
         return d

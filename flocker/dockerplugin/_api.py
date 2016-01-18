@@ -193,7 +193,7 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        return {u"Err": None}
+        return {u"Err": u""}
 
     @app.route("/VolumeDriver.Unmount", methods=["POST"])
     @_endpoint(u"Unmount")
@@ -209,7 +209,7 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        return {u"Err": None}
+        return {u"Err": u""}
 
     def _dataset_id_for_name(self, name):
         """
@@ -286,7 +286,7 @@ class VolumePlugin(object):
             self._flocker_client, self._reactor, ensure_unique_name,
             self._node_id, int(size.to_Byte()), metadata=metadata)
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
-        creating.addCallback(lambda _: {u"Err": None})
+        creating.addCallback(lambda _: {u"Err": u""})
         return creating
 
     def _get_path_from_dataset_id(self, dataset_id):
@@ -334,7 +334,7 @@ class VolumePlugin(object):
             self._reactor,
             lambda: self._get_path_from_dataset_id(dataset_id),
             repeat(self._POLL_INTERVAL)))
-        d.addCallback(lambda p: {u"Err": None, u"Mountpoint": p.path})
+        d.addCallback(lambda p: {u"Err": u"", u"Mountpoint": p.path})
 
         timeout(self._reactor, d.result, self._MOUNT_TIMEOUT)
 
@@ -367,7 +367,7 @@ class VolumePlugin(object):
                 return {u"Err": u"Volume not available.",
                         u"Mountpoint": u""}
             else:
-                return {u"Err": None,
+                return {u"Err": u"",
                         u"Mountpoint": path.path}
         d.addCallback(got_path)
         return d.result
