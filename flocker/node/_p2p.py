@@ -219,7 +219,7 @@ class P2PManifestationDeployer(object):
         self.hostname = hostname
         self.volume_service = volume_service
 
-    def discover_state(self, cluster_state):
+    def discover_state(self, cluster_state, persistent_state):
         """
         Discover local ZFS manifestations.
         """

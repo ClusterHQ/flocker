@@ -463,7 +463,8 @@ class ConvergenceLoop(object):
                           desired_configuration=self.configuration).context():
             with LOG_DISCOVERY(self.fsm.logger).context():
                 discover = DeferredContext(maybeDeferred(
-                    self.deployer.discover_state, self.cluster_state))
+                    self.deployer.discover_state, self.cluster_state,
+                    persistent_state=self.configuration.persistent_state))
                 discover.addActionFinish()
             d = DeferredContext(discover.result)
 

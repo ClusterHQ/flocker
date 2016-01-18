@@ -20,7 +20,7 @@ from ._model import (
     Link, AttachedVolume, NodeState, Manifestation, Dataset, RestartNever,
     RestartOnFailure, RestartAlways, DeploymentState, NonManifestDatasets,
     same_node, IClusterStateWipe, Leases, Lease, LeaseError, pmap_field,
-    ChangeSource, UpdateNodeStateEra, NoWipe,
+    ChangeSource, UpdateNodeStateEra, NoWipe, PersistentState,
 )
 from ._protocol import (
     IConvergenceAgent,
@@ -52,6 +52,7 @@ __all__ = [
     'RestartOnFailure',
     'RestartAlways',
     'NonManifestDatasets',
+    'PersistentState',
 
     'IConvergenceAgent',
     'NodeStateCommand',

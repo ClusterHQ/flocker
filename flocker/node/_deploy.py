@@ -62,7 +62,7 @@ class IDeployer(Interface):
     node_uuid = Attribute("")
     hostname = Attribute("")
 
-    def discover_state(cluster_state):
+    def discover_state(cluster_state, persistent_state):
         """
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.

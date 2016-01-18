@@ -609,6 +609,10 @@ class Leases(CheckedPMap):
         return updated
 
 
+class PersistentState(PClass):
+    pass
+
+
 class Deployment(PClass):
     """
     A ``Deployment`` describes the configuration of a number of applications on
@@ -620,6 +624,7 @@ class Deployment(PClass):
     """
     nodes = pset_field(Node)
     leases = field(type=Leases, mandatory=True, initial=Leases())
+    persistent_state = field(type=PersistentState, initial=PersistentState())
 
     get_node = _get_node(Node)
 
@@ -1125,5 +1130,5 @@ SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
     NodeState, DeploymentState, NonManifestDatasets, Configuration,
-    Lease, Leases,
+    Lease, Leases, PersistentState,
 ]
