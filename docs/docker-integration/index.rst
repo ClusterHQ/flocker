@@ -51,8 +51,8 @@ Follow a Tutorial
 	    </div>
     </div>
 
-Learn more on our blog
-----------------------
+Related Blog Articles
+=====================
 
 * `Tutorial: PostgreSQL on Docker with Flocker <https://clusterhq.com/2016/01/08/tutorial-flocker-volume-driver-postgres/>`_
 * `Walkthrough: Docker Volumes vs Docker Volumes with Flocker <https://clusterhq.com/2015/12/09/difference-docker-volumes-flocker-volumes/>`_
@@ -67,12 +67,12 @@ Learn more on our blog
 Learn More
 ==========
 
-To learn about the details of how this integration works, read :ref:`about-docker-integration`.
+To learn more aboutthis integration works, see the following topics:
 
 .. toctree::
-   :hidden:
 
    about
+   control-plugin
    
 .. What follows is a terrible hack to force sphinx to drag images into the build
 
