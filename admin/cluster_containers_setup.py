@@ -8,7 +8,7 @@ from itertools import repeat
 from ipaddr import IPAddress
 
 from treq import json_content
-from eliot import add_destination, Message, Field, MessageType
+from eliot import add_destination, Message
 
 from twisted.internet.defer import inlineCallbacks
 from twisted.python.filepath import FilePath
@@ -19,16 +19,18 @@ from flocker.common import loop_until
 from flocker.control.httpapi import REST_API_PORT
 from flocker.apiclient import FlockerClient
 from flocker.ca import treq_with_authentication
-from .acceptance import (
-    eliot_output,
-)
 
-_BENCHMARK_SETUP_ACTION = Field.forTypes(
-    "cluster_setup_action", [str], u"Action being currently executed.")
 
-BENCHMAR_ACTION = MessageType(
-    "admin:benchmarksetup:action", [_BENCHMARK_SETUP_ACTION],
-    u"Setup executing")
+def eliot_output(message):
+    """
+    Write pretty versions of eliot log messages to stdout.
+    """
+    message_action = message.get('action')
+
+    if message_action is not None:
+        msg = "%s\n" % message_action
+        sys.stdout.write(msg)
+        sys.stdout.flush()
 
 
 class ContainerOptions(usage.Options):
@@ -98,6 +100,7 @@ class ContainerOptions(usage.Options):
 def main(reactor, argv):
     environ = os.environ
     add_destination(eliot_output)
+    # to_file(sys.stdout)
 
     try:
         options = ContainerOptions()
@@ -206,7 +209,7 @@ class ClusterContainerDeployment(object):
         :return Deferred: that will fire once the request to create all
             the containers and datasets has been sent.
         """
-        Message.log(key="action", value="Listing current nodes")
+        Message.log(action="Listing current nodes")
         d = self.client.list_nodes()
         d.addCallback(self._set_nodes)
         Message.log(action="Building config")
@@ -229,7 +232,7 @@ class ClusterContainerDeployment(object):
 
         def do_we_have_enough_datasets(datasets):
             msg = (
-                "Waiting for the datasets to be ready"
+                "Waiting for the datasets to be ready..."
                 "Created {current_datasets} of {total_datasets}"
 
             ).format(
@@ -257,7 +260,7 @@ class ClusterContainerDeployment(object):
 
         def do_we_have_enough_containers(containers):
             msg = (
-                "Waiting for the containers to be ready"
+                "Waiting for the containers to be ready..."
                 "Created {current_containers} of {total_containers}"
 
             ).format(
@@ -278,11 +281,9 @@ class ClusterContainerDeployment(object):
         of them have been created.
         """
         yield self.deploy()
-        Message.log(action="Waiting for the datasets to be created...")
         yield loop_until(self.reactor,
                          self.is_datasets_deployment_complete,
                          repeat(1, self.timeout))
-        Message.log(action="Waiting for the containers to be created...")
         yield loop_until(self.reactor,
                          self.is_container_deployment_complete,
                          repeat(1, self.timeout))
@@ -297,7 +298,7 @@ class ClusterContainerDeployment(object):
         :return dict: containing the json we need to send to compose to
             create the datasets and containers we want.
         """
-
+        Message.log(action="Building config")
         application_root = {}
         applications = {}
         application_root["version"] = 1
