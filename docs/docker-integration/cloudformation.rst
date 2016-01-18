@@ -78,7 +78,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
-			<h2 class="step-stages__heading">Step 3</h2>
+			<h2 class="step-stages__heading">The Waiting Bit</h2>
 			<p>Wait for the cluster to come up. This can take 5-10 minutes.</p>
 		</div>
 		<div class="step-stages__step first">
@@ -97,7 +97,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 	
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
-			<h2 class="step-stages__heading">Step 4</h2>
+			<h2 class="step-stages__heading">Step 3</h2>
 			<p>Verifying your installation.</p>
             <p>Click on the "Outputs" tab for your stack. If this is not visible, click the drop down icon on the current tab.</p>
             <p>The values displayed on this tab will be used for verifying your installation and also any tutorials you go through.</p>
