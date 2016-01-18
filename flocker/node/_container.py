@@ -411,7 +411,7 @@ class ApplicationNodeDeployer(object):
             )
         )
 
-    def discover_state(self, local_state):
+    def discover_state(self, cluster_state):
         """
         List all the ``Application``\ s running on this node.
 
@@ -431,6 +431,8 @@ class ApplicationNodeDeployer(object):
             ``Application`` and ports. ``NodeState.manifestations`` and
             ``NodeState.paths`` will not be filled in.
         """
+        local_state = cluster_state.get_node(self.node_uuid,
+                                             hostname=self.hostname)
         if local_state.manifestations is None:
             # Without manifestations we don't know if local applications'
             # volumes are manifestations or not. Rather than return

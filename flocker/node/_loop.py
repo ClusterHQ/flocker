@@ -459,14 +459,11 @@ class ConvergenceLoop(object):
             return succeed(None)
 
     def output_CONVERGE(self, context):
-        known_local_state = self.cluster_state.get_node(
-            self.deployer.node_uuid, hostname=self.deployer.hostname)
-
         with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
                           desired_configuration=self.configuration).context():
             with LOG_DISCOVERY(self.fsm.logger).context():
                 discover = DeferredContext(maybeDeferred(
-                    self.deployer.discover_state, known_local_state))
+                    self.deployer.discover_state, self.cluster_state))
                 discover.addActionFinish()
             d = DeferredContext(discover.result)
 
