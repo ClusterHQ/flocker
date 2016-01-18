@@ -5646,6 +5646,22 @@ class CreateMountSymlinkTests(TestCase):
         self.expectThat(symlink.realpath(), Equals(symlink_target),
                         'Symlink does not target expected path.')
 
+    def test_creates_symlink_parents(self):
+        """
+        When :class:`CreateMountSymlink` is run it creates any parent
+        directories for the symlink that do not exist.
+        """
+        symlink_target = FilePath(self.mktemp())
+        symlink = FilePath(self.mktemp()).child(str(uuid4()))
+        symlink_target.touch()
+        state_change = CreateMountSymlink(dataset_id=uuid4(),
+                                          mountpoint=symlink_target,
+                                          link_path=symlink)
+        deployer = create_blockdevicedeployer(self)
+        state_change.run(deployer)
+        self.expectThat(symlink.realpath(), Equals(symlink_target),
+                        'Symlink does not target expected path.')
+
 
 class RemoveMountSymlinkInterfaceTests(
     make_istatechange_tests(

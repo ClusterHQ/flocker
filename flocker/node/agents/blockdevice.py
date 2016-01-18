@@ -610,6 +610,10 @@ class CreateMountSymlink(PClass):
         to flocker clients. This layer of indirection is added so that we can
         atomically create a mounted directory path.
         """
+        parent = self.link_path.parent()
+        if not parent.exists():
+            parent.makedirs()
+
         deployer.block_device_manager.symlink(self.mountpoint, self.link_path)
 
         return succeed(None)
