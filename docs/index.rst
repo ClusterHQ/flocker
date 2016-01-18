@@ -10,9 +10,9 @@ Installing Flocker
 
 .. _supported-orchestration-frameworks:
 
-Flocker allows you to launch and move stateful containers, like databases, by integrating with a cluster manager of your choice.
+Flocker allows you to launch and move stateful containers by integrating with a cluster manager of your choice.
 
-To install Flocker, first choose which cluster manager you are using.
+To install Flocker, first choose which cluster manager you are using, or intend to use:
 
 .. raw:: html
 
@@ -37,13 +37,17 @@ To install Flocker, first choose which cluster manager you are using.
 	    </div>
 	</div>
 
+Alternatively, if you want to install Flocker without a specific cluster manager in mind, that is also possible:
+
+.. raw:: html
+
 	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
 		<span><img src="_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install using something else</span>
         <a href="flocker-standalone/" class="button">Install</a>
     </div>
 
-Is your favourite cluster manager missing?
-Let us know with the form below!
+Is your chosen cluster manager missing?
+Please let us know with the form below!
 
 .. toctree::
    :maxdepth: 2

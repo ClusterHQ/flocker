@@ -4,8 +4,8 @@
 Docker, Swarm, Compose
 ======================
 
-Flocker works with Docker, Swarm and Compose via the Flocker Plugin for Docker.
-Follow an installation tutorial to get started.
+Flocker works with Docker, Swarm and/or Compose via the Flocker Plugin for Docker.
+Follow an installation guide to get started:
 
 Flocker Installation Options
 ============================
@@ -14,13 +14,12 @@ Flocker Installation Options
 	<div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--recommended">
 		   <img src="../_images/amazon-docker2x.png" alt="Amazon AWS logo"/>
-		   <span>CloudFormation is the easiest way to get started on AWS.<em>Fastest</em></span>
+		   <span>Use our CloudFormation template to install Flocker on AWS<em>Fastest</em></span>
 		   <a href="cloudformation.html" class="button button--fast">Install</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up">
 		   <img src="../_images/default2x.png" aria-hidden="true" alt=""/>
-		   <span>Install Flocker manually to deploy it on infrastructure other than AWS.
-           <em><a href="../supported.html">Works with all Supported Configurations</a></em></span>
+		   <span>Use our manual installation instructions to deploy Flocker with any other infrastructure</span>
 		   <a href="manual-install.html" class="button">Install manually</a>
 	    </div>
 	</div>
