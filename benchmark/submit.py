@@ -13,6 +13,7 @@ from twisted.internet.defer import succeed
 from twisted.internet.task import react
 from twisted.python import usage
 from twisted.web import client, http
+from twisted.web.http_headers import Headers
 from twisted.web.iweb import IBodyProducer
 
 from zope.interface import implementer
@@ -44,7 +45,12 @@ def submit(agent, result):
     :return: Deferred that fires when a reponse from the server is received.
     """
     body = StringProducer(json.dumps(result))
-    req = agent.request("POST", "/v1/benchmark-results", bodyProducer=body)
+    req = agent.request(
+        "POST",
+        "/v1/benchmark-results",
+        headers=Headers({'Content-Type': ['application/json']}),
+        bodyProducer=body
+    )
 
     def get_response_body(response):
         d = client.readBody(response)
