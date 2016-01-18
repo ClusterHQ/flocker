@@ -7,7 +7,8 @@ Flocker Features
 .. toctree::
    :maxdepth: 2
 
-   flockerctl
-   storage-profiles
    architecture
+   flockerctl
    security
+   storage-backends
+   storage-profiles

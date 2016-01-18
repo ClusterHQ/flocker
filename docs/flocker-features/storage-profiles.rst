@@ -13,11 +13,16 @@ However, if you need storage for a production environment, you can choose a prof
 
 Flocker Storage Profiles require support from your storage driver, and you are able to choose from the following profiles:
 
-* Gold: This profile is suited for applications that have high performance requirements from storage.
-  For example, databases.
-* Silver: This profile is suited for applications that might not require such high performance. 
-  Typically, this would align with default storage options.
-* Bronze: This profile is suited for applications that have no requirements for performance, and therefore a low cost option can be selected.
+* Gold
+   This profile is suited for applications that have high performance requirements from storage.
+   For example, databases.
+
+* Silver
+   This profile is suited for applications that might not require such high performance. 
+   Typically, this would align with default storage options.
+
+* Bronze
+   This profile is suited for applications that have no requirements for performance, and therefore a low cost option can be selected.
 
 Please be aware that the actual specification of these profiles may differ between each storage provider.
 The definition for each profile should be documented in the storage providers documentation.
