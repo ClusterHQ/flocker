@@ -2,8 +2,8 @@
 Supported Configurations
 ========================
 
-Supported Orchestration Frameworks
-==================================
+Supported Cluster Managers
+==========================
 
 .. raw:: html
 
@@ -28,7 +28,7 @@ Supported Orchestration Frameworks
 	</div>
 	
 	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
-		<span><img src="/_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install Flocker without an Orchestration Framework</span>
+		<span><img src="/_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp; You can install Flocker without a specific cluster manager, click here to learn more:</span>
         <a href="flocker-standalone/" class="button">Learn more</a>
     </div>
 
@@ -36,6 +36,18 @@ Supported Orchestration Frameworks
 
 Supported Infrastructure & Storage
 ==================================
+
+The sections below list the supported infrastructure and storage options.
+
+*Community Developed* drivers are those provided and supported by our community partners.
+Other options that are still be worked on are tagged with *Experimental* or *Coming soon*:
+
+.. raw:: html
+
+    <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed"> = Community developed
+    <img src="/_images/experimental.png" style="height:25px; padding:2px 4px; margin-left:20px; border:1px solid #ddd;" title="Experimental (labs project)"> = Experimental
+    <img src="/_images/coming-soon.png" style="height:25px; margin:2px; margin-left:20px; border:1px solid #ddd;" title="Coming soon"> = Coming soon
+    <div style="clear:both; margin-top:20px;"></div>
 
 IaaS block storage
 ------------------
@@ -167,11 +179,6 @@ These hardware storage options require specific physical hardware in your data c
         <p style="margin-top:10px"><a href="flocker-standalone/huawei.html">Learn more</a></p>
     </div>
     <div style="clear:both;"></div>
-    <div style="clear:both; margin-top:20px;"></div>
-
-    <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed"> = Community developed
-    <img src="/_images/experimental.png" style="height:25px; padding:2px 4px; margin-left:20px; border:1px solid #ddd;" title="Experimental (labs project)"> = Experimental
-    <img src="/_images/coming-soon.png" style="height:25px; margin:2px; margin-left:20px; border:1px solid #ddd;" title="Coming soon"> = Coming soon
     <div style="clear:both; margin-top:20px;"></div>
 
 .. note:: If you wish to use a storage device that is not supported by Flocker or an existing plugin, you can implement this support yourself.
