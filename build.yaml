@@ -1397,7 +1397,7 @@ job_type:
           }
       timeout: 120
     run_client_installation_on_OSX:
-      at: '0 6 * * *'
+      at: '30 7 * * *'
       on_nodes_with_labels: 'mesos-4GB'
       with_steps:
         - { type: 'shell',
