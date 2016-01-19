@@ -77,7 +77,7 @@ secret_access_key_param = template.add_parameter(Parameter(
 ))
 
 volumehub_token = template.add_parameter(Parameter(
-    "VolumeHubClusterToken",
+    "VolumeHubToken",
     Description=(
         "Your Volume Hub token. "
         "You'll find the token at https://volumehub.clusterhq.com/v1/token."
