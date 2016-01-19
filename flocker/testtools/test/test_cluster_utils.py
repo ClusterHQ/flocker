@@ -6,15 +6,14 @@ Tests for ``flocker.testtools.cluster_utils``.
 
 from uuid import UUID
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from ..cluster_utils import (
     VERSION, get_version, make_cluster_id, get_cluster_id_information,
     TestTypes, Providers,
 )
+from ...testtools import TestCase
 
 
-class GetVersionTests(SynchronousTestCase):
+class GetVersionTests(TestCase):
     """
     Tests for ``get_version``.
     """
@@ -39,7 +38,7 @@ class GetVersionTests(SynchronousTestCase):
         )
 
 
-class ClusterIdTests(SynchronousTestCase):
+class ClusterIdTests(TestCase):
     """
     Tests for ``make_cluster_id`` and ``get_cluster_id_information``.
     """

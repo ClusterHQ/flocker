@@ -11,11 +11,9 @@ from pyrsistent import (
 )
 from hypothesis import given, strategies as st, assume, example
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from twisted.python.constants import Names, NamedConstant
 
-
+from ...testtools import TestCase
 from ..algebraic import TaggedUnionInvariant, tagged_union_strategy
 
 
@@ -51,7 +49,7 @@ ALGEBRAIC_TYPE_ARGUMENTS_STRATEGY = ALGEBRAIC_TYPE_STRATEGY.map(
     lambda v: v.serialize())
 
 
-class TaggedUnionInvariantTests(SynchronousTestCase):
+class TaggedUnionInvariantTests(TestCase):
     """
     Tests for ``TaggedUnionInvariant``.
     """
@@ -98,8 +96,7 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
         state = args['state']
         invariant = AlgebraicType.__invariant__
         extra_attributes = (
-            invariant._all_attributes
-            - invariant.attributes_for_tag[state]
+            invariant._all_attributes - invariant.attributes_for_tag[state]
         )
         assume(extra_attributes)
         extra_attribute = choice(sorted(extra_attributes))
@@ -160,8 +157,8 @@ class TaggedUnionInvariantTests(SynchronousTestCase):
 
     @given(
         state=st.sampled_from(
-            pset(States.iterconstants())
-            - AlgebraicType.__invariant__._allowed_tags
+            pset(States.iterconstants()) -
+            AlgebraicType.__invariant__._allowed_tags
         ),
         extra_value=st.booleans(),
     )

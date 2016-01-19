@@ -13,12 +13,13 @@ from pyrsistent import (
     PRecord, PClass, CheckedPSet, CheckedPVector, CheckedPMap, field,
 )
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.python.reflect import qual as fqpn
 
 from .._persistence import ROOT_CLASS
 from ... import __version__
+from ...testtools import TestCase
+
 
 PERSISTED_MODEL = FilePath(__file__).sibling(b"persisted_model.json")
 
@@ -83,6 +84,16 @@ def _psequence_model(klass):
     return record, further_classes
 
 
+def _default_model(klass):
+    """
+    Default model for unhandled classes.
+
+    :param klass: A class.
+    :return: Tuple of (model dictionary, further classes to process).
+    """
+    return (None, set())
+
+
 def generate_model(root_class=ROOT_CLASS):
     """
     Generate a data-structure that represents the current configuration
@@ -110,7 +121,7 @@ def generate_model(root_class=ROOT_CLASS):
         elif issubclass(klass, (CheckedPSet, CheckedPVector)):
             to_model = _psequence_model
         else:
-            to_model = lambda klass: (None, set())
+            to_model = _default_model
         record, further_classes = to_model(klass)
         classes_result[klass_name] = record
         classes |= further_classes
@@ -133,7 +144,7 @@ ChangedSubtype = Subtype
 Subtype = OriginalSubtype
 
 
-class GenerateModelTests(SynchronousTestCase):
+class GenerateModelTests(TestCase):
     """
     Ensure that ``generate_model`` actually catches changes to the model.
     """
@@ -506,7 +517,7 @@ def persist_model():
         sort_keys=True, indent=4, separators=(',', ': ')))
 
 
-class ConfigurationModelChanged(SynchronousTestCase):
+class ConfigurationModelChanged(TestCase):
     """
     Detect when the configuration model has changed.
     """

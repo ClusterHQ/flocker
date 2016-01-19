@@ -8,9 +8,8 @@ from datetime import timedelta
 from itertools import repeat, count
 from functools import partial
 
-import testtools
 from testtools.matchers import (
-    MatchesPredicate, Equals, AllMatch, IsInstance, GreaterThan, raises
+    MatchesPredicate, Is, Equals, AllMatch, IsInstance, GreaterThan, raises
 )
 
 from eliot import MessageType, fields
@@ -21,7 +20,6 @@ from eliot.testing import (
 )
 
 from twisted.internet.defer import succeed, fail, Deferred
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import CancelledError
 from twisted.internet.task import Clock
 from twisted.python.failure import Failure
@@ -53,7 +51,7 @@ from .._retry import (
 from ...testtools import TestCase, CustomException
 
 
-class LoopUntilTests(SynchronousTestCase):
+class LoopUntilTests(TestCase):
     """
     Tests for :py:func:`loop_until`.
     """
@@ -356,7 +354,7 @@ class TimeoutTests(TestCase):
 ITERATION_MESSAGE = MessageType("iteration_message", fields(iteration=int))
 
 
-class RetryFailureTests(SynchronousTestCase):
+class RetryFailureTests(TestCase):
     """
     Tests for :py:func:`retry_failure`.
     """
@@ -521,7 +519,7 @@ class RetryFailureTests(SynchronousTestCase):
         self.assertEqual(self.failureResultOf(d), type_error)
 
 
-class PollUntilTests(SynchronousTestCase):
+class PollUntilTests(TestCase):
     """
     Tests for ``poll_until``.
     """
@@ -577,14 +575,17 @@ class PollUntilTests(SynchronousTestCase):
             poll_until(lambda: results.pop(0), steps, lambda ignored: None))
 
 
-class RetryEffectTests(SynchronousTestCase):
+class RetryEffectTests(TestCase):
     """
     Tests for :py:func:`retry_effect_with_timeout`.
     """
     def get_time(self, times=None):
         if times is None:
             times = [1.0, 2.0, 3.0, 4.0, 5.0]
-        return lambda: times.pop(0)
+
+        def fake_time():
+            return times.pop(0)
+        return fake_time
 
     def test_immediate_success(self):
         """
@@ -692,11 +693,51 @@ class RetryEffectTests(SynchronousTestCase):
             perform_sequence, expected_intents, retrier
         )
 
+    def test_timeout_measured_from_perform(self):
+        """
+        The timeout is measured from the time the effect is performed (not from
+        the time it is created).
+        """
+        timeout = 3.0
+        time = self.get_time([0.0] + list(timeout + i for i in range(10)))
+
+        exceptions = [Exception("One problem")]
+        result = object()
+
+        def tester():
+            if exceptions:
+                raise exceptions.pop()
+            return result
+
+        retrier = retry_effect_with_timeout(
+            Effect(Func(tester)),
+            timeout=3,
+            time=time,
+        )
+
+        # The retry effect has been created.  Advance time a little bit before
+        # performing it.
+        time()
+
+        expected_intents = [
+            # The first call raises an exception and should be retried even
+            # though (as a side-effect of the `time` call above) the timeout,
+            # as measured from when `retry_effect_with_timeout` was called, has
+            # already elapsed.
+            #
+            # There's no second intent because the second call to the function
+            # succeeds.
+            (Delay(1), lambda ignore: None),
+        ]
+        self.assertThat(
+            perform_sequence(expected_intents, retrier), Is(result)
+        )
+
 
 EXPECTED_RETRY_SOME_TIMES_RETRIES = 1200
 
 
-class GetDefaultRetryStepsTests(testtools.TestCase):
+class GetDefaultRetryStepsTests(TestCase):
     """
     Tests for ``get_default_retry_steps``.
     """
@@ -721,7 +762,7 @@ class GetDefaultRetryStepsTests(testtools.TestCase):
         self.assertThat(steps, AllMatch(GreaterThan(timedelta())))
 
 
-class RetryIfTests(testtools.TestCase):
+class RetryIfTests(TestCase):
     """
     Tests for ``retry_if``.
     """
@@ -756,7 +797,7 @@ class RetryIfTests(testtools.TestCase):
         )
 
 
-class DecorateMethodsTests(testtools.TestCase):
+class DecorateMethodsTests(TestCase):
     """
     Tests for ``decorate_methods``.
     """
@@ -806,7 +847,7 @@ class DecorateMethodsTests(testtools.TestCase):
         )
 
 
-class WithRetryTests(testtools.TestCase):
+class WithRetryTests(TestCase):
     """
     Tests for ``with_retry``.
     """

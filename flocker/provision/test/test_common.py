@@ -4,13 +4,12 @@
 Tests for common provision code.
 """
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from flocker.common.version import make_rpm_version
 from flocker.provision._common import PackageSource
+from flocker.testtools import TestCase
 
 
-class PackageSourceTests(SynchronousTestCase):
+class PackageSourceTests(TestCase):
     """
     Tests for ``PackageSource.os_version``.
     """

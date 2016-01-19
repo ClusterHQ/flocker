@@ -1068,6 +1068,35 @@ def create_python_container(test_case, cluster, parameters, script,
     return creating
 
 
+def extract_external_port(
+    client, container_identifier, internal_port
+):
+    """
+    Inspect a running container for the external port number on which a
+    particular internal port is exposed.
+
+    :param docker.Client client: The Docker client to use to perform the
+        inspect.
+    :param unicode container_identifier: The unique identifier of the container
+        to inspect.
+    :param int internal_port: An internal, exposed port on the container.
+
+    :return: The external port number on which ``internal_port`` from the
+        container is exposed.
+    :rtype: int
+    """
+    container_details = client.inspect_container(container_identifier)
+    # If the container isn't running, this section is not present.
+    network_settings = container_details[u"NetworkSettings"]
+    ports = network_settings[u"Ports"]
+    details = ports[u"{}/tcp".format(internal_port)]
+    host_port = int(details[0][u"HostPort"])
+    Message.new(
+        message_type=u"acceptance:extract_external_port", host_port=host_port
+    ).write()
+    return host_port
+
+
 def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,
                    metadata=None, node=None):
     """

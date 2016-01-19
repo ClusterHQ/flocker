@@ -6,8 +6,6 @@ Tests for ``flocker.provision._install``.
 
 import yaml
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from pyrsistent import freeze, thaw
 
 from textwrap import dedent
@@ -23,6 +21,7 @@ from .._install import (
 from .._ssh import Put
 from .._effect import sequence
 from ...acceptance.testtools import DatasetBackend
+from ...testtools import TestCase
 
 from ... import __version__ as flocker_version
 
@@ -40,7 +39,7 @@ BASIC_AGENT_YML = freeze({
 })
 
 
-class ConfigureFlockerAgentTests(SynchronousTestCase):
+class ConfigureFlockerAgentTests(TestCase):
     """
     Tests for ``task_configure_flocker_agent``.
     """
@@ -80,7 +79,7 @@ class ConfigureFlockerAgentTests(SynchronousTestCase):
         )
 
 
-class EnableFlockerAgentTests(SynchronousTestCase):
+class EnableFlockerAgentTests(TestCase):
     """
     Tests for ``task_enable_flocker_agent``.
     """
@@ -198,7 +197,7 @@ def _centos7_install_commands(version):
     ])
 
 
-class GetRepoOptionsTests(SynchronousTestCase):
+class GetRepoOptionsTests(TestCase):
     """
     Tests for ``get_repo_options``.
     """
@@ -220,7 +219,7 @@ class GetRepoOptionsTests(SynchronousTestCase):
             ['--enablerepo=clusterhq-testing'])
 
 
-class GetRepositoryURLTests(SynchronousTestCase):
+class GetRepositoryURLTests(TestCase):
     """
     Tests for ``get_repository_url``.
     """
@@ -309,7 +308,7 @@ class GetRepositoryURLTests(SynchronousTestCase):
         )
 
 
-class PrivateKeyLoggingTest(SynchronousTestCase):
+class PrivateKeyLoggingTest(TestCase):
     """
     Test removal of private keys from logs.
     """
@@ -366,7 +365,7 @@ class PrivateKeyLoggingTest(SynchronousTestCase):
             _remove_private_key(key))
 
 
-class DatasetLoggingTest(SynchronousTestCase):
+class DatasetLoggingTest(TestCase):
     """
     Test removal of sensitive information from logged configuration files.
     """

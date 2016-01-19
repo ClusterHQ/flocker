@@ -95,8 +95,10 @@ def flocker_standard_options(cls):
         Log to journald.
         """
         if JournaldDestination is None:
-            raise usage.UsageError("Journald unavailable on this machine: "
-                                   + _missing_journald_reason)
+            raise usage.UsageError(
+                "Journald unavailable on this machine: " +
+                _missing_journald_reason
+            )
         # Log messages are written line by line, so pretend we're a file...
         self['journald'] = True
     cls.opt_journald = opt_journald

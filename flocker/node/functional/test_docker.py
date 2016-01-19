@@ -6,6 +6,7 @@ Functional tests for :module:`flocker.node._docker`.
 
 from __future__ import absolute_import
 
+from functools import partial
 import time
 import socket
 
@@ -158,7 +159,7 @@ class GenericDockerClientTests(AsyncTestCase):
         client = self.make_client()
 
         if retry_on_port_collision:
-            add = lambda **kw: add_with_port_collision_retry(client, **kw)
+            add = partial(add_with_port_collision_retry, client)
         else:
             add = client.add
 
@@ -527,6 +528,7 @@ class GenericDockerClientTests(AsyncTestCase):
         d.addCallback(started)
         return d
 
+    @flaky(u"FLOC-3875")
     def test_pull_image_if_necessary(self):
         """
         The Docker image is pulled if it is unavailable locally.
@@ -640,14 +642,13 @@ class GenericDockerClientTests(AsyncTestCase):
 
         def extract_listening_port(client):
             listing = client.list()
-            listing.addCallback(
-                lambda applications: list(
-                    next(iter(application.ports)).external_port
-                    for application
-                    in applications
-                )[0]
-            )
+
+            def listed(apps):
+                [app] = [app for app in apps if app.name == registry_name]
+                return next(iter(app.ports)).external_port
+            listing.addCallback(listed)
             return listing
+
         registry_starting.addCallback(extract_listening_port)
 
         def wait_for_listening(external_port):
@@ -657,6 +658,7 @@ class GenericDockerClientTests(AsyncTestCase):
             registry_listening = self.request_until_response(registry.port)
             registry_listening.addCallback(lambda ignored: registry)
             return registry_listening
+
         registry_starting.addCallback(wait_for_listening)
 
         return registry_starting
@@ -1082,6 +1084,7 @@ class GenericDockerClientTests(AsyncTestCase):
         d.addCallback(self.assertEqual, "2")
         return d
 
+    @flaky([u'FLOC-3742', u'FLOC-3746'])
     def test_restart_policy_on_failure(self):
         """
         An container with a restart policy of on-failure is restarted
@@ -1093,6 +1096,7 @@ class GenericDockerClientTests(AsyncTestCase):
         d.addCallback(self.assertEqual, "2")
         return d
 
+    @flaky([u'FLOC-3742', u'FLOC-3746'])
     def test_restart_policy_on_failure_maximum_count(self):
         """
         A container with a restart policy of on-failure and a maximum

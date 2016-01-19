@@ -122,8 +122,10 @@ def get_doc_version(version):
     Get the version string of Flocker to display in documentation.
     """
     parsed_version = _parse_version(version)
-    if (is_release(version)
-            and parsed_version.documentation_revision is not None):
+    if (
+        is_release(version) and
+        parsed_version.documentation_revision is not None
+    ):
         return parsed_version.release
     else:
         return version
@@ -149,10 +151,12 @@ def is_release(version):
         documentation release.
     """
     parsed_version = _parse_version(version)
-    return (parsed_version.commit_count is None
-            and parsed_version.pre_release is None
-            and parsed_version.weekly_release is None
-            and parsed_version.dirty is None)
+    return (
+        parsed_version.commit_count is None and
+        parsed_version.pre_release is None and
+        parsed_version.weekly_release is None and
+        parsed_version.dirty is None
+    )
 
 
 def is_weekly_release(version):
@@ -163,10 +167,12 @@ def is_weekly_release(version):
     :return bool: Whether the version is a weekly release.
     """
     parsed_version = _parse_version(version)
-    return (parsed_version.weekly_release is not None
-            and parsed_version.commit_count is None
-            and parsed_version.pre_release is None
-            and parsed_version.dirty is None)
+    return (
+        parsed_version.weekly_release is not None and
+        parsed_version.commit_count is None and
+        parsed_version.pre_release is None and
+        parsed_version.dirty is None
+    )
 
 
 def is_pre_release(version):
@@ -177,10 +183,12 @@ def is_pre_release(version):
     :return bool: Whether the version is a pre-release.
     """
     parsed_version = _parse_version(version)
-    return (parsed_version.pre_release is not None
-            and parsed_version.weekly_release is None
-            and parsed_version.commit_count is None
-            and parsed_version.dirty is None)
+    return (
+        parsed_version.pre_release is not None and
+        parsed_version.weekly_release is None and
+        parsed_version.commit_count is None and
+        parsed_version.dirty is None
+        )
 
 
 def get_pre_release(version):

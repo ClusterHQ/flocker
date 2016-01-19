@@ -1,14 +1,13 @@
 from textwrap import dedent
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase
 
 from flocker import __version__ as version
 from flocker.common.version import get_installable_version
-from flocker.testtools import run_process
+from flocker.testtools import TestCase, run_process
 
 
-class VersionExtensionsTest(SynchronousTestCase):
+class VersionExtensionsTest(TestCase):
     """
     Tests for Sphinx version extensions.
     """

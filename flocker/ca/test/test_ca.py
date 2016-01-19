@@ -12,24 +12,24 @@ from uuid import uuid4, UUID
 from Crypto.Util import asn1
 from OpenSSL import crypto
 
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (RootCredential, ControlCredential, NodeCredential,
                 UserCredential, PathError, EXPIRY_20_YEARS,
                 AUTHORITY_CERTIFICATE_FILENAME, AUTHORITY_KEY_FILENAME)
 from ..testtools import assert_has_extension
-from ...testtools import not_root, skip_on_broken_permissions
+from ...testtools import not_root, skip_on_broken_permissions, TestCase
 
 NODE_UUID = str(uuid4())
 
 
 def make_credential_tests(cls, expected_file_name, **kwargs):
-    class CredentialTests(SynchronousTestCase):
+    class CredentialTests(TestCase):
         """
         Base test case for credential tests.
         """
         def setUp(self):
+            super(CredentialTests, self).setUp()
             self.start_date = datetime.datetime.utcnow()
             self.expiry_date = self.start_date + datetime.timedelta(
                 seconds=EXPIRY_20_YEARS)
@@ -404,7 +404,7 @@ class ControlCredentialTests(
                              b"DNS:control-service,IP:127.0.0.1")
 
 
-class RootCredentialTests(SynchronousTestCase):
+class RootCredentialTests(TestCase):
     """
     Tests for ``flocker.ca._ca.RootCredential``.
     """
