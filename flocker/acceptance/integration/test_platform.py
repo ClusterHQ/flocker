@@ -5,13 +5,13 @@ Tests for integration with the host operating system which runs Flocker.
 """
 
 from ..testtools import require_cluster
+from ...testtools import AsyncTestCase
 from ...common.runner import RemoteFileNotFound
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SkipTest, TestCase
 
 
-class SyslogTests(TestCase):
+class SyslogTests(AsyncTestCase):
     """
     Tests for Flocker's integration with syslog.
     """
@@ -38,7 +38,7 @@ class SyslogTests(TestCase):
             #
             # Currently, CentOS and Ubuntu are supported and CentOS is expected
             # to have this log file and Ubuntu is expected not to.
-            raise SkipTest("{} not found".format(reason.value))
+            self.skipTest("{} not found".format(reason.value))
         getting.addErrback(check_missing_messages)
 
         def got_messages(path):

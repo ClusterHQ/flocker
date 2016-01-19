@@ -1,12 +1,12 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 
 from twisted.internet.task import Clock
-from twisted.trial.unittest import SynchronousTestCase
 
+from flocker.testtools import TestCase
 from benchmark.operations import Wait
 
 
-class WaitOperationTests(SynchronousTestCase):
+class WaitOperationTests(TestCase):
     """
     Test Wait operation
     """

@@ -91,8 +91,7 @@ class PrettyOptions(Options):
         usage = base
         if self.subCommand is not None:
             subUsage = (
-                "Run flocker-ca "
-                + self.subCommand +
+                "Run flocker-ca " + self.subCommand +
                 " --help for command usage and help."
             )
             usage = usage + "\n\n" + subUsage + "\n\n"

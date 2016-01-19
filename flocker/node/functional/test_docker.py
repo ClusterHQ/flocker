@@ -6,20 +6,16 @@ Functional tests for :module:`flocker.node._docker`.
 
 from __future__ import absolute_import
 
+from functools import partial
 import time
 import socket
-from functools import partial
 
 from eliot.testing import capture_logging, assertHasMessage
 
 from requests.exceptions import ReadTimeout
 from docker.errors import APIError
-from docker import Client
-# Docker-py uses 1.16 API by default, which isn't supported by docker, so force
-# the use of the 1.15 API until we upgrade docker in flocker-dev
-Client = partial(Client, version="1.15")
 
-from twisted.trial.unittest import TestCase
+from twisted.python.monkey import MonkeyPatcher
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.internet.defer import succeed, gatherResults
@@ -30,16 +26,18 @@ from treq import request, content
 
 from pyrsistent import PClass, pvector, field
 
-from ...common import loop_until, retry_failure
+from ...common import loop_until
 from ...testtools import (
     find_free_port, flaky, DockerImageBuilder, assertContainsAll,
-    random_name)
+    random_name,
+    TestCase, AsyncTestCase,
+)
 
 from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE, Volume, AddressInUse, make_response,
-    LOG_CACHED_IMAGE,
+    LOG_CACHED_IMAGE, dockerpy_client,
 )
 from ...control import (
     RestartNever, RestartAlways, RestartOnFailure, DockerImage
@@ -64,7 +62,7 @@ class IDockerClientTests(make_idockerclient_tests(
     """
     @if_docker_configured
     def setUp(self):
-        pass
+        super(IDockerClientTests, self).setUp()
 
 
 class IDockerClientNamespacedTests(make_idockerclient_tests(
@@ -77,7 +75,7 @@ class IDockerClientNamespacedTests(make_idockerclient_tests(
     """
     @if_docker_configured
     def setUp(self):
-        pass
+        super(IDockerClientNamespacedTests, self).setUp()
 
     @flaky([u'FLOC-2628', u'FLOC-2874'])
     def test_added_is_listed(self):
@@ -105,7 +103,7 @@ class Registry(PClass):
         return "{host}:{port}".format(host=self.host, port=self.port)
 
 
-class GenericDockerClientTests(TestCase):
+class GenericDockerClientTests(AsyncTestCase):
     """
     Functional tests for ``DockerClient`` and other clients that talk to
     real Docker.
@@ -114,6 +112,7 @@ class GenericDockerClientTests(TestCase):
 
     @if_docker_configured
     def setUp(self):
+        super(GenericDockerClientTests, self).setUp()
         self.namespacing_prefix = namespace_for_test(self)
 
     def make_client(self):
@@ -160,7 +159,7 @@ class GenericDockerClientTests(TestCase):
         client = self.make_client()
 
         if retry_on_port_collision:
-            add = lambda **kw: add_with_port_collision_retry(client, **kw)
+            add = partial(add_with_port_collision_retry, client)
         else:
             add = client.add
 
@@ -207,7 +206,7 @@ class GenericDockerClientTests(TestCase):
         d = self.start_container(name, image_name=image_name)
 
         def started(_):
-            docker = Client()
+            docker = dockerpy_client()
             data = docker.inspect_container(self.namespacing_prefix + name)
             self.assertEqual(
                 image_name,
@@ -279,7 +278,7 @@ class GenericDockerClientTests(TestCase):
         registry_listening = self.run_registry()
 
         def tag_and_push_image(registry):
-            client = Client()
+            client = dockerpy_client()
             image_name = ANY_IMAGE
             # The image will normally have been pre-pulled on build slaves, but
             # may not already be available when running tests locally.
@@ -365,7 +364,7 @@ class GenericDockerClientTests(TestCase):
 
         def stopped_container_exists((name, image_name)):
             # Remove the image:
-            docker_client = Client()
+            docker_client = dockerpy_client()
             docker_client.remove_image(image_name, force=True)
 
             # Should be able to still list the container:
@@ -516,8 +515,9 @@ class GenericDockerClientTests(TestCase):
 
         def started(_):
             output = ""
+            client = dockerpy_client()
             while True:
-                output += Client().logs(self.namespacing_prefix + unit_name)
+                output += client.logs(self.namespacing_prefix + unit_name)
                 if "WOOT" in output:
                     break
             assertContainsAll(
@@ -528,12 +528,12 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(started)
         return d
 
-    @flaky(u'FLOC-3077')
+    @flaky(u"FLOC-3875")
     def test_pull_image_if_necessary(self):
         """
         The Docker image is pulled if it is unavailable locally.
         """
-        client = Client()
+        client = dockerpy_client()
 
         path = FilePath(self.mktemp())
         path.makedirs()
@@ -598,7 +598,7 @@ class GenericDockerClientTests(TestCase):
             repository=registry.repository + '/' + registry_name,
             tag='latest',
         )
-        client = Client()
+        client = dockerpy_client()
 
         # Tag an image with a repository name matching the given registry.
         client.tag(
@@ -641,21 +641,14 @@ class GenericDockerClientTests(TestCase):
         )
 
         def extract_listening_port(client):
-            # FLOC-3077: Docker will sometimes raise a 500 when we inspect a
-            # container, due to race conditions with certain volume
-            # operations. Since there's no real user impact for flocker (the
-            # convergence loop will just retry anyway), retry here to avoid
-            # spurious test failures.
-            listing = retry_failure(
-                reactor, client.list, [APIError], steps=[0.1] * 5)
-            listing.addCallback(
-                lambda applications: list(
-                    next(iter(application.ports)).external_port
-                    for application
-                    in applications
-                )[0]
-            )
+            listing = client.list()
+
+            def listed(apps):
+                [app] = [app for app in apps if app.name == registry_name]
+                return next(iter(app.ports)).external_port
+            listing.addCallback(listed)
             return listing
+
         registry_starting.addCallback(extract_listening_port)
 
         def wait_for_listening(external_port):
@@ -665,6 +658,7 @@ class GenericDockerClientTests(TestCase):
             registry_listening = self.request_until_response(registry.port)
             registry_listening.addCallback(lambda ignored: registry)
             return registry_listening
+
         registry_starting.addCallback(wait_for_listening)
 
         return registry_starting
@@ -680,7 +674,7 @@ class GenericDockerClientTests(TestCase):
             to use, the latter represents the registry we should have tried to
             pull it from.
         """
-        client = Client()
+        client = dockerpy_client()
 
         # Run a local registry
         running = self.run_registry()
@@ -773,7 +767,7 @@ class GenericDockerClientTests(TestCase):
         timing_out = self._pull_timeout()
 
         def pull_successfully((registry_image, registry)):
-            client = Client()
+            client = dockerpy_client()
             # Resume the registry
             client.unpause(self.namespacing_prefix + registry.name)
 
@@ -795,7 +789,7 @@ class GenericDockerClientTests(TestCase):
         Containers are created with a namespace prefixed to their container
         name.
         """
-        docker = Client()
+        docker = dockerpy_client()
         name = random_name(self)
         client = self.make_client()
         self.addCleanup(client.remove, name)
@@ -972,7 +966,7 @@ class GenericDockerClientTests(TestCase):
         d = self.start_container(name, mem_limit=MEMORY_100MB)
 
         def started(_):
-            docker = Client()
+            docker = dockerpy_client()
             data = docker.inspect_container(self.namespacing_prefix + name)
             self.assertEqual(data[u"Config"][u"Memory"],
                              MEMORY_100MB)
@@ -992,7 +986,7 @@ class GenericDockerClientTests(TestCase):
         d = self.start_container(name, cpu_shares=512)
 
         def started(_):
-            docker = Client()
+            docker = dockerpy_client()
             data = docker.inspect_container(self.namespacing_prefix + name)
             self.assertEqual(data[u"Config"][u"CpuShares"], 512)
         d.addCallback(started)
@@ -1009,7 +1003,7 @@ class GenericDockerClientTests(TestCase):
         d = self.start_container(name)
 
         def started(_):
-            docker = Client()
+            docker = dockerpy_client()
             data = docker.inspect_container(self.namespacing_prefix + name)
             self.assertEqual(data[u"Config"][u"Memory"], 0)
             self.assertEqual(data[u"Config"][u"CpuShares"], 0)
@@ -1090,6 +1084,7 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(self.assertEqual, "2")
         return d
 
+    @flaky([u'FLOC-3742', u'FLOC-3746'])
     def test_restart_policy_on_failure(self):
         """
         An container with a restart policy of on-failure is restarted
@@ -1101,6 +1096,7 @@ class GenericDockerClientTests(TestCase):
         d.addCallback(self.assertEqual, "2")
         return d
 
+    @flaky([u'FLOC-3742', u'FLOC-3746'])
     def test_restart_policy_on_failure_maximum_count(self):
         """
         A container with a restart policy of on-failure and a maximum
@@ -1171,19 +1167,19 @@ class MakeResponseTests(TestCase):
         )
 
 
-class DockerClientTests(TestCase):
+class DockerClientTests(AsyncTestCase):
     """
     Tests for ``DockerClient`` specifically.
     """
     @if_docker_configured
     def setUp(self):
-        pass
+        super(DockerClientTests, self).setUp()
 
     def test_default_namespace(self):
         """
         The default namespace is `u"flocker--"`.
         """
-        docker = Client()
+        docker = dockerpy_client()
         name = random_name(self)
         client = DockerClient()
         self.addCleanup(client.remove, name)
@@ -1197,6 +1193,8 @@ class DockerClientTests(TestCase):
         ``DockerClient.list`` does not list containers which are removed,
         during its operation, from another thread.
         """
+        patcher = MonkeyPatcher()
+
         namespace = namespace_for_test(self)
         flocker_docker_client = DockerClient(namespace=namespace)
 
@@ -1222,22 +1220,20 @@ class DockerClientTests(TestCase):
             return containers
 
         adding_units = gatherResults([adding_unit1, adding_unit2])
-        patches = []
 
         def get_list(ignored):
-            patch = self.patch(
+            patcher.addPatch(
                 docker_client,
                 'containers',
                 simulate_missing_containers
             )
-            patches.append(patch)
+            patcher.patch()
             return flocker_docker_client.list()
 
         listing_units = adding_units.addCallback(get_list)
 
         def check_list(units):
-            for patch in patches:
-                patch.restore()
+            patcher.restore()
             self.assertEqual(
                 [name2], sorted([unit.name for unit in units])
             )
@@ -1290,6 +1286,7 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
     """
     @if_docker_configured
     def setUp(self):
+        super(NamespacedDockerClientTests, self).setUp()
         self.namespace = namespace_for_test(self)
         self.namespacing_prefix = BASE_NAMESPACE + self.namespace + u"--"
 

@@ -4,12 +4,14 @@
 Tests for ``flocker.common.auto_openstack_logging``.
 """
 
-from twisted.trial.unittest import SynchronousTestCase
+from unittest import skipIf
 from twisted.web.http import INTERNAL_SERVER_ERROR
 
 from eliot.testing import LoggedMessage, assertContainsFields, capture_logging
 
 from zope.interface import Interface, implementer
+
+from ...testtools import TestCase
 
 try:
     from novaclient.exceptions import ClientException as NovaClientException
@@ -59,12 +61,14 @@ class LoggingDummy(object):
         self._dummy = dummy
 
 
-class AutoOpenStackLoggingTests(SynchronousTestCase):
+class AutoOpenStackLoggingTests(TestCase):
     """
     Tests for ``auto_openstack_logging``.
     """
-    if dependency_skip is not None:
-        skip = dependency_skip
+
+    @skipIf(dependency_skip, dependency_skip)
+    def setUp(self):
+        super(AutoOpenStackLoggingTests, self).setUp()
 
     def test_return(self):
         """

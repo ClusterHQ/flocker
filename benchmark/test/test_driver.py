@@ -10,10 +10,11 @@ from zope.interface import implementer
 from eliot.testing import capture_logging
 
 from twisted.internet.defer import Deferred, succeed, fail
-from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from benchmark._driver import benchmark, sample
 from benchmark._interfaces import IScenario, IProbe, IOperation, IMetric
+
+from flocker.testtools import AsyncTestCase, TestCase
 
 
 @implementer(IMetric)
@@ -67,6 +68,13 @@ class FakeOperation(object):
         return FakeProbe(next(self.succeeds))
 
 
+@implementer(IOperation)
+class BrokenGetProbeOperation(object):
+
+    def get_probe(self):
+        return fail(RuntimeError('get_probe failed'))
+
+
 @implementer(IScenario)
 class FakeScenario(object):
 
@@ -83,7 +91,7 @@ class FakeScenario(object):
         return succeed(None)
 
 
-class SampleTest(SynchronousTestCase):
+class SampleTest(TestCase):
     """
     Test sample function.
     """
@@ -116,14 +124,30 @@ class SampleTest(SynchronousTestCase):
             self.successResultOf(sampled), {'success': False, 'reason': str}
         )
 
+    @capture_logging(None)
+    def test_failed_get_probe(self, logger):
+        """
+        Sampling returns reason when get_probe fails.
+        """
+        sampled = sample(
+            BrokenGetProbeOperation(), FakeMetric(repeat(5)), 1)
 
-class BenchmarkTest(TestCase):
+        result = self.successResultOf(sampled)
+
+        self.assertFalse(result['success'])
+        self.assertIn('get_probe failed', result['reason'])
+
+
+class BenchmarkTest(AsyncTestCase):
     """
     Test benchmark function.
     """
-    # Test using `TestCase` rather than `SynchronousTestCase` because
-    # the `benchmark` function uses `twisted.task.cooperate`, which uses
-    # the global reactor.
+    # Test using `AsyncTestCase` rather than `TestCase` because the
+    # `benchmark` function uses `twisted.task.cooperate`, which uses the
+    # global reactor.
+    #
+    # This could be fixed by making the cooperator to use a parameter and
+    # supplying one driven by a fake IReactorTime (eg Clock).
 
     @capture_logging(None)
     def test_good_probes(self, logger):
@@ -136,9 +160,10 @@ class BenchmarkTest(TestCase):
             FakeMetric(count(5)),
             3)
 
-        def check(samples):
+        def check(outputs):
             self.assertEqual(
-                samples, [{'success': True, 'value': x} for x in [5, 6, 7]])
+                outputs,
+                ([{'success': True, 'value': x} for x in [5, 6, 7]], None))
         samples_ready.addCallback(check)
         return samples_ready
 
@@ -153,14 +178,17 @@ class BenchmarkTest(TestCase):
             FakeMetric(count(5)),
             3)
 
-        def check(samples):
+        def check(outputs):
             # We don't care about the actual value for reason.
-            for s in samples:
+            for s in outputs[0]:
                 if 'reason' in s:
                     s['reason'] = None
             self.assertEqual(
-                samples,
-                [{'success': False, 'reason': None} for x in [5, 6, 7]])
+                outputs,
+                (
+                    [{'success': False, 'reason': None} for x in [5, 6, 7]],
+                    None)
+                )
         samples_ready.addCallback(check)
         return samples_ready
 
@@ -174,3 +202,20 @@ class BenchmarkTest(TestCase):
             FakeMetric(count(5)),
             3)
         self.assertFailure(samples_ready, RuntimeError)
+
+    @capture_logging(None)
+    def test_sample_count(self, _logger):
+        """
+        The sample count determines the number of samples.
+        """
+        samples_ready = benchmark(
+            FakeScenario(),
+            FakeOperation(repeat(True)),
+            FakeMetric(count(5)),
+            5)
+
+        def check(outputs):
+            samples, scenario_metrics = outputs
+            self.assertEqual(len(samples), 5)
+        samples_ready.addCallback(check)
+        return samples_ready

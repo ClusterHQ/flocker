@@ -19,7 +19,6 @@ from eliot.testing import (
 
 from twisted.internet.error import ConnectionDone
 from twisted.test.iosim import connectedServerAndClient
-from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.protocols.amp import (
     MAX_VALUE_LENGTH, IArgumentType, Command, String, ListOf, Integer,
@@ -34,6 +33,7 @@ from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
+from ...testtools import TestCase
 from ...testtools.amp import DelayedAMPClient, connected_amp_protocol
 
 from .._protocol import (
@@ -238,7 +238,7 @@ NONMANIFEST = NonManifestDatasets(
 del dataset
 
 
-class BigArgumentTests(SynchronousTestCase):
+class BigArgumentTests(TestCase):
     """
     Tests for ``Big``.
     """
@@ -341,7 +341,7 @@ class BigArgumentTests(SynchronousTestCase):
         )
 
 
-class SerializationTests(SynchronousTestCase):
+class SerializationTests(TestCase):
     """
     Tests for argument serialization.
     """
@@ -450,7 +450,7 @@ def build_control_amp_service(test, reactor=None):
                              ClientContextFactory())
 
 
-class ControlTestCase(SynchronousTestCase):
+class ControlTestCase(TestCase):
     """
     Base TestCase for control tests that supplies a utility
     method to patch the callRemote method of the AMP protocol instance,
@@ -502,6 +502,7 @@ class ControlAMPTests(ControlTestCase):
     Tests for ``ControlAMP`` and ``ControlServiceLocator``.
     """
     def setUp(self):
+        super(ControlAMPTests, self).setUp()
         self.reactor = Clock()
         self.control_amp_service = build_control_amp_service(
             self, self.reactor,
@@ -984,11 +985,12 @@ class FakeAgent(object):
 TEST_ACTION = start_action(MemoryLogger(), 'test:action')
 
 
-class AgentClientTests(SynchronousTestCase):
+class AgentClientTests(TestCase):
     """
     Tests for ``AgentAMP``.
     """
     def setUp(self):
+        super(AgentClientTests, self).setUp()
         self.agent = FakeAgent()
         self.reactor = Clock()
         self.client = AgentAMP(self.reactor, self.agent)
@@ -1106,7 +1108,7 @@ def iconvergence_agent_tests_factory(fixture):
 
     :return: ``SynchronousTestCase`` subclass.
     """
-    class IConvergenceAgentTests(SynchronousTestCase):
+    class IConvergenceAgentTests(TestCase):
         """
         Tests for ``IConvergenceAgent``.
         """
@@ -1177,7 +1179,7 @@ HANDLE_REQUEST = ActionType(
 )
 
 
-class ClusterStatusCommandTests(SynchronousTestCase):
+class ClusterStatusCommandTests(TestCase):
     """
     Tests for ``ClusterStatusCommand``.
     """
@@ -1190,7 +1192,7 @@ class ClusterStatusCommandTests(SynchronousTestCase):
             (v[0] for v in ClusterStatusCommand.arguments))
 
 
-class AgentLocatorTests(SynchronousTestCase):
+class AgentLocatorTests(TestCase):
     """
     Tests for ``_AgentLocator``.
     """
@@ -1209,7 +1211,7 @@ class AgentLocatorTests(SynchronousTestCase):
         self.assertIs(logger, locator.logger)
 
 
-class ControlServiceLocatorTests(SynchronousTestCase):
+class ControlServiceLocatorTests(TestCase):
     """
     Tests for ``ControlServiceLocator``.
     """
@@ -1232,7 +1234,7 @@ class ControlServiceLocatorTests(SynchronousTestCase):
         self.assertIs(logger, locator.logger)
 
 
-class SendStateToConnectionsTests(SynchronousTestCase):
+class SendStateToConnectionsTests(TestCase):
     """
     Tests for ``ControlAMPService._send_state_to_connections``.
     """
@@ -1320,7 +1322,7 @@ class PingTestsMixin(object):
         self.assertEqual(b"", transport.value())
 
 
-class ControlAMPPingTests(SynchronousTestCase, PingTestsMixin):
+class ControlAMPPingTests(TestCase, PingTestsMixin):
     """
     Tests for pinging done by ``ControlAMP``.
     """
@@ -1331,7 +1333,7 @@ class ControlAMPPingTests(SynchronousTestCase, PingTestsMixin):
         return ControlAMP(reactor, control_amp_service)
 
 
-class AgentAMPPingTests(SynchronousTestCase, PingTestsMixin):
+class AgentAMPPingTests(TestCase, PingTestsMixin):
     """
     Tests for pinging done by ``AgentAMP``.
     """
@@ -1339,7 +1341,7 @@ class AgentAMPPingTests(SynchronousTestCase, PingTestsMixin):
         return AgentAMP(reactor, FakeAgent())
 
 
-class CachingWireEncodeTests(SynchronousTestCase):
+class CachingWireEncodeTests(TestCase):
     """
     Tests for ``caching_wire_encode``.
     """

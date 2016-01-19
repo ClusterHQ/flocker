@@ -58,7 +58,8 @@ class Certificates(object):
         self.nodes = nodes
 
     @classmethod
-    def generate(cls, directory, control_hostname, num_nodes, cluster_id=None):
+    def generate(cls, directory, control_hostname, num_nodes, cluster_name,
+                 cluster_id=None):
         """
         Generate certificates in the given directory.
 
@@ -72,7 +73,7 @@ class Certificates(object):
         :return: ``Certificates`` instance.
         """
         RootCredential.initialize(
-            directory, b"acceptance-cluster", cluster_id=cluster_id,
+            directory, cluster_name, cluster_id=cluster_id,
         )
 
         def run(*arguments):

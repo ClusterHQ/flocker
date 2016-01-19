@@ -33,9 +33,13 @@ to_file(sys.stderr)
 
 _SCENARIOS = {
     'no-load': scenarios.NoLoadScenario,
+    'read-request-load': scenarios.read_request_load_scenario,
+    'write-request-load': scenarios.write_request_load_scenario,
 }
 
 _OPERATIONS = {
+    'create-container': operations.CreateContainer,
+    'create-dataset': operations.CreateDataset,
     'no-op': operations.NoOperation,
     'read-request': operations.ReadRequest,
     'wait': operations.Wait,
@@ -76,10 +80,12 @@ class BenchmarkOptions(Options):
          'If not set, use acceptance test environment variables.'],
         ['config', None, 'benchmark.yml',
          'YAML file describing benchmark options.'],
+        ['samples', None, 3, 'Number of samples to take.'],
         ['scenario', None, 'default',
          'Environmental scenario under which to perform test.'],
         ['operation', None, 'default', 'Operation to measure.'],
         ['metric', None, 'default', 'Quantity to benchmark.'],
+        ['userdata', None, None, 'JSON data to add to output.']
     ]
 
 
@@ -201,15 +207,41 @@ def get_cluster(options, env):
     return cluster
 
 
-def main():
+def parse_userdata(options):
+    """
+    Parse the userdata option and add to result.
+
+    :param BenchmarkOptions options: Script options.
+    :return: Parsed user data.
+    """
+    userdata = options['userdata']
+    if userdata:
+        try:
+            if userdata.startswith('@'):
+                try:
+                    with open(userdata[1:]) as f:
+                        return json.load(f)
+                except IOError as e:
+                    usage(
+                        options,
+                        'Invalid user data file: {}'.format(e.strerror)
+                    )
+            else:
+                return json.loads(userdata)
+        except ValueError as e:
+            usage(options, 'Invalid user data: {}'.format(e.args[0]))
+    return None
+
+
+def main(argv, environ, react=react):
     options = BenchmarkOptions()
 
     try:
-        options.parseOptions()
+        options.parseOptions(argv[1:])
     except UsageError as e:
         usage(options, e.args[0])
 
-    cluster = get_cluster(options, os.environ)
+    cluster = get_cluster(options, environ)
 
     with open(options['config'], 'rt') as f:
         config = yaml.safe_load(f)
@@ -249,6 +281,11 @@ def main():
             options, 'Invalid metric type: {!r}'.format(metric_config['type'])
         )
 
+    try:
+        num_samples = int(options['samples'])
+    except ValueError:
+        usage(options, 'Invalid sample count: {!r}'.format(options['samples']))
+
     timestamp = datetime.now().isoformat()
 
     result = dict(
@@ -256,7 +293,7 @@ def main():
         client=dict(
             flocker_version=flocker_client_version,
             working_directory=os.getcwd(),
-            username=os.environ[b"USER"],
+            username=environ[b"USER"],
             nodename=node(),
             platform=platform(),
         ),
@@ -265,12 +302,16 @@ def main():
         metric=metric_config,
     )
 
+    userdata = parse_userdata(options)
+    if userdata:
+        result['userdata'] = userdata
+
     react(
         driver, (
             cluster, scenario_factory, operation_factory, metric_factory,
-            result, partial(json.dump, fp=sys.stdout, indent=2)
+            num_samples, result, partial(json.dump, fp=sys.stdout, indent=2)
         )
     )
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv, os.environ)

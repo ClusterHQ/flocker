@@ -4,13 +4,13 @@ Operations tests for the control service benchmarks.
 """
 from zope.interface.verify import verifyClass
 
-from twisted.trial.unittest import SynchronousTestCase
+from flocker.testtools import TestCase
 
 from benchmark._interfaces import IOperation
 from benchmark.operations import NoOperation
 
 
-class NoOpTests(SynchronousTestCase):
+class NoOpTests(TestCase):
 
     def test_implements_IOperation(self):
         """

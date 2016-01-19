@@ -7,8 +7,8 @@ Base classes for unit tests.
 from datetime import timedelta
 from itertools import tee
 import json
-import sys
 import tempfile
+from unittest import SkipTest
 
 from eliot.prettyprint import pretty_format
 from fixtures import Fixture
@@ -16,7 +16,7 @@ import testtools
 from testtools.content import Content, text_content
 from testtools.content_type import UTF8_TEXT
 from testtools.deferredruntest import (
-    AsynchronousDeferredRunTestForBrokenTwisted,
+    AsynchronousDeferredRunTestForBrokenTwisted, assert_fails_with,
 )
 
 try:
@@ -31,42 +31,121 @@ except ImportError:
     )
 
 
+from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
 
+from ..common import make_file
 from ._flaky import retry_flaky
 
 
-class TestCase(unittest.SynchronousTestCase):
+class _MktempMixin(object):
+    """
+    ``mktemp`` support for testtools TestCases.
+    """
+
+    def mktemp(self):
+        """
+        Create a temporary path for use in tests.
+
+        Provided for compatibility with Twisted's ``TestCase``.
+
+        :return: Path to non-existent file or directory.
+        """
+        return self.make_temporary_path().path
+
+    def make_temporary_path(self):
+        """
+        Create a temporary path for use in tests.
+
+        :return: Path to non-existent file or directory.
+        :rtype: FilePath
+        """
+        return self.make_temporary_directory().child('temp')
+
+    def make_temporary_directory(self):
+        """
+        Create a temporary directory for use in tests.
+
+        :return: Path to directory.
+        :rtype: FilePath
+        """
+        return make_temporary_directory(_path_for_test(self))
+
+    def make_temporary_file(self, content='', permissions=None):
+        """
+        Create a temporary file for use in tests.
+
+        :param str content: Content to write to the file.
+        :param int permissions: The permissions for the file
+        :return: Path to file.
+        :rtype: FilePath
+        """
+        return make_file(self.make_temporary_path(), content, permissions)
+
+
+class _DeferredAssertionMixin(object):
+    """
+    Synchronous Deferred-related assertions support for testtools TestCase.
+
+    This is provided for compatibility with Twisted's TestCase.  New code
+    should use matchers instead.
+    """
+    successResultOf = unittest.SynchronousTestCase.successResultOf.__func__
+    failureResultOf = unittest.SynchronousTestCase.failureResultOf.__func__
+    assertNoResult = unittest.SynchronousTestCase.assertNoResult.__func__
+
+    # Not related to Deferreds but required by the implementation of the above.
+    assertIdentical = unittest.SynchronousTestCase.assertIdentical.__func__
+
+
+class TestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
     """
     Base class for synchronous test cases.
     """
 
+    run_tests_with = retry_flaky(testtools.RunTest)
+    # Eliot's validateLogging hard-codes a check for SkipTest when deciding
+    # whether to check for valid logging, which is fair enough, since there's
+    # no other API for checking whether a test has skipped. Setting
+    # skipException tells testtools to treat unittest.SkipTest as the
+    # exception that signals skipping.
+    skipException = SkipTest
 
-def async_runner(timeout, flaky_output=None):
+    def __init__(self, *args, **kwargs):
+        super(TestCase, self).__init__(*args, **kwargs)
+        # XXX: Work around testing-cabal/unittest-ext#60. Delete after
+        # https://github.com/testing-cabal/testtools/pull/189 lands, is
+        # released, and we use it.
+        self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
+
+    def setUp(self):
+        log.msg("--> Begin: %s <--" % (self.id()))
+        super(TestCase, self).setUp()
+        self.useFixture(_SplitEliotLogs())
+
+    def tearDown(self):
+        log.msg("--> End: %s <--" % (self.id()))
+        super(TestCase, self).tearDown()
+
+
+def async_runner(timeout):
     """
     Make a ``RunTest`` instance for asynchronous tests.
 
     :param timedelta timeout: The maximum length of time that a test is allowed
         to take.
-    :param file flaky_output: A file-like object to which we'll send output
-        about flaky tests. This is a temporary measure until we fix FLOC-3469,
-        at which point we will just use standard logging.
     """
-    if flaky_output is None:
-        flaky_output = sys.stdout
-    # XXX: Looks like the acceptance tests (which were the first tests that we
-    # tried to migrate) aren't cleaning up after themselves even in the
-    # successful case. Use AsynchronousDeferredRunTestForBrokenTwisted, which
-    # loops the reactor a couple of times after the test is done.
-    return retry_flaky(
-        AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
-            timeout=timeout.total_seconds(),
-            suppress_twisted_logging=False,
-            store_twisted_logs=False,
-        ),
-        output=flaky_output,
+    # XXX: The acceptance tests (which were the first tests that we tried to
+    # migrate) aren't cleaning up after themselves even in the successful
+    # case. Use AsynchronousDeferredRunTestForBrokenTwisted, which loops the
+    # reactor a couple of times after the test is done.
+    async_factory = AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
+        timeout=timeout.total_seconds(),
+        suppress_twisted_logging=False,
+        store_twisted_logs=False,
     )
+    return retry_flaky(async_factory)
 
 
 # By default, asynchronous tests are timed out after 2 minutes.
@@ -77,38 +156,42 @@ def _test_skipped(case, result, exception):
     result.addSkip(case, details={'reason': text_content(unicode(exception))})
 
 
-class AsyncTestCase(testtools.TestCase):
+class AsyncTestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
     """
     Base class for asynchronous test cases.
+
+    :ivar reactor: The Twisted reactor that the test is being run in. Set by
+        ``async_runner`` and only available for the duration of the test.
     """
 
     run_tests_with = async_runner(timeout=DEFAULT_ASYNC_TIMEOUT)
+    # See comment on TestCase.skipException.
+    skipException = SkipTest
 
     def __init__(self, *args, **kwargs):
         super(AsyncTestCase, self).__init__(*args, **kwargs)
-        # XXX: Work around testing-cabal/unittest-ext#60
+        # XXX: Work around testing-cabal/unittest-ext#60. Delete after
+        # https://github.com/testing-cabal/testtools/pull/189 lands, is
+        # released, and we use it.
         self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
     def setUp(self):
+        log.msg("--> Begin: %s <--" % (self.id()))
         super(AsyncTestCase, self).setUp()
-        # XXX: Would also be useful for synchronous test cases once they're
-        # migrated over to testtools.
         self.useFixture(_SplitEliotLogs())
 
-    def mktemp(self):
+    def tearDown(self):
+        log.msg("--> End: %s <--" % (self.id()))
+        super(AsyncTestCase, self).tearDown()
+
+    def assertFailure(self, deferred, exception):
         """
-        Create a temporary directory that will be deleted on test completion.
+        ``twisted.trial.unittest.TestCase.assertFailure``-alike.
 
-        Provided for compatibility with Twisted's ``TestCase``.
-
-        :return: Path to the newly-created temporary directory.
+        This is not completely compatible.  ``assert_fails_with`` should be
+        preferred for new code.
         """
-        # XXX: Should we provide a cleaner interface for people to use? One
-        # that returns FilePath? One that returns a directory?
-
-        # XXX: Actually belongs in a mixin or something, not actually specific
-        # to async.
-        return make_temporary_directory(self).child('temp').path
+        return assert_fails_with(deferred, exception)
 
 
 class _SplitEliotLogs(Fixture):
@@ -267,16 +350,25 @@ def _path_for_test_id(test_id, max_segment_length=32):
         segment[:max_segment_length] for segment in test_id.rsplit('.', 2))
 
 
-def make_temporary_directory(test):
+def _path_for_test(test):
     """
-    Create a temporary directory for use in ``test``.
+    Get the temporary directory path for a test.
+    """
+    return FilePath(_path_for_test_id(test.id()))
 
-    :param TestCase test: A TestCase
+
+def make_temporary_directory(base_path):
+    """
+    Create a temporary directory beneath ``base_path``.
+
+    It is the responsibility of the caller to delete the temporary directory.
+
+    :param FilePath base_path: Base directory for the temporary directory.
+        Will be created if it does not exist.
     :return: The FilePath to a newly-created temporary directory, created
         beneath the current working directory.
     """
-    path = FilePath(_path_for_test_id(test.id()))
-    if not path.exists():
-        path.makedirs()
-    temp_dir = tempfile.mkdtemp(dir=path.path)
+    if not base_path.exists():
+        base_path.makedirs()
+    temp_dir = tempfile.mkdtemp(dir=base_path.path)
     return FilePath(temp_dir)

@@ -16,7 +16,7 @@ from characteristic import attributes
 from eliot import (
     add_destination, write_failure, FileDestination
 )
-from pyrsistent import pvector
+from pyrsistent import PClass, field, pvector
 from bitmath import GiB
 
 from twisted.internet.error import ProcessTerminated
@@ -28,6 +28,8 @@ from twisted.python.reflect import prefixedMethodNames
 
 from effect import parallel
 from txeffect import perform
+
+from uuid import UUID
 
 from admin.vagrant import vagrant_version
 from flocker.common import RACKSPACE_MINIMUM_VOLUME_SIZE, gather_deferreds
@@ -131,10 +133,36 @@ def run_tests(reactor, cluster, trial_args):
         ['trial'] + list(trial_args),
         env=extend_environ(
             **get_trial_environment(cluster)
-        )).addCallbacks(
-            callback=lambda _: 0,
-            errback=check_result,
-            )
+        )
+    ).addCallbacks(
+        callback=lambda _: 0,
+        errback=check_result,
+    )
+
+
+class ClusterIdentity(PClass):
+    """
+    The information that is used to identify a cluster.
+
+    :ivar unicode purpose: The intended purpose of the cluster.
+    :ivar unicode prefix: The prefix to use for names of the cluster nodes.
+    :ivar bytes name: The name of the cluster.
+    :ivar UUID id: The UUID of the cluster, ``None`` means a random ID.
+    """
+    purpose = field(mandatory=True, type=unicode)
+    prefix = field(mandatory=True, type=unicode)
+    name = field(mandatory=True, type=bytes)
+    id = field(mandatory=False, type=(UUID, type(None)), initial=None)
+
+    @property
+    def metadata(self):
+        """
+        The commonly used metadata describing the cluster.
+
+        :return: The metadata.
+        :rtype: dict of str:str
+        """
+        return {u'purpose': self.purpose}
 
 
 class IClusterRunner(Interface):
@@ -204,9 +232,13 @@ class ManagedRunner(object):
         use when they are "started".
     :ivar dict dataset_backend_configuration: The backend-specific
         configuration the nodes will be given for their dataset backend.
+    :ivar ClusterIdentity identity: The identity information of the cluster.
+    :ivar FilePath cert_path: The directory where the cluster certificate
+        files will be placed.
     """
     def __init__(self, node_addresses, package_source, distribution,
-                 dataset_backend, dataset_backend_configuration):
+                 dataset_backend, dataset_backend_configuration, identity,
+                 cert_path):
         """
         :param list: A ``list`` of public IP addresses or
             ``[private_address, public_address]`` lists.
@@ -235,6 +267,8 @@ class ManagedRunner(object):
         self.package_source = package_source
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
+        self.identity = identity
+        self.cert_path = cert_path
 
     def _upgrade_flocker(self, reactor, nodes, package_source):
         """
@@ -291,16 +325,18 @@ class ManagedRunner(object):
             return configured_cluster_for_nodes(
                 reactor,
                 generate_certificates(
-                    make_cluster_id(
-                        TestTypes.ACCEPTANCE,
-                        _provider_for_cluster_id(self.dataset_backend),
-                    ),
-                    self._nodes),
+                    self.identity.name,
+                    self.identity.id,
+                    self._nodes,
+                    self.cert_path,
+                ),
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
-                _save_backend_configuration(self.dataset_backend,
-                    self.dataset_backend_configuration),
+                _save_backend_configuration(
+                    self.dataset_backend,
+                    self.dataset_backend_configuration
+                ),
                 provider="managed"
             )
         configuring = upgrading.addCallback(configure)
@@ -327,23 +363,27 @@ def _provider_for_cluster_id(dataset_backend):
     return Providers.UNSPECIFIED
 
 
-def generate_certificates(cluster_id, nodes):
+def generate_certificates(cluster_name, cluster_id, nodes, cert_path):
     """
     Generate a new set of certificates for the given nodes.
 
+    :param bytes cluster_name: The name of the cluster.
     :param UUID cluster_id: The unique identifier of the cluster for which to
-        generate the certificates.
+        generate the certificates.  If ``None`` then a new random identifier
+        is generated.
     :param list nodes: The ``INode`` providers that make up the cluster.
+    :param FilePath cert_path: The directory where the generated certificate
+        files are to be placed.
 
     :return: A ``Certificates`` instance referring to the newly generated
         certificates.
     """
-    certificates_path = FilePath(mkdtemp())
-    print("Generating certificates in: {}".format(certificates_path.path))
+    print("Generating certificates in: {}".format(cert_path.path))
     certificates = Certificates.generate(
-        certificates_path,
+        cert_path,
         nodes[0].address,
         len(nodes),
+        cluster_name=cluster_name,
         cluster_id=cluster_id,
     )
     return certificates
@@ -366,7 +406,7 @@ def _save_backend_configuration(dataset_backend_name,
     dataset_path = FilePath(mkdtemp()).child('dataset-backend.yml')
     print("Saving dataset backend config to: {}".format(dataset_path.path))
     dataset_path.setContent(yaml.safe_dump(
-            {dataset_backend_name.name: dataset_backend_configuration}))
+        {dataset_backend_name.name: dataset_backend_configuration}))
     return dataset_path
 
 
@@ -535,7 +575,7 @@ class VagrantRunner(object):
 
 
 @attributes(RUNNER_ATTRIBUTES + [
-    'provisioner', 'num_nodes',
+    'provisioner', 'num_nodes', 'identity', 'cert_path',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
@@ -545,6 +585,10 @@ class LibcloudRunner(object):
         nodes.
     :ivar DatasetBackend dataset_backend: The volume backend the nodes are
         configured with.
+    :ivar int num_nodes: The number of nodes in the cluster.
+    :ivar ClusterIdentity identity: The identity information of the cluster.
+    :ivar FilePath cert_path: The directory where the cluster certificate
+        files will be placed.
     """
 
     def __init__(self):
@@ -570,9 +614,9 @@ class LibcloudRunner(object):
         :return Cluster: The cluster to connect to for acceptance tests.
         """
         metadata = {
-            'purpose': 'acceptance-testing',
             'distribution': self.distribution,
         }
+        metadata.update(self.identity.metadata)
         metadata.update(self.metadata)
 
         # Try to make names unique even if the same creator is starting
@@ -585,8 +629,8 @@ class LibcloudRunner(object):
         print "Assigning random tag:", random_tag
 
         for index in range(self.num_nodes):
-            name = "acceptance-test-%s-%s-%d" % (
-                self.creator, random_tag, index,
+            name = "%s-%s-%s-%d" % (
+                self.identity.prefix, self.creator, random_tag, index,
             )
             try:
                 print "Creating node %d: %s" % (index, name)
@@ -621,11 +665,11 @@ class LibcloudRunner(object):
         cluster = yield configured_cluster_for_nodes(
             reactor,
             generate_certificates(
-                make_cluster_id(
-                    TestTypes.ACCEPTANCE,
-                    _provider_for_cluster_id(self.dataset_backend),
-                ),
-                self.nodes),
+                self.identity.name,
+                self.identity.id,
+                self.nodes,
+                self.cert_path,
+            ),
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,
@@ -657,9 +701,10 @@ class LibcloudRunner(object):
 DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04')
 
 
-class RunOptions(Options):
-    description = "Run the acceptance tests."
-
+class CommonOptions(Options):
+    """
+    Options common to ``run-acceptance-tests`` and ``setup-cluster``.
+    """
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
@@ -682,15 +727,6 @@ class RunOptions(Options):
          'Number of nodes to start; default is 2 unless you set the deprecated'
          ' environment variable which was previous way to do this.', int],
     ]
-
-    optFlags = [
-        ["keep", "k", "Keep VMs around, if the tests fail."],
-        ["no-pull", None,
-         "Do not pull any Docker images when provisioning nodes."],
-    ]
-
-    synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '
-                '[--provider <provider>] [<test-cases>]')
 
     def __init__(self, top_level):
         """
@@ -718,12 +754,6 @@ class RunOptions(Options):
         Supported variants: distro-testing, docker-head, zfs-testing.
         """
         self['variants'].append(Variants.lookupByValue(arg))
-
-    def parseArgs(self, *trial_args):
-        self['trial-args'] = trial_args
-        if "FLOCKER_ACCEPTANCE_NUM_NODES" in os.environ:
-            print("Please use --number-of-nodes command line option instead "
-                  "of FLOCKER_ACCEPTANCE_NUM_NODES environment variable.")
 
     def dataset_backend_configuration(self):
         """
@@ -769,6 +799,9 @@ class RunOptions(Options):
         else:
             self['config'] = {}
 
+        if self.get('cert-directory') is None:
+            self['cert-directory'] = FilePath(mkdtemp())
+
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
@@ -793,6 +826,21 @@ class RunOptions(Options):
                 dataset_backend=self.dataset_backend(),
                 provider_config=provider_config,
             )
+
+    def _make_cluster_identity(self, dataset_backend):
+        """
+        Build a cluster identity based on the parameters.
+        """
+        cluster_id = make_cluster_id(
+            TestTypes.ACCEPTANCE,
+            _provider_for_cluster_id(dataset_backend),
+        )
+        return ClusterIdentity(
+            purpose=u'acceptance-testing',
+            prefix=u'acceptance-test',
+            name=b'acceptance-cluster',
+            id=cluster_id,
+        )
 
     def _provider_config_missing(self, provider):
         """
@@ -855,6 +903,8 @@ class RunOptions(Options):
             distribution=self['distribution'],
             dataset_backend=dataset_backend,
             dataset_backend_configuration=self.dataset_backend_configuration(),
+            identity=self._make_cluster_identity(dataset_backend),
+            cert_path=self['cert-directory'],
         )
 
     def _libcloud_runner(self, package_source, dataset_backend,
@@ -886,6 +936,8 @@ class RunOptions(Options):
             dataset_backend_configuration=self.dataset_backend_configuration(),
             variants=self['variants'],
             num_nodes=self['number-of-nodes'],
+            identity=self._make_cluster_identity(dataset_backend),
+            cert_path=self['cert-directory'],
         )
 
     def _runner_RACKSPACE(self, package_source, dataset_backend,
@@ -923,14 +975,42 @@ class RunOptions(Options):
                  zone: <aws zone, e.g. "us-west-2a">
                  access_key: <aws access key>
                  secret_access_token: <aws secret access token>
+                 session_token: <optional session token>
                  keyname: <ssh-key-name>
                  security_groups: ["<permissive security group>"]
+                 instance_type: m3.large
 
         :see: :ref:`acceptance-testing-aws-config`
         """
         return self._libcloud_runner(
             package_source, dataset_backend, "aws", provider_config
         )
+
+
+class RunOptions(CommonOptions):
+    description = "Run the acceptance tests."
+
+    optFlags = [
+        ["keep", "k", "Keep VMs around, if the tests fail."],
+        ["no-pull", None,
+         "Do not pull any Docker images when provisioning nodes."],
+    ]
+
+    synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '
+                '[--provider <provider>] [<test-cases>]')
+
+    def __init__(self, top_level):
+        """
+        :param FilePath top_level: The top-level of the flocker repository.
+        """
+        super(RunOptions, self).__init__(top_level)
+
+    def parseArgs(self, *trial_args):
+        self['trial-args'] = trial_args
+        if "FLOCKER_ACCEPTANCE_NUM_NODES" in os.environ:
+            print("Please use --number-of-nodes command line option instead "
+                  "of FLOCKER_ACCEPTANCE_NUM_NODES environment variable.")
+
 
 MESSAGE_FORMATS = {
     "flocker.provision.ssh:run":
@@ -970,6 +1050,7 @@ def eliot_output(message):
     sys.stdout.write(format % message)
     sys.stdout.flush()
 
+
 def capture_upstart(reactor, host, output_file):
     """
     SSH into given machine and capture relevant logs, writing them to
@@ -980,71 +1061,60 @@ def capture_upstart(reactor, host, output_file):
     :param file output_file: File to write to.
     :return deferred: that will run the tail command
     """
-    # note that we are using tail -F to keep retrying and not to exit when we reach the end
-    # of the file, as we expect the logs to keep being generated
-    formatter = TailFormatter(output_file, host)
-    ran = run_ssh(
-        reactor=reactor,
-        host=host,
-        username='root',
-        command=[
-            b'tail',
-            b'-F'
-            b'/var/log/flocker/flocker-control.log',
-            b'/var/log/flocker/flocker-dataset-agent.log',
-            b'/var/log/flocker/flocker-container-agent.log',
-            b'/var/log/flocker/flocker-docker-plugin.log',
-            b'/var/log/upstart/docker.log',
-        ],
-        handle_stdout=formatter.handle_output_line,
-    )
-    ran.addErrback(write_failure, logger=None)
-    # Deliver a final empty line to process the last message
-    ran.addCallback(lambda ignored: formatter.handle_output_line(b""))
-    return ran
+    # note that we are using tail -F to keep retrying and not to exit when we
+    # reach the end of the file, as we expect the logs to keep being generated
+    results = []
+    for (directory, service) in [
+            (b"flocker", b"flocker-control"),
+            (b"flocker", b"flocker-dataset-agent"),
+            (b"flocker", b"flocker-container-agent"),
+            (b"flocker", b"flocker-docker-plugin"),
+            (b"upstart", b"docker")]:
+        path = FilePath(b'/var/log/').child(directory).child(service + b'.log')
+        formatter = TailFormatter(output_file, host, service)
+        ran = run_ssh(
+            reactor=reactor,
+            host=host,
+            username='root',
+            command=[
+                b'tail',
+                b'-F',
+                path.path
+            ],
+            handle_stdout=formatter.handle_output_line,
+        )
+        ran.addErrback(write_failure, logger=None)
+        # Deliver a final empty line to process the last message
+        ran.addCallback(lambda ignored, formatter=formatter:
+                        formatter.handle_output_line(b""))
+        results.append(ran)
+    return gather_deferreds(results)
 
 
 class TailFormatter(object):
     """
     Formatter for the output of the ``tail`` commands that will produce logs
     with Eliot messages with the same format as the ones produced when
-    parsing journalctl output
+    parsing journalctl output.
 
     :ivar file output_file: log file where we want to write our log
     :ivar bytes _host: ip address or identifier of our host to be
         added to the Eliot messages
-    :ivar bytes service: optional initial name of the service. This initial
-        name shouldn't appear anywhere unless there is an error, as the first
-        line of the output of tail will be a file name, that will be used
-        to set the name of the service we are currently parsing
+    :ivar bytes service: Name of the service.
     """
-    def __init__(self, output_file, host, service="unknown"):
+    def __init__(self, output_file, host, service):
         self._output_file = output_file
         self._host = host
         self._service = service
-        # Note that the tail output will always be
-        # ==> name_of_the_service.log <==
-        # followed by a one or more lines of this log.
-        # The following regex will match the output to find out
-        # the name of the log we are currently reading
-        self._service_regexp = re.compile(
-            r"==> (?:/var/log/flocker/|/var/log/upstart/)(.*)\.log <==")
 
     def handle_output_line(self, line):
         """
-        Handles a line of the tail output, and checks if it is the name
-        of the service or an actual Eliot message
+        Handles a line of the tail output.
 
         :param line: The line read from the tail output.
         """
         if line:
-            service_match = self._service_regexp.search(line)
-
-            if service_match is not None:
-                self._service = service_match.groups()[0]
-
-            else:
-                self.print_line(self.parse_line(line))
+            self.print_line(self.parse_line(line))
 
     def parse_line(self, line):
         """
@@ -1173,6 +1243,19 @@ def main(reactor, args, base_path, top_level):
 
     cluster = None
     results = []
+
+    setup_succeeded = False
+    reached_finally = False
+
+    def cluster_cleanup():
+        if not reached_finally:
+            print "interrupted..."
+        print "stopping cluster"
+        return runner.stop_cluster(reactor)
+
+    cleanup_trigger_id = reactor.addSystemEventTrigger('before', 'shutdown',
+                                                       cluster_cleanup)
+
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
@@ -1204,33 +1287,33 @@ def main(reactor, args, base_path, top_level):
                 ]),
             )
 
+        setup_succeeded = True
         result = yield run_tests(
             reactor=reactor,
             cluster=cluster,
             trial_args=options['trial-args'])
-    except:
-        result = 1
-        raise
+
     finally:
-        # Unless the tests failed, and the user asked to keep the nodes, we
-        # delete them.
-        if not options['keep']:
-            runner.stop_cluster(reactor)
+        reached_finally = True
+        # We delete the nodes if the user hasn't asked to keep them
+        # or if we failed to provision the cluster.
+        if not setup_succeeded:
+            print "cluster provisioning failed"
+        elif not options['keep']:
+            print "not keeping cluster"
         else:
             print "--keep specified, not destroying nodes."
-            if cluster is None:
-                print ("Didn't finish creating the cluster.")
-            else:
-                print ("To run acceptance tests against these nodes, "
-                       "set the following environment variables: ")
+            print ("To run acceptance tests against these nodes, "
+                   "set the following environment variables: ")
 
-                environment_variables = get_trial_environment(cluster)
+            environment_variables = get_trial_environment(cluster)
 
-                for environment_variable in environment_variables:
-                    print "export {name}={value};".format(
-                        name=environment_variable,
-                        value=shell_quote(
-                            environment_variables[environment_variable]),
-                    )
+            for environment_variable in environment_variables:
+                print "export {name}={value};".format(
+                    name=environment_variable,
+                    value=shell_quote(
+                        environment_variables[environment_variable]),
+                )
+            reactor.removeSystemEventTrigger(cleanup_trigger_id)
 
     raise SystemExit(result)

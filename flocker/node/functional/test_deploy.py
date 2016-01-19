@@ -11,7 +11,6 @@ from pyrsistent import pmap, pvector, pset
 from eliot import Message
 
 from twisted.internet import reactor
-from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
@@ -25,7 +24,9 @@ from ...control._model import (
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
-    random_name, DockerImageBuilder, assertContainsAll, flaky)
+    random_name, DockerImageBuilder, assertContainsAll, flaky,
+    AsyncTestCase,
+)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 from .. import run_state_change
@@ -50,13 +51,13 @@ class P2PNodeDeployer(object):
         self.docker_client = self.applications_deployer.docker_client
         self.network = self.applications_deployer.network
 
-    def discover_state(self, local_state):
-        d = self.manifestations_deployer.discover_state(local_state)
+    def discover_state(self, cluster_state):
+        d = self.manifestations_deployer.discover_state(cluster_state)
 
         def got_manifestations_state(manifestations_local_state):
             manifestations_state = manifestations_local_state.node_state
             app_discovery = self.applications_deployer.discover_state(
-                manifestations_state)
+                DeploymentState(nodes={manifestations_state}))
 
             def got_app_local_state(app_local_state):
                 app_state = app_local_state.node_state
@@ -98,9 +99,12 @@ def change_node_state(deployer, desired_configuration):
     """
     def converge():
         d = deployer.discover_state(
-            NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
-                      applications=[],
-                      manifestations={}, paths={}, devices={}))
+            DeploymentState(nodes={
+                NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
+                          applications=[],
+                          manifestations={}, paths={}, devices={}),
+            }),
+        )
 
         def got_changes(local_state):
             changes = local_state.shared_state_changes()
@@ -129,10 +133,11 @@ def find_unit(units, unit_name):
             return unit
 
 
-class DeployerTests(TestCase):
+class DeployerTests(AsyncTestCase):
     """
     Functional tests for ``Deployer``.
     """
+
     @if_docker_configured
     def test_environment(self):
         """
@@ -308,9 +313,11 @@ class DeployerTests(TestCase):
                  applications=[application])])
         d = change_node_state(deployer, desired_configuration)
         d.addCallback(lambda _: deployer.discover_state(
-            NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
-                      applications=[],
-                      manifestations={}, paths={}, devices={})))
+            DeploymentState(nodes={
+                NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
+                          applications=[],
+                          manifestations={}, paths={}, devices={}),
+            })))
         return d
 
     @if_docker_configured

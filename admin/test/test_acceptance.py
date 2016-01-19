@@ -5,23 +5,27 @@ Tests for ``admin.acceptance``.
 
 import json
 from io import BytesIO
+from tempfile import mkdtemp
 from uuid import UUID
 
+from twisted.python.filepath import FilePath
+
 from zope.interface.verify import verifyObject
-from twisted.trial.unittest import SynchronousTestCase
 
 from ..acceptance import (
     IClusterRunner, ManagedRunner, generate_certificates,
-    journald_json_formatter, DISTRIBUTIONS, TailFormatter
+    journald_json_formatter, DISTRIBUTIONS,
+    ClusterIdentity
 )
 
+from flocker.testtools import TestCase
 from flocker.ca import RootCredential
 from flocker.provision import PackageSource
 from flocker.provision._install import ManagedNode
 from flocker.acceptance.testtools import DatasetBackend
 
 
-class ManagedRunnerTests(SynchronousTestCase):
+class ManagedRunnerTests(TestCase):
     """
     Tests for ``ManagedRunner``.
     """
@@ -39,13 +43,19 @@ class ManagedRunnerTests(SynchronousTestCase):
             distribution=b'centos-7',
             dataset_backend=DatasetBackend.zfs,
             dataset_backend_configuration={},
+            identity=ClusterIdentity(
+                name=b'cluster',
+                purpose=u'test',
+                prefix=u'test',
+            ),
+            cert_path=FilePath(mkdtemp()),
         )
         self.assertTrue(
             verifyObject(IClusterRunner, runner)
         )
 
 
-class GenerateCertificatesTests(SynchronousTestCase):
+class GenerateCertificatesTests(TestCase):
     """
     Tests for ``generate_certificates``.
     """
@@ -57,7 +67,10 @@ class GenerateCertificatesTests(SynchronousTestCase):
         node = ManagedNode(
             address=b"192.0.2.17", distribution=DISTRIBUTIONS[0],
         )
-        certificates = generate_certificates(cluster_id, [node])
+        path = FilePath(mkdtemp())
+        certificates = generate_certificates(b'cluster', cluster_id, [node],
+                                             path)
+        self.assertEqual(path, certificates.directory)
         root = RootCredential.from_path(certificates.directory)
         self.assertEqual(
             cluster_id,
@@ -136,7 +149,7 @@ _SYSTEMD_UNIT=docker.service
 MESSAGE=time="2015-10-02T13:33:26.192780138Z" level=info msg="GET /v1.20/containers/json"
 """
 
-class JournaldJSONFormatter(SynchronousTestCase):
+class JournaldJSONFormatter(TestCase):
     """
     Tests for ``journald_json_formatter``.
     """
@@ -191,42 +204,3 @@ class JournaldJSONFormatter(SynchronousTestCase):
             )],
             self._convert(NON_JSON_JOURNAL_EXPORT),
         )
-
-
-class TailFormatterRegex(SynchronousTestCase):
-    """
-    Tests for ``TailFormatter``
-    """
-    def setUp(self):
-        self._valid_match_flocker = "random ==> /var/log/"\
-            "flocker/valid_service.log <=="
-        self._valid_match_upstart = "==> /var/log/upstart/valid_service.log <=="
-        self._invalid_match1 = "/var/log/upstart/invalid.log"
-        self._invalid_match2 = ""
-        self._invalid_match3 = "log/flocker/invalid.log"
-        self._formatter = TailFormatter("0.0.0.0", "my_host")
-
-    def test_matching_regex(self):
-        my_match = self._formatter._service_regexp.search(self._valid_match_flocker)
-        self.assertNotEquals(my_match, None, "Expected to match")
-        self.assertEquals(my_match.groups()[0],
-                          "valid_service",
-                          "expected string valid_service")
-
-        my_match = self._formatter._service_regexp.search(self._valid_match_upstart)
-        self.assertNotEqual(my_match, None, "Expected to match")
-        self.assertEquals(my_match.groups()[0],
-                          "valid_service",
-                          "expected string valid_service")
-
-    def test_not_matching_regex(self):
-        my_match = self._formatter._service_regexp.search(
-            self._invalid_match1)
-        self.assertEquals(my_match, None, "Expected not to match")
-        my_match = self._formatter._service_regexp.search(
-            self._invalid_match2)
-        self.assertEquals(my_match, None, "Expected not to match")
-        my_match = self._formatter._service_regexp.search(
-            self._invalid_match3)
-        self.assertEquals(my_match, None, "Expected not to match")
-

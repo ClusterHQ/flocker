@@ -6,6 +6,7 @@ Helpers for testing our test code.
 Only put stuff here that is specific to testing code about unit testing.
 """
 
+from hypothesis.strategies import sampled_from
 import unittest
 
 from testtools.matchers import (
@@ -13,6 +14,11 @@ from testtools.matchers import (
     Equals,
     MatchesStructure,
 )
+
+from ._base import AsyncTestCase, TestCase
+
+
+base_test_cases = sampled_from([AsyncTestCase, TestCase])
 
 
 def throw(exception):
@@ -72,3 +78,17 @@ def run_test(case):
     result = unittest.TestResult()
     case.run(result)
     return result
+
+
+def make_test_case(base_case):
+    """
+    Make a single test that subclasses ``base_case`` and passes.
+
+    :param type base_case: A ``TestCase`` class.
+
+    :rtype: ``base_case``
+    """
+    class FooTests(base_case):
+        def test_something(self):
+            pass
+    return FooTests('test_something')

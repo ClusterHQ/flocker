@@ -19,7 +19,6 @@ from pyrsistent import pmap
 from eliot import ActionType
 from eliot.testing import capture_logging, assertHasAction, LoggedAction
 
-from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 from twisted.internet import reactor
@@ -34,11 +33,13 @@ from .._client import (
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
     Lease, LeaseAlreadyHeld, Node, Container, ContainerAlreadyExists,
     DatasetsConfiguration, ConfigurationChanged, conditional_create,
-    _LOG_CONDITIONAL_CREATE,
+    _LOG_CONDITIONAL_CREATE, ContainerState, MountedDataset,
 )
 from ...ca import rest_api_context_factory
 from ...ca.testtools import get_credential_sets
-from ...testtools import find_free_port, random_name, CustomException
+from ...testtools import (
+    find_free_port, random_name, CustomException, AsyncTestCase, TestCase,
+)
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.httpapi import create_api_service
@@ -67,8 +68,9 @@ def make_clientv1_tests():
     synchronize_state: Make state match the configuration.
     get_configuration_tag: Return the configuration hash.
     """
-    class InterfaceTests(TestCase):
+    class InterfaceTests(AsyncTestCase):
         def setUp(self):
+            super(InterfaceTests, self).setUp()
             self.node_1 = Node(
                 uuid=uuid4(),
                 public_address=IPAddress('10.0.0.1')
@@ -345,7 +347,7 @@ def make_clientv1_tests():
                                          configuration_tag=u"willnotmatch")
             return self.assertFailure(d, ConfigurationChanged)
 
-        def test_list_state(self):
+        def test_dataset_state(self):
             """
             ``list_datasets_state`` returns information about state.
             """
@@ -403,16 +405,17 @@ def make_clientv1_tests():
                 ])
             d.addCallback(lambda _: self.client.release_lease(d2))
             d.addCallback(lambda _: self.client.list_leases())
+            d.addCallback(frozenset)
             d.addCallback(
-                self.assertItemsEqual,
-                [
+                self.assertEqual,
+                frozenset([
                     Lease(
                         dataset_id=d1, node_uuid=self.node_1.uuid, expires=10
                     ),
                     Lease(
                         dataset_id=d3, node_uuid=self.node_2.uuid, expires=10.5
                     )
-                ]
+                ])
             )
             return d
 
@@ -496,6 +499,98 @@ def make_clientv1_tests():
             d.addCallback(got_result)
             return d
 
+        def test_container_state(self):
+            """
+            ``list_containers_state`` returns information about state.
+            """
+            expected, d = create_container_for_test(self, self.client)
+
+            d.addCallback(lambda _ignored: self.synchronize_state())
+
+            d.addCallback(lambda _ignored: self.client.list_containers_state())
+
+            d.addCallback(
+                lambda containers: self.assertIn(
+                    ContainerState(
+                        node_uuid=expected.node_uuid,
+                        name=expected.name,
+                        image=expected.image,
+                        running=True,
+                    ),
+                    containers
+                )
+            )
+
+            return d
+
+        def test_container_volumes(self):
+            """
+            Mounted datasets are included in response messages.
+            """
+            d = self.assert_creates(
+                self.client, primary=self.node_1.uuid,
+                maximum_size=DATASET_SIZE
+            )
+
+            def start_container(dataset):
+                name = random_name(case=self)
+                volumes = [
+                    MountedDataset(
+                        dataset_id=dataset.dataset_id, mountpoint=u'/data')
+                ]
+                expected_configuration = Container(
+                    node_uuid=self.node_1.uuid,
+                    name=name,
+                    image=DockerImage.from_string(u'nginx'),
+                    volumes=volumes,
+                )
+
+                # Create a container with an attached dataset
+                d = self.client.create_container(
+                    node_uuid=expected_configuration.node_uuid,
+                    name=expected_configuration.name,
+                    image=expected_configuration.image,
+                    volumes=expected_configuration.volumes,
+                )
+
+                # Result of create call is stateful container configuration
+                d.addCallback(
+                    lambda configuration: self.assertEqual(
+                        configuration, expected_configuration
+                    )
+                )
+
+                # Cluster configuration contains stateful container
+                d.addCallback(
+                    lambda _ignore: self.client.list_containers_configuration()
+                ).addCallback(
+                    lambda configurations: self.assertIn(
+                        expected_configuration, configurations
+                    )
+                )
+
+                d.addCallback(lambda _ignore: self.synchronize_state())
+
+                expected_state = ContainerState(
+                    node_uuid=self.node_1.uuid,
+                    name=name,
+                    image=DockerImage.from_string(u'nginx'),
+                    running=True,
+                    volumes=volumes,
+                )
+
+                # After convergence, cluster state contains stateful container
+                d.addCallback(
+                    lambda _ignore: self.client.list_containers_state()
+                ).addCallback(
+                    lambda states: self.assertIn(expected_state, states)
+                )
+
+                return d
+            d.addCallback(start_container)
+
+            return d
+
         def test_delete_container(self):
             """
             ``delete_container`` returns a deferred that fires with ``None``.
@@ -540,9 +635,10 @@ def make_clientv1_tests():
             ``Node``s.
             """
             d = self.client.list_nodes()
+            d.addCallback(frozenset)
             d.addCallback(
-                self.assertItemsEqual,
-                [self.node_1, self.node_2]
+                self.assertEqual,
+                frozenset([self.node_1, self.node_2]),
             )
             return d
 
@@ -663,7 +759,9 @@ class FlockerClientTests(make_clientv1_tests()):
 
     def synchronize_state(self):
         deployment = self.persistence_service.get()
+        # No IP address known, so use UUID for hostname
         node_states = [NodeState(uuid=node.uuid, hostname=unicode(node.uuid),
+                                 applications=node.applications,
                                  manifestations=node.manifestations,
                                  paths={manifestation.dataset_id:
                                         FilePath(b"/flocker").child(bytes(
@@ -790,11 +888,12 @@ class FlockerClientTests(make_clientv1_tests()):
                                   ResponseError)
 
 
-class ConditionalCreateTests(SynchronousTestCase):
+class ConditionalCreateTests(TestCase):
     """
     Tests for ``conditional_create``.
     """
     def setUp(self):
+        super(ConditionalCreateTests, self).setUp()
         self.client = FakeFlockerClient()
         self.reactor = Clock()
         self.node_id = uuid4()

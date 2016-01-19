@@ -72,3 +72,4 @@ List of Labs Projects
    weave
    mesosphere
    kubernetes
+   flockercontainers
