@@ -14,11 +14,14 @@ from bitmath import GiB
 
 from twisted.python.filepath import FilePath
 
+from eliot.testing import capture_logging, assertHasMessage
+
 from ..ebs import (
     AttachedUnexpectedDevice, _expected_device,
     _attach_volume_and_wait_for_device, _get_blockdevices,
-    _get_device_size,
+    _get_device_size, _wait_for_new_device,
 )
+from .._logging import NO_NEW_DEVICE_IN_OS
 from ..blockdevice import BlockDeviceVolume
 
 from ....testtools import CustomException, TestCase
@@ -219,4 +222,23 @@ class ExpectedDeviceTests(TestCase):
         self.assertRaises(
             ValueError,
             _expected_device, b"/dev/hda",
+        )
+
+
+class WaitForNewDeviceTests(TestCase):
+    """
+    Tests for ``_wait_for_new_device``.
+    """
+    @capture_logging(assertHasMessage, NO_NEW_DEVICE_IN_OS)
+    def test_no_new_device_logged(self, logger):
+        """
+        ``NO_NEW_DEVICE_IN_OS`` is logged if a new device does not appear.
+        """
+        self.assertIs(
+            None,
+            _wait_for_new_device(
+                base=[],
+                expected_size=1,
+                time_limit=0,
+            )
         )
