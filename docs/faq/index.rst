@@ -1,7 +1,11 @@
 .. _faqs:
 
+===
 FAQ
 ===
+
+Security
+========
 
 I think I've found a security problem! What should I do?
 ********************************************************
