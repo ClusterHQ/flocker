@@ -91,6 +91,8 @@ class P2PNodeDeployer(object):
             self.manifestations_deployer.calculate_changes(
                 configuration, cluster_state, local_state),
         ])
+def P2PNodeDeployer(hostname, volume_service, docker_client=None, network=None, node_uuid=None):
+    return ApplicationNodeDeployer(hostname, docker_client, network, node_uuid=node_uuid)
 
 
 def change_node_state(deployer, desired_configuration):

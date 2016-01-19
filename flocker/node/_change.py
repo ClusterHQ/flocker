@@ -43,7 +43,7 @@ class IStateChange(Interface):
         attribute-which-must-always-be-a-property.
         """)
 
-    def run(deployer, state_recorder):
+    def run(deployer, state_pesister):
         """
         Apply the change to local state.
 
@@ -51,6 +51,9 @@ class IStateChange(Interface):
             ``IStateChange`` providers may require specific ``IDeployer``
             providers that provide relevant functionality for applying the
             change.
+
+        :param IStatePersister state_persister: The ``IStatePersister`` to
+            record generated state.
 
         :return: ``Deferred`` firing when the change is done.
         """
@@ -66,7 +69,7 @@ class IStateChange(Interface):
         """
 
 
-def run_state_change(change, deployer, state_recorder):
+def run_state_change(change, deployer, state_persister):
     """
     Apply the change to local state.
 
@@ -75,7 +78,8 @@ def run_state_change(change, deployer, state_recorder):
     :param IDeployer deployer: The ``IDeployer`` to use.  Specific
         ``IStateChange`` providers may require specific ``IDeployer`` providers
         that provide relevant functionality for applying the change.
-    :param IStateRecorder:
+    :param IStatePersister state_persister: The ``IStatePersister`` to record
+        generated state.
 
     :return: ``Deferred`` firing when the change is done.
     """
@@ -83,7 +87,7 @@ def run_state_change(change, deployer, state_recorder):
         context = DeferredContext(maybeDeferred(
             change.run,
             deployer=deployer,
-            state_recorder=state_recorder))
+            state_persister=state_persister))
         context.addActionFinish()
         return context.result
 
@@ -107,11 +111,11 @@ class _InParallel(PClass):
     def eliot_action(self):
         return LOG_IN_PARALLEL()
 
-    def run(self, deployer, state_recorder):
+    def run(self, deployer, state_persister):
         return gather_deferreds(list(
             run_state_change(subchange,
                              deployer=deployer,
-                             state_recorder=state_recorder)
+                             state_persister=state_persister)
             for subchange in self.changes
         ))
 
@@ -149,13 +153,13 @@ class _Sequentially(PClass):
     def eliot_action(self):
         return LOG_SEQUENTIALLY()
 
-    def run(self, deployer, state_recorder):
+    def run(self, deployer, state_persister):
         d = DeferredContext(succeed(None))
         for subchange in self.changes:
             d.addCallback(
                 lambda _, subchange=subchange: run_state_change(
                     subchange, deployer=deployer,
-                    state_recorder=state_recorder,
+                    state_persister=state_persister,
                 )
             )
         return d.result
@@ -200,5 +204,5 @@ class NoOp(PClass):
     def eliot_action(self):
         return LOG_NOOP()
 
-    def run(self, deployer, state_recorder):
+    def run(self, deployer, state_persister):
         return succeed(None)

@@ -134,6 +134,7 @@ class ControllableAction(object):
     """
     called = False
     deployer = None
+    state_persister = None
 
     _logger = Logger()
 
@@ -141,9 +142,10 @@ class ControllableAction(object):
     def eliot_action(self):
         return CONTROLLABLE_ACTION_TYPE(self._logger)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         self.called = True
         self.deployer = deployer
+        self.state_persister = state_persister
         return self.result
 
 

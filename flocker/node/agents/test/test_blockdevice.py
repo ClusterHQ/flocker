@@ -1241,7 +1241,7 @@ class BlockDeviceCalculatorTests(TestCase):
                     hostname=self.deployer.hostname,
                 ),
             }),
-            persistent_state=self.persistent_state.get_model(),
+            persistent_state=self.persistent_state.get_state(),
         )).datasets
 
     def run_convergence_step(self, desired_datasets):
@@ -1259,7 +1259,7 @@ class BlockDeviceCalculatorTests(TestCase):
         note("Running changes: {changes}".format(changes=changes))
         self.successResultOf(run_state_change(
             changes, deployer=self.deployer,
-            state_recorder=self.persistent_state))
+            state_persister=self.persistent_state))
 
     def run_to_convergence(self, desired_datasets, max_iterations=20):
         """

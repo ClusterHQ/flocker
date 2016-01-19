@@ -509,7 +509,7 @@ class ConvergenceLoop(object):
             ran_state_change = run_state_change(
                 action,
                 deployer=self.deployer,
-                state_recorder=RemoteStatePersister(client=self.client),
+                state_persister=RemoteStatePersister(client=self.client),
             )
             DeferredContext(ran_state_change).addErrback(
                 writeFailure, self.fsm.logger)
@@ -630,7 +630,6 @@ def build_convergence_loop_fsm(reactor, deployer):
 @implementer(IStatePersister)
 class RemoteStatePersister(PClass):
     """
-    Persister:
     Persistence implementation that uses the agent connection to record state
     on the control node.
 

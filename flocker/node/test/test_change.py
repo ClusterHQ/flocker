@@ -97,7 +97,7 @@ class BrokenAction(PClass):
             u"implementations.",
         )()
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         raise self.exception
 
 
