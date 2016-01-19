@@ -5,10 +5,11 @@ Tests for the test running process.
 """
 
 from unittest import skipUnless, TestSuite
+from pprint import pformat
 
 from yaml import safe_load
 
-from pyrsistent import pset, thaw
+from pyrsistent import pset
 
 from twisted.python.filepath import FilePath
 from twisted.trial.runner import TestLoader
@@ -75,5 +76,10 @@ class EnsureAllTestsRun(TestCase):
         # around with extra tests from no-longer existent modules. So
         # delete those. Also it implicitly assumes test run environment is
         # the same as the checkout in terms of what tests it has.
-        self.assertItemsEqual(thaw(configured_tests), thaw(expected_tests))
+        self.assertTrue(
+            configured_tests == expected_tests,
+            ("Tests that are unexpected but in build.yaml: {}\n\n"
+             "Tests that are missing from build.yaml: {}\n\n").format(
+                 pformat(list(configured_tests - expected_tests)),
+                 pformat(list(expected_tests - configured_tests))))
 
