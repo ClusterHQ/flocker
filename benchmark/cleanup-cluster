@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Clean up all containers and datasets in a cluster.
+"""
+import sys
+
+from twisted.internet.task import react
+
+from benchmark.cluster_cleanup import main
+
+if __name__ == '__main__':
+    react(main, [sys.argv[1:]])
