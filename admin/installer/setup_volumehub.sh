@@ -14,7 +14,7 @@ control_service=false
 agent_node=false
 agent_number="0"
 
-if "${node_number}" -eq "0"; then
+if test "${node_number}" -eq "0"; then
     control_service=true
 else
     agent_node=true
