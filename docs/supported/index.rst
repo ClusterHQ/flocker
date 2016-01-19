@@ -29,7 +29,7 @@ Supported Cluster Managers
 	
 	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
 		<span><img src="/_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp; You can install Flocker without a specific cluster manager, click here to learn more:</span>
-        <a href="flocker-standalone/" class="button">Learn more</a>
+        <a href="/flocker-standalone/" class="button">Learn more</a>
     </div>
 
 .. _storage-backends:
@@ -40,16 +40,16 @@ Supported Infrastructure & Storage
 The sections below list the supported infrastructure and storage options.
 
 **Community Developed** drivers are those provided and supported by our community partners.
-Other options that are still be worked on are tagged with **Experimental** or **Coming soon**:
+Other options that are still be worked on by ClusterHQ are tagged with **Experimental** or **Coming Soon**:
 
 .. raw:: html
 
-    <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed"> = Community developed
+    <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community Developed"> = Community Developed
     <img src="/_images/experimental.png" style="height:25px; padding:2px 4px; margin-left:20px; border:1px solid #ddd;" title="Experimental (labs project)"> = Experimental
-    <img src="/_images/coming-soon.png" style="height:25px; margin:2px; margin-left:20px; border:1px solid #ddd;" title="Coming soon"> = Coming soon
+    <img src="/_images/coming-soon.png" style="height:25px; margin:2px; margin-left:20px; border:1px solid #ddd;" title="Coming Soon"> = Coming oon
     <div style="clear:both; margin-top:20px;"></div>
 
-IaaS block storage
+IaaS Block Storage
 ------------------
 
 These are the best options for running Flocker on a supported public or private cloud.
@@ -71,7 +71,7 @@ These are the best options for running Flocker on a supported public or private 
 		<img src="/_images/vmware.png" style="width:100px;"/>
 		<br />
         <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
-        <p style="margin-top:10px"><a href="flocker-standalone/vmware-configuration.html">Learn more</a></p>
+        <p style="margin-top:10px"><a href="/flocker-features/vmware-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
         GCE PD
@@ -82,7 +82,7 @@ These are the best options for running Flocker on a supported public or private 
     </div>
     <div style="clear:both;"></div>
 
-Software defined storage
+Software Defined Storage
 ------------------------
 
 These software defined storage options can be run on any infrastructure, including bare metal.
@@ -95,7 +95,7 @@ These software defined storage options can be run on any infrastructure, includi
 		<img src="/_images/ceph.png" style="width:30px; "/>
         <br />
         <img src="/_images/experimental.png" style="height:25px; padding:2px 4px; border:1px solid #ddd;" title="Experimental (labs project)">
-        <p style="margin-top:10px"><a href="https://github.com/ClusterHQ/ceph-flocker-driver" target="/_blank">GitHub Repo</a></p>
+        <p style="margin-top:10px"><a href="https://github.com/ClusterHQ/ceph-/flocker-driver" target="/_blank">GitHub Repo</a></p>
     </div>
     <div class="big-box storage">
         ScaleIO
@@ -103,7 +103,7 @@ These software defined storage options can be run on any infrastructure, includi
 		<img src="/_images/emc.png" style="width:50px;" title="EMC" />
         <br />
         <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
-        <p style="margin-top:10px"><a href="flocker-standalone/emc-configuration.html">Learn more</a></p>
+        <p style="margin-top:10px"><a href="/flocker-features/emc-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
         Hedvig
@@ -111,7 +111,7 @@ These software defined storage options can be run on any infrastructure, includi
 		<img src="/_images/hedvig.png" style="width:80px;" title="Hedvig" />
         <br />
         <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
-        <p style="margin-top:10px"><a href="flocker-standalone/hedvig-configuration.html">Learn more</a></p>
+        <p style="margin-top:10px"><a href="/flocker-features/hedvig-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
         NexentaEdge
@@ -119,7 +119,7 @@ These software defined storage options can be run on any infrastructure, includi
 		<img src="/_images/nexenta.png" style="width:60px;" title="Nexenta" />
         <br />
         <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
-        <p style="margin-top:10px"><a href="flocker-standalone/nexenta-configuration.html">Learn more</a></p>
+        <p style="margin-top:10px"><a href="/flocker-features/nexenta-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
         ConvergeIO
@@ -127,11 +127,11 @@ These software defined storage options can be run on any infrastructure, includi
 		<img src="/_images/convergeio.png" style="width:60px;" title="ConvergeIO" />
         <br />
         <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
-        <p style="margin-top:10px"><a href="flocker-standalone/convergeio-configuration.html">Learn more</a></p>
+        <p style="margin-top:10px"><a href="/flocker-features/convergeio-configuration.html">Learn more</a></p>
     </div>
     <div style="clear:both;"></div>
 
-Hardware storage devices
+Hardware Storage Devices
 ------------------------
 
 These hardware storage options require specific physical hardware in your data center.
@@ -144,7 +144,7 @@ These hardware storage options require specific physical hardware in your data c
 		<img src="/_images/dell.png" style="height:35px;"/>
         <br />
         <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
-        <p style="margin-top:10px"><a href="flocker-standalone/dell-configuration.html">Learn more</a></p>
+        <p style="margin-top:10px"><a href="/flocker-features/dell-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
         EMC XtremIO, VMAX
@@ -152,7 +152,7 @@ These hardware storage options require specific physical hardware in your data c
 		<img src="/_images/emc.png" style="width:50px;"/>
         <br />
         <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
-        <p style="margin-top:10px"><a href="flocker-standalone/emc-configuration.html">Learn more</a></p>
+        <p style="margin-top:10px"><a href="/flocker-features/emc-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
         NetApp OnTap
@@ -160,7 +160,7 @@ These hardware storage options require specific physical hardware in your data c
 		<img src="/_images/netapp.png" style="width:20px;"/>
         <br />
         <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
-        <p style="margin-top:10px"><a href="flocker-standalone/netapp-configuration.html">Learn more</a></p>
+        <p style="margin-top:10px"><a href="/flocker-features/netapp-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
         Saratoga Speed
@@ -168,7 +168,7 @@ These hardware storage options require specific physical hardware in your data c
 		<img src="/_images/saratoga.png" style="width:50px;"/>
         <br />
         <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
-        <p style="margin-top:10px"><a href="flocker-standalone/saratogaspeed-configuration.html">Learn more</a></p>
+        <p style="margin-top:10px"><a href="/flocker-features/saratogaspeed-configuration.html">Learn more</a></p>
     </div>
     <div class="big-box storage">
         Huawei
@@ -176,7 +176,7 @@ These hardware storage options require specific physical hardware in your data c
 		<img src="/_images/huawei.png" style="width:50px;"/>
         <br />
         <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community developed">
-        <p style="margin-top:10px"><a href="flocker-standalone/huawei.html">Learn more</a></p>
+        <p style="margin-top:10px"><a href="/flocker-features/huawei.html">Learn more</a></p>
     </div>
     <div style="clear:both;"></div>
     <div style="clear:both; margin-top:20px;"></div>
@@ -209,7 +209,7 @@ Supported Operating Systems
 		<img src="/_images/coreos.png" style="width:40px;"/>
         <br />
         <img src="/_images/experimental.png" style="height:25px; padding:2px 4px; border:1px solid #ddd;" title="Experimental (labs project)">
-        <p style="margin-top:10px"><a href="flocker-standalone/installer.html#experimental-configurations">Works with Labs Installer</a></p>
+        <p style="margin-top:10px"><a href="/flocker-standalone/installer.html#experimental-configurations">Works with Labs Installer</a></p>
     </div>
     <div class="big-box">
         RHEL 7
@@ -224,10 +224,10 @@ Supported Operating Systems
 Running Flocker in Containers
 =============================
 
-It is possible to run Flocker in a container as an experimental configuration, click here to learn more:
+It is possible to run Flocker in a container as an experimental configuration, click :ref:`here <flocker-containers>` to learn more.
 
 .. toctree::
-   :maxdepth: 1
+   :hidden:
 
    flockercontainers
 
