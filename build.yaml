@@ -989,7 +989,6 @@ run_trial_modules: &run_trial_modules
   - flocker.cli
   - flocker.common
   - flocker.control
-  - flocker.restapi
   - flocker.docs
   - flocker.dockerplugin
   - flocker.node.test
