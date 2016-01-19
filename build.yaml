@@ -1040,13 +1040,6 @@ run_trial_cli_as_root: &run_trial_cli_as_root [
   *run_coverage,
   *convert_results_to_junit ]
 
-# run_acceptance_modules contains the list of Flocker modules to be executed
-# during the acceptance tests
-run_acceptance_modules: &run_acceptance_modules
-  - flocker.acceptance.endtoend
-  - flocker.acceptance.integration
-  - flocker.acceptance.obsolete
-
 # When we have acceptance tests that run quickly enough (as they do on loopback)
 # we just run them all in one builder:
 run_full_acceptance_modules: &run_full_acceptance_modules
