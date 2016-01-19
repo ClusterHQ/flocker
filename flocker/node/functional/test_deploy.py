@@ -32,6 +32,7 @@ from ...testtools import (
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 from .. import run_state_change
+from ...control.testtools import InMemoryStatePersister
 
 
 class P2PNodeDeployer(object):
@@ -102,6 +103,8 @@ def change_node_state(deployer, desired_configuration):
         nodes.
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
+    state_recorder = InMemoryStatePersister()
+
     def converge():
         d = deployer.discover_state(
             DeploymentState(nodes={
@@ -109,7 +112,7 @@ def change_node_state(deployer, desired_configuration):
                           applications=[],
                           manifestations={}, paths={}, devices={}),
             }),
-            persistent_state=PersistentState(),
+            persistent_state=state_recorder.get_model(),
         )
 
         def got_changes(local_state):
@@ -120,7 +123,9 @@ def change_node_state(deployer, desired_configuration):
             return deployer.calculate_changes(
                 desired_configuration, cluster_state, local_state)
         d.addCallback(got_changes)
-        d.addCallback(lambda change: run_state_change(change, deployer))
+        d.addCallback(lambda change: run_state_change(
+            change, deployer=deployer,
+            state_recorder=state_recorder))
         return d
     # Repeat a few times until things settle down:
     result = converge()

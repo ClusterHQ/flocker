@@ -22,6 +22,7 @@ from ..testtools import (
     DummyDeployer
 )
 from ...testtools import CustomException, TestCase
+from ...control.testtools import InMemoryStatePersister
 
 from .. import IStateChange, sequentially, in_parallel, run_state_change, NoOp
 from .._change import LOG_IN_PARALLEL, LOG_SEQUENTIALLY
@@ -207,7 +208,7 @@ def _test_nested_change(case, outer_factory, inner_factory):
         ControllableAction(result=succeed(None))
     ]
     change = outer_factory(changes=subchanges)
-    run_state_change(change, DEPLOYER)
+    run_state_change(change, DEPLOYER, InMemoryStatePersister())
     case.assertEqual(
         (True, DEPLOYER),
         (inner_action.called, inner_action.deployer)
@@ -226,7 +227,7 @@ class SequentiallyTests(TestCase):
         subchanges = [ControllableAction(result=succeed(None)),
                       ControllableAction(result=succeed(None))]
         change = sequentially(changes=subchanges)
-        run_state_change(change, DEPLOYER)
+        run_state_change(change, DEPLOYER, InMemoryStatePersister())
         self.assertEqual(
             list(c.deployer for c in subchanges),
             [DEPLOYER, DEPLOYER]
@@ -243,7 +244,7 @@ class SequentiallyTests(TestCase):
         subchanges = [ControllableAction(result=not_done1),
                       ControllableAction(result=not_done2)]
         change = sequentially(changes=subchanges)
-        result = run_state_change(change, DEPLOYER)
+        result = run_state_change(change, DEPLOYER, InMemoryStatePersister())
         self.assertNoResult(result)
         not_done1.callback(None)
         self.assertNoResult(result)
@@ -265,7 +266,7 @@ class SequentiallyTests(TestCase):
         # Run the sequential change. We expect the first ControllableAction's
         # run() to be called, but we expect second one *not* to be called
         # yet, since first one has finished.
-        run_state_change(change, DEPLOYER)
+        run_state_change(change, DEPLOYER, InMemoryStatePersister())
         called = [subchanges[0].called,
                   subchanges[1].called]
         not_done.callback(None)
@@ -282,7 +283,7 @@ class SequentiallyTests(TestCase):
         subchanges = [ControllableAction(result=not_done),
                       ControllableAction(result=succeed(None))]
         change = sequentially(changes=subchanges)
-        result = run_state_change(change, DEPLOYER)
+        result = run_state_change(change, DEPLOYER, InMemoryStatePersister())
         called = [subchanges[1].called]
         exception = RuntimeError()
         not_done.errback(exception)
@@ -345,7 +346,7 @@ class InParallelTests(TestCase):
         subchanges = [ControllableAction(result=succeed(None)),
                       ControllableAction(result=succeed(None))]
         change = in_parallel(changes=subchanges)
-        run_state_change(change, DEPLOYER)
+        run_state_change(change, DEPLOYER, InMemoryStatePersister())
         self.assertEqual([c.deployer for c in subchanges],
                          [DEPLOYER, DEPLOYER])
 
@@ -360,7 +361,7 @@ class InParallelTests(TestCase):
         subchanges = [ControllableAction(result=not_done1),
                       ControllableAction(result=not_done2)]
         change = in_parallel(changes=subchanges)
-        result = run_state_change(change, DEPLOYER)
+        result = run_state_change(change, DEPLOYER, InMemoryStatePersister())
         self.assertNoResult(result)
         not_done1.callback(None)
         self.assertNoResult(result)
@@ -378,7 +379,7 @@ class InParallelTests(TestCase):
         subchanges = [ControllableAction(result=Deferred()),
                       ControllableAction(result=succeed(None))]
         change = in_parallel(changes=subchanges)
-        run_state_change(change, DEPLOYER)
+        run_state_change(change, DEPLOYER, InMemoryStatePersister())
         called = [subchanges[0].called,
                   subchanges[1].called]
         self.assertEqual(called, [True, True])
@@ -391,7 +392,7 @@ class InParallelTests(TestCase):
         """
         subchanges = [BrokenAction(exception=CustomException())]
         change = in_parallel(changes=subchanges)
-        result = run_state_change(change, DEPLOYER)
+        result = run_state_change(change, DEPLOYER, InMemoryStatePersister())
         failure = self.failureResultOf(result, FirstError)
         self.assertEqual(failure.value.subFailure.type, CustomException)
 
@@ -409,7 +410,7 @@ class InParallelTests(TestCase):
             largest(IStateChange, other_change),
         ]
         change = in_parallel(changes=subchanges)
-        result = run_state_change(change, DEPLOYER)
+        result = run_state_change(change, DEPLOYER, InMemoryStatePersister())
         self.failureResultOf(result, FirstError)
         self.assertEqual(
             (some_change.called, other_change.called),
@@ -425,7 +426,7 @@ class InParallelTests(TestCase):
         """
         subchanges = [ControllableAction(result=fail(RuntimeError()))]
         change = in_parallel(changes=subchanges)
-        result = run_state_change(change, DEPLOYER)
+        result = run_state_change(change, DEPLOYER, InMemoryStatePersister())
         failure = self.failureResultOf(result, FirstError)
         self.assertEqual(failure.value.subFailure.type, RuntimeError)
 
@@ -441,7 +442,7 @@ class InParallelTests(TestCase):
             ControllableAction(result=fail(ZeroDivisionError('e3'))),
         ]
         change = in_parallel(changes=subchanges)
-        result = run_state_change(change, DEPLOYER)
+        result = run_state_change(change, DEPLOYER, InMemoryStatePersister())
         self.failureResultOf(result, FirstError)
 
         self.assertEqual(
@@ -502,7 +503,7 @@ class RunStateChangeTests(TestCase):
         passed to it and passes along the same deployer it was called with.
         """
         action = ControllableAction(result=succeed(None))
-        run_state_change(action, DEPLOYER)
+        run_state_change(action, DEPLOYER, InMemoryStatePersister())
         self.assertTrue(
             (True, DEPLOYER),
             (action.called, action.deployer)
@@ -520,7 +521,8 @@ class RunStateChangeTests(TestCase):
         action = ControllableAction(result=succeed(None))
         action._logger = logger
         self.assertIs(
-            None, self.successResultOf(run_state_change(action, DEPLOYER))
+            None, self.successResultOf(
+                run_state_change(action, DEPLOYER, InMemoryStatePersister()))
         )
 
     @validate_logging(
@@ -534,7 +536,8 @@ class RunStateChangeTests(TestCase):
         """
         action = ControllableAction(result=fail(Exception("Oh no")))
         action._logger = logger
-        failure = self.failureResultOf(run_state_change(action, DEPLOYER))
+        failure = self.failureResultOf(
+            run_state_change(action, DEPLOYER, InMemoryStatePersister()))
         self.assertEqual(failure.getErrorMessage(), "Oh no")
 
     def assert_nested_logging(self, combo, action_type, logger):
@@ -552,7 +555,7 @@ class RunStateChangeTests(TestCase):
                    ControllableAction(result=succeed(None))]
         for action in actions:
             self.patch(action, "_logger", logger)
-        run_state_change(combo(actions), None)
+        run_state_change(combo(actions), None, InMemoryStatePersister())
         # For sequentially this will ensure second action doesn't
         # automatically run in context of LOG_ACTION:
         actions[0].result.callback(None)

@@ -28,6 +28,9 @@ from ._protocol import (
     AgentAMP,
     SetNodeEraCommand,
 )
+from ._registry import (
+    IStatePersister,
+)
 
 __all__ = [
     'same_node',
@@ -65,4 +68,5 @@ __all__ = [
     'ChangeSource',
     'UpdateNodeStateEra',
     'NoWipe',
+    'IStatePersister',
 ]

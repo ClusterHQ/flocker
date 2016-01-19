@@ -43,7 +43,7 @@ class IStateChange(Interface):
         attribute-which-must-always-be-a-property.
         """)
 
-    def run(deployer):
+    def run(deployer, state_recorder):
         """
         Apply the change to local state.
 
@@ -66,7 +66,7 @@ class IStateChange(Interface):
         """
 
 
-def run_state_change(change, deployer):
+def run_state_change(change, deployer, state_recorder):
     """
     Apply the change to local state.
 
@@ -75,11 +75,15 @@ def run_state_change(change, deployer):
     :param IDeployer deployer: The ``IDeployer`` to use.  Specific
         ``IStateChange`` providers may require specific ``IDeployer`` providers
         that provide relevant functionality for applying the change.
+    :param IStateRecorder:
 
     :return: ``Deferred`` firing when the change is done.
     """
     with change.eliot_action.context():
-        context = DeferredContext(maybeDeferred(change.run, deployer))
+        context = DeferredContext(maybeDeferred(
+            change.run,
+            deployer=deployer,
+            state_recorder=state_recorder))
         context.addActionFinish()
         return context.result
 
@@ -103,9 +107,11 @@ class _InParallel(PClass):
     def eliot_action(self):
         return LOG_IN_PARALLEL()
 
-    def run(self, deployer):
+    def run(self, deployer, state_recorder):
         return gather_deferreds(list(
-            run_state_change(subchange, deployer)
+            run_state_change(subchange,
+                             deployer=deployer,
+                             state_recorder=state_recorder)
             for subchange in self.changes
         ))
 
@@ -143,12 +149,13 @@ class _Sequentially(PClass):
     def eliot_action(self):
         return LOG_SEQUENTIALLY()
 
-    def run(self, deployer):
+    def run(self, deployer, state_recorder):
         d = DeferredContext(succeed(None))
         for subchange in self.changes:
             d.addCallback(
                 lambda _, subchange=subchange: run_state_change(
-                    subchange, deployer
+                    subchange, deployer=deployer,
+                    state_recorder=state_recorder,
                 )
             )
         return d.result
@@ -193,5 +200,5 @@ class NoOp(PClass):
     def eliot_action(self):
         return LOG_NOOP()
 
-    def run(self, deployer):
+    def run(self, deployer, state_recorder):
         return succeed(None)
