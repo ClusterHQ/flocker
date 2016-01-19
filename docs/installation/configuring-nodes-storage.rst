@@ -50,4 +50,6 @@ All nodes must be configured to use the same dataset backend.
 .. note::
 	You can only choose a single backend at a time, and changing backends is not currently supported.
 
+For a full list of available storage backends, see :ref:`supported-backends`.
+
 .. end-body-nodeconfig-agent-yml
