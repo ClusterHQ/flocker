@@ -136,11 +136,9 @@ class CreateContainerTests(TestCase):
         clock.advance(1)
 
         # get_probe has completed successfully
-        self.successResultOf(d)
+        probe = self.successResultOf(d)
 
-        def run_probe(probe):
-            return probe.run()
-        d.addCallback(run_probe)
+        d = probe.run()
 
         clock.advance(DEFAULT_TIMEOUT.total_seconds())
 
