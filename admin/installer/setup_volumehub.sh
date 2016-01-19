@@ -22,17 +22,17 @@ else
     agent_number="${node_number}"
 fi
 
-TOKEN="${volumehub_cluster_token}"
+export TOKEN="${volumehub_token}"
 
 if ${control_service}; then
-    TARGET="control-service"
-    sh -c 'curl -ssL https://get-volumehub.clusterhq.com/ |sh'
+    export TARGET="control-service"
+    curl -ssL https://get-volumehub.clusterhq.com/ |sh
 fi
 
 if ${agent_node}; then
-    TARGET="agent-node"
+    export TARGET="agent-node"
     if test "${agent_number}" -eq "1"; then
-        RUN_FLOCKER_AGENT_HERE="1"
+        export RUN_FLOCKER_AGENT_HERE="1"
     fi
-    sh -c 'curl -ssL https://get-volumehub.clusterhq.com/ |sh'
+    curl -ssL https://get-volumehub.clusterhq.com/ |sh
 fi
