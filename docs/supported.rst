@@ -1,10 +1,3 @@
-.. raw:: html
-
-    <style>
-        .toctree-wrapper { display:none; }
-        h1 { display:none; }
-    </style>
-
 ========================
 Supported Configurations
 ========================
