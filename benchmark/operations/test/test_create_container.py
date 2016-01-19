@@ -113,7 +113,7 @@ class CreateContainerTests(TestCase):
             return d
         d.addCallback(run_probe)
 
-        clock.advance(DEFAULT_TIMEOUT)
+        clock.advance(DEFAULT_TIMEOUT.total_seconds())
 
         # No control_service.synchronize_state() call, so cluster state
         # never shows container is created.

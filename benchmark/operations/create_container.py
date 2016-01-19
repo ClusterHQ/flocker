@@ -4,6 +4,7 @@ Operation to create a container.
 """
 
 from functools import partial
+from datetime import timedelta
 from uuid import UUID, uuid4
 
 from pyrsistent import PClass, field
@@ -17,7 +18,7 @@ from benchmark._interfaces import IProbe, IOperation
 from benchmark.operations._common import select_node
 
 
-DEFAULT_TIMEOUT = 600
+DEFAULT_TIMEOUT = timedelta(minutes=10)
 
 
 def loop_until_state_found(reactor, get_states, state_matches, timeout):
@@ -28,7 +29,7 @@ def loop_until_state_found(reactor, get_states, state_matches, timeout):
         of states.
     :param state_matches: Callable that accepts a state parameter, and
         returns a boolean indicating whether the state matches.
-    :param int timeout: Maximum seconds to wait for state to be found.
+    :param timedelta timeout: Maximum time to wait for state to be found.
     :return Deferred[Any]: The matching state.
     """
     def state_reached():
@@ -44,7 +45,7 @@ def loop_until_state_found(reactor, get_states, state_matches, timeout):
         return d
 
     d = loop_until(reactor, state_reached)
-    _timeout(reactor, d, timeout)
+    _timeout(reactor, d, timeout.total_seconds())
     return d
 
 
@@ -61,7 +62,8 @@ def create_dataset(
     :param UUID node_uuid: Node on which to create dataset.
     :param UUID dataset_id: ID for created dataset.
     :param int volume_size: Size of volume in bytes.
-    :param int timeout: Maximum seconds to wait for dataset to be mounted.
+    :param timedelta timeout: Maximum time to wait for dataset to be
+        mounted.
     :return Deferred[DatasetState]: The state of the created dataset.
     """
 
@@ -103,7 +105,8 @@ def create_container(
     :param DockerImage image: Docker image for the container.
     :param Optional[Sequence[MountedDataset]] volumes: Volumes to attach
         to the container.
-    :param int timeout: Maximum seconds to wait for container to be created.
+    :param timedelta timeout: Maximum time to wait for container to be
+        created.
     :return Deferred[ContainerState]: The state of the created container.
     """
 
