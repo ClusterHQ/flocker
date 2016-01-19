@@ -8,5 +8,5 @@ import sys
 
 if __name__ == '__main__':
     from twisted.internet.task import react
-    from admin.cluster_containers_setup import main
+    from .cluster_containers_setup import main
     react(main, [sys.argv])

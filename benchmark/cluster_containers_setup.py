@@ -9,7 +9,6 @@ from ipaddr import IPAddress
 
 from treq import json_content
 from eliot import add_destination, Message
-
 from twisted.internet.defer import inlineCallbacks
 from twisted.python.filepath import FilePath
 from twisted.python import usage
@@ -40,7 +39,7 @@ class ContainerOptions(usage.Options):
     description = "Set up containers in a Flocker cluster."
 
     optParameters = [
-        ['apps-per-node', None, 0, 'Number of application containers per node',
+        ['apps-per-node', None, 1, 'Number of application containers per node',
          int],
         ['app-template', None, None,
          'Configuration to use for each application container'],
@@ -60,7 +59,7 @@ class ContainerOptions(usage.Options):
                 '[--wait <seconds to wait>]')
 
     def postOptions(self):
-        # Mnadatory parameters
+        # Mandatory parameters
         # Validate template
         if self['app-template'] is not None:
             template_file = FilePath(self['app-template'])
@@ -100,7 +99,6 @@ class ContainerOptions(usage.Options):
 def main(reactor, argv):
     environ = os.environ
     add_destination(eliot_output)
-    # to_file(sys.stdout)
 
     try:
         options = ContainerOptions()
@@ -222,7 +220,7 @@ class ClusterContainerDeployment(object):
         """
         Check if all the dataset have been created.
 
-        :return `Deferred`: that will fire once the list datasets call
+        :return Deferred: that will fire once the list datasets call
             has been completed, and which result will bee True if all the
             dataset have been created, or false otherwise.
         """
@@ -250,7 +248,7 @@ class ClusterContainerDeployment(object):
         """
         Check if all the containers have been created.
 
-        :return `Deferred`: that will fire once the list containers call
+        :return Deferred: that will fire once the list containers call
             has been completed, and which result will bee True if all the
             containers have been created, or False otherwise.
         """
@@ -366,4 +364,3 @@ class ClusterContainerDeployment(object):
             return posted
 
         return do_configure()
-

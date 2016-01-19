@@ -6,6 +6,7 @@ Set up a Flocker cluster.
 import stat
 import string
 import sys
+import yaml
 from pipes import quote as shell_quote
 
 from eliot import add_destination, FileDestination
