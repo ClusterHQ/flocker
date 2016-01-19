@@ -261,6 +261,10 @@ class DockerComposeTests(AsyncTestCase):
             {
                 'ParameterKey': 'SecretAccessKey',
                 'ParameterValue': os.environ['SECRET_ACCESS_KEY']
+            },
+            {
+                'ParameterKey': 'VolumeHubToken',
+                'ParameterValue': os.environ['VOLUMEHUB_TOKEN']
             }
         ]
 

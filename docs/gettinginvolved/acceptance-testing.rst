@@ -282,6 +282,7 @@ You can run them as follows:
    KEY_PAIR=<aws SSH key pair name> \
    ACCESS_KEY_ID=<aws access key> \
    SECRET_ACCESS_KEY=<aws secret access token> \
+   VOLUMEHUB_TOKEN=<Volume Hub token or empty string> \
    trial flocker.acceptance.endtoend.test_installer
 
 
