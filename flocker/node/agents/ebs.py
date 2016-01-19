@@ -6,6 +6,7 @@ An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
 from types import NoneType
+from subprocess import check_output
 import threading
 import time
 import logging
