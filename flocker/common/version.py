@@ -136,10 +136,6 @@ def get_installable_version(version):
     """
     parsed_version = _parse_version(version)
     returned_version = parsed_version.installable_release
-    # The 1.9.0.dev1 tag is not actually installable. Instead install the
-    # previous 1.8.0 release.
-    if returned_version == '1.9.0.dev1':
-        returned_version = '1.8.0'
     return returned_version
 
 
