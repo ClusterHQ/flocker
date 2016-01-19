@@ -1,8 +1,8 @@
 .. _about-kubernetes-integration:
 
-======================
-About This Integration
-======================
+================================
+About the Kubernetes Integration
+================================
 
 Kubernetes 1.1 and later has native support for Flocker volumes.
 
