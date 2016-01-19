@@ -56,7 +56,7 @@ Please let us know with the form below!
    kubernetes-integration/index
    mesos-integration/index
    flocker-standalone/index
-   supported
+   supported/index
    administering/index
    flocker-features/index
    reference/index

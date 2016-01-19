@@ -221,31 +221,41 @@ Supported Operating Systems
 
    <div style="display:none;">
 
-.. image:: images/docker.png
-.. image:: images/kubernetes.png
-.. image:: images/mesos.png
-.. image:: images/questionmark.png
-.. image:: images/AWS.png
-.. image:: images/GCE.png
-.. image:: images/vmware.png
-.. image:: images/openstack.png
-.. image:: images/3rd-party.png
-.. image:: images/coming-soon.png
-.. image:: images/experimental.png
-.. image:: images/ceph.png
-.. image:: images/emc.png
-.. image:: images/hedvig.png
-.. image:: images/nexenta.png
-.. image:: images/convergeio.png
-.. image:: images/dell.png
-.. image:: images/netapp.png
-.. image:: images/saratoga.png
-.. image:: images/huawei.png
-.. image:: images/ubuntu.png
-.. image:: images/centos.png
-.. image:: images/rhel.png
-.. image:: images/coreos.png
+.. image:: ../images/docker.png
+.. image:: ../images/kubernetes.png
+.. image:: ../images/mesos.png
+.. image:: ../images/questionmark.png
+.. image:: ../images/AWS.png
+.. image:: ../images/GCE.png
+.. image:: ../images/vmware.png
+.. image:: ../images/openstack.png
+.. image:: ../images/3rd-party.png
+.. image:: ../images/coming-soon.png
+.. image:: ../images/experimental.png
+.. image:: ../images/ceph.png
+.. image:: ../images/emc.png
+.. image:: ../images/hedvig.png
+.. image:: ../images/nexenta.png
+.. image:: ../images/convergeio.png
+.. image:: ../images/dell.png
+.. image:: ../images/netapp.png
+.. image:: ../images/saratoga.png
+.. image:: ../images/huawei.png
+.. image:: ../images/ubuntu.png
+.. image:: ../images/centos.png
+.. image:: ../images/rhel.png
+.. image:: ../images/coreos.png
 
 .. raw:: html
 
    </div>
+
+Running Flocker in Containers
+=============================
+
+It is possible to run Flocker in a container as an experimental configuration, click here to learn more:
+
+.. toctree::
+   :maxdepth: 1
+   
+   flockercontainers
