@@ -51,10 +51,10 @@ class ContainerOptions(usage.Options):
          "No waiting is done by default."],
     ]
 
-    synopsis = ('Usage: setup-cluster-containers --app-per-node <containers'
+    synopsis = ('Usage: setup-cluster-containers --app-per-node <containers '
                 'per node> --app-template <name of the file> '
-                '--control-node <IPAddress>'
-                '--cert-directory <path where all the certificates are>'
+                '--control-node <IPAddress> '
+                '--cert-directory <path where all the certificates are> '
                 '[--wait <seconds to wait>]')
 
     def postOptions(self):

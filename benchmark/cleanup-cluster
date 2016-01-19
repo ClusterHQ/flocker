@@ -3,12 +3,11 @@
 """
 Clean up all containers and datasets in a cluster.
 """
-
-from admin._preamble import TOPLEVEL, BASEPATH
-
 import sys
 
+from twisted.internet.task import react
+
+from benchmark.cluster_cleanup import main
+
 if __name__ == '__main__':
-    from twisted.internet.task import react
-    from benchmark.cluster_cleanup import main
-    react(main, (sys.argv[1:], BASEPATH, TOPLEVEL))
+    react(main, (sys.argv[1:]))
