@@ -156,6 +156,7 @@ def create_cloudformation_stack(template_url, access_key_id,
     stack_name = CLOUDFORMATION_STACK_NAME + str(int(time.time()))
     output = check_output(
         ['aws', 'cloudformation', 'create-stack',
+         '--disable-rollback',
          '--parameters', json.dumps(parameters),
          '--stack-name', stack_name,
          '--template-url', template_url]
