@@ -8,5 +8,6 @@ import sys
 
 if __name__ == '__main__':
     from twisted.internet.task import react
-    from .cluster_containers_setup import main
-    react(main, [sys.argv])
+    from benchmark.cluster_containers_setup import main
+    import os
+    react(main, (sys.argv, os.environ))

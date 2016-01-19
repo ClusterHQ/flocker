@@ -96,8 +96,7 @@ class ContainerOptions(usage.Options):
                 raise usage.UsageError("The wait timeout must be an integer.")
 
 
-def main(reactor, argv):
-    environ = os.environ
+def main(reactor, argv, environ):
     add_destination(eliot_output)
 
     try:
@@ -170,6 +169,8 @@ class ClusterContainerDeployment(object):
             sys.stderr.write('\n')
             sys.stderr.write(options.getUsage())
             raise SystemExit(1)
+        print "timeout is: ", self.timeout
+
 
         certificates_path = FilePath(self.options['cert-directory'])
         self.cluster_cert = certificates_path.child(b"cluster.crt")
@@ -210,9 +211,7 @@ class ClusterContainerDeployment(object):
         Message.log(action="Listing current nodes")
         d = self.client.list_nodes()
         d.addCallback(self._set_nodes)
-        Message.log(action="Building config")
         d.addCallback(self._build_config)
-        Message.log(action="Deploying new config")
         d.addCallback(self._configure)
         return d
 
@@ -329,6 +328,7 @@ class ClusterContainerDeployment(object):
         :return Deferred: Deferred that fires when the configuration is pushed
                           to the cluster's control agent.
         """
+        Message.log(action="Deploying new config")
         base_url = b"https://{}:{}/v1".format(
             self.control_node_address, REST_API_PORT
         )
