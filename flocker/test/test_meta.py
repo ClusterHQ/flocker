@@ -57,6 +57,14 @@ class EnsureAllTestsRun(TestCase):
         code in the Flocker repository.
 
         This only makes sense when running out of a git checkout.
+
+        Caveats:
+        * This has no idea whether tests are actually being run in an
+          appropriate environment. E.g. maybe we're only running tests
+          that require root in non-root environment, and so they are
+          always skipped.
+        * Acceptance tests are run using different mechanism that
+          isn't well covered by this check.
         """
         build_config = safe_load(REPOSITORY.child(b"build.yaml").getContent())
         configured_tests = pset()
