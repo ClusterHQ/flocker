@@ -4,7 +4,11 @@
 Flocker Leases
 ==============
 
+.. begin-body
+
 Leases prevent multiple applications from requesting the same dataset on different nodes at the same time.
+
+.. end-body
 
 Requesting Leases
 =================

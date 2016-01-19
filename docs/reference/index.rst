@@ -28,6 +28,17 @@ For more information read the :ref:`cluster architecture<architecture>` document
 
    api
    deprecated_api
+
+Leases
+======
+
+.. include:: ../reference/leases.rst
+   :start-after: .. begin-body
+   :end-before: .. end-body
+
+.. toctree::
+   :maxdepth: 2
+   
    leases
 
 .. XXX: Improvements to the API (create collapse directive) requires Engineering effort:
