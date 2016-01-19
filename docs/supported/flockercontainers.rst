@@ -31,9 +31,6 @@ Running Flocker in Containers
 
 For some environments, such as CoreOS, and ECS you must install Flocker inside a container.
 
-.. warning::
-   Installing Flocker in containers is useful for environments such as CoreOS, or Amazon ECS, but please note that doing so is currently experimental.
-
 You can find the relevant Docker Hub images here:
 
 * `Dataset Agent <https://hub.docker.com/r/clusterhq/flocker-dataset-agent/>`_
