@@ -946,14 +946,8 @@ class CommonOptions(Options):
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider_config: The ``rackspace`` section of the acceptance
-            testing configuration file.  The section of the configuration
-            file should look something like:
-
-               rackspace:
-                 region: <rackspace region, e.g. "iad">
-                 username: <rackspace username>
-                 key: <access key>
-                 keyname: <ssh-key-name>
+            testing configuration file.  See the linked documentation for the
+            form of that section.
 
         :see: :ref:`acceptance-testing-rackspace-config`
         """
@@ -967,18 +961,8 @@ class CommonOptions(Options):
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
         :param provider_config: The ``aws`` section of the acceptance testing
-            configuration file.  The section of the configuration file should
-            look something like:
-
-               aws:
-                 region: <aws region, e.g. "us-west-2">
-                 zone: <aws zone, e.g. "us-west-2a">
-                 access_key: <aws access key>
-                 secret_access_token: <aws secret access token>
-                 session_token: <optional session token>
-                 keyname: <ssh-key-name>
-                 security_groups: ["<permissive security group>"]
-                 instance_type: m3.large
+            configuration file.  See the linked documentation for the form of
+            that section.
 
         :see: :ref:`acceptance-testing-aws-config`
         """
