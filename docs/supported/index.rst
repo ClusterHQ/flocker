@@ -39,8 +39,8 @@ Supported Infrastructure & Storage
 
 The sections below list the supported infrastructure and storage options.
 
-*Community Developed* drivers are those provided and supported by our community partners.
-Other options that are still be worked on are tagged with *Experimental* or *Coming soon*:
+**Community Developed** drivers are those provided and supported by our community partners.
+Other options that are still be worked on are tagged with **Experimental** or **Coming soon**:
 
 .. raw:: html
 
