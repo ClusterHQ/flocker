@@ -1,6 +1,5 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 import yaml
-import os
 import sys
 from copy import deepcopy
 from json import dumps
@@ -169,8 +168,6 @@ class ClusterContainerDeployment(object):
             sys.stderr.write('\n')
             sys.stderr.write(options.getUsage())
             raise SystemExit(1)
-        print "timeout is: ", self.timeout
-
 
         certificates_path = FilePath(self.options['cert-directory'])
         self.cluster_cert = certificates_path.child(b"cluster.crt")
