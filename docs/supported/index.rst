@@ -214,6 +214,15 @@ Supported Operating Systems
     </div>
     <div style="clear:both;"></div>
 
+Running Flocker in Containers
+=============================
+
+It is possible to run Flocker in a container as an experimental configuration, click here to learn more:
+
+.. toctree::
+   :maxdepth: 1
+
+   flockercontainers
 
 .. What follows is a hack to force sphinx to drag images into the build
 
@@ -249,13 +258,3 @@ Supported Operating Systems
 .. raw:: html
 
    </div>
-
-Running Flocker in Containers
-=============================
-
-It is possible to run Flocker in a container as an experimental configuration, click here to learn more:
-
-.. toctree::
-   :maxdepth: 1
-   
-   flockercontainers
