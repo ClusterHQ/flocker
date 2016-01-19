@@ -84,9 +84,9 @@ class CreateContainerTests(TestCase):
         # The Deferred fires once the container has been created.
         self.successResultOf(d)
 
-    def test_create_container_timeout(self):
+    def test_get_probe_timeout(self):
         """
-        CreateContainer probe times-out if container not created.
+        CreateContainer probe times-out if get_probe runs too long.
         """
         clock = Clock()
 
@@ -103,14 +103,43 @@ class CreateContainerTests(TestCase):
         operation = CreateContainer(clock, cluster)
         d = operation.get_probe()
 
+        clock.advance(DEFAULT_TIMEOUT.total_seconds())
+
+        # No control_service.synchronize_state() call, so cluster state
+        # never shows container is created.
+
+        # The Deferred fails if container not created within 10 minutes.
+        self.failureResultOf(d)
+
+    def test_run_probe_timeout(self):
+        """
+        CreateContainer probe times-out if probe.run runs too long.
+        """
+        clock = Clock()
+
+        node_id = uuid4()
+        node = Node(uuid=node_id, public_address=IPAddress('10.0.0.1'))
+        control_service = FakeFlockerClient([node], node_id)
+
+        cluster = BenchmarkCluster(
+            IPAddress('10.0.0.1'),
+            lambda reactor: control_service,
+            {},
+            None,
+        )
+        operation = CreateContainer(clock, cluster)
+        d = operation.get_probe()
+
+        control_service.synchronize_state()  # creation of pull container
+        clock.advance(1)
+        control_service.synchronize_state()  # deletion of pull container
+        clock.advance(1)
+
+        # get_probe has completed successfully
+        self.successResultOf(d)
+
         def run_probe(probe):
-            def cleanup(result):
-                cleaned_up = probe.cleanup()
-                cleaned_up.addCallback(lambda _ignored: result)
-                return cleaned_up
-            d = probe.run()
-            d.addCallback(cleanup)
-            return d
+            return probe.run()
         d.addCallback(run_probe)
 
         clock.advance(DEFAULT_TIMEOUT.total_seconds())
