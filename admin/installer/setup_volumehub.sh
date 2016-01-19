@@ -2,10 +2,10 @@
 # Set up Volume Hub if a token has been supplied.
 set -ex
 
-: ${volumehub_cluster_token:?}
+: ${volumehub_token:?}
 : ${node_number:?}
 
-if test -z "${volumehub_cluster_token}"; then
+if test -z "${volumehub_token}"; then
     # No Volume Hub token supplied.
     exit
 fi

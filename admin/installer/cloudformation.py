@@ -76,11 +76,11 @@ secret_access_key_param = template.add_parameter(Parameter(
     Type="String",
 ))
 
-volumehub_cluster_token = template.add_parameter(Parameter(
+volumehub_token = template.add_parameter(Parameter(
     "VolumeHubClusterToken",
     Description=(
-        "Your Volume Hub cluster token. "
-        "Visit https://volumehub.clusterhq.com to generate a new token."
+        "Your Volume Hub token. "
+        "You'll find the token at https://volumehub.clusterhq.com/v1/token."
     ),
     Type="String",
 ))
@@ -148,7 +148,7 @@ base_user_data = [
     'secret_access_key="', Ref(secret_access_key_param), '"\n',
     's3_bucket="', Ref(s3bucket), '"\n',
     'stack_name="', Ref("AWS::StackName"), '"\n',
-    'volumehub_cluster_token="', Ref(volumehub_cluster_token), '"\n',
+    'volumehub_token="', Ref(volumehub_token), '"\n',
     'node_count="{}"\n'.format(NUM_NODES),
     'apt-get update\n',
 ]
