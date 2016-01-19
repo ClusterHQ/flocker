@@ -122,18 +122,17 @@ GLOBAL_CONFIG = jsonSlurper.parseText(
 // --------------------------------------------------------------------------
 
 def updateGitHubStatus(status, description, branch, dashProject,
-                       dashBranchName) {
+                       dashBranchName, jobName) {
     return """#!/bin/bash
 # Jenkins jobs are usually run using 'set -x' however we use 'set +x' here
 # to avoid leaking credentials into the build logs.
 set +x
-# Read the GitHub credentials
-. /etc/slave_config/github_status.sh
-
+# Set the GitHub credentials
+""" + new File('/etc/slave_config/github_status.sh').text + """
 # Send a request to Github to update the commit with the build status
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/${branch}`
-BUILD_URL="\$JENKINS_URL/job/${dashProject}/job/${dashBranchName}/"
-PAYLOAD="{\\"state\\": \\"${status}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"${description}\\", \\"context\\": \\"jenkins-multijob\\" }"
+BUILD_URL="\$JENKINS_URL/job/${dashProject}/job/${dashBranchName}/job/${jobName}/"
+PAYLOAD="{\\"state\\": \\"${status}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"${description}\\", \\"context\\": \\"jenkins-${jobName}\\" }"
 curl \\
   -H "Content-Type: application/json" \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
@@ -345,7 +344,7 @@ def build_scm(git_url, branchName, isReleaseBuild) {
 
    param v: dictionary containing the job keys
 */
-def build_publishers(v) {
+def build_publishers(v, branchName, dashProject, dashBranchName, job_name) {
     return {
         if (v.archive_artifacts) {
             for (artifact in v.archive_artifacts) {
@@ -377,6 +376,35 @@ def build_publishers(v) {
                 // fail the build if we were expecating a coverage report from a build and
                 // that report is not available
                 failNoReports(true)
+            }
+        }
+        if (job_name) {
+            /* Update the commit status on GitHub with the build result We use the
+               flexible-publish plugin combined with the the any-buildstep plugin to
+               allow us to run shell commands as part of a post-build step.  We also
+               use the run-condition plugin to inspect the status of the build
+               https://wiki.jenkins-ci.org/display/JENKINS/Flexible+Publish+Plugin
+               https://wiki.jenkins-ci.org/display/JENKINS/Any+Build+Step+Plugin
+               https://wiki.jenkins-ci.org/display/JENKINS/Run+Condition+Plugin */
+            flexiblePublish {
+                condition {
+                    status('SUCCESS', 'SUCCESS')
+                }
+                step {
+                    shell(updateGitHubStatus(
+                              'success', 'Build succeeded',
+                              branchName, dashProject, dashBranchName, job_name))
+                }
+            }
+            flexiblePublish {
+                condition {
+                    status('FAILURE', 'FAILURE')
+                }
+                step {
+                    shell(updateGitHubStatus(
+                          'failure', 'Build failed',
+                          branchName, dashProject, dashBranchName, job_name))
+                }
             }
         }
     }
@@ -547,7 +575,7 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
             wrappers build_wrappers(job_values, directories_to_delete)
             scm build_scm(git_url, branchName, isReleaseBuild)
             steps build_steps(job_values)
-            publishers build_publishers(job_values)
+            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, _job_name)
         }
     } else if (job_type == 'run_sphinx') {
         assert module == null
@@ -564,7 +592,7 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
             wrappers build_wrappers(job_values, [])
             scm build_scm(git_url, branchName, isReleaseBuild)
             steps build_steps(job_values)
-            publishers build_publishers(job_values)
+            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
         }
     } else if (job_type == 'run_client') {
         assert module == null
@@ -587,7 +615,7 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
             wrappers build_wrappers(job_values, directories_to_delete)
             scm build_scm(git_url, branchName, isReleaseBuild)
             steps build_steps(job_values)
-            publishers build_publishers(job_values)
+            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
         }
     } else if (job_type in ['omnibus', 'run_lint']) {
         assert module == null
@@ -599,7 +627,7 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
             wrappers build_wrappers(job_values, [])
             scm build_scm(git_url, branchName, isReleaseBuild)
             steps build_steps(job_values)
-            publishers build_publishers(job_values)
+            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
         }
     } else {
         throw new Exception("Don't know how to handle ${job_type} jobs")
@@ -685,9 +713,10 @@ def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
         /* the multijob runs on the jenkins-master only                             */
         label("master")
         steps {
-            /* Set the commit status on GitHub to pending                                */
-            shell(updateGitHubStatus('pending', 'Build started',
-                                     branchName, dashProject, dashBranchName))
+            /* Set the commit status on GitHub to pending for each subtask we will run */
+            list_jobs(dashProject, dashBranchName).findAll { it.type in PULL_REQUEST_JOB_TYPES }.each {
+                shell(updateGitHubStatus('pending', 'Build started', branchName, dashProject, dashBranchName, it.name))
+            }
             /* make sure we are starting with a clean workspace  */
             shell('rm -rf *')
             /* build 'parallel_tests' phase that will run all our jobs in parallel  */
@@ -743,33 +772,6 @@ def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
                 failUnhealthy(true)
                 failUnstable(true)
                 failNoReports(false)
-            }
-            /* Update the commit status on GitHub with the build result We use the
-               flexible-publish plugin combined with the the any-buildstep plugin to
-               allow us to run shell commands as part of a post-build step.  We also
-               use the run-condition plugin to inspect the status of the build
-               https://wiki.jenkins-ci.org/display/JENKINS/Flexible+Publish+Plugin
-               https://wiki.jenkins-ci.org/display/JENKINS/Any+Build+Step+Plugin
-               https://wiki.jenkins-ci.org/display/JENKINS/Run+Condition+Plugin */
-            flexiblePublish {
-                condition {
-                    status('SUCCESS', 'SUCCESS')
-                }
-                step {
-                    shell(updateGitHubStatus(
-                              'success', 'Build succeeded',
-                              "${branchName}", "${dashProject}", "${dashBranchName}"))
-                }
-            }
-            flexiblePublish {
-                condition {
-                    status('FAILURE', 'FAILURE')
-                }
-                step {
-                    shell(updateGitHubStatus(
-                          'failure', 'Build failed',
-                          "${branchName}", "${dashProject}", "${dashBranchName}"))
-                }
             }
         }
 
@@ -856,10 +858,8 @@ branches.each { branchName ->
             wrappers build_wrappers(values, [])
             triggers build_triggers('cron', values.at, branchName)
             scm build_scm("${git_url}", "${branchName}", false)
-            steps build_steps(
-                    dashProject, dashBranchName, _job_name, job_values
-            )
-            publishers build_publishers(job_values)
+            steps build_steps(values)
+            publishers build_publishers(values, null, null, null, null)
         }
     }
 }
