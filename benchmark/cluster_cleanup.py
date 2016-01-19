@@ -36,7 +36,7 @@ class ScriptOptions(Options):
                 raise UsageError("The wait timeout must be an integer.")
 
 
-def main(reactor, args, base_path, top_level):
+def main(reactor, args):
     try:
         options = ScriptOptions()
         options.parseOptions(args)
