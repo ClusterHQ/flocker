@@ -982,7 +982,7 @@ common_cli:
 run_trial_modules: &run_trial_modules
   - admin
   - benchmark
-  - flocker.acceptance
+  - flocker.acceptance.test
   - flocker.apiclient
   - flocker.ca.functional
   - flocker.ca.test
