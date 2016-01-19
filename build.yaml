@@ -1277,45 +1277,6 @@ job_type:
           }
       clean_repo: true
       timeout: 30
-    run_client_installation_on_OSX:
-      on_nodes_with_labels: 'mesos-4GB'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang,
-                   *add_shell_functions,
-
-                   *begin_build_sh_EOF,
-                   *hashbang,
-                   *add_shell_functions,
-                   *setup_pip_cache,
-                   *cleanup,
-                   *setup_venv,
-                   *setup_flocker_modules,
-                   'export DISTRIBUTION_NAME=OSX',
-                   *source_git_commit,
-                   *check_version,
-                   *build_sdist,
-                   *build_homebrew_package,
-                   *install_homebrew_package,
-                   *end_build_sh_EOF,
-
-                   '# Execution starts here:',
-                   *set_home_variable_on_mesos,
-                   *do_not_abort_on_errors,
-                   *get_s3_creds_for_bucket_vagrant_jenkins_boxes,
-                   *cleanup_old_jenkins_osx_yosemite_boxes,
-                   *new_vagrantfile_for_osx_yosemite,
-                   'vagrant_box_update',
-                   'vagrant_up',
-                   *run_build_sh_script_on_vagrant_box,
-                   'vagrant_destroy']
-          }
-      clean_repo: false
-      # FLOC-3597: Importing base box 'jenkins-osx-yosemite' step can
-      # sometimes take ~20 minutes, leaving us not quite enough time to
-      # actually run the tests. Also has to be less than the timeout for the
-      # main multijob, see jobs.groovy.j2:545.
-      timeout: 50
 
 
   run_lint:
@@ -1435,6 +1396,46 @@ job_type:
             ]
           }
       timeout: 120
+    run_client_installation_on_OSX:
+      at: '0 6 * * *'
+      on_nodes_with_labels: 'mesos-4GB'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   *add_shell_functions,
+
+                   *begin_build_sh_EOF,
+                   *hashbang,
+                   *add_shell_functions,
+                   *setup_pip_cache,
+                   *cleanup,
+                   *setup_venv,
+                   *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=OSX',
+                   *source_git_commit,
+                   *check_version,
+                   *build_sdist,
+                   *build_homebrew_package,
+                   *install_homebrew_package,
+                   *end_build_sh_EOF,
+
+                   '# Execution starts here:',
+                   *set_home_variable_on_mesos,
+                   *do_not_abort_on_errors,
+                   *get_s3_creds_for_bucket_vagrant_jenkins_boxes,
+                   *cleanup_old_jenkins_osx_yosemite_boxes,
+                   *new_vagrantfile_for_osx_yosemite,
+                   'vagrant_box_update',
+                   'vagrant_up',
+                   *run_build_sh_script_on_vagrant_box,
+                   'vagrant_destroy']
+          }
+      clean_repo: false
+      # FLOC-3597: Importing base box 'jenkins-osx-yosemite' step can
+      # sometimes take ~20 minutes, leaving us not quite enough time to
+      # actually run the tests. Also has to be less than the timeout for the
+      # main multijob, see jobs.groovy.j2:545.
+      timeout: 50
 
     run_acceptance_on_AWS_CentOS_7_with_EBS:
       at: '0 5 * * *'
