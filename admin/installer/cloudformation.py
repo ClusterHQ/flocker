@@ -247,7 +247,7 @@ client_instance = ec2.Instance(
     KeyName=Ref(keyname_param),
     SecurityGroups=[Ref(instance_sg)],
     AvailabilityZone=zone,
-    Tags=Tags(Name=node_name))
+    Tags=Tags(Name=CLIENT_NODE_NAME))
 wait_condition_handle = WaitConditionHandle(CLIENT_WAIT_HANDLE)
 template.add_resource(wait_condition_handle)
 wait_condition = WaitCondition(
