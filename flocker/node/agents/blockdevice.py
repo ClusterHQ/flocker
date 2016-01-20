@@ -1646,8 +1646,8 @@ class BlockDeviceDeployer(PClass):
                     # in the filesystem yet.
                     pass
 
-        if ICloudAPI.providedBy(api):
-            live_instances = api.list_live_nodes()
+        if ICloudAPI.providedBy(self._underlying_blockdevice_api):
+            live_instances = self._underlying_blockdevice_api.list_live_nodes()
         else:
             # Can't know accurately who is alive and who is dead:
             live_instances = None
