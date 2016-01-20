@@ -7,7 +7,6 @@ import sys
 import os
 import yaml
 import json
-import re
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -337,7 +336,8 @@ class ManagedRunner(object):
                     self.dataset_backend,
                     self.dataset_backend_configuration
                 ),
-                provider="managed"
+                provider="managed",
+                logging_config=self.config.get('logging'),
             )
         configuring = upgrading.addCallback(configure)
         return configuring
@@ -413,7 +413,7 @@ def _save_backend_configuration(dataset_backend_name,
 def configured_cluster_for_nodes(
     reactor, certificates, nodes, dataset_backend,
     dataset_backend_configuration, dataset_backend_config_file,
-    provider=None
+    provider=None, logging_config=None
 ):
     """
     Get a ``Cluster`` with Flocker services running on the right nodes.
@@ -429,6 +429,9 @@ def configured_cluster_for_nodes(
         configuration the nodes will be given for their dataset backend.
     :param FilePath dataset_backend_config_file: A FilePath that has the
         dataset_backend info stored.
+    :param bytes provider: provider of the nodes - aws, rackspace, or managed.
+    :param dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
 
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
@@ -465,7 +468,9 @@ def configured_cluster_for_nodes(
 
     configuring = perform(
         make_dispatcher(reactor),
-        configure_cluster(cluster, dataset_backend_configuration, provider)
+        configure_cluster(
+            cluster, dataset_backend_configuration, provider, logging_config
+        )
     )
     configuring.addCallback(lambda ignored: cluster)
     return configuring
@@ -674,7 +679,8 @@ class LibcloudRunner(object):
             self.dataset_backend,
             self.dataset_backend_configuration,
             _save_backend_configuration(self.dataset_backend,
-                                        self.dataset_backend_configuration)
+                                        self.dataset_backend_configuration),
+            logging_config=self.config.get('logging'),
         )
 
         returnValue(cluster)
