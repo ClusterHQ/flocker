@@ -1,4 +1,4 @@
-.. _configuring-nodes-backends:
+.. Single Source Instructions
 
 ==========================================
 Configuring the Nodes and Storage Backends

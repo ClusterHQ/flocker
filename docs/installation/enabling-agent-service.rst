@@ -1,4 +1,4 @@
-.. _enabling-agent-service:
+.. Single Source Instructions
 
 ==================================
 Enabling the Flocker Agent Service

@@ -1,4 +1,4 @@
-.. _enabling-control-service:
+.. Single Source Instructions
 
 ====================================
 Enabling the Flocker Control Service 

@@ -91,7 +91,7 @@ The names are primarily human-readable and meant for easy use with the ``--datas
 In some cases,
 the name may exactly match the name of one of the dataset backend implementations supported by Flocker.
 If this is not the case,
-the configuration mapping must exactly match the ``dataset`` configuration described for :ref:`enabling the Flocker agent service<configuring-nodes-backends>`.
+the configuration mapping must exactly match the ``dataset`` configuration described for :ref:`enabling the Flocker agent service<configuring-nodes-backends-standalone-flocker>`.
 
 Any number of dataset backend configurations may be present.
 The configuration with a key matching the value of the ``--dataset-backend`` parameter is used.

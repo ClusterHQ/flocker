@@ -1,4 +1,4 @@
-.. _installing-flocker-cli:
+.. Single Source Instructions
 
 =============================
 Installing the Flocker Client

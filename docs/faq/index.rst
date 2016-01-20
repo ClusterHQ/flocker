@@ -12,3 +12,6 @@ Due to the sensitive nature of security issues, we ask you not to send a message
 ClusterHQ has a policy for :ref:`reporting-security-issues` designed to minimize any damage that could be inflicted through public knowledge of a defect while it is still outstanding.
 
 .. _the Flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
+
+There are additional FAQs specifically relating to contributing a new Flocker storage backend.
+These can be found :ref:`here <build-flocker-driver-faq>`.

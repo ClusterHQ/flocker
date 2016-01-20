@@ -1,4 +1,4 @@
-.. _generate-api:
+.. Single Source Instructions
 
 ====================================
 Generating an API Client Certificate

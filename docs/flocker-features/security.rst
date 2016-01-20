@@ -20,7 +20,7 @@ API end users are issued their own certificate and private key, also with a copy
 
 This allows all components of the cluster to establish both a private channel of communication and a means of verifying identity; the client validates the server certificate was signed by the cluster authority, while the server mutually verifies the client's certificate was signed by the same authority.
 
-For instructions on how to set up API client certificates, see :ref:`generate-api`.
+For instructions on how to set up API client certificates, see :ref:`generate-api-standalone-flocker`.
 
 Security Benefits
 =================

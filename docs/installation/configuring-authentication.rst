@@ -1,4 +1,4 @@
-.. _authentication:
+.. Single Source Instructions
 
 ==================================
 Configuring Cluster Authentication
