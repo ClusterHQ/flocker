@@ -688,7 +688,8 @@ class CinderBlockDeviceAPI(object):
 
     # ICloudAPI:
     def list_live_nodes(self):
-        return list(server.id for server in self.nova_server_manager.list())
+        return list(server.id for server in self.nova_server_manager.list()
+                    if server.status == u'ACTIVE')
 
     def start_node(self, node_id):
         server = self.nova_server_manager.get(node_id)
