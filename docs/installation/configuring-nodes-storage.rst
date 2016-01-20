@@ -47,12 +47,15 @@ Omit the ``port`` from both configurations and the services will automatically a
 The ``dataset`` item selects and configures a dataset backend.
 All nodes must be configured to use the same dataset backend.
 
+Choose and Configure Your Backend
+=================================
+
 For a full list of available storage backends, see :ref:`supported-backends`.
 
 .. warning::
 	You can only choose a single backend at a time, and changing backends is not currently supported.
 	
-	Each :ref:`backend <supported-backends>` provides configuration details for you to use to setup the driver.
+	Each :ref:`backend <supported-backends>` provides configuration details for you to setup the driver.
 	When your driver is configured, you will need to return to complete the Flocker installation process.
 
 .. end-body-nodeconfig-agent-yml

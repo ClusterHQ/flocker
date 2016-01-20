@@ -26,6 +26,6 @@ Next Step
 =========
 
 You now have an API client certificate for the Flocker plugin for Docker.
-The next step is :ref:`enable the Flocker control service <enabling-control-service-docker>`.
+The next step is to :ref:`enable the Flocker control service <enabling-control-service-docker>`.
 
 If you want to return to the menu for manually installing Flocker with Docker Swarm, click :ref:`here <installing-flocker-with-docker>`.

@@ -31,3 +31,11 @@ Once installed, the example provided below runs two simple Docker tests to verif
    .. prompt:: bash $
 
       docker run -v apples:/data --volume-driver flocker busybox sh -c "cat /data/file.txt"
+
+Next Step
+=========
+
+This completes the manual installation of Flocker for an integration with Docker Swarm.
+The next step is to :ref:`install Docker Swarm <manually-install-swarm>` on each of your nodes.
+
+If you want to return to the menu for manually installing Flocker with Docker Swarm, click :ref:`here <installing-flocker-with-docker>`.
