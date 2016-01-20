@@ -42,7 +42,11 @@ Before you install Flocker in containers, you must have generated the cluster ce
 
 In the example commands below, certificates are assumed to live in :file:`/etc/flocker` on each node.
 
-For more information on generating certificates, please see  :ref:`authentication`. 
+For more information on generating certificates for your specific choice of integration, please see:
+
+* :ref:`Configuring Cluster Authentication for the Docker Integration <authentication-docker>`
+* :ref:`Configuring Cluster Authentication for the Kubernetes Integration <authentication-kubernetes>`
+* :ref:`Configuring Cluster Authentication for an Integration of Flocker with Other Systems <authentication-docker>`
 
 Before you begin, you will need to make sure port ``4523`` is available for the control API, and port ``4524`` is available for agent nodes.
 

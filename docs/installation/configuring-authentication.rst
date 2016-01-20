@@ -165,5 +165,3 @@ Steps
    If you haven't done this already, you'll need to repeat steps 7, 8, 9 and 10 for each node (including the control service node if it is acting as a Flocker agent node).
 
 .. end-body-config-authentication
-
-The next topic is :ref:`generate-api`, which is used to identify yourself when sending instructions to the control service.

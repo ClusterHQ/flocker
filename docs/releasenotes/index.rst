@@ -164,7 +164,6 @@ v1.0
   See :ref:`contribute-flocker-driver`.
 * It is now necessary to specify a dataset backend for each agent node.
 * Flocker-initiated communication is secured with TLS.
-  See :ref:`authentication`.
 * ``flocker-deploy`` now requires the hostname of the control service as its first argument.
 * Added REST API functions to manage containers in a cluster alongside datasets.
   See :ref:`api`.
