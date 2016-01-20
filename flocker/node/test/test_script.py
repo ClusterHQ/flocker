@@ -4,6 +4,7 @@
 Tests for :module:`flocker.node.script`.
 """
 
+import logging
 import socket
 from unittest import skipUnless
 
@@ -45,7 +46,7 @@ from .dummybackend import DUMMY_API
 
 
 def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
-                 name=None):
+                 name=None, log_config=None):
     """
     Create a configuration file and certificates for a dataset agent in a
     temporary directory.
@@ -58,29 +59,33 @@ def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
     :param int control_port: The port number of the control service.
     :param unicode name: The ZFS pool name.  If ``None``, a random one will be
         generated that identifies the given test.
+    :param dict log_config: A logging configuration dictionary. If ``None``,
+        no logging stanza will be added to the configuration file.
     """
     if name is None:
         name = random_name(test)
     ca_set = get_credential_sets()[0]
     scratch_directory = FilePath(test.mktemp())
     scratch_directory.makedirs()
+    contents = {
+        u"control-service": {
+            u"hostname": control_address,
+            u"port": control_port,
+        },
+        u"dataset": {
+            u"backend": u"zfs",
+            u"name": name,
+            u"mount_root": scratch_directory.child(b"mount_root").path,
+            u"volume_config_path": scratch_directory.child(
+                b"volume_config.json"
+            ).path,
+        },
+        u"version": 1,
+    }
+    if log_config is not None:
+        contents[u'logging'] = log_config
     test.config = scratch_directory.child('dataset-config.yml')
-    test.config.setContent(
-        yaml.safe_dump({
-            u"control-service": {
-                u"hostname": control_address,
-                u"port": control_port,
-            },
-            u"dataset": {
-                u"backend": u"zfs",
-                u"name": name,
-                u"mount_root": scratch_directory.child(b"mount_root").path,
-                u"volume_config_path": scratch_directory.child(
-                    b"volume_config.json"
-                ).path,
-            },
-            u"version": 1,
-        }))
+    test.config.setContent(yaml.safe_dump(contents))
     ca_set.copy_to(scratch_directory, node=True)
     test.ca_set = ca_set
     test.non_existent_file = scratch_directory.child('missing-config.yml')
@@ -228,6 +233,58 @@ class AgentServiceFromConfigurationTests(TestCase):
                 ["credential", "path"], None
             ),
         )
+
+    def test_logging(self):
+        """
+        Logging is setup by a logging stanza.
+        """
+        # Save and restore root logger state
+        def restore_logger(logger, level, handlers):
+            logger.setLevel(level)
+            for handler in logger.handlers[:]:
+                logger.removeHandler(handler)
+            for handler in handlers:
+                logger.addHandler(handler)
+
+        logger = logging.getLogger()
+        self.addCleanup(
+            restore_logger, logger, logger.getEffectiveLevel(),
+            logger.handlers[:]
+        )
+
+        # Setup an AgentService with a logging stanza
+        host = b"192.0.2.13"
+        port = 2314
+        name = u"from_config-test"
+        logfile = self.make_temporary_directory().child('logfile')
+        log_config = {
+            'version': 1,
+            'handlers': {
+                'logfile': {
+                    'class': 'logging.FileHandler',
+                    'level': 10,
+                    'filename': logfile.path,
+                    'encoding': 'utf-8',
+                }
+            },
+            'root': {
+                'handlers': ['logfile'],
+                'level': 10,
+            },
+        }
+        setup_config(
+            self, control_address=host, control_port=port, name=name,
+            log_config=log_config
+        )
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        config = get_configuration(options)
+        AgentService.from_configuration(config)
+
+        # Root logger now logs to file
+        log_message = 'My LoG tEsT.'
+        logger.info(log_message)
+        self.assertIn(log_message, logfile.getContent())
 
 
 class AgentServiceGetAPITests(TestCase):
