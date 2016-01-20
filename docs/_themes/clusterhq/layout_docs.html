@@ -275,5 +275,8 @@
 
     <!-- Javascript include for form feedback submit -->
     <script type="text/javascript" src="{{ pathto('_static/js/feedback.js', 1) }}"></script>
+    <script>
+    $('body').append('<p>Canonical: ' +  $('link[rel="canonical"]').attr('href') + '</p>');
+    </script>
   </body>
 </html>
