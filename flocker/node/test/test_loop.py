@@ -36,7 +36,9 @@ from .._loop import (
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS, LOG_DISCOVERY,
     _UNCONVERGED_DELAY, _Sleep,
     )
-from ..testtools import ControllableDeployer, ControllableAction, to_node
+from ..testtools import (
+    ControllableDeployer, ControllableAction, to_node, NodeLocalState,
+)
 from ...control import (
     NodeState, Deployment, Manifestation, Dataset, DeploymentState,
     Application, DockerImage,
@@ -333,7 +335,9 @@ class ConvergenceLoopFSMTests(TestCase):
         Discovery action was logged in context of the convergence iteration
         action.
         """
-        discovery = assertHasAction(self, logger, LOG_DISCOVERY, True)
+        discovery = assertHasAction(
+            self, logger, LOG_DISCOVERY, True,
+            endFields={u"state": NodeLocalState(node_state=self.local_state)})
         convergence = assertHasAction(self, logger, LOG_CONVERGE, True)
         send = assertHasAction(
             self, logger, LOG_SEND_TO_CONTROL_SERVICE, True)
@@ -347,7 +351,7 @@ class ConvergenceLoopFSMTests(TestCase):
         discovered state to the control service using the last received
         client.
         """
-        local_state = NodeState(hostname=u"192.0.2.123")
+        self.local_state = local_state = NodeState(hostname=u"192.0.2.123")
         client = self.make_amp_client([local_state])
         action = ControllableAction(result=succeed(None))
         deployer = ControllableDeployer(
