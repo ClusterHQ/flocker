@@ -41,4 +41,9 @@ Installing the Flocker Client
 Next Step
 =========
 
-The next section describes your next step - :ref:`Installing the Flocker Node Services<installing-flocker-node-kubernetes>`.
+.. raw:: html
+
+   <a href="install-node.html" class="button">Install the Flocker node services</a>
+   <br/><br/>
+
+Alternatively, :ref:`return to the installation menu <installing-flocker-with-kubernetes>`.

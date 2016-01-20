@@ -11,7 +11,9 @@ Enabling the Flocker Control Service
 Next Step
 =========
 
-You have now enabled the control service.
-The next step is to :ref:`configure the nodes and storage backends <configuring-nodes-backends-docker>`.
+.. raw:: html
 
-If you want to return to the menu for manually installing Flocker with Docker Swarm, click :ref:`here <installing-flocker-with-docker>`.
+   <a href="configuring-nodes-storage.html" class="button">Configure the Nodes and Storage Backends</a>
+   <br/><br/>
+
+Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.

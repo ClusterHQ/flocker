@@ -13,5 +13,11 @@ Next Step
 
 Return to the installation instructions specific to your operating system to install ``clusterhq-flocker-node`` on each node in your cluster:
 
-* :ref:`centos-7-install-docker`
-* :ref:`ubuntu-14.04-install-docker`
+.. raw:: html
+
+   <br/><a href="install-node.html#centos-7-install-docker" class="button">Installing on CentOS 7</a>
+   <a href="install-node.html#ubuntu-14-04-install-docker" class="button">Installing on Ubuntu 14.04</a>
+   <br/><br/>
+
+Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.
+

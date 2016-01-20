@@ -11,8 +11,9 @@ Generating an API Client Certificate
 Next Step
 =========
 
-You now have an API client certificate.
-The Docker integration requires an API client certificate for the Flocker plugin for Docker, as the plugin requires access to the Flocker REST API.
-The next step is :ref:`generating an API client certificate for the Flocker plugin for Docker <generate-api-docker-plugin>`.
+.. raw:: html
 
-If you want to return to the menu for manually installing Flocker with Docker Swarm, click :ref:`here <installing-flocker-with-docker>`.
+   <a href="generate-api-plugin.html" class="button">Generate an API Client Certificate for the Flocker Plugin for Docker</a>
+   <br/><br/>
+
+Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.

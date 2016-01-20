@@ -37,6 +37,12 @@ Next Step
 =========
 
 The installation of the Flocker clients, node services and the Flocker plugin for Docker is now complete.
-To enable these services, and to configure your cluster security and backend, please move on to :ref:`post-installation-configuration-with-docker`.
+To enable these services, and to configure your cluster security and backend, you must now configure Flocker:
 
-If you want to return to the menu for manually installing Flocker with Docker Swarm, click :ref:`here <installing-flocker-with-docker>`.
+.. raw:: html
+
+   <br/>
+   <a href="configuring-authentication.html" class="button">Configure Cluster Authentication</a>
+   <br/><br/>
+
+Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.

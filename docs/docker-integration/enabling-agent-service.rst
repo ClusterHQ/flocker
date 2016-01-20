@@ -36,6 +36,10 @@ Next Step
 =========
 
 This completes the manual installation of Flocker for an integration with Docker Swarm.
-The next step is to :ref:`install Docker Swarm <manually-install-swarm>` on each of your nodes.
+The next step is to manually install Docker Swarm.
+A link to the Docker installation instructions can be found on the Installation menu:
 
-If you want to return to the menu for manually installing Flocker with Docker Swarm, click :ref:`here <installing-flocker-with-docker>`.
+.. raw:: html
+
+   <br/>
+   <a href="manual-install.html" class="button">Installation menu</a>

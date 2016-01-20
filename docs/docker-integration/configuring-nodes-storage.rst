@@ -11,7 +11,9 @@ Configuring the Nodes and Storage Backends
 Next Step
 =========
 
-Now your chosen backend is configured.
-The next step is to :ref:`enable the Flocker agent service <enabling-agent-service-docker>`.
+.. raw:: html
 
-If you want to return to the menu for manually installing Flocker with Docker Swarm, click :ref:`here <installing-flocker-with-docker>`.
+   <a href="enabling-agent-service.html" class="button">Install the Flocker agent service</a>
+   <br/><br/>
+
+Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.

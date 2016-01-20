@@ -11,8 +11,9 @@ Configuring Cluster Authentication
 Next Step
 =========
 
-You have now generated and distributed your cluster certificate, control service certificate and key file, and a node certificate and key file.
+.. raw:: html
 
-The next step is :ref:`generating an API client certificate <generate-api-docker>`, which is used to identify yourself when sending instructions to the control service.
+   <a href="generate-api-certificates.html" class="button">Generate an API client certificate</a>
+   <br/><br/>
 
-If you want to return to the menu for manually installing Flocker with Docker Swarm, click :ref:`here <installing-flocker-with-docker>`.
+Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.
