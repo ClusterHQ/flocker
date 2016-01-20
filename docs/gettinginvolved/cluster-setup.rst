@@ -199,7 +199,6 @@ Or you can run, for example, the acceptance tests against the created cluster:
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
-
 ==============================
 Adding containers and datasets
 ==============================
@@ -246,7 +245,6 @@ If :option:`--wait` is used the script waits for the deletions to take effect.
 After the script successfully finishes the cluster should be in a converged state
 with the requested containers and datasets.
 If :option:`--wait` is not specified, then the script will wait for up to two hours.
-
 
 =====================================
 Cleaning Up the Cluster Configuration
