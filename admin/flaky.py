@@ -14,19 +14,6 @@ from twisted.trial.runner import TestLoader
 from flocker.testtools._flaky import _get_flaky_annotation
 
 
-class FindFlakyTestsOptions(Options):
-    """
-    Options for finding flaky tests.
-    """
-
-    def parseArgs(self, *suites):
-        """
-        Accept an arbitrary number of suites, specified as fully-qualified
-        Python names.
-        """
-        self['suites'] = suites
-
-
 def _load_tests(name):
     """
     Find all the tests under ``name``.
@@ -111,6 +98,44 @@ def report_test_tree(output, flaky_tests):
     reporter.done()
 
 
+_REPORTS = {
+    'bugs': report_bugs,
+    'tests': report_tests,
+    'tree': report_test_tree,
+}
+"""
+All of the reports we offer. Keys will be valid arguments to --report.
+"""
+
+
+def _to_report(name):
+    """
+    Ensure that ``name`` is a valid report.
+    """
+    if name in _REPORTS:
+        return name
+    raise UsageError(
+        "Unrecognized report {}. {}".format(name, _to_report.coerceDoc))
+_to_report.coerceDoc = "Must be one of: {}".format(', '.join(_REPORTS.keys()))
+
+
+class FindFlakyTestsOptions(Options):
+    """
+    Options for finding flaky tests.
+    """
+
+    optParameters = [
+        ['report', 'r', 'tree', 'The report to use', _to_report]
+    ]
+
+    def parseArgs(self, *suites):
+        """
+        Accept an arbitrary number of suites, specified as fully-qualified
+        Python names.
+        """
+        self['suites'] = suites
+
+
 def find_flaky_tests_main(args, base_path, top_level, stdout=None,
                           stderr=None):
     """
@@ -128,4 +153,4 @@ def find_flaky_tests_main(args, base_path, top_level, stdout=None,
         sys.exit(1)
 
     flaky_tests = find_flaky_tests(options['suites'])
-    report_test_tree(stdout, flaky_tests)
+    _REPORTS[options['report']](stdout, flaky_tests)
