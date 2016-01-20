@@ -24,7 +24,7 @@ def get_tests_for(python_name):
     """
     Find all tests for the given ``python_name``.
 
-    :param python_name: Either directory in ``REPISTORY`` or a Python FQPN
+    :param python_name: Either directory in ``REPOSITORY`` or a Python FQPN
         importable from ``REPOSITORY``.
     :return: PSet of test names.
     """
