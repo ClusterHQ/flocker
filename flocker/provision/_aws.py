@@ -25,10 +25,7 @@ from ..common import poll_until
 
 from ._common import INode, IProvisioner
 
-from ._install import (
-    provision,
-    task_install_ssh_key,
-)
+from ._install import provision_for_non_root_user
 
 from eliot import start_action, Message
 
@@ -169,41 +166,11 @@ class AWSNode(PClass):
         """
         Provision flocker on this node.
 
-        :param LibcloudNode node: Node to provision.
         :param PackageSource package_source: See func:`task_install_flocker`
         :param set variants: The set of variant configurations to use when
             provisioning
         """
-        username = self.get_default_username()
-
-        commands = []
-
-        # cloud-init may not have allowed sudo without tty yet, so try SSH key
-        # installation for a few more seconds:
-        start = []
-
-        def for_thirty_seconds(*args, **kwargs):
-            if not start:
-                start.append(time())
-            return Effect(Constant((time() - start[0]) < 30))
-
-        commands.append(run_remotely(
-            username=username,
-            address=self.address,
-            commands=retry(task_install_ssh_key(), for_thirty_seconds),
-        ))
-
-        commands.append(run_remotely(
-            username='root',
-            address=self.address,
-            commands=provision(
-                package_source=package_source,
-                distribution=self.distribution,
-                variants=variants,
-            ),
-        ))
-
-        return sequence(commands)
+        return provision_for_non_root_user(self, package_source, variants)
 
     def reboot(self):
         """

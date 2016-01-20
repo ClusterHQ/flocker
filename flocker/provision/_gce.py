@@ -19,17 +19,21 @@ provisioner, and unwinding the encoded description is:
         setpath(["description"]; .description|fromjson)'
 """
 
+import json
+
 from pyrsistent import PClass, field
 from twisted.conch.ssh.keys import Key
 from zope.interface import implementer
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
-
-from ._common import IProvisioner
+from eliot import start_action
 
 from ..node.agents.gce import wait_for_operation
 
-import json
+from ._common import IProvisioner, INode
+from ._install import provision, provision_for_non_root_user
+from ._ssh import run_remotely
+from ._effect import sequence
 
 
 # Defaults for some of the instance construction parameters.
@@ -50,7 +54,7 @@ def _clean_to_gce_name(identifier):
 
     :returns: An RFC1035 compliant variation of the identifier.
     """
-    return identifier.lower().replace(u'+', u'-')
+    return unicode(identifier.lower().replace(u'+', u'-').replace(u'/', u'-'))
 
 
 class _DistributionImageParams(PClass):
@@ -217,6 +221,66 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
     return gce_slave_instance_config
 
 
+@implementer(INode)
+class GCENode(PClass):
+    """
+    ``INode`` implementation for GCE.
+
+    :ivar unicode address: The public IP address of the instance.
+    :ivar unicode private_address: The network internal IP address of the instance.
+    :ivar unicode distribution: The OS distribution of the instance.
+    :ivar unicode project: The project the instance a member of.
+    :ivar unicode zone: The zone the instance is in.
+    :ivar unicode name: The GCE name of the instance used to identify the
+        instance.
+    :ivar compute: A Google Compute Engine Service that can be used to make
+        calls to the GCE API.
+    """
+    address = field(type=bytes)
+    private_address = field(type=bytes)
+    distribution = field(type=unicode)
+    project = field(type=unicode)
+    zone = field(type=unicode)
+    name = field(type=unicode)
+    compute = field()
+
+    def get_default_username(self):
+        return bytes(_GCE_ACCEPTANCE_USERNAME)
+
+    def provision(self, package_source, variants):
+        return provision_for_non_root_user(self, package_source, variants)
+
+    def destroy(self):
+        with start_action(
+            action_type=u"flocker:provision:gce:destroy",
+            instance_id=self.name,
+        ):
+            operation = self.compute.instances().delete(
+                project=self.project,
+                zone=self.zone,
+                instance=self.name
+            ).execute()
+            wait_for_operation(self.compute, operation, timeout=60)
+
+    def reboot(self):
+        """
+        I think this is never called, and can probably be removed. If it were
+        to be implemented it would look something like the following:
+
+            operation = self.compute.instances().reset(
+                project=self.project,
+                zone=self.zone,
+                instance=self.name
+            ).execute()
+            wait_for_operation(self.compute, operation, timeout=60)
+
+        But, as that is untested, it will remain unimplemented.
+        """
+        raise NotImplementedError(
+            "GCE does not have reboot implemented because it has "
+            "experimentally been determined to not be needed.")
+
+
 @implementer(IProvisioner)
 class GCEProvisioner(PClass):
     """
@@ -240,8 +304,9 @@ class GCEProvisioner(PClass):
         return self.ssh_public_key
 
     def create_node(self, name, distribution, metadata={}):
+        instance_name = _clean_to_gce_name(name)
         config = _create_gce_instance_config(
-          instance_name=_clean_to_gce_name(name),
+          instance_name=instance_name,
           project=self.project,
           zone=self.zone,
           machine_type=_GCE_INSTANCE_TYPE,
@@ -268,7 +333,25 @@ class GCEProvisioner(PClass):
         ).execute()
 
         operation_result = wait_for_operation(self.compute, operation, timeout=60)
-        print operation_result
+
+        if not operation_result:
+            raise ValueError("Timed out waiting for VM creation")
+
+        operation_result["targetLink"].split("/")[-1]
+
+        instance_resource = self.compute.instances().get(
+            project=self.project, zone=self.zone, instance=instance_name
+        ).execute()
+
+        return GCENode(
+            address=bytes(instance_resource["networkInterfaces"][0]["accessConfigs"][0]["natIP"]),
+            private_address=bytes(instance_resource["networkInterfaces"][0]["networkIP"]),
+            distribution=unicode(distribution),
+            project=self.project,
+            zone=self.zone,
+            name=instance_name,
+            compute=self.compute
+        )
 
 
 def gce_provisioner(

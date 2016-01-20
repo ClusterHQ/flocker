@@ -7,6 +7,7 @@ import sys
 import os
 import yaml
 import json
+from base64 import b32encode
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -627,7 +628,7 @@ class LibcloudRunner(object):
         # place, the node creation code, to perform cleanup when the create
         # operation fails in a way such that it isn't clear if the instance has
         # been created or not.
-        random_tag = os.urandom(8).encode("base64").strip("\n=")
+        random_tag = b32encode(os.urandom(8)).lower().strip("\n=")
         print "Assigning random tag:", random_tag
 
         for index in range(self.num_nodes):

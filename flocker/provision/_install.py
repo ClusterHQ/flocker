@@ -9,7 +9,9 @@ from pipes import quote
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
-from effect import Func, Effect, parallel
+from effect import Func, Effect, Constant, parallel
+from effect.retry import retry
+from time import time
 import yaml
 
 from zope.interface import implementer
@@ -1539,7 +1541,7 @@ def configure_cluster(cluster, dataset_backend_configuration, provider):
                             open_firewall_for_docker_api(node.distribution),
                         ),
                         task_configure_flocker_agent(
-                            control_node=cluster.control_node.address,
+                            control_node=cluster.control_node.private_address,
                             dataset_backend=cluster.dataset_backend,
                             dataset_backend_configuration=(
                                 dataset_backend_configuration
@@ -1556,3 +1558,44 @@ def configure_cluster(cluster, dataset_backend_configuration, provider):
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])
     ])
+
+
+def provision_for_non_root_user(node, package_source, variants=()):
+    """
+    Provision flocker on a node whose default user is not root.
+
+    :param INode node: Node to provision.
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
+    """
+    username = node.get_default_username()
+
+    commands = []
+
+    # cloud-init may not have allowed sudo without tty yet, so try SSH key
+    # installation for a few more seconds:
+    start = []
+
+    def for_thirty_seconds(*args, **kwargs):
+        if not start:
+            start.append(time())
+        return Effect(Constant((time() - start[0]) < 30))
+
+    commands.append(run_remotely(
+        username=username,
+        address=node.address,
+        commands=retry(task_install_ssh_key(), for_thirty_seconds),
+    ))
+
+    commands.append(run_remotely(
+        username='root',
+        address=node.address,
+        commands=provision(
+            package_source=package_source,
+            distribution=node.distribution,
+            variants=variants,
+        ),
+    ))
+
+    return sequence(commands)

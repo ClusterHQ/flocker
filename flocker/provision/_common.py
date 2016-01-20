@@ -95,6 +95,7 @@ class INode(Interface):
     address = InterfaceAttribute('Public IP address for node')
     private_address = InterfaceAttribute('Private IP address for node')
     distribution = InterfaceAttribute('distribution on node')
+    name = InterfaceAttribute('The name of the node, used for logging.')
 
     def get_default_username():
         """
@@ -103,6 +104,8 @@ class INode(Interface):
         Some cloud systems (e.g. AWS) provide a specific username, which
         depends on the OS distribution started.  This method returns
         the username based on the node distribution.
+
+        :return bytes:
         """
 
     def provision(package_source, variants):
