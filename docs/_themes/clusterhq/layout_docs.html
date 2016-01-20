@@ -15,6 +15,7 @@
     {% endif %}
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="dave" content="{{ pathto('') }}">
     <title>{{ title|striptags|e }}{{ titlesuffix }}</title>
 
     <link href="{{ pathto('_static/css/bootstrap.min.css', 1) }}" rel="stylesheet">
@@ -67,7 +68,6 @@
     {% endif %}
 	
     <link rel="shortcut icon" href="https://clusterhq.com/assets/favicon.ico"/>
-    <link rel="canonical" href="https://docs.clusterhq.com/en/latest"/>
 </head>
 <body>
     <!-- Menu area -->
@@ -250,6 +250,11 @@
     <script>
         // Do an AJAX request to check latest version
         var request = $.ajax({url: "https://docs.clusterhq.com/en/latest/version.html"});
+        var canonicalLocation = window.location.pathname.split('/').slice(3).join('/')
+        var canonicalLink = document.createElement('link');
+        canonicalLink.rel = "canonical";
+        canonicalLink.href = "https://docs.clusterhq.com/en/latest/" + canonicalLocation;
+        document.head.appendChild(canonicalLink);
 
         request.done(function( msg ) {
             // Trim HTML from returned contents
@@ -257,7 +262,7 @@
 
             // Is version equal to this documentation release?
             if (currentversion !== DOCUMENTATION_OPTIONS.VERSION) {
-                $('link[rel="canonical"]').attr('href', 'https://docs.clusterhq.com/en/' + DOCUMENTATION_OPTIONS.VERSION +'/');
+                $('link[rel="canonical"]').attr('href', 'https://docs.clusterhq.com/en/' + DOCUMENTATION_OPTIONS.VERSION + '/' + canonicalLocation);
                 $('.section:first').prepend('<div class="admonition note warning"> \
                     <p class="last"> \
                         You are currently viewing a different version of the documentation to the latest release of Flocker. \
