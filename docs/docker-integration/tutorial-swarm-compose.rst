@@ -191,6 +191,7 @@ Now try deploying your own Docker Compose app!
 * Set ``volume_driver: flocker`` for any stateful containers you have.
 * Specify the Flocker volumes using ``volume: "flocker_volume_name:/path_inside_container"`` syntax.
 
+.. XXX add the following sentence when more Docker tutorials are written:
 Or, try one of our other :ref:`Docker Tutorials <docker-tutorials>`.
 
 .. note::  Because we do not have a networking solution in this example, we use Swarm constraints to force both containers to be on the same node each time we deploy them so that regular Docker links work.
