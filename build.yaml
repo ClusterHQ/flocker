@@ -1002,12 +1002,15 @@ run_trial_modules: &run_trial_modules
   - flocker.test
   - flocker.testtools
 run_trial_as_root_modules: &run_trial_as_root_modules
+  # iptables requires root
+  - flocker.route.functional
+  # journald access requires root
+  - flocker.common.functional
   # flocker.volume needs to run as root due to ZFS calls
   # so we run it as part of the run_trial_on_<Cloud>_<OS>_as_root jobs
   - flocker.volume
   # flocker.node.agent needs to run as root due to mounting filesystems
   - flocker.node.agents
-
 
 # run_trial_cli contains a list of all the CLI yaml anchors we want to
 # execute as part of our run_trial_tasks
