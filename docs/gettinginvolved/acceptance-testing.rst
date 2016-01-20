@@ -267,3 +267,36 @@ And then run the acceptance tests on those nodes using the following command:
      --branch=master \
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
+
+
+CloudFormation Installer Tests
+==============================
+
+There are tests for the Flocker CloudFormation installer.
+
+You can run them as follows:
+
+.. code-block:: console
+
+   CLOUDFORMATION_TEMPLATE_URL=https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json \
+   KEY_PAIR=<aws SSH key pair name> \
+   ACCESS_KEY_ID=<aws access key> \
+   SECRET_ACCESS_KEY=<aws secret access token> \
+   VOLUMEHUB_TOKEN=<Volume Hub token or empty string> \
+   trial flocker.acceptance.endtoend.test_installer
+
+
+This will create a new CloudFormation stack and perform the tests on it.
+
+.. note:: By default, the stack will be destroyed once the tests are complete.
+          You can keep the stack by setting ``KEEP_STACK=TRUE`` in your environment.
+
+Alternatively, you can perform the tests on an existing stack with the following command:
+
+.. code-block:: console
+
+   AGENT_NODE1_IP=<IP address of first agent node> \
+   AGENT_NODE2_IP=<IP address of second agent node> \
+   CLIENT_NODE_IP=<IP address of client node> \
+   CONTROL_NODE_IP=<IP address of control service node> \
+   trial flocker.acceptance.endtoend.test_installer

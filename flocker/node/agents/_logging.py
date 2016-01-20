@@ -64,8 +64,8 @@ NEW_DEVICES = Field.for_types(
 NEW_DEVICES_SIZE = Field.for_types(
     u"new_devices_size", [list],
     u"List of sizes of new devices in the compute instance.")
-SIZE = Field.for_types(
-    u"size", [int],
+EXPECTED_SIZE = Field.for_types(
+    u"expected_size", [int],
     u"Size, in bytes, of new device we are expecting to manifest."
     u"in the OS.")
 TIME_LIMIT = Field.for_types(
@@ -73,7 +73,7 @@ TIME_LIMIT = Field.for_types(
     u"Time, in seconds, waited for new device to manifest in the OS.")
 NO_NEW_DEVICE_IN_OS = MessageType(
     u"flocker:node:agents:blockdevice:aws:no_new_device",
-    [NEW_DEVICES, NEW_DEVICES_SIZE, SIZE, TIME_LIMIT],
+    [NEW_DEVICES, NEW_DEVICES_SIZE, EXPECTED_SIZE, TIME_LIMIT],
     u"No new block device manifested in the OS in given time.",)
 
 VOLUME_ID = Field.for_types(
