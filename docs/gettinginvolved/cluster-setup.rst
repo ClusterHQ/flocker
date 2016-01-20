@@ -68,36 +68,13 @@ The :program:`admin/setup-cluster` script has several options:
    Specifies the number of nodes (machines) to create for use in the cluster.
    This option is only applicable if the nodes are created dynamically.
 
-.. option:: --app-template <application-template-file>
-
-   Specifies a YAML file that describes a single application.
-   It must include a name of a Docker image to use as an application container and may include other parameters.
-
-.. option:: --apps-per-node <number>
-
-   Specifies the number of applications (containers) to start on each cluster node.
-   If this is not specified or zero, then no applications will be started.
-
 To see the supported values for each option, run:
 
 .. prompt:: bash $
 
    admin/setup-cluster --help
 
-Application Template
-====================
-
-The configuration file given for the ``--app-template`` parameter describes a single application.
-At the very least it should specify a name of a Docker image to use for an application container.
-
-.. code-block:: yaml
-
-  image: "clusterhq/mongodb"
-  volume:
-    mountpoint: "/data/db"
-
-See :doc:`../control/cli/application-config` for more details.
-The ``--apps-per-node`` parameter specifies how many applications to start on each cluster node.
+An example of how to run :program:`setup-cluster` would be:
 
 .. prompt:: bash $
 
@@ -105,12 +82,7 @@ The ``--apps-per-node`` parameter specifies how many applications to start on ea
     --distribution centos-7 \
     --provider rackspace \
     --config-file $PWD/cluster.yml \
-    --number-of-nodes 2 \
-    --app-template $PWD/application.yml \
-    --apps-per-node 5
-
-Note that all application instances will have exactly the same configuration.
-In particular, multiple containers may fail to start if they use a common host resource (e.g. host ports).
+    --number-of-nodes 2 
 
 Configuration File
 ==================
@@ -245,6 +217,32 @@ If :option:`--wait` is used the script waits for the deletions to take effect.
 After the script successfully finishes the cluster should be in a converged state
 with the requested containers and datasets.
 If :option:`--wait` is not specified, then the script will wait for up to two hours.
+
+Application Template
+====================
+
+The configuration file given for the ``--app-template`` parameter describes a single application.
+At the very least it should specify a name of a Docker image to use for an application container.
+
+.. code-block:: yaml
+
+  image: "clusterhq/mongodb"
+  volume:
+    mountpoint: "/data/db"
+
+See :doc:`../control/cli/application-config` for more details.
+The ``--apps-per-node`` parameter specifies how many applications to start on each cluster node.
+
+.. prompt:: bash $
+
+  admin/setup-cluster-containers \
+    --app-template $PWD/application.yml \
+    --apps-per-node 5 \
+    --control-node 52.52.52.52 \
+    --cert-directory /etc/flocker/test_cluster1/
+
+Note that all application instances will have exactly the same configuration.
+In particular, multiple containers may fail to start if they use a common host resource (e.g. host ports).
 
 =====================================
 Cleaning Up the Cluster Configuration
