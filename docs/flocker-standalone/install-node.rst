@@ -37,4 +37,12 @@ Next Step
 =========
 
 The installation of the Flocker clients and node services is now complete.
-To enable these services, and to configure your cluster security and backend, please move on to :ref:`post-installation-configuration-standalone-flocker`.
+To enable these services, and to configure your cluster security and backend, you must now configure Flocker:
+
+.. raw:: html
+
+   <br/>
+   <a href="configuring-authentication.html" class="button">Configure Cluster Authentication</a>
+   <br/><br/>
+
+Alternatively, :ref:`return to the installation menu <installing-standalone-flocker>`.
