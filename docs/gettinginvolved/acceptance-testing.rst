@@ -113,12 +113,12 @@ An example stanza:
       handlers:
           logfile:
               class: 'logging.FileHandler'
-              level: 10
+              level: DEBUG
               filename: "/tmp/flocker.log"
               encoding: 'utf-8'
       root:
           handlers: ['logfile']
-          level: 10
+          level: DEBUG
 
 .. _acceptance-testing-rackspace-config:
 
