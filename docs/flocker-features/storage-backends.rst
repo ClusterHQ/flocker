@@ -4,7 +4,7 @@
 Supported Backends
 ==================
 
-The following backends are currently supported by Flocker.
+The following backends are supported by Flocker.
 These have either been provided by ClusterHQ, or are supported by our community partners.
 
 Each backend page listed below provides configuration details for setting up your backend.
@@ -57,8 +57,8 @@ If the storage backend you are looking for is not currently supported by Flocker
 
 .. _backends-next-steps:
 
-Next Steps
-==========
+Next Step
+=========
 
 If you have configured a backend as part of the Flocker configuration process, you will now need to return to complete the configuration steps before you can use Flocker.
    
