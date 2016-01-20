@@ -199,6 +199,55 @@ Or you can run, for example, the acceptance tests against the created cluster:
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
+
+==============================
+Adding containers and datasets
+==============================
+To make it easier to reuse a test cluster, and test under different configurations, Flocker provides a tool to create a certain number of datasets and containers per node.
+It is called like this:
+
+.. prompt:: bash $
+
+    benchmark/setup-cluster-containers <options>
+
+The :program:`setup-cluster-containers` script has the following command line options:
+
+.. program:: setup-cluster-containers`
+
+.. option:: --app-template <application-template-file>
+
+   Specifies a YAML file that describes a single application.
+   It must include a name of a Docker image to use as an application container and may include other parameters.
+
+.. option:: --apps-per-node <number>
+
+   Specifies the number of applications (containers) to start on each cluster node.
+   If this is not specified, one container and dataset per node will be created.
+
+.. option:: --control-node <ip-address>
+
+    Public IP address of the control node.
+
+.. option:: --cert-directory <certificates-directory>
+
+   Specifies a directory containing:
+
+   - ``cluster.crt`` - a CA certificate file;
+   - ``user.crt`` - a user certificate file; and
+   - ``user.key`` - a user private key file.
+
+.. option:: --wait <seconds>
+
+   Specifies the timeout of waiting for the configuration changes to take effect
+   or, in other words, for the cluster to converge.
+   If this parameter is not set, then the program will wait up to two hours.
+
+If :option:`--wait` is used the script waits for the deletions to take effect.
+After the script successfully finishes the cluster should be in a converged state
+with the requested containers and datasets.
+If :option:`--wait` is not specified, then the script will wait for up to two hours.
+
+
 =====================================
 Cleaning Up the Cluster Configuration
 =====================================
