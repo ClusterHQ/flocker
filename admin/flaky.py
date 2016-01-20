@@ -66,9 +66,9 @@ def report_flaky_tests(output, flaky_tests):
         output.write('{}\n'.format(test))
 
 
-def report_bugs(output, flaky_tests):
+def report_issues(output, flaky_tests):
     """
-    Print all bugs for flaky tests.
+    Print all issues for flaky tests.
     """
     jira_keys = frozenset().union(
         *(flaky.jira_keys for (_, flaky) in flaky_tests))
@@ -99,7 +99,7 @@ def report_test_tree(output, flaky_tests):
 
 
 _REPORTS = {
-    'bugs': report_bugs,
+    'issues': report_issues,
     'tests': report_tests,
     'tree': report_test_tree,
 }
