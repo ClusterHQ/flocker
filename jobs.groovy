@@ -575,7 +575,7 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
             wrappers build_wrappers(job_values, directories_to_delete)
             scm build_scm(git_url, branchName, isReleaseBuild)
             steps build_steps(job_values)
-            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, _job_name)
+            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
         }
     } else if (job_type == 'run_sphinx') {
         assert module == null
