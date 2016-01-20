@@ -740,7 +740,7 @@ def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
                Skip the cron jobs as they don't run from this multijob,
                so the copied artifacts could be from a build of a previous
                revision, which may confuse things. */
-            list_jobs(dashProject, dashBranchName).findAll { it.job_type != 'cronly_jobs' }.each {
+            list_jobs(dashProject, dashBranchName).findAll { it.type != 'cronly_jobs' }.each {
                 if (it.values.archive_artifacts) {
                     copy_artifacts_from(
                         delegate, it.full_name,
