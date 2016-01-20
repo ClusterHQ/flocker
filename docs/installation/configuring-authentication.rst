@@ -6,18 +6,6 @@ Configuring Cluster Authentication
 
 .. begin-body-config-authentication
 
-Prerequisites
-=============
-
-Before you begin to configure authentication for your cluster, you will need to have completed the following:
-
-* Installed the ``flocker-cli`` on your local machine.
-* Installed ``flocker-node`` on each of your nodes.
-* Chosen on which of your nodes you want to host the Flocker control service.
-
-Summary
-=======
-
 Communication between the different parts of your cluster is secured and authenticated via TLS.
 This guide will show you how to generate and distribute the following:
 
@@ -28,8 +16,17 @@ This guide will show you how to generate and distribute the following:
 
 .. XXX Add a diagram to illustrate the distribution of certificates across the cluster. See FLOC 3085
 
-Steps
-=====
+Prerequisites
+=============
+
+Before you begin to configure authentication for your cluster, you will need to have completed the following:
+
+* Installed the ``flocker-cli`` on your local machine.
+* Installed ``flocker-node`` on each of your nodes.
+* Chosen on which of your nodes you want to host the Flocker control service.
+
+Generating and Distributing Certificates
+========================================
 
 #. Create a directory for your certificates on all nodes.
 

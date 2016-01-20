@@ -41,4 +41,7 @@ Installing the Flocker Client
 Next Step
 =========
 
-The next section describes your next step - :ref:`Installing the Flocker Node Services<installing-flocker-node-docker>`.
+You have now installed the Flocker client.
+The next step is to  :ref:`install the Flocker node services<installing-flocker-node-docker>`.
+
+If you want to return to the menu for manually installing Flocker with Docker Swarm, click :ref:`here <installing-flocker-with-docker>`.

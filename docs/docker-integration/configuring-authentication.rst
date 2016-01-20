@@ -8,7 +8,11 @@ Configuring Cluster Authentication
    :start-after: .. begin-body-config-authentication
    :end-before: .. end-body-config-authentication
 
-The next topic is :ref:`generate-api-docker`, which is used to identify yourself when sending instructions to the control service.
+Next Step
+=========
 
-To integrate with Docker you will also need to create API client certificates for the Flocker plugin for Docker, as it requires access to the Flocker REST API.
-In addition to the :ref:`generate-api-docker` steps, you will also need to complete the instructions in :ref:`generate-api-docker-plugin`.
+You have now generated and distributed your cluster certificate, control service certificate and key file, and a node certificate and key file.
+
+The next step is :ref:`generating an API client certificate <generate-api-docker>`, which is used to identify yourself when sending instructions to the control service.
+
+If you want to return to the menu for manually installing Flocker with Docker Swarm, click :ref:`here <installing-flocker-with-docker>`.
