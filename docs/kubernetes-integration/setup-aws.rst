@@ -8,7 +8,15 @@ Setting Up Nodes Using Amazon Web Services
    :start-after: .. begin-body
    :end-before: .. end-body
 
-#. Go to the installation instructions specific to your operating system in :ref:`installing-flocker-node-kubernetes`, to install ``clusterhq-flocker-node`` on each node in your cluster:
+Next Step
+=========
 
-   * :ref:`centos-7-install-kubernetes`
-   * :ref:`ubuntu-14.04-install-kubernetes`
+Return to the installation instructions specific to your operating system to install ``clusterhq-flocker-node`` on each node in your cluster:
+
+.. raw:: html
+
+   <br/><a href="install-node.html#centos-7-install-docker" class="button">Installing on CentOS 7</a>
+   <a href="install-node.html#ubuntu-14-04-install-docker" class="button">Installing on Ubuntu 14.04</a>
+   <br/><br/>
+
+Alternatively, :ref:`return to the installation menu <installing-flocker-with-kubernetes>`.

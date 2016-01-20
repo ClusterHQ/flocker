@@ -20,4 +20,3 @@ Return to the installation instructions specific to your operating system to ins
    <br/><br/>
 
 Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.
-

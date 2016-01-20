@@ -8,4 +8,12 @@ Configuring Cluster Authentication
    :start-after: .. begin-body-config-authentication
    :end-before: .. end-body-config-authentication
 
-The next topic is :ref:`generate-api-kubernetes`, which is used to identify yourself when sending instructions to the control service.
+Next Step
+=========
+
+.. raw:: html
+
+   <a href="generate-api-certificates.html" class="button">Generate an API client certificate</a>
+   <br/><br/>
+
+Alternatively, :ref:`return to the installation menu <installing-flocker-with-kubernetes>`.
