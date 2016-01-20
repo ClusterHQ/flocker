@@ -36,6 +36,7 @@ from io import BytesIO
 from itertools import count
 from twisted.internet.defer import maybeDeferred
 from uuid import UUID
+from functools import partial
 
 from eliot import (
     Logger, ActionType, Action, Field, MessageType,
@@ -63,6 +64,7 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 from ._persistence import wire_encode, wire_decode
 from ._model import (
     Deployment, DeploymentState, ChangeSource, UpdateNodeStateEra,
+    BlockDeviceOwnership,
 )
 
 PING_INTERVAL = timedelta(seconds=30)

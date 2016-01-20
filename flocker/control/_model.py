@@ -609,11 +609,37 @@ class Leases(CheckedPMap):
         return updated
 
 
+class BlockDeviceOwnership(CheckedPMap):
+    """
+    Persistent mapping of blockdevices to datasets.
+    """
+    __key_type__ = UUID
+    __value_type__ = unicode
+
+    def record_ownership(self, dataset_id, blockdevice_id):
+        """
+        Record that blockdevice_id is the relevant one for given dataset_id.
+
+        Once a record is made no other entry can overwrite the existing
+        one; the relationship is hardcoded and permanent. XXX this may
+        interact badly with deletion of dataset where dataset_id is
+        auto-generated from name, e.g. flocker-deploy or Docker
+        plugin. That is pre-existing issue, though.
+        """
+        if self.get(dataset_id) is not None:
+            raise
+        return self.set(dataset_id, blockdevice_id)
+
+
 class PersistentState(PClass):
     """
     A ``PersistentState`` describes the persistent non-discoverable state of
     the cluster.
     """
+    # XXX having IBlockDeviceAPI specific fields is kinda bogus. Some
+    # sort of generic method for storing data moving forward?
+    blockdevice_ownership = field(type=BlockDeviceOwnership, mandatory=True,
+                                  initial=BlockDeviceOwnership())
 
 
 class Deployment(PClass):
