@@ -67,6 +67,7 @@
     {% endif %}
 	
     <link rel="shortcut icon" href="https://clusterhq.com/assets/favicon.ico"/>
+    <link rel="canonical" href="https://docs.clusterhq.com/en/latest"/>
 </head>
 <body>
     <!-- Menu area -->
@@ -256,10 +257,12 @@
 
             // Is version equal to this documentation release?
             if (currentversion !== DOCUMENTATION_OPTIONS.VERSION) {
+                $('link[rel="canonical"]').attr('href', 'https://docs.clusterhq.com/en/' + DOCUMENTATION_OPTIONS.VERSION +'/');
                 $('.section:first').prepend('<div class="admonition note warning"> \
                     <p class="last"> \
                         You are currently viewing a different version of the documentation to the latest release of Flocker. \
-                        The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '.</p> \
+                        The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '. \
+                        <a href="https://docs.clusterhq.com/en/latest/">View the latest documentation.</a></p> \
                     </div>');
             }
         });
