@@ -6,10 +6,10 @@ Find and report on tests marked as flaky.
 
 import sys
 
-from testtools import iterate_tests
-from twisted.python.reflect import namedAny
+from testtools import clone_test_with_new_id, iterate_tests
 from twisted.python.usage import Options, UsageError
-from twisted.trial.runner import ErrorHolder, TestLoader
+from twisted.trial.reporter import TreeReporter
+from twisted.trial.runner import TestLoader
 
 from flocker.testtools._flaky import _get_flaky_annotation
 
@@ -79,6 +79,38 @@ def report_flaky_tests(output, flaky_tests):
         output.write('{}\n'.format(test))
 
 
+def report_bugs(output, flaky_tests):
+    """
+    Print all bugs for flaky tests.
+    """
+    jira_keys = frozenset().union(
+        *(flaky.jira_keys for (_, flaky) in flaky_tests))
+    for jira_key in sorted(jira_keys):
+        output.write('{}\n'.format(jira_key))
+
+
+def report_tests(output, flaky_tests):
+    """
+    Print all flaky tests.
+    """
+    tests = list(test.id() for (test, _) in flaky_tests)
+    for test in sorted(tests):
+        output.write('{}\n'.format(test))
+
+
+def report_test_tree(output, flaky_tests):
+    """
+    Print all flaky tests as a tree.
+    """
+    reporter = TreeReporter(output)
+    for (test, flaky) in flaky_tests:
+        new_test = clone_test_with_new_id(test, '{}({})'.format(test.id(), ', '.join(flaky.jira_keys)))
+        reporter.startTest(new_test)
+        reporter.addSuccess(new_test)
+        reporter.stopTest(new_test)
+    reporter.done()
+
+
 def find_flaky_tests_main(args, base_path, top_level, stdout=None,
                           stderr=None):
     """
@@ -96,4 +128,4 @@ def find_flaky_tests_main(args, base_path, top_level, stdout=None,
         sys.exit(1)
 
     flaky_tests = find_flaky_tests(options['suites'])
-    report_flaky_tests(stdout, flaky_tests)
+    report_test_tree(stdout, flaky_tests)
