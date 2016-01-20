@@ -47,8 +47,8 @@ Follow a Tutorial
 	    </div>
 	</div>
 
-Learn more on our blog
-----------------------
+Related Blog Articles
+=====================
 
 * `Demo: High Availability with Kubernetes and Flocker <https://clusterhq.com/2015/12/22/ha-demo-kubernetes-flocker/>`_
 

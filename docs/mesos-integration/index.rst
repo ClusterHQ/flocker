@@ -50,7 +50,7 @@ Follow a Tutorial
 	    </div>
 	</div>
 
-Learn more on our blog
-----------------------
+Related Blog Articles
+=====================
 
 * `Demo: High Availability with Marathon and Flocker <https://clusterhq.com/2015/10/06/marathon-ha-demo/>`_
