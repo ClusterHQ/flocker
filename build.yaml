@@ -1065,7 +1065,10 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 30
+      # This is larger than we like because of node.functional.test_docker
+      # being quite slow to run. If that is no longer the case then
+      # please reduce this.
+      timeout: 45
 
     run_trial_on_AWS_CentOS_7_as_root:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
@@ -1089,7 +1092,10 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      timeout: 30
+      # This is larger than we like because of node.functional.test_docker
+      # being quite slow to run. If that is no longer the case then
+      # please reduce this.
+      timeout: 45
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
