@@ -1539,11 +1539,12 @@ class BlockDeviceDeployer(PClass):
 
     :ivar unicode hostname: The IP address of the node that has this deployer.
     :ivar UUID node_uuid: The UUID of the node that has this deployer.
-    :ivar IBlockDeviceAPI block_device_api: The block device API that will be
-        called upon to perform block device operations.
-    :ivar IProfiledBlockDeviceAPI _profiled_blockdevice_api: The block device
-        API that will be called upon to perform block device operations with
-        profiles.
+    :ivar IBlockDeviceAPI block_device_api: The block device API that will
+        be called upon to perform block device operations. This will
+        typically be a ``ProcessLifetimeCache`` wrapping the underlying
+        provider.
+    :ivar _underlying_blockdevice_api: The underlying block device API,
+        unwrapped.
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
     :ivar _async_block_device_api: An object to override the value of the
@@ -1557,7 +1558,7 @@ class BlockDeviceDeployer(PClass):
     hostname = field(type=unicode, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
     block_device_api = field(mandatory=True)
-    _profiled_blockdevice_api = field(mandatory=True, initial=None)
+    _underlying_blockdevice_api = field(mandatory=True, initial=None)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     block_device_manager = field(initial=BlockDeviceManager())
@@ -1572,12 +1573,13 @@ class BlockDeviceDeployer(PClass):
         """
         Get an ``IProfiledBlockDeviceAPI`` provider which can create volumes
         configured based on pre-defined profiles. This will use the
-        _profiled_blockdevice_api attribute, falling back to the
+        _underlying_blockdevice_api attribute, falling back to the
         block_device_api attributed and finally an adapter implementation
         around the block_device_api if neither of those provide the interface.
         """
-        if IProfiledBlockDeviceAPI.providedBy(self._profiled_blockdevice_api):
-            return self._profiled_blockdevice_api
+        if IProfiledBlockDeviceAPI.providedBy(
+                self._underlying_blockdevice_api):
+            return self._underlying_blockdevice_api
         if IProfiledBlockDeviceAPI.providedBy(self.block_device_api):
             return self.block_device_api
         return ProfiledBlockDeviceAPIAdapter(
