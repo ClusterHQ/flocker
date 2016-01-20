@@ -90,4 +90,3 @@ class EnsureAllTestsRun(TestCase):
              "Tests that are missing from build.yaml: {}\n\n").format(
                  pformat(list(configured_tests - expected_tests)),
                  pformat(list(expected_tests - configured_tests))))
-
