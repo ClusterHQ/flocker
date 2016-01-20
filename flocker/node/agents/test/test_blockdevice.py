@@ -1026,7 +1026,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
             attach_to=dead_host,
         )
         assert_discovered_state(
-            self, self.deployer.set(block_device_api=api),
+            self, self.deployer.set(
+                block_device_api=ProcessLifetimeCache(api),
+                _underlying_blockdevice_api=api),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED_ELSEWHERE,
