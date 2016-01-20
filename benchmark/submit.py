@@ -106,8 +106,10 @@ def main(reactor, args):
         print("Assigned result ID: {}".format(id))
 
     def failed(failure):
+        failure.trap(SubmitFailure)
         print("Failed to submit the result: {}".format(failure.value),
               file=sys.stderr)
+        raise SystemExit(1)
 
     d.addCallbacks(succeeded, failed)
     return d
