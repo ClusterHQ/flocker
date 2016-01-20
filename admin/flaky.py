@@ -128,11 +128,18 @@ class FindFlakyTestsOptions(Options):
         ['report', 'r', 'tree', 'The report to use', _to_report]
     ]
 
+    def __init__(self, name, *args, **kwargs):
+        super(FindFlakyTestsOptions, self).__init__(*args, **kwargs)
+        self._name = name
+        self.synopsis = "{} [options] [TEST...]".format(name)
+
     def parseArgs(self, *suites):
         """
         Accept an arbitrary number of suites, specified as fully-qualified
         Python names.
         """
+        if not suites:
+            raise UsageError('Must provide name of at least one test suite')
         self['suites'] = suites
 
 
@@ -145,10 +152,12 @@ def find_flaky_tests_main(args, base_path, top_level, stdout=None,
     stderr = sys.stderr if stderr is None else stderr
     # XXX: Boilerplate copied from release.py, very similar (but not similar
     # enough!) to boilerplate in flocker.common.script.
-    options = FindFlakyTestsOptions()
+    options = FindFlakyTestsOptions(base_path.basename())
     try:
         options.parseOptions(args)
     except UsageError as e:
+        stdout.write(str(options))
+        stdout.write("\n")
         stderr.write("{}: {}\n".format(base_path.basename(), e))
         sys.exit(1)
 
