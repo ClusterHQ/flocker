@@ -35,6 +35,68 @@ _METADATA_SERVER = u'http://169.254.169.254/computeMetadata/v1/'
 _METADATA_HEADERS = {u'Metadata-Flavor': u'Google'}
 
 
+def wait_for_operation(compute, operation, timeout):
+    """
+    Blocks until a GCE operation is complete, or timeout passes.
+
+    This function will then poll the operation until it reaches state
+    'DONE' or times out, and then returns the final operation resource
+    dict.
+
+    :param operation: A dict representing a pending GCE operation resource.
+        This can be either a zone or a global operation.
+    :param timeout: The amount of times in seconds to wait until timing out the
+        operation.
+
+    :returns dict: A dict representing the concluded GCE operation
+        resource or `None` if the operation times out.
+    """
+    operation_name = operation['name']
+    if 'zone' in operation:
+        # For zone operations, we need to extract the zone and the project.
+        # An example of a 'zone' value of a zone operation dict is:
+        #
+        # 'https://content.googleapis.com/compute/v1/'
+        # 'projects/<project-name>/zones/<zone-name>'
+        #
+        # Note that everything before 'projects' is sometimes not included.
+        zone_url_parts = operation['zone'].split('/')
+        project = zone_url_parts[-3]
+        zone = zone_url_parts[-1]
+
+        def get_zone_operation():
+            return compute.zoneOperations().get(
+                project=project,
+                zone=zone,
+                operation=operation_name
+            )
+        update = get_zone_operation
+    else:
+        # For global operations, we only need to extract the project.
+        # An example of a 'selfLink' value of a global operation dict is:
+        #
+        # 'https://content.googleapis.com/compute/v1/'
+        # 'projects/<project-name>/global/operations/<operation-name>'
+        #
+        # Note that everything before 'projects' is sometimes not included.
+        project = operation['selfLink'].split('/')[-4]
+
+        def get_global_operation():
+            return compute.globalOperations().get(
+                project=project,
+                operation=operation_name
+            )
+        update = get_global_operation
+
+    def finished_operation_result():
+        latest_operation = update().execute()
+        if latest_operation['status'] == 'DONE':
+            return latest_operation
+        return None
+
+    return poll_until(finished_operation_result, [1]*timeout)
+
+
 def _get_metadata_path(path):
     """
     Requests a metadata path from the metadata server available within GCE.
@@ -209,23 +271,11 @@ class GCEBlockDeviceAPI(object):
         args = dict(project=self._project, zone=self._zone)
         args.update(kwargs)
         operation = function(**args).execute()
-        operation_name = operation['name']
-
-        def finished_operation_result():
-            latest_operation = self._compute.zoneOperations().get(
-                project=self._project,
-                zone=self._zone,
-                operation=operation_name).execute()
-            # TODO Logging
-            if latest_operation['status'] == 'DONE':
-                return latest_operation
-            return None
-
         # TODO(bcox) Perform a decent test of typical latencies for
         # operations within GCE and use that information to determine
         # an appropriate timeout. Until that is done, use the
         # following arbitrary timeout.
-        return poll_until(finished_operation_result, [1]*35)
+        return wait_for_operation(self._compute, operation, 35)
 
     def allocation_unit(self):
         """

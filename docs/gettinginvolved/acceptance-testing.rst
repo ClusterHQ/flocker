@@ -103,6 +103,34 @@ The top-level mapping may also contain any number of computer-resource provider 
 These are used to provide required parameters to the cluster runner selected by the ``--provider`` option.
 Configuration is loaded from the item in the top-level mapping with a key matching the value given to ``--provider``.
 
+.. _acceptance-testing-gce-config:
+
+GCE
+=========
+
+To run the acceptance tests on GCE, you need:
+
+- Credentials: https://developers.google.com/identity/protocols/application-default-credentials
+  - Set an environment variable or run gcloud auth login.
+- A location where the acceptance test cluster will be run (project and zone)
+
+.. code-block:: yaml
+
+   gce:
+     project: <gce project>
+     zone: <gce zone, e.g. "us-central1-f">
+     ssh-public-key: <public key to use with the instance "ssh-rsa AAAAB3N...">
+
+You will need a ssh agent running with access to the corresponding private key.
+
+GCE can use these dataset backends:
+
+* :ref:`GCE<gce-dataset-backend>`
+
+.. prompt:: bash $
+
+  admin/run-acceptance-tests --distribution centos-7 --provider gce --dataset-backend ??? --config-file config.yml
+
 .. _acceptance-testing-rackspace-config:
 
 Rackspace

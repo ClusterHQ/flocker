@@ -259,11 +259,9 @@ class AWSProvisioner(PClass):
         # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html
         return None
 
-    def create_node(self, name, distribution,
-                    size=None, disk_size=8,
-                    metadata={}):
-        if size is None:
-            size = self._default_size
+    def create_node(self, name, distribution, metadata={}):
+        size = self._default_size
+        disk_size = 8
 
         with start_action(
             action_type=u"flocker:provision:aws:create_node",

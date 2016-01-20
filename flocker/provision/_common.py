@@ -139,17 +139,13 @@ class IProvisioner(Interface):
         :return Key: The ssh public key or ``None`` if it can't be determined.
         """
 
-    def create_node(name, distribution,
-                    size=None, disk_size=8,
-                    metadata={}):
+    def create_node(name, distribution, metadata={}):
         """
         Create a node.
 
         :param str name: The name of the node.
         :param str distribution: The name of the distribution to
             install on the node.
-        :param str size: The name of the size to use.
-        :param int disk_size: The size of disk to allocate.
         :param dict metadata: Metadata to associate with the node.
 
         :return INode: The created node.
