@@ -174,8 +174,8 @@ Or you can run, for example, the acceptance tests against the created cluster:
 ==============================
 Adding containers and datasets
 ==============================
-To make it easier to reuse a test cluster, and test under different configurations, Flocker provides a tool to create a certain number of datasets and containers per node.
-It is called like this:
+To make it easier to re-use a test cluster and test under different configurations, Flocker provides a tool to create a certain number of datasets and containers per node.
+Run the following command to deploy clusters and datasets:
 
 .. prompt:: bash $
 
@@ -219,7 +219,7 @@ with the requested containers and datasets.
 If :option:`--wait` is not specified, then the script will wait for up to two hours.
 
 Application Template
-====================
+--------------------
 
 The configuration file given for the ``--app-template`` parameter describes a single application.
 At the very least it should specify a name of a Docker image to use for an application container.
