@@ -230,7 +230,7 @@ At the very least it should specify a name of a Docker image to use for an appli
   volume:
     mountpoint: "/data/db"
 
-See :doc:`../control/cli/application-config` for more details.
+See :ref:application-configuration for more details.
 The ``--apps-per-node`` parameter specifies how many applications to start on each cluster node.
 
 .. prompt:: bash $
