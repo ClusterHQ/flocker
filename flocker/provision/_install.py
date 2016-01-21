@@ -1035,8 +1035,10 @@ def _remove_dataset_fields(content):
     return yaml.safe_dump(content)
 
 
-def task_configure_flocker_agent(control_node, dataset_backend,
-                                 dataset_backend_configuration):
+def task_configure_flocker_agent(
+    control_node, dataset_backend, dataset_backend_configuration,
+    logging_config=None,
+):
     """
     Configure the flocker agents by writing out the configuration file.
 
@@ -1045,24 +1047,28 @@ def task_configure_flocker_agent(control_node, dataset_backend,
         configured with.
     :param dict dataset_backend_configuration: The backend specific
         configuration options.
+    :param dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
     """
     dataset_backend_configuration = dataset_backend_configuration.copy()
     dataset_backend_configuration.update({
         u"backend": dataset_backend.name,
     })
 
+    content = {
+        "version": 1,
+        "control-service": {
+            "hostname": control_node,
+            "port": 4524,
+        },
+        "dataset": dataset_backend_configuration,
+    }
+    if logging_config is not None:
+        content['logging'] = logging_config
+
     put_config_file = put(
         path='/etc/flocker/agent.yml',
-        content=yaml.safe_dump(
-            {
-                "version": 1,
-                "control-service": {
-                    "hostname": control_node,
-                    "port": 4524,
-                },
-                "dataset": dataset_backend_configuration,
-            },
-        ),
+        content=yaml.safe_dump(content),
         log_content_filter=_remove_dataset_fields
     )
     return sequence([put_config_file])
@@ -1485,7 +1491,9 @@ def install_flocker(nodes, package_source):
     )
 
 
-def configure_cluster(cluster, dataset_backend_configuration, provider):
+def configure_cluster(
+    cluster, dataset_backend_configuration, provider, logging_config=None
+):
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
@@ -1496,6 +1504,9 @@ def configure_cluster(cluster, dataset_backend_configuration, provider):
         supply to the dataset backend.
 
     :param bytes provider: provider of the nodes  - aws. rackspace or managed.
+
+    :param dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
     """
     setup_action = 'start'
     if provider == "managed":
@@ -1544,6 +1555,7 @@ def configure_cluster(cluster, dataset_backend_configuration, provider):
                             dataset_backend_configuration=(
                                 dataset_backend_configuration
                             ),
+                            logging_config=logging_config,
                         ),
                         task_enable_docker_plugin(node.distribution),
                         task_enable_flocker_agent(
