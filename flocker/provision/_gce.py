@@ -33,7 +33,7 @@ from eliot import start_action
 from ..node.agents.gce import wait_for_operation
 
 from ._common import IProvisioner, INode
-from ._install import provision_for_non_root_user
+from ._install import provision_for_any_user
 
 
 # Defaults for some of the instance construction parameters.
@@ -266,7 +266,7 @@ class GCENode(PClass):
         return bytes(_GCE_ACCEPTANCE_USERNAME)
 
     def provision(self, package_source, variants):
-        return provision_for_non_root_user(self, package_source, variants)
+        return provision_for_any_user(self, package_source, variants)
 
     def destroy(self):
         with start_action(

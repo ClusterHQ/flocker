@@ -1572,9 +1572,35 @@ def configure_cluster(
     ])
 
 
-def provision_for_non_root_user(node, package_source, variants=()):
+def provision_as_root(node, package_source, variants=()):
     """
-    Provision flocker on a node whose default user is not root.
+    Provision flocker on a node using the root user.
+
+    :param INode node: Node to provision.
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
+    """
+    commands = []
+
+    commands.append(run_remotely(
+        username='root',
+        address=node.address,
+        commands=provision(
+            package_source=package_source,
+            distribution=node.distribution,
+            variants=variants,
+        ),
+    ))
+
+    return sequence(commands)
+
+
+def provision_for_any_user(node, package_source, variants=()):
+    """
+    Provision flocker on a node using the default user. If the user is not
+    root, then copy the authorized_users over to the root user and then
+    provision as root.
 
     :param INode node: Node to provision.
     :param PackageSource package_source: See func:`task_install_flocker`
@@ -1582,6 +1608,9 @@ def provision_for_non_root_user(node, package_source, variants=()):
         provisioning
     """
     username = node.get_default_username()
+
+    if username == 'root':
+        return provision_as_root(node, package_source, variants)
 
     commands = []
 
@@ -1600,14 +1629,7 @@ def provision_for_non_root_user(node, package_source, variants=()):
         commands=retry(task_install_ssh_key(), for_thirty_seconds),
     ))
 
-    commands.append(run_remotely(
-        username='root',
-        address=node.address,
-        commands=provision(
-            package_source=package_source,
-            distribution=node.distribution,
-            variants=variants,
-        ),
-    ))
+    commands.append(
+        provision_as_root(node, package_source, variants))
 
     return sequence(commands)

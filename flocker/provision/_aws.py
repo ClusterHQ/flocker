@@ -6,14 +6,11 @@ AWS provisioner.
 
 from itertools import repeat
 from textwrap import dedent
-from time import time
 
 from pyrsistent import PClass, field
 
 from zope.interface import implementer
 
-from effect.retry import retry
-from effect import Effect, Constant
 
 from boto.ec2 import connect_to_region
 from boto.ec2.blockdevicemapping import (
@@ -25,12 +22,11 @@ from ..common import poll_until
 
 from ._common import INode, IProvisioner
 
-from ._install import provision_for_non_root_user
+from ._install import provision_for_any_user
 
 from eliot import start_action, Message
 
 from ._ssh import run_remotely, run_from_args
-from ._effect import sequence
 
 
 _usernames = {
@@ -170,7 +166,7 @@ class AWSNode(PClass):
         :param set variants: The set of variant configurations to use when
             provisioning
         """
-        return provision_for_non_root_user(self, package_source, variants)
+        return provision_for_any_user(self, package_source, variants)
 
     def reboot(self):
         """
