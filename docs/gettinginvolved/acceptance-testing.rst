@@ -103,33 +103,22 @@ The top-level mapping may also contain any number of computer-resource provider 
 These are used to provide required parameters to the cluster runner selected by the ``--provider`` option.
 Configuration is loaded from the item in the top-level mapping with a key matching the value given to ``--provider``.
 
-.. _acceptance-testing-gce-config:
-
-GCE
-=========
-
-To run the acceptance tests on GCE, you need:
-
-- Credentials: https://developers.google.com/identity/protocols/application-default-credentials
-  - Set an environment variable or run gcloud auth login.
-- A location where the acceptance test cluster will be run (project and zone)
+The top-level mapping may contain a ``logging`` stanza, which must match the format described in `PEP 0391 <https://www.python.org/dev/peps/pep-0391/>`_.
+An example stanza:
 
 .. code-block:: yaml
 
-   gce:
-     project: <gce project>
-     zone: <gce zone, e.g. "us-central1-f">
-     ssh-public-key: <public key to use with the instance "ssh-rsa AAAAB3N...">
-
-You will need a ssh agent running with access to the corresponding private key.
-
-GCE can use these dataset backends:
-
-* :ref:`GCE<gce-dataset-backend>`
-
-.. prompt:: bash $
-
-  admin/run-acceptance-tests --distribution centos-7 --provider gce --dataset-backend ??? --config-file config.yml
+   logging:
+      version: 1
+      handlers:
+          logfile:
+              class: 'logging.FileHandler'
+              level: DEBUG
+              filename: "/tmp/flocker.log"
+              encoding: 'utf-8'
+      root:
+          handlers: ['logfile']
+          level: DEBUG
 
 .. _acceptance-testing-rackspace-config:
 
@@ -161,6 +150,39 @@ Rackspace can use these dataset backends:
 .. prompt:: bash $
 
   admin/run-acceptance-tests --distribution centos-7 --provider rackspace --config-file config.yml
+
+
+.. _acceptance-testing-gce-config:
+
+GCE
+=========
+
+To run the acceptance tests on GCE, you need:
+
+- Credentials: https://developers.google.com/identity/protocols/application-default-credentials
+  - Set an environment variable or run gcloud auth login.
+  - Alternatively add the json dict you get for a service accounts credentials
+    to your acceptance.yaml
+- A location where the acceptance test cluster will be run (project and zone)
+
+.. code-block:: yaml
+
+   gce:
+     project: <gce project>
+     zone: <gce zone, e.g. "us-central1-f">
+     ssh_public_key: <public key to use with the instance "ssh-rsa AAAAB3N...">
+     gce_credentials:
+       <Optional dict equivalent to the json you get for service account keys>
+
+You will need a ssh agent running with access to the corresponding private key.
+
+GCE can use these dataset backends:
+
+* :ref:`GCE<gce-dataset-backend>`
+
+.. prompt:: bash $
+
+  admin/run-acceptance-tests --distribution centos-7 --provider gce --dataset-backend ??? --config-file config.yml
 
 
 .. _acceptance-testing-aws-config:

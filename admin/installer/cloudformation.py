@@ -39,6 +39,7 @@ DOCKER_SETUP = 'setup_docker.sh'
 DOCKER_SWARM_CA_SETUP = 'docker-swarm-ca-setup.sh'
 SWARM_MANAGER_SETUP = 'setup_swarm_manager.sh'
 SWARM_NODE_SETUP = 'setup_swarm_node.sh'
+VOLUMEHUB_SETUP = 'setup_volumehub.sh'
 FLOCKER_CONFIGURATION_GENERATOR = 'flocker-configuration-generator.sh'
 FLOCKER_CONFIGURATION_GETTER = 'flocker-configuration-getter.sh'
 CLIENT_SETUP = 'setup_client.sh'
@@ -72,6 +73,15 @@ access_key_id_param = template.add_parameter(Parameter(
 secret_access_key_param = template.add_parameter(Parameter(
     "SecretAccessKey",
     Description="Your Amazon AWS secret access key.",
+    Type="String",
+))
+
+volumehub_token = template.add_parameter(Parameter(
+    "VolumeHubToken",
+    Description=(
+        "Your Volume Hub token. "
+        "You'll find the token at https://volumehub.clusterhq.com/v1/token."
+    ),
     Type="String",
 ))
 
@@ -138,9 +148,14 @@ base_user_data = [
     'secret_access_key="', Ref(secret_access_key_param), '"\n',
     's3_bucket="', Ref(s3bucket), '"\n',
     'stack_name="', Ref("AWS::StackName"), '"\n',
+    'volumehub_token="', Ref(volumehub_token), '"\n',
     'node_count="{}"\n'.format(NUM_NODES),
     'apt-get update\n',
 ]
+
+# XXX Flocker agents are indexed from 1 while the nodes overall are indexed
+# from 0.
+flocker_agent_number = 1
 
 for i in range(NUM_NODES):
     if i == 0:
@@ -183,6 +198,7 @@ for i in range(NUM_NODES):
     if i == 0:
         # Control Node configuration.
         control_service_instance = ec2_instance
+        user_data += 'flocker_node_type="control"\n',
         user_data += _sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
         user_data += _sibling_lines(DOCKER_SWARM_CA_SETUP)
         user_data += _sibling_lines(DOCKER_SETUP)
@@ -200,6 +216,11 @@ for i in range(NUM_NODES):
     else:
         # Agent Node configuration.
         ec2_instance.DependsOn = control_service_instance.name
+        user_data += 'flocker_node_type="agent"\n'
+        user_data += 'flocker_agent_number="{}"\n'.format(
+            flocker_agent_number
+        )
+        flocker_agent_number += 1
         user_data += _sibling_lines(DOCKER_SETUP)
 
         # Setup Swarm 1.0.1
@@ -213,6 +234,7 @@ for i in range(NUM_NODES):
         ])
 
     user_data += _sibling_lines(FLOCKER_CONFIGURATION_GETTER)
+    user_data += _sibling_lines(VOLUMEHUB_SETUP)
     user_data += _sibling_lines(SIGNAL_CONFIG_COMPLETION)
     ec2_instance.UserData = Base64(Join("", user_data))
     template.add_resource(ec2_instance)
@@ -225,7 +247,7 @@ client_instance = ec2.Instance(
     KeyName=Ref(keyname_param),
     SecurityGroups=[Ref(instance_sg)],
     AvailabilityZone=zone,
-    Tags=Tags(Name=node_name))
+    Tags=Tags(Name=CLIENT_NODE_NAME))
 wait_condition_handle = WaitConditionHandle(CLIENT_WAIT_HANDLE)
 template.add_resource(wait_condition_handle)
 wait_condition = WaitCondition(
