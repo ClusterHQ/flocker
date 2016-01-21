@@ -1326,8 +1326,3 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
         d.addCallback(lambda _: client2.list())
         d.addCallback(self.assertEqual, set())
         return d
-
-    @flaky(u'FLOC-1657')
-    def test_pull_image_if_necessary(self):
-        return super(
-            NamespacedDockerClientTests, self).test_pull_image_if_necessary()
