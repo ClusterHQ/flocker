@@ -4,6 +4,7 @@
 Tests for :module:`flocker.node.script`.
 """
 
+from functools import wraps
 import logging
 import socket
 from unittest import skipUnless
@@ -187,6 +188,31 @@ def agent_service_setup(test):
     )
 
 
+def _restore_logging(log_name='flocker.test'):
+    """
+    Save and restore a logging configuration.
+    """
+    def decorator(function):
+        @wraps(function)
+        def wrapper(self):
+            def restore_logger(logger, level, handlers):
+                logger.setLevel(level)
+                for handler in logger.handlers[:]:
+                    logger.removeHandler(handler)
+                for handler in handlers:
+                    logger.addHandler(handler)
+
+            logger = logging.getLogger(log_name)
+            self.addCleanup(
+                restore_logger, logger, logger.getEffectiveLevel(),
+                logger.handlers[:]
+            )
+
+            return function(self, log_name)
+        return wrapper
+    return decorator
+
+
 class AgentServiceFromConfigurationTests(TestCase):
     """
     Tests for ``AgentService.from_configuration``
@@ -234,24 +260,11 @@ class AgentServiceFromConfigurationTests(TestCase):
             ),
         )
 
-    def test_logging(self):
+    @_restore_logging(log_name='flocker.test')
+    def test_logging(self, log_name):
         """
-        Logging is setup by a logging stanza.
+        Logging is configured by a logging stanza.
         """
-        # Save and restore root logger state
-        def restore_logger(logger, level, handlers):
-            logger.setLevel(level)
-            for handler in logger.handlers[:]:
-                logger.removeHandler(handler)
-            for handler in handlers:
-                logger.addHandler(handler)
-
-        logger = logging.getLogger()
-        self.addCleanup(
-            restore_logger, logger, logger.getEffectiveLevel(),
-            logger.handlers[:]
-        )
-
         # Setup an AgentService with a logging stanza
         host = b"192.0.2.13"
         port = 2314
@@ -262,14 +275,16 @@ class AgentServiceFromConfigurationTests(TestCase):
             'handlers': {
                 'logfile': {
                     'class': 'logging.FileHandler',
-                    'level': 10,
+                    'level': 'DEBUG',
                     'filename': logfile.path,
                     'encoding': 'utf-8',
                 }
             },
-            'root': {
-                'handlers': ['logfile'],
-                'level': 10,
+            'loggers': {
+                log_name: {
+                    'handlers': ['logfile'],
+                    'level': 'DEBUG',
+                },
             },
         }
         setup_config(
@@ -283,6 +298,7 @@ class AgentServiceFromConfigurationTests(TestCase):
 
         # Root logger now logs to file
         log_message = 'My LoG tEsT.'
+        logger = logging.getLogger(log_name)
         logger.info(log_message)
         self.assertIn(log_message, logfile.getContent())
 
