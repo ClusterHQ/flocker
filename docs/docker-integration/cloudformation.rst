@@ -70,7 +70,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 		<div class="step-stages__step">
 			<img src="../_images/12-cloudformation-settings.png" alt="Optionally fill in volumehub settings"/>
             <span>Optionally, <a href="https://clusterhq.com/volumehub/" target="_blank">register for a Volume Hub account</a>. This provides a web interface to see what's going on in your cluster.</span>
-           <span>Once you're logged in, <a href="https://volumehub.clusterhq.com/v1/token" target="_blank">copy the token from here</a>, not including the <code>{"token": "</code> or <code>"}</code> pieces.</span>
+           <span>Once you're logged in, <a href="https://volumehub.clusterhq.com/v1/token" target="_blank">get your Volume Hub token</a>: e.g. copy the <code>&lt;Token&gt;</code> part from <code>{"token": "&lt;Token&gt;"}</code>.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/13-cloudformation-create.png" alt="Click create"/>
