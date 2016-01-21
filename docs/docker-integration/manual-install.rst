@@ -4,12 +4,13 @@
 Manually Installing Flocker with Docker Swarm
 =============================================
 
-#. Follow the :ref:`full-installation-with-docker` steps, to install Flocker and the :ref:`plugin`.
-   The plugin is required for Docker Swarm integration.
-#. Follow the :ref:`post-installation-configuration-with-docker` steps, to configure authentication and your chosen backend.
-   These steps also include the enablement of the control service, the agent services, and the plugin. 
-#. Install :ref:`Docker Swarm <manually-install-swarm>`.
-#. Follow a tutorial to see how to control Flocker via Docker Swarm.
+#. :ref:`Install Flocker <full-installation-with-docker>`. 
+   Follow these steps to install Flocker.
+#. :ref:`Configure Flocker <post-installation-configuration-with-docker>`.
+   Follow these steps to configure authentication and your chosen backend.
+   You will also enable the control service, the agent services, and the plugin. 
+#. :ref:`Install Docker Swarm <manually-install-swarm>`.
+#. Follow a :ref:`tutorial <link-to-docker-tutorials>` to see how to control Flocker via Docker Swarm.
 
 .. _full-installation-with-docker:
 
@@ -47,13 +48,15 @@ Manually Installing Flocker with Docker Swarm
 
 .. _manually-install-swarm:
 
-Manually Installing Docker Swarm
-================================
+3. Installing Docker Swarm
+==========================
 
-Follow the `Manual Docker Swarm installation <https://docs.docker.com/swarm/install-manual/>`_ guide on each of your nodes.
+Follow the `Docker Swarm installation <https://docs.docker.com/swarm/install-manual/>`_ guide on each of your nodes.
 
-Next step
-=========
+.. _link-to-docker-tutorials:
+
+4. Tutorial
+===========
 
 Follow a tutorial to kick the tires on your Flocker cluster with Docker Swarm!
 

@@ -4,9 +4,11 @@
 Manually Installing Flocker
 ===========================
 
-#. Follow the :ref:`full-installation-standalone-flocker` steps.
-#. Follow the :ref:`post-installation-configuration-standalone-flocker` steps, to configure authentication and your chosen backend.
-   These steps also include the enablement of the control service and the agent services. 
+#. :ref:`Install Flocker <full-installation-standalone-flocker>`. 
+   Follow these steps to install Flocker.
+#. :ref:`Configure Flocker <post-installation-configuration-standalone-flocker>`.
+   Follow these steps to configure authentication and your chosen backend.
+   You will also enable the control service and the agent services. 
 
 .. _full-installation-standalone-flocker:
 

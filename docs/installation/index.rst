@@ -45,8 +45,8 @@ The following instructions will take you through installing Flocker with the Ins
 
 .. begin-body-full-installation
 
-Installing Flocker
-==================
+1. Installing Flocker
+=====================
 
 To get the full Flocker functionality, the following installation steps will take you through installing the Flocker client and the Flocker node services.
 
@@ -70,8 +70,8 @@ To get the full Flocker functionality, the following installation steps will tak
 
 .. begin-body-configuring-flocker
 
-Configuring Flocker
-===================
+2. Configuring Flocker
+======================
 
 Once you have installed Flocker you will need to complete the following configuration steps in order to start using your cluster:
 

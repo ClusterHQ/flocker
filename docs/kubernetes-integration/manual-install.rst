@@ -4,11 +4,13 @@
 Manually Installing Flocker with Kubernetes
 ===========================================
 
-#. Follow the :ref:`full-installation-with-kubernetes` steps.
-#. Follow the :ref:`post-installation-configuration-with-kubernetes` steps, to configure authentication and your chosen backend.
-   These steps also include the enablement of the control service and the agent services. 
-#. Install :ref:`Kubernetes <manually-install-kubernetes>`.
-#. Follow a tutorial to see how to control Flocker via Kubernetes.
+#. :ref:`Install Flocker <full-installation-with-kubernetes>`. 
+   Follow these steps to install Flocker.
+#. :ref:`Configure Flocker <post-installation-configuration-with-kubernetes>`.
+   Follow these steps to configure authentication and your chosen backend.
+   You will also enable the control service and the agent services. 
+#. :ref:`Install Kubernetes <manually-install-kubernetes>`.
+#. Follow a :ref:`tutorial <link-to-kubernetes-tutorials>` to see how to control Flocker via Kubernetes.
 
 .. _full-installation-with-kubernetes:
 
@@ -45,13 +47,15 @@ Manually Installing Flocker with Kubernetes
 
 .. _manually-install-kubernetes:
 
-Manually Installing Kubernetes
-==============================
+3. Installing Kubernetes
+========================
 
-Follow the `Manual Kubernetes installation <http://kubernetes.io/gettingstarted/>`_ guide on each of your nodes.
+Follow the `Kubernetes installation <http://kubernetes.io/gettingstarted/>`_ guide on each of your nodes.
 
-Next step
-=========
+.. _link-to-kubernetes-tutorials:
+
+4. Tutorial
+===========
 
 Follow a tutorial to kick the tires on your Flocker cluster with Docker Swarm!
 
