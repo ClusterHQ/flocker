@@ -7,7 +7,6 @@ import sys
 import os
 import yaml
 import json
-import re
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -133,10 +132,11 @@ def run_tests(reactor, cluster, trial_args):
         ['trial'] + list(trial_args),
         env=extend_environ(
             **get_trial_environment(cluster)
-        )).addCallbacks(
-            callback=lambda _: 0,
-            errback=check_result,
-            )
+        )
+    ).addCallbacks(
+        callback=lambda _: 0,
+        errback=check_result,
+    )
 
 
 class ClusterIdentity(PClass):
@@ -232,9 +232,12 @@ class ManagedRunner(object):
     :ivar dict dataset_backend_configuration: The backend-specific
         configuration the nodes will be given for their dataset backend.
     :ivar ClusterIdentity identity: The identity information of the cluster.
+    :ivar FilePath cert_path: The directory where the cluster certificate
+        files will be placed.
     """
     def __init__(self, node_addresses, package_source, distribution,
-                 dataset_backend, dataset_backend_configuration, identity):
+                 dataset_backend, dataset_backend_configuration, identity,
+                 cert_path):
         """
         :param list: A ``list`` of public IP addresses or
             ``[private_address, public_address]`` lists.
@@ -264,6 +267,7 @@ class ManagedRunner(object):
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
         self.identity = identity
+        self.cert_path = cert_path
 
     def _upgrade_flocker(self, reactor, nodes, package_source):
         """
@@ -322,7 +326,8 @@ class ManagedRunner(object):
                 generate_certificates(
                     self.identity.name,
                     self.identity.id,
-                    self._nodes
+                    self._nodes,
+                    self.cert_path,
                 ),
                 self._nodes,
                 self.dataset_backend,
@@ -331,7 +336,8 @@ class ManagedRunner(object):
                     self.dataset_backend,
                     self.dataset_backend_configuration
                 ),
-                provider="managed"
+                provider="managed",
+                logging_config=self.config.get('logging'),
             )
         configuring = upgrading.addCallback(configure)
         return configuring
@@ -357,22 +363,24 @@ def _provider_for_cluster_id(dataset_backend):
     return Providers.UNSPECIFIED
 
 
-def generate_certificates(cluster_name, cluster_id, nodes):
+def generate_certificates(cluster_name, cluster_id, nodes, cert_path):
     """
     Generate a new set of certificates for the given nodes.
 
+    :param bytes cluster_name: The name of the cluster.
     :param UUID cluster_id: The unique identifier of the cluster for which to
         generate the certificates.  If ``None`` then a new random identifier
         is generated.
     :param list nodes: The ``INode`` providers that make up the cluster.
+    :param FilePath cert_path: The directory where the generated certificate
+        files are to be placed.
 
     :return: A ``Certificates`` instance referring to the newly generated
         certificates.
     """
-    certificates_path = FilePath(mkdtemp())
-    print("Generating certificates in: {}".format(certificates_path.path))
+    print("Generating certificates in: {}".format(cert_path.path))
     certificates = Certificates.generate(
-        certificates_path,
+        cert_path,
         nodes[0].address,
         len(nodes),
         cluster_name=cluster_name,
@@ -398,14 +406,14 @@ def _save_backend_configuration(dataset_backend_name,
     dataset_path = FilePath(mkdtemp()).child('dataset-backend.yml')
     print("Saving dataset backend config to: {}".format(dataset_path.path))
     dataset_path.setContent(yaml.safe_dump(
-            {dataset_backend_name.name: dataset_backend_configuration}))
+        {dataset_backend_name.name: dataset_backend_configuration}))
     return dataset_path
 
 
 def configured_cluster_for_nodes(
     reactor, certificates, nodes, dataset_backend,
     dataset_backend_configuration, dataset_backend_config_file,
-    provider=None
+    provider=None, logging_config=None
 ):
     """
     Get a ``Cluster`` with Flocker services running on the right nodes.
@@ -421,6 +429,9 @@ def configured_cluster_for_nodes(
         configuration the nodes will be given for their dataset backend.
     :param FilePath dataset_backend_config_file: A FilePath that has the
         dataset_backend info stored.
+    :param bytes provider: provider of the nodes - aws, rackspace, or managed.
+    :param dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
 
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
@@ -457,7 +468,9 @@ def configured_cluster_for_nodes(
 
     configuring = perform(
         make_dispatcher(reactor),
-        configure_cluster(cluster, dataset_backend_configuration, provider)
+        configure_cluster(
+            cluster, dataset_backend_configuration, provider, logging_config
+        )
     )
     configuring.addCallback(lambda ignored: cluster)
     return configuring
@@ -567,7 +580,7 @@ class VagrantRunner(object):
 
 
 @attributes(RUNNER_ATTRIBUTES + [
-    'provisioner', 'num_nodes', 'identity',
+    'provisioner', 'num_nodes', 'identity', 'cert_path',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
@@ -579,6 +592,8 @@ class LibcloudRunner(object):
         configured with.
     :ivar int num_nodes: The number of nodes in the cluster.
     :ivar ClusterIdentity identity: The identity information of the cluster.
+    :ivar FilePath cert_path: The directory where the cluster certificate
+        files will be placed.
     """
 
     def __init__(self):
@@ -657,13 +672,15 @@ class LibcloudRunner(object):
             generate_certificates(
                 self.identity.name,
                 self.identity.id,
-                self.nodes
+                self.nodes,
+                self.cert_path,
             ),
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,
             _save_backend_configuration(self.dataset_backend,
-                                        self.dataset_backend_configuration)
+                                        self.dataset_backend_configuration),
+            logging_config=self.config.get('logging'),
         )
 
         returnValue(cluster)
@@ -788,6 +805,9 @@ class CommonOptions(Options):
         else:
             self['config'] = {}
 
+        if self.get('cert-directory') is None:
+            self['cert-directory'] = FilePath(mkdtemp())
+
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
@@ -890,6 +910,7 @@ class CommonOptions(Options):
             dataset_backend=dataset_backend,
             dataset_backend_configuration=self.dataset_backend_configuration(),
             identity=self._make_cluster_identity(dataset_backend),
+            cert_path=self['cert-directory'],
         )
 
     def _libcloud_runner(self, package_source, dataset_backend,
@@ -922,6 +943,7 @@ class CommonOptions(Options):
             variants=self['variants'],
             num_nodes=self['number-of-nodes'],
             identity=self._make_cluster_identity(dataset_backend),
+            cert_path=self['cert-directory'],
         )
 
     def _runner_RACKSPACE(self, package_source, dataset_backend,
@@ -929,15 +951,9 @@ class CommonOptions(Options):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
-        :param provider_config: The ``rackspace`` section of the acceptance
-            testing configuration file.  The section of the configuration
-            file should look something like:
-
-               rackspace:
-                 region: <rackspace region, e.g. "iad">
-                 username: <rackspace username>
-                 key: <access key>
-                 keyname: <ssh-key-name>
+        :param dict provider_config: The ``rackspace`` section of the
+            acceptance testing configuration file.  See the linked
+            documentation for the form of that section.
 
         :see: :ref:`acceptance-testing-rackspace-config`
         """
@@ -950,19 +966,9 @@ class CommonOptions(Options):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
-        :param provider_config: The ``aws`` section of the acceptance testing
-            configuration file.  The section of the configuration file should
-            look something like:
-
-               aws:
-                 region: <aws region, e.g. "us-west-2">
-                 zone: <aws zone, e.g. "us-west-2a">
-                 access_key: <aws access key>
-                 secret_access_token: <aws secret access token>
-                 session_token: <optional session token>
-                 keyname: <ssh-key-name>
-                 security_groups: ["<permissive security group>"]
-                 instance_type: m3.large
+        :param dict provider_config: The ``aws`` section of the acceptance
+            testing configuration file.  See the linked documentation for the
+            form of that section.
 
         :see: :ref:`acceptance-testing-aws-config`
         """
@@ -1047,69 +1053,58 @@ def capture_upstart(reactor, host, output_file):
     """
     # note that we are using tail -F to keep retrying and not to exit when we
     # reach the end of the file, as we expect the logs to keep being generated
-    formatter = TailFormatter(output_file, host)
-    ran = run_ssh(
-        reactor=reactor,
-        host=host,
-        username='root',
-        command=[
-            b'tail',
-            b'-F',
-            b'/var/log/flocker/flocker-control.log',
-            b'/var/log/flocker/flocker-dataset-agent.log',
-            b'/var/log/flocker/flocker-container-agent.log',
-            b'/var/log/flocker/flocker-docker-plugin.log',
-            b'/var/log/upstart/docker.log',
-        ],
-        handle_stdout=formatter.handle_output_line,
-    )
-    ran.addErrback(write_failure, logger=None)
-    # Deliver a final empty line to process the last message
-    ran.addCallback(lambda ignored: formatter.handle_output_line(b""))
-    return ran
+    results = []
+    for (directory, service) in [
+            (b"flocker", b"flocker-control"),
+            (b"flocker", b"flocker-dataset-agent"),
+            (b"flocker", b"flocker-container-agent"),
+            (b"flocker", b"flocker-docker-plugin"),
+            (b"upstart", b"docker")]:
+        path = FilePath(b'/var/log/').child(directory).child(service + b'.log')
+        formatter = TailFormatter(output_file, host, service)
+        ran = run_ssh(
+            reactor=reactor,
+            host=host,
+            username='root',
+            command=[
+                b'tail',
+                b'-F',
+                path.path
+            ],
+            handle_stdout=formatter.handle_output_line,
+        )
+        ran.addErrback(write_failure, logger=None)
+        # Deliver a final empty line to process the last message
+        ran.addCallback(lambda ignored, formatter=formatter:
+                        formatter.handle_output_line(b""))
+        results.append(ran)
+    return gather_deferreds(results)
 
 
 class TailFormatter(object):
     """
     Formatter for the output of the ``tail`` commands that will produce logs
     with Eliot messages with the same format as the ones produced when
-    parsing journalctl output
+    parsing journalctl output.
 
     :ivar file output_file: log file where we want to write our log
     :ivar bytes _host: ip address or identifier of our host to be
         added to the Eliot messages
-    :ivar bytes service: optional initial name of the service. This initial
-        name shouldn't appear anywhere unless there is an error, as the first
-        line of the output of tail will be a file name, that will be used
-        to set the name of the service we are currently parsing
+    :ivar bytes service: Name of the service.
     """
-    def __init__(self, output_file, host, service="unknown"):
+    def __init__(self, output_file, host, service):
         self._output_file = output_file
         self._host = host
         self._service = service
-        # Note that the tail output will always be
-        # ==> name_of_the_service.log <==
-        # followed by a one or more lines of this log.
-        # The following regex will match the output to find out
-        # the name of the log we are currently reading
-        self._service_regexp = re.compile(
-            r"==> (?:/var/log/flocker/|/var/log/upstart/)(.*)\.log <==")
 
     def handle_output_line(self, line):
         """
-        Handles a line of the tail output, and checks if it is the name
-        of the service or an actual Eliot message
+        Handles a line of the tail output.
 
         :param line: The line read from the tail output.
         """
         if line:
-            service_match = self._service_regexp.search(line)
-
-            if service_match is not None:
-                self._service = service_match.groups()[0]
-
-            else:
-                self.print_line(self.parse_line(line))
+            self.print_line(self.parse_line(line))
 
     def parse_line(self, line):
         """

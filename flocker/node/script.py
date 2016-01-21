@@ -212,7 +212,11 @@ def validate_configuration(configuration):
                 "required": [
                     "backend",
                 ],
-            }
+            },
+            "logging": {
+                # Format described at https://www.python.org/dev/peps/pep-0391/
+                "type": "object",
+            },
         }
     }
 
@@ -578,6 +582,10 @@ class AgentService(PClass):
         :return: A new instance of ``cls`` with values loaded from the
             configuration.
         """
+        if 'logging' in configuration:
+            from logging.config import dictConfig
+            dictConfig(configuration['logging'])
+
         host = configuration['control-service']['hostname']
         port = configuration['control-service']['port']
 

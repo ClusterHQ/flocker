@@ -102,6 +102,8 @@ def get_docker_client(cluster, address):
         return cluster.certificates_path.child(name).path
 
     tls = TLSConfig(
+        # XXX Hardcoded certificate filenames mean that this will only work on
+        # clusters where Docker is configured to use the Flocker certificates.
         client_cert=(get_path(b"user.crt"), get_path(b"user.key")),
         # Blows up if not set
         # (https://github.com/shazow/urllib3/issues/695):
@@ -700,7 +702,7 @@ class Cluster(PClass):
         return request
 
     @log_method
-    def clean_nodes(self):
+    def clean_nodes(self, remove_foreign_containers=True):
         """
         Clean containers and datasets via the API.
 
@@ -800,7 +802,8 @@ class Cluster(PClass):
 
         d = DeferredContext(cleanup_leases())
         d.addCallback(cleanup_flocker_containers)
-        d.addCallback(cleanup_all_containers)
+        if remove_foreign_containers:
+            d.addCallback(cleanup_all_containers)
         d.addCallback(cleanup_datasets)
         return d.result
 
@@ -821,33 +824,17 @@ class Cluster(PClass):
         return d
 
 
-def _get_test_cluster(reactor):
-    """
-    Build a ``Cluster`` instance.
-
-    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
-    """
-    control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
-
-    if control_node is None:
-        raise SkipTest(
-            "Set acceptance testing control node IP address using the " +
-            "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
-
-    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_NUM_AGENT_NODES')
-
-    if agent_nodes_env_var is None:
-        raise SkipTest(
-            "Set the number of configured acceptance testing nodes using the "
-            "FLOCKER_ACCEPTANCE_NUM_AGENT_NODES environment variable.")
-
-    num_agent_nodes = int(agent_nodes_env_var)
-
-    certificates_path = FilePath(
-        environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
+def connected_cluster(
+        reactor, control_node, certificates_path, num_agent_nodes,
+        hostname_to_public_address, username='user',
+):
     cluster_cert = certificates_path.child(b"cluster.crt")
-    user_cert = certificates_path.child(b"user.crt")
-    user_key = certificates_path.child(b"user.key")
+    user_cert = certificates_path.child(
+        "{}.crt".format(username).encode('ascii')
+    )
+    user_key = certificates_path.child(
+        "{}.key".format(username).encode('ascii')
+    )
     user_credential = UserCredential.from_files(user_cert, user_key)
     cluster = Cluster(
         control_node=ControlService(public_address=control_node),
@@ -860,14 +847,10 @@ def _get_test_cluster(reactor):
         cluster_uuid=user_credential.cluster_uuid,
     )
 
-    hostname_to_public_address_env_var = environ.get(
-        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
-    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
-
     # Wait until nodes are up and running:
     def nodes_available():
         Message.new(
-            message_type="acceptance:get_test_cluster:polling",
+            message_type="acceptance:testtools:cluster:polling",
         ).write()
 
         def failed_query(failure):
@@ -904,6 +887,44 @@ def _get_test_cluster(reactor):
     agents_connected.addCallback(lambda nodes: cluster.set(
         "nodes", map(node_from_dict, nodes)))
     return agents_connected
+
+
+def _get_test_cluster(reactor):
+    """
+    Build a ``Cluster`` instance.
+
+    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
+    """
+    control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
+
+    if control_node is None:
+        raise SkipTest(
+            "Set acceptance testing control node IP address using the " +
+            "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
+
+    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_NUM_AGENT_NODES')
+
+    if agent_nodes_env_var is None:
+        raise SkipTest(
+            "Set the number of configured acceptance testing nodes using the "
+            "FLOCKER_ACCEPTANCE_NUM_AGENT_NODES environment variable.")
+
+    num_agent_nodes = int(agent_nodes_env_var)
+
+    certificates_path = FilePath(
+        environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
+
+    hostname_to_public_address_env_var = environ.get(
+        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
+    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
+
+    return connected_cluster(
+        reactor,
+        control_node,
+        certificates_path,
+        num_agent_nodes,
+        hostname_to_public_address
+    )
 
 
 def require_cluster(num_nodes, required_backend=None):
@@ -1005,6 +1026,35 @@ def create_python_container(test_case, cluster, parameters, script,
         return response
     creating.addCallback(created)
     return creating
+
+
+def extract_external_port(
+    client, container_identifier, internal_port
+):
+    """
+    Inspect a running container for the external port number on which a
+    particular internal port is exposed.
+
+    :param docker.Client client: The Docker client to use to perform the
+        inspect.
+    :param unicode container_identifier: The unique identifier of the container
+        to inspect.
+    :param int internal_port: An internal, exposed port on the container.
+
+    :return: The external port number on which ``internal_port`` from the
+        container is exposed.
+    :rtype: int
+    """
+    container_details = client.inspect_container(container_identifier)
+    # If the container isn't running, this section is not present.
+    network_settings = container_details[u"NetworkSettings"]
+    ports = network_settings[u"Ports"]
+    details = ports[u"{}/tcp".format(internal_port)]
+    host_port = int(details[0][u"HostPort"])
+    Message.new(
+        message_type=u"acceptance:extract_external_port", host_port=host_port
+    ).write()
+    return host_port
 
 
 def create_dataset(test_case, cluster, maximum_size=None, dataset_id=None,

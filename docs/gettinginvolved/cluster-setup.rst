@@ -68,36 +68,13 @@ The :program:`admin/setup-cluster` script has several options:
    Specifies the number of nodes (machines) to create for use in the cluster.
    This option is only applicable if the nodes are created dynamically.
 
-.. option:: --app-template <application-template-file>
-
-   Specifies a YAML file that describes a single application.
-   It must include a name of a Docker image to use as an application container and may include other parameters.
-
-.. option:: --apps-per-node <number>
-
-   Specifies the number of applications (containers) to start on each cluster node.
-   If this is not specified or zero, then no applications will be started.
-
 To see the supported values for each option, run:
 
 .. prompt:: bash $
 
    admin/setup-cluster --help
 
-Application Template
-====================
-
-The configuration file given for the ``--app-template`` parameter describes a single application.
-At the very least it should specify a name of a Docker image to use for an application container.
-
-.. code-block:: yaml
-
-  image: "clusterhq/mongodb"
-  volume:
-    mountpoint: "/data/db"
-
-See :doc:`../control/cli/application-config` for more details.
-The ``--apps-per-node`` parameter specifies how many applications to start on each cluster node.
+An example of how to run :program:`setup-cluster` would be:
 
 .. prompt:: bash $
 
@@ -105,12 +82,7 @@ The ``--apps-per-node`` parameter specifies how many applications to start on ea
     --distribution centos-7 \
     --provider rackspace \
     --config-file $PWD/cluster.yml \
-    --number-of-nodes 2 \
-    --app-template $PWD/application.yml \
-    --apps-per-node 5
-
-Note that all application instances will have exactly the same configuration.
-In particular, multiple containers may fail to start if they use a common host resource (e.g. host ports).
+    --number-of-nodes 2 
 
 Configuration File
 ==================
@@ -199,3 +171,112 @@ Or you can run, for example, the acceptance tests against the created cluster:
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
+==============================
+Adding containers and datasets
+==============================
+To make it easier to re-use a test cluster and test under different configurations, Flocker provides a tool to create a certain number of datasets and containers per node.
+Run the following command to deploy clusters and datasets:
+
+.. prompt:: bash $
+
+    benchmark/setup-cluster-containers <options>
+
+The :program:`setup-cluster-containers` script has the following command line options:
+
+.. program:: setup-cluster-containers`
+
+.. option:: --app-template <application-template-file>
+
+   Specifies a YAML file that describes a single application.
+   It must include a name of a Docker image to use as an application container and may include other parameters.
+
+.. option:: --apps-per-node <number>
+
+   Specifies the number of applications (containers) to start on each cluster node.
+   If this is not specified, one container and dataset per node will be created.
+
+.. option:: --control-node <ip-address>
+
+    Public IP address of the control node.
+
+.. option:: --cert-directory <certificates-directory>
+
+   Specifies a directory containing:
+
+   - ``cluster.crt`` - a CA certificate file;
+   - ``user.crt`` - a user certificate file; and
+   - ``user.key`` - a user private key file.
+
+.. option:: --wait <seconds>
+
+   Specifies the timeout of waiting for the configuration changes to take effect
+   or, in other words, for the cluster to converge.
+   If this parameter is not set, then the program will wait up to two hours.
+
+If :option:`--wait` is used the script waits for the deletions to take effect.
+After the script successfully finishes the cluster should be in a converged state
+with the requested containers and datasets.
+If :option:`--wait` is not specified, then the script will wait for up to two hours.
+
+Application Template
+--------------------
+
+The configuration file given for the ``--app-template`` parameter describes a single application.
+At the very least it should specify a name of a Docker image to use for an application container.
+
+.. code-block:: yaml
+
+  image: "clusterhq/mongodb"
+  volume:
+    mountpoint: "/data/db"
+
+See :ref:application-configuration for more details.
+The ``--apps-per-node`` parameter specifies how many applications to start on each cluster node.
+
+.. prompt:: bash $
+
+  admin/setup-cluster-containers \
+    --app-template $PWD/application.yml \
+    --apps-per-node 5 \
+    --control-node 52.52.52.52 \
+    --cert-directory /etc/flocker/test_cluster1/
+
+Note that all application instances will have exactly the same configuration.
+In particular, multiple containers may fail to start if they use a common host resource (e.g. host ports).
+
+=====================================
+Cleaning Up the Cluster Configuration
+=====================================
+
+A cluster can be used to test various configurations.
+There is a tool to delete all containers and datasets in the cluster,
+so that it can be re-used for testing a different configuration.
+
+.. prompt:: bash $
+
+   admin/cleanup-cluster <options>
+
+
+The :program:`admin/cleanup-cluster` script has several options:
+
+.. program:: admin/cleanup-cluster
+
+.. option:: --control-node <address>
+
+   Specifies the internet address of the control node of the cluster.
+
+.. option:: --cert-directory <directory>
+
+   Specifies the directory that contains the cluster certificates.
+
+.. option:: --wait <seconds>
+
+   Specifies the timeout of waiting for the configuration changes to take effect
+   or, in other words, for the cluster to converge.
+   If this parameter is not set, then no waiting is done.
+
+If :option:`--wait` is used the script waits for the deletions to take effect.
+After the script successfully finishes the cluster should be in a converged state
+with no containers and datasets.
+If :option:`--wait` is not specified, then the script exits after the deletion
+requests are acknowledged without waiting for the cluster to converge.

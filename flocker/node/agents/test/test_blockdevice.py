@@ -639,7 +639,9 @@ def assert_discovered_state(
         applications=None, manifestations=None, paths=None,
         devices=None,
     )
-    discovering = deployer.discover_state(previous_state)
+    discovering = deployer.discover_state(
+        DeploymentState(nodes={previous_state}),
+    )
     local_state = case.successResultOf(discovering)
 
     case.assertEqual(
@@ -1280,10 +1282,12 @@ class BlockDeviceCalculatorTests(TestCase):
         Return the current state of datasets from the deployer.
         """
         return self.successResultOf(self.deployer.discover_state(
-            NodeState(
-                uuid=self.deployer.node_uuid,
-                hostname=self.deployer.hostname,
-            ),
+            DeploymentState(nodes={
+                NodeState(
+                    uuid=self.deployer.node_uuid,
+                    hostname=self.deployer.hostname,
+                ),
+            }),
         )).datasets
 
     def run_convergence_step(self, desired_datasets):

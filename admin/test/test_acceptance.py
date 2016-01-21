@@ -5,13 +5,16 @@ Tests for ``admin.acceptance``.
 
 import json
 from io import BytesIO
+from tempfile import mkdtemp
 from uuid import UUID
+
+from twisted.python.filepath import FilePath
 
 from zope.interface.verify import verifyObject
 
 from ..acceptance import (
     IClusterRunner, ManagedRunner, generate_certificates,
-    journald_json_formatter, DISTRIBUTIONS, TailFormatter,
+    journald_json_formatter, DISTRIBUTIONS,
     ClusterIdentity
 )
 
@@ -45,6 +48,7 @@ class ManagedRunnerTests(TestCase):
                 purpose=u'test',
                 prefix=u'test',
             ),
+            cert_path=FilePath(mkdtemp()),
         )
         self.assertTrue(
             verifyObject(IClusterRunner, runner)
@@ -63,7 +67,10 @@ class GenerateCertificatesTests(TestCase):
         node = ManagedNode(
             address=b"192.0.2.17", distribution=DISTRIBUTIONS[0],
         )
-        certificates = generate_certificates(b'cluster', cluster_id, [node])
+        path = FilePath(mkdtemp())
+        certificates = generate_certificates(b'cluster', cluster_id, [node],
+                                             path)
+        self.assertEqual(path, certificates.directory)
         root = RootCredential.from_path(certificates.directory)
         self.assertEqual(
             cluster_id,
@@ -197,43 +204,3 @@ class JournaldJSONFormatter(TestCase):
             )],
             self._convert(NON_JSON_JOURNAL_EXPORT),
         )
-
-
-class TailFormatterRegex(TestCase):
-    """
-    Tests for ``TailFormatter``
-    """
-    def setUp(self):
-        super(TailFormatterRegex, self).setUp()
-        self._valid_match_flocker = "random ==> /var/log/"\
-            "flocker/valid_service.log <=="
-        self._valid_match_upstart = "==> /var/log/upstart/valid_service.log <=="
-        self._invalid_match1 = "/var/log/upstart/invalid.log"
-        self._invalid_match2 = ""
-        self._invalid_match3 = "log/flocker/invalid.log"
-        self._formatter = TailFormatter("0.0.0.0", "my_host")
-
-    def test_matching_regex(self):
-        my_match = self._formatter._service_regexp.search(self._valid_match_flocker)
-        self.assertNotEquals(my_match, None, "Expected to match")
-        self.assertEquals(my_match.groups()[0],
-                          "valid_service",
-                          "expected string valid_service")
-
-        my_match = self._formatter._service_regexp.search(self._valid_match_upstart)
-        self.assertNotEqual(my_match, None, "Expected to match")
-        self.assertEquals(my_match.groups()[0],
-                          "valid_service",
-                          "expected string valid_service")
-
-    def test_not_matching_regex(self):
-        my_match = self._formatter._service_regexp.search(
-            self._invalid_match1)
-        self.assertEquals(my_match, None, "Expected not to match")
-        my_match = self._formatter._service_regexp.search(
-            self._invalid_match2)
-        self.assertEquals(my_match, None, "Expected not to match")
-        my_match = self._formatter._service_regexp.search(
-            self._invalid_match3)
-        self.assertEquals(my_match, None, "Expected not to match")
-

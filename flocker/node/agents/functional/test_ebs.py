@@ -402,23 +402,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         self.assertEqual(ebs_volume.iops if requested_iops is not None
                          else None, requested_iops)
 
-    @flaky(u'FLOC-2302')
-    def test_listed_volume_attributes(self):
-        return super(
-            EBSBlockDeviceAPIInterfaceTests,
-            self).test_listed_volume_attributes()
-
-    @flaky(u'FLOC-2672')
-    def test_multiple_volumes_attached_to_host(self):
-        return super(
-            EBSBlockDeviceAPIInterfaceTests,
-            self).test_multiple_volumes_attached_to_host()
-
-    @flaky(u'FLOC-3236')
-    def test_detach_volume(self):
-        return super(
-            EBSBlockDeviceAPIInterfaceTests, self).test_detach_volume()
-
 
 class EBSProfiledBlockDeviceAPIInterfaceTests(
         make_iprofiledblockdeviceapi_tests(

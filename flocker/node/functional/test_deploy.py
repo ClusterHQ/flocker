@@ -51,13 +51,13 @@ class P2PNodeDeployer(object):
         self.docker_client = self.applications_deployer.docker_client
         self.network = self.applications_deployer.network
 
-    def discover_state(self, local_state):
-        d = self.manifestations_deployer.discover_state(local_state)
+    def discover_state(self, cluster_state):
+        d = self.manifestations_deployer.discover_state(cluster_state)
 
         def got_manifestations_state(manifestations_local_state):
             manifestations_state = manifestations_local_state.node_state
             app_discovery = self.applications_deployer.discover_state(
-                manifestations_state)
+                DeploymentState(nodes={manifestations_state}))
 
             def got_app_local_state(app_local_state):
                 app_state = app_local_state.node_state
@@ -99,9 +99,12 @@ def change_node_state(deployer, desired_configuration):
     """
     def converge():
         d = deployer.discover_state(
-            NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
-                      applications=[],
-                      manifestations={}, paths={}, devices={}))
+            DeploymentState(nodes={
+                NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
+                          applications=[],
+                          manifestations={}, paths={}, devices={}),
+            }),
+        )
 
         def got_changes(local_state):
             changes = local_state.shared_state_changes()
@@ -310,9 +313,11 @@ class DeployerTests(AsyncTestCase):
                  applications=[application])])
         d = change_node_state(deployer, desired_configuration)
         d.addCallback(lambda _: deployer.discover_state(
-            NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
-                      applications=[],
-                      manifestations={}, paths={}, devices={})))
+            DeploymentState(nodes={
+                NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
+                          applications=[],
+                          manifestations={}, paths={}, devices={}),
+            })))
         return d
 
     @if_docker_configured

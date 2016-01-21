@@ -9,23 +9,41 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-Next Next Release
-=================
-
-* Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
-
 Next Release
 ============
 
-* The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
-* The :ref:`Flocker Plugin for Docker<docker-plugin>` now solely relies on the metadata key ``"name"`` to find datasets.
-* Now supporting Ubuntu-15.10 instead of Ubuntu-15.04 for the flocker client.
-  See :ref:`installing-flocker-cli-ubuntu-15.10`.
-* Test being skipped (2 of them) in ``admin/test/test_release.py`` - once we have released the changes for ``15.10``, they don't need to be skipped anymore.
-* Added documentation for the :ref:`EMC VMAX <emc-dataset-backend>` driver.
+* The :ref:`Flocker Plugin for Docker<docker-plugin>` should support the direct volume listing and inspection functionality added to Docker 1.10.
+* Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
 
 This Release
 ============
+
+v1.9.0
+------
+
+* Tested against Docker version 1.9.1.
+* The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
+* Fixed a bug where :ref:`Flocker Plugin for Docker<docker-plugin>` could not create a dataset that had the same name as a previously deleted dataset.
+* Now supporting Ubuntu 15.10 instead of Ubuntu 15.04 for the Flocker client.
+  See :ref:`installing-flocker-cli-ubuntu-15.10`.
+* Added documentation for the :ref:`EMC VMAX <emc-dataset-backend>` driver.
+* Region and zone configuration for AWS is now validated before use.
+* Flocker now reports an error when busy EBS volumes cannot be detached.
+* Fixed a bug where Flocker would attempt to attach EBS volumes to device paths that are assigned to volumes attached outside of Flocker.
+* Flocker now supports all valid Docker container names.
+* The container API client now allows volumes to be attached to containers.
+* The container API client now supports retrieval of container state.
+* Fixed a bug where the Flocker control service sometimes listened on the wrong port.
+* The :ref:`Flocker Plugin for Docker<docker-plugin>` now supports specifying the size during volume creation.
+* Fixed a bug where Flocker would fail to service requests that had an unexpected format.
+
+Previous Releases
+=================
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
 
 v1.8.0
 ------
@@ -37,15 +55,6 @@ v1.8.0
   As a result we were able to remove a delay in startup time that was a temporary workaround for the issue.
 * Fixed a bug where datasets that hadn't had a filesystem created on them could never be mounted;
   existing flocker datasets without filesystems now have a filesystem created on them.
-
-Previous Releases
-=================
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
-
 
 v1.7.2
 ------

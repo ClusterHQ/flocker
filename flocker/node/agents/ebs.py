@@ -719,32 +719,28 @@ def _get_device_size(device):
     """
     Helper function to fetch the size of given block device.
 
+    We read ``/sys/block/<disk>/size``, which returns the number of 512-byte
+    sectors.  As far as I can tell, this matches the logical block size and
+    will always be 512. Unfortunately it's not documented in the Linux ABI:
+
+    * https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-block
+
+    Another method would be to issue a BLKGETSIZE64 ioctl, using the ``blockdev
+    --getsize64`` command, but that would require root permissions.
+
+    * http://lxr.free-electrons.com/ident?i=BLKGETSIZE64
+    * https://github.com/karelzak/util-linux/tree/master/disk-utils
+
     :param unicode device: Name of the block device to fetch size for.
 
     :returns: Size, in SI metric bytes, of device we are interested in.
     :rtype: int
     """
-    device_name = b"/dev/" + device.encode("ascii")
-
-    # Retrieve size of device as OS sees it using `lsblk`.
-    # Requires util-linux-ng package on CentOS, and
-    # util-linux on Ubuntu.
-    # Required package is installed by default
-    # on Ubuntu 14.04 and CentOS 7.
-    command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
-               b"--output", b"SIZE", device_name]
-
-    # Get the base device size, which is the first line in
-    # `lsblk` output. Ignore partition sizes.
-    # XXX: Handle error cases during `check_output()` run
-    # (https://clusterhq.atlassian.net/browse/FLOC-1886).
-    command_output = check_output(command).split(b'\n')[0]
-    device_size = int(command_output.strip().decode("ascii"))
-
-    return device_size
+    size_file = FilePath('/sys/block/{}/size'.format(device))
+    return int(size_file.getContent()) * 512
 
 
-def _wait_for_new_device(base, size, time_limit=60):
+def _wait_for_new_device(base, expected_size, time_limit=60):
     """
     Helper function to wait for up to 60s for new
     EBS block device (`/dev/sd*` or `/dev/xvd*`) to
@@ -753,8 +749,8 @@ def _wait_for_new_device(base, size, time_limit=60):
     :param list base: List of baseline block devices
         that existed before execution of operation that expects
         to create a new block device.
-    :param int size: Size of the block device we are expected
-        to manifest in the OS.
+    :param int expected_size: Size of the block device we are expected to
+        manifest in the OS.
     :param int time_limit: Time, in seconds, to wait for
         new device to manifest. Defaults to 60s.
 
@@ -766,9 +762,9 @@ def _wait_for_new_device(base, size, time_limit=60):
     while elapsed_time < time_limit:
         for device in list(set(FilePath(b"/sys/block").children()) -
                            set(base)):
-            device_name = FilePath.basename(device)
+            device_name = device.basename()
             if (device_name.startswith((b"sd", b"xvd")) and
-                    _get_device_size(device_name) == size):
+                    _get_device_size(device_name) == expected_size):
                 return FilePath(b"/dev").child(device_name)
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
@@ -776,11 +772,17 @@ def _wait_for_new_device(base, size, time_limit=60):
     # If we failed to find a new device of expected size,
     # log sizes of all new devices on this compute instance,
     # for debuggability.
-    new_devices = list(set(FilePath(b"/sys/block").children()) - set(base))
-    new_devices_size = [_get_device_size(device) for device in new_devices]
+    new_devices = list(
+        device.basename()
+        for device in set(FilePath(b"/sys/block").children()) - set(base)
+    )
+    new_devices_size = list(
+        _get_device_size(device_name)
+        for device_name in new_devices
+    )
     NO_NEW_DEVICE_IN_OS(new_devices=new_devices,
                         new_devices_size=new_devices_size,
-                        expected_size=size,
+                        expected_size=expected_size,
                         time_limit=time_limit).write()
     return None
 
@@ -811,8 +813,7 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 
 
 def _attach_volume_and_wait_for_device(
-    volume, attach_to, attach_volume,
-    detach_volume, device, blockdevices,
+    volume, attach_to, attach_volume, detach_volume, device, blockdevices
 ):
     """
     Attempt to attach an EBS volume to an EC2 instance and wait for the
@@ -827,7 +828,6 @@ def _attach_volume_and_wait_for_device(
     :param list blockdevices: The OS device paths (as ``FilePath``) which are
         already present on the system before this operation is attempted
         (primarily useful to make testing easier).
-
     :raise: Anything ``attach_volume`` can raise.  Or
         ``AttachedUnexpectedDevice`` if the volume appears to become attached
         to the wrong OS device file.
@@ -853,7 +853,8 @@ def _attach_volume_and_wait_for_device(
         # to be available to the OS, and interpret it as ours.
         # Wait under lock scope to reduce false positives.
         device_path = _wait_for_new_device(
-            blockdevices, volume.size
+            base=blockdevices,
+            expected_size=volume.size,
         )
         # We do, however, expect the attached device name to follow
         # a certain simple pattern.  Verify that now and signal an
