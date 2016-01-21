@@ -393,7 +393,9 @@ def gce_provisioner(
         credentials = SignedJwtAssertionCredentials(
             gce_credentials['client_email'],
             gce_credentials['private_key'],
-            scopes=[]
+            scope=[
+                u"https://www.googleapis.com/auth/compute",
+            ]
         )
     else:
         credentials = GoogleCredentials.get_application_default()

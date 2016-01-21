@@ -939,7 +939,7 @@ class CommonOptions(Options):
 
         try:
             provisioner = provider_factory(**provider_config)
-        except TypeError as type_error:
+        except TypeError:
             try:
                 validate_signature_against_kwargs(provider_factory,
                                                   set(provider_config.keys()))
@@ -955,7 +955,7 @@ class CommonOptions(Options):
                         ", ".join(e.missing_optional_arguments) or "<None>",
                     )
                 )
-            raise type_error
+            raise
         return LibcloudRunner(
             config=self['config'],
             top_level=self.top_level,
