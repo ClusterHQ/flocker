@@ -6,7 +6,7 @@ Tutorial: Using Flocker with Docker, Swarm, Compose
 
 For this tutorial, we've provided a simple app for you to deploy, made up of two containers:
 
-* A node.js application called ``moby-counter``.
+* A Node.js application called ``moby-counter``.
   This app allows you to put Docker icons anywhere on your screen, and the locations are stored in a database.
 * A PostgreSQL database for the application, which is stateful, and needs a Flocker volume.
 
