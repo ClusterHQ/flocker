@@ -7,9 +7,10 @@ import stat
 import string
 import sys
 import yaml
+from itertools import repeat
 from pipes import quote as shell_quote
 
-from eliot import add_destination, FileDestination
+from eliot import FileDestination, add_destination, write_failure
 
 
 from twisted.internet.defer import inlineCallbacks
@@ -25,7 +26,9 @@ from .acceptance import (
     get_trial_environment,
 )
 
-from flocker.common import gather_deferreds
+from flocker.apiclient import FlockerClient
+from flocker.common import gather_deferreds, loop_until
+from flocker.control.httpapi import REST_API_PORT
 
 
 class RunOptions(CommonOptions):
@@ -205,6 +208,9 @@ def main(reactor, args, base_path, top_level):
                                )
         gather_deferreds(results)
 
+        flocker_client = _make_client(reactor, cluster)
+        yield _wait_for_nodes(flocker_client, len(cluster.agent_nodes))
+
         result = 0
 
     except BaseException:
@@ -240,3 +246,46 @@ def main(reactor, args, base_path, top_level):
                 print("Be sure to preserve the required files.")
 
     raise SystemExit(result)
+
+
+def _make_client(reactor, cluster):
+    """
+    Create a :class:`FlockerClient` object for accessing the given cluster.
+
+    :param reactor: The reactor.
+    :param flocker.provision._common.Cluster cluster: The target cluster.
+    :return: The client object.
+    :rtype: flocker.apiclient.FlockerClient
+    """
+    control_node = cluster.control_node.address
+    certificates_path = cluster.certificates_path
+    cluster_cert = certificates_path.child(b"cluster.crt")
+    user_cert = certificates_path.child(b"user.crt")
+    user_key = certificates_path.child(b"user.key")
+    return FlockerClient(reactor, control_node, REST_API_PORT,
+                         cluster_cert, user_cert, user_key)
+
+
+def _wait_for_nodes(client, count):
+    """
+    Wait until nodes join the cluster.
+
+    :param flocker.apiclient.FlockerClient client: The client connected to
+        the cluster (its control node).
+    :param int count: The expected number of nodes in the cluster.
+    :return: ``Deferred`` firing when the number of nodes in the cluster
+        reaches the target.
+    """
+    def got_all_nodes():
+        d = client.list_nodes()
+        d.addErrback(write_failure, logger=None)
+
+        def check_node_count(nodes):
+            print("Waiting for nodes, "
+                  "got {} out of {}".format(len(nodes), count))
+            return len(nodes) == count
+
+        d.addCallback(check_node_count)
+        return d
+
+    return loop_until(client._reactor, got_all_nodes, repeat(1, 120))
