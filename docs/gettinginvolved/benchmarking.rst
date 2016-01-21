@@ -23,7 +23,6 @@ The :program:`benchmark` script has the following command line options:
    - ``user.crt`` - a user certificate file; and
    - ``user.key`` - a user private key file.
 
-   These files are equivalent to those created by the :ref:`Quick Start Flocker Installer <labs-installer>`.
    The format of the :file:`cluster.yml` file is specified in the  :ref:`benchmarking-cluster-description` section below.
 
    If this option is not specified, then the benchmark script expects environment variables as set by the :ref:`acceptance test runner <acceptance-testing-cluster-config>` using ```run-acceptance-tests --keep``.
@@ -97,16 +96,6 @@ An example file:
    scenarios:
      - name: default
        type: no-load
-
-     - name: read-request-5
-       type: read-request-load
-       request_rate: 5
-
-     - name: read-request-10
-       type: read-request-load
-       request_rate: 10
-       sample_size: 10
-       timeout: 60
 
    operations:
      - name: default

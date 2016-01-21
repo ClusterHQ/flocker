@@ -93,7 +93,7 @@ The names are primarily human-readable and meant for easy use with the ``--datas
 In some cases,
 the name may exactly match the name of one of the dataset backend implementations supported by Flocker.
 If this is not the case,
-the configuration mapping must exactly match the ``dataset`` configuration described for :ref:`enabling the Flocker agent service<agent-yml>`.
+the configuration mapping must exactly match the ``dataset`` configuration described for :ref:`enabling the Flocker agent service<configuring-nodes-backends-standalone-flocker>`.
 
 Any number of dataset backend configurations may be present.
 The configuration with a key matching the value of the ``--dataset-backend`` parameter is used.
@@ -102,23 +102,6 @@ Nodes in the testing cluster are given this configuration.
 The top-level mapping may also contain any number of computer-resource provider configurations.
 These are used to provide required parameters to the cluster runner selected by the ``--provider`` option.
 Configuration is loaded from the item in the top-level mapping with a key matching the value given to ``--provider``.
-
-The top-level mapping may contain a ``logging`` stanza, which must match the format described in `PEP 0391 <https://www.python.org/dev/peps/pep-0391/>`_.
-An example stanza:
-
-.. code-block:: yaml
-
-   logging:
-      version: 1
-      handlers:
-          logfile:
-              class: 'logging.FileHandler'
-              level: DEBUG
-              filename: "/tmp/flocker.log"
-              encoding: 'utf-8'
-      root:
-          handlers: ['logfile']
-          level: DEBUG
 
 .. _acceptance-testing-rackspace-config:
 
@@ -173,7 +156,7 @@ To run the acceptance tests on AWS, you need:
      session_token: <optional aws session token>
      keyname: <ssh-key-name>
      security_groups: ["<permissive security group>"]
-     instance_type: <instance type, e.g. "m3.large">
+	 instance_type: <instance type, e.g. "m3.large">
 
 You will need a ssh agent running with access to the corresponding private key.
 
@@ -284,36 +267,3 @@ And then run the acceptance tests on those nodes using the following command:
      --branch=master \
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
-
-
-CloudFormation Installer Tests
-==============================
-
-There are tests for the Flocker CloudFormation installer.
-
-You can run them as follows:
-
-.. code-block:: console
-
-   CLOUDFORMATION_TEMPLATE_URL=https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json \
-   KEY_PAIR=<aws SSH key pair name> \
-   ACCESS_KEY_ID=<aws access key> \
-   SECRET_ACCESS_KEY=<aws secret access token> \
-   VOLUMEHUB_TOKEN=<Volume Hub token or empty string> \
-   trial flocker.acceptance.endtoend.test_installer
-
-
-This will create a new CloudFormation stack and perform the tests on it.
-
-.. note:: By default, the stack will be destroyed once the tests are complete.
-          You can keep the stack by setting ``KEEP_STACK=TRUE`` in your environment.
-
-Alternatively, you can perform the tests on an existing stack with the following command:
-
-.. code-block:: console
-
-   AGENT_NODE1_IP=<IP address of first agent node> \
-   AGENT_NODE2_IP=<IP address of second agent node> \
-   CLIENT_NODE_IP=<IP address of client node> \
-   CONTROL_NODE_IP=<IP address of control service node> \
-   trial flocker.acceptance.endtoend.test_installer
