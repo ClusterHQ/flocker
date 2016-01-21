@@ -111,12 +111,9 @@ class GenericDockerClientTests(AsyncTestCase):
     """
     clientException = APIError
 
-    # FLOC-3935: These tests (and the ones in NamespacedDockerClientTests) are
-    # often timing out, sometimes in weird ways that cause interference with
-    # other tests. Until we can identify the cause, effectively disable
-    # timeouts on these tests and rely on the Jenkins timeout (or the limited
-    # patience of developers) to ensure they halt.
-    run_tests_with = async_runner(timeout=timedelta(hours=1))
+    # XXX: Setting to two minutes to trigger KeyboardInterrupt errors.
+    # FLOC-3933, FLOC-3935
+    run_tests_with = async_runner(timeout=timedelta(minutes=2))
 
     @if_docker_configured
     def setUp(self):
