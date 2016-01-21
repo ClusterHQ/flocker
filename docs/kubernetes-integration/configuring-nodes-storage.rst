@@ -13,7 +13,7 @@ Next Step
 
 .. raw:: html
 
-   <a href="enabling-agent-service.html" class="button">Install the Flocker agent service</a>
+   <a href="enabling-agent-service.html" class="button">Enable the Flocker agent service</a>
    <br/><br/>
 
 Alternatively, :ref:`return to the installation menu <installing-flocker-with-kubernetes>`.
