@@ -539,15 +539,16 @@ class CinderBlockDeviceAPI(object):
         return attached_volume
 
     def detach_volume(self, blockdevice_id):
-        our_id = self.compute_instance_id()
         try:
             cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
         except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
+        server_id = _blockdevicevolume_from_cinder_volume(
+            cinder_volume).attached_to
 
         try:
             self.nova_volume_manager.delete_server_volume(
-                server_id=our_id,
+                server_id=server_id,
                 attachment_id=blockdevice_id
             )
         except NovaNotFound:
