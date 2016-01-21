@@ -234,10 +234,12 @@ class ManagedRunner(object):
     :ivar ClusterIdentity identity: The identity information of the cluster.
     :ivar FilePath cert_path: The directory where the cluster certificate
         files will be placed.
+    :ivar dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
     """
     def __init__(self, node_addresses, package_source, distribution,
                  dataset_backend, dataset_backend_configuration, identity,
-                 cert_path):
+                 cert_path, logging_config):
         """
         :param list: A ``list`` of public IP addresses or
             ``[private_address, public_address]`` lists.
@@ -268,6 +270,7 @@ class ManagedRunner(object):
         self.dataset_backend_configuration = dataset_backend_configuration
         self.identity = identity
         self.cert_path = cert_path
+        self.logging_config = logging_config
 
     def _upgrade_flocker(self, reactor, nodes, package_source):
         """
@@ -337,7 +340,7 @@ class ManagedRunner(object):
                     self.dataset_backend_configuration
                 ),
                 provider="managed",
-                logging_config=self.config.get('logging'),
+                logging_config=self.logging_config,
             )
         configuring = upgrading.addCallback(configure)
         return configuring
@@ -911,6 +914,7 @@ class CommonOptions(Options):
             dataset_backend_configuration=self.dataset_backend_configuration(),
             identity=self._make_cluster_identity(dataset_backend),
             cert_path=self['cert-directory'],
+            logging_config=self['config'].get('logging'),
         )
 
     def _libcloud_runner(self, package_source, dataset_backend,
