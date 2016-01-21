@@ -42,4 +42,7 @@ A link to the Docker installation instructions can be found on the Installation 
 .. raw:: html
 
    <br/>
-   <a href="manual-install.html" class="button">Installation menu</a>
+   <a href="https://docs.docker.com/swarm/install-manual/" class="button" target="blank">Install Swarm</a>
+   <br/><br/>
+
+Or, :ref:`return to the installation menu <installing-flocker-with-docker>`.

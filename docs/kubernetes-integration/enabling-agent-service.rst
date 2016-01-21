@@ -22,4 +22,7 @@ A link to the Kubernetes installation instructions can be found on the Installat
 .. raw:: html
 
    <br/>
-   <a href="manual-install.html" class="button">Installation menu</a>
+   <a href="http://kubernetes.io/gettingstarted/" class="button" target="blank">Install Kubernetes</a>
+   <br/><br/>
+
+Or, :ref:`return to the installation menu <installing-flocker-with-kubernetes>`.

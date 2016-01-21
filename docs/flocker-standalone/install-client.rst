@@ -43,7 +43,7 @@ Next Step
 
 .. raw:: html
 
-   <a href="install-node.html" class="button">Install the Flocker node services</a>
+   <a href="install-node.html" class="button">Install the Flocker Node Services</a>
    <br/><br/>
 
 Or, :ref:`return to the installation menu <installing-standalone-flocker>`.

@@ -27,7 +27,7 @@ Next Step
 
 .. raw:: html
 
-   <a href="enabling-control-service.html" class="button">Enable the Flocker control service</a>
+   <a href="enabling-control-service.html" class="button">Enable the Flocker Control Service</a>
    <br/><br/>
 
 Or, :ref:`return to the installation menu <installing-flocker-with-docker>`.

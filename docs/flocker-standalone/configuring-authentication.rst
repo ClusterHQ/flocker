@@ -13,7 +13,7 @@ Next Step
 
 .. raw:: html
 
-   <a href="generate-api-certificates.html" class="button">Generate an API client certificate</a>
+   <a href="generate-api-certificates.html" class="button">Generate an API Client Certificate</a>
    <br/><br/>
 
 Or, :ref:`return to the installation menu <installing-standalone-flocker>`.
