@@ -25,15 +25,15 @@ from pyrsistent import PClass, field
 from twisted.conch.ssh.keys import Key
 from zope.interface import implementer
 from googleapiclient import discovery
-from oauth2client.client import GoogleCredentials, SignedJwtAssertionCredentials
+from oauth2client.client import (
+    GoogleCredentials, SignedJwtAssertionCredentials
+)
 from eliot import start_action
 
 from ..node.agents.gce import wait_for_operation
 
 from ._common import IProvisioner, INode
-from ._install import provision, provision_for_non_root_user
-from ._ssh import run_remotely
-from ._effect import sequence
+from ._install import provision_for_non_root_user
 
 
 # Defaults for some of the instance construction parameters.
@@ -63,7 +63,8 @@ class _DistributionImageParams(PClass):
     distribution. See the docstring for :func:`get_active_image` for an
     explanation of the GCE image system.
 
-    :ivar unicode project: The name of the project to search for a specific image.
+    :ivar unicode project: The name of the project to search for a specific
+        image.
     :ivar unicode image_name_prefix: The prefix of the image to find.
     """
     project = field(type=unicode)
@@ -73,33 +74,34 @@ class _DistributionImageParams(PClass):
         """
         Gets a non-deprecated image from a project with a given prefix.
 
-        The images provided by gce go in distribution-specific projects, but are
-        publicly accessible by anyone.
+        The images provided by gce go in distribution-specific projects, but
+        are publicly accessible by anyone.
 
-        For example, all ubuntu images are in the ``ubuntu-os-cloud`` project. In
-        that project there is only 1 non-deprecated image for the various ubuntu
-        versions (1 for ubuntu 14.04, 1 for ubuntu 15.10, etc). There are also many
-        deprecated versions, which were marked as deprecated when the new one was
-        created (for security updates, etc.). All of the 14.04 images are named
-        ubuntu-1404-trusty-vYYYYMMDD?. So, searching the ``ubuntu-os-cloud``
-        project for a non-deprecated image with the ``ubuntu-1404`` prefix is a
-        reasonable way to find the latest ubuntu 14.04 image.
+        For example, all ubuntu images are in the ``ubuntu-os-cloud`` project.
+        In that project there is only 1 non-deprecated image for the various
+        ubuntu versions (1 for ubuntu 14.04, 1 for ubuntu 15.10, etc). There
+        are also many deprecated versions, which were marked as deprecated when
+        the new one was created (for security updates, etc.). All of the 14.04
+        images are named ubuntu-1404-trusty-vYYYYMMDD?. So, searching the
+        ``ubuntu-os-cloud`` project for a non-deprecated image with the
+        ``ubuntu-1404`` prefix is a reasonable way to find the latest ubuntu
+        14.04 image.
 
-        The best way to get a list of possible ``image_name_prefix`` values is to
-        look at the output from ``gcloud compute images list``
+        The best way to get a list of possible ``image_name_prefix`` values is
+        to look at the output from ``gcloud compute images list``
 
-        If you don't have the gcloud executable installed, it can be pip installed:
-        ``pip install gcloud``
+        If you don't have the gcloud executable installed, it can be pip
+        installed: ``pip install gcloud``
 
         project, image_name_prefix examples:
         * ubuntu-os-cloud, ubuntu-1404
         * centos-cloud, centos-7
 
-        :param compute: The Google Compute Engine Service object used to make calls
-            to the GCE API.
+        :param compute: The Google Compute Engine Service object used to make
+            calls to the GCE API.
 
-        :returns: The image resource dict representing the GCE image resource, or
-            None if no image found.
+        :returns: The image resource dict representing the GCE image resource,
+            or None if no image found.
         """
         latest_image = None
         page_token = None
@@ -141,9 +143,11 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
     Create a configuration blob to configure a GCE instance.
 
     :param unicode instance_name: The name of the instance.
-    :param unicode project: The name of the gce project to create a configuration for.
+    :param unicode project: The name of the gce project to create a
+        configuration for.
     :param unicode zone: The name of the gce zone to spin the instance up in.
-    :param unicode machine_type: The name of the machine type, e.g. 'n1-standard-1'.
+    :param unicode machine_type: The name of the machine type, e.g.
+        'n1-standard-1'.
     :param unicode image: The name of the image to base the disk off of.
     :param unicode username: The username of user to create on the vm.
     :param unicode public_key: The public ssh key to put on the image for the
@@ -236,7 +240,8 @@ class GCENode(PClass):
     ``INode`` implementation for GCE.
 
     :ivar unicode address: The public IP address of the instance.
-    :ivar unicode private_address: The network internal IP address of the instance.
+    :ivar unicode private_address: The network internal IP address of the
+        instance.
     :ivar unicode distribution: The OS distribution of the instance.
     :ivar unicode project: The project the instance a member of.
     :ivar unicode zone: The zone the instance is in.
@@ -341,7 +346,8 @@ class GCEProvisioner(PClass):
             body=config
         ).execute()
 
-        operation_result = wait_for_operation(self.compute, operation, timeout=60)
+        operation_result = wait_for_operation(
+            self.compute, operation, timeout=60)
 
         if not operation_result:
             raise ValueError("Timed out waiting for VM creation")
@@ -352,9 +358,10 @@ class GCEProvisioner(PClass):
             project=self.project, zone=self.zone, instance=instance_name
         ).execute()
 
+        network_interface = instance_resource["networkInterfaces"][0]
         return GCENode(
-            address=bytes(instance_resource["networkInterfaces"][0]["accessConfigs"][0]["natIP"]),
-            private_address=bytes(instance_resource["networkInterfaces"][0]["networkIP"]),
+            address=bytes(network_interface["accessConfigs"][0]["natIP"]),
+            private_address=bytes(network_interface["networkIP"]),
             distribution=unicode(distribution),
             project=self.project,
             zone=self.zone,
@@ -382,7 +389,7 @@ def gce_provisioner(
     :return: An class:`IProvisioner` provider for GCE instances.
     """
     key = Key.fromString(bytes(ssh_public_key))
-    if gce_credentials is None:
+    if gce_credentials is not None:
         credentials = SignedJwtAssertionCredentials(
             gce_credentials['client_email'],
             gce_credentials['private_key'],
