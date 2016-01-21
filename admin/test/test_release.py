@@ -214,9 +214,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -225,11 +222,9 @@ class PublishDocsTests(TestCase):
                     'en/latest/index.html': '',
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
-                },
-                'clusterhq-dev-docs': {
-                    '0.3.0+444.gf05215b/index.html': '',
-                    '0.3.0+444.gf05215b/sub/index.html': '',
-                    '0.3.0+444.gf05215b/sub/other.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -259,18 +254,13 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
                     'en/latest/index.html': '',
-                },
-                'clusterhq-dev-docs': {
-                    '0.3.0+444.gf05215b/sub_index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub_index.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -297,9 +287,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -309,7 +296,6 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
@@ -340,9 +326,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -351,8 +334,9 @@ class PublishDocsTests(TestCase):
                     'en/latest/index.html': '',
                     'en/0.3.0/index.html': '',
                     'en/0.3.0/sub/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
@@ -393,11 +377,9 @@ class PublishDocsTests(TestCase):
                     'en/devel/index.html': '',
                     'en/0.3.1.dev1/index.html': '',
                     'en/0.3.1.dev1/sub/index.html': '',
-                },
-                'clusterhq-dev-docs': {
-                    '0.3.0+444.gf05215b/index.html': '',
-                    '0.3.0+444.gf05215b/sub/index.html': '',
-                    '0.3.0+444.gf05215b/sub/other.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
@@ -430,9 +412,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/devel/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -442,7 +421,6 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1.dev1/index.html': '',
                     'en/0.3.1.dev1/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
                           environment=Environments.STAGING)
@@ -473,9 +451,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/devel/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -484,8 +459,9 @@ class PublishDocsTests(TestCase):
                     'en/devel/index.html': '',
                     'en/0.3.0/index.html': '',
                     'en/0.3.0/sub/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
                           environment=Environments.STAGING)
@@ -496,8 +472,8 @@ class PublishDocsTests(TestCase):
                     paths={
                         'en/devel/',
                         'en/devel/index.html',
-                        'en/devel/sub/',
                         'en/devel/sub/index.html',
+                        'en/devel/sub/',
                         'en/0.3.1.dev1/',
                         'en/0.3.1.dev1/index.html',
                         'en/0.3.1.dev1/sub/',
@@ -512,9 +488,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-docs': {
@@ -524,7 +497,7 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
+                'clusterhq-staging-docs': {},
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
                           environment=Environments.PRODUCTION)
@@ -556,33 +529,6 @@ class PublishDocsTests(TestCase):
             aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
             environment=Environments.PRODUCTION)
 
-    def test_publish_to_doc_version(self):
-        """
-        Trying to publish to a documentation version in a staging environment
-        publishes to to the version being updated.
-        """
-        aws = FakeAWS(
-            routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': '',
-                },
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {},
-                'clusterhq-dev-docs': {},
-            })
-
-        self.publish_docs(
-            aws, '0.3.1+444.gf05215b', '0.3.1.post1',
-            environment=Environments.STAGING)
-
-        self.assertEqual(
-            aws.routing_rules, {
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.1/',
-                },
-            })
-
     def test_production_can_publish_doc_version(self):
         """
         Publishing a documentation version to the version of the latest full
@@ -590,13 +536,10 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-docs': {},
-                'clusterhq-dev-docs': {},
+                'clusterhq-staging-docs': {},
             })
         # Does not raise:
         self.publish_docs(
@@ -608,13 +551,10 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-docs': {
-                    'en/devel/': 'en/0.3.1.dev4/',
-                },
             },
             s3_buckets={
                 'clusterhq-docs': {},
-                'clusterhq-dev-docs': {},
+                'clusterhq-staging-docs': {},
             })
         # Does not raise:
         self.publish_docs(
@@ -652,26 +592,15 @@ class PublishDocsTests(TestCase):
             bucket_names.add(
                 DOCUMENTATION_CONFIGURATIONS[e].documentation_bucket
             )
-        # Pretend that both devel and latest aliases are currently pointing to
-        # an older version.
-        empty_routes = {
-            'en/devel/': 'en/0.0.0/',
-            'en/latest/': 'en/0.0.0/',
-        }
-        # In all the S3 buckets.
-        empty_routing_rules = {
-            bucket_name: empty_routes.copy()
-            for bucket_name in bucket_names
-        }
         # And that all the buckets themselves are empty.
         empty_buckets = {bucket_name: {} for bucket_name in bucket_names}
         # Including the dev bucket
-        empty_buckets['clusterhq-dev-docs'] = {}
+        empty_buckets['clusterhq-staging-docs'] = {}
         # And that all the buckets have an empty error_key
         empty_error_keys = {bucket_name: b'' for bucket_name in bucket_names}
 
         aws = FakeAWS(
-            routing_rules=empty_routing_rules,
+            routing_rules={},
             s3_buckets=empty_buckets,
             error_key=empty_error_keys
         )

@@ -246,7 +246,7 @@ def publish_docs(flocker_version, doc_version, environment):
     ):
         yield Effect(
             UpdateS3ErrorPage(bucket=configuration.documentation_bucket,
-                              target_prefix=stable_prefix))
+                              target_prefix=version_prefix))
 
     # The changed keys are the new keys, the keys that were deleted from this
     # version, and the keys for the previous version.
