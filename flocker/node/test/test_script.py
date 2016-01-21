@@ -66,8 +66,7 @@ def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
     if name is None:
         name = random_name(test)
     ca_set = get_credential_sets()[0]
-    scratch_directory = FilePath(test.mktemp())
-    scratch_directory.makedirs()
+    scratch_directory = test.make_temporary_directory()
     contents = {
         u"control-service": {
             u"hostname": control_address,
@@ -269,7 +268,7 @@ class AgentServiceFromConfigurationTests(TestCase):
         host = b"192.0.2.13"
         port = 2314
         name = u"from_config-test"
-        logfile = self.make_temporary_directory().child('logfile')
+        logfile = self.make_temporary_path()
         log_config = {
             'version': 1,
             'handlers': {
