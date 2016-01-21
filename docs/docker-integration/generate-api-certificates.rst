@@ -16,4 +16,4 @@ Next Step
    <a href="generate-api-plugin.html" class="button">Generate an API Client Certificate for the Flocker Plugin for Docker</a>
    <br/><br/>
 
-Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.
+Or, :ref:`return to the installation menu <installing-flocker-with-docker>`.

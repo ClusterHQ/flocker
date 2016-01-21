@@ -16,4 +16,4 @@ Next Step
    <a href="enabling-control-service.html" class="button">Enable the Flocker Control Service</a>
    <br/><br/>
 
-Alternatively, :ref:`return to the installation menu <installing-standalone-flocker>`.
+Or, :ref:`return to the installation menu <installing-standalone-flocker>`.

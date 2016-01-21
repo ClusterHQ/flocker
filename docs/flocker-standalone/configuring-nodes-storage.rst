@@ -16,4 +16,4 @@ Next Step
    <a href="enabling-agent-service.html" class="button">Enable the Flocker agent service</a>
    <br/><br/>
 
-Alternatively, :ref:`return to the installation menu <installing-standalone-flocker>`.
+Or, :ref:`return to the installation menu <installing-standalone-flocker>`.

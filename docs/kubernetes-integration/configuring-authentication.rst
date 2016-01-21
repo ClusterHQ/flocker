@@ -16,4 +16,4 @@ Next Step
    <a href="generate-api-certificates.html" class="button">Generate an API client certificate</a>
    <br/><br/>
 
-Alternatively, :ref:`return to the installation menu <installing-flocker-with-kubernetes>`.
+Or, :ref:`return to the installation menu <installing-flocker-with-kubernetes>`.

@@ -16,4 +16,4 @@ Next Step
    <a href="configuring-nodes-storage.html" class="button">Configure the Nodes and Storage Backends</a>
    <br/><br/>
 
-Alternatively, :ref:`return to the installation menu <installing-flocker-with-kubernetes>`.
+Or, :ref:`return to the installation menu <installing-flocker-with-kubernetes>`.

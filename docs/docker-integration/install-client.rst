@@ -46,4 +46,4 @@ Next Step
    <a href="install-node.html" class="button">Install the Flocker node services</a>
    <br/><br/>
 
-Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.
+Or, :ref:`return to the installation menu <installing-flocker-with-docker>`.

@@ -30,4 +30,4 @@ Next Step
    <a href="enabling-control-service.html" class="button">Enable the Flocker control service</a>
    <br/><br/>
 
-Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.
+Or, :ref:`return to the installation menu <installing-flocker-with-docker>`.

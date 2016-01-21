@@ -19,4 +19,4 @@ Return to the installation instructions specific to your operating system to ins
    <a href="install-node.html#ubuntu-14-04-install-docker" class="button">Installing on Ubuntu 14.04</a>
    <br/><br/>
 
-Alternatively, :ref:`return to the installation menu <installing-standalone-flocker>`.
+Or, :ref:`return to the installation menu <installing-standalone-flocker>`.

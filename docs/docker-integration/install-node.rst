@@ -45,4 +45,4 @@ To enable these services, and to configure your cluster security and backend, yo
    <a href="configuring-authentication.html" class="button">Configure Cluster Authentication</a>
    <br/><br/>
 
-Alternatively, :ref:`return to the installation menu <installing-flocker-with-docker>`.
+Or, :ref:`return to the installation menu <installing-flocker-with-docker>`.
