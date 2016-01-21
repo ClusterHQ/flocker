@@ -39,7 +39,11 @@ from ._install import provision_for_non_root_user
 # Defaults for some of the instance construction parameters.
 _GCE_DISK_SIZE_GIB = 10
 _GCE_INSTANCE_TYPE = u"n1-standard-1"
-_GCE_ACCEPTANCE_USERNAME = u"flocker-acceptance"
+
+# Various parts of flocker assume they can log onto the nodes as root (such as
+# benchmarking). Let's just set these up immediately so that we can log on as
+# root.
+_GCE_ACCEPTANCE_USERNAME = u"root"
 
 
 def _clean_to_gce_name(identifier):
