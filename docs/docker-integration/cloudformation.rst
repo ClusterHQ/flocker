@@ -13,14 +13,14 @@ Installing Flocker with Swarm on AWS using CloudFormation
 The steps in this guide enable you to quickly deploy a Flocker/Swarm cluster, as illustrated below, which will create four EC2 instances on your AWS account:
 
 .. raw:: html
-	
+
 	<div style="width:80%; margin-left:auto; margin-right:auto; margin-bottom:2em;">
-	
+
 .. figure:: ../images/cloudformation.png
     :alt: A diagram illustrating a cluster of four AWS EC2 instances running Flocker with Docker Swarm.
 
 .. raw:: html
-	
+
 	</div>
 
 Follow the steps below to create your cluster.
@@ -29,7 +29,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 .. source material for this image: https://drive.google.com/open?id=0ByymF9bLBknGeXlPX1pTdXVZOGM
 
 .. raw:: html
-	
+
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 1</h2>
@@ -48,7 +48,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
             <span>The private key (.pem file) will be downloaded onto your computer.</span>
 		</div>
 	</div>
-	
+
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 2</h2>
@@ -60,11 +60,12 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 		</div>
 		<div class="step-stages__step first">
 			<img src="../_images/11-cloudformation-stackname.png" alt="Specifying the stack name"/>
-			<span>Click "Next". Enter a <code>Stack name</code>. This can be any descriptive name.</span> 
+			<span>Click "Next". Enter a <code>Stack name</code>. This can be any descriptive name.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/12-cloudformation-settings.png" alt="Fill in cloudformation settings"/>
 			<span>Enter your <code>KeyName</code> from Step 1. Then enter your AWS <code>AccessKeyID</code> and <code>SecretAccessKey</code> credentials.</span><span>If you don't know these, <a href="javascript:void(0);" onclick="$('#iam-instructions').show();">click here</a>.</span>
+            <span>Optionally, <a href="https://clusterhq.com/volumehub/" target="_blank">register for a Volume Hub account</a> which provides a hosted web interface to see what's going on in your cluster, then once you're logged in, <a href="https://volumehub.clusterhq.com/v1/token" target="_blank">fetch the token from here</a> by copying the token, not including the quotes.</span>
             <div id="iam-instructions" style="text-align:left; display:none;">
                 <span>You can generate new credentials on your <a href="https://console.aws.amazon.com/iam/home#users" target="_blank">IAM Users</a> page:</span>
                 <span><ul><li>Click on your user and go to the "Security Credentials" tab.</li><li>Click "Create Access Key".</li><li>Click "Show User Security Credentials".</li></ul></span>
@@ -87,14 +88,14 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/22-create-in-progress.png" alt="Stack create in progress message"/>
-			<span>Once the stack shows up, it will stay in CREATE_IN_PROGRESS state for 5-10 minutes. Wait for it to transition to...</span> 
+			<span>Once the stack shows up, it will stay in CREATE_IN_PROGRESS state for 5-10 minutes. Wait for it to transition to...</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/23-create-complete.png" alt="Stack create create complete message"/>
-			<span>... CREATE_COMPLETE state.</span> 
+			<span>... CREATE_COMPLETE state.</span>
 		</div>
 	</div>
-	
+
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">Step 3</h2>
@@ -127,20 +128,20 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
             <p>If the commands succeeded, then your Flocker/Swarm cluster is up and running.</p>
 		</div>
 	</div>
-	
+
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">That's it!</h2>
 			<p>Your cluster is now ready for workloads.</p>
 		</div>
 		<div class="step-stages__step first">
-			<span> </span> 
+			<span> </span>
 		</div>
 		<div class="step-stages__step">
 			<a href="tutorial-swarm-compose.html" class="button">Try a Tutorial</a>
 		</div>
 		<div class="step-stages__step">
-			<span> </span> 
+			<span> </span>
 		</div>
     </div>
 
