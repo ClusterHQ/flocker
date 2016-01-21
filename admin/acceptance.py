@@ -945,9 +945,9 @@ class CommonOptions(Options):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
-        :param provider_config: The ``rackspace`` section of the acceptance
-            testing configuration file.  See the linked documentation for the
-            form of that section.
+        :param dict provider_config: The ``rackspace`` section of the
+            acceptance testing configuration file.  See the linked
+            documentation for the form of that section.
 
         :see: :ref:`acceptance-testing-rackspace-config`
         """
@@ -960,9 +960,9 @@ class CommonOptions(Options):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
-        :param provider_config: The ``aws`` section of the acceptance testing
-            configuration file.  See the linked documentation for the form of
-            that section.
+        :param dict provider_config: The ``aws`` section of the acceptance
+            testing configuration file.  See the linked documentation for the
+            form of that section.
 
         :see: :ref:`acceptance-testing-aws-config`
         """
