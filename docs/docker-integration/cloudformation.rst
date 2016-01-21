@@ -61,15 +61,16 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 		<div class="step-stages__step first">
 			<img src="../_images/11-cloudformation-stackname.png" alt="Specifying the stack name"/>
 			<span>Click "Next". Enter a <code>Stack name</code>. This can be any descriptive name.</span>
-		</div>
-		<div class="step-stages__step">
-			<img src="../_images/12-cloudformation-settings.png" alt="Fill in cloudformation settings"/>
 			<span>Enter your <code>KeyName</code> from Step 1. Then enter your AWS <code>AccessKeyID</code> and <code>SecretAccessKey</code> credentials.</span><span>If you don't know these, <a href="javascript:void(0);" onclick="$('#iam-instructions').show();">click here</a>.</span>
-            <span>Optionally, <a href="https://clusterhq.com/volumehub/" target="_blank">register for a Volume Hub account</a> which provides a hosted web interface to see what's going on in your cluster, then once you're logged in, <a href="https://volumehub.clusterhq.com/v1/token" target="_blank">fetch the token from here</a> by copying the token, not including the quotes.</span>
             <div id="iam-instructions" style="text-align:left; display:none;">
                 <span>You can generate new credentials on your <a href="https://console.aws.amazon.com/iam/home#users" target="_blank">IAM Users</a> page:</span>
                 <span><ul><li>Click on your user and go to the "Security Credentials" tab.</li><li>Click "Create Access Key".</li><li>Click "Show User Security Credentials".</li></ul></span>
             </div>
+		</div>
+		<div class="step-stages__step">
+			<img src="../_images/12-cloudformation-settings.png" alt="Optionally fill in volumehub settings"/>
+            <span>Optionally, <a href="https://clusterhq.com/volumehub/" target="_blank">register for a Volume Hub account</a>. This provides a web interface to see what's going on in your cluster.</span>
+           <span>Once you're logged in, <a href="https://volumehub.clusterhq.com/v1/token" target="_blank">copy the token from here</a>, not including the <code>{"token": "</code> or <code>"}</code> pieces.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/13-cloudformation-create.png" alt="Click create"/>
