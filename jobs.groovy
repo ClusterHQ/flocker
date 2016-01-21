@@ -122,18 +122,17 @@ GLOBAL_CONFIG = jsonSlurper.parseText(
 // --------------------------------------------------------------------------
 
 def updateGitHubStatus(status, description, branch, dashProject,
-                       dashBranchName) {
+                       dashBranchName, jobName) {
     return """#!/bin/bash
 # Jenkins jobs are usually run using 'set -x' however we use 'set +x' here
 # to avoid leaking credentials into the build logs.
 set +x
-# Read the GitHub credentials
-. /etc/slave_config/github_status.sh
-
+# Set the GitHub credentials
+""" + new File('/etc/slave_config/github_status.sh').text + """
 # Send a request to Github to update the commit with the build status
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/${branch}`
-BUILD_URL="\$JENKINS_URL/job/${dashProject}/job/${dashBranchName}/"
-PAYLOAD="{\\"state\\": \\"${status}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"${description}\\", \\"context\\": \\"jenkins-multijob\\" }"
+BUILD_URL="\$JENKINS_URL/job/${dashProject}/job/${dashBranchName}/job/${jobName}/"
+PAYLOAD="{\\"state\\": \\"${status}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"${description}\\", \\"context\\": \\"jenkins-${jobName}\\" }"
 curl \\
   -H "Content-Type: application/json" \\
   -H "Authorization: token \$GITHUB_STATUS_API_TOKEN" \\
@@ -142,6 +141,82 @@ curl \\
   https://api.github.com/repos/${GLOBAL_CONFIG.project}/statuses/\$REMOTE_GIT_COMMIT
 echo "Updating commit \$REMOTE_GIT_COMMIT with ${status} status."
 """
+}
+
+def folder_name(dashProject, dashBranchName) {
+    /*
+        Return the folder name (url path) given the constituent parts
+
+        :param unicode dashProject: the name of the top-level project,
+            escaped for use in a path.
+        :param unicode dashBranchName: the name of the branch,
+            escaped for use in a path.
+        :return unicode: the folder name for the branch
+    */
+    return "${dashProject}/${dashBranchName}"
+}
+
+
+def full_job_name(dashProject, dashBranchName, job_name) {
+    /*
+        Return the full job name (url path) given the constituent parts
+
+        :param unicode dashProject: the name of the top-level project,
+            escaped for use in a path.
+        :param unicode dashBranchName: the name of the branch,
+            escaped for use in a path.
+        :param unicode job_name: the sub-task name,
+            escaped for use in a path.
+        :return unicode: the full name
+    */
+    return folder_name(dashProject, dashBranchName) + "/${job_name}"
+}
+
+
+def escape_name(name) {
+    /*
+        Escape a name to make it suitable for use in a path.
+
+        :param unicode name: the name to escape.
+        :return unicode: the escaped name.
+    */
+    return name.replace('/', '-')
+}
+
+
+def make_view(path, description, make_jobs) {
+    /*
+        Make a view tab.
+
+        :param unicode path: the url segment of the view, including project etc.
+            e.g. "flocker/master/acceptance"
+        :param unicode description: the description of the view.
+        :param callable make_jobs: a callable that will return the
+                the list of jobs to include when passed the view context,
+                something like:
+                    { context ->
+                        context.jobs {
+                            name("foo")
+                            regex("bar.*")
+                        }
+                    }
+    */
+
+    listView(path) {
+        delegate.description(description)
+        filterBuildQueue()
+        filterExecutors()
+        make_jobs(delegate)
+        columns {
+            status()
+            weather()
+            name()
+            lastSuccess()
+            lastFailure()
+            lastDuration()
+            buildButton()
+        }
+    }
 }
 
 
@@ -269,7 +344,7 @@ def build_scm(git_url, branchName, isReleaseBuild) {
 
    param v: dictionary containing the job keys
 */
-def build_publishers(v) {
+def build_publishers(v, branchName, dashProject, dashBranchName, job_name) {
     return {
         if (v.archive_artifacts) {
             for (artifact in v.archive_artifacts) {
@@ -303,6 +378,35 @@ def build_publishers(v) {
                 failNoReports(true)
             }
         }
+        if (job_name) {
+            /* Update the commit status on GitHub with the build result We use the
+               flexible-publish plugin combined with the the any-buildstep plugin to
+               allow us to run shell commands as part of a post-build step.  We also
+               use the run-condition plugin to inspect the status of the build
+               https://wiki.jenkins-ci.org/display/JENKINS/Flexible+Publish+Plugin
+               https://wiki.jenkins-ci.org/display/JENKINS/Any+Build+Step+Plugin
+               https://wiki.jenkins-ci.org/display/JENKINS/Run+Condition+Plugin */
+            flexiblePublish {
+                condition {
+                    status('SUCCESS', 'SUCCESS')
+                }
+                step {
+                    shell(updateGitHubStatus(
+                              'success', 'Build succeeded',
+                              branchName, dashProject, dashBranchName, job_name))
+                }
+            }
+            flexiblePublish {
+                condition {
+                    status('FAILURE', 'FAILURE')
+                }
+                step {
+                    shell(updateGitHubStatus(
+                          'failure', 'Build failed',
+                          branchName, dashProject, dashBranchName, job_name))
+                }
+            }
+        }
     }
 }
 
@@ -312,7 +416,7 @@ def build_publishers(v) {
     currently only shell has been implemented.
 
     params job: dictionary the job steps (``with_steps``) */
-def build_steps(dash_project, dash_branch_name, job_name, job) {
+def build_steps(job) {
     return {
         for (_step in job.with_steps) {
             if (_step.type == 'shell') {
@@ -320,6 +424,64 @@ def build_steps(dash_project, dash_branch_name, job_name, job) {
             }
         }
     }
+}
+
+
+def list_jobs(dashProject, dashBranchName) {
+    /*
+        List all the jobs, accounting for modules to run etc.
+
+        A common pattern is to loop over the jobs and
+        extract particular information and act on it.
+
+        The way the information is stored in build.yaml,
+        and the varied rules for processing it mean that
+        it's not a simple loop.
+
+        This function performs the transformations and
+        provides a simple list of all jobs with their
+        basic information. It can be filtered and processed
+        as needed.
+
+        :param unicode dashProject: the name of the project, escaped
+            for use in paths.
+        :param unicode dashBranchName: the name of the branch, escaped
+            for use in paths.
+        :return List: a list of maps of job info, with keys:
+            unicode type: the type of the job
+            unicode name: the short name of the job
+            unicode full_name: the full path of the job, including
+                               project and branch
+            unicode module: the test module to run, or null if this
+                            doesn't apply to this job type
+            Map values: the rest of the key/value pairs from the
+                        build.yaml job definition
+    */
+    results = []
+    GLOBAL_CONFIG.job_type.each { job_type, job_type_values ->
+        job_type_values.each { job_name, job_values ->
+            // Cron jobs are prefixed with an underscore
+            if (job_type == 'cronly_jobs') {
+                job_name = "_${job_name}"
+            }
+            if (job_values.with_modules) {
+                for (module in job_values.with_modules) {
+                    _job_name = job_name + '_' + escape_name(module)
+                    full_name = full_job_name(
+                        dashProject, dashBranchName, _job_name)
+                    results.add([type: job_type, name: _job_name,
+                                 module: module, values: job_values,
+                                 full_name: full_name])
+                }
+            } else {
+                full_name = full_job_name(
+                    dashProject, dashBranchName, job_name)
+                results.add([type: job_type, name: job_name, module: null,
+                             values: job_values, full_name: full_name])
+            }
+        }
+    }
+    return results
 }
 
 
@@ -340,42 +502,6 @@ dashProject = escape_name(project)
 //   '<github username>-<git repository>'
 println("Creating folder ${dashProject}...")
 folder(dashProject) { displayName(dashProject) }
-
-
-def make_view(path, description, make_jobs) {
-    /*
-        Make a view tab.
-
-        :param unicode path: the url segment of the view, including project etc.
-            e.g. "flocker/master/acceptance"
-        :param unicode description: the description of the view.
-        :param callable make_jobs: a callable that will return the
-                the list of jobs to include when passed the view context,
-                something like:
-                    { context ->
-                        context.jobs {
-                            name("foo")
-                            regex("bar.*")
-                        }
-                    }
-    */
-
-    listView(path) {
-        delegate.description(description)
-        filterBuildQueue()
-        filterExecutors()
-        make_jobs(delegate)
-        columns {
-            status()
-            weather()
-            name()
-            lastSuccess()
-            lastFailure()
-            lastDuration()
-            buildButton()
-        }
-    }
-}
 
 make_view(
     "${dashProject}/master", "Builds of master",
@@ -415,73 +541,45 @@ def build_tabs(dashBranchName) {
 }
 
 
-def define_job(dashBranchName, branchName, job_type, job_name, job_values, isReleaseBuild) {
-    // apply config related to 'run_trial' jobs
-    if (job_type == 'run_trial') {
-        for (_module in job_values.with_modules) {
-            _job_name = job_name + '_' + escape_name(_module)
-            job("${dashProject}/${dashBranchName}/${_job_name}") {
-                parameters {
-                    // we pass the 'MODULE' parameter as the flocker module to test with trial
-                    textParam("MODULE", _module, "Module to test" )
-                    textParam("TRIGGERED_BRANCH", branchName,
-                              "Branch that triggered this job" )
-                }
+def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
+               full_name, job_values, module, isReleaseBuild) {
 
-                // Allow some attempts to checkout the source to fail, since
-                // doing so depends on a third-party, network-accessible resource.
-                //
-                // Unfortunately, this *may* not actually work due to bugs in
-                // Jenkins or the Git SCM plugin:
-                //
-                //     https://issues.jenkins-ci.org/browse/JENKINS-14575
-                //
-                checkoutRetryCount(5)
-
-                // limit execution to jenkins slaves with a particular label
-                label(job_values.on_nodes_with_labels)
-                directories_to_delete = ['${WORKSPACE}/_trial_temp',
-                                         '${WORKSPACE}/.hypothesis']
-                wrappers build_wrappers(job_values, directories_to_delete)
-                scm build_scm(git_url, branchName, isReleaseBuild)
-                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
-                publishers build_publishers(job_values)
+    if (job_type in ['run_trial', 'run_trial_for_storage_driver', 'run_acceptance']) {
+        assert module != null
+        job(full_name) {
+            parameters {
+                // we pass the 'MODULE' parameter as the flocker module to test with trial
+                textParam("MODULE", module, "Module to test" )
+                textParam("TRIGGERED_BRANCH", branchName,
+                          "Branch that triggered this job" )
             }
+
+            // Allow some attempts to checkout the source to fail, since
+            // doing so depends on a third-party, network-accessible resource.
+            //
+            // Unfortunately, this *may* not actually work due to bugs in
+            // Jenkins or the Git SCM plugin:
+            //
+            //     https://issues.jenkins-ci.org/browse/JENKINS-14575
+            //
+            checkoutRetryCount(5)
+
+            // limit execution to jenkins slaves with a particular label
+            label(job_values.on_nodes_with_labels)
+            // _trial_temp and .hypothesis are for run_trial*
+            // and repo is for run_acceptance, but they are removed
+            // with rm -rf so we can get away with being overly broad
+            directories_to_delete = ['${WORKSPACE}/_trial_temp',
+                                     '${WORKSPACE}/.hypothesis',
+                                     '${WORKSPACE}/repo']
+            wrappers build_wrappers(job_values, directories_to_delete)
+            scm build_scm(git_url, branchName, isReleaseBuild)
+            steps build_steps(job_values)
+            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
         }
-    }
-
-    // XXX duplicate of run_trial jobs? if so we should combine::
-
-    // apply config related to 'run_trial_storage_driver' jobs
-    if (job_type == 'run_trial_for_storage_driver') {
-        for (_module in job_values.with_modules) {
-            _job_name = job_name + '_' + escape_name(_module)
-            job("${dashProject}/${dashBranchName}/${_job_name}") {
-                parameters {
-                    // we pass the 'MODULE' parameter as the flocker module to test with trial
-                    textParam("MODULE", _module, "Module to test" )
-                    textParam("TRIGGERED_BRANCH", branchName,
-                              "Branch that triggered this job" )
-                }
-
-                // See above.
-                checkoutRetryCount(5)
-
-                // limit execution to jenkins slaves with a particular label
-                label(job_values.on_nodes_with_labels)
-                directories_to_delete = ['${WORKSPACE}/_trial_temp',
-                                         '${WORKSPACE}/.hypothesis']
-                wrappers build_wrappers(job_values, directories_to_delete)
-                scm build_scm(git_url, branchName, isReleaseBuild)
-                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
-                publishers build_publishers(job_values)
-            }
-        }
-    }
-
-    // apply config related to 'run_sphinx' jobs
-    if (job_type == 'run_sphinx') {
-        job("${dashProject}/${dashBranchName}/${job_name}") {
+    } else if (job_type == 'run_sphinx') {
+        assert module == null
+        job(full_name) {
             parameters {
                 textParam("TRIGGERED_BRANCH", branchName,
                           "Branch that triggered this job" )
@@ -493,49 +591,12 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
             scm build_scm(git_url, branchName, isReleaseBuild)
-            // There is no module part for sphinx jobs so we can use job_name
-            // unmodified.
-            steps build_steps(dashProject, dashBranchName, job_name, job_values)
+            steps build_steps(job_values)
+            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
         }
-    }
-
-    // XXX possibly this is effectively the same as run_trial too?
-
-    // apply config related to 'run_acceptance' jobs
-    if (job_type == 'run_acceptance') {
-        for (_module in job_values.with_modules) {
-            _job_name = job_name + '_' + escape_name(_module)
-            job("${dashProject}/${dashBranchName}/${_job_name}") {
-                parameters {
-                    // we pass the 'MODULE' parameter as the flocker module to test with trial
-                    textParam("MODULE", _module, "Module to test")
-                    // the run_acceptance job produces a rpm/deb package which
-                    // is made available to the node/docker instance running in
-                    // the at a particular address on the jenkins slave (ex:
-                    // http://jenkins_slave/$RECONFIGURE_BRANCH/repo)
-                    textParam("TRIGGERED_BRANCH", branchName,
-                              "Branch that triggered this job" )
-                }
-                // See above.
-                checkoutRetryCount(5)
-
-                // limit execution to jenkins slaves with a particular label
-                label(job_values.on_nodes_with_labels)
-
-                directories_to_delete = ['${WORKSPACE}/repo' ]
-                wrappers build_wrappers(job_values, directories_to_delete)
-                scm build_scm(git_url, branchName, isReleaseBuild)
-                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
-                publishers build_publishers(job_values)
-            }
-        }
-    }
-
-    // XXX possibly the same as one of previous jobs?
-
-    // apply config related to 'run_client' jobs
-    if (job_type == 'run_client') {
-        job("${dashProject}/${dashBranchName}/${job_name}") {
+    } else if (job_type == 'run_client') {
+        assert module == null
+        job(full_name) {
             parameters {
                 // the run_acceptance job produces a rpm/deb package which is
                 // made available to the node/docker instance running in the at
@@ -553,68 +614,81 @@ def define_job(dashBranchName, branchName, job_type, job_name, job_values, isRel
             directories_to_delete = ['${WORKSPACE}/repo']
             wrappers build_wrappers(job_values, directories_to_delete)
             scm build_scm(git_url, branchName, isReleaseBuild)
-            // There is no module for run_client jobs so we can use job_name
-            // unmodified.
-            steps build_steps(dashProject, dashBranchName, job_name, job_values)
-            publishers build_publishers(job_values)
+            steps build_steps(job_values)
+            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
         }
-    }
-
-
-    // apply config related to 'omnibus' jobs
-    if (job_type == 'omnibus') {
-        job("${dashProject}/${dashBranchName}/${job_name}") {
+    } else if (job_type in ['omnibus', 'run_lint']) {
+        assert module == null
+        job(full_name) {
             // See above.
             checkoutRetryCount(5)
-
-            // limit execution to jenkins slaves with a particular label
-            label(job_values.on_nodes_with_labels)
-            wrappers build_wrappers(job_values, [])
-            scm build_scm("${git_url}", "${branchName}", isReleaseBuild)
-            // There is no module for omnibus jobs so we can use job_name
-            // unmodified.
-            steps build_steps(dashProject, dashBranchName, job_name, job_values)
-        }
-    }
-
-    // XXX duplicate of 'omnibus', merge in later pass
-
-    // apply config related to 'run_lint' jobs
-    if (job_type == 'run_lint') {
-        job("${dashProject}/${dashBranchName}/${job_name}") {
-            // See above.
-            checkoutRetryCount(5)
-
             // limit execution to jenkins slaves with a particular label
             label(job_values.on_nodes_with_labels)
             wrappers build_wrappers(job_values, [])
             scm build_scm(git_url, branchName, isReleaseBuild)
-            // There is no module for lint jobs so we can use job_name
-            // unmodified.
-            steps build_steps(dashProject, dashBranchName, job_name, job_values)
+            steps build_steps(job_values)
+            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
         }
+    } else {
+        throw new Exception("Don't know how to handle ${job_type} jobs")
+    }
+
+}
+
+
+def trigger_sub_job(context, name) {
+    /*
+        Trigger a sub-job in a multijob without killing the parent on failure
+
+        :param context: the multijob context to add the job to
+        :param name: the name of the sub-job to trigger
+    */
+    context.phaseJob(name) {
+        /* make sure we don't kill the parent multijob when we
+           fail */
+        killPhaseCondition("NEVER")
     }
 }
 
 
-def escape_name(name) {
+def copy_artifacts_from(context, full_job_name, short_job_name, archive_artifacts) {
     /*
-        Escape a name to make it suitable for use in a path.
+        Copy artifacts from another job to this one.
 
-        :param unicode name: the name to escape.
-        :return unicode: the escaped name.
+        :param context: the context of the job that receives the copied
+            artifacts.
+        :param unicode full_job_name: the full path of the job.
+        :param unicode short_job_name: the name of the job without the full path.
+        :param list[str] archive_artifacts: the artifacts to archive as a
+             string glob patter.
     */
-    return name.replace('/', '-')
+    for (artifact in archive_artifacts) {
+        context.copyArtifacts(full_job_name) {
+            optional(true)
+            includePatterns(artifact)
+            /* and place them under short_job_name/artifact on
+               the multijob workspace, so that we don't
+               overwrite them.  */
+            targetDirectory(short_job_name)
+            fingerprintArtifacts(true)
+            buildSelector {
+                workspace()
+            }
+        }
+    }
 }
 
+PULL_REQUEST_JOB_TYPES = ['run_trial', 'run_trial_for_storage_driver',
+                          'run_acceptance', 'run_sphinx', 'omnibus',
+                          'run_lint', 'run_client']
 
-def build_multijob(dashBranchName, branchName, isReleaseBuild) {
+def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
     // -------------------------------------------------------------------------
     // MULTIJOB CONFIGURATION BELOW
     // --------------------------------------------------------------------------
 
     // the multijob is responsible for running all configured jobs in parallel
-    multiJob("${dashProject}/${dashBranchName}/__main_multijob") {
+    multiJob(full_job_name(dashProject, dashBranchName, "__main_multijob")) {
         /* we don't execute any code from the mulitjob run, but we need to fetch
            the git repository so that we can track when changes are pushed upstream.
            We add a SCM block pointing to our flocker code base.
@@ -639,9 +713,10 @@ def build_multijob(dashBranchName, branchName, isReleaseBuild) {
         /* the multijob runs on the jenkins-master only                             */
         label("master")
         steps {
-            /* Set the commit status on GitHub to pending                                */
-            shell(updateGitHubStatus('pending', 'Build started',
-                                     branchName, dashProject, dashBranchName))
+            /* Set the commit status on GitHub to pending for each subtask we will run */
+            list_jobs(dashProject, dashBranchName).findAll { it.type in PULL_REQUEST_JOB_TYPES }.each {
+                shell(updateGitHubStatus('pending', 'Build started', branchName, dashProject, dashBranchName, it.name))
+            }
             /* make sure we are starting with a clean workspace  */
             shell('rm -rf *')
             /* build 'parallel_tests' phase that will run all our jobs in parallel  */
@@ -654,34 +729,9 @@ def build_multijob(dashBranchName, branchName, isReleaseBuild) {
                   a block entry for that particular job_type needs to be added to the
                   multijob configuration below.
                 */
-                for (job_type_entry in GLOBAL_CONFIG.job_type) {
-                    job_type = job_type_entry.key
-                    job_type_values = job_type_entry.value
-
-                    /* add the 'run_trial' style jobs, where there is a job per module */
-                    if (job_type in ['run_trial', 'run_trial_for_storage_driver',
-                                     'run_acceptance']) {
-                        for (job_entry in job_type_values) {
-                            for (_module in job_entry.value.with_modules) {
-                                _job_name = job_entry.key + '_' + escape_name(_module)
-                                job("${dashProject}/${dashBranchName}/${_job_name}")  {
-                                    /* make sure we don't kill the parent multijob when we
-                                       fail */
-                                    killPhaseCondition("NEVER")
-                                }
-                            }
-                        }
-                    }
-                    /* add the non-module style jobs */
-                    if (job_type in ['run_sphinx', 'omnibus', 'run_lint', 'run_client']) {
-                        for (job_entry  in job_type_values) {
-                            job("${dashProject}/${dashBranchName}/${job_entry.key}")  {
-                                /* make sure we don't kill the parent multijob when we
-                                   fail */
-                                killPhaseCondition("NEVER")
-                            }
-                        }
-                    }
+                context = delegate
+                list_jobs(dashProject, dashBranchName).findAll { it.type in PULL_REQUEST_JOB_TYPES }.each {
+                    trigger_sub_job(context, it.full_name)
                 }
             } /* ends parallel phase */
 
@@ -690,37 +740,14 @@ def build_multijob(dashBranchName, branchName, isReleaseBuild) {
                Skip the cron jobs as they don't run from this multijob,
                so the copied artifacts could be from a build of a previous
                revision, which may confuse things. */
-            for (job_type_entry in GLOBAL_CONFIG.job_type.findAll { it.key != 'cronly_jobs' } ) {
-                job_type = job_type_entry.key
-                for (job_entry in job_type_entry.value) {
-                    job_name = job_entry.key
-                    job_values = job_entry.value
-                    for (_module in job_values.with_modules) {
-                        _job_name = job_name + '_' + escape_name(_module)
-                        /* no every job produces an artifact, so make sure wew
-                           don't try to fetch artifacts for jobs that don't
-                           produce them */
-                        if (job_values.archive_artifacts) {
-                            for (artifact in job_values.archive_artifacts) {
-                                copyArtifacts(
-                                    "${dashProject}/${dashBranchName}/${_job_name}") {
-                                    optional(true)
-                                    includePatterns(artifact)
-                                    /* and place them under 'job name'/artifact on
-                                       the multijob workspace, so that we don't
-                                       overwrite them.  */
-                                    targetDirectory(_job_name)
-                                    fingerprintArtifacts(true)
-                                    buildSelector {
-                                        workspace()
-                                    }
-                                }
-                            }
-                        }
-                    }
+            list_jobs(dashProject, dashBranchName).findAll { it.type != 'cronly_jobs' }.each {
+                if (it.values.archive_artifacts) {
+                    copy_artifacts_from(
+                        delegate, it.full_name,
+                        it.name, it.values.archive_artifacts
+                    )
                 }
             }
-
         }
 
         /* do an aggregation of all the test results */
@@ -746,33 +773,6 @@ def build_multijob(dashBranchName, branchName, isReleaseBuild) {
                 failUnstable(true)
                 failNoReports(false)
             }
-            /* Update the commit status on GitHub with the build result We use the
-               flexible-publish plugin combined with the the any-buildstep plugin to
-               allow us to run shell commands as part of a post-build step.  We also
-               use the run-condition plugin to inspect the status of the build
-               https://wiki.jenkins-ci.org/display/JENKINS/Flexible+Publish+Plugin
-               https://wiki.jenkins-ci.org/display/JENKINS/Any+Build+Step+Plugin
-               https://wiki.jenkins-ci.org/display/JENKINS/Run+Condition+Plugin */
-            flexiblePublish {
-                condition {
-                    status('SUCCESS', 'SUCCESS')
-                }
-                step {
-                    shell(updateGitHubStatus(
-                              'success', 'Build succeeded',
-                              "${branchName}", "${dashProject}", "${dashBranchName}"))
-                }
-            }
-            flexiblePublish {
-                condition {
-                    status('FAILURE', 'FAILURE')
-                }
-                step {
-                    shell(updateGitHubStatus(
-                          'failure', 'Build failed',
-                          "${branchName}", "${dashProject}", "${dashBranchName}"))
-                }
-            }
         }
 
     }
@@ -792,7 +792,7 @@ def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseB
     */
 
     // create a folder for every branch: /git-username/git-repo/branch
-    folder("${dashProject}/${dashBranchName}") {
+    folder(folder_name(dashProject, dashBranchName)) {
         displayName(branchName)
     }
 
@@ -800,17 +800,17 @@ def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseB
     build_tabs(dashBranchName)
 
     // create individual jobs
-    for (job_type_entry in GLOBAL_CONFIG.job_type) {
-        job_type = job_type_entry.key
-        for (job_entry in job_type_entry.value) {
-            job_name = job_entry.key
-            job_values = job_entry.value
-            define_job(dashBranchName, branchName, job_type, job_name, job_values, isReleaseBuild)
-        }
+    list_jobs(dashProject, dashBranchName).findAll {
+        it.type != 'cronly_jobs'
+    }.each {
+        define_job(
+            dashProject, dashBranchName, branchName, it.type, it.name,
+            it.full_name, it.values, it.module, isReleaseBuild
+        )
     }
 
     // create multijob that aggregates the individual jobs
-    build_multijob(dashBranchName, branchName, isReleaseBuild)
+    build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild)
 }
 
 
@@ -819,9 +819,8 @@ def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseB
    --------------------
 */
 // Iterate over every branch, and create folders, jobs
-branches.each {
-    println("iterating over branch... ${it}")
-    branchName = it
+branches.each { branchName ->
+    println("iterating over branch... ${branchName}")
     dashBranchName = escape_name(branchName)
     // our convention for release branches is release/flocker-<version>
     isReleaseBuild = branchName.startsWith("release/*")
@@ -829,41 +828,38 @@ branches.each {
     generate_jobs_for_branch(dashProject, dashBranchName, branchName, false)
 
     if (isReleaseBuild) {
-        generate_jobs_for_branch(dashProject, "release-" + dashBranchName, "Release " + branchName, true)
+        generate_jobs_for_branch(
+            dashProject, "release-" + dashBranchName, "Release " + branchName,
+            true
+        )
     }
-}
 
 
-/* ------------------------------------------------------------------------- */
-/* CRON JOBS BELOW                                                           */
-/* --------------------------------------------------------------------------*/
+    /* ------------------------------------------------------------------------- */
+    /* CRON JOBS BELOW                                                           */
+    /* --------------------------------------------------------------------------*/
 
-/* Configure cronly jobs, these are not part of the main branches loop       */
-/* As we only run them from the master branch, they get executed a few       */
-/* times a day based on a cron type schedule.                                */
+    /* Configure cronly jobs, these are not part of the main branches loop       */
+    /* As we only run them from the master branch, they get executed a few       */
+    /* times a day based on a cron type schedule.                                */
 
-for (job_type_entry in GLOBAL_CONFIG.job_type) {
-    job_type = job_type_entry.key
-    for (job_entry in job_type_entry.value) {
-        job_values = job_entry.value
-        /* apply config related to 'cronly_jobs' jobs */
-        if (job_type == 'cronly_jobs') {
-            _job_name = "_${job_entry.key}"
-            job("${dashProject}/${dashBranchName}/${_job_name}") {
-                parameters {
-                    textParam("TRIGGERED_BRANCH", "${branchName}",
-                              "Branch that triggered this job" )
-                }
-                // See above.
-                checkoutRetryCount(5)
-
-                label(job_values.on_nodes_with_labels)
-                wrappers build_wrappers(job_values, [])
-                triggers build_triggers('cron', job_values.at, "${branchName}")
-                scm build_scm("${git_url}", "${branchName}", false)
-                steps build_steps(dashProject, dashBranchName, _job_name, job_values)
-                publishers build_publishers(job_values)
+    cronly_jobs = list_jobs(dashProject, dashBranchName).findAll {
+        it.type == 'cronly_jobs'
+    }.each {
+        values = it.values
+        job(it.full_name) {
+            parameters {
+                textParam("TRIGGERED_BRANCH", branchName,
+                          "Branch that triggered this job" )
             }
+            // See above.
+            checkoutRetryCount(5)
+            label(values.on_nodes_with_labels)
+            wrappers build_wrappers(values, [])
+            triggers build_triggers('cron', values.at, branchName)
+            scm build_scm("${git_url}", "${branchName}", false)
+            steps build_steps(values)
+            publishers build_publishers(values, null, null, null, null)
         }
     }
 }

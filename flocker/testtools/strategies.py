@@ -2,7 +2,7 @@
 
 import string
 
-from hypothesis.strategies import lists, text
+from hypothesis.strategies import integers, lists, text
 from twisted.python.filepath import FilePath
 
 
@@ -46,4 +46,10 @@ fqpns = lists(
 Fully-qualified Python names.
 
 e.g. ``twisted.internet.defer.Deferred``, ``foo.bar.baz_qux``.
+"""
+
+
+permissions = integers(min_value=0, max_value=07777)
+"""
+Unix file permissions.
 """

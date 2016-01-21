@@ -479,3 +479,47 @@ class DockerPluginTests(AsyncTestCase):
         volume on a different machine.
         """
         return self._test_move(cluster, cluster.nodes[0], cluster.nodes[1])
+
+    @require_cluster(1)
+    def test_inspect(self, cluster):
+        """
+        A volume created outside of Docker can be inspected via the Docker
+        Volume API.
+
+        :param cluster: Flocker cluster.
+        """
+        self.require_docker('1.10.0', cluster)
+        name = random_name(self)
+
+        d = create_dataset(self, cluster, metadata={u"name": name})
+
+        def created(_):
+            client = get_docker_client(
+                cluster, cluster.nodes[0].public_address)
+            info = client.inspect_volume(name)
+            self.assertEqual((info[u"Driver"], info[u"Name"]),
+                             (u"flocker", name))
+        d.addCallback(created)
+        return d
+
+    @require_cluster(1)
+    def test_listed(self, cluster):
+        """
+        A volume created outside of Docker can be listed via the Docker
+        Volume API.
+
+        :param cluster: Flocker cluster.
+        """
+        self.require_docker('1.10.0', cluster)
+        name = random_name(self)
+
+        d = create_dataset(self, cluster, metadata={u"name": name})
+
+        def created(_):
+            client = get_docker_client(
+                cluster, cluster.nodes[0].public_address)
+            our_volume = [v[u"Driver"] for v in client.volumes()[u"Volumes"]
+                          if v[u"Name"] == name]
+            self.assertEqual(our_volume, [u"flocker"])
+        d.addCallback(created)
+        return d
