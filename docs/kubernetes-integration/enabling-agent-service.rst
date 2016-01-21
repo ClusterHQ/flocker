@@ -16,8 +16,9 @@ Next Step
 =========
 
 This completes the manual installation of Flocker for an integration with Kubernetes.
-The next step is to manually install Kubernetes.
-A link to the Kubernetes installation instructions can be found on the Installation menu:
+
+The next step is to install Kubernetes.
+Click the button below to open the Kubernetes installation instructions - this will open in a new window:
 
 .. raw:: html
 
