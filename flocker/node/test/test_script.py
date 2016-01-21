@@ -88,7 +88,6 @@ def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
     test.config.setContent(yaml.safe_dump(contents))
     ca_set.copy_to(scratch_directory, node=True)
     test.ca_set = ca_set
-    test.non_existent_file = scratch_directory.child('missing-config.yml')
 
 deployer = object()
 
@@ -128,18 +127,15 @@ class DatasetServiceFactoryTests(TestCase):
     Generic tests for ``DatasetServiceFactory``, independent of the storage
     driver being used.
     """
-    def setUp(self):
-        super(DatasetServiceFactoryTests, self).setUp()
-        setup_config(self)
 
     def test_config_validated(self):
         """
         ``DatasetServiceFactory.get_service`` validates the configuration file.
         """
-        self.config.setContent(b"INVALID")
+        config = self.make_temporary_file(content=b"INVALID")
 
         options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.config.path])
+        options.parseOptions([b"--agent-config", config.path])
 
         self.assertRaises(
             ValidationError,
@@ -152,7 +148,9 @@ class DatasetServiceFactoryTests(TestCase):
         given configuration file does not exist.
         """
         options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.non_existent_file.path])
+        options.parseOptions(
+            [b"--agent-config", self.make_temporary_path().path]
+        )
 
         self.assertRaises(
             IOError,
@@ -716,7 +714,9 @@ class AgentServiceFactoryTests(TestCase):
         """
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.non_existent_file.path])
+        options.parseOptions(
+            [b"--agent-config", self.make_temporary_path().path]
+        )
         service_factory = self.service_factory(
             deployer_factory=deployer_factory_stub,
         )
