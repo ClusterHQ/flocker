@@ -208,6 +208,9 @@ def main(reactor, args, base_path, top_level):
                                            node.address,
                                            remote_logs_file)
                            )
+    # gather_deferreds() below does more than just creating a DeferredList.
+    # So, while we are not using its result in any way, it is still useful
+    # because it logs any failures coming from the gathered deferreds.
     gather_deferreds(results)
 
     if options['no-keep']:
