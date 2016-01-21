@@ -205,6 +205,10 @@ def publish_docs(flocker_version, doc_version, environment):
         ListS3Keys(bucket=configuration.documentation_bucket,
                    prefix=version_prefix))
 
+    existing_latest_keys = yield Effect(
+        ListS3Keys(bucket=configuration.documentation_bucket,
+                   prefix=stable_prefix))
+
     # Copy the new documentation to the documentation bucket at the
     # versioned prefix, i.e. en/x.y.z
     yield Effect(
@@ -232,7 +236,7 @@ def publish_docs(flocker_version, doc_version, environment):
     yield Effect(
         DeleteS3Keys(bucket=configuration.documentation_bucket,
                      prefix=stable_prefix,
-                     keys=existing_version_keys - new_version_keys))
+                     keys=existing_latest_keys - new_version_keys))
 
     # Update the key used for error pages if we're publishing to staging or if
     # we're publishing a marketing release to production.

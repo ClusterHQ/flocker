@@ -86,37 +86,41 @@ class PublishDocsTests(TestCase):
     def test_copies_documentation(self):
         """
         Calling :func:`publish_docs` copies documentation from
-        ``s3://clusterhq-dev-docs/<flocker_version>/`` to
-        ``s3://clusterhq-staging-docs/en/<doc_version>/``.
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
+        ``s3://clusterhq-staging-docs/en/<doc_version>/`` and
+        ``s3://clusterhq-staging-docs/en/latest/``.
         """
         aws = FakeAWS(
-            routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
-            },
+            routing_rules={},
             s3_buckets={
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
-                    'en/latest/index.html': '',
-                },
-                'clusterhq-dev-docs': {
-                    '0.3.0+444.gf05215b/index.html': 'index-content',
-                    '0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
-                    '0.3.0+444.gf05215b/other.html': 'other-content',
-                    '0.3.0+392.gd50b558/index.html': 'bad-index',
-                    '0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
-                    '0.3.0+392.gd50b558/other.html': 'bad-other',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                    'release/flocker-0.3.0+444.gf05215b/other.html': 'other-content',
+                    'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
+                    'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                    'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.s3_buckets['clusterhq-staging-docs'], {
+                # originals
                 'index.html': '',
                 'en/index.html': '',
-                'en/latest/index.html': '',
+                'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
+                'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                'release/flocker-0.3.0+444.gf05215b/other.html': 'other-content',
+                'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
+                'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
+                # and new copies
+                'en/latest/index.html': 'index-content',
+                'en/latest/sub/index.html': 'sub-index-content',
+                'en/latest/other.html': 'other-content',
                 'en/0.3.1/index.html': 'index-content',
                 'en/0.3.1/sub/index.html': 'sub-index-content',
                 'en/0.3.1/other.html': 'other-content',
@@ -125,14 +129,12 @@ class PublishDocsTests(TestCase):
     def test_copies_documentation_production(self):
         """
         Calling :func:`publish_docs` in production copies documentation from
-        ``s3://clusterhq-dev-docs/<flocker_version>/`` to
-        ``s3://clusterhq-docs/en/<doc_version>/``.
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
+        ``s3://clusterhq-docs/en/<doc_version>/`` and
+        ``s3://clusterhq-docs/en/latest/``.
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-docs': {
@@ -140,13 +142,13 @@ class PublishDocsTests(TestCase):
                     'en/index.html': '',
                     'en/latest/index.html': '',
                 },
-                'clusterhq-dev-docs': {
-                    '0.3.1/index.html': 'index-content',
-                    '0.3.1/sub/index.html': 'sub-index-content',
-                    '0.3.1/other.html': 'other-content',
-                    '0.3.0+392.gd50b558/index.html': 'bad-index',
-                    '0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
-                    '0.3.0+392.gd50b558/other.html': 'bad-other',
+                'clusterhq-staging-docs': {
+                    'release/flocker-0.3.1/index.html': 'index-content',
+                    'release/flocker-0.3.1/sub/index.html': 'sub-index-content',
+                    'release/flocker-0.3.1/other.html': 'other-content',
+                    'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
+                    'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                    'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
                 }
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
@@ -155,7 +157,9 @@ class PublishDocsTests(TestCase):
             aws.s3_buckets['clusterhq-docs'], {
                 'index.html': '',
                 'en/index.html': '',
-                'en/latest/index.html': '',
+                'en/latest/index.html': 'index-content',
+                'en/latest/sub/index.html': 'sub-index-content',
+                'en/latest/other.html': 'other-content',
                 'en/0.3.1/index.html': 'index-content',
                 'en/0.3.1/sub/index.html': 'sub-index-content',
                 'en/0.3.1/other.html': 'other-content',
@@ -165,15 +169,13 @@ class PublishDocsTests(TestCase):
         """
         Calling :func:`publish_docs` replaces documentation from
         ``s3://clusterhq-staging-docs/en/<doc_version>/``.
-        with documentation from ``s3://clusterhq-dev-docs/<flocker_version>/``.
+        with documentation from
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/``.
         In particular, files with changed content are updated, and removed
         files are deleted.
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -183,10 +185,8 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1/index.html': 'old-index-content',
                     'en/0.3.1/sub/index.html': 'old-sub-index-content',
                     'en/0.3.1/other.html': 'other-content',
-                },
-                'clusterhq-dev-docs': {
-                    '0.3.0+444.gf05215b/index.html': 'index-content',
-                    '0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -195,9 +195,13 @@ class PublishDocsTests(TestCase):
             aws.s3_buckets['clusterhq-staging-docs'], {
                 'index.html': '',
                 'en/index.html': '',
-                'en/latest/index.html': '',
+                'en/latest/index.html': 'index-content',
+                'en/latest/sub/index.html': 'sub-index-content',
                 'en/0.3.1/index.html': 'index-content',
                 'en/0.3.1/sub/index.html': 'sub-index-content',
+                # and the originals
+                'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
+                'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
             })
 
     def test_updates_redirects(self):
