@@ -56,7 +56,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
             <br />
 			<a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json" class="button" target="_blank" align="middle">Launch Flocker CloudFormation</a>
             <br />
-			This button will open CloudFormation in a new tab.</p>
+			This button will open CloudFormation in a new window.</p>
 		</div>
 		<div class="step-stages__step first">
 			<img src="../_images/11-cloudformation-stackname.png" alt="Specifying the stack name"/>
