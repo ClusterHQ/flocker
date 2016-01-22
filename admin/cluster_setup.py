@@ -9,8 +9,7 @@ import sys
 import yaml
 from pipes import quote as shell_quote
 
-from eliot import add_destination, FileDestination
-
+from eliot import FileDestination, add_destination, write_failure
 
 from twisted.internet.defer import inlineCallbacks
 from twisted.python.usage import UsageError
@@ -24,8 +23,6 @@ from .acceptance import (
     eliot_output,
     get_trial_environment,
 )
-
-from flocker.common import gather_deferreds
 
 
 class RunOptions(CommonOptions):
@@ -184,7 +181,6 @@ def main(reactor, args, base_path, top_level):
     reactor.addSystemEventTrigger(
         'before', 'shutdown', log_writer.stopService)
 
-    results = []
     yield runner.ensure_keys(reactor)
     cluster = yield runner.start_cluster(reactor)
 
@@ -197,21 +193,13 @@ def main(reactor, args, base_path, top_level):
     if options['distribution'] in ('centos-7',):
         remote_logs_file = open("remote_logs.log", "a")
         for node in cluster.all_nodes:
-            results.append(capture_journal(reactor,
-                                           node.address,
-                                           remote_logs_file)
-                           )
+            capture_journal(reactor, node.address,
+                            remote_logs_file).addErrback(write_failure)
     elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.10'):
         remote_logs_file = open("remote_logs.log", "a")
         for node in cluster.all_nodes:
-            results.append(capture_upstart(reactor,
-                                           node.address,
-                                           remote_logs_file)
-                           )
-    # gather_deferreds() below does more than just creating a DeferredList.
-    # So, while we are not using its result in any way, it is still useful
-    # because it logs any failures coming from the gathered deferreds.
-    gather_deferreds(results)
+            capture_upstart(reactor, node.address,
+                            remote_logs_file).addErrback(write_failure)
 
     if options['no-keep']:
         print("not keeping cluster")
