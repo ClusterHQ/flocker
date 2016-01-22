@@ -207,7 +207,7 @@ def main(reactor, args, base_path, top_level):
                             remote_logs_file).addErrback(write_failure)
 
     flocker_client = _make_client(reactor, cluster)
-    yield _wait_for_nodes(flocker_client, len(cluster.agent_nodes))
+    yield _wait_for_nodes(reactor, flocker_client, len(cluster.agent_nodes))
 
     if options['no-keep']:
         print("not keeping cluster")
@@ -254,10 +254,11 @@ def _make_client(reactor, cluster):
                          cluster_cert, user_cert, user_key)
 
 
-def _wait_for_nodes(client, count):
+def _wait_for_nodes(reactor, client, count):
     """
     Wait until nodes join the cluster.
 
+    :param reactor: The reactor.
     :param flocker.apiclient.FlockerClient client: The client connected to
         the cluster (its control node).
     :param int count: The expected number of nodes in the cluster.
@@ -276,4 +277,4 @@ def _wait_for_nodes(client, count):
         d.addCallback(check_node_count)
         return d
 
-    return loop_until(client._reactor, got_all_nodes, repeat(1, 120))
+    return loop_until(reactor, got_all_nodes, repeat(1, 120))
