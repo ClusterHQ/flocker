@@ -266,7 +266,7 @@ def _wait_for_nodes(client, count):
     """
     def got_all_nodes():
         d = client.list_nodes()
-        d.addErrback(write_failure, logger=None)
+        d.addErrback(write_failure)
 
         def check_node_count(nodes):
             print("Waiting for nodes, "
