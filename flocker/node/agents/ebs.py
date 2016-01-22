@@ -274,6 +274,12 @@ class VolumeStateTable(PClass):
 VOLUME_STATE_TABLE = VolumeStateTable()
 
 
+class NoAvailableDeviceName(Exception):
+    """
+    No local device names are availble for attachment of an EBS volume.
+    """
+
+
 class AttachFailed(Exception):
     """
     AWS EBS refused to allow a volume to be attached to an instance.
@@ -1212,11 +1218,17 @@ class EBSBlockDeviceAPI(object):
         :raises AlreadyAttachedVolume: If the input volume is already attached
             to a device.
         :raises AttachFailed: If the volume could not be attached.
+        :raises NoAvailableDeviceName: If no local device name is available.
         :raises AttachedUnexpectedDevice: If the attach operation fails to
             associate the volume with the expected OS device file.  This
             indicates use on an unsupported OS, a misunderstanding of the EBS
             device assignment rules, or some other bug in this implementation.
         """
+        if not self._next_device():
+            # Perform this check early to avoid interrogating AWS needlessly
+            # under circumstance where we cannot converge.
+            raise NoAvailableDeviceName(blockdevice_id, attach_to)
+
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
         if (volume.attached_to is not None or
@@ -1236,7 +1248,7 @@ class EBSBlockDeviceAPI(object):
                     # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
                     # (https://clusterhq.atlassian.net/browse/FLOC-1887).
                     # No point in attempting an ``attach_volume``, return.
-                    return
+                    raise NoAvailableDeviceName(blockdevice_id, attach_to)
                 blockdevices = _get_blockdevices()
                 attached = _attach_volume_and_wait_for_device(
                     volume, attach_to,
