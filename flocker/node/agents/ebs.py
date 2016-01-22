@@ -721,7 +721,7 @@ def _wait_for_volume_state_change(operation,
         lambda: _reached_end_state(
             operation, volume, update, time.time() - start_time, timeout
         ),
-        exponential_backoff(1, 120, 1.2)
+        exponential_backoff(2, 120, 2)
     )
 
 
