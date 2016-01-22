@@ -20,7 +20,7 @@ To install Flocker, first choose which Cluster Manager you are using, or intend 
 	<div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
 			<img src="_images/docker2x.png" alt="Docker logo"/>
-			<span>Docker Swarm, with Docker Compose<em>Fastest</em></span>
+			<span>Docker Swarm, with Docker Compose<em>Try it Now</em></span>
 	        <a href="docker-integration/" class="button button--fast">Install</a>
 	    </div>
 
