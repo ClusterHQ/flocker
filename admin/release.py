@@ -48,7 +48,6 @@ from flocker.provision._install import ARCHIVE_BUCKET
 
 from .aws import (
     boto_dispatcher,
-    UpdateS3RoutingRule,
     UpdateS3ErrorPage,
     ListS3Keys,
     DeleteS3Keys,
@@ -147,12 +146,12 @@ DOCUMENTATION_CONFIGURATIONS = {
         DocumentationConfiguration(
             documentation_bucket="clusterhq-docs",
             cloudfront_cname="docs.clusterhq.com",
-            dev_bucket="clusterhq-dev-docs"),
+            dev_bucket="clusterhq-staging-docs"),
     Environments.STAGING:
         DocumentationConfiguration(
             documentation_bucket="clusterhq-staging-docs",
             cloudfront_cname="docs.staging.clusterhq.com",
-            dev_bucket="clusterhq-dev-docs"),
+            dev_bucket="clusterhq-staging-docs"),
 }
 
 
@@ -186,7 +185,7 @@ def publish_docs(flocker_version, doc_version, environment):
             raise NotTagged()
     configuration = DOCUMENTATION_CONFIGURATIONS[environment]
 
-    dev_prefix = '%s/' % (flocker_version,)
+    dev_prefix = 'release/flocker-%s/' % (flocker_version,)
     version_prefix = 'en/%s/' % (get_doc_version(doc_version),)
 
     is_dev = not is_release(doc_version)
@@ -199,18 +198,33 @@ def publish_docs(flocker_version, doc_version, environment):
     new_version_keys = yield Effect(
         ListS3Keys(bucket=configuration.dev_bucket,
                    prefix=dev_prefix))
+
     # Get the list of keys already existing for the given version.
     # This should only be non-empty for documentation releases.
     existing_version_keys = yield Effect(
         ListS3Keys(bucket=configuration.documentation_bucket,
                    prefix=version_prefix))
 
-    # Copy the new documentation to the documentation bucket.
+    existing_latest_keys = yield Effect(
+        ListS3Keys(bucket=configuration.documentation_bucket,
+                   prefix=stable_prefix))
+
+    # Copy the new documentation to the documentation bucket at the
+    # versioned prefix, i.e. en/x.y.z
     yield Effect(
         CopyS3Keys(source_bucket=configuration.dev_bucket,
                    source_prefix=dev_prefix,
                    destination_bucket=configuration.documentation_bucket,
                    destination_prefix=version_prefix,
+                   keys=new_version_keys))
+
+    # Copy the new documentation to the documentation bucket at the
+    # stable prefix, e.g. en/latest
+    yield Effect(
+        CopyS3Keys(source_bucket=configuration.dev_bucket,
+                   source_prefix=dev_prefix,
+                   destination_bucket=configuration.documentation_bucket,
+                   destination_prefix=stable_prefix,
                    keys=new_version_keys))
 
     # Delete any keys that aren't in the new documentation.
@@ -219,34 +233,24 @@ def publish_docs(flocker_version, doc_version, environment):
                      prefix=version_prefix,
                      keys=existing_version_keys - new_version_keys))
 
+    yield Effect(
+        DeleteS3Keys(bucket=configuration.documentation_bucket,
+                     prefix=stable_prefix,
+                     keys=existing_latest_keys - new_version_keys))
+
     # Update the key used for error pages if we're publishing to staging or if
     # we're publishing a marketing release to production.
-    if ((environment is Environments.STAGING) or
-        (environment is Environments.PRODUCTION and not is_dev)):
+    if (
+        (environment is Environments.STAGING) or
+        (environment is Environments.PRODUCTION and not is_dev)
+    ):
         yield Effect(
             UpdateS3ErrorPage(bucket=configuration.documentation_bucket,
                               target_prefix=version_prefix))
 
-    # Update the redirect for the stable URL (en/latest/ or en/devel/)
-    # to point to the new version. Returns the old target.
-    old_prefix = yield Effect(
-        UpdateS3RoutingRule(bucket=configuration.documentation_bucket,
-                            prefix=stable_prefix,
-                            target_prefix=version_prefix))
-
-    # If we have changed versions, get all the keys from the old version
-    if old_prefix:
-        previous_version_keys = yield Effect(
-            ListS3Keys(bucket=configuration.documentation_bucket,
-                       prefix=old_prefix))
-    else:
-        previous_version_keys = set()
-
     # The changed keys are the new keys, the keys that were deleted from this
     # version, and the keys for the previous version.
-    changed_keys = (new_version_keys |
-                    existing_version_keys |
-                    previous_version_keys)
+    changed_keys = (new_version_keys | existing_version_keys)
 
     # S3 serves /index.html when given /, so any changed /index.html means
     # that / changed as well.

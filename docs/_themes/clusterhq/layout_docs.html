@@ -249,6 +249,10 @@
     <script>
         // Do an AJAX request to check latest version
         var request = $.ajax({url: "https://docs.clusterhq.com/en/latest/version.html"});
+        var canonicalLocation = window.location.pathname.split('/').slice(3).join('/')
+        var canonicalLink = document.createElement('link');
+        canonicalLink.rel = "canonical";
+        canonicalLink.href = 'https://docs.clusterhq.com/en/' + DOCUMENTATION_OPTIONS.VERSION + '/' + canonicalLocation
 
         request.done(function( msg ) {
             // Trim HTML from returned contents
@@ -259,9 +263,17 @@
                 $('.section:first').prepend('<div class="admonition note warning"> \
                     <p class="last"> \
                         You are currently viewing a different version of the documentation to the latest release of Flocker. \
-                        The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '.</p> \
+                        The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '. \
+                        <a href="https://docs.clusterhq.com/en/latest/">View the latest documentation.</a></p> \
                     </div>');
             }
+            else {
+                canonicalLink.href = "https://docs.clusterhq.com/en/latest/" + canonicalLocation;
+            }
+            document.head.appendChild(canonicalLink);
+        });
+        request.fail(function() {
+            document.head.appendChild(canonicalLink);
         });
     </script>
 

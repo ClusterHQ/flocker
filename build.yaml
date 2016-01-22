@@ -368,6 +368,16 @@ common_cli:
     cd docs
     # check spelling
     ${venv}/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
+    # build html pages
+    ${venv}/bin/sphinx-build -d _build/doctree -b html . _build/html
+
+  # Link checking relies on external services, and is
+  # fairly flaky. Split it out and run it nighty
+  run_sphinx_link_check: &run_sphinx_link_check |
+    ${venv}/bin/python setup.py --version
+    cd docs
+    # check spelling
+    ${venv}/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
     # check links
     ${venv}/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
     # build html pages
@@ -428,7 +438,7 @@ common_cli:
     # Consume the MODULE parameter set in the job configuration
     sudo -E ${venv}/bin/coverage run ${venv}/bin/trial \
       --debug-stacktraces --reporter=subunit \
-      --testmodule ${MODULE} 2>&1 | tee trial.log
+      ${MODULE} 2>&1 | tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
@@ -1534,6 +1544,20 @@ job_type:
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
+
+    run_sphinx_link_check:
+      at: '0 8 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *install_aws_cli, *run_sphinx_link_check,
+                   *get_s3_creds_for_bucket_staging_docs,
+                   *upload_new_docs_html_to_s3_staging_docs,
+                   *sync_master_docs_to_doc_dev ]
+          }
+      timeout: 10
 
 #-----------------------------------------------------------------------------#
 # View definitions below this point
