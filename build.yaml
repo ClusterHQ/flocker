@@ -1457,7 +1457,7 @@ job_type:
 
     run_acceptance_on_AWS_CentOS_7_with_EBS:
       at: '0 5 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
@@ -1483,7 +1483,7 @@ job_type:
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,

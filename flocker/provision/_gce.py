@@ -21,29 +21,27 @@ provisioner, and unwinding the encoded description is:
 
 import json
 
+from eliot import start_action
 from pyrsistent import PClass, field
+from textwrap import dedent
 from twisted.conch.ssh.keys import Key
 from zope.interface import implementer
 from googleapiclient import discovery
 from oauth2client.client import (
     GoogleCredentials, SignedJwtAssertionCredentials
 )
-from eliot import start_action
 
 from ..node.agents.gce import wait_for_operation
 
 from ._common import IProvisioner, INode
 from ._install import provision_for_any_user
-
+from ._effect import sequence
+from ._ssh import sudo_from_args, run_remotely
 
 # Defaults for some of the instance construction parameters.
 _GCE_DISK_SIZE_GIB = 10
 _GCE_INSTANCE_TYPE = u"n1-standard-1"
-
-# Various parts of flocker assume they can log onto the nodes as root (such as
-# benchmarking). Let's just set these up immediately so that we can log on as
-# root.
-_GCE_ACCEPTANCE_USERNAME = u"root"
+_GCE_ACCEPTANCE_USERNAME = u"flocker-acceptance"
 
 # The network used must have firewall rules such that the node running
 # run_acceptance_test can access the flocker client API and docker running on
@@ -153,9 +151,28 @@ _GCE_DISTRIBUTION_TO_IMAGE_MAP = {
 }
 
 
+class _LoginCredentials(PClass):
+    """
+    Helper utility to describe a username, public key for GCE to install on a
+    VM.
+
+    GCE images have a daemon running in them that read a specific metadata key,
+    create users, and install authorized keys for those users. The format is a
+    little funny though, so the internal API takes an iterable of these objects
+    instead.
+
+    :ivar unicode username: The username of the user to create.
+    :ivar unicode public_key: The public key to install in that user's
+        authorized_keys.
+    """
+    username = field(type=unicode)
+    public_key = field(type=unicode)
+
+
 def _create_gce_instance_config(instance_name, project, zone, machine_type,
-                                image, username, public_key, disk_size,
-                                description, tags, delete_disk_on_terminate):
+                                image, login_credentials, disk_size,
+                                description, tags, delete_disk_on_terminate,
+                                startup_script=None):
     """
     Create a configuration blob to configure a GCE instance.
 
@@ -166,14 +183,15 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
     :param unicode machine_type: The name of the machine type, e.g.
         'n1-standard-1'.
     :param unicode image: The name of the image to base the disk off of.
-    :param unicode username: The username of user to create on the vm.
-    :param unicode public_key: The public ssh key to put on the image for the
-        given username.
+    :param login_credentials: An iterable of :class:`_LoginCredentials` to be
+        installed on the image.
     :param int disk_size: The size of the disk to create, in GiB.
     :param unicode description: The description to set on the instance.
     :param set tags: A set of unicode tags to apply to the image.
     :param bool delete_disk_on_terminate: Whether to delete the disk when the
         instance terminates or not.
+    :param unicode startup_script: An optional startup script to run using the
+        GCE startup script runner.
 
     :return: A dictionary that can be consumed by the `googleapiclient` to
         insert an instance.
@@ -217,7 +235,10 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
             u"items": [
                 {
                     u"key": u"sshKeys",
-                    u"value": u"{}:{}".format(username, public_key)
+                    u"value": u"\n".join(list(
+                        u"{}:{}".format(x.username, x.public_key)
+                        for x in login_credentials
+                    ))
                 }
             ]
         },
@@ -231,7 +252,7 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
                     # service account
                     u"https://www.googleapis.com/auth/compute",
                 ]
-            }
+            },
         ],
         u"tags": {
             u"items": list(
@@ -239,6 +260,14 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
             )
         }
     }
+
+    if startup_script:
+        gce_slave_instance_config[u"metadata"][u"items"].append(
+            {
+                u"key": u"startup-script",
+                u"value": startup_script
+            }
+        )
     return gce_slave_instance_config
 
 
@@ -270,7 +299,33 @@ class GCENode(PClass):
         return bytes(_GCE_ACCEPTANCE_USERNAME)
 
     def provision(self, package_source, variants):
-        return provision_for_any_user(self, package_source, variants)
+        commands = []
+        sed_str = (
+            r"s/^\(PermitRootLogin *no\)/"
+            r"\n"
+            r"# Commented out by flocker provisioner:\n"
+            r"#\1\n"
+            r"/"
+        )
+
+        # On GCE, the centos image is configured to not allow root to ssh on.
+        # Enable the configuration and restart the daemon on that system.
+        if self.distribution.startswith("centos"):
+            username = self.get_default_username()
+            enable_root_ssh = sequence([
+                sudo_from_args(
+                    ['sed', sed_str, '-i.backup', '/etc/ssh/sshd_config']
+                ),
+                sudo_from_args(['systemctl', 'restart', 'sshd']),
+            ])
+            commands.append(run_remotely(
+                username=username,
+                address=self.address,
+                commands=enable_root_ssh,
+            ))
+
+        commands.append(provision_for_any_user(self, package_source, variants))
+        return sequence(commands)
 
     def destroy(self):
         with start_action(
@@ -327,6 +382,7 @@ class GCEProvisioner(PClass):
 
     def create_node(self, name, distribution, metadata={}):
         instance_name = _clean_to_gce_name(name)
+        ssh_key = unicode(self.ssh_public_key.toString('OPENSSH'))
         config = _create_gce_instance_config(
           instance_name=instance_name,
           project=self.project,
@@ -335,8 +391,19 @@ class GCEProvisioner(PClass):
           image=_GCE_DISTRIBUTION_TO_IMAGE_MAP[distribution].get_active_image(
               self.compute
           )["selfLink"],
-          username=_GCE_ACCEPTANCE_USERNAME,
-          public_key=self.ssh_public_key.toString('OPENSSH'),
+          # The acceptance tests expect to be able to ssh in as root, but on
+          # CentOS that is by default turned off, so we must also enable sshing
+          # in as a different user to enable root ssh.
+          login_credentials=[
+              _LoginCredentials(
+                  username=_GCE_ACCEPTANCE_USERNAME,
+                  public_key=ssh_key
+              ),
+              _LoginCredentials(
+                  username=u"root",
+                  public_key=ssh_key
+              ),
+          ],
           disk_size=_GCE_DISK_SIZE_GIB,
           description=json.dumps({
               u"description-format": u"v1",
@@ -348,6 +415,10 @@ class GCEProvisioner(PClass):
                     u"json-description",
                     _GCE_FIREWALL_TAG]),
           delete_disk_on_terminate=True,
+          startup_script=dedent("""\
+              #!/bin/sh
+              sed -i '/Defaults *requiretty/d' /etc/sudoers
+              """),
         )
 
         operation = self.compute.instances().insert(
