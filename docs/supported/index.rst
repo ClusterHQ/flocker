@@ -28,7 +28,7 @@ Supported Cluster Managers
 	</div>
 	
 	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
-		<span><img src="/_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp; You can install Flocker without a specific cluster manager, click here to learn more:</span>
+		<span><img src="/_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp; You can install Flocker without a specific Cluster Manager, click here to learn more:</span>
         <a href="/flocker-standalone/" class="button">Learn more</a>
     </div>
 
