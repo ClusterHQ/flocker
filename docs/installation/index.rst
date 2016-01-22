@@ -52,7 +52,7 @@ To get the full Flocker functionality, the following installation steps will tak
 
 .. XXX this introduction could be improved with an image. See FLOC-2077
 
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
+.. note:: If you're interested in developing Flocker (as opposed to simply using it), see :ref:`contribute`.
 
 .. end-body-full-installation
 

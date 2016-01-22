@@ -20,7 +20,7 @@ Before you begin to install the Flocker node services, you will need the followi
 * A minimum of 2 nodes:
   
   * We support installing the Flocker node services on either CentOS 7 or Ubuntu 14.04.
-  * If you do not have any nodes, our guides can be used to help you set up nodes, using either Amazon Web Services or Rackspace.
+  * If you do not have any nodes, our guides listed below can be used to help you set up nodes, using either Amazon Web Services or Rackspace.
   * To avoid potential disk space problems (for example, when storing popular Docker images), we recommend a minimum of 16 GB storage on each node.
 
 * You will need permission for SSH access from your laptop.

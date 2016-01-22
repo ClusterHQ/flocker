@@ -39,12 +39,12 @@ Supported Infrastructure & Storage
 
 The sections below list the supported infrastructure and storage options.
 
-**Community Developed** drivers are those provided and supported by our community partners.
+**Community Supported** are provided and supported by our community partners.
 Other options that are still be worked on by ClusterHQ are tagged with **Experimental** or **Coming Soon**:
 
 .. raw:: html
 
-    <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community Developed"> = Community Developed
+    <img src="/_images/3rd-party.png" style="height:25px; margin:2px; border:1px solid #ddd;" title="Community Supported"> = Community Supported
     <img src="/_images/experimental.png" style="height:25px; padding:2px 4px; margin-left:20px; border:1px solid #ddd;" title="Experimental (labs project)"> = Experimental
     <img src="/_images/coming-soon.png" style="height:25px; margin:2px; margin-left:20px; border:1px solid #ddd;" title="Coming Soon"> = Coming Soon
     <div style="clear:both; margin-top:20px;"></div>
