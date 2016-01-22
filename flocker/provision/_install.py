@@ -315,7 +315,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
-    :param base_url: URL of repository, or ``None`` if we're not using
+    :param bytes base_url: URL of repository, or ``None`` if we're not using
         development branch.
 
     :return: a sequence of commands to run on the distribution

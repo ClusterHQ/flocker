@@ -142,11 +142,11 @@ class _DistributionImageParams(PClass):
 
 # Parameters to find the active image for a given distribution.
 _GCE_DISTRIBUTION_TO_IMAGE_MAP = {
-    u"centos-7": _DistributionImageParams(
+    "centos-7": _DistributionImageParams(
         project=u"centos-cloud",
         image_name_prefix=u"centos-7",
     ),
-    u"ubuntu-14.04": _DistributionImageParams(
+    "ubuntu-14.04": _DistributionImageParams(
         project=u"ubuntu-os-cloud",
         image_name_prefix=u"ubuntu-1404",
     )
@@ -250,7 +250,7 @@ class GCENode(PClass):
     :ivar unicode address: The public IP address of the instance.
     :ivar unicode private_address: The network internal IP address of the
         instance.
-    :ivar unicode distribution: The OS distribution of the instance.
+    :ivar bytes distribution: The OS distribution of the instance.
     :ivar unicode project: The project the instance a member of.
     :ivar unicode zone: The zone the instance is in.
     :ivar unicode name: The GCE name of the instance used to identify the
@@ -260,7 +260,7 @@ class GCENode(PClass):
     """
     address = field(type=bytes)
     private_address = field(type=bytes)
-    distribution = field(type=unicode)
+    distribution = field(type=bytes)
     project = field(type=unicode)
     zone = field(type=unicode)
     name = field(type=unicode)
@@ -372,7 +372,7 @@ class GCEProvisioner(PClass):
         return GCENode(
             address=bytes(network_interface["accessConfigs"][0]["natIP"]),
             private_address=bytes(network_interface["networkIP"]),
-            distribution=unicode(distribution),
+            distribution=bytes(distribution),
             project=self.project,
             zone=self.zone,
             name=instance_name,
