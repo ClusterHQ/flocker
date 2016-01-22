@@ -428,7 +428,7 @@ common_cli:
     # Consume the MODULE parameter set in the job configuration
     sudo -E ${venv}/bin/coverage run ${venv}/bin/trial \
       --debug-stacktraces --reporter=subunit \
-      --testmodule ${MODULE} 2>&1 | tee trial.log
+      ${MODULE} 2>&1 | tee trial.log
 
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
