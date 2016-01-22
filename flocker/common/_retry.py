@@ -331,6 +331,22 @@ def retry_if(predicate):
     return should_retry
 
 
+def exponential_backoff(initial, maximum, multiplier):
+    """
+    Generate values with exponential backoff.
+
+    :param initial: Initial value in generated sequence.
+    :param maximum: Maximum value in generated sequence.  Once this is
+        reached, subsequent values in the sequence will have this value.
+    :param multiplier: Value by which to multiply current value in
+        sequence to obtain next value in sequence.
+    """
+    delay = initial
+    while True:
+        yield delay
+        delay = min(delay * multiplier, maximum)
+
+
 # TODO Move this helper to somewhere else in flocker.common.  It's not
 # particular to any retry logic.
 def decorate_methods(obj, decorator):

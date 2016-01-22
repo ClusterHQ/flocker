@@ -20,7 +20,7 @@ from ._net import get_all_ips, ipaddress_from_string
 from ._retry import (
     loop_until, timeout, poll_until, retry_failure, retry_effect_with_timeout,
     get_default_retry_steps,
-    retry_if, decorate_methods, with_retry,
+    retry_if, exponential_backoff, decorate_methods, with_retry,
 )
 
 __all__ = [
@@ -32,6 +32,7 @@ __all__ = [
 
     'decorate_methods',
     'get_default_retry_steps', 'retry_if', 'with_retry',
+    'exponential_backoff',
 
     'RACKSPACE_MINIMUM_VOLUME_SIZE',
     'DEVICEMAPPER_LOOPBACK_SIZE',

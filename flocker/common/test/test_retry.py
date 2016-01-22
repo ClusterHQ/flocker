@@ -5,7 +5,7 @@ Tests for ``flocker.common._retry``.
 """
 
 from datetime import timedelta
-from itertools import repeat, count
+from itertools import repeat, count, takewhile
 from functools import partial
 
 from testtools.matchers import (
@@ -42,6 +42,7 @@ from .. import (
     get_default_retry_steps,
     decorate_methods,
     with_retry,
+    exponential_backoff,
 )
 from .._retry import (
     LOOP_UNTIL_ACTION,
@@ -947,3 +948,48 @@ class WithRetryTests(TestCase):
 
         self.expectThat(wrapped, raises(CustomException))
         self.expectThat(next(counter), Equals(11))
+
+
+class ExponentialBackoffTests(TestCase):
+    """
+    Tests for ``exponential_backoff``.
+    """
+
+    def setUp(self):
+        super(ExponentialBackoffTests, self).setUp()
+        self.initial = 3
+        self.maximum = 15
+        self.multipler = 2
+        self.sequence = exponential_backoff(
+            self.initial, self.maximum, self.multipler
+        )
+
+    def test_first_value(self):
+        """
+        The first value yielded is ``initial``.
+        """
+        self.assertEqual(next(self.sequence), self.initial)
+
+    def test_max_value(self):
+        """
+        The maximum value yielded is ``maximum``.
+        """
+        values = []
+        for i in range(10):
+            values.append(next(self.sequence))
+        self.assertEqual(max(values), self.maximum)
+
+    def test_subsequent_value(self):
+        """
+        A subsequent value is the previous value multiplied by ``multiplier``,
+        until the maximum value is reached.
+        """
+        seq = takewhile((lambda x: x < self.maximum), self.sequence)
+        prev = next(seq)
+        checked = 0
+        for curr in seq:
+            self.assertEqual(curr, prev * self.multipler)
+            prev = curr
+            checked += 1
+        # Check that the loop ran at least once
+        self.assertGreater(checked, 0)
