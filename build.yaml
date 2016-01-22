@@ -405,6 +405,13 @@ common_cli:
     - remote_logs.log
     - _trial_temp/test.log
 
+  run_trial_directories_to_delete: &run_trial_directories_to_delete
+    - ${WORKSPACE}/_trial_temp
+    - ${WORKSPACE}/.hypothesis
+
+  run_acceptance_directories_to_delete: &run_acceptance_directories_to_delete
+    - ${WORKSPACE}/repo
+
   run_trial_with_coverage: &run_trial_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
     # type. These type of jobs always require a parameter to be passed on in
@@ -1002,7 +1009,6 @@ run_trial_modules: &run_trial_modules
   - flocker.docs
   - flocker.dockerplugin
   - flocker.node.test
-  - flocker.node.functional.test_docker
   - flocker.node.functional.test_script
   - flocker.node.functional.test_deploy
   - flocker.provision
@@ -1071,10 +1077,8 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      # This is larger than we like because of node.functional.test_docker
-      # being quite slow to run. If that is no longer the case then
-      # please reduce this.
-      timeout: 45
+      timeout: 30
+      directories_to_delete: *run_trial_directories_to_delete
 
     run_trial_on_AWS_CentOS_7_as_root:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
@@ -1086,6 +1090,7 @@ job_type:
       coverage_report: true
       clean_repo: true
       timeout: 30
+      directories_to_delete: *run_trial_directories_to_delete
 
     # http://build.clusterhq.com/builders/flocker-admin
     # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
@@ -1098,10 +1103,8 @@ job_type:
       publish_test_results: true
       coverage_report: true
       clean_repo: true
-      # This is larger than we like because of node.functional.test_docker
-      # being quite slow to run. If that is no longer the case then
-      # please reduce this.
-      timeout: 45
+      timeout: 30
+      directories_to_delete: *run_trial_directories_to_delete
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
@@ -1113,7 +1116,38 @@ job_type:
       coverage_report: true
       clean_repo: true
       timeout: 30
+      directories_to_delete: *run_trial_directories_to_delete
 
+    run_trial_on_AWS_CentOS_7_flocker.node.functional.test_docker:
+      # FLOC-3903: docker on centos use loop-devmapper
+      # by default. That makes it much slower than Ubuntu
+      # with aufs. It leads to timeouts, but seems to do
+      # a bit better on the medium instance
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      module: flocker.node.functional.test_docker
+      with_steps:
+        - { type: 'shell', cli: *run_trial_cli }
+      archive_artifacts: *flocker_artifacts
+      publish_test_results: true
+      coverage_report: true
+      clean_repo: true
+      # Increase the timeout due to FLOC-3903
+      timeout: 45
+      directories_to_delete: *run_trial_directories_to_delete
+
+    # Split out just to do the CentOS version above,
+    # for the reasons outlined in that section
+    run_trial_on_AWS_Ubuntu_Trusty_flocker.node.functional.test_docker:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      module: flocker.node.functional.test_docker
+      with_steps:
+        - { type: 'shell', cli: *run_trial_cli }
+      archive_artifacts: *flocker_artifacts
+      publish_test_results: true
+      coverage_report: true
+      clean_repo: true
+      timeout: 30
+      directories_to_delete: *run_trial_directories_to_delete
 
   run_trial_for_storage_driver:
     run_trial_for_ebs_storage_driver_on_CentOS_7:
@@ -1132,6 +1166,7 @@ job_type:
       coverage_report: true
       clean_repo: true
       timeout: 45
+      directories_to_delete: *run_trial_directories_to_delete
 
     run_trial_for_ebs_storage_driver_on_Ubuntu_trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
@@ -1150,6 +1185,7 @@ job_type:
       coverage_report: true
       clean_repo: true
       timeout: 45
+      directories_to_delete: *run_trial_directories_to_delete
 
 
     run_trial_for_cinder_storage_driver_on_CentOS_7:
@@ -1172,6 +1208,7 @@ job_type:
       # the cloud-supplied Cinder which can be a bit sluggish even in the best
       # of times.
       timeout: 90
+      directories_to_delete: *run_trial_directories_to_delete
 
     run_trial_for_cinder_storage_driver_on_Ubuntu_trusty:
       on_nodes_with_labels: 'rackspace-jenkins-slave-ubuntu14-standard-4-dfw'
@@ -1192,6 +1229,7 @@ job_type:
       # Reasoning for run_trial_for_cinder_storage_driver_on_CentOS_7's timeout
       # applies here as well.
       timeout: 90
+      directories_to_delete: *run_trial_directories_to_delete
 
 
   # http://build.clusterhq.com/builders/flocker-docs
@@ -1208,6 +1246,7 @@ job_type:
                    *sync_master_docs_to_doc_dev ]
           }
       timeout: 10
+      directories_to_delete: []
 
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
@@ -1232,6 +1271,7 @@ job_type:
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
       timeout: 45
+      directories_to_delete: *run_acceptance_directories_to_delete
 
     run_acceptance_loopback_on_AWS_Ubuntu_Trusty_for:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
@@ -1253,6 +1293,7 @@ job_type:
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
       timeout: 45
+      directories_to_delete: *run_acceptance_directories_to_delete
 
 
   run_client:
@@ -1272,6 +1313,8 @@ job_type:
           }
       clean_repo: true
       timeout: 30
+      directories_to_delete: *run_acceptance_directories_to_delete
+
     run_client_installation_on_Ubuntu_Wily:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
@@ -1288,6 +1331,7 @@ job_type:
           }
       clean_repo: true
       timeout: 30
+      directories_to_delete: *run_acceptance_directories_to_delete
 
 
   run_lint:
@@ -1300,6 +1344,7 @@ job_type:
                    *install_flake8, *run_lint ]
           }
       timeout: 10
+      directories_to_delete: []
 
 
   cronly_jobs:
@@ -1315,6 +1360,8 @@ job_type:
                    *push_image_to_dockerhub ]
           }
       timeout: 30
+      directories_to_delete: []
+
     run_docker_build_ubuntu_trusty_fpm:
       at: '0 1 * * *'
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
@@ -1327,6 +1374,8 @@ job_type:
                    *push_image_to_dockerhub ]
           }
       timeout: 30
+      directories_to_delete: []
+
     run_docker_build_ubuntu_wily_fpm:
       at: '0 3 * * *'
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
@@ -1339,6 +1388,8 @@ job_type:
                    *push_image_to_dockerhub ]
           }
       timeout: 30
+      directories_to_delete: []
+
     build_vagrant_basebox_for_flocker_tutorial:
       at: '0 4 * * *'
       on_nodes_with_labels: 'mesos-2GB'
@@ -1362,6 +1413,8 @@ job_type:
                 ]
           }
       timeout: 60
+      directories_to_delete: []
+
     build_vagrant_basebox_for_osx_yosemite:
       at: '0 5 * * *'
       on_nodes_with_labels: 'mesos-2GB'
@@ -1407,6 +1460,8 @@ job_type:
             ]
           }
       timeout: 120
+      directories_to_delete: []
+
     run_client_installation_on_OSX:
       at: '30 7 * * *'
       on_nodes_with_labels: 'mesos-4GB'
@@ -1473,6 +1528,7 @@ job_type:
       # at what a reasonable upper-bound for the runtime of the suite might be
       # as of Dec 2015.
       timeout: 120
+      directories_to_delete: []
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
@@ -1496,6 +1552,7 @@ job_type:
       # Similar to the reasoning for run_acceptance_on_AWS_CentOS_7_with_EBS
       # but slightly shorter since Ubuntu runs the tests faster.
       timeout: 90
+      directories_to_delete: []
 
     run_acceptance_on_Rackspace_CentOS_7_with_Cinder:
       at: '0 5 * * *'
@@ -1520,6 +1577,7 @@ job_type:
       archive_artifacts: *acceptance_tests_artifacts
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
+      directories_to_delete: []
 
     run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
@@ -1544,6 +1602,7 @@ job_type:
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
+      directories_to_delete: []
 
     run_sphinx_link_check:
       at: '0 8 * * *'

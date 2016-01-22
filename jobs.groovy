@@ -225,8 +225,7 @@ def make_view(path, description, make_jobs) {
    param v:  dictionary containing the values from the job
    param list directories_to_delete: directory to clean up
 */
-def build_wrappers(v, directories_to_delete) {
-    directories_to_delete = directories_to_delete.join(" ")
+def build_wrappers(v) {
     return {
         //    adds timestamps to the job log output
         timestamps()
@@ -254,6 +253,7 @@ def build_wrappers(v, directories_to_delete) {
         if (v.clean_repo) {
             preScmSteps {
                 steps {
+                    directories_to_delete = v.directories_to_delete.join(" ")
                     shell("sudo rm -rf ${directories_to_delete}")
                 }
             }
@@ -473,7 +473,13 @@ def list_jobs(dashProject, dashBranchName) {
                                  module: module, values: job_values,
                                  full_name: full_name])
                 }
-            } else {
+            } else if (job_values.module) {
+                full_name = full_job_name(
+                    dashProject, dashBranchName, job_name)
+                results.add([type: job_type, name: job_name,
+                             module: job_values.module, values: job_values,
+                             full_name: full_name])
+            }else {
                 full_name = full_job_name(
                     dashProject, dashBranchName, job_name)
                 results.add([type: job_type, name: job_name, module: null,
@@ -544,93 +550,29 @@ def build_tabs(dashBranchName) {
 def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
                full_name, job_values, module, isReleaseBuild) {
 
-    if (job_type in ['run_trial', 'run_trial_for_storage_driver', 'run_acceptance']) {
-        assert module != null
-        job(full_name) {
-            parameters {
-                // we pass the 'MODULE' parameter as the flocker module to test with trial
+    job(full_name) {
+        parameters {
+            // we pass the 'MODULE' parameter as the flocker module to test with trial
+            if (module != null) {
                 textParam("MODULE", module, "Module to test" )
-                textParam("TRIGGERED_BRANCH", branchName,
-                          "Branch that triggered this job" )
             }
-
-            // Allow some attempts to checkout the source to fail, since
-            // doing so depends on a third-party, network-accessible resource.
-            //
-            // Unfortunately, this *may* not actually work due to bugs in
-            // Jenkins or the Git SCM plugin:
-            //
-            //     https://issues.jenkins-ci.org/browse/JENKINS-14575
-            //
-            checkoutRetryCount(5)
-
-            // limit execution to jenkins slaves with a particular label
-            label(job_values.on_nodes_with_labels)
-            // _trial_temp and .hypothesis are for run_trial*
-            // and repo is for run_acceptance, but they are removed
-            // with rm -rf so we can get away with being overly broad
-            directories_to_delete = ['${WORKSPACE}/_trial_temp',
-                                     '${WORKSPACE}/.hypothesis',
-                                     '${WORKSPACE}/repo']
-            wrappers build_wrappers(job_values, directories_to_delete)
-            scm build_scm(git_url, branchName, isReleaseBuild)
-            steps build_steps(job_values)
-            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
+            textParam("TRIGGERED_BRANCH", branchName,
+                      "Branch that triggered this job" )
         }
-    } else if (job_type == 'run_sphinx') {
-        assert module == null
-        job(full_name) {
-            parameters {
-                textParam("TRIGGERED_BRANCH", branchName,
-                          "Branch that triggered this job" )
-            }
-            // See above.
-            checkoutRetryCount(5)
-
-            // limit execution to jenkins slaves with a particular label
-            label(job_values.on_nodes_with_labels)
-            wrappers build_wrappers(job_values, [])
-            scm build_scm(git_url, branchName, isReleaseBuild)
-            steps build_steps(job_values)
-            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
-        }
-    } else if (job_type == 'run_client') {
-        assert module == null
-        job(full_name) {
-            parameters {
-                // the run_acceptance job produces a rpm/deb package which is
-                // made available to the node/docker instance running in the at
-                // a particular address on the jenkins slave (ex:
-                // http://jenkins_slave/$RECONFIGURE_BRANCH/repo)
-                textParam("TRIGGERED_BRANCH", branchName,
-                          "Branch that triggered this job" )
-            }
-            // See above.
-            checkoutRetryCount(5)
-
-            // limit execution to jenkins slaves with a particular label
-            label(job_values.on_nodes_with_labels)
-
-            directories_to_delete = ['${WORKSPACE}/repo']
-            wrappers build_wrappers(job_values, directories_to_delete)
-            scm build_scm(git_url, branchName, isReleaseBuild)
-            steps build_steps(job_values)
-            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
-        }
-    } else if (job_type in ['omnibus', 'run_lint']) {
-        assert module == null
-        job(full_name) {
-            // See above.
-            checkoutRetryCount(5)
-            // limit execution to jenkins slaves with a particular label
-            label(job_values.on_nodes_with_labels)
-            wrappers build_wrappers(job_values, [])
-            scm build_scm(git_url, branchName, isReleaseBuild)
-            steps build_steps(job_values)
-            publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
-        }
-    } else {
-        throw new Exception("Don't know how to handle ${job_type} jobs")
+        // Allow some attempts to checkout the source to fail, since
+        // doing so depends on a third-party, network-accessible resource.
+        //
+        // Unfortunately, this *may* not actually work due to bugs in
+        // Jenkins or the Git SCM plugin:
+        //
+        //     https://issues.jenkins-ci.org/browse/JENKINS-14575
+        //
+        checkoutRetryCount(5)
+        label(job_values.on_nodes_with_labels)
+        wrappers build_wrappers(job_values)
+        scm build_scm(git_url, branchName, isReleaseBuild)
+        steps build_steps(job_values)
+        publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
     }
 
 }
@@ -855,7 +797,7 @@ branches.each { branchName ->
             // See above.
             checkoutRetryCount(5)
             label(values.on_nodes_with_labels)
-            wrappers build_wrappers(values, [])
+            wrappers build_wrappers(values)
             triggers build_triggers('cron', values.at, branchName)
             scm build_scm("${git_url}", "${branchName}", false)
             steps build_steps(values)
