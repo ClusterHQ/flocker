@@ -45,6 +45,19 @@ _GCE_INSTANCE_TYPE = u"n1-standard-1"
 # root.
 _GCE_ACCEPTANCE_USERNAME = u"root"
 
+# The network used must have firewall rules such that the node running
+# run_acceptance_test can access the flocker client API and docker running on
+# the nodes as well as all incoming ports for some docker containers we spin
+# up. This requires rules for:
+#
+# TCP: 4523 (Flocker)
+# TCP: 2376 (Docker)
+# TCP: All-incoming (For connecting to docker containers we spin up)
+#
+# The "default" network in the clusterhq-acceptance project on GCE has this set
+# up for instances tagged flocker-acceptance.
+_GCE_FIREWALL_TAG = u"allow-incoming-traffic"
+
 
 def _clean_to_gce_name(identifier):
     """
@@ -189,15 +202,6 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
         ],
         u"networkInterfaces": [
             {
-                # The network used must have firewall rules such that the node
-                # running run_acceptance_test can access the flocker client API
-                # and docker running on the nodes. This requires rules for:
-                #
-                # TCP: 4523 (Flocker)
-                # TCP: 2376 (Docker)
-                #
-                # The "default" network in the clusterhq-acceptance project on
-                # GCE has this set up.
                 u"network": (
                     u"projects/{}/global/networks/default".format(project)
                 ),
@@ -340,8 +344,10 @@ class GCEProvisioner(PClass):
               u"name": name,
               u"metadata": metadata
           }),
-          tags=set([u"flocker-gce-provisioner", u"json-description"]),
-          delete_disk_on_terminate=True
+          tags=set([u"flocker-gce-provisioner",
+                    u"json-description",
+                    _GCE_FIREWALL_TAG]),
+          delete_disk_on_terminate=True,
         )
 
         operation = self.compute.instances().insert(
