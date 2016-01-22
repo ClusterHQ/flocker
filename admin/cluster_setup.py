@@ -9,8 +9,7 @@ import sys
 import yaml
 from pipes import quote as shell_quote
 
-from eliot import add_destination, FileDestination
-
+from eliot import FileDestination, add_destination, write_failure
 
 from twisted.internet.defer import inlineCallbacks
 from twisted.python.usage import UsageError
@@ -24,8 +23,6 @@ from .acceptance import (
     eliot_output,
     get_trial_environment,
 )
-
-from flocker.common import gather_deferreds
 
 
 class RunOptions(CommonOptions):
@@ -166,6 +163,13 @@ def main(reactor, args, base_path, top_level):
 
     runner = options.runner
 
+    def cluster_cleanup():
+        print("stopping cluster")
+        return runner.stop_cluster(reactor)
+
+    cleanup_trigger_id = reactor.addSystemEventTrigger('before', 'shutdown',
+                                                       cluster_cleanup)
+
     from flocker.common.script import eliot_logging_service
     log_writer = eliot_logging_service(
         destination=FileDestination(
@@ -177,66 +181,48 @@ def main(reactor, args, base_path, top_level):
     reactor.addSystemEventTrigger(
         'before', 'shutdown', log_writer.stopService)
 
-    cluster = None
-    results = []
-    try:
-        yield runner.ensure_keys(reactor)
-        cluster = yield runner.start_cluster(reactor)
+    yield runner.ensure_keys(reactor)
+    cluster = yield runner.start_cluster(reactor)
 
-        managed_config_file = options['cert-directory'].child("managed.yaml")
-        managed_config = create_managed_config(options['config'], cluster)
-        managed_config_file.setContent(
-            yaml.safe_dump(managed_config, default_flow_style=False)
-        )
+    managed_config_file = options['cert-directory'].child("managed.yaml")
+    managed_config = create_managed_config(options['config'], cluster)
+    managed_config_file.setContent(
+        yaml.safe_dump(managed_config, default_flow_style=False)
+    )
 
-        if options['distribution'] in ('centos-7',):
-            remote_logs_file = open("remote_logs.log", "a")
-            for node in cluster.all_nodes:
-                results.append(capture_journal(reactor,
-                                               node.address,
-                                               remote_logs_file)
-                               )
-        elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.10'):
-            remote_logs_file = open("remote_logs.log", "a")
-            for node in cluster.all_nodes:
-                results.append(capture_upstart(reactor,
-                                               node.address,
-                                               remote_logs_file)
-                               )
-        gather_deferreds(results)
+    if options['distribution'] in ('centos-7',):
+        remote_logs_file = open("remote_logs.log", "a")
+        for node in cluster.all_nodes:
+            capture_journal(reactor, node.address,
+                            remote_logs_file).addErrback(write_failure)
+    elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.10'):
+        remote_logs_file = open("remote_logs.log", "a")
+        for node in cluster.all_nodes:
+            capture_upstart(reactor, node.address,
+                            remote_logs_file).addErrback(write_failure)
 
-        result = 0
+    if options['no-keep']:
+        print("not keeping cluster")
+    else:
+        environment_variables = get_trial_environment(cluster)
+        environment_strings = list()
+        for environment_variable in environment_variables:
+            environment_strings.append(
+                "export {name}={value};\n".format(
+                    name=environment_variable,
+                    value=shell_quote(
+                        environment_variables[environment_variable]
+                    ),
+                )
+            )
+        environment = ''.join(environment_strings)
+        print("The following variables describe the cluster:")
+        print(environment)
+        env_file = options['cert-directory'].child("environment.env")
+        env_file.setContent(environment)
+        print("The variables are also saved in {}".format(
+            env_file.path
+        ))
+        print("Be sure to preserve the required files.")
 
-    except BaseException:
-        result = 1
-        raise
-    finally:
-        if options['no-keep'] or result == 1:
-            runner.stop_cluster(reactor)
-        else:
-            if cluster is None:
-                print("Didn't finish creating the cluster.")
-                runner.stop_cluster(reactor)
-            else:
-                environment_variables = get_trial_environment(cluster)
-                environment_strings = list()
-                for environment_variable in environment_variables:
-                    environment_strings.append(
-                        "export {name}={value};\n".format(
-                            name=environment_variable,
-                            value=shell_quote(
-                                environment_variables[environment_variable]
-                            ),
-                        )
-                    )
-                environment = ''.join(environment_strings)
-                print("The following variables describe the cluster:")
-                print(environment)
-                env_file = options['cert-directory'].child("environment.env")
-                env_file.setContent(environment)
-                print("The variables are also saved in {}".format(
-                    env_file.path
-                ))
-                print("Be sure to preserve the required files.")
-
-    raise SystemExit(result)
+        reactor.removeSystemEventTrigger(cleanup_trigger_id)
