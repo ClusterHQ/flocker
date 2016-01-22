@@ -2,6 +2,12 @@
 Interface with Flocker using mount and umount (by way of the Docker plugin).
 
 No Docker required, though.
+
+You will need to create an executable /sbin/mount.flocker that looks like this:
+
+    #!/bin/sh
+    /opt/flocker/bin/python -m flocker.dockerplugin._mount $@
+
 """
 
 import sys
