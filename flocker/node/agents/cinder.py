@@ -4,7 +4,6 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
-from itertools import repeat
 import time
 from uuid import UUID
 
@@ -33,7 +32,7 @@ from zope.interface import implementer, Interface
 
 from ...common import (
     interface_decorator, get_all_ips, ipaddress_from_string,
-    poll_until,
+    poll_until, exponential_backoff,
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -41,7 +40,7 @@ from .blockdevice import (
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
-    OPENSTACK_ACTION, CINDER_CREATE
+    OPENSTACK_ACTION, CINDER_CREATE, WAITING_FOR_VOLUME_STATUS_CHANGE,
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -312,17 +311,21 @@ class VolumeStateMonitor:
         Raise an exception if a non-valid state is reached or if the
         desired state is not reached within the supplied time limit.
         """
+        elapsed_time = time.time() - self.start_time
+        if elapsed_time > self.time_limit:
+            raise TimeoutException(
+                self.expected_volume, self.desired_state, elapsed_time)
         try:
             existing_volume = self.volume_manager.get(self.expected_volume.id)
         except CinderClientNotFound:
-            elapsed_time = time.time() - self.start_time
-            if elapsed_time > self.time_limit:
-                raise TimeoutException(
-                    self.expected_volume, self.desired_state, elapsed_time)
             return None
         # Could miss the expected status because race conditions.
         # FLOC-1832
         current_state = existing_volume.status
+        WAITING_FOR_VOLUME_STATUS_CHANGE(
+            volume_id=self.expected_volume.id, status=current_state,
+            target_status=self.desired_state, wait_time=elapsed_time
+        ).write()
         if current_state == self.desired_state:
             return existing_volume
         elif current_state in self.transient_states:
@@ -356,7 +359,9 @@ def wait_for_volume_state(volume_manager, expected_volume, desired_state,
     waiter = VolumeStateMonitor(
         volume_manager, expected_volume, desired_state, transient_states,
         time_limit)
-    return poll_until(waiter.reached_desired_state, repeat(1))
+    return poll_until(
+        waiter.reached_desired_state, exponential_backoff(1, 120, 1.2)
+    )
 
 
 def _extract_nova_server_addresses(addresses):
