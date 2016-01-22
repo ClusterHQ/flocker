@@ -8,6 +8,16 @@ You will need to create an executable /sbin/mount.flocker that looks like this:
     #!/bin/sh
     /opt/flocker/bin/python -m flocker.dockerplugin._mount $@
 
+Sample usage:
+
+$ mkdir /tmp/mydata
+$ mount -t flocker myvolume /tmp/mydata
+
+Known bugs:
+
+Docker has issues accessing the volume so long as the mount above isn't
+unmounted. Something to do with bind mount hiding the original mount
+somehow.
 """
 
 import sys
