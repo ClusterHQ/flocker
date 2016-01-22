@@ -243,7 +243,7 @@
     <!-- Display out-of-date documentation notice -->
     <script>
         // Do an AJAX request to check latest version
-        var request = $.ajax({url: "https://docs.clusterhq.com/en/latest/version.html"});
+        var request = $.ajax({url: "/en/latest/version.html"});
 
         request.done(function( msg ) {
             // Trim HTML from returned contents
