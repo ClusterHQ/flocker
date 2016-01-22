@@ -17,7 +17,7 @@ Flocker Installation Options
     <div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
 		   <span>Install Flocker manually
-           <em><a href="../supported.html">Works with all Supported Configurations</a></em></span>
+           <em><a href="../supported/index.html">Works with all Supported Configurations</a></em></span>
            </span>
 		     <a href="manual-install.html" class="button">Install Manually</a>
 	    </div>

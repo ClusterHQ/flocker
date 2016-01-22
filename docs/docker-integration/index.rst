@@ -19,7 +19,7 @@ Flocker Installation Options
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up">
 		   <img src="../_images/default2x.png" aria-hidden="true" alt=""/>
-		   <span>Install Flocker and Docker Swarm manually<em><a href="../supported.html">Works with all Supported Configurations</a></em></span>
+		   <span>Install Flocker and Docker Swarm manually<em><a href="../supported/index.html">Works with all Supported Configurations</a></em></span>
 		   <a href="manual-install.html" class="button">Install Manually</a>
 	    </div>
 	</div>
