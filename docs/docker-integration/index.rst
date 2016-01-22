@@ -4,7 +4,7 @@
 Docker, Swarm, Compose
 ======================
 
-Flocker works with Docker, Swarm and/or Compose via the Flocker Plugin for Docker.
+Flocker integrates with Docker Swarm via the Flocker plugin for Docker.
 Follow an installation guide to get started:
 
 Flocker Installation Options

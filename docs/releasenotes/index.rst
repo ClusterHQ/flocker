@@ -12,7 +12,7 @@ You can learn more about where we might be going with future releases by:
 Next Release
 ============
 
-* The :ref:`Flocker Plugin for Docker<plugin>` should support the direct volume listing and inspection functionality added to Docker 1.10.
+* The :ref:`Flocker plugin for Docker<plugin>` should support the direct volume listing and inspection functionality added to Docker 1.10.
 * Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
 
 This Release
@@ -23,7 +23,7 @@ v1.9.0
 
 * Tested against Docker version 1.9.1.
 * The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
-* Fixed a bug where :ref:`Flocker Plugin for Docker<plugin>` could not create a dataset that had the same name as a previously deleted dataset.
+* Fixed a bug where :ref:`Flocker plugin for Docker<plugin>` could not create a dataset that had the same name as a previously deleted dataset.
 * Now supporting Ubuntu 15.10 instead of Ubuntu 15.04 for the Flocker client.
 * Added documentation for the :ref:`EMC VMAX <emc-dataset-backend>` driver.
 * Region and zone configuration for AWS is now validated before use.
@@ -33,7 +33,7 @@ v1.9.0
 * The container API client now allows volumes to be attached to containers.
 * The container API client now supports retrieval of container state.
 * Fixed a bug where the Flocker control service sometimes listened on the wrong port.
-* The :ref:`Flocker Plugin for Docker<plugin>` now supports specifying the size during volume creation.
+* The :ref:`Flocker plugin for Docker<plugin>` now supports specifying the size during volume creation.
 * Fixed a bug where Flocker would fail to service requests that had an unexpected format.
 
 Previous Releases
@@ -47,8 +47,8 @@ Previous Releases
 v1.8.0
 ------
 
-* The :ref:`Flocker Plugin for Docker<plugin>` is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
-* Better error reporting for the Flocker Plugin for Docker.
+* The :ref:`Flocker plugin for Docker<plugin>` is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
+* Better error reporting for the Flocker plugin for Docker.
 * Added a new REST API for :http:get:`looking up node identity by era</v1/state/nodes/by_era/(era)>`; eras are reset after every reboot.
   This allows robust interaction with Flocker across reboots without getting stale data.
   As a result we were able to remove a delay in startup time that was a temporary workaround for the issue.
