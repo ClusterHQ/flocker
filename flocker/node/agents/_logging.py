@@ -88,12 +88,9 @@ TARGET_STATUS = Field.for_types(
 WAIT_TIME = Field.for_types(
     u"wait_time", [int],
     u"Time, in seconds, system waited for the volume to reach target status.")
-NEEDS_ATTACH_DATA = Field.for_types(
-    u"needs_attach_data", [bool],
-    u"True if target volume status leads to non-empty EBS Volume attach data.")
 WAITING_FOR_VOLUME_STATUS_CHANGE = MessageType(
-    u"flocker:node:agents:blockdevice:aws:volume_status_change_wait",
-    [VOLUME_ID, STATUS, TARGET_STATUS, NEEDS_ATTACH_DATA, WAIT_TIME],
+    u"flocker:node:agents:blockdevice:volume_status_change_wait",
+    [VOLUME_ID, STATUS, TARGET_STATUS, WAIT_TIME],
     u"Waiting for a volume to reach target status.",)
 
 CREATE_VOLUME_FAILURE = MessageType(
