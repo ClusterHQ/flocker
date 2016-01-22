@@ -166,6 +166,13 @@ def main(reactor, args, base_path, top_level):
 
     runner = options.runner
 
+    def cluster_cleanup():
+        print("stopping cluster")
+        return runner.stop_cluster(reactor)
+
+    cleanup_trigger_id = reactor.addSystemEventTrigger('before', 'shutdown',
+                                                       cluster_cleanup)
+
     from flocker.common.script import eliot_logging_service
     log_writer = eliot_logging_service(
         destination=FileDestination(
@@ -176,13 +183,6 @@ def main(reactor, args, base_path, top_level):
     log_writer.startService()
     reactor.addSystemEventTrigger(
         'before', 'shutdown', log_writer.stopService)
-
-    def cluster_cleanup():
-        print("stopping cluster")
-        return runner.stop_cluster(reactor)
-
-    cleanup_trigger_id = reactor.addSystemEventTrigger('before', 'shutdown',
-                                                       cluster_cleanup)
 
     results = []
     yield runner.ensure_keys(reactor)
