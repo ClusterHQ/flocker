@@ -43,6 +43,8 @@ from .blockdevice import (
     MandatoryProfiles, ICloudAPI,
 )
 
+from flocker.common import poll_until, exponential_backoff
+
 from ..exceptions import StorageInitializationError
 
 from ...control import pmap_field
@@ -613,8 +615,10 @@ def _get_ebs_volume_state(volume):
     return volume
 
 
-def _should_finish(operation, volume, update, start_time,
-                   timeout=VOLUME_STATE_CHANGE_TIMEOUT):
+def _reached_end_state(
+    operation, volume, update, elapsed_time,
+    timeout=VOLUME_STATE_CHANGE_TIMEOUT
+):
     """
     Helper function to determine if wait for volume's state transition
     resulting from given operation is over.
@@ -626,7 +630,7 @@ def _should_finish(operation, volume, update, start_time,
     :param boto3.resources.factory.ec2.Volume: Target volume of given
         operation.
     :param method update: Method to use to check volume state.
-    :param float start_time: Time when operation was executed on volume.
+    :param float elapsed_time: Time since operation was executed on volume.
     :param int timeout: Time, in seconds, to wait for volume to reach expected
         destination state.
 
@@ -640,7 +644,7 @@ def _should_finish(operation, volume, update, start_time,
     sets_attach = state_flow.sets_attach
     unsets_attach = state_flow.unsets_attach
 
-    if time.time() - start_time > timeout:
+    if elapsed_time > timeout:
         # We either:
         # 1) Timed out waiting to reach ``end_status``, or,
         # 2) Reached an unexpected status (state change resulted in error), or,
@@ -656,6 +660,11 @@ def _should_finish(operation, volume, update, start_time,
         # If AWS cannot find the volume, raise ``UnknownVolume``.
         if e.response['Error']['Code'] == NOT_FOUND:
             raise UnknownVolume(volume.id)
+
+    WAITING_FOR_VOLUME_STATUS_CHANGE(
+        volume_id=volume.id, status=volume.state, target_status=end_state,
+        wait_time=elapsed_time
+    ).write()
 
     if volume.state not in [start_state, transient_state, end_state]:
         raise UnexpectedStateException(unicode(volume.id), operation,
@@ -708,12 +717,12 @@ def _wait_for_volume_state_change(operation,
     # volume status to transition from
     # start_status -> transient_status -> end_status.
     start_time = time.time()
-    while not _should_finish(operation, volume, update, start_time, timeout):
-        time.sleep(1.0)
-        WAITING_FOR_VOLUME_STATUS_CHANGE(
-            volume_id=volume.id, status=volume.state,
-            wait_time=(time.time() - start_time)
-        ).write()
+    poll_until(
+        lambda: _reached_end_state(
+            operation, volume, update, time.time() - start_time, timeout
+        ),
+        exponential_backoff(1, 120, 1.2)
+    )
 
 
 def _get_device_size(device):
