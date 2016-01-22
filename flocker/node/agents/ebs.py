@@ -710,9 +710,10 @@ def _wait_for_volume_state_change(operation,
     start_time = time.time()
     while not _should_finish(operation, volume, update, start_time, timeout):
         time.sleep(1.0)
-        WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
-                                         status=volume.state,
-                                         wait_time=(time.time() - start_time))
+        WAITING_FOR_VOLUME_STATUS_CHANGE(
+            volume_id=volume.id, status=volume.state,
+            wait_time=(time.time() - start_time)
+        ).write()
 
 
 def _get_device_size(device):
