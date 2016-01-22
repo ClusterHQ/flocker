@@ -159,11 +159,14 @@ GCE
 
 To run the acceptance tests on GCE, you need:
 
-- Credentials: https://developers.google.com/identity/protocols/application-default-credentials
-  - Set an environment variable or run gcloud auth login.
-  - Alternatively add the json dict you get for a service accounts credentials
-    to your acceptance.yaml
-- A location where the acceptance test cluster will be run (project and zone)
+- Credentials requires 1 of the following:
+  - Preferred: run ``gcloud auth login``.
+  - Set the environment variable ``GOOGLE_APPLICATION_CREDENTIALS`` to point to
+    a JSON file downloaded as the key to a service account.
+  - Run the tests from a GCE VM that has been given ``compute`` preveledges.
+  - Add the json dict you get for a service accounts credentials to your
+    acceptance.yaml. 
+- A location where the acceptance test cluster will be run (project and zone).
 
 .. code-block:: yaml
 
@@ -174,15 +177,15 @@ To run the acceptance tests on GCE, you need:
      gce_credentials:
        <Optional dict equivalent to the json you get for service account keys>
 
-You will need a ssh agent running with access to the corresponding private key.
+You will need an ssh agent running with access to the corresponding private key.
 
 GCE can use these dataset backends:
 
-* :ref:`GCE<gce-dataset-backend>`
+* :ref:`Loopback<loopback-dataset-backend>`
 
 .. prompt:: bash $
 
-  admin/run-acceptance-tests --distribution centos-7 --provider gce --dataset-backend ??? --config-file config.yml
+  admin/run-acceptance-tests --distribution centos-7 --provider gce --dataset-backend loopback --config-file config.yml
 
 
 .. _acceptance-testing-aws-config:
