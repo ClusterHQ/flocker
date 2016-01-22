@@ -41,10 +41,12 @@ def mount(reactor, name, path):
 
 
 def main():
-    if not len(sys.argv) == 3:
+    if not len(sys.argv) >= 3:
         print >> sys.stderr, "Usage: mount.flocker <name> <path>"
+        print >> sys.stderr, "Actual arguments:", sys.argv[1:]
         raise SystemExit(2)
-    react(mount, sys.argv[1:])
+    # Ignore -o and other options
+    react(mount, sys.argv[1:3])
 
 if __name__ == '__main__':
     main()
