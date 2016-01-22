@@ -1078,7 +1078,7 @@ class EBSBlockDeviceAPI(object):
         sorted_devices = sorted(list(thaw(local_devices)))
         IN_USE_DEVICES(devices=sorted_devices).write()
 
-        for suffix in b"fghijklmonp":
+        for suffix in b"fghijklmnopqrstuvwxyz":
             next_local_device = b'xvd' + suffix
             next_local_sd_device = b'sd' + suffix
             file_name = u'/dev/sd' + unicode(suffix)
