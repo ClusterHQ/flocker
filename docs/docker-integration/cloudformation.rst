@@ -33,8 +33,9 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
-			<h2 class="step-stages__heading">Step 1</h2>
-			<p>Create an AWS Key Pair for secure login to your cluster.</p>
+			<h2 class="step-stages__heading">1</h2>
+			<h3 class="step-stages__subheading">Create an AWS Key Pair</h3>
+			<p>The AWS Key Pair allows you to login to your AWS cluster securely.</p>
 		</div>
 		<div class="step-stages__step first">
 			<img src="../_images/01-keys-menu.png" alt="AWS key pairs section in console"/>
@@ -52,7 +53,8 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
-			<h2 class="step-stages__heading">Step 2</h2>
+			<h2 class="step-stages__heading">2</h2>
+			<h3 class="step-stages__subheading">Create a Flocker cluster</h3>
 			<p>Create a Flocker cluster:
             <br />
 			<a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json" class="button" target="_blank" align="middle">Start CloudFormation Configuration Process</a>
@@ -104,7 +106,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
-			<h2 class="step-stages__heading">Step 3</h2>
+			<h2 class="step-stages__heading">3</h2>
 			<p>Verifying your installation.</p>
             <p>Click on the "Outputs" tab for your stack.</p>
             <p>The values displayed on this tab will be used for verifying your installation and also any tutorials you go through.</p>
