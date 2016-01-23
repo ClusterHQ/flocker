@@ -1,8 +1,8 @@
 .. _docker-integration:
 
-======================
-Docker, Swarm, Compose
-======================
+=======================================================
+Installing Flocker with Docker Swarm and Docker Compose
+=======================================================
 
 Flocker integrates with Docker Swarm via the Flocker plugin for Docker.
 Follow an installation guide to get started:
@@ -14,7 +14,7 @@ Flocker Installation Options
 	<div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--recommended">
 		   <img src="../_images/amazon-docker2x.png" alt="Amazon AWS logo"/>
-		   <span>Use our CloudFormation template to install Flocker on AWS<em>Fastest</em></span>
+		   <span>Use our CloudFormation template to automatically install Flocker, Docker Swarm and Docker Compose on AWS</span>
 		   <a href="cloudformation.html" class="button button--fast">Install</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up">
@@ -39,8 +39,8 @@ Flocker Installation Options
 
 .. _docker-tutorials:
 
-Follow a Tutorial
-=================
+Next Step: Follow a Tutorial
+============================
 
 .. raw:: html
 
@@ -51,8 +51,8 @@ Follow a Tutorial
 	    </div>
     </div>
 
-Related Blog Articles
-=====================
+Next Step: Related Blog Articles
+================================
 
 * `Tutorial: PostgreSQL on Docker with Flocker <https://clusterhq.com/2016/01/08/tutorial-flocker-volume-driver-postgres/>`_
 * `Walkthrough: Docker Volumes vs Docker Volumes with Flocker <https://clusterhq.com/2015/12/09/difference-docker-volumes-flocker-volumes/>`_
@@ -64,8 +64,8 @@ Related Blog Articles
 
    tutorial-swarm-compose
    
-Learn More
-==========
+Advanced Concepts
+=================
 
 To learn more about this integration, see the following topics:
 
