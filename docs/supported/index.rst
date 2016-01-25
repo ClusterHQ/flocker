@@ -122,31 +122,31 @@ These software defined storage options can be run on any infrastructure, includi
 
 	<div class="pods-eq">
 		 <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="/_images/AWS.png" alt="Amazon AWS Logo"/>
+			<img src="../_static/images/ceph2x.png" alt="Ceph Logo"/>
 			<span>Ceph</span>
 			<img class="icon-key-assign" src="../_static/images/icon-labs2x.png" aria-hidden="true" alt=""/>
 	        <a href="https://github.com/ClusterHQ/ceph-/flocker-driver" class="button">GitHub Repo</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/openstack2x.png" alt="OpenStack Logo"/>
+			<img src="../_static/images/emc2x.png" alt="EMC Logo"/>
 			<span>ScaleIO</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="/flocker-features/emc-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/vmware2x.png" alt="VMWare Logo"/>
+			<img src="../_static/images/hedvig2x.png" alt="Hedvig Logo"/>
 			<span>Hedvig</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="/flocker-features/hedvig-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/gce2x.png" alt="GCE logo"/>
+			<img src="../_static/images/nexenta2x.png" alt="NexentaEdge logo"/>
 			<span>NexentaEdge</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="/flocker-features/nexenta-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/gce2x.png" alt="GCE logo"/>
+			<img src="../_static/images/convergeio2x.png" alt="convergeio logo"/>
 			<span>ConvergeIO</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="/flocker-features/convergeio-configuration.html" class="button">Learn more</a>
@@ -206,31 +206,31 @@ These hardware storage options require specific physical hardware in your data c
 
 	<div class="pods-eq">
 		 <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="/_images/AWS.png" alt="Amazon AWS Logo"/>
+			<img src="../_static/images/dell2x.png" alt="Dell Logo"/>
 			<span>Dell SC Series</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="/flocker-features/dell-configuration.html" class="button">GitHub Repo</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/openstack2x.png" alt="OpenStack Logo"/>
+			<img src="../_static/images/emc2x.png" alt="EMC Logo"/>
 			<span>EMC XtremIO, VMAX</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="/flocker-features/emc-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/gce2x.png" alt="GCE logo"/>
+			<img src="../_static/images/netapp2x.png" alt="Netapp logo"/>
 			<span>NetApp OnTap</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="/flocker-features/netapp-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/gce2x.png" alt="GCE logo"/>
+			<img src="../_static/images/saratoga2x.png" alt="Saratoga logo"/>
 			<span>Saratoga Speed</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="/flocker-features/saratogaspeed-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/gce2x.png" alt="GCE logo"/>
+			<img src="../_static/images/huawei2x.png" alt="Huawei logo"/>
 			<span>Huawei</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="/flocker-features/huawei.html" class="button">Learn more</a>
@@ -295,23 +295,23 @@ Supported Operating Systems
 
 	<div class="pods-eq">
 		 <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="/_images/AWS.png" alt="Amazon AWS Logo"/>
+			<img src="../_static/images/ubuntu2x.png" alt="Ubuntu Logo"/>
 			<span>Works with everything</span>
 	        <a href="index.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/openstack2x.png" alt="OpenStack Logo"/>
+			<img src="../_static/images/centos2x.png" alt="CentOS Logo"/>
 			<span>Works with manual installation</span>
 	        <a href="index.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/vmware2x.png" alt="VMWare Logo"/>
+			<img src="../_static/images/coreos2x.png" alt="CoreOS Logo"/>
 			<span>Works with Labs Installer</span>
 			<img class="icon-key-assign" src="../_static/images/icon-labs2x.png" aria-hidden="true" alt=""/>
 	        <a href="flocker-standalone/installer.html#experimental-configurations" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/gce2x.png" alt="GCE logo"/>
+			<img src="../_static/images/rhel72x.png" alt="RHEL 7 logo"/>
 			<span>RHEL 7</span>
 			<img class="icon-key-assign" src="../_static/images/icon-soon2x.png" aria-hidden="true" alt=""/>
 	        <div class="button button--disabled">Coming soon</div>
