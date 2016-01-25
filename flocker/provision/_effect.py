@@ -87,14 +87,20 @@ def perform_sequence(dispatcher, intent):
 
 class HTTPGet(PClass):
     """
-    TODO(mewert): fill this in.
+    Intent for HTTP GET requests.
+
+    :ivar bytes url: The URL to make a GET request to.
     """
     url = field(type=bytes)
 
 
 def http_get(url):
     """
-    TODO(mewert): fill this in.
+    Wrapper to create an :class:`HTTPGet` Effect.
+
+    :param bytes url: The url to make a GET request to.
+
+    :returns: The ``Effect`` of making a GET request to ``url``.
     """
     return Effect(HTTPGet(url=url))
 
@@ -102,7 +108,10 @@ def http_get(url):
 @deferred_performer
 def treq_get(dispatcher, intent):
     """
-    TODO(mewert): fill this in
+    Performer to execute an HTTP GET.
+
+    :param dispatcher: The dispatcher used to dispatch this performance.
+    :param HTTPGet intent: The intent to be performed.
     """
     action = startAction(action_type=u"flocker:provision:_effect:treq_get")
     with action.context():

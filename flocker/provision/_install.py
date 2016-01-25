@@ -65,7 +65,7 @@ class UnknownAction(Exception):
 
 def tag_as_test_install(flocker_version, distribution, package_name):
     """
-    Creates an intent to make an HTTP GET to a specific URL in an s3 bucket
+    Creates an effect of making an HTTP GET to a specific URL in an s3 bucket
     that has logging enabled. This is done so that when computing flocker
     downloads we can subtract the number of requests to this file.
 
@@ -74,8 +74,8 @@ def tag_as_test_install(flocker_version, distribution, package_name):
         on.
     :param unicode package_name: The name of the package being installed.
 
-    :returns: An HTTPGet intent to retrieve a URL that flags this as an
-        internal testing install.
+    :returns: An :class:`HTTPGet` ``Effect`` to retrieve a URL that flags this
+        as an internal testing install.
     """
     repository_url = get_repository_url(
         distribution=distribution,
