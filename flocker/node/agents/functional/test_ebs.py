@@ -7,6 +7,8 @@ Functional tests for ``flocker.node.agents.ebs`` using an EC2 cluster.
 from uuid import uuid4
 from bitmath import Byte, GiB
 
+from datetime import timedelta
+
 from botocore.exceptions import ClientError
 
 from testtools.matchers import AllMatch, ContainsAll
@@ -26,7 +28,7 @@ from ..ebs import (
     EBSMandatoryProfileAttributes, _get_volume_tag,
     AttachUnexpectedInstance, VolumeBusy,
 )
-from ....testtools import AsyncTestCase, flaky
+from ....testtools import AsyncTestCase, async_runner
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
@@ -66,6 +68,16 @@ class EBSBlockDeviceAPIInterfaceTests(
             unknown_blockdevice_id_factory=lambda test: u"vol-00000000",
         )
 ):
+
+    """
+    Due to AWS eventual consistency sometimes taking too long, give
+    these tests some extra time, such that they are limited only by
+    the CI system max time.
+
+    We are addressing eventual consistency issues; see
+    https://clusterhq.atlassian.net/browse/FLOC-3219
+    """
+    run_tests_with = async_runner(timeout=timedelta(hours=1))
 
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
@@ -154,7 +166,6 @@ class EBSBlockDeviceAPIInterfaceTests(
             bad_instance_id
         )
 
-    @flaky(u"FLOC-3832")
     def test_attach_when_foreign_device_has_next_device(self):
         """
         ``attach_volume`` does not attempt to use device paths that are already
