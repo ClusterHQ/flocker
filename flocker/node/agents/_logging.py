@@ -86,7 +86,7 @@ TARGET_STATUS = Field.for_types(
     u"target_status", [bytes, unicode],
     u"Expected target status of the volume, as a result of an AWS API call.")
 WAIT_TIME = Field.for_types(
-    u"wait_time", [int],
+    u"wait_time", [int, float],
     u"Time, in seconds, system waited for the volume to reach target status.")
 NEEDS_ATTACH_DATA = Field.for_types(
     u"needs_attach_data", [bool],
