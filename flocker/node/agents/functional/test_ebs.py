@@ -4,7 +4,6 @@
 Functional tests for ``flocker.node.agents.ebs`` using an EC2 cluster.
 """
 
-import time
 from uuid import uuid4
 from bitmath import Byte, GiB
 
@@ -598,9 +597,8 @@ class VolumeStateTransitionTests(AsyncTestCase):
         volume = self._create_template_ebs_volume(operation)
         update = self._custom_update(operation, volume_end_state_type,
                                      attach_type)
-        start_time = time.time()
         self.assertRaises(UnexpectedStateException, _should_finish,
-                          operation, volume, update, start_time, TIMEOUT)
+                          operation, volume, update, 0, TIMEOUT)
 
     def _assert_fail(self, operation, volume_end_state_type,
                      attach_data_type=A.MISSING_ATTACH_DATA):
@@ -611,8 +609,7 @@ class VolumeStateTransitionTests(AsyncTestCase):
         volume = self._create_template_ebs_volume(operation)
         update = self._custom_update(operation, volume_end_state_type,
                                      attach_data_type)
-        start_time = time.time()
-        finish_result = _should_finish(operation, volume, update, start_time)
+        finish_result = _should_finish(operation, volume, update, 0)
         self.assertEqual(False, finish_result)
 
     def _assert_timeout(self, operation, testcase,
@@ -624,10 +621,8 @@ class VolumeStateTransitionTests(AsyncTestCase):
         volume = self._create_template_ebs_volume(operation)
         update = self._custom_update(operation, testcase, attach_data_type)
 
-        start_time = time.time()
-        time.sleep(TIMEOUT)
         self.assertRaises(TimeoutException, _should_finish,
-                          operation, volume, update, start_time, TIMEOUT)
+                          operation, volume, update, TIMEOUT + 1, TIMEOUT)
 
     def _process_volume(self, operation, testcase,
                         attach_data_type=A.ATTACH_SUCCESS):
