@@ -92,7 +92,7 @@ These software defined storage options can be run on any infrastructure, includi
 			<img src="../_static/images/ceph2x.png" alt="Ceph Logo"/>
 			<span>Ceph</span>
 			<img class="icon-key-assign" src="../_static/images/icon-labs2x.png" aria-hidden="true" alt=""/>
-	        <a href="https://github.com/ClusterHQ/ceph-flocker-driver" class="button">GitHub Repo</a>
+	        <a href="https://github.com/ClusterHQ/ceph-flocker-driver" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/emc2x.png" alt="EMC Logo"/>
@@ -133,7 +133,7 @@ These hardware storage options require specific physical hardware in your data c
 			<img src="../_static/images/dell2x.png" alt="Dell Logo"/>
 			<span>Dell SC Series</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
-	        <a href="../flocker-features/dell-configuration.html" class="button">GitHub Repo</a>
+	        <a href="../flocker-features/dell-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/emc2x.png" alt="EMC Logo"/>
