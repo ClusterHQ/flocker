@@ -72,8 +72,16 @@ access_key_id_param = template.add_parameter(Parameter(
 ))
 secret_access_key_param = template.add_parameter(Parameter(
     "SecretAccessKey",
-    Description="Your Amazon AWS secret access key.",
+    Description="Your Amazon AWS secret access key",
     Type="String",
+))
+cluster_size = template.add_parameter(Parameter(
+    "ClusterSize",
+    Description="Please choose a size between 3 and 20 nodes (inclusive)",
+    Type="Number",
+    Default="3",
+    MinValue="3",
+    MaxValue="20",
 ))
 
 volumehub_token = template.add_parameter(Parameter(
@@ -138,6 +146,9 @@ instance_sg = template.add_resource(
         ]
     )
 )
+
+# Get configured cluster size.
+num_nodes = Ref(cluster_size)
 
 # Base for post-boot {Flocker, Docker, Swarm} configuration on the nodes.
 base_user_data = [
