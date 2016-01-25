@@ -7,7 +7,7 @@ from uuid import uuid4
 from bitmath import GiB
 
 from eliot import add_destination, Message
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, gatherResults
 from twisted.python.filepath import FilePath
 from twisted.python import usage
 
@@ -253,10 +253,6 @@ class ClusterContainerDeployment(object):
             user_key
         )
 
-        nodes = []
-        datasets = []
-        containers = []
-
         # Listing datasets and containers to know the initial number of
         # datasets and containers, so we know the total number of them
         # we are expecting to have.
@@ -268,20 +264,14 @@ class ClusterContainerDeployment(object):
         # as it is not an scenario we will have, and even if we had it, we
         # still can re-run this script to create the extra datasets and
         # containers we may need, or even cleanup the cluster and start again.
-        def list_datasets(ignored):
-            return client.list_datasets_state()
 
-        def list_containers(ignored):
-            return client.list_containers_state()
+        d = gatherResults([client.list_nodes(),
+                          client.list_datasets_state(),
+                          client.list_containers_state()])
 
-        d = client.list_nodes()
-        d.addCallback(nodes.extend)
-        d.addCallback(list_datasets)
-        d.addCallback(datasets.extend)
-        d.addCallback(list_containers)
-        d.addCallback(containers.extend)
+        def create_instance(result):
+            nodes, datasets, containers = result
 
-        def create_instance(ignored):
             return cls(reactor, image, max_size, mountpoint, per_node,
                        control_node_address, timeout, wait_interval,
                        cluster_cert,
@@ -309,15 +299,6 @@ class ClusterContainerDeployment(object):
         else:
             return None
 
-    def _set_nodes(self, nodes):
-        """
-        Set the list of the nodes in the cluster.
-
-        :param nodes: list of ``Node`` containing all the nodes in the
-            cluster.
-        """
-        self.nodes = nodes
-
     def deploy(self):
         """
         Deploy the new configuration: create the requested containers
@@ -327,37 +308,8 @@ class ClusterContainerDeployment(object):
             the containers and datasets has been sent.
         """
         Message.log(action="Listing current nodes")
-        d = self.client.list_nodes()
-        d.addCallback(self._set_nodes)
-        d.addCallback(self._set_current_number_of_datasets_and_containers)
-        d.addCallback(self.create_datasets_and_containers)
+        d = self.create_datasets_and_containers()
         return d
-
-    def _set_current_number_of_datasets_and_containers(self, ignored):
-        """
-        Populates the ``self._initial_num_containers`` with the current
-        number of containers in the cluster. It is intended to be used
-        before requesting the creation of any containers or datasets so
-        we can know the total number of datasets and containers to expect.
-
-        :return Deferred: that will fire once the ``_initial_num_datasets``
-            and ``_initial_num_containers`` are populated.
-        """
-        d1 = self.client.list_containers_state()
-
-        def set_initial_num_containers(containers):
-            self._initial_num_containers = len(containers)
-
-        d1.addCallback(set_initial_num_containers)
-
-        d2 = self.client.list_datasets_state()
-
-        def set_initial_num_datasets(datasets):
-            self._initial_num_datasets = len(datasets)
-
-        d2.addCallback(set_initial_num_datasets)
-
-        return gather_deferreds([d1, d2])
 
     def is_datasets_deployment_complete(self):
         """
@@ -435,7 +387,7 @@ class ClusterContainerDeployment(object):
                          self.is_container_deployment_complete,
                          repeat(self.wait_interval, self._num_loops))
 
-    def create_datasets_and_containers(self, ignored=None):
+    def create_datasets_and_containers(self):
         """
         Create ``per_node`` containers and datasets in each node of the
         cluster.
