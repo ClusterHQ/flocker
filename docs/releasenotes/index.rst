@@ -12,7 +12,7 @@ You can learn more about where we might be going with future releases by:
 Next Release
 ============
 
-* The :ref:`Flocker documentation <supported-orchestration-frameworks>` has beeen re-designed to better reflect that Flocker now integrates with Cluster Managers, rather than providing its own container management features.
+* The :ref:`Flocker documentation <supported-orchestration-frameworks>` has been re-designed to better reflect that Flocker now integrates with Cluster Managers, rather than providing its own container management features.
 * The new :ref:`CloudFormation installer <cloudformation>` has been made available, to provide a far simpler installation experience for users on AWS.
 * The :ref:`Flocker plugin for Docker<plugin>` should support the direct volume listing and inspection functionality added to Docker 1.10.
 * Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
