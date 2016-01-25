@@ -93,7 +93,7 @@ The names are primarily human-readable and meant for easy use with the ``--datas
 In some cases,
 the name may exactly match the name of one of the dataset backend implementations supported by Flocker.
 If this is not the case,
-the configuration mapping must exactly match the ``dataset`` configuration described for :ref:`enabling the Flocker agent service<agent-yml>`.
+the configuration mapping must exactly match the ``dataset`` configuration described for :ref:`enabling the Flocker agent service<configuring-nodes-backends-standalone-flocker>`.
 
 Any number of dataset backend configurations may be present.
 The configuration with a key matching the value of the ``--dataset-backend`` parameter is used.
@@ -104,8 +104,9 @@ These are used to provide required parameters to the cluster runner selected by 
 Configuration is loaded from the item in the top-level mapping with a key matching the value given to ``--provider``.
 
 The top-level mapping may contain a ``logging`` stanza, which must match the format described in `PEP 0391 <https://www.python.org/dev/peps/pep-0391/>`_.
-An example stanza:
 
+An example stanza:
+ 
 .. code-block:: yaml
 
    logging:
@@ -173,7 +174,7 @@ To run the acceptance tests on AWS, you need:
      session_token: <optional aws session token>
      keyname: <ssh-key-name>
      security_groups: ["<permissive security group>"]
-     instance_type: <instance type, e.g. "m3.large">
+	 instance_type: <instance type, e.g. "m3.large">
 
 You will need a ssh agent running with access to the corresponding private key.
 
@@ -285,7 +286,6 @@ And then run the acceptance tests on those nodes using the following command:
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
-
 CloudFormation Installer Tests
 ==============================
 
@@ -295,7 +295,7 @@ You can run them as follows:
 
 .. code-block:: console
 
-   CLOUDFORMATION_TEMPLATE_URL=https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json \
+    CLOUDFORMATION_TEMPLATE_URL=https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json \
    KEY_PAIR=<aws SSH key pair name> \
    ACCESS_KEY_ID=<aws access key> \
    SECRET_ACCESS_KEY=<aws secret access token> \

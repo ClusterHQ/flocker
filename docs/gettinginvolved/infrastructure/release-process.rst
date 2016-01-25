@@ -168,7 +168,7 @@ It is important to check that the code in the release branch is working before i
 
 .. note::
 
-   Make sure to follow the `latest review process <http://clusterhq-staging-docs.s3.amazonaws.com/master/gettinginvolved/infrastructure/release-process.html#pre-tag-review>`_ when reviewing a release.
+   Make sure to follow the `latest review process <http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html#pre-tag-review>`_ when reviewing a release.
 
 #. Check the changes in the Pull Request:
 
