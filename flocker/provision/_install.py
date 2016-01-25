@@ -394,6 +394,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
         repo_options = get_repo_options(
             flocker_version=get_installable_version(version))
 
+    base_package = package_name
     os_version = package_source.os_version()
     if os_version:
         package_name += '-%s' % (os_version,)
@@ -403,7 +404,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
     if base_url is None:
         commands.append(tag_as_test_install(flocker_version,
                                             distribution,
-                                            package_name))
+                                            base_package))
 
     # Install package and all dependencies:
 
@@ -474,6 +475,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
     # Update to read package info from new repos
     commands.append(apt_get_update())
 
+    base_package = package_name
     os_version = package_source.os_version()
 
     if os_version:
@@ -499,7 +501,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
     if base_url is None:
         commands.append(tag_as_test_install(flocker_version,
                                             distribution,
-                                            package_name))
+                                            base_package))
 
     # Install package and all dependencies
     # We use --force-yes here because our packages aren't signed.
