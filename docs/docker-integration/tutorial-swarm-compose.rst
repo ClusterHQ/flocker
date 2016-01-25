@@ -103,12 +103,9 @@ If you want to specify a custom size or profile for the volume before creating i
 
    docker volume create -d flocker -o size=10G -o profile=bronze --name=postgres # expect "postgres"
 
-.. TODO link to a page documenting how to configure volume hub keys
+.. note::
 
-.. TODO Add this back in when tutorial includes volumehub settings
-.. .. note::
-
-..   At this point if you gave the cluster a Volume Hub key, check the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume created but not used by any containers yet.
+   At this point if you gave the cluster a Volume Hub key, check the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume created but not used by any containers yet.
 
 Step 2.2: Deploying the app
 ---------------------------
@@ -119,9 +116,9 @@ Now deploy the app by running:
 
    docker-compose -f flocker-swarm-tutorial-node1.yml up -d
 
-.. .. note::
+.. note::
 
-..   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume in use by the ``postgres`` container.
+   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume in use by the ``postgres`` container.
 
 Open ``<AgentNode1IP>`` in a browser, and click around to add some Docker logos on the screen.
 For example:
@@ -146,9 +143,9 @@ Note that we are destroying the first set of containers and then starting the se
 
 Flocker will detach and attach the storage so that the container starts up with the expected data.
 
-.. .. note::
+ .. note::
 
-..   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume being moved from node 1 to node 2 and the new container being started up.
+   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ you should be able to see the volume being moved from node 1 to node 2 and the new container being started up.
 
 Open ``<AgentNode2IP>`` in a browser, and you'll be able to see that your data has persisted!
 For example:
@@ -189,7 +186,7 @@ Next steps
 Now try deploying your own Docker Compose app!
 
 * Set ``volume_driver: flocker`` for any stateful containers you have.
-* Specify the Flocker volumes using ``volume: "flocker_volume_name:/path_inside_container"`` syntax.
+* Specify the Flocker volumes using ``"flocker_volume_name:/path_inside_container"`` syntax for one or more of the list elements under the ``volumes`` key.
 
 .. XXX add the following sentence when more Docker tutorials are written:
    Or, try one of our other :ref:`Docker Tutorials <docker-tutorials>`.

@@ -1,7 +1,7 @@
 /* Docs */
 
 /***************************** 
-Navbar images
+Navbar images and tweaks
 *****************************/
 
 .contents-menu>ul>li.docker>a {
@@ -27,6 +27,10 @@ Navbar images
     background-size:auto 1em;
     background-position: 0.5em 0;
     padding-left: 2em;
+}
+
+.page ul.navbar-prelude {
+    margin-bottom: 0;
 }
 
 /*****************************

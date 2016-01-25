@@ -114,11 +114,11 @@
                 </div>
                 <!-- Menu area start -->
 
-                <ul>
+                <ul class="navbar-prelude">
                     {%- if pagename == "index" %}
-                        <li class="toctree-l1 current" style="margin-bottom:-10px;"><a class="reference internal current" href="/">Installing Flocker</a></li>
+                        <li class="toctree-l1 current"><a class="reference internal current" href="{{ pathto('index') }}">Installing Flocker</a></li>
                     {%- else %}
-                        <li class="toctree-l1" style="margin-bottom:-10px;"><a class="reference internal" href="/">Installing Flocker</a></li>
+                        <li class="toctree-l1"><a class="reference internal" href="{{ pathto('index') }}">Installing Flocker</a></li>
                     {%- endif %}
                 </ul>
 
