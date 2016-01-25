@@ -43,6 +43,7 @@ Pods
 	padding: 1em;
 	text-align: center;
     margin-bottom: 16px;
+    position: relative;
 }
 
 .pod-boxout--recommended {
@@ -132,7 +133,7 @@ Pods
 	}
 	.pod-boxout--minor .button {
 		float: right;
-		width: 100px;
+		width: 140px;
 		margin-top: 0;
 	}
 }
@@ -150,11 +151,15 @@ Pods
 		float: left;
 		display: inline-block;
 		width: 32%;
-		margin-left: 2%;
+		margin-right: 2%;
 	}
 	.pod-boxout--2up {
 		width: 48%;
 		padding: 1.5em;
+	}
+	.pod-boxout--4up {
+		width: 24%;
+		margin-right: 1%;
 	}
 	.pod-boxout--solo,
 	.pod-boxout--tutorial {
@@ -164,8 +169,14 @@ Pods
 		float: none;
 		width: 100%;	
 	}
-	.pod-boxout:first-child {
-		margin-left: 0;
+	.pod-boxout:last-child {
+		margin-right: 0;
+	}
+	.pod-boxout--2up:nth-child(odd) {
+		clear: left;
+	}
+	.pod-boxout--4up:nth-child(4n+1) {
+		clear: left;
 	}
 	.pod-boxout--minor {
 		width: 100%;
@@ -173,6 +184,52 @@ Pods
 		margin-left: 0;
 	}
 }
+
+
+/*****************************
+I've got the key (I've got the secret)
+*****************************/
+
+.icon-key {
+	list-style: none;
+	padding: 1.4em 2em;
+	border: 1px solid #cccccc;
+	margin-top: 12px;
+}
+
+.icon-key li {
+	position: relative;
+	overflow: hidden;
+	margin-bottom: 12px;
+}
+
+.icon-key li:last-child {
+	margin-bottom: 0;
+}
+
+.icon-key__ico {
+	position: relative;
+	width: 20px;
+	height: 20px;
+	display: inline-block;
+	margin-right: 12px;
+	margin-top: -1px;
+}
+
+img.icon-key-assign {
+	display: inline-block;
+	width: 14px;
+	height: 14px;
+	margin-right: 6px;
+	margin-top: 22px;
+	position: absolute;
+	top: 10px;
+	left: 10px;
+	margin-top: 0;
+	margin-bottom: 0;
+	z-index: 5;
+}
+
 
 
 /***************************** 
@@ -567,6 +624,21 @@ a.button, input.button {
 
 a.button:hover, input.button:hover {
     background-color: #343a3d;
+}
+
+.button--disabled {
+	background-color: #444;
+	cursor: not-allowed;
+	font-family: "Soho Gothic W01 Medium";
+    border-radius: 8px;
+    text-decoration: none;
+    color: #ffffff;
+    background-color: #777;
+    padding: 10px;
+    cursor: pointer;
+    width: 150px;
+    border: 0;
+    cursor: not-allowed;
 }
 
 a.button.rel {
