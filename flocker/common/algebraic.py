@@ -148,10 +148,8 @@ def tagged_union_strategy(type, attr_strategies):
         args.update({
             attribute: strategy
             for attribute, strategy in attr_strategies.items()
-            if (
-              attribute in invariant.attributes_for_tag[tag] or
-              attribute not in invariant._all_attributes
-            )
+            if (attribute in invariant.attributes_for_tag[tag] or
+                attribute not in invariant._all_attributes)
         })
         return fixed_dictionaries(args).map(lambda kwargs: type(**kwargs))
 
