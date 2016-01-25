@@ -657,6 +657,11 @@ def _should_finish(operation, volume, update, start_time,
         if e.response['Error']['Code'] == NOT_FOUND:
             raise UnknownVolume(volume.id)
 
+    WAITING_FOR_VOLUME_STATUS_CHANGE(
+        volume_id=volume.id, status=volume.state, target_status=end_state,
+        wait_time=(time.time() - start_time)
+    ).write()
+
     if volume.state not in [start_state, transient_state, end_state]:
         raise UnexpectedStateException(unicode(volume.id), operation,
                                        start_state, transient_state, end_state,
@@ -710,10 +715,6 @@ def _wait_for_volume_state_change(operation,
     start_time = time.time()
     while not _should_finish(operation, volume, update, start_time, timeout):
         time.sleep(1.0)
-        WAITING_FOR_VOLUME_STATUS_CHANGE(
-            volume_id=volume.id, status=volume.state,
-            wait_time=(time.time() - start_time)
-        ).write()
 
 
 def _get_device_size(device):
