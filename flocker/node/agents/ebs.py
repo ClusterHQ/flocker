@@ -659,7 +659,7 @@ def _should_finish(operation, volume, update, start_time,
 
     WAITING_FOR_VOLUME_STATUS_CHANGE(
         volume_id=volume.id, status=volume.state, target_status=end_state,
-        wait_time=(time.time() - start_time)
+        needs_attach_data=sets_attach, wait_time=(time.time() - start_time)
     ).write()
 
     if volume.state not in [start_state, transient_state, end_state]:
