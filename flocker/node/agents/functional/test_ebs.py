@@ -8,6 +8,8 @@ import time
 from uuid import uuid4
 from bitmath import Byte, GiB
 
+from datetime import timedelta
+
 from botocore.exceptions import ClientError
 
 from testtools.matchers import AllMatch, ContainsAll
@@ -27,7 +29,7 @@ from ..ebs import (
     EBSMandatoryProfileAttributes, _get_volume_tag,
     AttachUnexpectedInstance, VolumeBusy,
 )
-from ....testtools import AsyncTestCase, flaky
+from ....testtools import AsyncTestCase, flaky, async_runner
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
@@ -67,6 +69,8 @@ class EBSBlockDeviceAPIInterfaceTests(
             unknown_blockdevice_id_factory=lambda test: u"vol-00000000",
         )
 ):
+
+    run_tests_with = async_runner(timeout=timedelta(hours=1))
 
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
