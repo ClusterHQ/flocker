@@ -9,7 +9,7 @@ The Flocker plugin for Docker is a `Docker volumes plugin`_ connecting Docker on
 Known Limitations
 =================
 
-* You should not move a volume from one node to another unless you are sure no containers are using the volume.
+* You should not move a volume from one node to another unless you are sure no containers are using the volume on the source node.
 
   The plugin will not stop volumes from being migrated out from underneath a running container.
   It is possible that Docker or your orchestration tool will prevent this from happening, but Flocker itself does not.

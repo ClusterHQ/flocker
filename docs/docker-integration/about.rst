@@ -22,9 +22,9 @@ Docker Volume
 
 When a Docker volume is created with the ``flocker`` volume driver, either explicitly with ``docker volume create`` or implicitly by ``docker-compose up``, a Docker volume will get created on one or more Docker hosts.
 
-You should think of these Docker volumes as **references** to Flocker volumes, which get created in Flocker on-demand.
+You should think of these Docker volumes as **references** to Flocker volumes, which get created on-demand in Flocker.
 That means that if you delete the Docker volume from one or more Docker hosts, the Flocker volume persists.
-This is because Flocker volumes are persistent and live beyond the lifecycle of a Docker container, host or even swarm.
+This is because Flocker volumes are persistent and live beyond the lifecycle of a Docker container, host or even Swarm.
 
 .. TODO :ref:`flockerctl` to flockerctl page in Flocker Features
 
