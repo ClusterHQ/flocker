@@ -186,7 +186,7 @@ Next steps
 Now try deploying your own Docker Compose app!
 
 * Set ``volume_driver: flocker`` for any stateful containers you have.
-* Specify the Flocker volumes using ``volume: "flocker_volume_name:/path_inside_container"`` syntax.
+* Specify the Flocker volumes using ``"flocker_volume_name:/path_inside_container"`` syntax for one or more of the list elements under the ``volumes`` key.
 
 .. XXX add the following sentence when more Docker tutorials are written:
    Or, try one of our other :ref:`Docker Tutorials <docker-tutorials>`.
