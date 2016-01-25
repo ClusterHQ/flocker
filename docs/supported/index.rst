@@ -157,7 +157,7 @@ These hardware storage options require specific physical hardware in your data c
 			<img src="../_static/images/huawei2x.png" alt="Huawei logo"/>
 			<span>Huawei</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
-	        <a href="../flocker-features/huawei.html" class="button">Learn more</a>
+	        <a href="../flocker-features/huawei-configuration.html" class="button">Learn more</a>
 	    </div>
 	</div>
 
