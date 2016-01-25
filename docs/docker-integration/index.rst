@@ -1,8 +1,8 @@
 .. _docker-integration:
 
-=======================================================
-Installing Flocker with Docker Swarm and Docker Compose
-=======================================================
+======================
+Docker, Swarm, Compose
+======================
 
 Flocker integrates with Docker Swarm via the Flocker plugin for Docker.
 Follow an installation guide to get started:
