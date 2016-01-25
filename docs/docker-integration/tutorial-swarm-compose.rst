@@ -103,9 +103,7 @@ If you want to specify a custom size or profile for the volume before creating i
 
    docker volume create -d flocker -o size=10G -o profile=bronze --name=postgres # expect "postgres"
 
-.. note::
-
-   At this point if you gave the cluster a Volume Hub key, check the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume created but not used by any containers yet.
+.. note:: At this point if you gave the cluster a Volume Hub key, check the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume created but not used by any containers yet.
 
 Step 2.2: Deploying the app
 ---------------------------
@@ -116,9 +114,7 @@ Now deploy the app by running:
 
    docker-compose -f flocker-swarm-tutorial-node1.yml up -d
 
-.. note::
-
-   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume in use by the ``postgres`` container.
+.. note:: At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume in use by the ``postgres`` container.
 
 Open ``<AgentNode1IP>`` in a browser, and click around to add some Docker logos on the screen.
 For example:
@@ -132,7 +128,6 @@ Step 3: Move the app
 
 Now we will demonstrate stopping the app on one machine and starting it on the other.
 
-
 .. prompt:: bash $
 
    docker-compose -f flocker-swarm-tutorial-node1.yml stop
@@ -143,9 +138,7 @@ Note that we are destroying the first set of containers and then starting the se
 
 Flocker will detach and attach the storage so that the container starts up with the expected data.
 
- .. note::
-
-   At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ you should be able to see the volume being moved from node 1 to node 2 and the new container being started up.
+.. note:: At this point in the `Volume Hub <https://volumehub.clusterhq.com>`_ you should be able to see the volume being moved from node 1 to node 2 and the new container being started up.
 
 Open ``<AgentNode2IP>`` in a browser, and you'll be able to see that your data has persisted!
 For example:
