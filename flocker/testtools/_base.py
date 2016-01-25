@@ -20,7 +20,7 @@ from testtools.twistedsupport import (
 )
 
 try:
-    from testtools.twistedsupport import CaptureTwistedLogs
+    from testtools.deferredruntest import CaptureTwistedLogs
 except ImportError:
     # We are using a fork of testtools, which unfortunately means that we need
     # to do special things to make sure we're using the latest version. Raise
