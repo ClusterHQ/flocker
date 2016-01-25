@@ -1,6 +1,35 @@
 /* Docs */
 
 /***************************** 
+Navbar images
+*****************************/
+
+.contents-menu>ul>li.docker {
+    background: url(../images/docker2x.png) no-repeat;
+    background-size:auto 1.0em;
+    background-position: 0.1em 0.6em;
+    padding-left: 2em;
+}
+.contents-menu>ul>li.kubernetes {
+    background: url(../images/kubernetes2x.png) no-repeat;
+    background-size:auto 1.2em;
+    background-position: -0.1em 0.4em;
+    padding-left: 2em;
+}
+.contents-menu>ul>li.mesos{
+    background: url(../images/mesos2x.png) no-repeat;
+    background-size:auto 1.2em;
+    background-position: -0.1em 0.4em;
+    padding-left: 2em;
+}
+.contents-menu>ul>li.other{
+    background: url(../images/icon-question2x.png) no-repeat;
+    background-size:auto 1.1em;
+    background-position: 0.5em 0.5em;
+    padding-left: 2em;
+}
+
+/*****************************
 Pods
 *****************************/
 

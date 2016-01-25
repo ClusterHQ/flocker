@@ -274,14 +274,10 @@
 
     <!-- Apply images to navbar -->
     <script>
-        $('.contents-menu>ul>li:contains("Docker, Swarm, Compose")')
-            .prepend('<img src="' + DOCUMENTATION_OPTIONS.URL_ROOT + '/_images/docker2x.png" style="height:1em; margin-right:0.5em;">')
-        $('.contents-menu>ul>li:contains("Kubernetes")')
-            .prepend('<img src="' + DOCUMENTATION_OPTIONS.URL_ROOT + '/_images/kubernetes2x.png" style="height:1em; margin-right:0.5em;">')
-        $('.contents-menu>ul>li:contains("Mesos")')
-            .prepend('<img src="' + DOCUMENTATION_OPTIONS.URL_ROOT + '/_images/mesos2x.png" style="height:1em; margin-right:0.5em;">')
-        $('.contents-menu>ul>li:contains("Other Systems")')
-            .prepend('<img src="' + DOCUMENTATION_OPTIONS.URL_ROOT + '/_images/icon-question2x.png" style="padding:0 6px; height:1em; margin-right:0.5em;">')
+        $('.contents-menu>ul>li:contains("Docker, Swarm, Compose")').addClass("docker")
+        $('.contents-menu>ul>li:contains("Kubernetes")').addClass("kubernetes")
+        $('.contents-menu>ul>li:contains("Mesos")').addClass("mesos")
+        $('.contents-menu>ul>li:contains("Other Systems")').addClass("other")
     </script>
     <!-- Javascript include for form feedback submit -->
     <script type="text/javascript" src="{{ pathto('_static/js/feedback.js', 1) }}"></script>
