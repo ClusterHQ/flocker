@@ -35,7 +35,7 @@ from hypothesis.strategies import (
 )
 
 from testtools.deferredruntest import SynchronousDeferredRunTest
-from testtools.matchers import Equals
+from testtools.matchers import Equals, Is
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
@@ -3921,6 +3921,45 @@ def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
             super(Tests, self).setUp()
             self.api = profiled_blockdevice_api_factory(self)
             self.dataset_size = dataset_size
+
+    return Tests
+
+
+class ICloudAPITestsMixin(object):
+    """
+    Tests to perform on ``ICloudAPI`` providers.
+    """
+    def test_interface(self):
+        """
+        The API object provides ``IProfiledBlockDeviceAPI``.
+        """
+        self.assertTrue(
+            verifyObject(ICloudAPI, self.api)
+        )
+
+    def test_list_live_nodes(self):
+        """
+        ``list_live_nodes`` returns an iterable of unicode values.
+        """
+        result = self.api.list_live_nodes()
+        for x in result:
+            self.expectThat(type(x), Is(unicode))
+
+
+def make_icloudapi_tests(cloud_api_factory):
+    """
+    Create tests for classes that implement ``ICloudAPI``.
+
+    :param cloud_api_factory: A factory that generates the ``ICloudAPI``
+        provider to test.
+
+    :returns: A ``TestCase`` with tests that will be performed on the
+       supplied ``IProfiledBlockDeviceAPI`` provider.
+    """
+    class Tests(ICloudAPITestsMixin, TestCase):
+        def setUp(self):
+            super(Tests, self).setUp()
+            self.api = cloud_api_factory(self)
 
     return Tests
 
