@@ -425,17 +425,6 @@ class EBSProfiledBlockDeviceAPIInterfaceTests(
     pass
 
 
-class EBSCloudAPIInterfaceTests(
-        make_icloudapi_tests(
-            cloud_api_factory=ebsblockdeviceapi_for_test,
-        )
-):
-    """
-    Interface adherence tests for ``ICloudAPI``.
-    """
-    pass
-
-
 class VolumeStub(object):
     """
     Stub object to represent properties found on the immutable
