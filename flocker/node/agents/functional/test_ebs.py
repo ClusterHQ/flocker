@@ -70,6 +70,14 @@ class EBSBlockDeviceAPIInterfaceTests(
         )
 ):
 
+    """
+    Due to AWS eventual consistency sometimes taking too long, give
+    these tests some extra time, such that they are limited only by
+    the CI system max time.
+
+    We are addressing eventual consistency issues; see
+    https://clusterhq.atlassian.net/browse/FLOC-3219
+    """
     run_tests_with = async_runner(timeout=timedelta(hours=1))
 
     """
