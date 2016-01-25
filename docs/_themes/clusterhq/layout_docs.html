@@ -251,17 +251,17 @@
 
             // Is version equal to this documentation release?
             if (currentversion !== DOCUMENTATION_OPTIONS.VERSION) {
-                current_url = window.location.pathname
-                new_url = current_url.replace(
-                    DOCUMENTATION_OPTIONS.VERSION, currentversion)
                 $('.section:first').prepend('<div class="admonition note warning"> \
                     <p class="last"> \
                         You are currently viewing a different version of the documentation to the latest release of Flocker. \
-                        The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '. <a href="' + new_url + '">Click here to view the latest version</a>.</p> \
+                        The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '.</p> \
                     </div>');
             }
         });
+    </script>
 
+    <!-- Apply images to navbar -->
+    <script>
         $('.contents-menu>ul>li:contains("Docker, Swarm, Compose")')
             .prepend('<img src="' + DOCUMENTATION_OPTIONS.URL_ROOT + '/_images/docker2x.png" style="height:1em; margin-right:0.5em;">')
         $('.contents-menu>ul>li:contains("Kubernetes")')
@@ -271,7 +271,6 @@
         $('.contents-menu>ul>li:contains("Other Systems")')
             .prepend('<img src="' + DOCUMENTATION_OPTIONS.URL_ROOT + '/_images/icon-question2x.png" style="padding:0 6px; height:1em; margin-right:0.5em;">')
     </script>
-
     <!-- Javascript include for form feedback submit -->
     <script type="text/javascript" src="{{ pathto('_static/js/feedback.js', 1) }}"></script>
   </body>
