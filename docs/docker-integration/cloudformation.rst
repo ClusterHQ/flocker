@@ -107,9 +107,8 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">3</h2>
-			<p>Verifying your installation.</p>
-            <p>Click on the "Outputs" tab for your stack.</p>
-            <p>The values displayed on this tab will be used for verifying your installation and also any tutorials you go through.</p>
+			<h3 class="step-stages__subheading">Verify your installation</h3>
+            <p>Click on the "Outputs" tab for your stack. The values displayed on this tab will be used for verifying your installation and also any tutorials you go through.</p>
 			<img src="../_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation" style="margin: 2em 0;"/>
             <p>Now open a Terminal window, and run the following commands to log in and verify your cluster is working.</p>
             <div style="text-align: left; margin: 2em 0;">
