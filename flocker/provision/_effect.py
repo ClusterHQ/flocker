@@ -4,6 +4,11 @@ from characteristic import attributes
 from effect import (
     sync_performer, Effect,
     ComposedDispatcher, TypeDispatcher, base_dispatcher)
+from treq import get
+from pyrsistent import PClass, field
+from txeffect import deferred_performer
+from eliot import startAction, Message
+from eliot.twisted import DeferredContext
 
 
 # This is from https://github.com/radix/effect/pull/46
@@ -80,9 +85,37 @@ def perform_sequence(dispatcher, intent):
     return reduce(reducer, reversed(effects), results)
 
 
+class HTTPGet(PClass):
+    """
+    TODO(mewert): fill this in.
+    """
+    url = field(type=bytes)
+
+
+def http_get(url):
+    """
+    TODO(mewert): fill this in.
+    """
+    return Effect(HTTPGet(url=url))
+
+
+@deferred_performer
+def treq_get(dispatcher, intent):
+    """
+    TODO(mewert): fill this in
+    """
+    action = startAction(action_type=u"flocker:provision:_effect:treq_get")
+    with action.context():
+        Message.log(url=intent.url)
+        d = DeferredContext(get(intent.url))
+        d.addActionFinish()
+        return d.result
+
+
 dispatcher = ComposedDispatcher([
     TypeDispatcher({
         Sequence: perform_sequence,
+        HTTPGet: treq_get,
     }),
     base_dispatcher,
 ])

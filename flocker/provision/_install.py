@@ -31,7 +31,7 @@ from ._ssh import (
     run_remotely,
 )
 from ._ssh._conch import make_dispatcher
-from ._effect import sequence
+from ._effect import sequence, http_get
 
 from ..common import retry_effect_with_timeout
 
@@ -61,6 +61,36 @@ class UnknownAction(Exception):
     """
     def __init__(self, action):
         Exception.__init__(self, action)
+
+
+def tag_as_test_install(flocker_version, distribution, package_name):
+    """
+    Creates an intent to make an HTTP GET to a specific URL in an s3 bucket
+    that has logging enabled. This is done so that when computing flocker
+    downloads we can subtract the number of requests to this file.
+
+    :param unicode flocker_version: The version of flocker being installed.
+    :param unicode distribution: The distribution flocker is being installed
+        on.
+    :param unicode package_name: The name of the package being installed.
+
+    :returns: An HTTPGet intent to retrieve a URL that flags this as an
+        internal testing install.
+    """
+    repository_url = get_repository_url(
+        distribution=distribution,
+        flocker_version=flocker_version)
+    repository_host = urlparse(repository_url).hostname
+    tag_url = bytes(
+        "https://{host}/clusterhq-internal-acceptance-test/{distribution}/"
+        "{package}/{version}".format(
+            host=repository_host,
+            distribution=distribution,
+            package=package_name,
+            version=flocker_version
+        )
+    )
+    return http_get(tag_url)
 
 
 def is_centos(distribution):
@@ -368,6 +398,13 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
     if os_version:
         package_name += '-%s' % (os_version,)
 
+    # Execute a request to s3 so that this can be tagged as a test install for
+    # statistical tracking.
+    if base_url is None:
+        commands.append(tag_as_test_install(flocker_version,
+                                            distribution,
+                                            package_name))
+
     # Install package and all dependencies:
 
     commands.append(yum_install(repo_options + [package_name]))
@@ -456,6 +493,13 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         '''.format(os_version)), '/tmp/apt-pref'))
         commands.append(run_from_args([
             'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/clusterhq-900']))
+
+    # Execute a request to s3 so that this can be tagged as a test install for
+    # statistical tracking.
+    if base_url is None:
+        commands.append(tag_as_test_install(flocker_version,
+                                            distribution,
+                                            package_name))
 
     # Install package and all dependencies
     # We use --force-yes here because our packages aren't signed.
