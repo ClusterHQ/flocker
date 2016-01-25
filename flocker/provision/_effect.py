@@ -116,7 +116,9 @@ def treq_get(dispatcher, intent):
     action = startAction(action_type=u"flocker:provision:_effect:treq_get")
     with action.context():
         Message.log(url=intent.url)
-        d = DeferredContext(get(intent.url))
+        # Do not use persistent HTTP connections, because they will not be
+        # cleaned up by the end of the test.
+        d = DeferredContext(get(intent.url, persistent=False))
         d.addActionFinish()
         return d.result
 
