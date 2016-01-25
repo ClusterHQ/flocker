@@ -43,6 +43,8 @@ from .blockdevice import (
     MandatoryProfiles, ICloudAPI,
 )
 
+from flocker.common import poll_until
+
 from ..exceptions import StorageInitializationError
 
 from ...control import pmap_field
@@ -715,10 +717,12 @@ def _wait_for_volume_state_change(operation,
     # volume status to transition from
     # start_status -> transient_status -> end_status.
     start_time = time.time()
-    while not _reached_end_state(
-        operation, volume, update, (time.time() - start_time), timeout
-    ):
-        time.sleep(1.0)
+    poll_until(
+        lambda: _reached_end_state(
+           operation, volume, update, time.time() - start_time, timeout
+        ),
+        itertools.repeat(1)
+    )
 
 
 def _get_device_size(device):
