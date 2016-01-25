@@ -306,7 +306,7 @@ Supported Operating Systems
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/vmware2x.png" alt="VMWare Logo"/>
-			<span>Works with Labs Installer<</span>
+			<span>Works with Labs Installer</span>
 			<img class="icon-key-assign" src="../_static/images/icon-labs2x.png" aria-hidden="true" alt=""/>
 	        <a href="flocker-standalone/installer.html#experimental-configurations" class="button">Learn more</a>
 	    </div>
