@@ -48,9 +48,9 @@ class ContainerOptions(usage.Options):
          'Location of the user and control certificates and user key'],
         ['max-size', None, 1,
          'Size of the volume, in gigabytes. One GB by default'],
-        ['wait', None, 72000,
+        ['wait', None, 7200,
          "The timeout in seconds for waiting until the operation is complete. "
-         "No waiting is done by default."],
+         "Waits two hours by default."],
         ['wait-interval', None, 4,
          "How often are we going to check if the creation of containers and "
          "datasets has finished, in second"],
@@ -150,14 +150,14 @@ class ClusterContainerDeployment(object):
 
     :ivar options: ``ContainerOptions`` with the options passed to the script
     :ivar image: ``DockerImage`` for the containers.
-    :ivar max_size: maximum volume (dataset) size.
+    :ivar max_size: maximum volume (dataset) size in bytes.
     :ivar mountpoint: unicode string containing the absolute path of the
         mountpoint.
     :ivar timeout: total time to wait for the containers and datasets
         to be created.
     :ivar wait_interval: how much to wait between list calls when waiting for
         the containers and datasets to be created.
-    :ivar _num_loops: numer of times to repeat the looping call based on the
+    :ivar _num_loops: number of times to repeat the looping call based on the
         ``tiemeout`` and the ``wait_interval``.
     :ivar per_node: number of containers and dataset per node.
     :ivar control_node_address: public ip address of the control node.
@@ -191,7 +191,7 @@ class ClusterContainerDeployment(object):
             if self.timeout is None:
                 # Wait two hours by default
                 self.timeout = 72000
-            self._num_loops = 10
+            self._num_loops = 1
             if self.wait_interval < self.timeout:
                 self._num_loops = self.timeout / self.wait_interval
 
@@ -381,7 +381,6 @@ class ClusterContainerDeployment(object):
         """
         deferred_list = []
         for node in self.nodes:
-            # Todo create a partial with the node info
             create_container_in_node = partial(self.create_container,
                                                node=node)
             for i in range(self.per_node):
