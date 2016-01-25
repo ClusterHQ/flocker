@@ -29,7 +29,7 @@ from ..ebs import (
     EBSMandatoryProfileAttributes, _get_volume_tag,
     AttachUnexpectedInstance, VolumeBusy,
 )
-from ....testtools import AsyncTestCase, flaky, async_runner
+from ....testtools import AsyncTestCase, async_runner
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
