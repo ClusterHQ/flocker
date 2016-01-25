@@ -12,16 +12,6 @@ Labs Installer
         <p>This page describes one of our experimental projects, developed to less rigorous quality and testing standards than the mainline Flocker distribution. It is not built with production-readiness in mind.</p>
 	</div>
 
-.. raw:: html
-
-   <div style="display:none;">
-
-.. image:: /images/experimental.png
-
-.. raw:: html
-
-   </div>
-
 This document guides you through setting up a Flocker cluster and gives a simple example of deploying and moving around a service which includes a stateful container.
 
 Key Points

@@ -13,12 +13,12 @@ Flocker Installation Options
 
 	<div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--recommended">
-		   <img src="../_images/amazon-docker2x.png" alt="Amazon AWS logo"/>
+		   <img src="../_static/images/amazon-docker2x.png" alt="Amazon AWS logo"/>
 		   <span>Use our CloudFormation template to automatically install Flocker, Docker Swarm and Docker Compose on Ubuntu on AWS</span>
 		   <a href="cloudformation.html" class="button button--fast">Install</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up">
-		   <img src="../_images/default2x.png" aria-hidden="true" alt=""/>
+		   <img src="../_static/images/default2x.png" aria-hidden="true" alt=""/>
 		   <span>Install Flocker and Docker Swarm manually<em><a href="../supported/index.html">Works with all Supported Configurations</a></em></span>
 		   <a href="manual-install.html" class="button">Install Manually</a>
 	    </div>
@@ -77,16 +77,3 @@ To learn more about this integration, see the following topics:
 
    about
    control-plugin
-   
-.. What follows is a terrible hack to force sphinx to drag images into the build
-
-.. raw:: html
-
-   <div style="display:none;">
-
-.. image:: /images/amazon-docker2x.png
-.. image:: /images/default2x.png
-
-.. raw:: html
-
-   </div>

@@ -13,7 +13,7 @@ Flocker Installation Options
 
     <div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--short pod-boxout--2up">
-		   <img src="../_images/kubernetes2x.png" alt="Kubernetes logo"/>
+		   <img src="../_static/images/kubernetes2x.png" alt="Kubernetes logo"/>
 		   <span>Install Flocker manually
            <em><a href="../supported/index.html">Works with all Supported Configurations</a></em></span>
 		   <a href="manual-install.html" class="button">Install</a>
@@ -61,15 +61,3 @@ To learn about the details of how this integration works, read :ref:`about-kuber
    :hidden:
 
    about
-   
-.. What follows is a terrible hack to force sphinx to drag images into the build
-
-.. raw:: html
-
-   <div style="display:none;">
-
-.. image:: /images/kubernetes2x.png
-
-.. raw:: html
-
-   </div>
