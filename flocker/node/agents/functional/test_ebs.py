@@ -22,7 +22,7 @@ from ..blockdevice import MandatoryProfiles
 from ..ebs import (
     _wait_for_volume_state_change,
     VolumeOperations, VolumeStateTable, VolumeStates,
-    TimeoutException, _should_finish, UnexpectedStateException,
+    TimeoutException, _reached_end_state, UnexpectedStateException,
     EBSMandatoryProfileAttributes, _get_volume_tag,
     AttachUnexpectedInstance, VolumeBusy,
 )
@@ -597,7 +597,7 @@ class VolumeStateTransitionTests(AsyncTestCase):
         volume = self._create_template_ebs_volume(operation)
         update = self._custom_update(operation, volume_end_state_type,
                                      attach_type)
-        self.assertRaises(UnexpectedStateException, _should_finish,
+        self.assertRaises(UnexpectedStateException, _reached_end_state,
                           operation, volume, update, 0, TIMEOUT)
 
     def _assert_fail(self, operation, volume_end_state_type,
@@ -609,7 +609,7 @@ class VolumeStateTransitionTests(AsyncTestCase):
         volume = self._create_template_ebs_volume(operation)
         update = self._custom_update(operation, volume_end_state_type,
                                      attach_data_type)
-        finish_result = _should_finish(operation, volume, update, 0)
+        finish_result = _reached_end_state(operation, volume, update, 0)
         self.assertEqual(False, finish_result)
 
     def _assert_timeout(self, operation, testcase,
@@ -621,7 +621,7 @@ class VolumeStateTransitionTests(AsyncTestCase):
         volume = self._create_template_ebs_volume(operation)
         update = self._custom_update(operation, testcase, attach_data_type)
 
-        self.assertRaises(TimeoutException, _should_finish,
+        self.assertRaises(TimeoutException, _reached_end_state,
                           operation, volume, update, TIMEOUT + 1, TIMEOUT)
 
     def _process_volume(self, operation, testcase,

@@ -613,8 +613,10 @@ def _get_ebs_volume_state(volume):
     return volume
 
 
-def _should_finish(operation, volume, update, elapsed_time,
-                   timeout=VOLUME_STATE_CHANGE_TIMEOUT):
+def _reached_end_state(
+    operation, volume, update, elapsed_time,
+    timeout=VOLUME_STATE_CHANGE_TIMEOUT
+):
     """
     Helper function to determine if wait for volume's state transition
     resulting from given operation is over.
@@ -713,7 +715,7 @@ def _wait_for_volume_state_change(operation,
     # volume status to transition from
     # start_status -> transient_status -> end_status.
     start_time = time.time()
-    while not _should_finish(
+    while not _reached_end_state(
         operation, volume, update, (time.time() - start_time), timeout
     ):
         time.sleep(1.0)
