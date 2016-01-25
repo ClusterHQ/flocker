@@ -650,10 +650,8 @@ a.button.rel {
     width: 100%;
     text-align: center;
     margin-top: 10px;
-    /* XXX START Temporary stylings for reorg-integrations-FLOC-3718 branch */
-    /* Hide prev/next buttons (killll theeemmmm) */
+    /* Hide prev/next buttons: they are more often wrong */
     display: none;
-    /* XXX END Temporary stylings for reorg-integrations-FLOC-3718 branch */
 }
 
 /* Search bar */
