@@ -14,7 +14,7 @@ Flocker Installation Options
 	<div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--recommended">
 		   <img src="../_images/amazon-docker2x.png" alt="Amazon AWS logo"/>
-		   <span>Use our CloudFormation template to automatically install Flocker, Docker Swarm and Docker Compose on AWS</span>
+		   <span>Use our CloudFormation template to automatically install Flocker, Docker Swarm and Docker Compose on Ubuntu on AWS</span>
 		   <a href="cloudformation.html" class="button button--fast">Install</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--2up">

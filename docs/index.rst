@@ -16,22 +16,21 @@ To install Flocker, first choose which Cluster Manager you are using, or intend 
 
 .. raw:: html
 
-	<!-- This too needs to become Sphinx directives, rather than raw HTML. -->
 	<div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
-			<img src="_images/docker2x.png" alt="Docker logo"/>
+			<img src="_static/images/docker2x.png" alt="Docker logo"/>
 			<span>Docker Swarm, with Docker Compose<em>Try it Now</em></span>
 	        <a href="docker-integration/" class="button button--fast">Install</a>
 	    </div>
 
 	    <div class="pod-boxout pod-boxout--orchestration">
-			<img src="_images/kubernetes2x.png" alt="Kubernetes logo"/>
+			<img src="_static/images/kubernetes2x.png" alt="Kubernetes logo"/>
 			<span>Kubernetes</span>
 	        <a href="kubernetes-integration/" class="button">Install</a>
 	    </div>
 
 	    <div class="pod-boxout pod-boxout--orchestration">
-			<img src="_images/mesos2x.png" alt="mesos logo"/>
+			<img src="_static/images/mesos2x.png" alt="mesos logo"/>
 			<span>Mesos</span>
 	        <a href="mesos-integration/" class="button">Install</a>
 	    </div>
@@ -42,7 +41,7 @@ Alternatively, if you want to install Flocker without a specific Cluster Manager
 .. raw:: html
 
 	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
-		<span><img src="_images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install Flocker without a Cluster Manager</span>
+		<span><img src="_static/images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install Flocker without a Cluster Manager</span>
         <a href="flocker-standalone/" class="button">Install</a>
     </div>
 
@@ -66,31 +65,8 @@ Please let us know with the form below!
 
 .. The version page is used only for a version of the documentation to know what the latest version is.
 
-.. the following causes the toctree to be hidden on page but not in the navigation, meaning that when on the linked page, the navigation shows you where you are, which is crucial for UX.
-
-.. raw:: html
-
-   <style>
-   .toctree-wrapper { display: none; }
-   </style>
-
 .. toctree::
    :hidden:
 
    version
    installation/index
-
-.. What follows is a terrible hack to force sphinx to drag images into the build
-
-.. raw:: html
-
-   <div style="display:none;">
-
-.. image:: images/docker2x.png
-.. image:: images/kubernetes2x.png
-.. image:: images/mesos2x.png
-.. image:: images/icon-question2x.png
-
-.. raw:: html
-
-   </div>
