@@ -257,6 +257,17 @@ class ClusterContainerDeployment(object):
         datasets = []
         containers = []
 
+        # Listing datasets and containers to know the initial number of
+        # datasets and containers, so we know the total number of them
+        # we are expecting to have.
+        # XXX please note that, if some of those initial datasets or containers
+        # are being deleted, the output of this script won't be as expected,
+        # and it will end up timing out waiting for all the containers and
+        # datasets to be ready. This is a possible future improvement (bear
+        # it in mind if reusing the code), but it is not needed by benchmarking
+        # as it is not an scenario we will have, and even if we had it, we
+        # still can re-run this script to create the extra datasets and
+        # containers we may need, or even cleanup the cluster and start again.
         def list_datasets(ignored):
             return client.list_datasets_state()
 
