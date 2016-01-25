@@ -1363,7 +1363,7 @@ class EBSBlockDeviceAPI(object):
     def list_live_nodes(self):
         instances = self.connection.instances.filter(
             Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
-        return list(instance.id for instance in instances)
+        return list(unicode(instance.id) for instance in instances)
 
     @boto3_log
     def start_node(self, node_id):

@@ -5505,8 +5505,8 @@ def make_icloudapi_tests(
             """
             ``list_live_nodes`` returns an iterable of unicode values.
             """
-            result = self.api.list_live_nodes()
-            for x in result:
+            live_nodes = self.api.list_live_nodes()
+            for x in live_nodes:
                 self.expectThat(type(x), Is(unicode))
 
     return Tests
