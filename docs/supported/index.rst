@@ -98,25 +98,25 @@ These software defined storage options can be run on any infrastructure, includi
 			<img src="../_static/images/emc2x.png" alt="EMC Logo"/>
 			<span>ScaleIO</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
-	        <a href="/flocker-features/emc-configuration.html" class="button">Learn more</a>
+	        <a href="../flocker-features/emc-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/hedvig2x.png" alt="Hedvig Logo"/>
 			<span>Hedvig</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
-	        <a href="/flocker-features/hedvig-configuration.html" class="button">Learn more</a>
+	        <a href="../flocker-features/hedvig-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/nexenta2x.png" alt="NexentaEdge logo"/>
 			<span>NexentaEdge</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
-	        <a href="/flocker-features/nexenta-configuration.html" class="button">Learn more</a>
+	        <a href="../flocker-features/nexenta-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/convergeio2x.png" alt="convergeio logo"/>
 			<span>ConvergeIO</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
-	        <a href="/flocker-features/convergeio-configuration.html" class="button">Learn more</a>
+	        <a href="../flocker-features/convergeio-configuration.html" class="button">Learn more</a>
 	    </div>
 	</div>
 
