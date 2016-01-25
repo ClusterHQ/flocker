@@ -65,11 +65,6 @@ class DatasetAPITests(AsyncTestCase):
             branch=os.environ.get('FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'),
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
-    # This is flaky even though FLOC-3712 is fixed at HEAD. Specifically,
-    # FLOC-3712 happens sometimes when we downgrade to 1.8.0 before we upgrade
-    # to HEAD on centos. Once that fix has landed in a release, we can remove
-    # this flaky decorator.
-    @flaky(u'FLOC-3712')
     @skip_backend(
         unsupported={DatasetBackend.loopback},
         reason="Does not maintain compute_instance_id across restarting "
