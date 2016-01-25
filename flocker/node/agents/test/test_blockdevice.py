@@ -34,7 +34,7 @@ from hypothesis.strategies import (
     dictionaries, tuples
 )
 
-from testtools.deferredruntest import SynchronousDeferredRunTest
+from testtools.twistedsupport import SynchronousDeferredRunTest
 from testtools.matchers import Equals
 
 from twisted.internet import reactor
