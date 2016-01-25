@@ -6,28 +6,9 @@ Mesos
 
 .. raw:: html
 
-    <style>
-	   .labs {
-	       background: url(/_images/experimental.png) no-repeat #BCED91;
-		   background-size:30px; background-position: 30px 20px;
-		   padding-right:20px;
-	   }
-	   
-	</style>
-	
     <div class="admonition labs">
         <p>This page describes one of our experimental projects, developed to less rigorous quality and testing standards than the mainline Flocker distribution. It is not built with production-readiness in mind.</p>
 	</div>
-
-.. raw:: html
-
-   <div style="display:none;">
-
-.. image:: /images/experimental.png
-
-.. raw:: html
-
-   </div>
 
 Flocker works with Mesos via two different integration paths.
 
