@@ -81,7 +81,7 @@ You can either click the cloud icons to save the files locally, and then move th
 
 .. TODO: It would be much nicer if we had a Sphinx directive to output the URL of a download, so the user didn't have to right click and copy-paste here.
 
-The Docker Compose files both have the same layout, as illustrated below, except the ``node2`` file has ``constraint:flocker-node==2`` instead of ``node==1``.
+The Docker Compose files both have the same layout, as illustrated below, except the ``node2`` file has ``constraint:flocker-node==2`` instead of ``constraint:flocker-node==1``.
 
 .. literalinclude:: tutorial-downloads/flocker-swarm-tutorial-node1.yml
    :language: yaml
