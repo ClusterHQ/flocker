@@ -4,28 +4,28 @@
 Navbar images
 *****************************/
 
-.contents-menu>ul>li.docker {
+.contents-menu>ul>li.docker>a {
     background: url(../images/docker2x.png) no-repeat;
     background-size:auto 1.0em;
-    background-position: 0.1em 0.6em;
+    background-position: 0 0;
     padding-left: 2em;
 }
-.contents-menu>ul>li.kubernetes {
+.contents-menu>ul>li.kubernetes>a {
     background: url(../images/kubernetes2x.png) no-repeat;
-    background-size:auto 1.2em;
-    background-position: -0.1em 0.4em;
-    padding-left: 2em;
-}
-.contents-menu>ul>li.mesos{
-    background: url(../images/mesos2x.png) no-repeat;
-    background-size:auto 1.2em;
-    background-position: -0.1em 0.4em;
-    padding-left: 2em;
-}
-.contents-menu>ul>li.other{
-    background: url(../images/icon-question2x.png) no-repeat;
     background-size:auto 1.1em;
-    background-position: 0.5em 0.5em;
+    background-position: 0 0;
+    padding-left: 2em;
+}
+.contents-menu>ul>li.mesos>a {
+    background: url(../images/mesos2x.png) no-repeat;
+    background-size:auto 1.1em;
+    background-position: 0 0;
+    padding-left: 2em;
+}
+.contents-menu>ul>li.other>a {
+    background: url(../images/icon-question2x.png) no-repeat;
+    background-size:auto 1em;
+    background-position: 0.5em 0;
     padding-left: 2em;
 }
 
