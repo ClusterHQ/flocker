@@ -44,6 +44,8 @@ Installing on Ubuntu 14.04 (64-bit)
 .. note:: 
    These instructions require that you have ``sudo`` access.
 
+   If you are using a 32-bit Ubuntu platform, see the instructions for :ref:`installing-flocker-cli-linux`.
+
 On Ubuntu 14.04 (64-bit), the Flocker CLI can be installed from the ClusterHQ repository:
 
 .. task:: cli_pkg_install ubuntu-14.04
