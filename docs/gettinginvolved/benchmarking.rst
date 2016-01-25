@@ -100,14 +100,14 @@ An example file:
        type: no-load
 
      - name: read-request-5
-	   type: read-request-load
-	   request_rate: 5
+       type: read-request-load
+       request_rate: 5
 
      - name: read-request-10
-	   type: read-request-load
-	   request_rate: 10
-	   sample_size: 10
-	   timeout: 60
+       type: read-request-load
+       request_rate: 10
+       sample_size: 10
+       timeout: 60
 
    operations:
      - name: default
