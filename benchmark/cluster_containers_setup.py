@@ -137,10 +137,16 @@ def main(reactor, argv, environ):
         sys.stderr.write('\n')
         sys.stderr.write(options.getUsage())
         raise SystemExit(1)
-    container_deployment = ClusterContainerDeployment(reactor,
-                                                      environ,
-                                                      options)
-    return container_deployment.deploy_and_wait_for_creation()
+
+    container_deployment = ClusterContainerDeployment.from_options(reactor,
+                                                                   options)
+
+    def deploy_and_wait(cluster_container_deployment):
+        return cluster_container_deployment.deploy_and_wait_for_creation()
+
+    container_deployment.addCallback(deploy_and_wait)
+
+    return container_deployment
 
 
 class ClusterContainerDeployment(object):
@@ -148,52 +154,80 @@ class ClusterContainerDeployment(object):
     Class that contains all the methods needed to deploy a new config in a
     cluster.
 
-    :ivar options: ``ContainerOptions`` with the options passed to the script
     :ivar image: ``DockerImage`` for the containers.
     :ivar max_size: maximum volume (dataset) size in bytes.
     :ivar mountpoint: unicode string containing the absolute path of the
         mountpoint.
+    :ivar per_node: number of containers and dataset per node.
+    :ivar control_node_address: public ip address of the control node.
     :ivar timeout: total time to wait for the containers and datasets
         to be created.
     :ivar wait_interval: how much to wait between list calls when waiting for
         the containers and datasets to be created.
     :ivar _num_loops: number of times to repeat the looping call based on the
         ``tiemeout`` and the ``wait_interval``.
-    :ivar per_node: number of containers and dataset per node.
-    :ivar control_node_address: public ip address of the control node.
     :ivar cluster_cert: ``FilePath`` of the cluster certificate.
     :ivar user_cert: ``FilePath`` of the user certificate.
     :ivar user_key: ``FilePath`` of the user key.
+    :ivar _initial_num_datasets: number of datasets that are already present
+        in the cluster.
+    :ivar _initial_num_containers: number of containers that are already
+        present in the cluster.
     :ivar client: ``FlockerClient`` conected to the cluster.
     :ivar reactor: ``Reactor`` used by the client.
     :ivar nodes: list of `Node` returned by client.list_nodes
     """
-    def __init__(self, reactor, env, options):
+    def __init__(self, reactor, image, max_size, mountpoint, per_node,
+                 control_node_address, timeout, wait_interval, cluster_cert,
+                 user_cert, user_key, initial_num_datasets,
+                 initial_num_containers, client, nodes):
         """
         ``ClusterContainerDeployment`` constructor.
+        It is not meant to be called directly. See ``from_options`` if you
+        want to instantiate a ``ClusterContainerDeployment`` object.
 
-        :param reactor: ``Reactor`` we are using.
-        :param env: ``environ`` with the current environment.
-            NOTE: alternative of making it work with env variables pending
-            implementation
-        :param options: ``ContainerOptions`` with the options passed to the
-            the script.
         """
-        self.options = options
+        self.image = image
+        self.max_size = max_size
+        self.mountpoint = mountpoint
+        self.per_node = per_node
+        self.control_node_address = control_node_address
+        self.timeout = timeout
+        self.wait_interval = wait_interval
+        if self.timeout is None:
+            # Wait two hours by default
+            self.timeout = 72000
+        self._num_loops = 1
+        if self.wait_interval < self.timeout:
+            self._num_loops = self.timeout / self.wait_interval
+
+        self.cluster_cert = cluster_cert
+        self.user_cert = user_cert
+        self.user_key = user_key
+        self._initial_num_datasets = initial_num_datasets
+        self._initial_num_containers = initial_num_containers
+        self.client = client
+        self.reactor = reactor
+        self.nodes = nodes
+
+    @classmethod
+    def from_options(cls, reactor, options):
+        """
+        Create a cluster container deployment object from the
+        options given through command line.
+
+        :param reactor: reactor
+        :param options: ``ContainerOptions`` container the parsed
+            options given to the script.
+        """
         try:
-            self.image = DockerImage(repository=self.options['image'])
-            self.max_size = int(GiB(self.options['max-size']).to_Byte().value)
-            self.mountpoint = unicode(self.options['mountpoint'])
-            self.per_node = self.options['apps-per-node']
-            self.control_node_address = self.options['control-node']
-            self.timeout = self.options['wait']
-            self.wait_interval = self.options['wait-interval']
-            if self.timeout is None:
-                # Wait two hours by default
-                self.timeout = 72000
-            self._num_loops = 1
-            if self.wait_interval < self.timeout:
-                self._num_loops = self.timeout / self.wait_interval
+            image = DockerImage(repository=options['image'])
+            max_size = int(GiB(options['max-size']).to_Byte().value)
+            mountpoint = unicode(options['mountpoint'])
+            per_node = options['apps-per-node']
+            control_node_address = options['control-node']
+            timeout = options['wait']
+            wait_interval = options['wait-interval']
 
         except Exception as e:
             sys.stderr.write("%s: %s\n" % ("Missing or wrong arguments", e))
@@ -204,29 +238,48 @@ class ClusterContainerDeployment(object):
             sys.stderr.write(options.getUsage())
             raise SystemExit(1)
 
-        certificates_path = FilePath(self.options['cert-directory'])
-        self.cluster_cert = certificates_path.child(b"cluster.crt")
-        self.user_cert = certificates_path.child(b"user.crt")
-        self.user_key = certificates_path.child(b"user.key")
-        self._initial_num_datasets = 0
-        self._initial_num_containers = 0
-        self.client = None
-        self.reactor = reactor
-        self.nodes = []
-        self._initialise_client()
+        certificates_path = FilePath(options['cert-directory'])
+        cluster_cert = certificates_path.child(b"cluster.crt")
+        user_cert = certificates_path.child(b"user.crt")
+        user_key = certificates_path.child(b"user.key")
 
-    def _initialise_client(self):
-        """
-        Initialise flocker client.
-        """
-        self.client = FlockerClient(
-            self.reactor,
-            self.control_node_address,
+        # Initialise client
+        client = FlockerClient(
+            reactor,
+            control_node_address,
             REST_API_PORT,
-            self.cluster_cert,
-            self.user_cert,
-            self.user_key
+            cluster_cert,
+            user_cert,
+            user_key
         )
+
+        nodes = []
+        datasets = []
+        containers = []
+
+        def list_datasets(ignored):
+            return client.list_datasets_state()
+
+        def list_containers(ignored):
+            return client.list_containers_state()
+
+        d = client.list_nodes()
+        d.addCallback(nodes.extend)
+        d.addCallback(list_datasets)
+        d.addCallback(datasets.extend)
+        d.addCallback(list_containers)
+        d.addCallback(containers.extend)
+
+        def create_instance(ignored):
+            return cls(reactor, image, max_size, mountpoint, per_node,
+                       control_node_address, timeout, wait_interval,
+                       cluster_cert,
+                       user_cert, user_key, len(datasets),
+                       len(containers), client, nodes)
+
+        d.addCallback(create_instance)
+
+        return d
 
     def _dataset_to_volume(self, dataset):
         """
