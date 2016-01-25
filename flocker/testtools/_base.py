@@ -124,10 +124,6 @@ class TestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
         super(TestCase, self).setUp()
         self.useFixture(_SplitEliotLogs())
 
-    def tearDown(self):
-        log.msg("--> End: %s <--" % (self.id()))
-        super(TestCase, self).tearDown()
-
 
 def async_runner(timeout):
     """
@@ -179,10 +175,6 @@ class AsyncTestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
         log.msg("--> Begin: %s <--" % (self.id()))
         super(AsyncTestCase, self).setUp()
         self.useFixture(_SplitEliotLogs())
-
-    def tearDown(self):
-        log.msg("--> End: %s <--" % (self.id()))
-        super(AsyncTestCase, self).tearDown()
 
     def assertFailure(self, deferred, exception):
         """

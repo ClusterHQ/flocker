@@ -103,6 +103,23 @@ The top-level mapping may also contain any number of computer-resource provider 
 These are used to provide required parameters to the cluster runner selected by the ``--provider`` option.
 Configuration is loaded from the item in the top-level mapping with a key matching the value given to ``--provider``.
 
+The top-level mapping may contain a ``logging`` stanza, which must match the format described in `PEP 0391 <https://www.python.org/dev/peps/pep-0391/>`_.
+An example stanza:
+
+.. code-block:: yaml
+
+   logging:
+      version: 1
+      handlers:
+          logfile:
+              class: 'logging.FileHandler'
+              level: DEBUG
+              filename: "/tmp/flocker.log"
+              encoding: 'utf-8'
+      root:
+          handlers: ['logfile']
+          level: DEBUG
+
 .. _acceptance-testing-rackspace-config:
 
 Rackspace

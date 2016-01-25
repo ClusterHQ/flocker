@@ -4,6 +4,8 @@
 Tests for :module:`flocker.node.script`.
 """
 
+from functools import wraps
+import logging
 import socket
 from unittest import skipUnless
 
@@ -45,7 +47,7 @@ from .dummybackend import DUMMY_API
 
 
 def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
-                 name=None):
+                 name=None, log_config=None):
     """
     Create a configuration file and certificates for a dataset agent in a
     temporary directory.
@@ -58,32 +60,34 @@ def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
     :param int control_port: The port number of the control service.
     :param unicode name: The ZFS pool name.  If ``None``, a random one will be
         generated that identifies the given test.
+    :param dict log_config: A logging configuration dictionary. If ``None``,
+        no logging stanza will be added to the configuration file.
     """
     if name is None:
         name = random_name(test)
     ca_set = get_credential_sets()[0]
-    scratch_directory = FilePath(test.mktemp())
-    scratch_directory.makedirs()
+    scratch_directory = test.make_temporary_directory()
+    contents = {
+        u"control-service": {
+            u"hostname": control_address,
+            u"port": control_port,
+        },
+        u"dataset": {
+            u"backend": u"zfs",
+            u"name": name,
+            u"mount_root": scratch_directory.child(b"mount_root").path,
+            u"volume_config_path": scratch_directory.child(
+                b"volume_config.json"
+            ).path,
+        },
+        u"version": 1,
+    }
+    if log_config is not None:
+        contents[u'logging'] = log_config
     test.config = scratch_directory.child('dataset-config.yml')
-    test.config.setContent(
-        yaml.safe_dump({
-            u"control-service": {
-                u"hostname": control_address,
-                u"port": control_port,
-            },
-            u"dataset": {
-                u"backend": u"zfs",
-                u"name": name,
-                u"mount_root": scratch_directory.child(b"mount_root").path,
-                u"volume_config_path": scratch_directory.child(
-                    b"volume_config.json"
-                ).path,
-            },
-            u"version": 1,
-        }))
+    test.config.setContent(yaml.safe_dump(contents))
     ca_set.copy_to(scratch_directory, node=True)
     test.ca_set = ca_set
-    test.non_existent_file = scratch_directory.child('missing-config.yml')
 
 deployer = object()
 
@@ -123,18 +127,15 @@ class DatasetServiceFactoryTests(TestCase):
     Generic tests for ``DatasetServiceFactory``, independent of the storage
     driver being used.
     """
-    def setUp(self):
-        super(DatasetServiceFactoryTests, self).setUp()
-        setup_config(self)
 
     def test_config_validated(self):
         """
         ``DatasetServiceFactory.get_service`` validates the configuration file.
         """
-        self.config.setContent(b"INVALID")
+        config = self.make_temporary_file(content=b"INVALID")
 
         options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.config.path])
+        options.parseOptions([b"--agent-config", config.path])
 
         self.assertRaises(
             ValidationError,
@@ -147,7 +148,9 @@ class DatasetServiceFactoryTests(TestCase):
         given configuration file does not exist.
         """
         options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.non_existent_file.path])
+        options.parseOptions(
+            [b"--agent-config", self.make_temporary_path().path]
+        )
 
         self.assertRaises(
             IOError,
@@ -180,6 +183,31 @@ def agent_service_setup(test):
         backend_name=u"anything",
         api_args={},
     )
+
+
+def _restore_logging(log_name='flocker.test'):
+    """
+    Save and restore a logging configuration.
+    """
+    def decorator(function):
+        @wraps(function)
+        def wrapper(self):
+            def restore_logger(logger, level, handlers):
+                logger.setLevel(level)
+                for handler in logger.handlers[:]:
+                    logger.removeHandler(handler)
+                for handler in handlers:
+                    logger.addHandler(handler)
+
+            logger = logging.getLogger(log_name)
+            self.addCleanup(
+                restore_logger, logger, logger.getEffectiveLevel(),
+                logger.handlers[:]
+            )
+
+            return function(self, log_name)
+        return wrapper
+    return decorator
 
 
 class AgentServiceFromConfigurationTests(TestCase):
@@ -228,6 +256,48 @@ class AgentServiceFromConfigurationTests(TestCase):
                 ["credential", "path"], None
             ),
         )
+
+    @_restore_logging(log_name='flocker.test')
+    def test_logging(self, log_name):
+        """
+        Logging is configured by a logging stanza.
+        """
+        # Setup an AgentService with a logging stanza
+        host = b"192.0.2.13"
+        port = 2314
+        name = u"from_config-test"
+        logfile = self.make_temporary_path()
+        log_config = {
+            'version': 1,
+            'handlers': {
+                'logfile': {
+                    'class': 'logging.FileHandler',
+                    'level': 'DEBUG',
+                    'filename': logfile.path,
+                    'encoding': 'utf-8',
+                }
+            },
+            'loggers': {
+                log_name: {
+                    'handlers': ['logfile'],
+                    'level': 'DEBUG',
+                },
+            },
+        }
+        setup_config(
+            self, control_address=host, control_port=port, name=name,
+            log_config=log_config
+        )
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        config = get_configuration(options)
+        AgentService.from_configuration(config)
+
+        # Root logger now logs to file
+        log_message = 'My LoG tEsT.'
+        logger = logging.getLogger(log_name)
+        logger.info(log_message)
+        self.assertIn(log_message, logfile.getContent())
 
 
 class AgentServiceGetAPITests(TestCase):
@@ -644,7 +714,9 @@ class AgentServiceFactoryTests(TestCase):
         """
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.non_existent_file.path])
+        options.parseOptions(
+            [b"--agent-config", self.make_temporary_path().path]
+        )
         service_factory = self.service_factory(
             deployer_factory=deployer_factory_stub,
         )

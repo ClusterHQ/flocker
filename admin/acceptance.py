@@ -243,10 +243,12 @@ class ManagedRunner(object):
     :ivar ClusterIdentity identity: The identity information of the cluster.
     :ivar FilePath cert_path: The directory where the cluster certificate
         files will be placed.
+    :ivar dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
     """
     def __init__(self, node_addresses, package_source, distribution,
                  dataset_backend, dataset_backend_configuration, identity,
-                 cert_path):
+                 cert_path, logging_config):
         """
         :param list: A ``list`` of public IP addresses or
             ``[private_address, public_address]`` lists.
@@ -277,6 +279,7 @@ class ManagedRunner(object):
         self.dataset_backend_configuration = dataset_backend_configuration
         self.identity = identity
         self.cert_path = cert_path
+        self.logging_config = logging_config
 
     def _upgrade_flocker(self, reactor, nodes, package_source):
         """
@@ -345,7 +348,8 @@ class ManagedRunner(object):
                     self.dataset_backend,
                     self.dataset_backend_configuration
                 ),
-                provider="managed"
+                provider="managed",
+                logging_config=self.logging_config,
             )
         configuring = upgrading.addCallback(configure)
         return configuring
@@ -421,7 +425,7 @@ def _save_backend_configuration(dataset_backend_name,
 def configured_cluster_for_nodes(
     reactor, certificates, nodes, dataset_backend,
     dataset_backend_configuration, dataset_backend_config_file,
-    provider=None
+    provider=None, logging_config=None
 ):
     """
     Get a ``Cluster`` with Flocker services running on the right nodes.
@@ -437,6 +441,9 @@ def configured_cluster_for_nodes(
         configuration the nodes will be given for their dataset backend.
     :param FilePath dataset_backend_config_file: A FilePath that has the
         dataset_backend info stored.
+    :param bytes provider: provider of the nodes - aws, rackspace, or managed.
+    :param dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
 
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
@@ -473,7 +480,9 @@ def configured_cluster_for_nodes(
 
     configuring = perform(
         make_dispatcher(reactor),
-        configure_cluster(cluster, dataset_backend_configuration, provider)
+        configure_cluster(
+            cluster, dataset_backend_configuration, provider, logging_config
+        )
     )
     configuring.addCallback(lambda ignored: cluster)
     return configuring
@@ -682,7 +691,8 @@ class LibcloudRunner(object):
             self.dataset_backend,
             self.dataset_backend_configuration,
             _save_backend_configuration(self.dataset_backend,
-                                        self.dataset_backend_configuration)
+                                        self.dataset_backend_configuration),
+            logging_config=self.config.get('logging'),
         )
 
         returnValue(cluster)
@@ -916,6 +926,7 @@ class CommonOptions(Options):
             dataset_backend_configuration=self.dataset_backend_configuration(),
             identity=self._make_cluster_identity(dataset_backend),
             cert_path=self['cert-directory'],
+            logging_config=self['config'].get('logging'),
         )
 
     def _libcloud_runner(self, package_source, dataset_backend,
@@ -956,15 +967,9 @@ class CommonOptions(Options):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
-        :param provider_config: The ``rackspace`` section of the acceptance
-            testing configuration file.  The section of the configuration
-            file should look something like:
-
-               rackspace:
-                 region: <rackspace region, e.g. "iad">
-                 username: <rackspace username>
-                 key: <access key>
-                 keyname: <ssh-key-name>
+        :param dict provider_config: The ``rackspace`` section of the
+            acceptance testing configuration file.  See the linked
+            documentation for the form of that section.
 
         :see: :ref:`acceptance-testing-rackspace-config`
         """
@@ -977,19 +982,9 @@ class CommonOptions(Options):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
-        :param provider_config: The ``aws`` section of the acceptance testing
-            configuration file.  The section of the configuration file should
-            look something like:
-
-               aws:
-                 region: <aws region, e.g. "us-west-2">
-                 zone: <aws zone, e.g. "us-west-2a">
-                 access_key: <aws access key>
-                 secret_access_token: <aws secret access token>
-                 session_token: <optional session token>
-                 keyname: <ssh-key-name>
-                 security_groups: ["<permissive security group>"]
-                 instance_type: m3.large
+        :param dict provider_config: The ``aws`` section of the acceptance
+            testing configuration file.  See the linked documentation for the
+            form of that section.
 
         :see: :ref:`acceptance-testing-aws-config`
         """

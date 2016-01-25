@@ -68,36 +68,13 @@ The :program:`admin/setup-cluster` script has several options:
    Specifies the number of nodes (machines) to create for use in the cluster.
    This option is only applicable if the nodes are created dynamically.
 
-.. option:: --app-template <application-template-file>
-
-   Specifies a YAML file that describes a single application.
-   It must include a name of a Docker image to use as an application container and may include other parameters.
-
-.. option:: --apps-per-node <number>
-
-   Specifies the number of applications (containers) to start on each cluster node.
-   If this is not specified or zero, then no applications will be started.
-
 To see the supported values for each option, run:
 
 .. prompt:: bash $
 
    admin/setup-cluster --help
 
-Application Template
-====================
-
-The configuration file given for the ``--app-template`` parameter describes a single application.
-At the very least it should specify a name of a Docker image to use for an application container.
-
-.. code-block:: yaml
-
-  image: "clusterhq/mongodb"
-  volume:
-    mountpoint: "/data/db"
-
-See :doc:`../control/cli/application-config` for more details.
-The ``--apps-per-node`` parameter specifies how many applications to start on each cluster node.
+An example of how to run :program:`setup-cluster` would be:
 
 .. prompt:: bash $
 
@@ -105,12 +82,7 @@ The ``--apps-per-node`` parameter specifies how many applications to start on ea
     --distribution centos-7 \
     --provider rackspace \
     --config-file $PWD/cluster.yml \
-    --number-of-nodes 2 \
-    --app-template $PWD/application.yml \
-    --apps-per-node 5
-
-Note that all application instances will have exactly the same configuration.
-In particular, multiple containers may fail to start if they use a common host resource (e.g. host ports).
+    --number-of-nodes 2 
 
 Configuration File
 ==================
@@ -198,6 +170,89 @@ Or you can run, for example, the acceptance tests against the created cluster:
      --branch=master \
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
+
+==============================
+Adding containers and datasets
+==============================
+To make it easier to re-use a test cluster and test under different configurations, Flocker provides a tool to create a certain number of datasets and containers per node.
+Run the following command to deploy clusters and datasets:
+
+.. prompt:: bash $
+
+    benchmark/setup-cluster-containers <options>
+
+The :program:`setup-cluster-containers` script has the following command line options:
+
+.. program:: setup-cluster-containers`
+
+.. option:: --image <docker image>
+
+   Specifies the docker image to use to create the containers.
+
+.. option:: --mountpoint <mountpoint path>
+
+    Path of the mountpoint where the dataset should be mounted in the containers.
+
+.. option:: --control-node <ip-address>
+
+    Public IP address of the control node.
+
+.. option:: --apps-per-node <number>
+
+   Specifies the number of applications (containers) to start on each cluster node.
+   If this is not specified, one container and dataset per node will be created.
+
+.. option:: --cert-directory <certificates-directory>
+
+   Specifies a directory containing:
+
+   - ``cluster.crt`` - a CA certificate file;
+   - ``user.crt`` - a user certificate file; and
+   - ``user.key`` - a user private key file.
+
+.. option:: --max-size <GB>
+    
+    Maximum size of the datasets specified in gigabytes. This parameter is optional. By default it will
+    be 1GB.
+
+.. option:: --wait <seconds>
+
+   Specifies the timeout of waiting for the configuration changes to take effect
+   or, in other words, for the cluster to converge.
+   If this parameter is not set, then the program will wait up to two hours.
+
+.. option:: --wait-interval <seconds>
+    
+    The duration of the waiting intervals can be set as a parameter. It will determine how long the
+    program will wait between list calls when waiting for the containers and datasets to be created.
+    It is four seconds by default.
+
+If :option:`--max-size` is used the script will create volumes with the given maximum
+size (GB).
+If :option:`--max-size` is not specified, then the script will create volumes of 1GB.
+
+If :option:`--wait` is used the script waits for the deletions to take effect.
+After the script successfully finishes the cluster should be in a converged state
+with the requested containers and datasets.
+If :option:`--wait` is not specified, then the script will wait for up to two hours.
+
+If :option:`--wait-interval` is used the script waits the specified number of seconds between
+list calls when waiting for the containers and datasets to be created.
+If :option:`--wait-interval` is not specified, then the script will wait for four seconds.
+
+An example of how to use it, without specifying any optional argument would be:
+
+.. prompt:: bash $
+
+  admin/setup-cluster-containers \
+    --image "clusterhq/mongodb" \
+    --mountpoint "/data/db" \
+    --apps-per-node 5 \
+    --control-node 52.52.52.52 \
+    --cert-directory /etc/flocker/test_cluster1/
+
+Note that all application instances will have exactly the same configuration.
+In particular, multiple containers may fail to start if they use a common host resource (e.g. host ports).
 
 =====================================
 Cleaning Up the Cluster Configuration

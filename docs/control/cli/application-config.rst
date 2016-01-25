@@ -1,3 +1,5 @@
+.. _application-configuration:
+
 =========================
 Application Configuration
 =========================
