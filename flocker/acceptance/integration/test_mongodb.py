@@ -10,6 +10,7 @@ from twisted.python.filepath import FilePath
 
 from ..testtools import get_mongo_client, require_mongo
 from .testtools import make_dataset_integration_testcase
+from ...testtools import flaky
 
 from ...testtools import async_runner
 
@@ -68,3 +69,7 @@ class MongoIntegrationTests(make_dataset_integration_testcase(
     @require_mongo
     def setUp(self):
         super(MongoIntegrationTests, self).setUp()
+
+    @flaky(u'FLOC-3500')
+    def test_restart(self):
+        super(MongoIntegrationTests, self).test_restart()
