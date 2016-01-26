@@ -7,6 +7,7 @@ convergence agent that can be re-used against many different kinds of block
 devices.
 """
 
+import itertools
 from uuid import UUID
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
@@ -31,6 +32,7 @@ from twisted.python.constants import (
 )
 
 from .blockdevice_manager import BlockDeviceManager
+from ._logging import OPERATION, COUNT
 
 from .. import (
     IDeployer, ILocalState, IStateChange, in_parallel, NoOp,
@@ -1232,6 +1234,36 @@ class _SyncToThreadedAsyncAPIAdapter(PClass):
     _threadpool = field()
 
 
+CALL_LIST_VOLUMES = MessageType(
+    u"flocker:node:agents:blockdevice:list_volumes",
+    [OPERATION, COUNT],
+    u"list_volumes called.",)
+
+
+def log_list_volumes(function):
+    """
+    Decorator to count calls to list_volumes.
+
+    :param func function: The function to call.
+
+    :return: A function which will call the method and do
+        the extra logging.
+    """
+    counter = itertools.count(1)
+
+    def _count_calls(*args, **kwargs):
+        """
+        Run given function with count.
+        """
+        CALL_LIST_VOLUMES(
+            operation=[function.__name__, args[1:], kwargs],
+            count=next(counter)
+        ).write()
+        return function(*args, **kwargs)
+    return _count_calls
+
+
+@log_list_volumes
 def check_for_existing_dataset(api, dataset_id):
     """
     :param IBlockDeviceAPI api: The ``api`` for listing the existing volumes.
@@ -1246,6 +1278,7 @@ def check_for_existing_dataset(api, dataset_id):
             raise DatasetExists(volume)
 
 
+@log_list_volumes
 def get_blockdevice_volume(api, blockdevice_id):
     """
     Find a ``BlockDeviceVolume`` matching the given identifier.
@@ -1607,6 +1640,7 @@ class BlockDeviceDeployer(PClass):
             )
         return self._async_block_device_api
 
+    @log_list_volumes
     def _discover_raw_state(self):
         """
         Find the state of this node that is relevant to determining which
