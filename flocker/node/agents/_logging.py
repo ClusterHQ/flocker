@@ -20,6 +20,10 @@ OPERATION = Field.for_types(
     u"The IBlockDeviceAPI operation being executed,"
     u"along with positional and keyword arguments.")
 
+COUNT = Field.for_types(
+    u"count", [int],
+    u"Count of operation calls.")
+
 # End: Common structures used by all storage drivers.
 
 # Begin: Helper datastructures to log IBlockDeviceAPI calls
@@ -28,7 +32,7 @@ OPERATION = Field.for_types(
 # ActionType used by AWS storage driver.
 AWS_ACTION = ActionType(
     u"flocker:node:agents:blockdevice:aws",
-    [OPERATION],
+    [OPERATION, COUNT],
     [],
     u"An IBlockDeviceAPI operation is executing using AWS storage driver.")
 
