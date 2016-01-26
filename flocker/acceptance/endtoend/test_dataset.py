@@ -132,12 +132,10 @@ class DatasetAPITests(AsyncTestCase):
         def cat_and_verify_file(dataset):
             output = []
 
-            def append_output(line):
-                output.append(line)
             file_catting = node.run_as_root(
                 ['bash', '-c', 'cat %s' % (
                     os.path.join(dataset.path.path, 'test.txt'))],
-                handle_stdout=append_output)
+                handle_stdout=output.append)
 
             def verify_file(_):
                 file_contents = ''.join(output)

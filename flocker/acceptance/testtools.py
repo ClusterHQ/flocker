@@ -94,7 +94,6 @@ class FailureToUpgrade(Exception):
     """
     Exception raised to indicate a failure to install a new version of Flocker.
     """
-    pass
 
 
 def get_docker_client(cluster, address):
