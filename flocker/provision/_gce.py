@@ -32,6 +32,7 @@ from oauth2client.client import (
 )
 
 from ..node.agents.gce import wait_for_operation
+from ..common import retry_effect_with_timeout
 
 from ._common import IProvisioner, INode
 from ._install import provision_for_any_user
@@ -318,10 +319,13 @@ class GCENode(PClass):
                 ),
                 sudo_from_args(['systemctl', 'restart', 'sshd']),
             ])
-            commands.append(run_remotely(
-                username=username,
-                address=self.address,
-                commands=enable_root_ssh,
+            commands.append(retry_effect_with_timeout(
+                run_remotely(
+                    username=username,
+                    address=self.address,
+                    commands=enable_root_ssh,
+                ),
+                30
             ))
 
         commands.append(provision_for_any_user(self, package_source, variants))
