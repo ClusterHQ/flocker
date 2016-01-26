@@ -497,6 +497,23 @@ common_cli:
     ${ACCEPTANCE_TEST_MODULE}
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
+  run_acceptance_gce_loopback_tests: &run_acceptance_gce_loopback_tests |
+    # We gather the return code but make sure we come out of these tests with 0
+    # we store that code and pass it to the end of the job execution,
+    # as part of the JOB_EXIT_STATUS variable.
+    #
+    # The admin/run-acceptance-tests will provision a flocker cluster with a
+    # single node since the loopback backend doesn't support moving data across
+    # hosts.
+    ${venv}/bin/python admin/run-acceptance-tests \
+    --distribution ${DISTRIBUTION_NAME} --number-of-nodes 1 \
+    --provider gce --dataset-backend loopback --branch ${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --config-file /tmp/acceptance.yaml \
+    ${ACCEPTANCE_TEST_MODULE}
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+
   run_acceptance_rackspace_tests: &run_acceptance_rackspace_tests |
     # We gather the return code but make sure we come out of these tests with 0
     # we store that code and pass it to the end of the job execution,
@@ -1551,6 +1568,52 @@ job_type:
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
       # Similar to the reasoning for run_acceptance_on_AWS_CentOS_7_with_EBS
       # but slightly shorter since Ubuntu runs the tests faster.
+      timeout: 90
+      directories_to_delete: []
+
+    run_acceptance_on_GCE_CentOS_7_with_LOOPBACK:
+      at: '0 5 * * *'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
+                   *run_acceptance_gce_loopback_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts
+      # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
+      timeout: 120
+      directories_to_delete: []
+
+    run_acceptance_on_GCE_Ubuntu_Trusty_with_LOOPBACK:
+      at: '0 6 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
+                   *run_acceptance_gce_loopback_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
 
