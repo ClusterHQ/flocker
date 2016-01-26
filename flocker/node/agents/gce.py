@@ -13,7 +13,6 @@ driver:
 """
 
 import requests
-from base64 import b32encode
 
 from bitmath import GiB, Byte
 from googleapiclient import discovery
