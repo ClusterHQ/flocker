@@ -145,7 +145,7 @@ Preparing For a Release
    This will generate two sets of test jobs for the release branch which can be accessed from the `releases view <http://ci-live.clusterhq.com:8080/job/ClusterHQ-flocker/view/releases/>`_.
    For the following steps, use the results of the jobs within "Release release/flocker-<VERSION>" as these do not perform any pre-build merging with master.
 
-   To run the tests, force a build of the "__main_multijob" job.
+   To run the tests, force a build of the ``__main_multijob`` job.
    Some of the tests will not be triggered by this (such as the acceptance tests), so these will also need to be started.
 
    Discuss with the team whether the release can continue given any failed tests outside of expected failures.
@@ -219,7 +219,7 @@ Release
    This must be the same commit as the tag.
    The git commit that was used can be seen on the summary page for any build.
 
-   If `FLOC-3917 <https://clusterhq.atlassian.net/browse/FLOC-3917>`_ has not been resolved, then the "_build_vagrant_basebox_for_flocker_tutorial" job must also be run.
+   If `FLOC-3917 <https://clusterhq.atlassian.net/browse/FLOC-3917>`_ has not been resolved, then the ``_build_vagrant_basebox_for_flocker_tutorial`` job must also be run.
 
    If `FLOC-3916 <https://clusterhq.atlassian.net/browse/FLOC-3916>`_ has not been resolved, then after the previous step, the Vagrant box artifacts must be moved within the S3 bucket.
 
