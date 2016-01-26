@@ -394,9 +394,13 @@ Legacy
 }
 
 .admonition.labs {
-    background: url(../images/experimental.png) no-repeat #BCED91;
+    background: url(../images/icon-labs2x.png) no-repeat #BCED91;
     background-size:30px; background-position: 30px 20px;
     padding-right:20px;
+}
+
+.admonition.labs p {
+    padding-bottom:1em;
 }
 
 /* Nav Style from website */
