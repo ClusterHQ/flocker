@@ -222,7 +222,6 @@ Release
    If :issue:`3917` has not been resolved, then the ``_build_vagrant_basebox_for_flocker_tutorial`` job must also be run.
 
    If :issue:`3916` has not been resolved, then after the previous step, the Vagrant box artifacts must be moved within the S3 bucket.
-
    Move the following files:
 
    ``s3://clusterhq-dev-archive/vagrant/tutorial//flocker-tutorial-<VERSION>.box`` to ``s3://clusterhq-dev-archive/vagrant/tutorial/flocker-tutorial-<VERSION>.box``
@@ -231,7 +230,7 @@ Release
 
 #. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
-   Although the tests are run on Jenkins, we are still using Buildbot to build the packages.
+   Although the tests are run on Jenkins, we still use Buildbot to build the packages.
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
