@@ -64,8 +64,10 @@ class DatasetStates(Names):
     """
     # Doesn't exist yet.
     NON_EXISTENT = NamedConstant()
-    # Exists, but attached elsewhere
+    # Exists, but attached elsewhere to a live host:
     ATTACHED_ELSEWHERE = NamedConstant()
+    # Exists, but attached elsewhere to a dead host:
+    ATTACHED_TO_DEAD_NODE = NamedConstant()
     # Exists, but not attached
     NON_MANIFEST = NamedConstant()
     # Attached to this node but no filesystem
@@ -106,6 +108,7 @@ class DiscoveredDataset(PClass):
         tag_attribute='state',
         attributes_for_tag={
             DatasetStates.ATTACHED_ELSEWHERE: set(),
+            DatasetStates.ATTACHED_TO_DEAD_NODE: set(),
             DatasetStates.NON_MANIFEST: set(),
             DatasetStates.ATTACHED_NO_FILESYSTEM: {'device_path'},
             DatasetStates.ATTACHED: {'device_path'},
@@ -1107,13 +1110,29 @@ class ICloudAPI(Interface):
 
     In particular the presumption is that nodes are also managed by a
     centralized infrastructure.
+
+    This is specifically designed for cloud systems where shut down nodes
+    continue to have volumes attached to them.
     """
     def list_live_nodes():
         """
         Return the compute IDs of all nodes that are currently up and running.
 
-        :returns: A collection of compute instance IDs, compatible with
-            those returned by ``IBlockDeviceAPI.compute_instance_id``.
+        This is used to figure out which nodes are dead, so that other
+        nodes can do the detach.
+
+        :returns: A collection of ``unicode`` compute instance IDs, compatible
+            with those returned by ``IBlockDeviceAPI.compute_instance_id``.
+        """
+
+    def start_node(node_id):
+        """
+        Start up a node that has been shutdown.
+
+        This is only used by acceptance tests, so has no direct functional
+        tests.
+
+        :param unicode node_id: The compute node ID to startup.
         """
 
 
@@ -1264,6 +1283,8 @@ class RawState(PClass):
     The raw state of a node.
 
     :param unicode compute_instance_id: The identifier for this node.
+    :param _live_instances: ``pset`` of the identifiers of live nodes, or
+        ``None`` if unknown.
     :param volumes: List of all volumes in the cluster.
     :type volumes: ``pvector`` of ``BlockDeviceVolume``
     :param devices: Mapping from dataset UUID to block device path containing
@@ -1276,10 +1297,23 @@ class RawState(PClass):
         those devices that have filesystems on this node.
     """
     compute_instance_id = field(unicode, mandatory=True)
+    _live_instances = pset_field(unicode, optional=True)
     volumes = pvector_field(BlockDeviceVolume)
     devices = pmap_field(UUID, FilePath)
     system_mounts = pmap_field(FilePath, FilePath)
     devices_with_filesystems = pset_field(FilePath)
+
+    def is_known_dead_instance(self, instance_id):
+        """
+        If the node identified by given ID is dead, return ``True``. If it's
+        alive or unknown, return ``False``.
+
+        @param unicode instance_id: Node identifier.
+        @return: Whether instance is known to be dead.
+        """
+        if self._live_instances is None:
+            return False
+        return instance_id not in self._live_instances
 
 
 @implementer(ILocalState)
@@ -1326,6 +1360,7 @@ class BlockDeviceDeployerLocalState(PClass):
             elif dataset.state in (
                 DatasetStates.NON_MANIFEST, DatasetStates.ATTACHED,
                 DatasetStates.ATTACHED_NO_FILESYSTEM,
+                DatasetStates.ATTACHED_TO_DEAD_NODE,
             ):
                 nonmanifest_datasets[unicode(dataset_id)] = Dataset(
                     dataset_id=dataset_id,
@@ -1411,7 +1446,8 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.ATTACHED_ELSEWHERE: PollUntilAttached,
         Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
         Discovered.NON_MANIFEST: AttachVolume,
-        DatasetStates.ATTACHED: MountBlockDevice,
+        Discovered.ATTACHED: MountBlockDevice,
+        Discovered.ATTACHED_TO_DEAD_NODE: DetachVolume,
     },
     Desired.NON_MANIFEST: {
         # XXX FLOC-2206
@@ -1422,6 +1458,7 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
+        Discovered.ATTACHED_TO_DEAD_NODE: DoNothing,
     },
     Desired.DELETED: {
         Discovered.NON_EXISTENT: DoNothing,
@@ -1432,6 +1469,7 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
+        Discovered.ATTACHED_TO_DEAD_NODE: DetachVolume,
     },
 })
 del Desired, Discovered
@@ -1501,11 +1539,12 @@ class BlockDeviceDeployer(PClass):
 
     :ivar unicode hostname: The IP address of the node that has this deployer.
     :ivar UUID node_uuid: The UUID of the node that has this deployer.
-    :ivar IBlockDeviceAPI block_device_api: The block device API that will be
-        called upon to perform block device operations.
-    :ivar IProfiledBlockDeviceAPI _profiled_blockdevice_api: The block device
-        API that will be called upon to perform block device operations with
-        profiles.
+    :ivar IBlockDeviceAPI block_device_api: The block device API that will
+        be called upon to perform block device operations. This will
+        typically be a ``ProcessLifetimeCache`` wrapping the underlying
+        provider.
+    :ivar _underlying_blockdevice_api: The underlying block device API,
+        unwrapped.
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
     :ivar _async_block_device_api: An object to override the value of the
@@ -1519,7 +1558,7 @@ class BlockDeviceDeployer(PClass):
     hostname = field(type=unicode, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
     block_device_api = field(mandatory=True)
-    _profiled_blockdevice_api = field(mandatory=True, initial=None)
+    _underlying_blockdevice_api = field(mandatory=True, initial=None)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     block_device_manager = field(initial=BlockDeviceManager())
@@ -1534,12 +1573,13 @@ class BlockDeviceDeployer(PClass):
         """
         Get an ``IProfiledBlockDeviceAPI`` provider which can create volumes
         configured based on pre-defined profiles. This will use the
-        _profiled_blockdevice_api attribute, falling back to the
+        _underlying_blockdevice_api attribute, falling back to the
         block_device_api attributed and finally an adapter implementation
         around the block_device_api if neither of those provide the interface.
         """
-        if IProfiledBlockDeviceAPI.providedBy(self._profiled_blockdevice_api):
-            return self._profiled_blockdevice_api
+        if IProfiledBlockDeviceAPI.providedBy(
+                self._underlying_blockdevice_api):
+            return self._underlying_blockdevice_api
         if IProfiledBlockDeviceAPI.providedBy(self.block_device_api):
             return self.block_device_api
         return ProfiledBlockDeviceAPIAdapter(
@@ -1606,8 +1646,14 @@ class BlockDeviceDeployer(PClass):
                     # in the filesystem yet.
                     pass
 
+        if ICloudAPI.providedBy(self._underlying_blockdevice_api):
+            live_instances = self._underlying_blockdevice_api.list_live_nodes()
+        else:
+            # Can't know accurately who is alive and who is dead:
+            live_instances = None
         result = RawState(
             compute_instance_id=compute_instance_id,
+            _live_instances=live_instances,
             volumes=volumes,
             devices=devices,
             system_mounts=system_mounts,
@@ -1670,8 +1716,12 @@ class BlockDeviceDeployer(PClass):
                         blockdevice_id=volume.blockdevice_id,
                     )
                 else:
+                    if raw_state.is_known_dead_instance(volume.attached_to):
+                        state = DatasetStates.ATTACHED_TO_DEAD_NODE
+                    else:
+                        state = DatasetStates.ATTACHED_ELSEWHERE
                     datasets[dataset_id] = DiscoveredDataset(
-                        state=DatasetStates.ATTACHED_ELSEWHERE,
+                        state=state,
                         dataset_id=dataset_id,
                         maximum_size=volume.size,
                         blockdevice_id=volume.blockdevice_id,

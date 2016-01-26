@@ -40,6 +40,7 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, maybeDeferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.tls import TLSMemoryBIOFactory
+from twisted.python.reflect import safe_repr
 
 from . import run_state_change, NoOp
 
@@ -333,7 +334,7 @@ LOG_CONVERGE = ActionType(
     u"The convergence action within the loop.")
 
 LOG_DISCOVERY = ActionType(
-    u"flocker:agent:discovery", [], [],
+    u"flocker:agent:discovery", [], [Field(u"state", safe_repr)],
     u"The deployer is doing discovery of local state.")
 
 LOG_CALCULATED_ACTIONS = MessageType(
@@ -461,9 +462,15 @@ class ConvergenceLoop(object):
     def output_CONVERGE(self, context):
         with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
                           desired_configuration=self.configuration).context():
-            with LOG_DISCOVERY(self.fsm.logger).context():
+            log_discovery = LOG_DISCOVERY(self.fsm.logger)
+            with log_discovery.context():
                 discover = DeferredContext(maybeDeferred(
                     self.deployer.discover_state, self.cluster_state))
+
+                def got_local_state(local_state):
+                    log_discovery.addSuccessFields(state=local_state)
+                    return local_state
+                discover.addCallback(got_local_state)
                 discover.addActionFinish()
             d = DeferredContext(discover.result)
 

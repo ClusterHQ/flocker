@@ -46,7 +46,7 @@ Have questions or need help?
 * You can open an account there to file issues, but we're also happy to accept a `GitHub issue`_ with feature requests or bug reports. `Security issues`_  should be reported directly to our security team.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
-.. _debugging documentation: https://docs.clusterhq.com/en/latest/using/administering/debugging.html
+.. _debugging documentation: https://docs.clusterhq.com/en/latest/administering/debugging.html
 .. _Security issues: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#reporting-security-issues
 .. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
 

@@ -12,7 +12,9 @@ You can learn more about where we might be going with future releases by:
 Next Release
 ============
 
-* The :ref:`Flocker Plugin for Docker<docker-plugin>` should support the direct volume listing and inspection functionality added to Docker 1.10.
+* The :ref:`Flocker documentation <supported-orchestration-frameworks>` has been re-designed to better reflect that Flocker now integrates with Cluster Managers, rather than providing its own container management features.
+* The new :ref:`CloudFormation installer <cloudformation>` has been made available, to provide a far simpler installation experience for users on AWS.
+* The :ref:`Flocker plugin for Docker <plugin>` should support the direct volume listing and inspection functionality added to Docker 1.10.
 * Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
 
 This Release
@@ -23,9 +25,8 @@ v1.9.0
 
 * Tested against Docker version 1.9.1.
 * The REST API now supports :ref:`conditional requests<conditional requests>` of the form "only create this dataset if the configuration hasn't changed since I last checked it", allowing for e.g. enforcement of metadata uniqueness.
-* Fixed a bug where :ref:`Flocker Plugin for Docker<docker-plugin>` could not create a dataset that had the same name as a previously deleted dataset.
+* Fixed a bug where :ref:`Flocker plugin for Docker<plugin>` could not create a dataset that had the same name as a previously deleted dataset.
 * Now supporting Ubuntu 15.10 instead of Ubuntu 15.04 for the Flocker client.
-  See :ref:`installing-flocker-cli-ubuntu-15.10`.
 * Added documentation for the :ref:`EMC VMAX <emc-dataset-backend>` driver.
 * Region and zone configuration for AWS is now validated before use.
 * Flocker now reports an error when busy EBS volumes cannot be detached.
@@ -34,7 +35,7 @@ v1.9.0
 * The container API client now allows volumes to be attached to containers.
 * The container API client now supports retrieval of container state.
 * Fixed a bug where the Flocker control service sometimes listened on the wrong port.
-* The :ref:`Flocker Plugin for Docker<docker-plugin>` now supports specifying the size during volume creation.
+* The :ref:`Flocker plugin for Docker<plugin>` now supports specifying the size during volume creation.
 * Fixed a bug where Flocker would fail to service requests that had an unexpected format.
 
 Previous Releases
@@ -48,8 +49,8 @@ Previous Releases
 v1.8.0
 ------
 
-* The :ref:`Flocker Plugin for Docker<docker-plugin>` is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
-* Better error reporting for the Flocker Plugin for Docker.
+* The :ref:`Flocker plugin for Docker<plugin>` is now able to use datasets created directly via Flocker so long as the metadata has a matching ``"name"`` value.
+* Better error reporting for the Flocker plugin for Docker.
 * Added a new REST API for :http:get:`looking up node identity by era</v1/state/nodes/by_era/(era)>`; eras are reset after every reboot.
   This allows robust interaction with Flocker across reboots without getting stale data.
   As a result we were able to remove a delay in startup time that was a temporary workaround for the issue.
@@ -80,14 +81,14 @@ v1.6.1
 v1.6.0
 ------
 
-* The :ref:`Flocker plugin for Docker<docker-plugin>` is now compatible with Docker 1.9.
+* The :ref:`Flocker plugin for Docker<plugin>` is now compatible with Docker 1.9.
 * New EBS and OpenStack Cinder volumes created by Flocker will now have ``flocker-<dataset ID>`` as their name, to make it easier to find them in their respective cloud administration UIs.
   Existing volumes created by older versions of Flocker will continue to have no name.
 
 v1.5.0
 ------
 
-* The :ref:`Flocker plugin for Docker<docker-plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
+* The :ref:`Flocker plugin for Docker<plugin>` is now part of the core Flocker system, instead of an experimental Labs project.
 * Unexpected errors in agent state discovery no longer break the agent convergence loop.
 * journald logs are now easier to filter and read.
   See the :ref:`documentation <flocker-logging>` for more information.
@@ -131,7 +132,6 @@ v1.1
 ----
 
 * ``flocker-deploy`` supports specification of the pathnames of certificate and key files.
-  See :ref:`flocker-deploy-authentication`.
 * The agent configuration file allows specification of a CA certificate for OpenStack HTTPS verification.
   See :ref:`openstack-dataset-backend`.
 * Flocker can now start containers using images from private Docker registries.
@@ -148,7 +148,6 @@ v1.0.2
 * On CentOS 7, Flocker logs are no longer written to /var/log/messages since this filled up disk space too quickly.
   The logs are still available via journald.
 * The "on-failure" and "always" restart policies for containers have been temporarily disabled due to poor interaction with node reboots for containers with volumes (FLOC-2467).
-  See :ref:`restart policy<restart configuration>`.
 
 v1.0.1
 ------
@@ -157,7 +156,7 @@ Upgrading is strongly recommended for all users of v1.0.0.
 
 * The EBS storage driver now more reliably selects the correct OS device file corresponding to an EBS volume being used.
 * Additional safety checks were added to ensure only empty volumes are formatted.
-* ClusterHQ Labs projects, including the Flocker Docker Plugin and an experimental Volumes CLI and GUI are now documented in the :ref:`Labs section <labs-projects>`.
+* ClusterHQ Labs projects, including the Flocker Docker Plugin and an experimental Volumes CLI and GUI are now documented.
 
 v1.0
 ----
@@ -166,24 +165,21 @@ v1.0
 * Third parties can write Flocker storage drivers so that their storage systems work with Flocker.
   See :ref:`contribute-flocker-driver`.
 * It is now necessary to specify a dataset backend for each agent node.
-  See :ref:`post-installation-configuration`.
 * Flocker-initiated communication is secured with TLS.
-  See :ref:`authentication`.
 * ``flocker-deploy`` now requires the hostname of the control service as its first argument.
 * Added REST API functions to manage containers in a cluster alongside datasets.
   See :ref:`api`.
 * Removed support for installing ``flocker-node`` on Fedora 20.
 * Ubuntu CLI installation instructions now use Debian packages instead of pip packaging.
-  See :ref:`installing-flocker-cli-ubuntu-14.04` and ``installing-flocker-cli-ubuntu-15.04``.
 * Bug fixes and improvements focused on security and stability across platforms.
 
 v0.4
 ----
 
 * New :ref:`REST API<api>` for managing datasets.
-* Applications can now be configured with a :ref:`restart policy<restart configuration>`.
-* Volumes can now be configured with a :ref:`maximum size<volume configuration>`.
-* Documentation now includes :ref:`instructions for installing flocker-node on CentOS 7<centos-7-install>`.
+* Applications can now be configured with a restart configuration.
+* Volumes can now be configured with a maximum size.
+* Documentation now includes instructions for installing flocker-node on CentOS 7.
 * SELinux must be disabled before installing Flocker.
   A future version of Flocker may provide a different integration strategy.
 
@@ -196,24 +192,24 @@ v0.3.2
 v0.3.1
 ------
 
-* Applications can now be :ref:`configured with a CPU and memory limit<configuration>`.
+* Applications can now be configured with a CPU and memory limit.
 * Documentation now includes instructions for installing flocker-node on Fedora 20.
-* Documentation now includes instructions for deploying ``flocker-node`` on three popular cloud services: :ref:`Amazon EC2<aws-install>`, :ref:`Rackspace<rackspace-install>`, and DigitalOcean.
+* Documentation now includes instructions for deploying ``flocker-node`` on three popular cloud services: Amazon EC2, Rackspace, and DigitalOcean.
 
 
 v0.3
 ----
 
 * ``geard`` is no longer used to manage Docker containers.
-* Added support for `Fig`_ compatible :ref:`application configuration <fig-compatible-config>` files.
+* Added support for `Fig`_ compatible application configuration files.
 
 
 v0.2
 ----
 
 * Moving volumes between nodes is now done with a two-phase push that should dramatically decrease application downtime when moving large amounts of data.
-* Added support for environment variables in the :ref:`application configuration<configuration>`.
-* Added basic support for links between containers in the :ref:`application configuration<configuration>`.
+* Added support for environment variables in the application configuration.
+* Added basic support for links between containers in the application configuration.
 
 v0.1
 ----

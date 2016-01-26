@@ -1,26 +1,65 @@
-Flocker Documentation
-=====================
+.. raw:: html
 
-Welcome to the Flocker docs! If you're just getting started with Flocker, it might be worth reading our :ref:`introduction`, or trying our simple tutorial on the `Getting Started with Flocker`_ page.
+    <style>
+        .toctree-wrapper { display:none; }
+    </style>
 
-In the documentation listed below, you'll be able to find instructions on how to install, configure, and use Flocker.
-You will also find instructions on how to install and use :ref:`docker-plugin`.
+==================
+Installing Flocker
+==================
 
-You'll be able to find concept and reference material, and our :ref:`Labs section<labs-projects>` contains all the information you need about our experimental projects.
+.. _supported-orchestration-frameworks:
 
-Flocker is an open-source project, and in our :ref:`Getting Involved section<getting-involved>`, there is information about how you can collaborate with ClusterHQ.
+Flocker allows you to launch and move stateful containers by integrating with a Cluster Manager of your choice.
+
+To install Flocker, first choose which Cluster Manager you are using, or intend to use:
+
+.. raw:: html
+
+	<div class="pods-eq">
+	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
+			<img src="_static/images/docker2x.png" alt="Docker logo"/>
+			<span>Docker Swarm, with Docker Compose<em>Try it Now</em></span>
+	        <a href="docker-integration/" class="button button--fast">Install</a>
+	    </div>
+
+	    <div class="pod-boxout pod-boxout--orchestration">
+			<img src="_static/images/kubernetes2x.png" alt="Kubernetes logo"/>
+			<span>Kubernetes</span>
+	        <a href="kubernetes-integration/" class="button">Install</a>
+	    </div>
+
+	    <div class="pod-boxout pod-boxout--orchestration">
+			<img src="_static/images/mesos2x.png" alt="mesos logo"/>
+			<span>Mesos</span>
+	        <a href="mesos-integration/" class="button">Install</a>
+	    </div>
+	</div>
+
+Alternatively, if you want to install Flocker without a specific Cluster Manager in mind, that is also possible:
+
+.. raw:: html
+
+	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
+		<span><img src="_static/images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install Flocker without a Cluster Manager</span>
+        <a href="flocker-standalone/" class="button">Install</a>
+    </div>
+
+Is your chosen Cluster Manager missing?
+Please let us know with the form below!
 
 .. toctree::
    :maxdepth: 2
 
-   introduction/index
-   install/index
-   config/index
-   control/index
-   concepts/index
+   docker-integration/index
+   kubernetes-integration/index
+   mesos-integration/index
+   flocker-standalone/index
+   supported/index
+   administering/index
+   flocker-features/index
    reference/index
    releasenotes/index
-   labs/index
    faq/index
    gettinginvolved/index
 
@@ -30,5 +69,4 @@ Flocker is an open-source project, and in our :ref:`Getting Involved section<get
    :hidden:
 
    version
-
-.. _Getting Started with Flocker: https://clusterhq.com/flocker/getting-started/
+   installation/index
