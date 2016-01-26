@@ -35,7 +35,7 @@ from hypothesis.strategies import (
 )
 
 from testtools.deferredruntest import SynchronousDeferredRunTest
-from testtools.matchers import Equals, Is
+from testtools.matchers import Equals, AllMatch, IsInstance
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
@@ -5506,8 +5506,7 @@ def make_icloudapi_tests(
             ``list_live_nodes`` returns an iterable of unicode values.
             """
             live_nodes = self.api.list_live_nodes()
-            for x in live_nodes:
-                self.expectThat(type(x), Is(unicode))
+            self.assertThat(live_nodes, AllMatch(IsInstance(unicode)))
 
     return Tests
 
