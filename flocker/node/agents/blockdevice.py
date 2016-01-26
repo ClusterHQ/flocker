@@ -32,7 +32,7 @@ from twisted.python.constants import (
 )
 
 from .blockdevice_manager import BlockDeviceManager
-from ._logging import OPERATION, COUNT
+from ._logging import DATASET_ID, OPERATION, COUNT
 
 from .. import (
     IDeployer, ILocalState, IStateChange, in_parallel, NoOp,
@@ -272,12 +272,6 @@ FILESYSTEM_TYPE = Field.forTypes(
     u"filesystem_type",
     [unicode],
     u"The name of a filesystem."
-)
-
-DATASET_ID = Field(
-    u"dataset_id",
-    lambda dataset_id: unicode(dataset_id),
-    u"The unique identifier of a dataset."
 )
 
 MOUNTPOINT = Field(

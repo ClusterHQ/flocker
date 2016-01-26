@@ -8,10 +8,15 @@ for consolidation opportunities.
 """
 
 from eliot import Field, ActionType, MessageType
-from .blockdevice import DATASET_ID
 
 # Begin: Common structures used by all (AWS, OpenStack)
 # storage drivers.
+
+DATASET_ID = Field(
+    u"dataset_id",
+    lambda dataset_id: unicode(dataset_id),
+    u"The unique identifier of a dataset."
+)
 
 # An OPERATION is a list of:
 # IBlockDeviceAPI name, positional arguments, keyword arguments.
