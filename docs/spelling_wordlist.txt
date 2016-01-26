@@ -4,6 +4,7 @@ apps
 authorised
 backend
 backends
+basebox
 behaviour
 blog
 Btrfs
@@ -69,6 +70,7 @@ microservice
 microservices
 mountpoint
 multi
+multijob
 mv
 namespace
 NAT'd
