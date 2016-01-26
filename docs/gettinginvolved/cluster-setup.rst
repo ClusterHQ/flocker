@@ -171,9 +171,9 @@ Or you can run, for example, the acceptance tests against the created cluster:
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
+Adding Containers and Datasets
 ==============================
-Adding containers and datasets
-==============================
+
 To make it easier to re-use a test cluster and test under different configurations, Flocker provides a tool to create a certain number of datasets and containers per node.
 Run the following command to deploy clusters and datasets:
 
@@ -254,7 +254,6 @@ An example of how to use it, without specifying any optional argument would be:
 Note that all application instances will have exactly the same configuration.
 In particular, multiple containers may fail to start if they use a common host resource (e.g. host ports).
 
-=====================================
 Cleaning Up the Cluster Configuration
 =====================================
 
