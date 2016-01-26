@@ -281,4 +281,6 @@ class RequestLoadScenario(object):
                 return self.rate_measurer.get_metrics()
             scenario.addCallback(return_metrics)
 
+            scenario.addBoth(self.scenario_setup.run_cleanup)
+
             return scenario.addActionFinish()
