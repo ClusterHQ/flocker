@@ -5,7 +5,9 @@ Provisioning for acceptance tests.
 """
 
 from ._common import PackageSource, Variants, INode, IProvisioner
-from ._install import provision, configure_cluster
+from ._install import (
+    provision, configure_cluster, reinstall_flocker_at_version
+)
 from ._rackspace import rackspace_provisioner
 from ._aws import aws_provisioner
 from ._ca import Certificates
@@ -22,4 +24,5 @@ __all__ = [
     'CLOUD_PROVIDERS',
     'configure_cluster',
     'Certificates',
+    'reinstall_flocker_at_version',
 ]
