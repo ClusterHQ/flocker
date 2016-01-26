@@ -219,9 +219,9 @@ Release
    This must be the same commit as the tag.
    The git commit that was used can be seen on the summary page for any build.
 
-   If `FLOC-3917 <https://clusterhq.atlassian.net/browse/FLOC-3917>`_ has not been resolved, then the ``_build_vagrant_basebox_for_flocker_tutorial`` job must also be run.
+   If :issue:`3917` has not been resolved, then the ``_build_vagrant_basebox_for_flocker_tutorial`` job must also be run.
 
-   If `FLOC-3916 <https://clusterhq.atlassian.net/browse/FLOC-3916>`_ has not been resolved, then after the previous step, the Vagrant box artifacts must be moved within the S3 bucket.
+   If :issue:`3916` has not been resolved, then after the previous step, the Vagrant box artifacts must be moved within the S3 bucket.
 
    Move the following files:
 
