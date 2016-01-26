@@ -754,7 +754,9 @@ class FakeCloudAPI(proxyForInterface(IBlockDeviceAPI)):
         self.live_nodes = live_nodes
 
     def list_live_nodes(self):
-        return [self.compute_instance_id()] + list(self.live_nodes)
+        return {node: [u"10.1.1.{}".format(i)]
+                for i, node in enumerate(
+                        [self.compute_instance_id()] + list(self.live_nodes))}
 
     def start_node(self, node_id):
         return
@@ -5501,11 +5503,17 @@ def make_icloudapi_tests(
                           self.assertIn(self.api.compute_instance_id(), live))
             return d
 
+        def test_current_machine_has_appropriate_ip(self):
+            """
+            The machine's known IP is set for the current node.
+            """
+            # XXX ...
+
         def test_list_live_nodes(self):
             """
             ``list_live_nodes`` returns an iterable of unicode values.
             """
-            live_nodes = self.api.list_live_nodes()
+            live_nodes = list(self.api.list_live_nodes())
             self.assertThat(live_nodes, AllMatch(IsInstance(unicode)))
 
     return Tests

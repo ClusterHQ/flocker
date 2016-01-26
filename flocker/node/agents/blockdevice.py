@@ -1121,8 +1121,10 @@ class ICloudAPI(Interface):
         This is used to figure out which nodes are dead, so that other
         nodes can do the detach.
 
-        :returns: A collection of ``unicode`` compute instance IDs, compatible
-            with those returned by ``IBlockDeviceAPI.compute_instance_id``.
+        :returns: A mapping of ``unicode`` compute instance IDs
+            (compatible with those returned by
+            ``IBlockDeviceAPI.compute_instance_id``) to IPs of those
+            nodes, also as unicode..
         """
 
     def start_node(node_id):
@@ -1647,7 +1649,8 @@ class BlockDeviceDeployer(PClass):
                     pass
 
         if ICloudAPI.providedBy(self._underlying_blockdevice_api):
-            live_instances = self._underlying_blockdevice_api.list_live_nodes()
+            live_instances = list(
+                self._underlying_blockdevice_api.list_live_nodes())
         else:
             # Can't know accurately who is alive and who is dead:
             live_instances = None
