@@ -215,11 +215,12 @@ Release
 
 #. Go to `Jenkins`_ and force a build on the release branch to test the latest commit.
 
-   Currently, jobs cannot be created for git tags so the latest commit must be test instead.
+   Currently, jobs cannot be created for git tags so the latest commit must be tested instead.
    This must be the same commit as the tag.
    The git commit that was used can be seen on the summary page for any build.
+   To test this commit, force a build of the ``__main_multijob`` job and any other jobs which are not triggered by this.
 
-   If :issue:`3917` has not been resolved, then the ``_build_vagrant_basebox_for_flocker_tutorial`` job must also be run.
+   If :issue:`3917` has not been resolved, then a build of the ``_build_vagrant_basebox_for_flocker_tutorial`` job must also be triggered.
 
    If :issue:`3916` has not been resolved, then after the previous step, the Vagrant box artifacts must be moved within the S3 bucket.
    Move the following files:
