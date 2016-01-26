@@ -1121,8 +1121,8 @@ class ICloudAPI(Interface):
         This is used to figure out which nodes are dead, so that other
         nodes can do the detach.
 
-        :returns: A collection of compute instance IDs, compatible with
-            those returned by ``IBlockDeviceAPI.compute_instance_id``.
+        :returns: A collection of ``unicode`` compute instance IDs, compatible
+            with those returned by ``IBlockDeviceAPI.compute_instance_id``.
         """
 
     def start_node(node_id):
