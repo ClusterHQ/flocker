@@ -765,7 +765,7 @@ branches.each { branchName ->
     println("iterating over branch... ${branchName}")
     dashBranchName = escape_name(branchName)
     // our convention for release branches is release/flocker-<version>
-    isReleaseBuild = branchName.startsWith("release/*")
+    isReleaseBuild = branchName.startsWith("release/")
 
     generate_jobs_for_branch(dashProject, dashBranchName, branchName, false)
 
