@@ -540,7 +540,7 @@ def boto3_log(method):
     :return: A function which will call the method and do
         the extra exception logging.
     """
-    counter = itertools.count()
+    counter = itertools.count(1)
 
     def _run_with_logging(*args, **kwargs):
         """
