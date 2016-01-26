@@ -141,7 +141,7 @@ Preparing For a Release
 
 #. Ensure all the required tests pass on Jenkins:
 
-   To run the tests on `Jenkins`_, first run `setup_ClusterHQ-flocker-release <http://ci-live.clusterhq.com:8080/job/setup_ClusterHQ-flocker-release/>`_ using the release branch as the parameter to the job.
+   To run the tests on `Jenkins`_, first run ``setup_ClusterHQ-flocker-release`` using the release branch as the parameter to the job.
    This will generate two sets of test jobs for the release branch which can be accessed from the `releases view <http://ci-live.clusterhq.com:8080/job/ClusterHQ-flocker/view/releases/>`_.
    For the following steps, use the results of the jobs within "Release release/flocker-<VERSION>" as these do not perform any pre-build merging with master.
 
