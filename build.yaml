@@ -244,7 +244,7 @@ common_cli:
     function vagrant_up() {
       (
         retry_n_times_with_timeout 3 1200 \
-          VAGRANT_LOG=info vagrant up
+          vagrant up
       ) || abort_build
     }
 
@@ -255,7 +255,7 @@ common_cli:
     function vagrant_box_update() {
       (
         retry_n_times_with_timeout 2 1800 \
-          VAGRANT_LOG=info vagrant box update
+          vagrant box update
       ) || abort_build
     }
 
@@ -263,7 +263,7 @@ common_cli:
     # usage:
     # vagrant_destroy
     function vagrant_destroy() {
-      VAGRANT_LOG=info vagrant destroy -f
+      vagrant destroy -f
     }
 
   # TODO: do we need to clean up old files on ubuntu and centos or
@@ -760,7 +760,7 @@ common_cli:
     # make sure we don't abort on the first error
     set +e
     # run the build.sh script inside our vagrant box
-    VAGRANT_LOG=info vagrant ssh -c 'bash build.sh' || abort_build
+    vagrant ssh -c 'bash build.sh' || abort_build
 
     # this removes the secrets files we used during provisioning
     for item in "/tmp/pip.sh build.sh git-commit.sh"
