@@ -285,6 +285,7 @@ class GCENode(PClass):
     :ivar unicode zone: The zone the instance is in.
     :ivar unicode name: The GCE name of the instance used to identify the
         instance.
+    :ivar bytes username: The preferred username to access the instance as.
     :ivar compute: A Google Compute Engine Service that can be used to make
         calls to the GCE API.
     """
@@ -294,10 +295,11 @@ class GCENode(PClass):
     project = field(type=unicode)
     zone = field(type=unicode)
     name = field(type=unicode)
+    username = field(type=bytes)
     compute = field()
 
     def get_default_username(self):
-        return bytes(_GCE_ACCEPTANCE_USERNAME)
+        return self.username
 
     def provision(self, package_source, variants):
         commands = []
@@ -367,9 +369,9 @@ class GCEProvisioner(PClass):
     """
     A provisioner that can create instances on GCE.
 
-    :ivar unicode zone: The zone in which instances will be provisioned in.
+    :ivar unicode zone: The zone in which instances will be provisioned.
     :ivar unicode project: The project under which instances will be
-        provisioned in.
+        provisioned.
     :ivar Key ssh_public_key: The public ssh key that will transferred to the
         instance for access.
     :ivar compute: A Google Compute Engine Service that can be used to make
@@ -387,6 +389,7 @@ class GCEProvisioner(PClass):
     def create_node(self, name, distribution, metadata={}):
         instance_name = _clean_to_gce_name(name)
         ssh_key = unicode(self.ssh_public_key.toString('OPENSSH'))
+        username = _GCE_ACCEPTANCE_USERNAME
         config = _create_gce_instance_config(
           instance_name=instance_name,
           project=self.project,
@@ -400,7 +403,7 @@ class GCEProvisioner(PClass):
           # in as a different user to enable root ssh.
           login_credentials=[
               _LoginCredentials(
-                  username=_GCE_ACCEPTANCE_USERNAME,
+                  username=username,
                   public_key=ssh_key
               ),
               _LoginCredentials(
@@ -435,9 +438,11 @@ class GCEProvisioner(PClass):
             self.compute, operation, timeout_steps=[1]*60)
 
         if not operation_result:
-            raise ValueError("Timed out waiting for VM creation")
-
-        operation_result["targetLink"].split("/")[-1]
+            raise ValueError(
+                "Timed out waiting for creation of VM: {}".format(
+                    instance_name
+                )
+            )
 
         instance_resource = self.compute.instances().get(
             project=self.project, zone=self.zone, instance=instance_name
@@ -451,6 +456,7 @@ class GCEProvisioner(PClass):
             project=self.project,
             zone=self.zone,
             name=instance_name,
+            username=bytes(username),
             compute=self.compute
         )
 
