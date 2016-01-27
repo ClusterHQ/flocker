@@ -741,8 +741,8 @@ class Cluster(PClass):
         def get_flocker_version():
             # Retry getting the flocker version for 10 seconds. Flocker might
             # not be running yet on the control node when this is called.
-            d = self.timeout(
-                reactor,
+            d = timeout(
+                self.reactor,
                 retry_failure(
                     self.reactor,
                     self.client.version
