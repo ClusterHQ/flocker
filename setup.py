@@ -115,7 +115,7 @@ setup(
         # "git+https" weirdness is due to setuptools expecting:
         #     vcs+proto://host/path@revision#egg=project-version
         # See https://setuptools.readthedocs.org/en/latest/setuptools.html
-        "git+https://github.com/ClusterHQ/testtools@clusterhq-fork#egg=testtools-1.9.0chq3",  # noqa
+        "git+https://github.com/ClusterHQ/testtools@optional-twisted-logging#egg=testtools-1.9.0chq4",  # noqa
     ],
 
     # Some "trove classifiers" which are relevant.

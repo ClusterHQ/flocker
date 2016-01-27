@@ -7,6 +7,7 @@ Tests for flocker base test cases.
 import errno
 import os
 import shutil
+from datetime import timedelta
 import unittest
 
 from eliot import MessageType, fields
@@ -30,8 +31,10 @@ from testtools.matchers import (
     FileContains,
     Is,
     Matcher,
+    MatchesAll,
     MatchesAny,
     MatchesDict,
+    MatchesListwise,
     MatchesRegex,
     LessThan,
     Not,
@@ -43,9 +46,8 @@ from twisted.internet.defer import Deferred, succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 
-from .. import CustomException, AsyncTestCase, TestCase
+from .. import CustomException, AsyncTestCase, TestCase, async_runner
 from .._base import (
-
     _SplitEliotLogs,
     _get_eliot_data,
     _iter_lines,
@@ -239,6 +241,44 @@ class BaseTestCaseTests(TesttoolsTestCase):
                              "  name: 'qux'\n")
                 ),
             }))
+
+
+class AsyncTestCaseTests(TestCase):
+    """
+    Tests for functionality specific to ``AsyncTestCase``.
+    """
+
+    def test_logs_after_timeout(self):
+        """
+        We include logs for tests, even if they time out.
+        """
+        message_type = MessageType(u'foo', fields(name=str), u'test message')
+
+        class SomeTest(AsyncTestCase):
+            run_tests_with = async_runner(timeout=timedelta(seconds=0.00005))
+
+            def test_something(self):
+                from twisted.python import log
+                log.msg('foo')
+                message_type(name='qux').write()
+                return Deferred()
+
+        test = SomeTest('test_something')
+        result = TestResult()
+        test.run(result)
+        self.assertThat(
+            result,
+            has_results(
+                tests_run=Equals(1),
+                errors=MatchesListwise([MatchesListwise([
+                    Equals(test),
+                    MatchesAll(
+                        Contains('[-] foo\n'),
+                        Contains("message_type: 'foo'"),
+                    ),
+                ])]),
+            )
+        )
 
 
 def match_text_content(matcher):
