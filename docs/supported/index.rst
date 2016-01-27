@@ -58,12 +58,12 @@ These are the best options for running Flocker on a supported public or private 
 		 <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/AWS.png" alt="Amazon AWS Logo"/>
 			<span>AWS EBS</span>
-	        <a href="../index.html" class="button">Learn more</a>
+	        <a href="../flocker-features/aws-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/openstack2x.png" alt="Openstack logo"/>
 			<span>OpenStack Cinder</span>
-	        <a href="../index.html" class="button">Learn more</a>
+	        <a href="../flocker-features/openstack-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/vmware2x.png" alt="VMWare logo"/>
