@@ -17,6 +17,7 @@ Create Stack console (after replacing ``us-east-1`` with your Region):
 https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new
 """
 
+import argparse
 import os
 
 from troposphere import FindInMap, GetAtt, Base64, Join, Tags
@@ -25,7 +26,11 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
-NUM_NODES = 3
+MIN_CLUSTER_SIZE = 3
+MAX_CLUSTER_SIZE = 20
+CLUSTER_SIZE_TEMPLATE = u"Supported cluster sizes: min={0} max={1}".format(
+    MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE)
+DEFAULT_CLUSTER_SIZE = MIN_CLUSTER_SIZE
 AGENT_NODE_NAME_TEMPLATE = u"AgentNode{index}"
 EC2_INSTANCE_NAME_TEMPLATE = u"{stack_name}_{node_type}"
 CONTROL_NODE_NAME = u"ControlNode"
@@ -55,6 +60,40 @@ def _sibling_lines(filename):
     with open(path, 'r') as f:
         return f.readlines()
 
+
+class InvalidClusterSize(Exception):
+    """
+    """
+    def __init__(self, size):
+        message = ". ".join([
+            u"The requested cluster size of {0} is not supported".format(size),
+            CLUSTER_SIZE_TEMPLATE])
+        Exception.__init__(self, message, size)
+        self.size = size
+
+
+def _get_cluster_size():
+    """
+    """
+    parser = argparse.ArgumentParser(
+        description='Create CloudFormation template'
+                    ' for cluster of desired size '
+                    '(default: {0} nodes).'.format(MIN_CLUSTER_SIZE))
+    parser.add_argument('-s', '--size',
+                        default=MIN_CLUSTER_SIZE,
+                        type=int,
+                        help='an integer corresponding to desired '
+                             'number of nodes in the cluster. '
+                             'Supported sizes: min={0} max={1}'.format(
+                                 MIN_CLUSTER_SIZE,
+                                 MAX_CLUSTER_SIZE))
+    size = parser.parse_args().size
+    if size < MIN_CLUSTER_SIZE or size > MAX_CLUSTER_SIZE:
+        raise InvalidClusterSize(size)
+    return size
+
+num_nodes = _get_cluster_size()
+
 # Base JSON template.
 template = Template()
 
@@ -74,14 +113,6 @@ secret_access_key_param = template.add_parameter(Parameter(
     "SecretAccessKey",
     Description="Your Amazon AWS secret access key",
     Type="String",
-))
-cluster_size = template.add_parameter(Parameter(
-    "ClusterSize",
-    Description="Please choose a size between 3 and 20 nodes (inclusive)",
-    Type="Number",
-    Default="3",
-    MinValue="3",
-    MaxValue="20",
 ))
 
 volumehub_token = template.add_parameter(Parameter(
@@ -147,9 +178,6 @@ instance_sg = template.add_resource(
     )
 )
 
-# Get configured cluster size.
-num_nodes = Ref(cluster_size)
-
 # Base for post-boot {Flocker, Docker, Swarm} configuration on the nodes.
 base_user_data = [
     '#!/bin/bash\n',
@@ -160,7 +188,7 @@ base_user_data = [
     's3_bucket="', Ref(s3bucket), '"\n',
     'stack_name="', Ref("AWS::StackName"), '"\n',
     'volumehub_token="', Ref(volumehub_token), '"\n',
-    'node_count="{}"\n'.format(NUM_NODES),
+    'node_count="{}"\n'.format(num_nodes),
     'apt-get update\n',
 ]
 
@@ -168,7 +196,7 @@ base_user_data = [
 # from 0.
 flocker_agent_number = 1
 
-for i in range(NUM_NODES):
+for i in range(num_nodes):
     if i == 0:
         node_name = CONTROL_NODE_NAME
     else:
