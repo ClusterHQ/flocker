@@ -18,10 +18,11 @@ from bitmath import GiB, Byte
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from oauth2client.gce import AppAssertionCredentials
+from pyrsistent import PClass, field
 from socket import gethostname
 from twisted.python.filepath import FilePath
 from uuid import UUID
-from zope.interface import implementer
+from zope.interface import implementer, Interface
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, AlreadyAttachedVolume, UnknownVolume,
@@ -35,6 +36,123 @@ _METADATA_SERVER = u'http://169.254.169.254/computeMetadata/v1/'
 _METADATA_HEADERS = {u'Metadata-Flavor': u'Google'}
 
 
+class OperationPoller(Interface):
+    """
+    Interface for GCE operation resource polling. GCE operation resources
+    should be polled from GCE until they reach a status of ``DONE``. The
+    specific endpoint that should be polled for the operation is different for
+    global operations vs zone operations. This interface provides an
+    abstraction for that difference.
+    """
+
+    def poll(compute):
+        """
+        Get the latest version of the requested operation. This should block
+        until the latest version of the requested operation is gotten.
+
+        :param compute: The GCE compute python API object.
+
+        :returns: A dict representing the latest version of the GCE operation
+            resource.
+        """
+
+
+@implementer(OperationPoller)
+class ZoneOperationPoller(PClass):
+    """
+    Implemenation of :class:`OperationPoller` for zone operations.
+
+    :ivar unicode zone: The zone the operation occurred in.
+    :ivar unicode project: The project the operation is under.
+    :ivar unicode operation_name: The name of the operation.
+    """
+    zone = field(type=unicode)
+    project = field(type=unicode)
+    operation_name = field(type=unicode)
+
+    def poll(self, compute):
+        return compute.zoneOperations().get(
+            project=self.project,
+            zone=self.zone,
+            operation=self.operation_name
+        ).execute()
+
+
+@implementer(OperationPoller)
+class GlobalOperationPoller(PClass):
+    """
+    Implemenation of :class:`OperationPoller` for global operations.
+
+    :ivar unicode project: The project the operation is under.
+    :ivar unicode operation_name: The name of the operation.
+    """
+    project = field(type=unicode)
+    operation_name = field(type=unicode)
+
+    def poll(self, compute):
+        return compute.globalOperations().get(
+            project=self.project,
+            operation=self.operation_name
+        ).execute()
+
+
+class MalformedOperation(Exception):
+    """
+    Error indicating that there was an error parsing a dictionary as a GCE
+    operation resource.
+    """
+
+
+def _create_poller(operation):
+    """
+    Creates an operation poller from the passed in operation.
+
+    :param operation: A dict representing a GCE operation resource.
+
+    :returns: An :class:`OperationPoller` provider that can poll the status of
+        the operation.
+    """
+    try:
+        operation_name = operation['name']
+    except KeyError:
+        raise MalformedOperation(
+            u"Failed to parse operation, could not find key "
+            u"name in: {}".format(operation)
+        )
+    if 'zone' in operation:
+        zone_url_parts = unicode(operation['zone']).split('/')
+        try:
+            project = zone_url_parts[-3]
+            zone = zone_url_parts[-1]
+        except IndexError:
+            raise MalformedOperation(
+                "'zone' key of operation had unexpected form: {}.\n"
+                "Expected '(.*/)?<project>/zones/<zone>'.\n"
+                "Full operation: {}.".format(operation['zone'], operation))
+        return ZoneOperationPoller(
+            zone=unicode(zone),
+            project=unicode(project),
+            operation_name=unicode(operation_name)
+        )
+    else:
+        try:
+            project = unicode(operation['selfLink']).split('/')[-4]
+        except KeyError:
+            raise MalformedOperation(
+                u"Failed to parse global operation, could not find key "
+                u"selfLink in: {}".format(operation)
+            )
+        except IndexError:
+            raise MalformedOperation(
+                "'selfLink' key of operation had unexpected form: {}.\n"
+                "Expected '(.*/)?<project>/global/operations/<name>'.\n"
+                "Full operation: {}.".format(operation['selfLink'], operation))
+        return GlobalOperationPoller(
+            project=unicode(project),
+            operation_name=unicode(operation_name)
+        )
+
+
 def wait_for_operation(compute, operation, timeout):
     """
     Blocks until a GCE operation is complete, or timeout passes.
@@ -43,6 +161,7 @@ def wait_for_operation(compute, operation, timeout):
     'DONE' or times out, and then returns the final operation resource
     dict.
 
+    :param compute: The GCE compute python API object.
     :param operation: A dict representing a pending GCE operation resource.
         This can be either a zone or a global operation.
     :param timeout: The amount of times in seconds to wait until timing out the
@@ -51,45 +170,10 @@ def wait_for_operation(compute, operation, timeout):
     :returns dict: A dict representing the concluded GCE operation
         resource or `None` if the operation times out.
     """
-    operation_name = operation['name']
-    if 'zone' in operation:
-        # For zone operations, we need to extract the zone and the project.
-        # An example of a 'zone' value of a zone operation dict is:
-        #
-        # 'https://content.googleapis.com/compute/v1/'
-        # 'projects/<project-name>/zones/<zone-name>'
-        #
-        # Note that everything before 'projects' is sometimes not included.
-        zone_url_parts = operation['zone'].split('/')
-        project = zone_url_parts[-3]
-        zone = zone_url_parts[-1]
-
-        def get_zone_operation():
-            return compute.zoneOperations().get(
-                project=project,
-                zone=zone,
-                operation=operation_name
-            )
-        update = get_zone_operation
-    else:
-        # For global operations, we only need to extract the project.
-        # An example of a 'selfLink' value of a global operation dict is:
-        #
-        # 'https://content.googleapis.com/compute/v1/'
-        # 'projects/<project-name>/global/operations/<operation-name>'
-        #
-        # Note that everything before 'projects' is sometimes not included.
-        project = operation['selfLink'].split('/')[-4]
-
-        def get_global_operation():
-            return compute.globalOperations().get(
-                project=project,
-                operation=operation_name
-            )
-        update = get_global_operation
+    poller = _create_poller(operation)
 
     def finished_operation_result():
-        latest_operation = update().execute()
+        latest_operation = poller.poll()
         if latest_operation['status'] == 'DONE':
             return latest_operation
         return None
