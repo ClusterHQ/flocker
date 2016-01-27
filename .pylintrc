@@ -19,6 +19,7 @@ persistent=no
 load-plugins=
 
 # Use multiple processes to speed up Pylint.
+# DO NOT CHANGE THIS VALUES >1 HIDE RESULTS!!!!!
 jobs=1
 
 # Allow loading of arbitrary C extensions. Extensions are imported into the
