@@ -95,6 +95,7 @@ class IRequestScenarioSetup(Interface):
     It will provide a setup function and a make request function to
     make requests of a certain type
     """
+
     def run_setup():
         """
         Interface for the scenario load setup. It should do all the actions
@@ -107,6 +108,7 @@ class IRequestScenarioSetup(Interface):
             have a timeout set so the Deferred fails if something went wrong
             and the setup got stuck.
         """
+
     def make_request():
         """
         Interface for request generator
@@ -117,6 +119,7 @@ class IRequestScenarioSetup(Interface):
         :return Deferred: that fires when the REST request has been
             completed, and returns the results of the request.
         """
+
     def run_cleanup():
         """
         Interface function for the scenario cleanup, to delete anything that
