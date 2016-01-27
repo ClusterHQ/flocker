@@ -54,8 +54,27 @@ enable=import-error,
        import-self,
        reimported,
        wildcard-import,
-       misplaced-future
+       misplaced-future,
+       import-error,
+       import-self,
+       reimported,
+       relative-import,
+       deprecated-module,
+       wildcard-import,
+       misplaced-future,
+       unpacking-non-sequence,
+       invalid-all-object,
+       no-name-in-module,
+       undefined-all-variable,
+       used-before-assignment,
+       cell-var-from-loop,
+       global-variable-undefined,
+       redefined-builtin,
+       redefine-in-handler
 
+# Things we'd like to enable:
+# redefined-outer-name (requires a bunch of work to clean up our code first)
+# undefined-variable (re-enable when pylint fixes https://github.com/PyCQA/pylint/issues/760)
 
 
 # ...
