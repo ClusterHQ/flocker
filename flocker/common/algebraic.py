@@ -130,16 +130,16 @@ class TaggedUnionInvariant(PClass):
         return (True, "")
 
 
-def tagged_union_strategy(type, attr_strategies):
+def tagged_union_strategy(typ, attr_strategies):
     """
     Create a strategy for building a type with a ``TaggedUnionInvariant``.
 
-    :param type: Type to generate a strategy for.
+    :param typ: Type to generate a strategy for.
     :param attr_strategies: Mapping of attributes to strategies to
         generate corresponding attributes.
     :type attr_strategies: ``dict`` mapping ``str`` to ``SearchStrategy`s.
     """
-    invariant = type.__invariant__
+    invariant = typ.__invariant__
 
     def build(tag):
         args = {
@@ -151,6 +151,6 @@ def tagged_union_strategy(type, attr_strategies):
             if (attribute in invariant.attributes_for_tag[tag] or
                 attribute not in invariant._all_attributes)
         })
-        return fixed_dictionaries(args).map(lambda kwargs: type(**kwargs))
+        return fixed_dictionaries(args).map(lambda kwargs: typ(**kwargs))
 
     return sampled_from(invariant._allowed_tags).flatmap(build)
