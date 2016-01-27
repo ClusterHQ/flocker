@@ -21,7 +21,7 @@ def add_results_to_table(ip, result, result_table):
             result_table[ip][k] = []
             result_table[ip][k].append(v)
     else:
-        for k, v in result_table[ip].iteritems():
+        for k, v in result.iteritems():
             print "V is (2) ", v, "\n"
             result_table[ip][k].append(v)
 
@@ -32,8 +32,8 @@ def main(args):
             results = json.load(f)
             # XXX adding schema json validation
             result_table  = {}
-            for v in results[u'samples']:
-                for ip, result in v[u'value'].iteritems():
+            for sample in results[u'samples']:
+                for ip, result in sample[u'value'].iteritems():
                     apply_cpu_metric(result)
                     add_results_to_table(ip, result, result_table)
 
