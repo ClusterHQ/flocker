@@ -5,7 +5,9 @@ Testing tools related to iptables.
 """
 
 from subprocess import check_output, check_call
+# pylint: disable=no-name-in-module
 from nomenclature.syscalls import unshare, setns, CLONE_NEWNET
+# pylint: enable=no-name-in-module
 from ipaddr import IPAddress
 
 
