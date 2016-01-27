@@ -255,12 +255,15 @@ class AsyncTestCaseTests(TestCase):
         message_type = MessageType(u'foo', fields(name=str), u'test message')
 
         class SomeTest(AsyncTestCase):
+
+            # Set the timeout super low, because we're not doing anything.
             run_tests_with = async_runner(timeout=timedelta(seconds=0.00005))
 
             def test_something(self):
                 from twisted.python import log
                 log.msg('foo')
                 message_type(name='qux').write()
+                # Return a Deferred that never fires to guarantee a timeout.
                 return Deferred()
 
         test = SomeTest('test_something')
