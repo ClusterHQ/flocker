@@ -220,15 +220,6 @@ Release
    The git commit that was used can be seen on the summary page for any build.
    To test this commit, force a build of the ``__main_multijob`` job and any other jobs which are not triggered by this.
 
-   If :issue:`3917` has not been resolved, then a build of the ``_build_vagrant_basebox_for_flocker_tutorial`` job must also be triggered.
-
-   If :issue:`3916` has not been resolved, then after the previous step, the Vagrant box artifacts must be moved within the S3 bucket.
-   Move the following files:
-
-   ``s3://clusterhq-dev-archive/vagrant/tutorial//flocker-tutorial-<VERSION>.box`` to ``s3://clusterhq-dev-archive/vagrant/tutorial/flocker-tutorial-<VERSION>.box``
-
-   ``s3://clusterhq-dev-archive/vagrant/tutorial//flocker-tutorial-<VERSION>.box.json`` to ``s3://clusterhq-dev-archive/vagrant/tutorial/flocker-tutorial-<VERSION>.box.json``
-
 #. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
    Although the tests are run on Jenkins, we still use Buildbot to build the packages.
