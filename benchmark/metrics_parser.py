@@ -3,42 +3,38 @@
 import json
 from collections import defaultdict
 
-example_resultxs = {
-    "master": [
-        {
-            "num_nodes": 10,
-            "num_containers": 10,
-            "metrics": [
-                {
-                    "cpu_no_load": 0.145
-                }
-            ]
-        },
-    ]
-}
+example = {"flocker_control":6,
+           "-- WALL --":101.2}
 
+def apply_cpu_metric(result_blob):
+    wall_time = float(result_blob.get(u'-- WALL --'))
+    #result_blob.remove(u'--WALL--')
+    for k, v in result_blob.iteritems():
+        if not k == u'-- WALL --':
+            result_blob[k] = v/wall_time
 
-def combine_metrics(metrics):
-    combined_metrics = defaultdict(list)
-    for metric in metrics:
-        for k, v in metric[u'value'].iteritems():
-            combined_metrics[k].append(v)
-    print combined_metrics
-
-
-def get_branch_results(results):
-    parsed_results = {}
-    for result in results:
-        version = result[u'control_service'][u'flocker_version']
-        # num_nodes = result[u'control_service'][u'num_nodes']
-        # num_containers = result[u'control_service'][u'num_containers']
-        combine_metrics(result[u'samples'])
-    return parsed_results
+def add_results_to_table(ip, result, result_table):
+    if result_table.get(ip) is None:
+        result_table[ip] = {}
+        for k, v in result.iteritems():
+            print "V is (1) ", v, "\n"
+            result_table[ip][k] = []
+            result_table[ip][k].append(v)
+    else:
+        for k, v in result_table[ip].iteritems():
+            print "V is (2) ", v, "\n"
+            result_table[ip][k].append(v)
 
 
 def main(args):
-    results = []
-    for arg in args:
-        with open(arg) as f:
-            results.append(json.load(f))
-    get_branch_results(results)
+    for json_file in args:
+        with open(json_file) as f:
+            results = json.load(f)
+            # XXX adding schema json validation
+            result_table  = {}
+            for v in results[u'samples']:
+                for ip, result in v[u'value'].iteritems():
+                    apply_cpu_metric(result)
+                    add_results_to_table(ip, result, result_table)
+
+            print result_table
