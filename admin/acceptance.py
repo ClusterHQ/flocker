@@ -103,7 +103,10 @@ def get_trial_environment(cluster):
             cluster.default_volume_size
         ),
         'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
-            cluster.dataset_backend_config_file.path
+            cluster.dataset_backend_config_file.path,
+        'FLOCKER_ACCEPTANCE_NODE_INSTANCE_IDS': json.dumps(
+            [node._instance.id for node in cluster.all_nodes]
+        ),
     }
 
 
@@ -113,8 +116,7 @@ def run_tests(reactor, cluster, trial_args):
 
     :param Cluster cluster: The cluster to run acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
-        provided, defaults to ``['flocker.acceptance']``.
-
+        provided, defaults to ``['flocker.acceptannode
     :return int: The exit-code of trial.
     """
     if not trial_args:
