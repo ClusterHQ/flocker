@@ -25,7 +25,7 @@ from flocker.docs.version_extensions import PLACEHOLDER
 
 from . import _tasks as tasks
 from ._ssh import Run, Sudo, Comment, Put
-from ._effect import dispatcher as base_dispatcher, SequenceFailed
+from ._effect import dispatcher as base_dispatcher, SequenceFailed, HTTPGet
 from effect import (
     sync_perform, sync_performer,
     ComposedDispatcher, TypeDispatcher,
@@ -57,6 +57,11 @@ def run_for_docs(effect):
             "EOF",
         ])
 
+    @sync_performer
+    def get(dispatcher, intent):
+        # Do not actually make any requests when we are building the docs.
+        pass
+
     sync_perform(
         ComposedDispatcher([
             TypeDispatcher({
@@ -64,6 +69,7 @@ def run_for_docs(effect):
                 Sudo: sudo,
                 Comment: comment,
                 Put: put,
+                HTTPGet: get,
             }),
             base_dispatcher,
         ]),
