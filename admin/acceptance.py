@@ -84,16 +84,13 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def get_trial_environment(cluster, package_source):
+def get_trial_environment(cluster):
     """
-    Return a dictionary of environment variables describing a cluster for
-    acceptance testing.
+    Return a dictionary of environment varibles describing a cluster for
+    accetpance testing.
 
     :param Cluster cluster: Description of the cluster to get environment
         variables for.
-
-    :param PackageSource package_source: The source of flocker omnibus package
-        under test.
     """
     return {
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
@@ -110,23 +107,17 @@ def get_trial_environment(cluster, package_source):
             cluster.default_volume_size
         ),
         'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
-            cluster.dataset_backend_config_file.path,
-        'FLOCKER_ACCEPTANCE_DISTRIBUTION': cluster.control_node.distribution,
-        'FLOCKER_ACCEPTANCE_PACKAGE_BRANCH': package_source.branch or '',
-        'FLOCKER_ACCEPTANCE_PACKAGE_VERSION': package_source.version or '',
-        'FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER': package_source.build_server,
+            cluster.dataset_backend_config_file.path
     }
 
 
-def run_tests(reactor, cluster, trial_args, package_source):
+def run_tests(reactor, cluster, trial_args):
     """
     Run the acceptance tests.
 
     :param Cluster cluster: The cluster to run acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
-    :param PackageSource package_source: The source of flocker omnibus package
-        under test.
 
     :return int: The exit-code of trial.
     """
@@ -144,7 +135,7 @@ def run_tests(reactor, cluster, trial_args, package_source):
         reactor,
         ['trial'] + list(trial_args),
         env=extend_environ(
-            **get_trial_environment(cluster, package_source)
+            **get_trial_environment(cluster)
         )
     ).addCallbacks(
         callback=lambda _: 0,
@@ -811,14 +802,6 @@ class CommonOptions(Options):
                 )
             )
 
-    def package_source(self):
-        """Getter for the configured package source."""
-        return PackageSource(
-            version=self['flocker-version'],
-            branch=self['branch'],
-            build_server=self['build-server'],
-        )
-
     def postOptions(self):
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
@@ -835,6 +818,11 @@ class CommonOptions(Options):
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
+        package_source = PackageSource(
+            version=self['flocker-version'],
+            branch=self['branch'],
+            build_server=self['build-server'],
+        )
         try:
             get_runner = getattr(self, "_runner_" + provider.upper())
         except AttributeError:
@@ -847,7 +835,7 @@ class CommonOptions(Options):
             )
         else:
             self.runner = get_runner(
-                package_source=self.package_source(),
+                package_source=package_source,
                 dataset_backend=self.dataset_backend(),
                 provider_config=provider_config,
             )
@@ -1335,8 +1323,8 @@ def main(reactor, args, base_path, top_level):
         result = yield run_tests(
             reactor=reactor,
             cluster=cluster,
-            trial_args=options['trial-args'],
-            package_source=options.package_source())
+            trial_args=options['trial-args'])
+
     finally:
         reached_finally = True
         # We delete the nodes if the user hasn't asked to keep them
@@ -1350,8 +1338,7 @@ def main(reactor, args, base_path, top_level):
             print ("To run acceptance tests against these nodes, "
                    "set the following environment variables: ")
 
-            environment_variables = get_trial_environment(
-                cluster, options.package_source())
+            environment_variables = get_trial_environment(cluster)
 
             for environment_variable in environment_variables:
                 print "export {name}={value};".format(
