@@ -70,12 +70,25 @@ enable=import-error,
        cell-var-from-loop,
        global-variable-undefined,
        redefined-builtin,
-       redefine-in-handler
+       redefine-in-handler,
+       unused-import,
+       unused-wildcard-import,
+       global-variable-not-assigned,
+       undefined-loop-variable,
+       global-statement,
+       global-at-module-level,
+       bad-open-mode,
+       redundant-unittest-assert,
+       boolean-datetime
 
-# Things we'd like to enable:
+# Things we should do soon in follow-up branch to aid reviewers:
+#       unused-variable,
+
+# Things we'd like to enable someday:
 # redefined-outer-name (requires a bunch of work to clean up our code first)
 # undefined-variable (re-enable when pylint fixes https://github.com/PyCQA/pylint/issues/760)
 # no-name-in-module (giving us spurious warnings https://github.com/PyCQA/pylint/issues/73)
+# unused-argument (need to clean up or code a lot, e.g. prefix unused_?)
 
 # Things we'd like to try.
 # Procedure:
@@ -83,17 +96,6 @@ enable=import-error,
 # 2. See if there's spurious ones; if so disable.
 # 3. Record above.
 # 4. Remove from this list.
-       # unused-import,
-       # unused-argument,
-       # unused-wildcard-import,
-       # unused-variable,
-       # global-variable-not-assigned,
-       # undefined-loop-variable,
-       # global-statement,
-       # global-at-module-level,
-       # bad-open-mode,
-       # redundant-unittest-assert,
-       # boolean-datetime,
        # deprecated-method,
        # anomalous-unicode-escape-in-string,
        # anomalous-backslash-in-string,
