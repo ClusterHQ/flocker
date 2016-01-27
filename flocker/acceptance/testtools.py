@@ -18,6 +18,8 @@ import ssl
 
 from docker.tls import TLSConfig
 
+from ipaddress import ip_address
+
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
@@ -45,6 +47,7 @@ from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.script import get_backend, get_api
 from ..node import dockerpy_client
+from ..node.agents.blockdevice import ICloudAPI
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
@@ -826,7 +829,7 @@ class Cluster(PClass):
 
 def connected_cluster(
         reactor, control_node, certificates_path, num_agent_nodes,
-        hostname_to_public_address, username='user',
+        username='user',
 ):
     cluster_cert = certificates_path.child(b"cluster.crt")
     user_cert = certificates_path.child(
@@ -869,24 +872,56 @@ def connected_cluster(
                        failed_query)
         return d
     agents_connected = loop_until(reactor, nodes_available)
+    agents_connected.addCallback(_add_nodes)
+    return agents_connected
 
-    # Extract node hostnames from API that lists nodes. Currently we
-    # happen know these in advance, but in FLOC-1631 node identification
-    # will switch to UUIDs instead.
-    agents_connected.addCallback(lambda _: cluster.current_nodes())
+
+def _add_nodes(cluster):
+    """
+    Configure the ``Node`` objects for a newly created ``Cluster`` whose
+    nodes are known to be alive.
+
+    :param Cluster cluster: Cluster that still needs nodes set.
+    :return: ``cluster`` updated with appropriate ``nodes`` set.
+    """
+    # By default we just trust address returned by Flocker
+    def default_get_public_ip(address):
+        return address
+
+    try:
+        backend = get_backend_api(None, cluster.cluster_uuid)
+    except SkipTest:
+        # Can't load backend, will have to trust Flocker's reported IPs.
+        get_public_ip = default_get_public_ip
+    else:
+        if ICloudAPI.providedBy(backend):
+            node_ips = list(set(ip_address(i) for i in ips)
+                            for ips in backend.list_live_nodes().values())
+
+            def get_public_ip(address):
+                for ips in node_ips:
+                    if ip_address(address) in ips:
+                        return [unicode(ip) for ip in ips
+                                if not any(ip.is_private, ip.is_link_local,
+                                           ip.is_loopback)][0]
+                raise ValueError(
+                    "Couldn't find address in cloud API reported IPs")
+        else:
+            get_public_ip = default_get_public_ip
 
     def node_from_dict(node):
         reported_hostname = node["host"]
-        public_address = hostname_to_public_address.get(
-            reported_hostname, reported_hostname)
+        public_address = get_public_ip(reported_hostname)
         return Node(
             uuid=node[u"uuid"],
             public_address=public_address.encode("ascii"),
             reported_hostname=reported_hostname.encode("ascii"),
         )
-    agents_connected.addCallback(lambda nodes: cluster.set(
-        "nodes", map(node_from_dict, nodes)))
-    return agents_connected
+
+    d = cluster.current_nodes()
+    d.addCallback(
+        lambda nodes: cluster.set("nodes", map(node_from_dict, nodes)))
+    return d
 
 
 def _get_test_cluster(reactor):
@@ -914,16 +949,11 @@ def _get_test_cluster(reactor):
     certificates_path = FilePath(
         environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
 
-    hostname_to_public_address_env_var = environ.get(
-        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
-    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
-
     return connected_cluster(
         reactor,
         control_node,
         certificates_path,
         num_agent_nodes,
-        hostname_to_public_address
     )
 
 
