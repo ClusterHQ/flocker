@@ -4047,7 +4047,7 @@ class LoopbackBlockDeviceAPIConstructorTests(TestCase):
             root_path=b'',
         )
         instance_id = loopback_blockdevice_api.compute_instance_id()
-        self.assertIsInstance(id, unicode)
+        self.assertIsInstance(instance_id, unicode)
         self.assertNotEqual(u"", instance_id)
 
     def test_unique_instance_id_if_not_provided(self):
