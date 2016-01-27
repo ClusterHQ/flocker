@@ -13,11 +13,9 @@ def apply_cpu_metric(result_blob):
         if not k == u'-- WALL --':
             result_blob[k] = v/wall_time
 
-def add_results_to_table(ip, result, result_table):
-    if result_table.get(ip) is None:
-        result_table[ip] = defaultdict(list)
+def add_results_to_table(result, result_table):
     for k, v in result.iteritems():
-        result_table[ip][k].append(v)
+        result_table[k].append(v)
 
 
 def main(args):
@@ -25,10 +23,10 @@ def main(args):
         with open(json_file) as f:
             results = json.load(f)
             # XXX adding schema json validation
-            result_table = {}
+            result_table = defaultdict(list)
             for sample in results[u'samples']:
-                for ip, result in sample[u'value'].iteritems():
+                for result in sample[u'value'].itervalues():
                     apply_cpu_metric(result)
-                    add_results_to_table(ip, result, result_table)
+                    add_results_to_table(result, result_table)
 
             print result_table
