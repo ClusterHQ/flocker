@@ -14,10 +14,8 @@ import yaml
 
 from zope.interface import implementer
 
-from eliot import write_failure
 from characteristic import attributes
 from pyrsistent import PClass, field
-from txeffect import perform
 
 from twisted.internet.error import ProcessTerminated
 
@@ -30,8 +28,7 @@ from ._ssh import (
     put,
     run_remotely,
 )
-from ._ssh._conch import make_dispatcher
-from ._effect import sequence, http_get
+from ._effect import sequence
 
 from ..common import retry_effect_with_timeout
 
@@ -61,36 +58,6 @@ class UnknownAction(Exception):
     """
     def __init__(self, action):
         Exception.__init__(self, action)
-
-
-def tag_as_test_install(flocker_version, distribution, package_name):
-    """
-    Creates an effect of making an HTTP GET to a specific URL in an s3 bucket
-    that has logging enabled. This is done so that when computing flocker
-    downloads we can subtract the number of requests to this file.
-
-    :param unicode flocker_version: The version of flocker being installed.
-    :param unicode distribution: The distribution flocker is being installed
-        on.
-    :param unicode package_name: The name of the package being installed.
-
-    :returns: An :class:`HTTPGet` ``Effect`` to retrieve a URL that flags this
-        as an internal testing install.
-    """
-    repository_url = get_repository_url(
-        distribution=distribution,
-        flocker_version=flocker_version)
-    repository_host = urlparse(repository_url).hostname
-    tag_url = bytes(
-        "https://{host}/clusterhq-internal-acceptance-test/{distribution}/"
-        "{package}/{version}".format(
-            host=repository_host,
-            distribution=distribution,
-            package=package_name,
-            version=flocker_version
-        )
-    )
-    return http_get(tag_url)
 
 
 def is_centos(distribution):
@@ -394,17 +361,9 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
         repo_options = get_repo_options(
             flocker_version=get_installable_version(version))
 
-    base_package = package_name
     os_version = package_source.os_version()
     if os_version:
         package_name += '-%s' % (os_version,)
-
-    # Execute a request to s3 so that this can be tagged as a test install for
-    # statistical tracking.
-    if base_url is None:
-        commands.append(tag_as_test_install(flocker_version,
-                                            distribution,
-                                            base_package))
 
     # Install package and all dependencies:
 
@@ -436,9 +395,6 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # support empty values other than None, as '' sometimes used to
         # indicate latest version, due to previous behaviour
         flocker_version = get_installable_version(version)
-    repository_url = get_repository_url(
-        distribution=distribution,
-        flocker_version=flocker_version)
     commands = [
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
@@ -450,32 +406,34 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
         # Add ClusterHQ repo for installation of Flocker packages.
         # XXX This needs retry
-        run(command='add-apt-repository -y "deb {} /"'.format(repository_url))
+        run(command='add-apt-repository -y "deb {} /"'.format(
+            get_repository_url(
+                distribution=distribution,
+                flocker_version=flocker_version)))
         ]
-
-    pinned_host = urlparse(repository_url).hostname
 
     if base_url is not None:
         # Add BuildBot repo for running tests
         commands.append(run_network_interacting_from_args([
             "add-apt-repository", "-y", "deb {} /".format(base_url)]))
-        # During a release, or during upgrade testing, we might not be able to
-        # rely on package management to install flocker from the correct
-        # server. Thus, in all cases we pin precisely which url we want to
-        # install flocker from.
-        pinned_host = urlparse(package_source.build_server).hostname
-    commands.append(put(dedent('''\
-        Package: *
-        Pin: origin {}
-        Pin-Priority: 700
-    '''.format(pinned_host)), '/tmp/apt-pref'))
-    commands.append(run_from_args([
-        'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
+        # During a release, the ClusterHQ repo may contain packages with
+        # a higher version number than the Buildbot repo for a branch.
+        # Use a pin file to ensure that any Buildbot repo has higher
+        # priority than the ClusterHQ repo.  We only add the Buildbot
+        # repo when a branch is specified, so it wil not interfere with
+        # attempts to install a release (when no branch is specified).
+        buildbot_host = urlparse(package_source.build_server).hostname
+        commands.append(put(dedent('''\
+            Package: *
+            Pin: origin {}
+            Pin-Priority: 700
+        '''.format(buildbot_host)), '/tmp/apt-pref'))
+        commands.append(run_from_args([
+            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
 
     # Update to read package info from new repos
     commands.append(apt_get_update())
 
-    base_package = package_name
     os_version = package_source.os_version()
 
     if os_version:
@@ -495,13 +453,6 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         '''.format(os_version)), '/tmp/apt-pref'))
         commands.append(run_from_args([
             'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/clusterhq-900']))
-
-    # Execute a request to s3 so that this can be tagged as a test install for
-    # statistical tracking.
-    if base_url is None:
-        commands.append(tag_as_test_install(flocker_version,
-                                            distribution,
-                                            base_package))
 
     # Install package and all dependencies
     # We use --force-yes here because our packages aren't signed.
@@ -1617,77 +1568,3 @@ def configure_cluster(
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])
     ])
-
-
-def reinstall_flocker_at_version(
-    reactor, nodes, control_node, package_source, distribution
-):
-    """
-    Put the version of Flocker indicated by ``package_source`` onto all of
-    the given nodes.
-
-    This takes a primitive approach of uninstalling the software and then
-    installing the new version instead of trying to take advantage of any
-    OS-level package upgrade support.  Because it's easier.  The package
-    removal step is allowed to fail in case the package is not installed
-    yet (other failures are not differentiated).  The only action taken on
-    failure is that the failure is logged.
-
-    :param reactor: The reactor to use to schedule the work.
-    :param nodes: An iterable of node addresses of nodes in the cluster.
-    :param control_node: The address of the control node.
-    :param PackageSource package_source: The version of the software to
-        install.
-    :param distribution: The distribution installed on the nodes.
-
-    :return: A ``Deferred`` that fires when the software has been upgraded.
-    """
-    managed_nodes = list(
-        ManagedNode(address=node, distribution=distribution)
-        for node in nodes
-    )
-    dispatcher = make_dispatcher(reactor)
-
-    uninstalling = perform(dispatcher, uninstall_flocker(managed_nodes))
-
-    uninstalling.addErrback(write_failure, logger=None)
-
-    def install(ignored):
-        return perform(
-            dispatcher,
-            install_flocker(managed_nodes, package_source),
-        )
-    uninstalling.addCallback(install)
-
-    def restart_services(ignored):
-        return perform(
-            dispatcher,
-            parallel([
-                run_remotely(
-                    username='root',
-                    address=node.address,
-                    commands=sequence([
-                        task_enable_docker_plugin(node.distribution),
-                        task_enable_flocker_agent(
-                            distribution=node.distribution,
-                            action='restart',
-                        )
-                    ])
-                )
-                for node in managed_nodes
-            ] + [
-                run_remotely(
-                    username='root',
-                    address=control_node,
-                    commands=sequence([
-                        task_enable_flocker_control(
-                            distribution,
-                            'restart'),
-                    ])
-                )
-            ])
-        )
-
-    uninstalling.addCallback(restart_services)
-
-    return uninstalling
