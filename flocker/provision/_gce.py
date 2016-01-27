@@ -341,7 +341,7 @@ class GCENode(PClass):
                 zone=self.zone,
                 instance=self.name
             ).execute()
-            wait_for_operation(self.compute, operation, timeout=60)
+            wait_for_operation(self.compute, operation, timeout_steps=[1]*60)
 
     def reboot(self):
         """
@@ -353,7 +353,7 @@ class GCENode(PClass):
                 zone=self.zone,
                 instance=self.name
             ).execute()
-            wait_for_operation(self.compute, operation, timeout=60)
+            wait_for_operation(self.compute, operation, timeout_steps=[1]*60)
 
         But, as that is untested, it will remain unimplemented.
         """
@@ -432,7 +432,7 @@ class GCEProvisioner(PClass):
         ).execute()
 
         operation_result = wait_for_operation(
-            self.compute, operation, timeout=60)
+            self.compute, operation, timeout_steps=[1]*60)
 
         if not operation_result:
             raise ValueError("Timed out waiting for VM creation")

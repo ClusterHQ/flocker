@@ -153,7 +153,7 @@ def _create_poller(operation):
         )
 
 
-def wait_for_operation(compute, operation, timeout):
+def wait_for_operation(compute, operation, timeout_steps):
     """
     Blocks until a GCE operation is complete, or timeout passes.
 
@@ -164,8 +164,8 @@ def wait_for_operation(compute, operation, timeout):
     :param compute: The GCE compute python API object.
     :param operation: A dict representing a pending GCE operation resource.
         This can be either a zone or a global operation.
-    :param timeout: The amount of times in seconds to wait until timing out the
-        operation.
+    :param timeout_steps: Iterable of times in seconds to wait until timing out
+        the operation.
 
     :returns dict: A dict representing the concluded GCE operation
         resource or `None` if the operation times out.
@@ -178,7 +178,7 @@ def wait_for_operation(compute, operation, timeout):
             return latest_operation
         return None
 
-    return poll_until(finished_operation_result, [1]*timeout)
+    return poll_until(finished_operation_result, timeout_steps)
 
 
 def _get_metadata_path(path):
@@ -359,7 +359,7 @@ class GCEBlockDeviceAPI(object):
         # operations within GCE and use that information to determine
         # an appropriate timeout. Until that is done, use the
         # following arbitrary timeout.
-        return wait_for_operation(self._compute, operation, 35)
+        return wait_for_operation(self._compute, operation, [1]*35)
 
     def allocation_unit(self):
         """
