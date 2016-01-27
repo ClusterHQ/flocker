@@ -97,7 +97,7 @@ from ..loopback import (
     _backing_file_name,
 )
 from ....common.algebraic import tagged_union_strategy
-
+from ....common import get_all_ips
 
 from ... import run_state_change, in_parallel, ILocalState, IStateChange, NoOp
 from ...testtools import (
@@ -754,9 +754,12 @@ class FakeCloudAPI(proxyForInterface(IBlockDeviceAPI)):
         self.live_nodes = live_nodes
 
     def list_live_nodes(self):
-        return {node: [u"10.1.1.{}".format(i)]
-                for i, node in enumerate(
-                        [self.compute_instance_id()] + list(self.live_nodes))}
+        result = {self.compute_instance_id():
+                  set(unicode(i) for i in get_all_ips()
+                      if i != b"127.0.0.1")}
+        result.update({node: [u"10.1.1.{}".format(i)]
+                       for i, node in enumerate(self.live_nodes)})
+        return result
 
     def start_node(self, node_id):
         return
@@ -5507,7 +5510,15 @@ def make_icloudapi_tests(
             """
             The machine's known IP is set for the current node.
             """
-            # XXX ...
+            local_addresses = set(unicode(i) for i in get_all_ips()
+                                  if i != b"127.0.0.1")
+            d = self.async_cloud_api.list_live_nodes()
+            d.addCallback(
+                lambda live:
+                self.assertTrue(
+                    set(live[self.api.compute_instance_id()]).intersection(
+                        local_addresses)))
+            return d
 
         def test_list_live_nodes(self):
             """
