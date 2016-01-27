@@ -578,7 +578,6 @@ class BlockDeviceDeployerAsyncAPITests(TestCase):
         ``_SyncToThreadedAsyncAPIAdapter`` using the global reactor, the global
         reactor's thread pool, and the value of ``block_device_api``.
         """
-        from twisted.internet import reactor
         threadpool = reactor.getThreadPool()
 
         api = UnusableAPI()
@@ -4047,9 +4046,9 @@ class LoopbackBlockDeviceAPIConstructorTests(TestCase):
         loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
             root_path=b'',
         )
-        id = loopback_blockdevice_api.compute_instance_id()
+        instance_id = loopback_blockdevice_api.compute_instance_id()
         self.assertIsInstance(id, unicode)
-        self.assertNotEqual(u"", id)
+        self.assertNotEqual(u"", instance_id)
 
     def test_unique_instance_id_if_not_provided(self):
         """
