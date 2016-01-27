@@ -11,7 +11,7 @@ from twisted.python.procutils import which
 
 from ... import __version__
 from ...testtools import (
-    attempt_effective_uid, TestCase,
+    skip_on_broken_permissions, attempt_effective_uid, TestCase,
 )
 from ..testtools import create_zfs_pool
 
@@ -65,6 +65,7 @@ class FlockerVolumeTests(TestCase):
         run(b"--config", path.path, b"--pool", pool)
         self.assertTrue(json.loads(path.getContent()))
 
+    @skip_on_broken_permissions
     def test_no_permission(self):
         """If the config file is not writeable a meaningful response is
         written.

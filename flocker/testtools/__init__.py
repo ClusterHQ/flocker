@@ -16,6 +16,7 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import randrange
 import shutil
+from functools import wraps
 from unittest import skipIf, skipUnless
 from StringIO import StringIO
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
@@ -34,7 +35,7 @@ from zope.interface.verify import verifyClass, verifyObject
 from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
-from twisted.python.filepath import FilePath
+from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.base import _ThreePhaseEvent
 from twisted.internet.task import Clock
 from twisted.internet.defer import Deferred
@@ -78,6 +79,7 @@ __all__ = [
     'not_root',
     'random_name',
     'run_process',
+    'skip_on_broken_permissions',
 ]
 
 REALISTIC_BLOCKDEVICE_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
@@ -680,6 +682,35 @@ class DockerImageBuilder(PClass):
                 client.remove_image(tag, force=True)
             self.test.addCleanup(remove_image)
         return d.addCallback(lambda ignored: tag)
+
+
+def skip_on_broken_permissions(test_method):
+    """
+    Skips the wrapped test when the temporary directory is on a
+    filesystem with broken permissions.
+
+    Virtualbox's shared folder (as used for :file:`/vagrant`) doesn't entirely
+    respect changing permissions. For example, this test detects running on a
+    shared folder by the fact that all permissions can't be removed from a
+    file.
+
+    :param callable test_method: Test method to wrap.
+    :return: The wrapped method.
+    :raise SkipTest: when the temporary directory is on a filesystem with
+        broken permissions.
+    """
+    @wraps(test_method)
+    def wrapper(case, *args, **kwargs):
+        test_file = FilePath(case.mktemp())
+        test_file.touch()
+        test_file.chmod(0o000)
+        permissions = test_file.getPermissions()
+        test_file.chmod(0o777)
+        if permissions != Permissions(0o000):
+            raise SkipTest(
+                "Can't run test on filesystem with broken permissions.")
+        return test_method(case, *args, **kwargs)
+    return wrapper
 
 
 @contextmanager

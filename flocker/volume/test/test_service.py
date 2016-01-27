@@ -32,7 +32,7 @@ from .._ipc import RemoteVolumeManager, LocalVolumeManager
 from ..testtools import create_volume_service
 from ...common import FakeNode
 from ...testtools import (
-    attempt_effective_uid, make_with_init_tests,
+    skip_on_broken_permissions, attempt_effective_uid, make_with_init_tests,
     assert_equal_comparison, assert_not_equal_comparison, AsyncTestCase,
     TestCase,
 )
@@ -175,6 +175,7 @@ class VolumeServiceStartupTests(TestCase):
         service.startService()
         self.assertTrue(path.exists())
 
+    @skip_on_broken_permissions
     def test_config_makedirs_failed(self):
         """If creating the config directory fails then CreateConfigurationError
         is raised."""
@@ -189,6 +190,7 @@ class VolumeServiceStartupTests(TestCase):
         with attempt_effective_uid('nobody', suppress_errors=True):
             self.assertRaises(CreateConfigurationError, service.startService)
 
+    @skip_on_broken_permissions
     def test_config_write_failed(self):
         """If writing the config fails then CreateConfigurationError
         is raised."""
@@ -315,6 +317,7 @@ class VolumeServiceAPITests(AsyncTestCase):
         size = VolumeSize(maximum_size=None)
         self._creation_test(lambda service: service.get(MY_VOLUME, size=size))
 
+    @skip_on_broken_permissions
     def test_create_mode(self):
         """The created filesystem is readable/writable/executable by anyone.
 
@@ -374,6 +377,7 @@ class VolumeServiceAPITests(AsyncTestCase):
         pool.get(volume).get_path().child(b"file").setContent(b"changed")
         self.assertEqual(parent_file.getContent(), b"blah")
 
+    @skip_on_broken_permissions
     def test_clone_to_mode(self):
         """
         The cloned-to filesystem is readable/writable/executable by anyone.
@@ -894,6 +898,7 @@ class VolumeScriptCreateVolumeServiceTests(TestCase):
     """
     Tests for ``VolumeScript._create_volume_service``.
     """
+    @skip_on_broken_permissions
     def test_exit(self):
         """
         ``VolumeScript._create_volume_service`` raises ``SystemExit`` with a
@@ -916,6 +921,7 @@ class VolumeScriptCreateVolumeServiceTests(TestCase):
                 stderr, reactor, options)
         self.assertEqual(1, exc.code)
 
+    @skip_on_broken_permissions
     def test_details_written(self):
         """
         ``VolumeScript._create_volume_service`` writes details of the error to
