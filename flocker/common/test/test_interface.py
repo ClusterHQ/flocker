@@ -349,7 +349,7 @@ class ValidateSignatureAgainstKwargsTests(TestCase):
         *args argument.
         """
         self.assertThat(
-            lambda: validate_signature_against_kwargs(
+            validate_signature_against_kwargs(
                 _args_fun, set(["one"])), Is(None)
         )
 
@@ -387,7 +387,7 @@ class ValidateSignatureAgainstKwargsTests(TestCase):
         **kwargs argument.
         """
         self.assertThat(
-            lambda: validate_signature_against_kwargs(
+            validate_signature_against_kwargs(
                 _kwargs_fun, set(["one", "cat", "dog"])), Is(None)
         )
 
@@ -411,6 +411,6 @@ class ValidateSignatureAgainstKwargsTests(TestCase):
         **kwargs arguments.
         """
         self.assertThat(
-            lambda: validate_signature_against_kwargs(
+            validate_signature_against_kwargs(
                 _kwargs_fun, set(["one", "cat", "dog"])), Is(None)
         )

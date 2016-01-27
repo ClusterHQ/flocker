@@ -98,9 +98,9 @@ class InvalidSignature(Exception):
 def validate_signature_against_kwargs(function, keyword_arguments):
     """
     Validates that ``function`` can be called with keyword arguments with
-    exactly the specified ``keyword_arguments_keys``. In this case validation
-    is verifying that the function's signature allows it to be called with
-    exactly the given keyword arguments.
+    exactly the specified ``keyword_arguments_keys`` and no positional
+    arguments. In this case validation is verifying that the function's
+    signature allows it to be called with exactly the given keyword arguments.
 
     :param function: The function of which to verify the signature.
     :param set keyword_arguments_keys: A set of keyword argument names to
@@ -116,7 +116,12 @@ def validate_signature_against_kwargs(function, keyword_arguments):
     if arg_spec.defaults is not None:
         optional_arguments = frozenset(arg_spec.args[-len(arg_spec.defaults):])
 
-    unexpected_arguments = frozenset(keyword_arguments - accepted_arguments)
+    if arg_spec.keywords is None:
+        unexpected_arguments = frozenset(
+            keyword_arguments - accepted_arguments)
+    else:
+        # Accept all arguments if the function captures **kwargs.
+        unexpected_arguments = frozenset()
     missing_arguments = frozenset(
         accepted_arguments - keyword_arguments - optional_arguments)
 
