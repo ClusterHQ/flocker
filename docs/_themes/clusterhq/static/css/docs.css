@@ -304,6 +304,9 @@ html > body h2.step-stages__heading {
 	margin-bottom: 8px;
 	font-size: 14px;
 }
+.step-stages__step span strong {
+    font-weight: 900;
+}
 
 .step-stages__step span>ul>li {
 	font-family: "Soho Gothic W01 Regular";
