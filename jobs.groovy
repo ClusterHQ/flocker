@@ -570,6 +570,9 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
         checkoutRetryCount(5)
         label(job_values.on_nodes_with_labels)
         wrappers build_wrappers(job_values)
+        if (job_type == 'cronly_jobs') {
+            triggers build_triggers('cron', job_values.at, branchName)
+        }
         scm build_scm(git_url, branchName, isReleaseBuild)
         steps build_steps(job_values)
         publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
@@ -742,9 +745,7 @@ def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseB
     build_tabs(dashBranchName)
 
     // create individual jobs
-    list_jobs(dashProject, dashBranchName).findAll {
-        it.type != 'cronly_jobs'
-    }.each {
+    list_jobs(dashProject, dashBranchName).each {
         define_job(
             dashProject, dashBranchName, branchName, it.type, it.name,
             it.full_name, it.values, it.module, isReleaseBuild
@@ -774,34 +775,5 @@ branches.each { branchName ->
             dashProject, "release-" + dashBranchName, "Release " + branchName,
             true
         )
-    }
-
-
-    /* ------------------------------------------------------------------------- */
-    /* CRON JOBS BELOW                                                           */
-    /* --------------------------------------------------------------------------*/
-
-    /* Configure cronly jobs, these are not part of the main branches loop       */
-    /* As we only run them from the master branch, they get executed a few       */
-    /* times a day based on a cron type schedule.                                */
-
-    cronly_jobs = list_jobs(dashProject, dashBranchName).findAll {
-        it.type == 'cronly_jobs'
-    }.each {
-        values = it.values
-        job(it.full_name) {
-            parameters {
-                textParam("TRIGGERED_BRANCH", branchName,
-                          "Branch that triggered this job" )
-            }
-            // See above.
-            checkoutRetryCount(5)
-            label(values.on_nodes_with_labels)
-            wrappers build_wrappers(values)
-            triggers build_triggers('cron', values.at, branchName)
-            scm build_scm("${git_url}", "${branchName}", false)
-            steps build_steps(values)
-            publishers build_publishers(values, null, null, null, null)
-        }
     }
 }
