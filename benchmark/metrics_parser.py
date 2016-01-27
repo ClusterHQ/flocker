@@ -18,6 +18,15 @@ def add_results_to_table(result, result_table):
         result_table[k].append(v)
 
 
+def print_averages(results):
+    print "Results for benchmarking:"
+    for process, result in results.iteritems():
+        s = "{process}: {result}".format(
+            process=process,
+            result=sum(result) / len(result)
+        )
+        print s
+
 def main(args):
     for json_file in args:
         with open(json_file) as f:
@@ -30,3 +39,4 @@ def main(args):
                     add_results_to_table(result, result_table)
 
             print result_table
+            print_averages(result_table)
