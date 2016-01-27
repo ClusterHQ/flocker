@@ -173,7 +173,7 @@ def wait_for_operation(compute, operation, timeout_steps):
     poller = _create_poller(operation)
 
     def finished_operation_result():
-        latest_operation = poller.poll()
+        latest_operation = poller.poll(compute)
         if latest_operation['status'] == 'DONE':
             return latest_operation
         return None
