@@ -36,7 +36,7 @@ from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
 
-from ..common import gather_deferreds, loop_until, timeout
+from ..common import gather_deferreds, loop_until, timeout, retry_failure
 from ..common.runner import download_file, run_ssh
 
 from ..control.httpapi import REST_API_PORT
@@ -482,6 +482,7 @@ class Cluster(PClass):
 
     :ivar treq: A ``treq`` client, eventually to be completely replaced by
         ``FlockerClient`` usage.
+    :ivar reactor: A reactor to use to execute operations.
     :ivar client: A ``FlockerClient``.
     :ivar raw_distribution: Either a string with the distribution being run on
         the cluster or None if it is unknown.
@@ -489,6 +490,7 @@ class Cluster(PClass):
     control_node = field(mandatory=True, type=ControlService)
     nodes = field(mandatory=True, type=_NodeList)
     treq = field(mandatory=True)
+    reactor = field(mandatory=True)
     client = field(type=FlockerClient, mandatory=True)
     certificates_path = field(FilePath, mandatory=True)
     cluster_uuid = field(mandatory=True, type=UUID)
@@ -737,7 +739,16 @@ class Cluster(PClass):
         distribution = self.distribution
 
         def get_flocker_version():
-            d = self.client.version()
+            # Retry getting the flocker version for 10 seconds. Flocker might
+            # not be running yet on the control node when this is called.
+            d = self.timeout(
+                reactor,
+                retry_failure(
+                    self.reactor,
+                    self.client.version
+                ),
+                10
+            )
             d.addCallback(lambda v: str(v.get('flocker')) or None)
             return d
 
@@ -909,6 +920,7 @@ def connected_cluster(
         nodes=[],
         treq=treq_with_authentication(
             reactor, cluster_cert, user_cert, user_key),
+        reactor=reactor,
         client=FlockerClient(reactor, control_node, REST_API_PORT,
                              cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
