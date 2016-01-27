@@ -98,7 +98,7 @@ class InvalidSignature(Exception):
 def validate_signature_against_kwargs(function, keyword_arguments):
     """
     Validates that ``function`` can be called with keyword arguments with
-    exactly the passed in ``keyword_arguments_keys``. In this case validation
+    exactly the specified ``keyword_arguments_keys``. In this case validation
     is verifying that the function's signature allows it to be called with
     exactly the given keyword arguments.
 

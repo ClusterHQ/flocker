@@ -228,6 +228,18 @@ def _mixed_arguments_function(one, two=None, three=None, four=None):
     pass
 
 
+def _args_fun(one, *args):
+    pass
+
+
+def _kwargs_fun(one, **kwargs):
+    pass
+
+
+def _args_kwargs_fun(one, *args, **kwargs):
+    pass
+
+
 class ValidateSignatureAgainstKwargsTests(TestCase):
     """
     Tests for :func:`validate_signature_against_kwargs`.
@@ -328,4 +340,77 @@ class ValidateSignatureAgainstKwargsTests(TestCase):
             _raises_invalid_signature(
                 missing_arguments=set(["one"]),
                 missing_optional_arguments=set(["three"]))
+        )
+
+    def test_args_fun_success(self):
+        """
+        :func:`validate_signature_against_kwargs` returns None if no arguments
+        are specified beyond the named arguments even if the function has an
+        *args argument.
+        """
+        self.assertThat(
+            lambda: validate_signature_against_kwargs(
+                _args_fun, set(["one"])), Is(None)
+        )
+
+    def test_args_fun_failure(self):
+        """
+        :func:`validate_signature_against_kwargs` raises an
+        ``InvalidSignature`` exception if a function that has *args but no
+        **kwargs is called with keyword arguments beyond the specified
+        arguments.
+        """
+        self.assertThat(
+            lambda: validate_signature_against_kwargs(
+                _args_fun, set(["one", "two"])),
+            _raises_invalid_signature(
+                unexpected_arguments=set(["two"]))
+        )
+
+    def test_kwargs_fun_failure(self):
+        """
+        :func:`validate_signature_against_kwargs` raises an
+        ``InvalidSignature`` exception if a function that has **kwargs is
+        missing one of the mandatory arguments.
+        """
+        self.assertThat(
+            lambda: validate_signature_against_kwargs(
+                _kwargs_fun, set(["cat"])),
+            _raises_invalid_signature(
+                missing_arguments=set(["one"]))
+        )
+
+    def test_kwargs_fun_success(self):
+        """
+        :func:`validate_signature_against_kwargs` returns None if arguments
+        are specified beyond the named arguments if the function has an
+        **kwargs argument.
+        """
+        self.assertThat(
+            lambda: validate_signature_against_kwargs(
+                _kwargs_fun, set(["one", "cat", "dog"])), Is(None)
+        )
+
+    def test_args_kwargs_fun_failure(self):
+        """
+        :func:`validate_signature_against_kwargs` raises an
+        ``InvalidSignature`` exception if a function that has **kwargs and
+        *args is missing one of the mandatory arguments.
+        """
+        self.assertThat(
+            lambda: validate_signature_against_kwargs(
+                _kwargs_fun, set(["cat"])),
+            _raises_invalid_signature(
+                missing_arguments=set(["one"]))
+        )
+
+    def test_args_kwargs_fun_success(self):
+        """
+        :func:`validate_signature_against_kwargs` returns None if arguments
+        are specified beyond the named arguments if the function has *args and
+        **kwargs arguments.
+        """
+        self.assertThat(
+            lambda: validate_signature_against_kwargs(
+                _kwargs_fun, set(["one", "cat", "dog"])), Is(None)
         )
