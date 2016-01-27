@@ -15,15 +15,9 @@ def apply_cpu_metric(result_blob):
 
 def add_results_to_table(ip, result, result_table):
     if result_table.get(ip) is None:
-        result_table[ip] = {}
-        for k, v in result.iteritems():
-            print "V is (1) ", v, "\n"
-            result_table[ip][k] = []
-            result_table[ip][k].append(v)
-    else:
-        for k, v in result.iteritems():
-            print "V is (2) ", v, "\n"
-            result_table[ip][k].append(v)
+        result_table[ip] = defaultdict(list)
+    for k, v in result.iteritems():
+        result_table[ip][k].append(v)
 
 
 def main(args):
@@ -31,7 +25,7 @@ def main(args):
         with open(json_file) as f:
             results = json.load(f)
             # XXX adding schema json validation
-            result_table  = {}
+            result_table = {}
             for sample in results[u'samples']:
                 for ip, result in sample[u'value'].iteritems():
                     apply_cpu_metric(result)
