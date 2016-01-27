@@ -18,7 +18,7 @@ from .. import (RootCredential, ControlCredential, NodeCredential,
                 UserCredential, PathError, EXPIRY_20_YEARS,
                 AUTHORITY_CERTIFICATE_FILENAME, AUTHORITY_KEY_FILENAME)
 from ..testtools import assert_has_extension
-from ...testtools import not_root, skip_on_broken_permissions, TestCase
+from ...testtools import not_root, TestCase
 
 NODE_UUID = str(uuid4())
 
@@ -154,7 +154,6 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
             self.assertEqual(str(e), expected)
 
         @not_root
-        @skip_on_broken_permissions
         def test_load_error_on_unreadable_certificate_file(self):
             """
             A ``PathError`` is raised if the certificate file path given to
@@ -185,7 +184,6 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
             self.assertEqual(str(e), expected)
 
         @not_root
-        @skip_on_broken_permissions
         def test_load_error_on_unreadable_key_file(self):
             """
             A ``PathError`` is raised if the key file path given to
@@ -564,7 +562,6 @@ class RootCredentialTests(TestCase):
         self.assertEqual(str(e), expected)
 
     @not_root
-    @skip_on_broken_permissions
     def test_load_error_on_unreadable_certificate_file(self):
         """
         A ``PathError`` is raised if the certificate file path given to
@@ -597,7 +594,6 @@ class RootCredentialTests(TestCase):
         self.assertEqual(str(e), expected)
 
     @not_root
-    @skip_on_broken_permissions
     def test_load_error_on_unreadable_key_file(self):
         """
         A ``PathError`` is raised if the key file path given to

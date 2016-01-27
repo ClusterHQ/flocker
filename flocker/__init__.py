@@ -55,7 +55,7 @@ def _redirect_eliot_logs_for_trial():
 
     This wrapper function allows flocker/__version__.py to be imported by
     packaging tools without them having to install all the Flocker Eliot
-    dependencies. E.g in ``Flocker/admin/vagrant.py``.
+    dependencies.
     """
     import os
     import sys
