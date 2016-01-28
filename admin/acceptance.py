@@ -36,7 +36,6 @@ from flocker.common import (
     RACKSPACE_MINIMUM_VOLUME_SIZE,
     gather_deferreds,
     loop_until,
-    poll_until,
 )
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
@@ -603,22 +602,6 @@ class LibcloudRunner(object):
             write_failure(Failure())
             raise
 
-    def _create_node_with_retry(self, name, retries=10):
-        """
-        Create a cloud node with the given name retrying on failures.
-
-        :param str name: The name.
-        :param int retries: Maximum number of retries.
-        :return: Node instance.
-        """
-        def create():
-            try:
-                return self._create_node(name)
-            except Exception:
-                return None
-
-        return poll_until(create, repeat(0, retries))
-
     def _provision_node(self, reactor, node):
         """
         Make the given node ready for Flocker installation by provisioning
@@ -638,32 +621,52 @@ class LibcloudRunner(object):
         d.addCallback(lambda _: perform(make_dispatcher(reactor), commands))
         return d
 
-    def _provision_with_retry(self, reactor, node, retries=10):
+    def _create_and_provision(self, reactor, name, retries=10):
         """
-        Make the given node ready for Flocker installation by provisioning
-        it with required software and configuration.
-        Retry provisioning if necessary.
+        Create a node and make it ready for Flocker installation
+        by provisioning it with required software and configuration.
+        The process is transparently retried if necessary.
 
         :param reactor: The reactor.
-        :param Node node: The node.
+        :param str name: The name.
         :param int retries: Maximum number of retries.
-        :return: Deferred that fires when the provisioning is completed.
+        :return: Deferred that fires with the created node when
+            the provisioning is completed.
         """
-        def provision():
-            d = self._provision_node(reactor, node)
+        def create_attempt():
+            d = deferToThreadPool(
+                reactor,
+                reactor.getThreadPool(),
+                self._create_node,
+                name,
+            )
+
+            def provision(node):
+                d = self._provision_node(reactor, node)
+
+                def error(failure):
+                    # Destroy a node if we failed to provision it.
+                    self._destroy_node(node)
+                    return failure
+
+                d.addErrback(error)
+                # Make sure too return the node.
+                d.addCallback(lambda _: node)
+                return d
+
+            d.addCallback(provision)
+
+            # Log and discard a failure to keep looping.
             d.addErrback(write_failure)
             return d
 
-        d = loop_until(reactor, provision, repeat(0, retries))
+        d = loop_until(reactor, create_attempt, repeat(0, retries))
 
         def error(failure):
-            print "Failed to provision node {}".format(node.name)
-            write_failure(failure)
-            self._destroy_node(node)
+            print "Failed to provision node {}".format(name)
             return failure
 
         d.addErrback(error)
-        d.addCallback(lambda _: node)
         return d
 
     def _create_nodes(self, reactor, names):
@@ -676,20 +679,10 @@ class LibcloudRunner(object):
         :return: List of Deferreds each firing when the corresponding node
             is created and provisioned.
         """
-        results = []
         reactor.suggestThreadPoolSize(len(names))
-        for name in names:
-            d = deferToThreadPool(
-                reactor,
-                reactor.getThreadPool(),
-                self._create_node_with_retry,
-                name,
-            )
-            d.addCallback(
-                lambda node: self._provision_with_retry(reactor, node)
-            )
-            results.append(d)
-        return results
+        return [
+            self._create_and_provision(reactor, name) for name in names
+        ]
 
     def _make_node_name(self, tag, index):
         """
