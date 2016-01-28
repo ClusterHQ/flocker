@@ -33,11 +33,14 @@ def write_csv(results, filename):
         writer.writerows(results)
 
 
-def filter_counts(results, count, count_value):
-    return [r for r in results if r['control_service'][count] == count_value]
+def filter_results(results, attribute, attribute_value):
+    return [
+        r for r in results
+        if r['control_service'][attribute] == attribute_value
+    ]
 
 
-def get_counts(results, key):
+def control_service_attribute(results, key):
     counts = [r['control_service'][key] for r in results]
     return list(set(counts))
 
@@ -108,43 +111,45 @@ def parse_args(args):
 
 def main(args):
     files = parse_args(args)
-    results = []
+    all_results = []
     for f in files:
-        results.extend(flatten(json.load(f)))
+        all_results.extend(flatten(json.load(f)))
 
     summary = []
-    node_counts = get_counts(results, 'node_count')
-    container_counts = get_counts(results, 'container_count')
-    for node_count, container_count in itertools.product(
-        node_counts, container_counts
+    node_counts = control_service_attribute(all_results, 'node_count')
+    container_counts = control_service_attribute(all_results, 'container_count')
+    versions = control_service_attribute(all_results, 'flocker_version')
+    for node_count, container_count, version in itertools.product(
+        node_counts, container_counts, versions
     ):
-        node_results = filter_counts(results, 'node_count', node_count)
-        container_results = filter_counts(
-            node_results, 'container_count', container_count
-        )
-        result = {
-            u'Nodes': node_count,
-            u'Containers': container_count,
-            u'ControlServiceCPUSteady':
-                cputime_for_process(container_results, 'flocker-control', 'no-load'),
-            u'ControlServiceCPUReadLoad':
-                cputime_for_process(container_results, 'flocker-control', 'read-request-load'),
-            u'ControlServiceCPUWriteLoad':
-                cputime_for_process(container_results, 'flocker-control', 'write-request-load'),
-            u'DatasetAgentCPUSteady':
-                cputime_for_process(container_results, 'flocker-dataset', 'no-load'),
-            u'DatasetAgentCPUReadLoad':
-                cputime_for_process(container_results, 'flocker-dataset', 'read-request-load'),
-            u'DatasetAgentCPUWriteLoad':
-                cputime_for_process(container_results, 'flocker-dataset', 'write-request-load'),
-            u'ContainerAgentCPUSteady':
-                cputime_for_process(container_results, 'flocker-contain', 'no-load'),
-            u'ContainerAgentCPUReadLoad':
-                cputime_for_process(container_results, 'flocker-contain', 'read-request-load'),
-            u'ContainerAgentCPUWriteLoad':
-                cputime_for_process(container_results, 'flocker-contain', 'write-request-load'),
-            u'ContainerAdditionConvergence':
-                wallclock_for_operation(container_results, 'create-container'),
-        }
-        summary.append(result)
+        results = filter_results(all_results, 'node_count', node_count)
+        results = filter_results(results, 'container_count', container_count)
+        results = filter_results(results, 'flocker_version', version)
+        if len(results) > 0:
+            result = {
+                u'FlockerVersion': version,
+                u'Nodes': node_count,
+                u'Containers': container_count,
+                u'ControlServiceCPUSteady':
+                    cputime_for_process(results, 'flocker-control', 'no-load'),
+                u'ControlServiceCPUReadLoad':
+                    cputime_for_process(results, 'flocker-control', 'read-request-load'),
+                u'ControlServiceCPUWriteLoad':
+                    cputime_for_process(results, 'flocker-control', 'write-request-load'),
+                u'DatasetAgentCPUSteady':
+                    cputime_for_process(results, 'flocker-dataset', 'no-load'),
+                u'DatasetAgentCPUReadLoad':
+                    cputime_for_process(results, 'flocker-dataset', 'read-request-load'),
+                u'DatasetAgentCPUWriteLoad':
+                    cputime_for_process(results, 'flocker-dataset', 'write-request-load'),
+                u'ContainerAgentCPUSteady':
+                    cputime_for_process(results, 'flocker-contain', 'no-load'),
+                u'ContainerAgentCPUReadLoad':
+                    cputime_for_process(results, 'flocker-contain', 'read-request-load'),
+                u'ContainerAgentCPUWriteLoad':
+                    cputime_for_process(results, 'flocker-contain', 'write-request-load'),
+                u'ContainerAdditionConvergence':
+                    wallclock_for_operation(results, 'create-container'),
+            }
+            summary.append(result)
     write_csv(summary, 'results.csv')
