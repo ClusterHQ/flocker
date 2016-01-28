@@ -20,7 +20,7 @@ from ..ebs import (
     AttachedUnexpectedDevice, _expected_device,
     _attach_volume_and_wait_for_device, _get_blockdevices,
     _get_device_size, _wait_for_new_device, _find_allocated_devices,
-    _select_next_device,
+    _select_free_device,
 )
 from .._logging import NO_NEW_DEVICE_IN_OS
 from ..blockdevice import BlockDeviceVolume
@@ -259,7 +259,7 @@ class FindAllocatedDeviceTests(TestCase):
         self.assertGreater(len(_find_allocated_devices()), 0)
 
 
-class SelectNextDeviceTests(TestCase):
+class SelectFreeDeviceTests(TestCase):
     """
     Tests for selecting new device.
     """
@@ -268,11 +268,11 @@ class SelectNextDeviceTests(TestCase):
         """
         Return a device name.
         """
-        self.assertTrue(_select_next_device(['sda']).startswith(u'/dev/'))
+        self.assertTrue(_select_free_device(['sda']).startswith(u'/dev/'))
 
     def test_all_devices_used(self):
         """
         Return None if no available device names.
         """
         existing = ['sd' + ch for ch in ascii_lowercase]
-        self.assertIsNone(_select_next_device(existing))
+        self.assertIsNone(_select_free_device(existing))

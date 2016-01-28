@@ -898,19 +898,12 @@ def _next_device():
     """
     Get the next available EBS device name for this EC2 instance.
 
-    Devices available for EBS volume usage are ``/dev/sd[f-p]``.
-    Find the first device from this set that is currently not
-    in use.
-    XXX: Handle lack of free devices in ``/dev/sd[f-z]`` range
-    (see https://clusterhq.atlassian.net/browse/FLOC-1887).
-
-    :returns unicode file_name: available device name for attaching
-        EBS volume.
-    :returns ``None`` if suitable EBS device names on this EC2
-        instance are currently occupied.
+    :return Optional[unicode] file_name: available device name for
+        attaching EBS volume, or None if suitable EBS device names on this
+        EC2 instance are currently occupied
     """
 
-    return _select_next_device(_find_allocated_devices())
+    return _select_free_device(_find_allocated_devices())
 
 
 def _find_allocated_devices():
@@ -934,25 +927,24 @@ def _find_allocated_devices():
     return existing
 
 
-def _select_next_device(existing):
+def _select_free_device(existing):
     """
     Given a list of allocated devices, return an available device name.
 
     According to
     http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html
     all AWS Linux instances have ``/dev/sd[a-z]`` available.  However:
-    - ``sda`` is reserved for the root device;
-    - Amazon "strongly recommend that you don't" use names used for
-    instance store names (usually ``/dev/sd[b-e]``) "because the behavior
-    can be unpredictable";
+
+    - ``sda`` is reserved for the root device (technically only ``sda1``);
+    - Amazon "strongly recommend that you don't" use instance store names
+      (usually ``/dev/sd[b-e]``) "because the behavior can be unpredictable";
     - some "custom kernels might have restrictions that limit use to
-    ``/dev/sd[f-p]``".
+      ``/dev/sd[f-p]``".
 
     ``sd[f-p]`` only allows 11 devices, so to increase this, ignore the
     least stringent statement above, and allow ``sd[f-z]`` (21 devices).
 
-    To reduce the risk of failing on these "custom AMIs", select from
-    ``[f-p]`` first.
+    To reduce the risk of failing on custom AMIs, select from ``[f-p]`` first.
 
     Any further increase will need to start mining the ``hd[a-z][1-15]``
     and ``xvd[b-c][a-z]`` namespaces, but which to use depends on whether
@@ -960,8 +952,7 @@ def _select_next_device(existing):
 
     :param Sequence[bytes]: List of allocated device basenames
         (e.g. ``[b'sda']``).
-    :return:
-    :returns Optional[unicode] file_name: available device name for
+    :return Optional[unicode] file_name: available device name for
         attaching EBS volume, or None if suitable EBS device names on this
         EC2 instance are currently occupied
     """
