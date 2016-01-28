@@ -6,14 +6,11 @@ AWS provisioner.
 
 from itertools import repeat
 from textwrap import dedent
-from time import time
 
 from pyrsistent import PClass, field
 
 from zope.interface import implementer
 
-from effect.retry import retry
-from effect import Effect, Constant
 
 from boto.ec2 import connect_to_region
 from boto.ec2.blockdevicemapping import (
@@ -25,15 +22,11 @@ from ..common import poll_until
 
 from ._common import INode, IProvisioner
 
-from ._install import (
-    provision,
-    task_install_ssh_key,
-)
+from ._install import provision_for_any_user
 
 from eliot import start_action, Message
 
 from ._ssh import run_remotely, run_from_args
-from ._effect import sequence
 
 
 _usernames = {
@@ -169,41 +162,11 @@ class AWSNode(PClass):
         """
         Provision flocker on this node.
 
-        :param LibcloudNode node: Node to provision.
         :param PackageSource package_source: See func:`task_install_flocker`
         :param set variants: The set of variant configurations to use when
             provisioning
         """
-        username = self.get_default_username()
-
-        commands = []
-
-        # cloud-init may not have allowed sudo without tty yet, so try SSH key
-        # installation for a few more seconds:
-        start = []
-
-        def for_thirty_seconds(*args, **kwargs):
-            if not start:
-                start.append(time())
-            return Effect(Constant((time() - start[0]) < 30))
-
-        commands.append(run_remotely(
-            username=username,
-            address=self.address,
-            commands=retry(task_install_ssh_key(), for_thirty_seconds),
-        ))
-
-        commands.append(run_remotely(
-            username='root',
-            address=self.address,
-            commands=provision(
-                package_source=package_source,
-                distribution=self.distribution,
-                variants=variants,
-            ),
-        ))
-
-        return sequence(commands)
+        return provision_for_any_user(self, package_source, variants)
 
     def reboot(self):
         """
@@ -259,11 +222,9 @@ class AWSProvisioner(PClass):
         # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html
         return None
 
-    def create_node(self, name, distribution,
-                    size=None, disk_size=8,
-                    metadata={}):
-        if size is None:
-            size = self._default_size
+    def create_node(self, name, distribution, metadata={}):
+        size = self._default_size
+        disk_size = 8
 
         with start_action(
             action_type=u"flocker:provision:aws:create_node",
