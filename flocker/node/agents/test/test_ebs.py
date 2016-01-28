@@ -4,7 +4,7 @@
 Tests for ``flocker.node.agents.ebs``.
 """
 
-from string import lowercase
+from string import ascii_lowercase
 from uuid import uuid4
 
 from hypothesis import given
@@ -19,7 +19,8 @@ from eliot.testing import capture_logging, assertHasMessage
 from ..ebs import (
     AttachedUnexpectedDevice, _expected_device,
     _attach_volume_and_wait_for_device, _get_blockdevices,
-    _get_device_size, _wait_for_new_device,
+    _get_device_size, _wait_for_new_device, _find_allocated_devices,
+    _select_next_device,
 )
 from .._logging import NO_NEW_DEVICE_IN_OS
 from ..blockdevice import BlockDeviceVolume
@@ -30,7 +31,9 @@ from ....testtools import CustomException, TestCase
 # A Hypothesis strategy for generating /dev/sd?
 device_path = builds(
     lambda suffix: b"/dev/sd" + b"".join(suffix),
-    suffix=lists(elements=sampled_from(lowercase), min_size=1, max_size=2),
+    suffix=lists(
+        elements=sampled_from(ascii_lowercase), min_size=1, max_size=2
+    ),
 )
 
 
@@ -242,3 +245,34 @@ class WaitForNewDeviceTests(TestCase):
                 time_limit=0,
             )
         )
+
+
+class FindAllocatedDeviceTests(TestCase):
+    """
+    Tests for finding allocated devices.
+    """
+
+    def test_returns_device_name_list(self):
+        """
+        Returns at least one device (the root device).
+        """
+        self.assertGreater(len(_find_allocated_devices()), 0)
+
+
+class SelectNextDeviceTests(TestCase):
+    """
+    Tests for selecting new device.
+    """
+
+    def test_provides_device_name(self):
+        """
+        Return a device name.
+        """
+        self.assertTrue(_select_next_device(['sda']).startswith(u'/dev/'))
+
+    def test_all_devices_used(self):
+        """
+        Return None if no available device names.
+        """
+        existing = ['sd' + ch for ch in ascii_lowercase]
+        self.assertIsNone(_select_next_device(existing))
