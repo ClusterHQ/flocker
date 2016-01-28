@@ -1683,6 +1683,12 @@ def reinstall_flocker_at_version(
                         task_enable_flocker_control(
                             distribution,
                             'restart'),
+                        if_firewall_available(
+                            distribution,
+                            task_open_control_firewall(
+                                distribution
+                            )
+                        ),
                     ])
                 )
             ])
