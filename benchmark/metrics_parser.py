@@ -52,7 +52,7 @@ def mean(values):
 
 
 def cputime_for_process(results, process, scenario, fn=mean):
-    process_results= itertools.ifilter(
+    process_results = itertools.ifilter(
         lambda r: r['metric']['type'] == 'cputime'
         and r['process'] == process
         and r['scenario']['type'] == scenario,
