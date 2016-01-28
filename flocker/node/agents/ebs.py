@@ -1370,7 +1370,7 @@ class EBSBlockDeviceAPI(object):
 
     @boto3_log
     def start_node(self, node_id):
-        self.connection.start_instances(instance_ids=[node_id])
+        self.connection.instances.filter(InstanceIds=[node_id]).start()
 
 
 def aws_from_configuration(
