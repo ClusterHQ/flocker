@@ -99,22 +99,7 @@ def flatten(results):
     return flattened
 
 
-def parse_args(args):
-    parser = argparse.ArgumentParser(
-        description="Produce CSV from benchmarking results"
-    )
-    parser.add_argument("files", nargs="*", type=argparse.FileType(),
-                        help="Input JSON files to be processed")
-
-    return parser.parse_args(args).files
-
-
-def main(args):
-    files = parse_args(args)
-    all_results = []
-    for f in files:
-        all_results.extend(flatten(json.load(f)))
-
+def extract_results(all_results):
     summary = []
     node_counts = control_service_attribute(all_results, 'node_count')
     container_counts = control_service_attribute(all_results, 'container_count')
@@ -152,4 +137,22 @@ def main(args):
                     wallclock_for_operation(results, 'create-container'),
             }
             summary.append(result)
-    write_csv(summary, 'results.csv')
+    return summary
+
+
+def parse_args(args):
+    parser = argparse.ArgumentParser(
+        description="Produce CSV from benchmarking results"
+    )
+    parser.add_argument("files", nargs="*", type=argparse.FileType(),
+                        help="Input JSON files to be processed")
+
+    return parser.parse_args(args).files
+
+
+def main(args):
+    files = parse_args(args)
+    results = []
+    for f in files:
+        results.extend(flatten(json.load(f)))
+    write_csv(extract_results(results), 'results.csv')
