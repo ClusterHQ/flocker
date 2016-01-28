@@ -32,7 +32,7 @@ from twisted.python.constants import (
 )
 
 from .blockdevice_manager import BlockDeviceManager
-from ._logging import DATASET_ID, OPERATION, COUNT
+from ._logging import DATASET_ID, COUNT
 
 from .. import (
     IDeployer, ILocalState, IStateChange, in_parallel, NoOp,
