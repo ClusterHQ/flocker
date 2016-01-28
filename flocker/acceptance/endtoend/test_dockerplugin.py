@@ -526,7 +526,7 @@ class DockerPluginTests(AsyncTestCase):
                            if v[u"Name"] in (name, name2)]
             self.assertEqual([v[u"Driver"] for v in our_volumes],
                              [u"flocker", u"flocker"])
-            self.assertNotEqual(our_volumes[0][u"Path"],
-                                our_volumes[1][u"Path"])
+            self.assertItemsEqual(
+                [v[u"Name"] for v in our_volumes], [name, name2])
         d.addCallback(created)
         return d
