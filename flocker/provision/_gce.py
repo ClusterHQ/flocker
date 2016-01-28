@@ -391,41 +391,42 @@ class GCEProvisioner(PClass):
         ssh_key = unicode(self.ssh_public_key.toString('OPENSSH'))
         username = _GCE_ACCEPTANCE_USERNAME
         config = _create_gce_instance_config(
-          instance_name=instance_name,
-          project=self.project,
-          zone=self.zone,
-          machine_type=_GCE_INSTANCE_TYPE,
-          image=_GCE_DISTRIBUTION_TO_IMAGE_MAP[distribution].get_active_image(
-              self.compute
-          )["selfLink"],
-          # The acceptance tests expect to be able to ssh in as root, but on
-          # CentOS that is by default turned off, so we must also enable sshing
-          # in as a different user to enable root ssh.
-          login_credentials=[
-              _LoginCredentials(
-                  username=username,
-                  public_key=ssh_key
-              ),
-              _LoginCredentials(
-                  username=u"root",
-                  public_key=ssh_key
-              ),
-          ],
-          disk_size=_GCE_DISK_SIZE_GIB,
-          description=json.dumps({
-              u"description-format": u"v1",
-              u"created-by-python": u"flocker.provision._gce.GCEProvisioner",
-              u"name": name,
-              u"metadata": metadata
-          }),
-          tags=set([u"flocker-gce-provisioner",
-                    u"json-description",
-                    _GCE_FIREWALL_TAG]),
-          delete_disk_on_terminate=True,
-          startup_script=dedent("""\
-              #!/bin/sh
-              sed -i '/Defaults *requiretty/d' /etc/sudoers
-              """),
+            instance_name=instance_name,
+            project=self.project,
+            zone=self.zone,
+            machine_type=_GCE_INSTANCE_TYPE,
+            image=(
+                _GCE_DISTRIBUTION_TO_IMAGE_MAP[distribution].get_active_image(
+                    self.compute)["selfLink"]
+            ),
+            # The acceptance tests expect to be able to ssh in as root, but on
+            # CentOS that is by default turned off, so we must also enable
+            # sshing in as a different user to enable root ssh.
+            login_credentials=[
+                _LoginCredentials(
+                    username=username,
+                    public_key=ssh_key
+                ),
+                _LoginCredentials(
+                    username=u"root",
+                    public_key=ssh_key
+                ),
+            ],
+            disk_size=_GCE_DISK_SIZE_GIB,
+            description=json.dumps({
+                u"description-format": u"v1",
+                u"created-by-python": u"flocker.provision._gce.GCEProvisioner",
+                u"name": name,
+                u"metadata": metadata
+            }),
+            tags=set([u"flocker-gce-provisioner",
+                      u"json-description",
+                      _GCE_FIREWALL_TAG]),
+            delete_disk_on_terminate=True,
+            startup_script=dedent("""\
+                #!/bin/sh
+                sed -i '/Defaults *requiretty/d' /etc/sudoers
+                """),
         )
 
         operation = self.compute.instances().insert(
