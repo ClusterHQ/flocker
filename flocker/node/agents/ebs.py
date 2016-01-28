@@ -719,7 +719,7 @@ def _wait_for_volume_state_change(operation,
     start_time = time.time()
     poll_until(
         lambda: _reached_end_state(
-           operation, volume, update, time.time() - start_time, timeout
+            operation, volume, update, time.time() - start_time, timeout
         ),
         itertools.repeat(1)
     )
