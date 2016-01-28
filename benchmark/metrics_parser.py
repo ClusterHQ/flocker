@@ -2,16 +2,17 @@
 
 import argparse
 import json
-from collections import defaultdict
 
-example = {"flocker_control":6,
-           "-- WALL --":101.2}
+
+WALL_CLOCK_KEY = u'-- WALL --'
+
 
 def apply_cpu_metric(result_blob):
-    wall_time = float(result_blob.get(u'-- WALL --'))
+    wall_time = float(result_blob.get(WALL_CLOCK_KEY))
     for k, v in result_blob.iteritems():
-        if not k == u'-- WALL --':
+        if not k == WALL_CLOCK_KEY:
             result_blob[k] = v/wall_time
+
 
 def add_results_to_table(result, result_table):
     for k, v in result.iteritems():
@@ -28,6 +29,28 @@ def print_averages(results):
         print s
 
 
+def flatten(results):
+    flattened = []
+    common = dict(
+        [(k, results.get(k)) for k in results.iterkeys() if k != 'samples']
+    )
+
+    # This function assumes the format is for the cputime metric.
+    # Change it so that it can handle the wallclock metrics.
+    for sample in results['samples']:
+        for ip, data in sample['value'].iteritems():
+            wall_time = data[WALL_CLOCK_KEY]
+            for process, value in data.iteritems():
+                if process != WALL_CLOCK_KEY:
+                    doc = dict(common)
+                    doc['node_ip'] = ip
+                    doc['process'] = process
+                    doc['value'] = value
+                    doc['wallclock'] = wall_time
+                    flattened.append(doc)
+    return flattened
+
+
 def parse_args(args):
     parser = argparse.ArgumentParser(
         description="Produce CSV from benchmarking results"
@@ -37,17 +60,9 @@ def parse_args(args):
 
     return parser.parse_args(args).files
 
+
 def main(args):
     files = parse_args(args)
-
+    results = []
     for f in files:
-        results = json.load(f)
-        # XXX adding schema json validation
-        result_table = defaultdict(list)
-        for sample in results[u'samples']:
-            for result in sample[u'value'].itervalues():
-                apply_cpu_metric(result)
-                add_results_to_table(result, result_table)
-
-        print result_table
-        print_averages(result_table)
+        results.extend(flatten(json.load(f)))
