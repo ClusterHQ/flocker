@@ -28,7 +28,7 @@ from uuid import UUID
 from bitmath import Byte, GiB
 
 from characteristic import with_cmp
-from pyrsistent import PClass, field, pset, pmap, thaw
+from pyrsistent import PClass, field, pset, pmap
 from zope.interface import implementer
 from twisted.python.constants import (
     Names, NamedConstant, Values, ValueConstant
@@ -719,7 +719,7 @@ def _wait_for_volume_state_change(operation,
     start_time = time.time()
     poll_until(
         lambda: _reached_end_state(
-           operation, volume, update, time.time() - start_time, timeout
+            operation, volume, update, time.time() - start_time, timeout
         ),
         itertools.repeat(1)
     )
