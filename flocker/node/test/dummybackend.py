@@ -29,4 +29,5 @@ def api_factory(cluster_id, **kwargs):
 FLOCKER_BACKEND = BackendDescription(
     name=u"dummybackend",  # Not actually used for 3rd party plugins
     needs_reactor=False, needs_cluster_id=True,
-    api_factory=api_factory, deployer_type=DeployerType.block)
+    api_factory=api_factory, deployer_type=DeployerType.block,
+    required_config=set(),)
