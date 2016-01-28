@@ -420,6 +420,15 @@ DISCOVERED_RAW_STATE = MessageType(
     [Field(u"raw_state", safe_repr)],
     u"The discovered raw state of the node's block device volumes.")
 
+FUNCTION_NAME = Field.for_types(
+    "function", [bytes, unicode],
+    u"The name of the function.")
+
+CALL_LIST_VOLUMES = MessageType(
+    u"flocker:node:agents:blockdevice:list_volumes",
+    [FUNCTION_NAME, COUNT],
+    u"list_volumes called.",)
+
 
 def _volume_field():
     """
@@ -1228,12 +1237,6 @@ class _SyncToThreadedAsyncAPIAdapter(PClass):
     _threadpool = field()
 
 
-CALL_LIST_VOLUMES = MessageType(
-    u"flocker:node:agents:blockdevice:list_volumes",
-    [OPERATION, COUNT],
-    u"list_volumes called.",)
-
-
 def log_list_volumes(function):
     """
     Decorator to count calls to list_volumes.
@@ -1250,8 +1253,7 @@ def log_list_volumes(function):
         Run given function with count.
         """
         CALL_LIST_VOLUMES(
-            operation=[function.__name__, args[1:], kwargs],
-            count=next(counter)
+            function=function.__name__, count=next(counter)
         ).write()
         return function(*args, **kwargs)
     return _count_calls
