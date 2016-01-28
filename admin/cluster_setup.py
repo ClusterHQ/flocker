@@ -20,6 +20,7 @@ from twisted.python.usage import UsageError
 
 from .acceptance import (
     CLOUD_PROVIDERS,
+    CLUSTER_MESSAGE,
     ClusterIdentity,
     CommonOptions,
     LibcloudRunner as OldLibcloudRunner,
@@ -46,7 +47,11 @@ class LibcloudRunner(OldLibcloudRunner):
     a libcloud-compatible provisioner.
     """
     def _setup_control_node(self, reactor, node, index):
-        print "Selecting node {} for control service".format(node.name)
+        CLUSTER_MESSAGE(
+            message="Selecting node {} for control service".format(node.name),
+            output=True,
+        ).write()
+
         certificates = Certificates.generate(
             directory=self.cert_path,
             control_hostname=node.address,
@@ -76,24 +81,32 @@ class LibcloudRunner(OldLibcloudRunner):
         d = perform(make_dispatcher(reactor), commands)
 
         def configure_failed(failure):
-            print "Failed to configure control node"
+            CLUSTER_MESSAGE(
+                message="Failed to configure control node",
+                output=True,
+            ).write()
             write_failure(failure)
             return failure
 
         # It should be sufficient to configure just the control service here,
         # but there is an assumption that the control node is both a control
         # node and an agent node.
-        d.addCallbacks(
-            lambda _: self._add_node_to_cluster(
-                reactor, cluster, node, index
-            ),
-            errback=configure_failed,
-        )
-        # Return the cluster.
+        def configure_agent(ignored):
+            CLUSTER_MESSAGE(
+                message="Configured control node {}".format(node.name),
+                output=True,
+            ).write()
+            return self._add_node_to_cluster(reactor, cluster, node, index)
+
+        d.addCallbacks(configure_agent, errback=configure_failed)
         d.addCallback(lambda _: cluster)
         return d
 
     def _add_nodes_to_cluster(self, reactor, cluster, results):
+        CLUSTER_MESSAGE(
+            message="Configuring agent nodes",
+            output=False,
+        ).write()
         def add_node(node, index):
             # The control should be already fully configured.
             if node is not cluster.control_node:
@@ -111,7 +124,10 @@ class LibcloudRunner(OldLibcloudRunner):
         return d
 
     def start_cluster(self, reactor):
-        print "Assigning random tag:", self.random_tag
+        CLUSTER_MESSAGE(
+            message="Assigning random tag: {}".format(self.random_tag),
+            output=True,
+        ).write()
         names = []
         for index in range(self.num_nodes):
             name = self._make_node_name(self.random_tag, index)
@@ -127,6 +143,10 @@ class LibcloudRunner(OldLibcloudRunner):
                 # We've got a list with all failures.
                 # This happens if none of the Deferreds resulted in success
                 # while fireOnOneCallback is True.
+                CLUSTER_MESSAGE(
+                    message="Could not create any node",
+                    output=True,
+                ).write()
                 # Consume all the individual errbacks.
                 for d in results:
                     d.addErrback(lambda _: None)
@@ -470,8 +490,11 @@ def wait_for_nodes(reactor, client, count):
         d.addErrback(write_failure)
 
         def check_node_count(nodes):
-            print("Waiting for nodes, "
-                  "got {} out of {}".format(len(nodes), count))
+            CLUSTER_MESSAGE(
+                message=("Waiting for nodes, "
+                         "got {} out of {}").format(len(nodes), count),
+                output=True,
+            ).write()
             return len(nodes) >= count
 
         d.addCallback(check_node_count)

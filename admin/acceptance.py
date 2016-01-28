@@ -15,7 +15,11 @@ from tempfile import mkdtemp
 from zope.interface import Interface, implementer
 from characteristic import attributes
 from eliot import (
-    add_destination, write_failure, FileDestination
+    Field,
+    FileDestination,
+    MessageType,
+    add_destination,
+    write_failure,
 )
 from pyrsistent import PClass, field, pvector
 from bitmath import GiB
@@ -63,6 +67,16 @@ from flocker.testtools.cluster_utils import (
 )
 
 from flocker.common.runner import run, run_ssh
+
+
+CLUSTER_MESSAGE = MessageType(
+    message_type="admin.cluster:runner",
+    fields=[
+        Field.for_types(u"message", [bytes], u"The message."),
+        Field.for_types(u"output", [bool], u"Whether to print message."),
+    ],
+    description=u"A message from a cluster runner.",
+)
 
 
 def extend_environ(**kwargs):
@@ -396,7 +410,10 @@ def generate_certificates(cluster_name, cluster_id, nodes, cert_path):
     :return: A ``Certificates`` instance referring to the newly generated
         certificates.
     """
-    print("Generating certificates in: {}".format(cert_path.path))
+    CLUSTER_MESSAGE(
+        message="Generating certificates in {}".format(cert_path.path),
+        output=False,
+    ).write()
     certificates = Certificates.generate(
         cert_path,
         nodes[0].address,
@@ -422,7 +439,12 @@ def save_backend_configuration(dataset_backend_name,
         configuration was saved.
     """
     dataset_path = FilePath(mkdtemp()).child('dataset-backend.yml')
-    print("Saving dataset backend config to: {}".format(dataset_path.path))
+    CLUSTER_MESSAGE(
+        message="Saving dataset backend config to {}".format(
+            dataset_path.path
+        ),
+        output=False,
+    ).write()
     dataset_path.setContent(yaml.safe_dump(
         {dataset_backend_name.name: dataset_backend_configuration}))
     return dataset_path
@@ -591,17 +613,27 @@ class LibcloudRunner(object):
         :return: Node instance.
         """
         try:
-            print "Creating node {}".format(name)
+            CLUSTER_MESSAGE(
+                message="Creating node {}".format(name),
+                output=True,
+            ).write()
             node = self.provisioner.create_node(
                 name=name,
                 distribution=self.distribution,
                 metadata=self.metadata,
             )
             self.nodes.append(node)
+            CLUSTER_MESSAGE(
+                message="Created node {}".format(name),
+                output=False,
+            ).write()
             return node
         except BaseException:
-            print "Error creating node %s" % (name,)
-            print "It may have leaked into the cloud."
+            CLUSTER_MESSAGE(
+                message=("Error creating node {}.\n"
+                         "It may have leaked into the cloud.").format(name),
+                output=True,
+            ).write()
             write_failure(Failure())
             raise
 
@@ -645,19 +677,36 @@ class LibcloudRunner(object):
             )
 
             def provision(node):
+                CLUSTER_MESSAGE(
+                    message="Provisioning node {}".format(name),
+                    output=False,
+                ).write()
+
                 d = self._provision_node(reactor, node)
 
                 def provisioning_failed(failure):
                     # Destroy a node if we failed to provision it.
                     self._destroy_node(node)
+                    CLUSTER_MESSAGE(
+                        message="Failed attempt to provision {}".format(name),
+                        output=False,
+                    ).write()
+                    write_failure(failure)
                     return failure
 
-                # Make sure to return the node.
-                d.addCallbacks(lambda _: node, errback=provisioning_failed)
+                def success(ignored):
+                    # Make sure to return the node.
+                    CLUSTER_MESSAGE(
+                        message="Created and provisioned {}".format(name),
+                        output=False,
+                    ).write()
+                    return node
+
+                d.addErrback(error)
+                d.addCallbacks(success, errback=provisioning_failed)
                 return d
 
             d.addCallback(provision)
-
             # Log and discard a failure to keep looping.
             d.addErrback(write_failure)
             return d
@@ -665,7 +714,10 @@ class LibcloudRunner(object):
         d = loop_until(reactor, create_attempt, repeat(0, retries))
 
         def error(failure):
-            print "Failed to provision node {}".format(name)
+            CLUSTER_MESSAGE(
+                message="Failed to provision node {}".format(name),
+                output=True,
+            ).write()
             return failure
 
         d.addErrback(error)
@@ -705,6 +757,10 @@ class LibcloudRunner(object):
         :return: Deferred that fires with the :param:`node` when it is
             configured.
         """
+        CLUSTER_MESSAGE(
+            message="Adding agent node {} to cluster".format(node.name),
+            output=False,
+        ).write()
         node_cert_and_key = cluster.certificates.add_node(index)
         commands = configure_node(
             cluster,
@@ -717,13 +773,20 @@ class LibcloudRunner(object):
         d = perform(make_dispatcher(reactor), commands)
 
         def add_node(ignored):
+            CLUSTER_MESSAGE(
+                message="Node {} is added to cluster".format(node.name),
+                output=False,
+            ).write()
             if node is not cluster.control_node:
                 cluster.all_nodes.append(node)
             cluster.agent_nodes.append(node)
             return node
 
         def configure_failed(failure):
-            print "Failed to configure node {}".format(node.name)
+            CLUSTER_MESSAGE(
+                message="Failed to configure node {}".format(node.name),
+                output=True,
+            ).write()
             write_failure(failure)
             if node is not cluster.control_node:
                 self._destroy_node(node)
@@ -759,19 +822,30 @@ class LibcloudRunner(object):
 
         :return Cluster: The cluster to connect to for acceptance tests.
         """
-        print "Assigning random tag:", self.random_tag
+        CLUSTER_MESSAGE(
+            message="Assigning random tag: {}".format(self.random_tag),
+            output=True,
+        ).write()
         for index in range(self.num_nodes):
             name = self._make_node_name(self.random_tag, index)
             try:
-                print "Creating node %d: %s" % (index, name)
+                CLUSTER_MESSAGE(
+                    message="Creating node {}: {}".format(index, name),
+                    output=True,
+                ).write()
                 node = self.provisioner.create_node(
                     name=name,
                     distribution=self.distribution,
                     metadata=self.metadata,
                 )
             except:
-                print "Error creating node %d: %s" % (index, name)
-                print "It may have leaked into the cloud."
+                CLUSTER_MESSAGE(
+                    message=(
+                        "Error creating node {}: {}.\n"
+                        "It may have leaked into the cloud."
+                    ).format(index, name),
+                    output=True,
+                ).write()
                 raise
 
             yield remove_known_host(reactor, node.address)
@@ -822,11 +896,17 @@ class LibcloudRunner(object):
 
     def _destroy_node(self, node):
         try:
-            print "Destroying %s" % (node.name,)
+            CLUSTER_MESSAGE(
+                message="Destroying {}".format(node.name),
+                output=True,
+            ).write()
             self.nodes.remove(node)
             node.destroy()
         except Exception as e:
-            print "Failed to destroy %s: %s" % (node.name, e)
+            CLUSTER_MESSAGE(
+                message="Failed to destroy {}: {}".format(node.name, e),
+                output=True,
+            ).write()
 
     def ensure_keys(self, reactor):
         key = self.provisioner.get_ssh_key()
@@ -1179,6 +1259,9 @@ def eliot_output(message):
     if message_type is not None:
         if message_type == 'twisted:log' and message.get('error'):
             format = '%(message)s'
+        elif (message_type == CLUSTER_MESSAGE.message_type and
+              message.get('output')):
+            format = '%(message)s\n'
         else:
             format = MESSAGE_FORMATS.get(message_type, '')
     elif action_type is not None:
