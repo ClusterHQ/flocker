@@ -876,6 +876,14 @@ def connected_cluster(
     return agents_connected
 
 
+def is_public_ip(ip):
+    """
+    :param IPAddress ip: An IP address.
+    :return: Boolean which is true if it is a public address.
+    """
+    return not any([ip.is_private, ip.is_link_local, ip.is_loopback])
+
+
 def _add_nodes(cluster):
     """
     Configure the ``Node`` objects for a newly created ``Cluster`` whose
@@ -902,8 +910,7 @@ def _add_nodes(cluster):
                 for ips in node_ips:
                     if ip_address(address) in ips:
                         return [unicode(ip) for ip in ips
-                                if not any([ip.is_private, ip.is_link_local,
-                                            ip.is_loopback])][0]
+                                if is_public_ip(ip)][0]
                 raise ValueError(
                     "Couldn't find address in cloud API reported IPs")
         else:

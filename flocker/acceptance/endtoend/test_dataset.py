@@ -7,7 +7,8 @@ Tests for the datasets REST API.
 from uuid import UUID
 from unittest import SkipTest
 from datetime import timedelta
-from time import sleep
+
+from ipaddress import ip_address
 
 from testtools import run_test_with
 
@@ -19,7 +20,7 @@ from ...node.agents.blockdevice import ICloudAPI
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend,
-    get_backend_api,
+    get_backend_api, verify_socket, is_public_ip,
 )
 
 
@@ -144,8 +145,14 @@ class DatasetAPITests(AsyncTestCase):
             # Wait for node to boot up:
             d = loop_until(
                 reactor, lambda: node_id in api.list_live_nodes())
-            # Give it another ten seconds to boot:
-            d.addCallback(lambda _: sleep(10))
+
+            # Wait for it to be accessible over SSH, on theory that means
+            # it's ready to be used:
+            def wait_for_ssh(_):
+                ips = [ip_address(i) for i in api.list_live_nodes()[node_id]]
+                public_ip = [unicode(i) for i in ips if is_public_ip(i)][0]
+                return verify_socket(public_ip, 22)
+            d.addCallback(wait_for_ssh)
             return d
 
         # Once created, shut down origin node and then request to move the
