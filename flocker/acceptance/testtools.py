@@ -872,7 +872,7 @@ def connected_cluster(
                        failed_query)
         return d
     agents_connected = loop_until(reactor, nodes_available)
-    agents_connected.addCallback(_add_nodes)
+    agents_connected.addCallback(lambda _: _add_nodes(cluster))
     return agents_connected
 
 
@@ -902,8 +902,8 @@ def _add_nodes(cluster):
                 for ips in node_ips:
                     if ip_address(address) in ips:
                         return [unicode(ip) for ip in ips
-                                if not any(ip.is_private, ip.is_link_local,
-                                           ip.is_loopback)][0]
+                                if not any([ip.is_private, ip.is_link_local,
+                                            ip.is_loopback])][0]
                 raise ValueError(
                     "Couldn't find address in cloud API reported IPs")
         else:
