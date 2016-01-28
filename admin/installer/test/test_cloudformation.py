@@ -11,7 +11,7 @@ from hypothesis.strategies import integers
 
 from flocker.testtools import TestCase
 
-from ..cloudformation import MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE
+from .. import MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE
 
 # A Hypothesis strategy for generating supported cluster size.
 valid_cluster_size = integers(min_value=MIN_CLUSTER_SIZE,
@@ -26,4 +26,4 @@ class ClusterSizeLimitsTests(TestCase):
     def test_valid_cluster(self, cluster_size):
         """
         """
-        check_output([b"python", b"cloudformation.py", cluster_size])
+        check_output([b"python", b"cloudformation.py", b"-s", cluster_size])
