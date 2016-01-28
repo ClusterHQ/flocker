@@ -35,19 +35,24 @@ def flatten(results):
         [(k, results.get(k)) for k in results.iterkeys() if k != 'samples']
     )
 
-    # This function assumes the format is for the cputime metric.
-    # Change it so that it can handle the wallclock metrics.
+    metric_type = results['metric']['type']
+
     for sample in results['samples']:
-        for ip, data in sample['value'].iteritems():
-            wall_time = data[WALL_CLOCK_KEY]
-            for process, value in data.iteritems():
-                if process != WALL_CLOCK_KEY:
-                    doc = dict(common)
-                    doc['node_ip'] = ip
-                    doc['process'] = process
-                    doc['value'] = value
-                    doc['wallclock'] = wall_time
-                    flattened.append(doc)
+        if metric_type  == 'cputime':
+            for ip, data in sample['value'].iteritems():
+                wall_time = data[WALL_CLOCK_KEY]
+                for process, value in data.iteritems():
+                    if process != WALL_CLOCK_KEY:
+                        doc = dict(common)
+                        doc['node_ip'] = ip
+                        doc['process'] = process
+                        doc['value'] = value
+                        doc['wallclock'] = wall_time
+                        flattened.append(doc)
+        elif metric_type == 'wallclock':
+            doc = dict(common)
+            doc['value'] = sample['value']
+            flattened.append(doc)
     return flattened
 
 
