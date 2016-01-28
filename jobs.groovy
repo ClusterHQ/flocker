@@ -270,18 +270,18 @@ def build_wrappers(v) {
 */
 def build_triggers(_type, _value, _branch ) {
     return {
-        /* the job_type 'cron' is used by the docker_build jobs running every 24h
+        /* the job_type 'cronly_jobs' is used by the docker_build jobs running every 24h
            but we only configure the scheduler if the jobs is for the master branch.
            If we were to schedule the job on every branch we would have multiple jobs
            running at the same time. */
-        if (_type == "cron" && _branch == "master") {
+        if (_type == "cronly_jobs" && _branch == "master") {
             //  the cron  string below is a common crontab style string
             cron(_value)
         }
-        /*  the job_type 'githubPush' is used by the multijob, we use it to
+        /*  the job_type 'multijob' is used by the multijob, we use it to
             configure that job so that builds on master are triggered automatically
             this block enables 'Build when a change is pushed to GitHub' */
-        if (_type == "githubPush" && _branch == "master") {
+        if (_type == "multijob" && _branch == "master") {
             githubPush()
         }
     }
@@ -570,6 +570,7 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
         checkoutRetryCount(5)
         label(job_values.on_nodes_with_labels)
         wrappers build_wrappers(job_values)
+        triggers build_triggers(job_type, job_values.at, branchName)
         scm build_scm(git_url, branchName, isReleaseBuild)
         steps build_steps(job_values)
         publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
@@ -641,7 +642,7 @@ def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
            This however only happens for the master branch, no other branches are
            automatically built when new commits are pushed to those branches.
         */
-        triggers build_triggers('githubPush', 'none', branchName)
+        triggers build_triggers('multijob', 'none', branchName)
         wrappers {
             timestamps()
             colorizeOutput()
@@ -721,12 +722,13 @@ def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
 }
 
 
-def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseBuild) {
+def generate_jobs_for_branch(dashProject, dashBranchName, displayFolderName, branchName, isReleaseBuild) {
     /*
         Generate all the jobs for the specific branch.
 
         :param unicode dashProject: the project name escaped with dashes
         :param unicode dashBranchName: the branch name escaped with dashes
+        :param unicode displayFolderName: The display name of the folder.
         :param unicode branchName: the name of the branch for display - spaces
              etc. allowed
         :param bool isReleaseBuild: whether to generate a release build that
@@ -735,16 +737,14 @@ def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseB
 
     // create a folder for every branch: /git-username/git-repo/branch
     folder(folder_name(dashProject, dashBranchName)) {
-        displayName(branchName)
+        displayName(displayFolderName)
     }
 
     // create tabs
     build_tabs(dashBranchName)
 
     // create individual jobs
-    list_jobs(dashProject, dashBranchName).findAll {
-        it.type != 'cronly_jobs'
-    }.each {
+    list_jobs(dashProject, dashBranchName).each {
         define_job(
             dashProject, dashBranchName, branchName, it.type, it.name,
             it.full_name, it.values, it.module, isReleaseBuild
@@ -765,43 +765,14 @@ branches.each { branchName ->
     println("iterating over branch... ${branchName}")
     dashBranchName = escape_name(branchName)
     // our convention for release branches is release/flocker-<version>
-    isReleaseBuild = branchName.startsWith("release/*")
+    isReleaseBuild = branchName.startsWith("release/")
 
-    generate_jobs_for_branch(dashProject, dashBranchName, branchName, false)
+    generate_jobs_for_branch(dashProject, dashBranchName, branchName, branchName, false)
 
     if (isReleaseBuild) {
         generate_jobs_for_branch(
             dashProject, "release-" + dashBranchName, "Release " + branchName,
-            true
+            branchName, true
         )
-    }
-
-
-    /* ------------------------------------------------------------------------- */
-    /* CRON JOBS BELOW                                                           */
-    /* --------------------------------------------------------------------------*/
-
-    /* Configure cronly jobs, these are not part of the main branches loop       */
-    /* As we only run them from the master branch, they get executed a few       */
-    /* times a day based on a cron type schedule.                                */
-
-    cronly_jobs = list_jobs(dashProject, dashBranchName).findAll {
-        it.type == 'cronly_jobs'
-    }.each {
-        values = it.values
-        job(it.full_name) {
-            parameters {
-                textParam("TRIGGERED_BRANCH", branchName,
-                          "Branch that triggered this job" )
-            }
-            // See above.
-            checkoutRetryCount(5)
-            label(values.on_nodes_with_labels)
-            wrappers build_wrappers(values)
-            triggers build_triggers('cron', values.at, branchName)
-            scm build_scm("${git_url}", "${branchName}", false)
-            steps build_steps(values)
-            publishers build_publishers(values, null, null, null, null)
-        }
     }
 }
