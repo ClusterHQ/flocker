@@ -272,7 +272,7 @@ def _wait_for_nodes(reactor, client, count):
         def check_node_count(nodes):
             print("Waiting for nodes, "
                   "got {} out of {}".format(len(nodes), count))
-            return len(nodes) == count
+            return len(nodes) >= count
 
         d.addCallback(check_node_count)
         return d
