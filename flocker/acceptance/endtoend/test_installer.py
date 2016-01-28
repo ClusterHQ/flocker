@@ -326,7 +326,6 @@ class DockerComposeTests(AsyncTestCase):
             control_node=self.control_node_ip.encode('ascii'),
             certificates_path=local_certs_path,
             num_agent_nodes=2,
-            hostname_to_public_address={},
             username='user1',
         )
         d.addCallback(

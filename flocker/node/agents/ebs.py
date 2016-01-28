@@ -719,7 +719,7 @@ def _wait_for_volume_state_change(operation,
     start_time = time.time()
     poll_until(
         lambda: _reached_end_state(
-           operation, volume, update, time.time() - start_time, timeout
+            operation, volume, update, time.time() - start_time, timeout
         ),
         itertools.repeat(1)
     )
@@ -1363,7 +1363,10 @@ class EBSBlockDeviceAPI(object):
     def list_live_nodes(self):
         instances = self.connection.instances.filter(
             Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
-        return list(unicode(instance.id) for instance in instances)
+        return {unicode(instance.id):
+                [unicode(instance.public_ip_address),
+                 unicode(instance.private_ip_address)]
+                for instance in instances}
 
     @boto3_log
     def start_node(self, node_id):
