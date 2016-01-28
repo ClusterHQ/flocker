@@ -262,6 +262,17 @@ def build_wrappers(v) {
 }
 
 
+/*
+    Is the specified branch the master branch?
+
+    :param unicode branchName: the name of the branch.
+    :return bool: whether the branch is the master branch.
+*/
+def is_master(branchName) {
+    return branchName == "master"
+}
+
+
 /* adds a list of triggers to the build job
 
    param  _type: type of job
@@ -274,14 +285,14 @@ def build_triggers(_type, _value, _branch ) {
            but we only configure the scheduler if the jobs is for the master branch.
            If we were to schedule the job on every branch we would have multiple jobs
            running at the same time. */
-        if (_type == "cronly_jobs" && _branch == "master") {
+        if (_type == "cronly_jobs" && is_master(_branch)) {
             //  the cron  string below is a common crontab style string
             cron(_value)
         }
         /*  the job_type 'multijob' is used by the multijob, we use it to
             configure that job so that builds on master are triggered automatically
             this block enables 'Build when a change is pushed to GitHub' */
-        if (_type == "multijob" && _branch == "master") {
+        if (_type == "multijob" && is_master(_branch)) {
             githubPush()
         }
     }
@@ -423,6 +434,33 @@ def build_steps(job) {
                 shell(_step.cli.join("\n") + "\n")
             }
         }
+    }
+}
+
+
+/*
+    Closure that configures the current project to notify slack on failure.
+    The specified channel will be notified.
+*/
+Closure notify_slack(String channel) {
+    return {
+        // I'm not sure how to put these magic strings in a variable
+        // or avoid them altogether.
+        it / 'properties' << 'jenkins.plugins.slack.SlackNotifier_-SlackJobProperty'(plugin: 'slack@1.8.1') {
+            room(values.notify_slack)
+            startNotification(false)
+            notifySuccess(false)
+            notifyAborted(false)
+            notifyNotBuilt(true)
+            notifyUnstable(true)
+            notifyFailure(true)
+            notifyBackToNormal(false)
+            notifyRepeatedFailure(true)
+            includeTestSummary(true)
+            showCommitList(true)
+            includeCustomMessage(false)
+        }
+        it / 'publishers' << 'jenkins.plugins.slack.SlackNotifier'(plugin: 'slack@1.8.1')
     }
 }
 
@@ -574,6 +612,9 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
         scm build_scm(git_url, branchName, isReleaseBuild)
         steps build_steps(job_values)
         publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
+        if (job_values.notify_slack && is_master(branchName)) {
+            configure notify_slack(job_values.notify_slack)
+        }
     }
 
 }
@@ -760,6 +801,8 @@ def generate_jobs_for_branch(dashProject, dashBranchName, displayFolderName, bra
    MAIN ACTION:
    --------------------
 */
+
+
 // Iterate over every branch, and create folders, jobs
 branches.each { branchName ->
     println("iterating over branch... ${branchName}")
