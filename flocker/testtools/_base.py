@@ -15,7 +15,7 @@ from fixtures import Fixture
 import testtools
 from testtools.content import Content, text_content
 from testtools.content_type import UTF8_TEXT
-from testtools.deferredruntest import (
+from testtools.twistedsupport import (
     AsynchronousDeferredRunTestForBrokenTwisted, assert_fails_with,
 )
 
@@ -112,13 +112,6 @@ class TestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
     # exception that signals skipping.
     skipException = SkipTest
 
-    def __init__(self, *args, **kwargs):
-        super(TestCase, self).__init__(*args, **kwargs)
-        # XXX: Work around testing-cabal/unittest-ext#60. Delete after
-        # https://github.com/testing-cabal/testtools/pull/189 lands, is
-        # released, and we use it.
-        self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
-
     def setUp(self):
         log.msg("--> Begin: %s <--" % (self.id()))
         super(TestCase, self).setUp()
@@ -163,13 +156,6 @@ class AsyncTestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
     run_tests_with = async_runner(timeout=DEFAULT_ASYNC_TIMEOUT)
     # See comment on TestCase.skipException.
     skipException = SkipTest
-
-    def __init__(self, *args, **kwargs):
-        super(AsyncTestCase, self).__init__(*args, **kwargs)
-        # XXX: Work around testing-cabal/unittest-ext#60. Delete after
-        # https://github.com/testing-cabal/testtools/pull/189 lands, is
-        # released, and we use it.
-        self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
 
     def setUp(self):
         log.msg("--> Begin: %s <--" % (self.id()))
