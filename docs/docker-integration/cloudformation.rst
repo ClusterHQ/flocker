@@ -43,7 +43,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/02-create-key.png" alt="Creating a new AWS key pair"/>
-            <span>Click "Create Key Pair". Give your key pair a meaningful name, like <strong>flocker-test</strong>. You'll need this later.</span>
+            <span>Click "Create Key Pair". Give your key pair a meaningful name, like <strong>flocker-test</strong>. You'll need this later, so <strong>make a note of it</strong>.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/03-pem-downloaded.png" alt="A downloaded pem file"/>
@@ -61,27 +61,79 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
             <br />
 			This button will open CloudFormation in a new window.</p>
 		</div>
+
 		<div class="step-stages__step first">
+
+            <img src="../_images/10-cloudformation-firstpage.png" alt="Initial CloudFormation page" />
+			<span>Click "Next" to proceed past the first page.</span>
+
+
+		</div>
+		<div class="step-stages__step">
+
 			<img src="../_images/11-cloudformation-stackname.png" alt="Specifying the stack name"/>
-			<span>Click "Next"</span>
-			<span>Enter a <code>Stack name</code>. This can be any descriptive name.</span>
-			<span>Enter your <code>KeyPair</code> name from Step 1. Then enter your AWS <code>AccessKeyID</code> and <code>SecretAccessKey</code> credentials.</span><span>If you don't know these, <a href="javascript:void(0);" onclick="$('#iam-instructions').show();">click here</a>.</span>
+			<span>
+            <ul>
+                <li>
+                    Enter a <code>Stack name</code>. This can be any descriptive name.
+                </li>
+                <li>
+                    Enter your <code>KeyPair</code> name from Step 1. Then enter your AWS <code>AccessKeyID</code> and <code>SecretAccessKey</code> credentials.
+                </li>
+            </ul>
+            <a href="javascript:void(0);" onclick="$('#iam-instructions').show();">Don't know your AWS credentials?</a>
+            </span>
             <div id="iam-instructions" style="text-align:left; display:none;">
                 <span>You can generate new credentials on your <a href="https://console.aws.amazon.com/iam/home#users" target="_blank">IAM Users</a> page:</span>
                 <span><ul><li>Click on your user and go to the "Security Credentials" tab.</li><li>Click "Create Access Key".</li><li>Click "Show User Security Credentials".</li></ul></span>
+
             </div>
+
 		</div>
 		<div class="step-stages__step">
-			<img src="../_images/12-cloudformation-settings.png" alt="Optionally fill in volumehub settings"/>
-            <span>Optionally, you can <a href="https://clusterhq.com/volumehub/" target="_blank">register for a Volume Hub account</a>.</span>
-			<span>Volume Hub is a free web service hosted by ClusterHQ. It is a dashboard for monitoring the nodes, volumes, containers and Flocker logs in a Flocker cluster.</span>
-           <span>Once you're logged in to the Volume Hub, get your <a href="https://volumehub.clusterhq.com/v1/token" target="_blank">Volume Hub token here</a> and copy the <code>&lt;YourToken&gt;</code> part from <code>{"token": "&lt;YourToken&gt;"}</code> into the <code>VolumeHubToken</code> field.</span>
+
+		    <img src="../_images/12-cloudformation-settings.png" alt="Optionally fill in Volume Hub settings"/>
+            <span>
+            <ul>
+            <li>
+                Now add your Volume Hub Token (optional). Volume Hub lets you see your Flocker cluster in a web interface. Create a free Volume Hub account:
+                <br />
+                <br />
+                <a href="https://volumehub.clusterhq.com/" target="_blank" class="button" style="margin-top:1em; margin-bottom:1em;">Volume Hub</a>
+                <br />
+                <br />
+            </li>
+            <li>
+                Once you're logged in to the Volume Hub, click below to get your Volume Hub Token:
+                <br />
+                <br />
+                <a href="https://volumehub.clusterhq.com/v1/token" target="_blank" class="button">Volume Hub token</a>
+                <br />
+                <br />
+                Then copy the <code>&lt;YourToken&gt;</code> part from <code>{"token": "&lt;YourToken&gt;"}</code> into the <code>VolumeHubToken</code> field.</span>
+             </li>
+             </ul>
+             </span>
+
 		</div>
-		<div class="step-stages__step">
+        <div style="clear:both;"></div>
+		<div class="step-stages__step first" style="margin-left:auto; margin-right:auto; float:none; display:block;">
 			<img src="../_images/13-cloudformation-create.png" alt="Click create"/>
-            <span>Complete the remaining CloudFormation configuration pages; use the default settings unless you are familiar with CloudFormation.</span>
-			<span>Finally, click "Create" to create your cluster.</span>
-		</div>
+            <span>
+                <ul>
+                    <li>
+                        Click "Next" on the Options page.
+                    </li>
+                    <li>
+                        Click "Next" on the Review page.
+                    </li>
+                    <li>
+                        Finally, click "Create" to create your cluster.
+                    </li>
+                </ul>
+            </span>
+        </div>
+
 	</div>
 
 	<div class="step-stages step-stages--3up">
@@ -108,10 +160,13 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">3</h2>
 			<h3 class="step-stages__subheading">Verify your installation</h3>
-            <p>Click on the "Outputs" tab for your stack. The values displayed on this tab will be used for verifying your installation and also any tutorials you go through.</p>
-			<img src="../_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation" style="margin: 2em 0;"/>
-            <p>Now open a Terminal window, and run the following commands to log in and verify your cluster is working.</p>
-            <div style="text-align: left; margin: 2em 0;">
+            <div style="text-align:left;">
+                <p>Click on the "Outputs" tab for your stack. The values displayed on this tab will be used for verifying your installation and also any tutorials you go through.</p>
+                <img src="../_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation" style="margin: 2em 0;"/>
+                <p>Now open a Terminal window, and run the following commands to log in and verify your cluster is working.</p>
+                <p>Where a command includes a string like <code>&lt;ClientNodeIP&gt;</code>, use the corresponding value from the Outputs tab.</p>
+                <p>Where a command has <code>&lt;KeyPath&gt;</code> use the path on your machine to the <code>.pem</code> file you downloaded in Step 1, for example: <code>~/Downloads/flocker-test.pem</code>.</p>
+                <div style="text-align: left; margin: 2em 0;">
 
 .. prompt:: bash
 
@@ -129,29 +184,26 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 
 .. raw:: html
 
+                </div>
+                <p>If the commands succeeded, then your Flocker and Docker Swarm cluster is up and running.</p>
+                <p>You can also verify that your cluster has shown up in the Volume Hub:
+                <br />
+                <br />
+                <a href="https://volumehub.clusterhq.com/" target="_blank" class="button" style="margin-top:1em; margin-bottom:1em; text-align:center;">Volume Hub</a>
+                <br />
+                <p>It should look like this:</p>
+                <img src="../_images/32-volume-hub-verification.png" alt="Cluster appears in Volume Hub" />
             </div>
-            <p>Where a command includes a string like <code>&lt;ClientNodeIP&gt;</code>, use the corresponding value from the Outputs tab.</p>
-            <p>Where a command has <code>&lt;KeyPath&gt;</code> this should be the path on your machine to the <code>.pem</code> file you downloaded in Step 1, for example: <code>~/Downloads/flocker-test.pem</code>.</p>
-            <p>If the commands succeeded, then your Flocker and Docker Swarm cluster is up and running.</p>
 		</div>
 	</div>
 
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
 			<h2 class="step-stages__heading">That's it!</h2>
-			<p>Your cluster is now ready.</p>
-		</div>
-		<div class="step-stages__step first">
-			<span> </span>
-		</div>
-		<div class="step-stages__step">
-			<a href="tutorial-swarm-compose.html" class="button">Try a Tutorial</a>
-		</div>
-		<div class="step-stages__step">
-			<span> </span>
+			<p>Your cluster is now ready. Now try a tutorial.</p>
+			<a href="tutorial-swarm-compose.html" class="button">Deploy an app on your Swarm/Flocker cluster</a>
 		</div>
     </div>
-
 
 .. raw:: html
 
@@ -160,6 +212,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 .. image:: /images/installer-swarm-compose/01-keys-menu.png
 .. image:: /images/installer-swarm-compose/02-create-key.png
 .. image:: /images/installer-swarm-compose/03-pem-downloaded.png
+.. image:: /images/installer-swarm-compose/10-cloudformation-firstpage.png
 .. image:: /images/installer-swarm-compose/11-cloudformation-stackname.png
 .. image:: /images/installer-swarm-compose/12-cloudformation-settings.png
 .. image:: /images/installer-swarm-compose/13-cloudformation-create.png
@@ -167,6 +220,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 .. image:: /images/installer-swarm-compose/22-create-in-progress.png
 .. image:: /images/installer-swarm-compose/23-create-complete.png
 .. image:: /images/installer-swarm-compose/31-stack-outputs.png
+.. image:: /images/installer-swarm-compose/32-volume-hub-verification.png
 
 .. raw:: html
 
