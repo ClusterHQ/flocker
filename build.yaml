@@ -1092,6 +1092,7 @@ job_type:
                    *convert_results_to_junit ]
           }
       archive_artifacts: *flocker_artifacts
+      publish_test_results: true
       coverage_report: true
       clean_repo: true
       timeout: 45
