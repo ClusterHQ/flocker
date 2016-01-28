@@ -1552,7 +1552,7 @@ def configure_cluster(
                             open_firewall_for_docker_api(node.distribution),
                         ),
                         task_configure_flocker_agent(
-                            control_node=cluster.control_node.private_address,
+                            control_node=cluster.control_node.address,
                             dataset_backend=cluster.dataset_backend,
                             dataset_backend_configuration=(
                                 dataset_backend_configuration

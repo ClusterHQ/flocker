@@ -322,8 +322,8 @@ class ValidateSignatureAgainstKwargsTests(TestCase):
         """
         self.assertThat(
             lambda: validate_signature_against_kwargs(
-                _one_default_argument_function, set(["bad"])),
-            _raises_invalid_signature(unexpected_arguments=set(["bad"]),
+                _one_default_argument_function, set(["unexpected"])),
+            _raises_invalid_signature(unexpected_arguments=set(["unexpected"]),
                                       missing_optional_arguments=set(["arg"]))
         )
 
@@ -362,9 +362,9 @@ class ValidateSignatureAgainstKwargsTests(TestCase):
         """
         self.assertThat(
             lambda: validate_signature_against_kwargs(
-                _args_fun, set(["one", "two"])),
+                _args_fun, set(["one", "unexpected"])),
             _raises_invalid_signature(
-                unexpected_arguments=set(["two"]))
+                unexpected_arguments=set(["unexpected"]))
         )
 
     def test_kwargs_fun_failure(self):
