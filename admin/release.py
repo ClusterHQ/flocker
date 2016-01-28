@@ -146,12 +146,12 @@ DOCUMENTATION_CONFIGURATIONS = {
         DocumentationConfiguration(
             documentation_bucket="clusterhq-docs",
             cloudfront_cname="docs.clusterhq.com",
-            dev_bucket="clusterhq-staging-docs"),
+            dev_bucket="clusterhq-dev-docs"),
     Environments.STAGING:
         DocumentationConfiguration(
             documentation_bucket="clusterhq-staging-docs",
             cloudfront_cname="docs.staging.clusterhq.com",
-            dev_bucket="clusterhq-staging-docs"),
+            dev_bucket="clusterhq-dev-docs"),
 }
 
 

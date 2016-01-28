@@ -93,15 +93,17 @@ class PublishDocsTests(TestCase):
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
+                'clusterhq-dev-docs': {
                     'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
                     'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
                     'release/flocker-0.3.0+444.gf05215b/other.html': 'other-content',
                     'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
                     'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
                     'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
+                },
+                'clusterhq-staging-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -111,12 +113,6 @@ class PublishDocsTests(TestCase):
                 # originals
                 'index.html': '',
                 'en/index.html': '',
-                'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
-                'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
-                'release/flocker-0.3.0+444.gf05215b/other.html': 'other-content',
-                'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
-                'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
-                'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
                 # and new copies
                 'en/latest/index.html': 'index-content',
                 'en/latest/sub/index.html': 'sub-index-content',
@@ -142,13 +138,13 @@ class PublishDocsTests(TestCase):
                     'en/index.html': '',
                     'en/latest/index.html': '',
                 },
-                'clusterhq-staging-docs': {
+                'clusterhq-dev-docs': {
                     'release/flocker-0.3.1/index.html': 'index-content',
                     'release/flocker-0.3.1/sub/index.html': 'sub-index-content',
                     'release/flocker-0.3.1/other.html': 'other-content',
-                    'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
-                    'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
-                    'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
+                    'release/flocker-0.3.0/index.html': 'bad-index',
+                    'release/flocker-0.3.0/sub/index.html': 'bad-sub-index',
+                    'release/flocker-0.3.0/other.html': 'bad-other',
                 }
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
@@ -178,6 +174,10 @@ class PublishDocsTests(TestCase):
             routing_rules={
             },
             s3_buckets={
+                'clusterhq-dev-docs': {
+                    'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                },
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
@@ -185,8 +185,6 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1/index.html': 'old-index-content',
                     'en/0.3.1/sub/index.html': 'old-sub-index-content',
                     'en/0.3.1/other.html': 'other-content',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -199,9 +197,6 @@ class PublishDocsTests(TestCase):
                 'en/latest/sub/index.html': 'sub-index-content',
                 'en/0.3.1/index.html': 'index-content',
                 'en/0.3.1/sub/index.html': 'sub-index-content',
-                # and the originals
-                'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
-                'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
             })
 
     def test_creates_cloudfront_invalidation_new_files(self):
@@ -216,15 +211,17 @@ class PublishDocsTests(TestCase):
             routing_rules={
             },
             s3_buckets={
+                'clusterhq-dev-docs': {
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/other.html': '',
+                },
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
                     'en/latest/index.html': '',
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -256,11 +253,13 @@ class PublishDocsTests(TestCase):
             routing_rules={
             },
             s3_buckets={
+                'clusterhq-dev-docs': {
+                    'release/flocker-0.3.0+444.gf05215b/sub_index.html': '',
+                },
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
                     'en/latest/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub_index.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -289,6 +288,7 @@ class PublishDocsTests(TestCase):
             routing_rules={
             },
             s3_buckets={
+                'clusterhq-dev-docs': {},
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
@@ -328,14 +328,16 @@ class PublishDocsTests(TestCase):
             routing_rules={
             },
             s3_buckets={
+                'clusterhq-dev-docs': {
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
+                },
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
                     'en/latest/index.html': '',
                     'en/0.3.0/index.html': '',
                     'en/0.3.0/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -371,15 +373,17 @@ class PublishDocsTests(TestCase):
                 },
             },
             s3_buckets={
+                'clusterhq-dev-docs': {
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/other.html': '',
+                },
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
                     'en/devel/index.html': '',
                     'en/0.3.1.dev1/index.html': '',
                     'en/0.3.1.dev1/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
@@ -414,6 +418,7 @@ class PublishDocsTests(TestCase):
             routing_rules={
             },
             s3_buckets={
+                'clusterhq-dev-docs': {},
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
@@ -453,14 +458,16 @@ class PublishDocsTests(TestCase):
             routing_rules={
             },
             s3_buckets={
+                'clusterhq-dev-docs': {
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
+                },
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
                     'en/devel/index.html': '',
                     'en/0.3.0/index.html': '',
                     'en/0.3.0/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
@@ -497,7 +504,7 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
                 },
-                'clusterhq-staging-docs': {},
+                'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
                           environment=Environments.PRODUCTION)
@@ -539,6 +546,7 @@ class PublishDocsTests(TestCase):
             },
             s3_buckets={
                 'clusterhq-docs': {},
+                'clusterhq-dev-docs': {},
                 'clusterhq-staging-docs': {},
             })
         # Does not raise:
@@ -554,6 +562,7 @@ class PublishDocsTests(TestCase):
             },
             s3_buckets={
                 'clusterhq-docs': {},
+                'clusterhq-dev-docs': {},
                 'clusterhq-staging-docs': {},
             })
         # Does not raise:
@@ -595,7 +604,7 @@ class PublishDocsTests(TestCase):
         # And that all the buckets themselves are empty.
         empty_buckets = {bucket_name: {} for bucket_name in bucket_names}
         # Including the dev bucket
-        empty_buckets['clusterhq-staging-docs'] = {}
+        empty_buckets['clusterhq-dev-docs'] = {}
         # And that all the buckets have an empty error_key
         empty_error_keys = {bucket_name: b'' for bucket_name in bucket_names}
 
