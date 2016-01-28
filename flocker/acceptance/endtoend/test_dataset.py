@@ -5,8 +5,9 @@ Tests for the datasets REST API.
 """
 
 from uuid import UUID
-from unittest import SkipTest, skipIf
+from unittest import SkipTest
 from datetime import timedelta
+from time import sleep
 
 from testtools import run_test_with
 
@@ -18,7 +19,7 @@ from ...node.agents.blockdevice import ICloudAPI
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend,
-    get_backend_api, verify_socket
+    get_backend_api,
 )
 
 
@@ -109,18 +110,19 @@ class DatasetAPITests(AsyncTestCase):
         created.addCallback(delete_dataset)
         return created
 
-    @skipIf(True,
-            "Shutting down a node invalidates a public IP, which breaks all "
-            "kinds of things. So skip for now.")
     @require_moving_backend
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
-    @require_cluster(2)
-    def test_dataset_move_from_dead_node(self, cluster):
+    # Rackspace is buggy so this doesn't work there; once we're off
+    # Rackspace we should re-enable it for everything (FLOC-4001):
+    @require_cluster(2, required_backend=DatasetBackend.aws)
+    def test_dataset_move_from_dead_node(self, cluster, backend):
         """
         A dataset can be moved from a dead node to a live node.
 
         All attributes, including the maximum size, are preserved.
         """
+        # We could use backend argument, but we're going to drop it as
+        # part of FLOC-4001, so make our own.
         api = get_backend_api(self, cluster.cluster_uuid)
         if not ICloudAPI.providedBy(api):
             raise SkipTest(
@@ -139,9 +141,12 @@ class DatasetAPITests(AsyncTestCase):
 
         def startup_node(node_id):
             api.start_node(node_id)
-            # Wait for node to boot up:; we presume Flocker getting going after
-            # SSH is available will be pretty quick:
-            return loop_until(reactor, verify_socket(node.public_address, 22))
+            # Wait for node to boot up:
+            d = loop_until(
+                reactor, lambda: node_id in api.list_live_nodes())
+            # Give it another ten seconds to boot:
+            d.addCallback(lambda _: sleep(10))
+            return d
 
         # Once created, shut down origin node and then request to move the
         # dataset to node2:
