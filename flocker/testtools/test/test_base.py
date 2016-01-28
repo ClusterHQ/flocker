@@ -11,6 +11,7 @@ from datetime import timedelta
 import unittest
 
 from eliot import MessageType, fields
+from fixtures import Fixture, MonkeyPatch
 from hypothesis import assume, given
 from hypothesis.strategies import binary, integers, lists, text
 
@@ -199,6 +200,13 @@ class BaseTestCaseTests(TesttoolsTestCase):
         """
         Flocker base test cases attach the Twisted log as a detail.
         """
+        # XXX: If debugging is enabled (either by setting this to True or by
+        # removing this line and running --debug-stacktraces, then the log
+        # fixtures in this test are empty. However, if we run a failing test
+        # manually, the logs appear in the details. Not sure what's going on,
+        # so disabling debugging for now.
+        self.useFixture(DebugTwisted(False))
+
         class SomeTest(base_test_case):
             def test_something(self):
                 from twisted.python import log
@@ -222,6 +230,12 @@ class BaseTestCaseTests(TesttoolsTestCase):
         Flocker base test cases attach the eliot log as a detail separate from
         the Twisted log.
         """
+        # XXX: If debugging is enabled (either by setting this to True or by
+        # removing this line and running --debug-stacktraces, then the log
+        # fixtures in this test are empty. However, if we run a failing test
+        # manually, the logs appear in the details. Not sure what's going on,
+        # so disabling debugging for now.
+        self.useFixture(DebugTwisted(False))
         message_type = MessageType(u'foo', fields(name=str), u'test message')
 
         class SomeTest(base_test_case):
@@ -245,6 +259,29 @@ class BaseTestCaseTests(TesttoolsTestCase):
                              "  name: 'qux'\n")
                 ),
             }))
+
+
+class DebugTwisted(Fixture):
+    """
+    Set debugging for various Twisted things.
+    """
+
+    def __init__(self, debug):
+        """
+        Set debugging for Deferreds and DelayedCalls.
+
+        :param bool debug: If True, enable debugging. If False, disable it.
+        """
+        super(DebugTwisted, self).__init__()
+        self._debug_setting = debug
+
+    def _setUp(self):
+        self.useFixture(
+            MonkeyPatch('twisted.internet.defer.Deferred.debug',
+                        self._debug_setting))
+        self.useFixture(
+            MonkeyPatch('twisted.internet.base.DelayedCall.debug',
+                        self._debug_setting))
 
 
 class AsyncTestCaseTests(TestCase):
