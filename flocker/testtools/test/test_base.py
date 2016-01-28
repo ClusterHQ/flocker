@@ -205,7 +205,9 @@ class BaseTestCaseTests(TesttoolsTestCase):
                 log.msg('foo')
 
         test = SomeTest('test_something')
-        test.run()
+        result = TestResult()
+        test.run(result)
+        self.expectThat(result, has_results(tests_run=Equals(1)))
         self.assertThat(
             test.getDetails(),
             ContainsDict({
@@ -229,7 +231,9 @@ class BaseTestCaseTests(TesttoolsTestCase):
                 message_type(name='qux').write()
 
         test = SomeTest('test_something')
-        test.run()
+        result = TestResult()
+        test.run(result)
+        self.expectThat(result, has_results(tests_run=Equals(1)))
         self.assertThat(
             test.getDetails(),
             MatchesDict({
