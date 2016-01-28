@@ -132,6 +132,10 @@ class AttachVolumeAndWaitTests(TestCase):
         expected way, ``AttachedUnexpectedDevice`` is raised giving details
         about the expected and received paths.
         """
+        # The way this test uses the wrong_device variable is broken; we should
+        # fix it.
+        # pylint: disable=undefined-loop-variable
+
         # The implementation is going to look at the real system to see what
         # block devices exist.  It would be nice to have an abstraction in
         # place to easily manipulate these results for the tests.  Lacking

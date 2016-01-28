@@ -10,11 +10,13 @@ from ._install import (
 )
 from ._rackspace import rackspace_provisioner
 from ._aws import aws_provisioner
+from ._gce import gce_provisioner
 from ._ca import Certificates
 
 CLOUD_PROVIDERS = {
     'rackspace': rackspace_provisioner,
     'aws': aws_provisioner,
+    'gce': gce_provisioner,
 }
 
 __all__ = [

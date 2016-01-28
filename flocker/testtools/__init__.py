@@ -782,9 +782,9 @@ class MemoryCoreReactor(MemoryReactor, Clock):
         Clock.__init__(self)
         self._triggers = {}
 
-    def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
+    def addSystemEventTrigger(self, phase, eventType, f, *args, **kw):
         event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
-        return eventType, event.addTrigger(phase, callable, *args, **kw)
+        return eventType, event.addTrigger(phase, f, *args, **kw)
 
     def removeSystemEventTrigger(self, triggerID):
         eventType, handle = triggerID

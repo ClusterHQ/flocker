@@ -161,11 +161,12 @@ class DatasetAPITests(AsyncTestCase):
 
         def confirm_gold(dataset):
             volumes = backend.list_volumes()
-            for volume in volumes:
-                if volume.dataset_id == dataset.dataset_id:
-                    break
-            ebs_volume = backend._get_ebs_volume(volume.blockdevice_id)
-            self.assertEqual('io1', ebs_volume.volume_type)
+            matching = [
+                v for v in volumes if v.dataset_id == dataset.dataset_id]
+            volume_types = [
+                backend._get_ebs_volume(v.blockdevice_id).volume_type
+                for v in matching]
+            self.assertEqual(volume_types, ['io1'])
 
         waiting_for_create.addCallback(confirm_gold)
         return waiting_for_create

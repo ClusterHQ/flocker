@@ -7,6 +7,7 @@ import sys
 import os
 import yaml
 import json
+from base64 import b32encode
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -22,7 +23,6 @@ from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
-from twisted.conch.ssh.keys import Key
 from twisted.python.reflect import prefixedMethodNames
 
 from effect import parallel
@@ -30,8 +30,10 @@ from txeffect import perform
 
 from uuid import UUID
 
-from admin.vagrant import vagrant_version
-from flocker.common import RACKSPACE_MINIMUM_VOLUME_SIZE, gather_deferreds
+from flocker.common import (
+    RACKSPACE_MINIMUM_VOLUME_SIZE, gather_deferreds,
+    validate_signature_against_kwargs, InvalidSignature
+)
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
@@ -488,109 +490,6 @@ def configured_cluster_for_nodes(
     return configuring
 
 
-@implementer(IClusterRunner)
-@attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
-class VagrantRunner(object):
-    """
-    Start and stop vagrant cluster for acceptance testing.
-
-    :cvar list NODE_ADDRESSES: List of address of vagrant nodes created.
-    """
-    # TODO: This should acquire the vagrant image automatically,
-    # rather than assuming it is available.
-    # https://clusterhq.atlassian.net/browse/FLOC-1163
-
-    NODE_ADDRESSES = ["172.16.255.250", "172.16.255.251"]
-
-    def __init__(self):
-        self.vagrant_path = self._get_vagrant_path(self.top_level,
-                                                   self.distribution)
-
-        self.certificates_path = self.top_level.descendant([
-            'vagrant', 'tutorial', 'credentials'])
-
-        if self.variants:
-            raise UsageError("Variants unsupported on vagrant.")
-
-    def _get_vagrant_path(self, top_level, distribution):
-        """
-        Get the path to the Vagrant directory for ``distribution``.
-
-        :param FilePath top_level: the directory containing the ``admin``
-            package.
-        :param bytes distribution: the name of a distribution
-        :raise UsageError: if no such distribution found.
-        :return: ``FilePath`` of the vagrant directory.
-        """
-        vagrant_dir = top_level.descendant([
-            'admin', 'vagrant-acceptance-targets'
-        ])
-        vagrant_path = vagrant_dir.child(distribution)
-        if not vagrant_path.exists():
-            distributions = vagrant_dir.listdir()
-            raise UsageError(
-                "Distribution not found: %s. Valid distributions: %s."
-                % (self.distribution, ', '.join(distributions)))
-        return vagrant_path
-
-    def ensure_keys(self, reactor):
-        key = Key.fromFile(os.path.expanduser(
-            "~/.vagrant.d/insecure_private_key"))
-        return ensure_agent_has_ssh_key(reactor, key)
-
-    @inlineCallbacks
-    def start_cluster(self, reactor):
-        # Destroy the box to begin, so that we are guaranteed
-        # a clean build.
-        yield run(
-            reactor,
-            ['vagrant', 'destroy', '-f'],
-            path=self.vagrant_path.path)
-
-        if self.package_source.version:
-            env = extend_environ(
-                FLOCKER_BOX_VERSION=vagrant_version(
-                    self.package_source.version))
-        else:
-            env = os.environ
-        # Boot the VMs
-        yield run(
-            reactor,
-            ['vagrant', 'up'],
-            path=self.vagrant_path.path,
-            env=env)
-
-        for node in self.NODE_ADDRESSES:
-            yield remove_known_host(reactor, node)
-
-        nodes = pvector(
-            ManagedNode(address=address, distribution=self.distribution)
-            for address in self.NODE_ADDRESSES
-        )
-
-        certificates = Certificates(self.certificates_path)
-        # Default volume size is meaningless here as Vagrant only uses ZFS, and
-        # not a block device backend.
-        # XXX Change ``Cluster`` to not require default_volume_size
-        default_volume_size = int(GiB(1).to_Byte().value)
-        cluster = Cluster(
-            all_nodes=pvector(nodes),
-            control_node=nodes[0],
-            agent_nodes=nodes,
-            dataset_backend=self.dataset_backend,
-            certificates=certificates,
-            default_volume_size=default_volume_size,
-        )
-
-        returnValue(cluster)
-
-    def stop_cluster(self, reactor):
-        return run(
-            reactor,
-            ['vagrant', 'destroy', '-f'],
-            path=self.vagrant_path.path)
-
-
 @attributes(RUNNER_ATTRIBUTES + [
     'provisioner', 'num_nodes', 'identity', 'cert_path',
 ], apply_immutable=True)
@@ -642,7 +541,7 @@ class LibcloudRunner(object):
         # place, the node creation code, to perform cleanup when the create
         # operation fails in a way such that it isn't clear if the instance has
         # been created or not.
-        random_tag = os.urandom(8).encode("base64").strip("\n=")
+        random_tag = b32encode(os.urandom(8)).lower().strip("\n=")
         print "Assigning random tag:", random_tag
 
         for index in range(self.num_nodes):
@@ -727,7 +626,7 @@ class CommonOptions(Options):
         ['distribution', None, None,
          'The target distribution. '
          'One of {}.'.format(', '.join(DISTRIBUTIONS))],
-        ['provider', None, 'vagrant',
+        ['provider', None, None,
          'The compute-resource provider to test against. '
          'One of {}.'],
         ['dataset-backend', None, 'zfs',
@@ -828,6 +727,8 @@ class CommonOptions(Options):
         if self.get('cert-directory') is None:
             self['cert-directory'] = FilePath(mkdtemp())
 
+        if self.get('provider') is None:
+            raise UsageError("Provider required.")
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
@@ -872,26 +773,6 @@ class CommonOptions(Options):
         raise UsageError(
             "Configuration file must include a "
             "{!r} config stanza.".format(provider)
-        )
-
-    def _runner_VAGRANT(self, package_source,
-                        dataset_backend, provider_config):
-        """
-        :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
-        :param provider_config: The ``vagrant`` section of the acceptance
-            testing configuration file.  Since the Vagrant runner accepts no
-            configuration, this is ignored.
-        :returns: ``VagrantRunner``
-        """
-        return VagrantRunner(
-            config=self['config'],
-            top_level=self.top_level,
-            distribution=self['distribution'],
-            package_source=package_source,
-            variants=self['variants'],
-            dataset_backend=dataset_backend,
-            dataset_backend_configuration=self.dataset_backend_configuration()
         )
 
     def _runner_MANAGED(self, package_source, dataset_backend,
@@ -947,7 +828,27 @@ class CommonOptions(Options):
         if provider_config is None:
             self._provider_config_missing(provider)
 
-        provisioner = CLOUD_PROVIDERS[provider](**provider_config)
+        provider_factory = CLOUD_PROVIDERS[provider]
+
+        try:
+            provisioner = provider_factory(**provider_config)
+        except TypeError:
+            try:
+                validate_signature_against_kwargs(provider_factory,
+                                                  set(provider_config.keys()))
+            except InvalidSignature as e:
+                raise SystemExit(
+                    "Missing or incorrect configuration for provider '{}'.\n"
+                    "Missing Keys: {}\n"
+                    "Unexpected Keys: {}\n"
+                    "Optional Missing Keys: {}".format(
+                        provider,
+                        ", ".join(e.missing_arguments) or "<None>",
+                        ", ".join(e.unexpected_arguments) or "<None>",
+                        ", ".join(e.missing_optional_arguments) or "<None>",
+                    )
+                )
+            raise
         return LibcloudRunner(
             config=self['config'],
             top_level=self.top_level,
@@ -960,6 +861,20 @@ class CommonOptions(Options):
             num_nodes=self['number-of-nodes'],
             identity=self._make_cluster_identity(dataset_backend),
             cert_path=self['cert-directory'],
+        )
+
+    def _runner_GCE(self, package_source, dataset_backend, provider_config):
+        """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param provider_config: The ``gce`` section of the acceptance
+            testing configuration file.  See the documentation linked below for
+            the form of the configuration.
+
+        :see: :ref:`acceptance-testing-gce-config`
+        """
+        return self._libcloud_runner(
+            package_source, dataset_backend, "gce", provider_config
         )
 
     def _runner_RACKSPACE(self, package_source, dataset_backend,

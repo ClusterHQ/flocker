@@ -18,10 +18,11 @@ from bitmath import GiB, Byte
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from oauth2client.gce import AppAssertionCredentials
+from pyrsistent import PClass, field
 from socket import gethostname
 from twisted.python.filepath import FilePath
 from uuid import UUID
-from zope.interface import implementer
+from zope.interface import implementer, Interface
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, AlreadyAttachedVolume, UnknownVolume,
@@ -33,6 +34,151 @@ from ...common import poll_until
 # about the instance the code is being run on.
 _METADATA_SERVER = u'http://169.254.169.254/computeMetadata/v1/'
 _METADATA_HEADERS = {u'Metadata-Flavor': u'Google'}
+
+
+class OperationPoller(Interface):
+    """
+    Interface for GCE operation resource polling. GCE operation resources
+    should be polled from GCE until they reach a status of ``DONE``. The
+    specific endpoint that should be polled for the operation is different for
+    global operations vs zone operations. This interface provides an
+    abstraction for that difference.
+    """
+
+    def poll(compute):
+        """
+        Get the latest version of the requested operation. This should block
+        until the latest version of the requested operation is gotten.
+
+        :param compute: The GCE compute python API object.
+
+        :returns: A dict representing the latest version of the GCE operation
+            resource.
+        """
+
+
+@implementer(OperationPoller)
+class ZoneOperationPoller(PClass):
+    """
+    Implemenation of :class:`OperationPoller` for zone operations.
+
+    :ivar unicode zone: The zone the operation occurred in.
+    :ivar unicode project: The project the operation is under.
+    :ivar unicode operation_name: The name of the operation.
+    """
+    zone = field(type=unicode)
+    project = field(type=unicode)
+    operation_name = field(type=unicode)
+
+    def poll(self, compute):
+        return compute.zoneOperations().get(
+            project=self.project,
+            zone=self.zone,
+            operation=self.operation_name
+        ).execute()
+
+
+@implementer(OperationPoller)
+class GlobalOperationPoller(PClass):
+    """
+    Implemenation of :class:`OperationPoller` for global operations.
+
+    :ivar unicode project: The project the operation is under.
+    :ivar unicode operation_name: The name of the operation.
+    """
+    project = field(type=unicode)
+    operation_name = field(type=unicode)
+
+    def poll(self, compute):
+        return compute.globalOperations().get(
+            project=self.project,
+            operation=self.operation_name
+        ).execute()
+
+
+class MalformedOperation(Exception):
+    """
+    Error indicating that there was an error parsing a dictionary as a GCE
+    operation resource.
+    """
+
+
+def _create_poller(operation):
+    """
+    Creates an operation poller from the passed in operation.
+
+    :param operation: A dict representing a GCE operation resource.
+
+    :returns: An :class:`OperationPoller` provider that can poll the status of
+        the operation.
+    """
+    try:
+        operation_name = operation['name']
+    except KeyError:
+        raise MalformedOperation(
+            u"Failed to parse operation, could not find key "
+            u"name in: {}".format(operation)
+        )
+    if 'zone' in operation:
+        zone_url_parts = unicode(operation['zone']).split('/')
+        try:
+            project = zone_url_parts[-3]
+            zone = zone_url_parts[-1]
+        except IndexError:
+            raise MalformedOperation(
+                "'zone' key of operation had unexpected form: {}.\n"
+                "Expected '(.*/)?<project>/zones/<zone>'.\n"
+                "Full operation: {}.".format(operation['zone'], operation))
+        return ZoneOperationPoller(
+            zone=unicode(zone),
+            project=unicode(project),
+            operation_name=unicode(operation_name)
+        )
+    else:
+        try:
+            project = unicode(operation['selfLink']).split('/')[-4]
+        except KeyError:
+            raise MalformedOperation(
+                u"Failed to parse global operation, could not find key "
+                u"selfLink in: {}".format(operation)
+            )
+        except IndexError:
+            raise MalformedOperation(
+                "'selfLink' key of operation had unexpected form: {}.\n"
+                "Expected '(.*/)?<project>/global/operations/<name>'.\n"
+                "Full operation: {}.".format(operation['selfLink'], operation))
+        return GlobalOperationPoller(
+            project=unicode(project),
+            operation_name=unicode(operation_name)
+        )
+
+
+def wait_for_operation(compute, operation, timeout_steps):
+    """
+    Blocks until a GCE operation is complete, or timeout passes.
+
+    This function will then poll the operation until it reaches state
+    'DONE' or times out, and then returns the final operation resource
+    dict.
+
+    :param compute: The GCE compute python API object.
+    :param operation: A dict representing a pending GCE operation resource.
+        This can be either a zone or a global operation.
+    :param timeout_steps: Iterable of times in seconds to wait until timing out
+        the operation.
+
+    :returns dict: A dict representing the concluded GCE operation
+        resource or `None` if the operation times out.
+    """
+    poller = _create_poller(operation)
+
+    def finished_operation_result():
+        latest_operation = poller.poll(compute)
+        if latest_operation['status'] == 'DONE':
+            return latest_operation
+        return None
+
+    return poll_until(finished_operation_result, timeout_steps)
 
 
 def _get_metadata_path(path):
@@ -209,23 +355,11 @@ class GCEBlockDeviceAPI(object):
         args = dict(project=self._project, zone=self._zone)
         args.update(kwargs)
         operation = function(**args).execute()
-        operation_name = operation['name']
-
-        def finished_operation_result():
-            latest_operation = self._compute.zoneOperations().get(
-                project=self._project,
-                zone=self._zone,
-                operation=operation_name).execute()
-            # TODO Logging
-            if latest_operation['status'] == 'DONE':
-                return latest_operation
-            return None
-
         # TODO(bcox) Perform a decent test of typical latencies for
         # operations within GCE and use that information to determine
         # an appropriate timeout. Until that is done, use the
         # following arbitrary timeout.
-        return poll_until(finished_operation_result, [1]*35)
+        return wait_for_operation(self._compute, operation, [1]*35)
 
     def allocation_unit(self):
         """

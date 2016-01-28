@@ -416,7 +416,7 @@ class VolumePlugin(object):
                     continue
                 name = dataset.metadata[NAME_FIELD]
                 d = self._get_path_from_dataset_id(dataset.dataset_id)
-                d.addCallback(lambda path: (path, name))
+                d.addCallback(lambda path, name=name: (path, name))
                 results.append(d)
             return gatherResults(results)
 

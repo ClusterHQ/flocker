@@ -46,9 +46,9 @@ RUN_OUTPUT_MESSAGE = MessageType(
 )
 
 
-def extReceived(self, type, data):
+def extReceived(self, ext_type, data):
     from twisted.conch.ssh.connection import EXTENDED_DATA_STDERR
-    if type == EXTENDED_DATA_STDERR:
+    if ext_type == EXTENDED_DATA_STDERR:
         self.dataReceived(data)
 
 
