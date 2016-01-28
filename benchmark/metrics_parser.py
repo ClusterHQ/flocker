@@ -1,22 +1,32 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 import argparse
+import csv
 import json
 
 
 WALL_CLOCK_KEY = u'-- WALL --'
 
 
-def apply_cpu_metric(result_blob):
-    wall_time = float(result_blob.get(WALL_CLOCK_KEY))
-    for k, v in result_blob.iteritems():
-        if not k == WALL_CLOCK_KEY:
-            result_blob[k] = v/wall_time
+HEADERS = [
+    u'FlockerVersion',
+    u'Nodes',
+    u'Containers',
+    u'ControlServiceCPUSteady',
+    u'CombinedAgentCPUSteady',
+    u'ControlServiceCPUReadLoad',
+    u'CombinedAgentCPUReadLoad',
+    u'ControlServiceCPUWriteLoad',
+    u'CombinedAgentCPUWriteLoad',
+    u'ContainerAdditionConvergence',
+]
 
 
-def add_results_to_table(result, result_table):
-    for k, v in result.iteritems():
-        result_table[k].append(v)
+def write_csv(results, filename):
+    with open(filename, 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=HEADERS, restval='N/A')
+        writer.writeheader()
+        writer.writerows(results)
 
 
 def print_averages(results):
