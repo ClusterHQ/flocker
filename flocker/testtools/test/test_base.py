@@ -7,9 +7,11 @@ Tests for flocker base test cases.
 import errno
 import os
 import shutil
+from datetime import timedelta
 import unittest
 
 from eliot import MessageType, fields
+from fixtures import Fixture, MonkeyPatch
 from hypothesis import assume, given
 from hypothesis.strategies import binary, integers, lists, text
 
@@ -30,8 +32,10 @@ from testtools.matchers import (
     FileContains,
     Is,
     Matcher,
+    MatchesAll,
     MatchesAny,
     MatchesDict,
+    MatchesListwise,
     MatchesRegex,
     LessThan,
     Not,
@@ -43,9 +47,8 @@ from twisted.internet.defer import Deferred, succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 
-from .. import CustomException, AsyncTestCase, TestCase
+from .. import CustomException, AsyncTestCase, TestCase, async_runner
 from .._base import (
-
     _SplitEliotLogs,
     _get_eliot_data,
     _iter_lines,
@@ -197,13 +200,22 @@ class BaseTestCaseTests(TesttoolsTestCase):
         """
         Flocker base test cases attach the Twisted log as a detail.
         """
+        # XXX: If debugging is enabled (either by setting this to True or by
+        # removing this line and running --debug-stacktraces, then the log
+        # fixtures in this test are empty. However, if we run a failing test
+        # manually, the logs appear in the details. Not sure what's going on,
+        # so disabling debugging for now.
+        self.useFixture(DebugTwisted(False))
+
         class SomeTest(base_test_case):
             def test_something(self):
                 from twisted.python import log
                 log.msg('foo')
 
         test = SomeTest('test_something')
-        test.run()
+        result = TestResult()
+        test.run(result)
+        self.expectThat(result, has_results(tests_run=Equals(1)))
         self.assertThat(
             test.getDetails(),
             ContainsDict({
@@ -218,6 +230,12 @@ class BaseTestCaseTests(TesttoolsTestCase):
         Flocker base test cases attach the eliot log as a detail separate from
         the Twisted log.
         """
+        # XXX: If debugging is enabled (either by setting this to True or by
+        # removing this line and running --debug-stacktraces, then the log
+        # fixtures in this test are empty. However, if we run a failing test
+        # manually, the logs appear in the details. Not sure what's going on,
+        # so disabling debugging for now.
+        self.useFixture(DebugTwisted(False))
         message_type = MessageType(u'foo', fields(name=str), u'test message')
 
         class SomeTest(base_test_case):
@@ -227,7 +245,9 @@ class BaseTestCaseTests(TesttoolsTestCase):
                 message_type(name='qux').write()
 
         test = SomeTest('test_something')
-        test.run()
+        result = TestResult()
+        test.run(result)
+        self.expectThat(result, has_results(tests_run=Equals(1)))
         self.assertThat(
             test.getDetails(),
             MatchesDict({
@@ -239,6 +259,70 @@ class BaseTestCaseTests(TesttoolsTestCase):
                              "  name: 'qux'\n")
                 ),
             }))
+
+
+class DebugTwisted(Fixture):
+    """
+    Set debugging for various Twisted things.
+    """
+
+    def __init__(self, debug):
+        """
+        Set debugging for Deferreds and DelayedCalls.
+
+        :param bool debug: If True, enable debugging. If False, disable it.
+        """
+        super(DebugTwisted, self).__init__()
+        self._debug_setting = debug
+
+    def _setUp(self):
+        self.useFixture(
+            MonkeyPatch('twisted.internet.defer.Deferred.debug',
+                        self._debug_setting))
+        self.useFixture(
+            MonkeyPatch('twisted.internet.base.DelayedCall.debug',
+                        self._debug_setting))
+
+
+class AsyncTestCaseTests(TestCase):
+    """
+    Tests for functionality specific to ``AsyncTestCase``.
+    """
+
+    def test_logs_after_timeout(self):
+        """
+        We include logs for tests, even if they time out.
+        """
+        message_type = MessageType(u'foo', fields(name=str), u'test message')
+
+        class SomeTest(AsyncTestCase):
+
+            # Set the timeout super low, because we're not doing anything.
+            run_tests_with = async_runner(timeout=timedelta(seconds=0.00005))
+
+            def test_something(self):
+                from twisted.python import log
+                log.msg('foo')
+                message_type(name='qux').write()
+                # Return a Deferred that never fires to guarantee a timeout.
+                return Deferred()
+
+        test = SomeTest('test_something')
+        result = TestResult()
+        test.run(result)
+        self.assertThat(
+            result,
+            has_results(
+                tests_run=Equals(1),
+                errors=MatchesListwise([MatchesListwise([
+                    Equals(test),
+                    MatchesAll(
+                        Contains('[-] foo\n'),
+                        Contains("message_type: 'foo'"),
+                    ),
+                ])]),
+            )
+        )
 
 
 def match_text_content(matcher):
