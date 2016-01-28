@@ -722,12 +722,13 @@ def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
 }
 
 
-def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseBuild) {
+def generate_jobs_for_branch(dashProject, dashBranchName, displayFolderName, branchName, isReleaseBuild) {
     /*
         Generate all the jobs for the specific branch.
 
         :param unicode dashProject: the project name escaped with dashes
         :param unicode dashBranchName: the branch name escaped with dashes
+        :param unicode displayFolderName: The display name of the folder.
         :param unicode branchName: the name of the branch for display - spaces
              etc. allowed
         :param bool isReleaseBuild: whether to generate a release build that
@@ -736,7 +737,7 @@ def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseB
 
     // create a folder for every branch: /git-username/git-repo/branch
     folder(folder_name(dashProject, dashBranchName)) {
-        displayName(branchName)
+        displayName(displayFolderName)
     }
 
     // create tabs
@@ -764,14 +765,14 @@ branches.each { branchName ->
     println("iterating over branch... ${branchName}")
     dashBranchName = escape_name(branchName)
     // our convention for release branches is release/flocker-<version>
-    isReleaseBuild = branchName.startsWith("release/*")
+    isReleaseBuild = branchName.startsWith("release/")
 
-    generate_jobs_for_branch(dashProject, dashBranchName, branchName, false)
+    generate_jobs_for_branch(dashProject, dashBranchName, branchName, branchName, false)
 
     if (isReleaseBuild) {
         generate_jobs_for_branch(
             dashProject, "release-" + dashBranchName, "Release " + branchName,
-            true
+            branchName, true
         )
     }
 }
