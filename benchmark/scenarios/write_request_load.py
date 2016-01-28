@@ -122,7 +122,7 @@ class WriteRequest(object):
             self.dataset_id
             )
 
-    def run_cleanup(self, ignored):
+    def run_cleanup(self):
         return self.control_service.delete_dataset(self.dataset_id)
 
 

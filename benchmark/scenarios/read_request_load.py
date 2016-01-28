@@ -45,7 +45,7 @@ class ReadRequest(object):
         """
         return succeed(None)
 
-    def run_cleanup(self, ignored):
+    def run_cleanup(self):
         """
         No cleanup is required for the read scenario, so this is a no-op
         cleanup.
