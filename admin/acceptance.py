@@ -7,6 +7,7 @@ import sys
 import os
 import yaml
 import json
+from itertools import repeat
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -21,7 +22,9 @@ from bitmath import GiB
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
+from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
+from twisted.internet.threads import deferToThreadPool
 from twisted.python.reflect import prefixedMethodNames
 
 from effect import parallel
@@ -29,7 +32,12 @@ from txeffect import perform
 
 from uuid import UUID
 
-from flocker.common import RACKSPACE_MINIMUM_VOLUME_SIZE, gather_deferreds
+from flocker.common import (
+    RACKSPACE_MINIMUM_VOLUME_SIZE,
+    gather_deferreds,
+    loop_until,
+    poll_until,
+)
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
@@ -41,6 +49,7 @@ from flocker.provision._install import (
     uninstall_flocker,
     install_flocker,
     configure_cluster,
+    configure_node,
     configure_zfs,
 )
 from flocker.provision._ca import Certificates
@@ -195,6 +204,23 @@ class IClusterRunner(Interface):
             found.  Otherwise, fails with ``AgentNotFound`` or ``KeyNotFound``.
         """
 
+    def extend_cluster(reactor, cluster, count, tag, starting_index):
+        """
+        Create new nodes and add them to the given cluster.
+
+        :param reactor: Reactor to use.
+        :param Cluster cluster: The cluster.
+        :param int count: How many new nodes to create.
+        :param str tag: Tag used for naming the new nodes.
+        :param int starting_index: A number used for naming the new nodes.
+        :return: List of ``Deferred``s that fire when a new node is configured
+            or fails.
+
+        .. note::
+            The cluster object is modified by this call and, thus, it should be
+            mutable
+        """
+
 
 RUNNER_ATTRIBUTES = [
     # Name of the distribution the nodes run - eg "ubuntu-14.04"
@@ -245,24 +271,9 @@ class ManagedRunner(object):
         See ``ManagedRunner`` and ``ManagedNode`` for other parameter
         documentation.
         """
-        # Blow up if the list contains mixed types.
-        [address_type] = set(type(address) for address in node_addresses)
-        if address_type is list:
-            # A list of 2 item lists
-            self._nodes = pvector(
-                ManagedNode(
-                    address=address,
-                    private_address=private_address,
-                    distribution=distribution
-                )
-                for (private_address, address) in node_addresses
-            )
-        else:
-            # A list of strings.
-            self._nodes = pvector(
-                ManagedNode(address=address, distribution=distribution)
-                for address in node_addresses
-            )
+        self._nodes = pvector(
+            make_managed_nodes(node_addresses, distribution)
+        )
         self.package_source = package_source
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
@@ -333,7 +344,7 @@ class ManagedRunner(object):
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
-                _save_backend_configuration(
+                save_backend_configuration(
                     self.dataset_backend,
                     self.dataset_backend_configuration
                 ),
@@ -348,6 +359,10 @@ class ManagedRunner(object):
         Don't stop any nodes.
         """
         return succeed(None)
+
+    def extend_cluster(self, reactor, cluster, count, tag, starting_index):
+        raise UsageError("Extending a cluster with managed nodes "
+                         "is not implemented yet.")
 
 
 def _provider_for_cluster_id(dataset_backend):
@@ -390,8 +405,8 @@ def generate_certificates(cluster_name, cluster_id, nodes, cert_path):
     return certificates
 
 
-def _save_backend_configuration(dataset_backend_name,
-                                dataset_backend_configuration):
+def save_backend_configuration(dataset_backend_name,
+                               dataset_backend_configuration):
     """
     Saves the backend configuration to a local file for consumption by the
     trial process.
@@ -409,6 +424,68 @@ def _save_backend_configuration(dataset_backend_name,
     dataset_path.setContent(yaml.safe_dump(
         {dataset_backend_name.name: dataset_backend_configuration}))
     return dataset_path
+
+
+def make_managed_nodes(addresses, distribution):
+    """
+    Create a list of managed nodes from a list of node addresses
+    or address pairs.
+
+    :param addresses: The list of addresses or address pairs for each node.
+    :type addresses: list of bytes or list of list of bytes
+    :param bytes distribution: Distribution installed on the nodes.
+    :return: List of nodes.
+    :rtype: list of ManagedNode
+    """
+    # Blow up if the list contains mixed types.
+    [address_type] = set(type(address) for address in addresses)
+    if address_type is list:
+        # A list of 2 item lists
+        return [
+            ManagedNode(
+                address=address,
+                private_address=private_address,
+                distribution=distribution
+            )
+            for (private_address, address) in addresses
+        ]
+    else:
+        # A list of strings.
+        return [
+            ManagedNode(address=address, distribution=distribution)
+            for address in addresses
+        ]
+
+
+def get_default_volume_size(dataset_backend_configuration):
+    """
+    Calcuate the default volume size for the given dataset backend
+    configuration.
+
+    :param dataset_backend_configuration: The backend configuration.
+    :return: The default size in bytes.
+    :rtype: int
+    """
+    # XXX: There is duplication between the values here and those in
+    # f.node.agents.test.blockdevicefactory.MINIMUM_ALLOCATABLE_SIZES. We want
+    # the default volume size to be greater than or equal to the minimum
+    # allocatable size.
+    #
+    # Ideally, the minimum allocatable size (and perhaps the default volume
+    # size) would be something known by an object that represents the dataset
+    # backend. Unfortunately:
+    #  1. There is no such object
+    #  2. There is existing confusion in the code around 'openstack' and
+    #     'rackspace'
+    #
+    # Here, we special-case Rackspace (presumably) because it has a minimum
+    # allocatable size that is different from other Openstack backends.
+    #
+    # FLOC-2584 also discusses this.
+    default_volume_size = GiB(1)
+    if dataset_backend_configuration.get('auth_plugin') == 'rackspace':
+        default_volume_size = RACKSPACE_MINIMUM_VOLUME_SIZE
+    return int(default_volume_size.to_Byte().value)
 
 
 def configured_cluster_for_nodes(
@@ -437,32 +514,15 @@ def configured_cluster_for_nodes(
     :returns: A ``Deferred`` which fires with ``Cluster`` when it is
         configured.
     """
-    # XXX: There is duplication between the values here and those in
-    # f.node.agents.test.blockdevicefactory.MINIMUM_ALLOCATABLE_SIZES. We want
-    # the default volume size to be greater than or equal to the minimum
-    # allocatable size.
-    #
-    # Ideally, the minimum allocatable size (and perhaps the default volume
-    # size) would be something known by an object that represents the dataset
-    # backend. Unfortunately:
-    #  1. There is no such object
-    #  2. There is existing confusion in the code around 'openstack' and
-    #     'rackspace'
-    #
-    # Here, we special-case Rackspace (presumably) because it has a minimum
-    # allocatable size that is different from other Openstack backends.
-    #
-    # FLOC-2584 also discusses this.
-    default_volume_size = GiB(1)
-    if dataset_backend_configuration.get('auth_plugin') == 'rackspace':
-        default_volume_size = RACKSPACE_MINIMUM_VOLUME_SIZE
-
+    default_volume_size = get_default_volume_size(
+        dataset_backend_configuration
+    )
     cluster = Cluster(
         all_nodes=pvector(nodes),
         control_node=nodes[0],
         agent_nodes=nodes,
         dataset_backend=dataset_backend,
-        default_volume_size=int(default_volume_size.to_Byte().value),
+        default_volume_size=default_volume_size,
         certificates=certificates,
         dataset_backend_config_file=dataset_backend_config_file
     )
@@ -509,18 +569,8 @@ class LibcloudRunner(object):
             )
         self.creator = creator
 
-    @inlineCallbacks
-    def start_cluster(self, reactor):
-        """
-        Provision cloud cluster for acceptance tests.
-
-        :return Cluster: The cluster to connect to for acceptance tests.
-        """
-        metadata = {
-            'distribution': self.distribution,
-        }
-        metadata.update(self.identity.metadata)
-        metadata.update(self.metadata)
+        self.metadata.update(self.identity.metadata)
+        self.metadata['distribution'] = self.distribution,
 
         # Try to make names unique even if the same creator is starting
         # multiple clusters at the same time.  This lets other code use the
@@ -528,19 +578,202 @@ class LibcloudRunner(object):
         # place, the node creation code, to perform cleanup when the create
         # operation fails in a way such that it isn't clear if the instance has
         # been created or not.
-        random_tag = os.urandom(8).encode("base64").strip("\n=")
-        print "Assigning random tag:", random_tag
+        self.random_tag = os.urandom(8).encode("base64").strip("\n=")
 
-        for index in range(self.num_nodes):
-            name = "%s-%s-%s-%d" % (
-                self.identity.prefix, self.creator, random_tag, index,
+    def _create_node(self, name):
+        """
+        Create a cloud node with the given name.
+
+        Additional properties of the node are defined in the instance.
+        :param str name: The name.
+        :return: Node instance.
+        """
+        try:
+            print "Creating node {}".format(name)
+            node = self.provisioner.create_node(
+                name=name,
+                distribution=self.distribution,
+                metadata=self.metadata,
             )
+            self.nodes.append(node)
+            return node
+        except BaseException:
+            print "Error creating node %s" % (name,)
+            print "It may have leaked into the cloud."
+            write_failure(Failure())
+            raise
+
+    def _create_node_with_retry(self, name, retries=10):
+        """
+        Create a cloud node with the given name retrying on failures.
+
+        :param str name: The name.
+        :param int retries: Maximum number of retries.
+        :return: Node instance.
+        """
+        def create():
+            try:
+                return self._create_node(name)
+            except Exception:
+                return None
+
+        return poll_until(create, repeat(0, retries))
+
+    def _provision_node(self, reactor, node):
+        """
+        Make the given node ready for Flocker installation by provisioning
+        it with required software and configuration.
+
+        :param reactor: The reactor.
+        :param Node node: The node.
+        :return: Deferred that fires when the provisioning is completed.
+        """
+        commands = node.provision(package_source=self.package_source,
+                                  variants=self.variants)
+        if self.dataset_backend == DatasetBackend.zfs:
+            zfs_commands = configure_zfs(node, variants=self.variants)
+            commands = commands.on(success=lambda _: zfs_commands)
+
+        d = remove_known_host(reactor, node.address)
+        d.addCallback(lambda _: perform(make_dispatcher(reactor), commands))
+        return d
+
+    def _provision_with_retry(self, reactor, node, retries=10):
+        """
+        Make the given node ready for Flocker installation by provisioning
+        it with required software and configuration.
+        Retry provisioning if necessary.
+
+        :param reactor: The reactor.
+        :param Node node: The node.
+        :param int retries: Maximum number of retries.
+        :return: Deferred that fires when the provisioning is completed.
+        """
+        def provision():
+            d = self._provision_node(reactor, node)
+            d.addErrback(write_failure)
+            return d
+
+        d = loop_until(reactor, provision, repeat(0, retries))
+
+        def error(failure):
+            print "Failed to provision node {}".format(node.name)
+            write_failure(failure)
+            self._destroy_node(node)
+            return failure
+
+        d.addErrback(error)
+        d.addCallback(lambda _: node)
+        return d
+
+    def _create_nodes(self, reactor, names):
+        """
+        Create and provision a number of nodes with the given names.
+
+        :param reactor: The reactor.
+        :param names: The names.
+        :type names: list of str
+        :return: List of Deferreds each firing when the corresponding node
+            is created and provisioned.
+        """
+        results = []
+        reactor.suggestThreadPoolSize(len(names))
+        for name in names:
+            d = deferToThreadPool(
+                reactor,
+                reactor.getThreadPool(),
+                self._create_node_with_retry,
+                name,
+            )
+            d.addCallback(
+                lambda node: self._provision_with_retry(reactor, node)
+            )
+            results.append(d)
+        return results
+
+    def _make_node_name(self, tag, index):
+        """
+        Construct a node name out of various components.
+        """
+        return "%s-%s-%s-%d" % (
+            self.identity.prefix, self.creator, tag, index,
+        )
+
+    def _add_node_to_cluster(self, reactor, cluster, node, index):
+        """
+        Configure the given node as an agent node for the given cluster.
+
+        :param reactor: The reactor.
+        :param reactor: The cluster.
+        :param Node node: The node.
+        :param int index: The index of the ndoe in the cluster.
+        :return: Deferred that fires with the :param:`node` when it is
+            configured.
+        """
+        node_certnkey = cluster.certificates.add_node(index)
+        commands = configure_node(
+            cluster,
+            node,
+            node_certnkey,
+            self.dataset_backend_configuration,
+            'libcloud',
+            logging_config=self.config.get('logging'),
+        )
+        d = perform(make_dispatcher(reactor), commands)
+
+        def add_node(ignored):
+            if node is not cluster.control_node:
+                cluster.all_nodes.append(node)
+            cluster.agent_nodes.append(node)
+            return node
+
+        def error(failure):
+            print "Failed to configure node {}".format(node.name)
+            write_failure(failure)
+            if node is not cluster.control_node:
+                self._destroy_node(node)
+            # Failure to add a node to a cluster is not fatal.
+            # As long as we have the control node we can claim
+            # the partial success.
+            return failure
+
+        d.addErrback(error)
+        d.addCallback(add_node)
+        return d
+
+    def extend_cluster(self, reactor, cluster, count, tag, starting_index):
+        """
+        Extend a cluster with nodes provisioned via libcloud.
+        """
+        names = []
+        for index in range(starting_index, starting_index + count):
+            names.append(self._make_node_name(tag, index))
+        results = self._create_nodes(reactor, names)
+
+        def add_node(node, index):
+            return self._add_node_to_cluster(reactor, cluster, node, index)
+
+        for i, d in enumerate(results):
+            d.addCallback(add_node, starting_index + i)
+
+        return results
+
+    @inlineCallbacks
+    def start_cluster(self, reactor):
+        """
+        Provision cloud cluster for acceptance tests.
+
+        :return Cluster: The cluster to connect to for acceptance tests.
+        """
+        print "Assigning random tag:", self.random_tag
+        for index in range(self.num_nodes):
+            name = self._make_node_name(self.random_tag, index)
             try:
                 print "Creating node %d: %s" % (index, name)
                 node = self.provisioner.create_node(
                     name=name,
                     distribution=self.distribution,
-                    metadata=metadata,
+                    metadata=self.metadata,
                 )
             except:
                 print "Error creating node %d: %s" % (index, name)
@@ -576,8 +809,10 @@ class LibcloudRunner(object):
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,
-            _save_backend_configuration(self.dataset_backend,
-                                        self.dataset_backend_configuration),
+            save_backend_configuration(
+                self.dataset_backend,
+                self.dataset_backend_configuration,
+            ),
             logging_config=self.config.get('logging'),
         )
 
@@ -587,12 +822,17 @@ class LibcloudRunner(object):
         """
         Deprovision the cluster provisioned by ``start_cluster``.
         """
-        for node in self.nodes:
-            try:
-                print "Destroying %s" % (node.name,)
-                node.destroy()
-            except Exception as e:
-                print "Failed to destroy %s: %s" % (node.name, e)
+        # NB: _destroy_node modifies self.nodes
+        for node in list(self.nodes):
+            self._destroy_node(node)
+
+    def _destroy_node(self, node):
+        try:
+            print "Destroying %s" % (node.name,)
+            self.nodes.remove(node)
+            node.destroy()
+        except Exception as e:
+            print "Failed to destroy %s: %s" % (node.name, e)
 
     def ensure_keys(self, reactor):
         key = self.provisioner.get_ssh_key()

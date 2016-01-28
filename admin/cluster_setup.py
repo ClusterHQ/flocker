@@ -58,7 +58,6 @@ class RunOptions(CommonOptions):
         self['dataset-backend'] = self.defaults['dataset-backend'] = 'aws'
 
     def postOptions(self):
-
         self['purpose'] = unicode(self['purpose'])
         if any(x not in string.ascii_letters + string.digits + '-'
                for x in self['purpose']):
@@ -66,15 +65,17 @@ class RunOptions(CommonOptions):
                 "Purpose may have only alphanumeric symbols and dash. " +
                 "Found {!r}".format('purpose')
             )
-
-        if self['cert-directory']:
-            cert_path = FilePath(self['cert-directory'])
-            _ensure_empty_directory(cert_path)
-            self['cert-directory'] = cert_path
+        self._check_cert_directory()
 
         # This is run last as it creates the actual "runner" object
         # based on the provided parameters.
         super(RunOptions, self).postOptions()
+
+    def _check_cert_directory(self):
+        if self['cert-directory']:
+            cert_path = FilePath(self['cert-directory'])
+            _ensure_empty_directory(cert_path)
+            self['cert-directory'] = cert_path
 
     def _make_cluster_identity(self, dataset_backend):
         purpose = self['purpose']
@@ -149,6 +150,24 @@ def create_managed_config(base_config, cluster):
     return config
 
 
+def save_managed_config(directory, base_config, cluster):
+    """
+    Create and save a configuration file for the given cluster.
+    The new configuration includes a managed section describing nodes
+    of the cluster.
+
+    :param FilePath directory: Directory where the new configuration is saved
+        in a file named "managed.yaml".
+    :param dict base_config: The base configuration.
+    :param Cluster cluser: The cluster.
+    """
+    managed_config_file = directory.child("managed.yaml")
+    managed_config = create_managed_config(base_config, cluster)
+    managed_config_file.setContent(
+        yaml.safe_dump(managed_config, default_flow_style=False)
+    )
+
+
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
     """
@@ -189,6 +208,7 @@ def main(reactor, args, base_path, top_level):
     yield runner.ensure_keys(reactor)
     cluster = yield runner.start_cluster(reactor)
 
+    save_managed_config(options['cert-directory'], options['config'], cluster)
     managed_config_file = options['cert-directory'].child("managed.yaml")
     managed_config = create_managed_config(options['config'], cluster)
     managed_config_file.setContent(
@@ -206,37 +226,48 @@ def main(reactor, args, base_path, top_level):
             capture_upstart(reactor, node.address,
                             remote_logs_file).addErrback(write_failure)
 
-    flocker_client = _make_client(reactor, cluster)
-    yield _wait_for_nodes(reactor, flocker_client, len(cluster.agent_nodes))
+    flocker_client = make_client(reactor, cluster)
+    yield wait_for_nodes(reactor, flocker_client, len(cluster.agent_nodes))
 
     if options['no-keep']:
         print("not keeping cluster")
     else:
-        environment_variables = get_trial_environment(cluster)
-        environment_strings = list()
-        for environment_variable in environment_variables:
-            environment_strings.append(
-                "export {name}={value};\n".format(
-                    name=environment_variable,
-                    value=shell_quote(
-                        environment_variables[environment_variable]
-                    ),
-                )
-            )
-        environment = ''.join(environment_strings)
-        print("The following variables describe the cluster:")
-        print(environment)
-        env_file = options['cert-directory'].child("environment.env")
-        env_file.setContent(environment)
-        print("The variables are also saved in {}".format(
-            env_file.path
-        ))
-        print("Be sure to preserve the required files.")
-
+        save_environment(options['cert-directory'], cluster)
         reactor.removeSystemEventTrigger(cleanup_trigger_id)
 
 
-def _make_client(reactor, cluster):
+def save_environment(directory, cluster):
+    """
+    Report environment variables describing the cluster.
+    The variables are printed on standard output and also
+    saved in "environment.env" file.
+
+    :param FilePath directory: The variables are saved in this directory.
+    :param Cluster cluster: The cluster.
+    """
+    environment_variables = get_trial_environment(cluster)
+    environment_strings = list()
+    for environment_variable in environment_variables:
+        environment_strings.append(
+            "export {name}={value};\n".format(
+                name=environment_variable,
+                value=shell_quote(
+                    environment_variables[environment_variable]
+                ),
+            )
+        )
+    environment = ''.join(environment_strings)
+    print("The following variables describe the cluster:")
+    print(environment)
+    env_file = directory.child("environment.env")
+    env_file.setContent(environment)
+    print("The variables are also saved in {}".format(
+        env_file.path
+    ))
+    print("Be sure to preserve the required files.")
+
+
+def make_client(reactor, cluster):
     """
     Create a :class:`FlockerClient` object for accessing the given cluster.
 
@@ -254,7 +285,7 @@ def _make_client(reactor, cluster):
                          cluster_cert, user_cert, user_key)
 
 
-def _wait_for_nodes(reactor, client, count):
+def wait_for_nodes(reactor, client, count):
     """
     Wait until nodes join the cluster.
 
