@@ -90,7 +90,7 @@ common_cli:
 
     # set default AWS region for S3 operations
     export S3_REGION=us-west-2
-    # Docs buckets (clusterhq-staging-docs, doc-dev.clusterhq.com) are hosted in us-east-1
+    # Docs buckets (clusterhq-dev-docs, doc-dev.clusterhq.com) are hosted in us-east-1
     export S3_DOCS_REGION=us-east-1
 
     # The long directory names where we build our code cause pip to fail.
@@ -860,16 +860,16 @@ common_cli:
     . /tmp/s3_dev_archive_clusterhq.com
 
   upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
-    # uploads the new generated html to a folder on the S3 staging-docs bucket
+    # uploads the new generated html to a folder on the S3 dev-docs bucket
     cd _build/html
-    aws --region ${S3_DOCS_REGION} s3 sync . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
+    aws --region ${S3_DOCS_REGION} s3 sync . s3://clusterhq-dev-docs/$TRIGGERED_BRANCH
     echo "This branch is available at :"
-    echo "http://clusterhq-staging-docs.s3.amazonaws.com/$TRIGGERED_BRANCH/index.html"
+    echo "http://clusterhq-dev-docs.s3.amazonaws.com/$TRIGGERED_BRANCH/index.html"
 
   sync_master_docs_to_doc_dev: &sync_master_docs_to_doc_dev |
     # ensure master docs at doc-dev are up-to-date
     [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --acl public-read \
-      s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
+      s3://clusterhq-dev-docs/master s3://doc-dev.clusterhq.com
 
   upload_vagrant_tutorial_basebox_to_s3: &upload_vagrant_tutorial_basebox_to_s3 |
     # uploads the generated vagrant box to a folder on the S3
