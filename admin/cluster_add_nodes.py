@@ -1,6 +1,6 @@
 # Copyright 2015 ClusterHQ Inc.  See LICENSE file for details.
 """
-Provision a new node and add it to an existing cluster.
+Provision new nodes and add them to an existing cluster.
 """
 
 import sys
@@ -46,6 +46,8 @@ class RunOptions(SetupOptions):
         ['starting-index', None, None,
          "Starting index to use in names of new nodes.", int],
     ]
+
+    synopsis = 'Usage: add-cluster-nodes [options]'
 
     def __init__(self, top_level):
         """
