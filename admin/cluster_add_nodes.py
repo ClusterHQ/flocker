@@ -190,10 +190,7 @@ def main(reactor, args, base_path, top_level):
         if not success:
             failed_count = failed_count + 1
     if failed_count:
-        print "Failed to create {} nodes, see log.".format(failed_count)
-
-    for n in cluster.agent_nodes:
-        print "agent node:", n
+        print "Failed to create {} nodes, see logs.".format(failed_count)
 
     yield wait_for_nodes(
         reactor,

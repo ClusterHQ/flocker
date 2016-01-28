@@ -94,11 +94,8 @@ class LibcloudRunner(OldLibcloudRunner):
         return d
 
     def _add_nodes_to_cluster(self, reactor, cluster, results):
-        print "_add_nodes_to_cluster called"
-
         def add_node(node, index):
             # The control should be already fully configured.
-            print "add_node called for node #{} {}".format(index, node.name)
             if node is not cluster.control_node:
                 return self._add_node_to_cluster(reactor, cluster, node, index)
 
