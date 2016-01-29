@@ -705,11 +705,11 @@ class LibcloudRunner(object):
         :return: Deferred that fires with the :param:`node` when it is
             configured.
         """
-        node_certnkey = cluster.certificates.add_node(index)
+        node_cert_and_key = cluster.certificates.add_node(index)
         commands = configure_node(
             cluster,
             node,
-            node_certnkey,
+            node_cert_and_key,
             self.dataset_backend_configuration,
             'libcloud',
             logging_config=self.config.get('logging'),
