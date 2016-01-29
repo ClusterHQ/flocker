@@ -540,12 +540,17 @@ def boto3_log(method):
     :return: A function which will call the method and do
         the extra exception logging.
     """
+    counter = itertools.count(1)
+
     def _run_with_logging(*args, **kwargs):
         """
         Run given boto3.ec2.ServiceResource method with exception
         logging for ``ClientError``.
         """
-        with AWS_ACTION(operation=[method.__name__, args[1:], kwargs]):
+        with AWS_ACTION(
+            operation=[method.__name__, args[1:], kwargs],
+            count=next(counter)
+        ):
             return method(*args, **kwargs)
     return _run_with_logging
 
@@ -601,6 +606,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     )
 
 
+@boto3_log
 def _get_ebs_volume_state(volume):
     """
     Fetch input EBS volume's latest state from backend.

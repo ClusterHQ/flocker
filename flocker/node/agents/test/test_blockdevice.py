@@ -46,7 +46,7 @@ from twisted.python.filepath import FilePath
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
-    LoggedAction, assertHasMessage, assertHasAction
+    LoggedAction, LoggedMessage, assertHasMessage, assertHasAction
 )
 
 from .strategies import blockdevice_volumes
@@ -87,6 +87,8 @@ from ..blockdevice import (
 
     ICloudAPI,
     _SyncToThreadedAsyncCloudAPIAdapter,
+
+    log_list_volumes, CALL_LIST_VOLUMES,
 )
 
 from ..loopback import (
@@ -5540,3 +5542,41 @@ class BlockDeviceVolumeTests(TestCase):
                 ),
             ))
         )
+
+
+class LogListVolumesTest(TestCase):
+    """
+    Tests for ``log_list_volumes``
+    """
+
+    @capture_logging(lambda self, logger: None)
+    def test_generates_log_with_incrementing_count(self, logger):
+        """
+        ``log_list_volumes`` increments the count field of log messages.
+        """
+        @log_list_volumes
+        def wrapped():
+            pass
+
+        wrapped()
+        wrapped()
+        wrapped()
+
+        counts = [
+            logged.message['count'] for logged in LoggedMessage.of_type(
+                logger.messages, CALL_LIST_VOLUMES
+            )
+        ]
+
+        self.assertEqual(counts, [1, 2, 3])
+
+    def test_args_passed(self):
+        """
+        Arguments and result passed to/from wrapped function.
+        """
+        @log_list_volumes
+        def wrapped(x, y, z):
+            return (x, y, z)
+
+        result = wrapped(3, 5, z=7)
+        self.assertEqual(result, (3, 5, 7))
