@@ -895,8 +895,8 @@ def _add_nodes(cluster):
         get_public_ip = default_get_public_ip
     else:
         if ICloudAPI.providedBy(backend):
-            node_ips = list(set(ip_address(i) for i in ips)
-                            for ips in backend.list_live_nodes().values())
+            node_ips = list(set(ip_address(i) for i in instance.ip_addresses)
+                            for instance in backend.list_live_nodes())
 
             def get_public_ip(address):
                 for ips in node_ips:

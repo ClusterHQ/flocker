@@ -1366,8 +1366,8 @@ class EBSBlockDeviceAPI(object):
         return [
             CloudComputeInstance(
                 node_id=unicode(instance.id),
-                ips=[unicode(instance.public_ip_address),
-                     unicode(instance.private_ip_address)])
+                ip_addresses=[unicode(instance.public_ip_address),
+                              unicode(instance.private_ip_address)])
             for instance in instances
         ]
 

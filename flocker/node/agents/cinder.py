@@ -693,8 +693,9 @@ class CinderBlockDeviceAPI(object):
         return [
             CloudComputeInstance(
                 node_id=server.id,
-                ips=map(unicode,
-                        _extract_nova_server_addresses(server.addresses)))
+                ip_addresses=map(
+                    unicode,
+                    _extract_nova_server_addresses(server.addresses)))
             for server in self.nova_server_manager.list()
             if server.status == u'ACTIVE'
         ]

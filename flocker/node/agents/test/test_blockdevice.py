@@ -757,10 +757,11 @@ class FakeCloudAPI(proxyForInterface(IBlockDeviceAPI)):
     def list_live_nodes(self):
         result = [CloudComputeInstance(
             node_id=self.compute_instance_id(),
-            ips=(unicode(i) for i in get_all_ips() if i != b"127.0.0.1"))]
+            ip_addresses=(
+                unicode(i) for i in get_all_ips() if i != b"127.0.0.1"))]
         for i, node in enumerate(self.live_nodes):
             result.append(CloudComputeInstance(
-                node_id=node, ips=[u"10.1.1.{}".format(i)]))
+                node_id=node, ip_addresses=[u"10.1.1.{}".format(i)]))
         return result
 
     def start_node(self, node_id):
@@ -5511,7 +5512,8 @@ def make_icloudapi_tests(
 
             def got_compute_instances(instances):
                 [instance] = (i for i in instances if i.node_id == local_id)
-                self.assertTrue(instance.ips.intersection(local_addresses))
+                self.assertTrue(instance.ip_addresses.intersection(
+                    local_addresses))
             d.addCallback(got_compute_instances)
             return d
 
