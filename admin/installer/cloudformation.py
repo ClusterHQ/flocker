@@ -204,7 +204,7 @@ for i in range(NUM_NODES):
     if i == 0:
         # Control Node configuration.
         control_service_instance = ec2_instance
-        user_data += 'flocker_node_type="control"\n',
+        user_data += ['flocker_node_type="control"\n']
         user_data += _sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
         user_data += _sibling_lines(DOCKER_SWARM_CA_SETUP)
         user_data += _sibling_lines(DOCKER_SETUP)
@@ -222,10 +222,12 @@ for i in range(NUM_NODES):
     else:
         # Agent Node configuration.
         ec2_instance.DependsOn = control_service_instance.name
-        user_data += 'flocker_node_type="agent"\n'
-        user_data += 'flocker_agent_number="{}"\n'.format(
-            flocker_agent_number
-        )
+        user_data += [
+            'flocker_node_type="agent"\n',
+            'flocker_agent_number="{}"\n'.format(
+                flocker_agent_number
+            )
+        ]
         flocker_agent_number += 1
         user_data += _sibling_lines(DOCKER_SETUP)
 
