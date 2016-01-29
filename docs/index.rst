@@ -4,13 +4,18 @@
         .toctree-wrapper { display:none; }
     </style>
 
-==================
-Installing Flocker
-==================
+====================
+Flocker Integrations
+====================
 
 .. _supported-orchestration-frameworks:
 
 Flocker allows you to launch and move stateful containers by integrating with a Cluster Manager of your choice.
+
+Flocker integrates with a range of Cluster Managers.
+
+Installing Flocker
+==================
 
 To install Flocker, first choose which Cluster Manager you are using, or intend to use:
 
@@ -20,19 +25,19 @@ To install Flocker, first choose which Cluster Manager you are using, or intend 
 	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
 			<img src="_static/images/docker2x.png" alt="Docker logo"/>
 			<span>Docker Swarm, with Docker Compose<em>Try it Now</em></span>
-	        <a href="docker-integration/" class="button button--fast">Install</a>
+	        <a href="docker-integration/" class="button button--fast">Install or Learn</a>
 	    </div>
 
 	    <div class="pod-boxout pod-boxout--orchestration">
 			<img src="_static/images/kubernetes2x.png" alt="Kubernetes logo"/>
 			<span>Kubernetes</span>
-	        <a href="kubernetes-integration/" class="button">Install</a>
+	        <a href="kubernetes-integration/" class="button">Install or Learn</a>
 	    </div>
 
 	    <div class="pod-boxout pod-boxout--orchestration">
 			<img src="_static/images/mesos2x.png" alt="mesos logo"/>
 			<span>Mesos</span>
-	        <a href="mesos-integration/" class="button">Install</a>
+	        <a href="mesos-integration/" class="button">Install or Learn</a>
 	    </div>
 	</div>
 
@@ -42,7 +47,7 @@ Alternatively, if you want to install Flocker without a specific Cluster Manager
 
 	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
 		<span><img src="_static/images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install Flocker without a Cluster Manager</span>
-        <a href="flocker-standalone/" class="button">Install</a>
+        <a href="flocker-standalone/" class="button">Install or Learn</a>
     </div>
 
 Is your chosen Cluster Manager missing?

@@ -45,6 +45,15 @@ class ReadRequest(object):
         """
         return succeed(None)
 
+    def run_cleanup(self):
+        """
+        No cleanup is required for the read scenario, so this is a no-op
+        cleanup.
+
+        :return: A ``Deferred`` that fires instantly with a success result.
+        """
+        return succeed(None)
+
 
 def read_request_load_scenario(
     reactor, cluster, method='version', request_rate=10,

@@ -485,7 +485,7 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
             '{}'.format(tuple(unknown_defaults)))
 
     required_kwargs = kwargs.copy()
-    for k, v in expected_defaults.items():
+    for k in expected_defaults.keys():
         required_kwargs.pop(k)
 
     class WithInitTests(TestCase):
@@ -782,9 +782,9 @@ class MemoryCoreReactor(MemoryReactor, Clock):
         Clock.__init__(self)
         self._triggers = {}
 
-    def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
+    def addSystemEventTrigger(self, phase, eventType, f, *args, **kw):
         event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
-        return eventType, event.addTrigger(phase, callable, *args, **kw)
+        return eventType, event.addTrigger(phase, f, *args, **kw)
 
     def removeSystemEventTrigger(self, triggerID):
         eventType, handle = triggerID

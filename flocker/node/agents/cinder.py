@@ -369,7 +369,7 @@ def _extract_nova_server_addresses(addresses):
         ``addresses`` attribute of a ``Server``.
     """
     all_addresses = set()
-    for network_name, addresses in addresses.items():
+    for _, addresses in addresses.items():
         for address_info in addresses:
             all_addresses.add(
                 ipaddress_from_string(address_info['addr'])

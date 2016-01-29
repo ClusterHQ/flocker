@@ -179,6 +179,7 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
 class DatasetBackend(Names):
     loopback = NamedConstant()
     zfs = NamedConstant()
+    gce = NamedConstant()
     aws = NamedConstant()
     openstack = NamedConstant()
 
