@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Set up a cluster.
+"""
+
+import sys
+
+import os
+
+from twisted.internet.task import react
+from benchmark.cluster_containers_setup import main
+
+if __name__ == '__main__':
+    react(main, (sys.argv, os.environ))

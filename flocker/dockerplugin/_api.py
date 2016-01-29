@@ -18,8 +18,7 @@ from eliot import writeFailure
 from eliot.twisted import DeferredContext
 
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import CancelledError
-from twisted.internet.defer import maybeDeferred
+from twisted.internet.defer import CancelledError, gatherResults, maybeDeferred
 from twisted.web.http import OK
 
 from klein import Klein
@@ -42,7 +41,8 @@ SCHEMAS = {
     b'/endpoints.json': yaml.safe_load(
         SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
-
+# Metadata field we use to store volume names:
+NAME_FIELD = u"name"
 
 # The default size of a created volume. Pick a number that isn't the same
 # as devicemapper loopback size (100GiB) so we don't trigger
@@ -193,7 +193,7 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        return {u"Err": None}
+        return {u"Err": u""}
 
     @app.route("/VolumeDriver.Unmount", methods=["POST"])
     @_endpoint(u"Unmount")
@@ -209,7 +209,7 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        return {u"Err": None}
+        return {u"Err": u""}
 
     def _dataset_id_for_name(self, name):
         """
@@ -228,7 +228,7 @@ class VolumePlugin(object):
 
         def got_configured(configured):
             for dataset in configured:
-                if dataset.metadata.get(u"name") == name:
+                if dataset.metadata.get(NAME_FIELD) == name:
                     return dataset.dataset_id
             raise NOT_FOUND_RESPONSE
 
@@ -264,7 +264,7 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
-        metadata = {u"name": Name}
+        metadata = {NAME_FIELD: Name}
         opts = Opts or {}
         profile = opts.get(u"profile")
         if profile:
@@ -279,14 +279,14 @@ class VolumePlugin(object):
 
         def ensure_unique_name(configured):
             for dataset in configured:
-                if dataset.metadata.get(u"name") == Name:
+                if dataset.metadata.get(NAME_FIELD) == Name:
                     raise DatasetAlreadyExists
 
         creating = conditional_create(
             self._flocker_client, self._reactor, ensure_unique_name,
             self._node_id, int(size.to_Byte()), metadata=metadata)
         creating.addErrback(lambda reason: reason.trap(DatasetAlreadyExists))
-        creating.addCallback(lambda _: {u"Err": None})
+        creating.addCallback(lambda _: {u"Err": u""})
         return creating
 
     def _get_path_from_dataset_id(self, dataset_id):
@@ -334,7 +334,7 @@ class VolumePlugin(object):
             self._reactor,
             lambda: self._get_path_from_dataset_id(dataset_id),
             repeat(self._POLL_INTERVAL)))
-        d.addCallback(lambda p: {u"Err": None, u"Mountpoint": p.path})
+        d.addCallback(lambda p: {u"Err": u"", u"Mountpoint": p.path})
 
         timeout(self._reactor, d.result, self._MOUNT_TIMEOUT)
 
@@ -367,7 +367,66 @@ class VolumePlugin(object):
                 return {u"Err": u"Volume not available.",
                         u"Mountpoint": u""}
             else:
-                return {u"Err": None,
+                return {u"Err": u"",
                         u"Mountpoint": path.path}
         d.addCallback(got_path)
         return d.result
+
+    @app.route("/VolumeDriver.Get", methods=["POST"])
+    @_endpoint(u"Get")
+    def volumedriver_get(self, Name):
+        """
+        Return information about the current state of a particular volume.
+
+        :param unicode Name: The name of the volume.
+
+        :return: Result indicating success.
+        """
+        d = DeferredContext(self._dataset_id_for_name(Name))
+        d.addCallback(self._get_path_from_dataset_id)
+
+        def got_path(path):
+            if path is None:
+                path = u""
+            else:
+                path = path.path
+            return {u"Err": u"",
+                    u"Volume": {
+                        u"Name": Name,
+                        u"Mountpoint": path}}
+        d.addCallback(got_path)
+        return d.result
+
+    @app.route("/VolumeDriver.List", methods=["POST"])
+    @_endpoint(u"List")
+    def volumedriver_list(self):
+        """
+        Return information about the current state of all volumes.
+
+        :return: Result indicating success.
+        """
+        listing = DeferredContext(
+            self._flocker_client.list_datasets_configuration())
+
+        def got_configured(configured):
+            results = []
+            for dataset in configured:
+                # Datasets without a name can't be used by the Docker plugin:
+                if NAME_FIELD not in dataset.metadata:
+                    continue
+                name = dataset.metadata[NAME_FIELD]
+                d = self._get_path_from_dataset_id(dataset.dataset_id)
+                d.addCallback(lambda path, name=name: (path, name))
+                results.append(d)
+            return gatherResults(results)
+
+        listing.addCallback(got_configured)
+
+        def got_paths(results):
+            return {u"Err": u"",
+                    u"Volumes": sorted([
+                        {u"Name": name,
+                         u"Mountpoint": u"" if path is None else path.path}
+                        for (path, name) in results])}
+        listing.addCallback(got_paths)
+        return listing.result

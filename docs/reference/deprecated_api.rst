@@ -12,6 +12,9 @@ However, ClusterHQ is no longer developing any future features in this area, as 
 
 The deprecated endpoints listed below are still available for use, but please be aware that they will not be available in future versions of the Flocker API:
 
+Deprecated Endpoints
+====================
+
 .. contents::
         :local:
 

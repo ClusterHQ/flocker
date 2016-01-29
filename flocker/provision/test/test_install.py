@@ -36,6 +36,15 @@ BASIC_AGENT_YML = freeze({
     "dataset": {
         "backend": "zfs",
     },
+    "logging": {
+        "version": 1,
+        "formatters": {
+            "timestamped": {
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+                "format": "%(asctime)s %(message)s"
+            },
+        },
+    },
 })
 
 
@@ -57,6 +66,7 @@ class ConfigureFlockerAgentTests(TestCase):
                 BASIC_AGENT_YML["dataset"]["backend"]
             ),
             dataset_backend_configuration=expected_backend_configuration,
+            logging_config=thaw(BASIC_AGENT_YML["logging"]),
         )
         [put_agent_yml] = list(
             effect.intent

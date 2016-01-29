@@ -69,3 +69,29 @@ definitions:
     required:
       - "Err"
     additionalProperties: false
+
+  Get:
+    description: "Get response."
+    type: object
+    properties:
+      Err:
+        '$ref': 'types.json#/definitions/Err'
+      Volume:
+        '$ref': 'types.json#/definitions/VolumeInspect'
+    required:
+      - "Err"
+    additionalProperties: false
+
+  List:
+    description: "List response."
+    type: object
+    properties:
+      Err:
+        '$ref': 'types.json#/definitions/Err'
+      Volumes:
+        type: array
+        items:
+          '$ref': 'types.json#/definitions/VolumeInspect'
+    required:
+      - "Err"
+    additionalProperties: false
