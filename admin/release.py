@@ -158,6 +158,22 @@ DOCUMENTATION_CONFIGURATIONS = {
 
 
 def parse_routing_rules(routing_config, hostname):
+    """
+    Parse routing rule description.
+
+    The configuration is a dictionary. The top-level keys are common prefixes
+    for the rules in them. Each top-level key maps to a dictionary that maps
+    the rest of a prefix to the redirection target. A redirection target is a
+    dictionary of keyword arguments to ``boto.s3.website.Redirect``. If no
+    hostname is provided in the redirection target, then the passed hostname is
+    used, and the common prefix is prepended to the redirection target.
+
+    :param routing_config: ``dict`` containing the routing configuration.
+    :param bytes hostname: The hostname the bucket is hosted at.
+
+    :return: Parsed routing rules.
+    :rtype: ``boto.s3.website.RoutingRules``
+    """
     rules = []
     for prefix, relative_redirects in routing_config.items():
         for postfix, destination in relative_redirects.items():
