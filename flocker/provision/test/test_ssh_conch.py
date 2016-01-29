@@ -56,12 +56,12 @@ class Tests(AsyncTestCase):
         """
         The ``Put`` intent puts the provided contents in the specified file.
         """
-
+        content = '\\hell%o'
         command = run_remotely(
             username="root",
             address=str(self.server.ip),
             port=self.server.port,
-            commands=put(content="hello", path="file"),
+            commands=put(content=content, path="file"),
         )
 
         d = perform(
@@ -71,7 +71,7 @@ class Tests(AsyncTestCase):
 
         def check(_):
             self.assertEqual(self.server.home.child('file').getContent(),
-                             "hello")
+                             content)
         d.addCallback(check)
         return d
 

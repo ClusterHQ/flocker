@@ -45,6 +45,7 @@ hostname
 http
 HTTP
 Huawei
+IaaS
 init
 installable
 integrations
@@ -53,6 +54,7 @@ invalidations
 IPv4
 IPv
 journald
+js
 keychain
 keypair
 Kubernetes
@@ -72,6 +74,7 @@ namespace
 NAT'd
 Nexenta
 NexentaEdge
+Node.js
 ok
 online
 OpenStack
@@ -84,6 +87,7 @@ plugin
 plugins
 pluggable
 pre
+preconfigured
 programmatically
 proxied
 proxying
