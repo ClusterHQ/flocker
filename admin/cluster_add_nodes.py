@@ -106,6 +106,8 @@ def main(reactor, args, base_path, top_level):
         options.parseOptions(args)
     except UsageError as e:
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        sys.stderr.write("\n")
+        sys.stderr.write(str(options))
         raise SystemExit(1)
 
     # Existing nodes must be described in a managed section
