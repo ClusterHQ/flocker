@@ -261,7 +261,7 @@ template.add_resource(wait_condition_handle)
 wait_condition = WaitCondition(
     CLIENT_WAIT_CONDITION,
     Handle=Ref(wait_condition_handle),
-    Timeout="600",
+    Timeout="900",
 )
 template.add_resource(wait_condition)
 
