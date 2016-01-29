@@ -177,9 +177,9 @@ class CreateContainerTestsMixin(APITestsMixin):
 
         for request in request_data:
             saving.addCallback(
-                lambda _, request=request: self.assertResponseCode(
+                lambda _, req=request: self.assertResponseCode(
                     b"POST", b"/configuration/containers",
-                    request, CREATED
+                    req, CREATED
                 ))
 
         def created(_):

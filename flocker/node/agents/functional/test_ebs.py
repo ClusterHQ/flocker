@@ -454,11 +454,11 @@ class VolumeStub(object):
         equal = True
         for key, value in self._volume_attributes.items():
             other_value = getattr(other, key, None)
-            if self._volume_attributes[key] is not None:
-                if self._volume_attributes[key] != other_value:
+            if value is not None:
+                if value != other_value:
                     equal = False
             if other_value is not None:
-                if self._volume_attributes[key] != other_value:
+                if value != other_value:
                     equal = False
         return equal
 
