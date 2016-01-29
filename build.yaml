@@ -494,7 +494,7 @@ common_cli:
     --build-server  \
     http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
     --config-file /tmp/acceptance.yaml \
-    ${ACCEPTANCE_TEST_MODULE}
+    ${ACCEPTANCE_TEST_MODULE} --report subunit 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_acceptance_rackspace_tests: &run_acceptance_rackspace_tests |
@@ -1517,6 +1517,7 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
                    *run_acceptance_aws_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
@@ -1544,6 +1545,7 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
                    *run_acceptance_aws_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
@@ -1570,6 +1572,7 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
                    *run_acceptance_rackspace_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
@@ -1595,6 +1598,7 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
                    *run_acceptance_rackspace_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
