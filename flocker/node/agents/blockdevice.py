@@ -1113,6 +1113,13 @@ class ICloudAPI(Interface):
 
     This is specifically designed for cloud systems where shut down nodes
     continue to have volumes attached to them.
+
+    This API is not very well designed, so probably should not be
+    implemented by third party providers until we do some cleanup. Worth
+    noting that ``list_live_nodes`` could also be provided by e.g. Swarm
+    or K8s-specific backend, which suggests ``compute_instance_id`` and
+    ``list_live_nodes`` should be on a different object than
+    ``IBlockDeviceAPI``, an object that is loaded by all agents.
     """
     def list_live_nodes():
         """
@@ -1123,8 +1130,8 @@ class ICloudAPI(Interface):
 
         :returns: A mapping of ``unicode`` compute instance IDs
             (compatible with those returned by
-            ``IBlockDeviceAPI.compute_instance_id``) to IPs of those
-            nodes, also as unicode..
+            ``IBlockDeviceAPI.compute_instance_id``) to a list of IPs of
+            those nodes. The IPs are ``unicode`` as well.
         """
 
     def start_node(node_id):
@@ -1649,8 +1656,8 @@ class BlockDeviceDeployer(PClass):
                     pass
 
         if ICloudAPI.providedBy(self._underlying_blockdevice_api):
-            live_instances = list(
-                self._underlying_blockdevice_api.list_live_nodes())
+            live_instances = (
+                self._underlying_blockdevice_api.list_live_nodes().keys())
         else:
             # Can't know accurately who is alive and who is dead:
             live_instances = None
