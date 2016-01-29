@@ -1235,7 +1235,7 @@ class EBSBlockDeviceAPI(object):
                 blockdevice_id, attach_to, local_instance_id)
 
         attached = False
-        for attach_attempt in range(3):
+        for _ in range(3):
             with self.lock:
                 device = self._next_device()
                 if device is None:

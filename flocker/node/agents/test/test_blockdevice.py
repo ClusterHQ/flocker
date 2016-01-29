@@ -1317,7 +1317,7 @@ class BlockDeviceCalculatorTests(TestCase):
             that there will always be fewer than 20 steps to transition from
             one desired state to another if there are no bugs.
         """
-        for i in range(max_iterations):
+        for _ in range(max_iterations):
             self.run_convergence_step(
                 dataset_map_from_iterable(desired_datasets))
             note(self.current_datasets())
@@ -4680,7 +4680,7 @@ class MountBlockDeviceTests(
         intermediate = mountroot.child(b"mount-error-test")
         intermediate.setContent(b"collision")
         mountpoint = intermediate.child(b"mount-test")
-        scenario, mount_result = self._run_test(mountpoint)
+        _, mount_result = self._run_test(mountpoint)
 
         failure = self.failureResultOf(mount_result, OSError)
         self.assertEqual(ENOTDIR, failure.value.errno)
@@ -5408,7 +5408,7 @@ class ProcessLifetimeCacheTests(TestCase):
         The result of ``compute_instance_id`` is cached indefinitely.
         """
         initial = self.cache.compute_instance_id()
-        later = [self.cache.compute_instance_id() for i in range(10)]
+        later = [self.cache.compute_instance_id() for _ in range(10)]
         self.assertEqual(
             (later, self.counting_proxy.num_calls("compute_instance_id")),
             ([initial] * 10, 1))
@@ -5456,7 +5456,7 @@ class ProcessLifetimeCacheTests(TestCase):
         The result of ``get_device_path`` is no longer cached after an
         ``detach_device`` call.
         """
-        attached_id1, attached_id2 = self.attached_volumes()
+        attached_id1, _ = self.attached_volumes()
         # Warm up cache:
         self.cache.get_device_path(attached_id1)
         # Invalidate cache:

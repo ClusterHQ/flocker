@@ -752,7 +752,7 @@ class ControlAMPServiceTests(ControlTestCase):
         """
         service = build_control_amp_service(self)
         service.startService()
-        connections = [ControlAMP(Clock(), service) for i in range(3)]
+        connections = [ControlAMP(Clock(), service) for _ in range(3)]
         initial_disconnecting = []
         for c in connections:
             c.makeConnection(StringTransportWithAbort())
