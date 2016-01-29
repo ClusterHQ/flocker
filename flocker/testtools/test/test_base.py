@@ -374,15 +374,16 @@ class ExtractEliotFromTwistedLogTests(TesttoolsTestCase):
 
     def test_twisted_line(self):
         """
-        When given a line logged by Twisted, _get_eliot_data returns ``None``.
+        When given a line logged by Twisted, extract_eliot_from_twisted_log
+        returns ``None``.
         """
         line = '2015-12-11 11:59:48+0000 [-] foo\n'
         self.assertThat(extract_eliot_from_twisted_log(line), Is(None))
 
     def test_eliot_line(self):
         """
-        When given a line logged by Eliot, _get_eliot_data returns the bytes
-        that were logged by Eliot.
+        When given a line logged by Eliot, extract_eliot_from_twisted_log
+        returns the bytes that were logged by Eliot.
         """
         logged_line = (
             '2015-12-11 11:59:48+0000 [-] ELIOT: '
@@ -401,6 +402,45 @@ class ExtractEliotFromTwistedLogTests(TesttoolsTestCase):
         )
         self.assertThat(
             extract_eliot_from_twisted_log(logged_line), Equals(expected))
+
+    def test_line_with_substructure(self):
+        """
+        When given a line that has JSON substructures,
+        extract_eliot_from_twisted_log returns the bytes that were logged by
+        Eliot.
+        """
+        logged_line = (
+            '{"timestamp": 1449835188.575052, '
+            '"task_uuid": "6c579710-1b95-4604-b5a1-36b56f8ceb53", '
+            '"message_type": "foo", '
+            '"name": "qux", '
+            '"subobj": {"a": "cat"},'
+            '"task_level": [1]} \n'
+        )
+        expected = (
+            '{"timestamp": 1449835188.575052, '
+            '"task_uuid": "6c579710-1b95-4604-b5a1-36b56f8ceb53", '
+            '"message_type": "foo", '
+            '"name": "qux", '
+            '"subobj": {"a": "cat"},'
+            '"task_level": [1]}'
+        )
+        self.assertThat(
+            extract_eliot_from_twisted_log(logged_line), Equals(expected))
+
+    def test_line_with_invalid_json(self):
+        """
+        When given an incomplete line that has the beginning of a JSON line,
+        extract_eliot_from_twisted_log returns None.
+        """
+        logged_line = (
+            'prefix ELIOT: {"timestamp": 1449835188.575052, '
+            '"task_uuid": "6c579710-1b95-4604-b5a1-36b56f8ceb53", '
+            '"message_type": "foo", '
+            '"name": "qu'
+        )
+        self.assertThat(
+            extract_eliot_from_twisted_log(logged_line), Is(None))
 
 
 class MakeTemporaryTests(TesttoolsTestCase):

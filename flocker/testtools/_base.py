@@ -297,7 +297,7 @@ def extract_eliot_from_twisted_log(twisted_log_line):
     :rtype: unicode or ``NoneType``.
     """
     open_brace = twisted_log_line.find('{')
-    close_brace = twisted_log_line.find('}')
+    close_brace = twisted_log_line.rfind('}')
     if open_brace == -1 or close_brace == -1:
         return None
     candidate = twisted_log_line[open_brace:close_brace + 1]
