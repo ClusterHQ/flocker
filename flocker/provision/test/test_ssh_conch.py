@@ -50,6 +50,7 @@ class Tests(AsyncTestCase):
         def check(_):
             self.assertEqual(self.server.home.child('hello').getContent(),
                              "")
+        d.addCallback(check)
         return d
 
     def test_put(self):
