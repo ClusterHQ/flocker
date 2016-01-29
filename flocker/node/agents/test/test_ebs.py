@@ -20,7 +20,7 @@ from ..ebs import (
     AttachedUnexpectedDevice, _expected_device,
     _attach_volume_and_wait_for_device, _get_blockdevices,
     _get_device_size, _wait_for_new_device, _find_allocated_devices,
-    _select_free_device,
+    _select_free_device, NoAvailableDevice,
 )
 from .._logging import NO_NEW_DEVICE_IN_OS
 from ..blockdevice import BlockDeviceVolume
@@ -276,7 +276,7 @@ class SelectFreeDeviceTests(TestCase):
 
     def test_all_devices_used(self):
         """
-        Return None if no available device names.
+        Raises exception if no available device names.
         """
         existing = ['sd' + ch for ch in ascii_lowercase]
-        self.assertIsNone(_select_free_device(existing))
+        self.assertRaises(NoAvailableDevice, _select_free_device, existing)

@@ -92,6 +92,13 @@ register_exception_extractor(
 )
 
 
+class NoAvailableDevice(Exception):
+    """
+    Exception indicating that there are no free device names available
+    for attaching a volume to this node.
+    """
+
+
 class EBSVolumeTypes(Values):
     """
     Constants for the different types of volumes that can be created on EBS.
@@ -980,7 +987,7 @@ def _select_free_device(existing):
     # Could not find any suitable device that is available
     # for attachment. Log to Eliot before giving up.
     NO_AVAILABLE_DEVICE(devices=sorted_devices).write()
-    return None
+    raise NoAvailableDevice()
 
 
 @implementer(IBlockDeviceAPI)
@@ -1275,11 +1282,6 @@ class EBSBlockDeviceAPI(object):
         for attach_attempt in range(3):
             with self.lock:
                 device = _next_device()
-                if device is None:
-                    # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
-                    # (https://clusterhq.atlassian.net/browse/FLOC-1887).
-                    # No point in attempting an ``attach_volume``, return.
-                    return
                 blockdevices = _get_blockdevices()
                 attached = _attach_volume_and_wait_for_device(
                     volume, attach_to,
