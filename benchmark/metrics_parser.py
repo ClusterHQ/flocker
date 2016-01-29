@@ -72,6 +72,21 @@ def wallclock_for_operation(results, operation, fn=mean):
     return fn(values)
 
 
+def container_convergence(results, seconds):
+    convergence_results = [
+        r for r in results if r['metric']['type'] == 'wallclock'
+        and r['operation']['type'] == 'create-container'
+    ]
+    num_convergences = len(convergence_results)
+    if num_convergences > 0:
+        convergences_within_limit = [
+            r for r in convergence_results if r['value'] < seconds
+        ]
+        return len(convergences_within_limit) / num_convergences
+
+    return None
+
+
 def flatten(results):
     flattened = []
     common = dict(
@@ -135,7 +150,7 @@ def extract_results(all_results):
                 u'ContainerAgentCPUWriteLoad':
                     cputime_for_process(results, 'flocker-contain', 'write-request-load'),
                 u'ContainerAdditionConvergence':
-                    wallclock_for_operation(results, 'create-container'),
+                    container_convergence(results, 60),
             }
             summary.append(result)
     return summary
