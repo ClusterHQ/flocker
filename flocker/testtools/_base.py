@@ -284,9 +284,6 @@ def _prettyformat_lines(lines):
         yield pretty_format(data) + '\n'
 
 
-_ELIOT_MARKER = ' [-] ELIOT: '
-
-
 def extract_eliot_from_twisted_log(twisted_log_line):
     """
     Given a line from a Twisted log message, return the text of the Eliot log
@@ -299,9 +296,16 @@ def extract_eliot_from_twisted_log(twisted_log_line):
         ``None``.
     :rtype: unicode or ``NoneType``.
     """
-    _, _, eliot_data = twisted_log_line.partition(_ELIOT_MARKER)
-    if eliot_data:
-        return eliot_data.strip()
+    open_brace = twisted_log_line.find('{')
+    close_brace = twisted_log_line.find('}')
+    if open_brace == -1 or close_brace == -1:
+        return None
+    candidate = twisted_log_line[open_brace:close_brace + 1]
+    try:
+        json.loads(candidate)
+    except (ValueError, TypeError):
+        return None
+    return candidate
 
 
 def _iter_content_lines(content):
