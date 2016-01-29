@@ -48,9 +48,9 @@ class LibcloudRunner(OldLibcloudRunner):
     def _setup_control_node(self, reactor, node, index):
         print "Selecting node {} for control service".format(node.name)
         certificates = Certificates.generate(
-            self.cert_path,
-            node.address,
-            0,
+            directory=self.cert_path,
+            control_hostname=node.address,
+            num_nodes=0,
             cluster_name=self.identity.name,
             cluster_id=self.identity.id,
         )
