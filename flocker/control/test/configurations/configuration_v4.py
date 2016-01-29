@@ -1,7 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 # Generate a v4 configuration.
-# Hash to recreate: XXX
+# Hash to recreate: e99b89c0a7c036e9d50f8705871ded0c829d1a83
 
 from flocker.control._model import Configuration
 from flocker.control._persistence import wire_encode
