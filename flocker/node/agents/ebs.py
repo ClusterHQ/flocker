@@ -40,7 +40,7 @@ from eliot import Message, register_exception_extractor
 from .blockdevice import (
     IBlockDeviceAPI, IProfiledBlockDeviceAPI, BlockDeviceVolume, UnknownVolume,
     AlreadyAttachedVolume, UnattachedVolume, UnknownInstanceID,
-    MandatoryProfiles, ICloudAPI,
+    MandatoryProfiles, ICloudAPI, CloudComputeInstance,
 )
 
 from flocker.common import poll_until
@@ -1363,10 +1363,13 @@ class EBSBlockDeviceAPI(object):
     def list_live_nodes(self):
         instances = self.connection.instances.filter(
             Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
-        return {unicode(instance.id):
-                [unicode(instance.public_ip_address),
-                 unicode(instance.private_ip_address)]
-                for instance in instances}
+        return [
+            CloudComputeInstance(
+                node_id=unicode(instance.id),
+                ips=[unicode(instance.public_ip_address),
+                     unicode(instance.private_ip_address)])
+            for instance in instances
+        ]
 
     @boto3_log
     def start_node(self, node_id):

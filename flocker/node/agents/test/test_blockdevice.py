@@ -87,6 +87,7 @@ from ..blockdevice import (
 
     ICloudAPI,
     _SyncToThreadedAsyncCloudAPIAdapter,
+    CloudComputeInstance,
 )
 
 from ..loopback import (
@@ -754,11 +755,12 @@ class FakeCloudAPI(proxyForInterface(IBlockDeviceAPI)):
         self.live_nodes = live_nodes
 
     def list_live_nodes(self):
-        result = {self.compute_instance_id():
-                  set(unicode(i) for i in get_all_ips()
-                      if i != b"127.0.0.1")}
-        result.update({node: [u"10.1.1.{}".format(i)]
-                       for i, node in enumerate(self.live_nodes)})
+        result = [CloudComputeInstance(
+            node_id=self.compute_instance_id(),
+            ips=(unicode(i) for i in get_all_ips() if i != b"127.0.0.1"))]
+        for i, node in enumerate(self.live_nodes):
+            result.append(CloudComputeInstance(
+                node_id=node, ips=[u"10.1.1.{}".format(i)]))
         return result
 
     def start_node(self, node_id):
@@ -5499,25 +5501,18 @@ def make_icloudapi_tests(
 
         def test_current_machine_is_live(self):
             """
-            The machine running the test is reported as alive.
-            """
-            d = self.async_cloud_api.list_live_nodes()
-            d.addCallback(lambda live:
-                          self.assertIn(self.api.compute_instance_id(), live))
-            return d
-
-        def test_current_machine_has_appropriate_ip(self):
-            """
-            The machine's known IP is set for the current node.
+            The machine running the test is reported as alive and has expected
+            IP addresses.
             """
             local_addresses = set(unicode(i) for i in get_all_ips()
                                   if i != b"127.0.0.1")
+            local_id = self.api.compute_instance_id()
             d = self.async_cloud_api.list_live_nodes()
-            d.addCallback(
-                lambda live:
-                self.assertTrue(
-                    set(live[self.api.compute_instance_id()]).intersection(
-                        local_addresses)))
+
+            def got_compute_instances(instances):
+                [instance] = (i for i in instances if i.node_id == local_id)
+                self.assertTrue(instance.ips.intersection(local_addresses))
+            d.addCallback(got_compute_instances)
             return d
 
         def test_list_live_nodes(self):
@@ -5525,7 +5520,8 @@ def make_icloudapi_tests(
             ``list_live_nodes`` returns an iterable of unicode values.
             """
             live_nodes = list(self.api.list_live_nodes())
-            self.assertThat(live_nodes, AllMatch(IsInstance(unicode)))
+            self.assertThat(live_nodes,
+                            AllMatch(IsInstance(CloudComputeInstance)))
 
     return Tests
 

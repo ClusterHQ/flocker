@@ -1103,6 +1103,14 @@ class IBlockDeviceAPI(Interface):
         """
 
 
+class CloudComputeInstance(PClass):
+    """
+    A compute instance in a cloud.
+    """
+    node_id = field(type=unicode)
+    ip_addresses = pset_field(unicode)
+
+
 class ICloudAPI(Interface):
     """
     Additional functionality provided specifically by cloud-based block
@@ -1128,10 +1136,7 @@ class ICloudAPI(Interface):
         This is used to figure out which nodes are dead, so that other
         nodes can do the detach.
 
-        :returns: A mapping of ``unicode`` compute instance IDs
-            (compatible with those returned by
-            ``IBlockDeviceAPI.compute_instance_id``) to a list of IPs of
-            those nodes. The IPs are ``unicode`` as well.
+        :returns: A list of ``CloudComputeInstance``.
         """
 
     def start_node(node_id):
@@ -1656,8 +1661,9 @@ class BlockDeviceDeployer(PClass):
                     pass
 
         if ICloudAPI.providedBy(self._underlying_blockdevice_api):
-            live_instances = (
-                self._underlying_blockdevice_api.list_live_nodes().keys())
+            live_instances = list(
+                instance.node_id for instance in
+                self._underlying_blockdevice_api.list_live_nodes())
         else:
             # Can't know accurately who is alive and who is dead:
             live_instances = None

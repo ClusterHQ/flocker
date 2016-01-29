@@ -38,6 +38,7 @@ from ...common import (
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, UnknownInstanceID, get_blockdevice_volume, ICloudAPI,
+    CloudComputeInstance,
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
@@ -689,11 +690,14 @@ class CinderBlockDeviceAPI(object):
 
     # ICloudAPI:
     def list_live_nodes(self):
-        return {server.id:
-                list(map(
-                    unicode, _extract_nova_server_addresses(server.addresses)))
-                for server in self.nova_server_manager.list()
-                if server.status == u'ACTIVE'}
+        return [
+            CloudComputeInstance(
+                node_id=server.id,
+                ips=map(unicode,
+                        _extract_nova_server_addresses(server.addresses)))
+            for server in self.nova_server_manager.list()
+            if server.status == u'ACTIVE'
+        ]
 
     def start_node(self, node_id):
         server = self.nova_server_manager.get(node_id)
