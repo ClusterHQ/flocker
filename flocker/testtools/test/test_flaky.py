@@ -165,7 +165,7 @@ class FlakyTests(testtools.TestCase):
                 tests_run=Equals(1),
             )
         )
-        [(found_test, exception)] = result.errors
+        [(_, exception)] = result.errors
         flaky_data = _get_flaky_annotation(test).to_dict()
         flaky_data.update({'runs': max_runs - min_passes + 1, 'passes': 0})
         self.assertThat(

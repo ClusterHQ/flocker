@@ -350,7 +350,7 @@ class ConfigurationAPIUserV1(object):
 
         # XXX this doesn't handle replicas
         # https://clusterhq.atlassian.net/browse/FLOC-1240
-        old_manifestation, origin_node = _find_manifestation_and_node(
+        _, origin_node = _find_manifestation_and_node(
             deployment, dataset_id)
 
         new_node = origin_node.transform(
@@ -1178,7 +1178,7 @@ def _update_dataset_maximum_size(deployment, dataset_id, maximum_size):
         size limit.
     :returns: An updated ``Deployment``.
     """
-    manifestation, node = _find_manifestation_and_node(deployment, dataset_id)
+    _, node = _find_manifestation_and_node(deployment, dataset_id)
     deployment = deployment.set(nodes=deployment.nodes.discard(node))
     node = node.transform(
         ['manifestations', dataset_id, 'dataset', 'maximum_size'],

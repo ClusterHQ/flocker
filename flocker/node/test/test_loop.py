@@ -261,7 +261,7 @@ class SleepTests(TestCase):
         ``_Sleep.with_jitter`` adds some noise to the given delay.
         """
         base = 100
-        delays = [_Sleep.with_jitter(base).delay_seconds for i in range(3000)]
+        delays = [_Sleep.with_jitter(base).delay_seconds for _ in range(3000)]
         # Since we're dealing with random results we can't quite assert
         # deterministically, but we can get some assurance.
         self.assertEqual(
@@ -596,9 +596,7 @@ class ConvergenceLoopFSMTests(TestCase):
             nodes=[local_node_state])
         [calculate_necessary_state_changes_inputs] = deployer.calculate_inputs
 
-        (actual_local_state,
-         actual_desired_configuration,
-         actual_cluster_state) = calculate_necessary_state_changes_inputs
+        (_, _, actual_cluster_state) = calculate_necessary_state_changes_inputs
 
         self.assertEqual(expected_local_cluster_state, actual_cluster_state)
 

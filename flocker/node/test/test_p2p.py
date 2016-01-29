@@ -951,7 +951,7 @@ class ResizeVolumeTests(AsyncTestCase):
         def got_filesystems(filesystems):
             (filesystem,) = filesystems
             self.assertEqual(size, filesystem.size)
-        d.addCallback(resized)
+        d.addCallback(got_filesystems)
         return d
 
 

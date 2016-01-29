@@ -1559,61 +1559,21 @@ def configure_cluster(
     :param dict logging_config: A Python logging configuration dictionary,
         following the structure of PEP 391.
     """
-    setup_action = 'start'
-    if provider == "managed":
-        setup_action = 'restart'
-
     return sequence([
-        run_remotely(
-            username='root',
-            address=cluster.control_node.address,
-            commands=sequence([
-                task_install_control_certificates(
-                    cluster.certificates.cluster.certificate,
-                    cluster.certificates.control.certificate,
-                    cluster.certificates.control.key),
-                task_enable_flocker_control(cluster.control_node.distribution,
-                                            setup_action),
-                if_firewall_available(
-                    cluster.control_node.distribution,
-                    task_open_control_firewall(
-                        cluster.control_node.distribution
-                    )
-                ),
-                ]),
+        configure_control_node(
+            cluster,
+            provider,
+            logging_config,
         ),
         parallel([
             sequence([
-                run_remotely(
-                    username='root',
-                    address=node.address,
-                    commands=sequence([
-                        task_install_node_certificates(
-                            cluster.certificates.cluster.certificate,
-                            certnkey.certificate,
-                            certnkey.key),
-                        task_install_api_certificates(
-                            cluster.certificates.user.certificate,
-                            cluster.certificates.user.key),
-                        task_enable_docker(node.distribution),
-                        if_firewall_available(
-                            node.distribution,
-                            open_firewall_for_docker_api(node.distribution),
-                        ),
-                        task_configure_flocker_agent(
-                            control_node=cluster.control_node.address,
-                            dataset_backend=cluster.dataset_backend,
-                            dataset_backend_configuration=(
-                                dataset_backend_configuration
-                            ),
-                            logging_config=logging_config,
-                        ),
-                        task_enable_docker_plugin(node.distribution),
-                        task_enable_flocker_agent(
-                            distribution=node.distribution,
-                            action=setup_action,
-                        ),
-                    ]),
+                configure_node(
+                    cluster,
+                    node,
+                    certnkey,
+                    dataset_backend_configuration,
+                    provider,
+                    logging_config,
                 ),
             ]) for certnkey, node
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
@@ -1703,6 +1663,99 @@ def reinstall_flocker_at_version(
     uninstalling.addCallback(restart_services)
 
     return uninstalling
+
+
+def configure_control_node(
+    cluster,
+    provider,
+    logging_config=None
+):
+    """
+    Configure Flocker control service on the given node.
+
+    :param Cluster cluster: Description of the cluster.
+    :param bytes provider: provider of the nodes  - aws. rackspace or managed.
+    :param dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
+    """
+    setup_action = 'start'
+    if provider == "managed":
+        setup_action = 'restart'
+
+    return run_remotely(
+        username='root',
+        address=cluster.control_node.address,
+        commands=sequence([
+            task_install_control_certificates(
+                cluster.certificates.cluster.certificate,
+                cluster.certificates.control.certificate,
+                cluster.certificates.control.key),
+            task_enable_flocker_control(cluster.control_node.distribution,
+                                        setup_action),
+            if_firewall_available(
+                cluster.control_node.distribution,
+                task_open_control_firewall(
+                    cluster.control_node.distribution
+                )
+            ),
+        ]),
+    )
+
+
+def configure_node(
+    cluster,
+    node,
+    certnkey,
+    dataset_backend_configuration,
+    provider,
+    logging_config=None
+):
+    """
+    Configure flocker-dataset-agent and flocker-container-agent on a node,
+    so that it could join an existing Flocker cluster.
+
+    :param Cluster cluster: Description of the cluster.
+    :param Node node: The node to configure.
+    :param CertAndKey certnkey: The node's certificate and key.
+    :param bytes provider: provider of the nodes  - aws. rackspace or managed.
+    :param dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
+    """
+    setup_action = 'start'
+    if provider == "managed":
+        setup_action = 'restart'
+
+    return run_remotely(
+        username='root',
+        address=node.address,
+        commands=sequence([
+            task_install_node_certificates(
+                cluster.certificates.cluster.certificate,
+                certnkey.certificate,
+                certnkey.key),
+            task_install_api_certificates(
+                cluster.certificates.user.certificate,
+                cluster.certificates.user.key),
+            task_enable_docker(node.distribution),
+            if_firewall_available(
+                node.distribution,
+                open_firewall_for_docker_api(node.distribution),
+            ),
+            task_configure_flocker_agent(
+                control_node=cluster.control_node.address,
+                dataset_backend=cluster.dataset_backend,
+                dataset_backend_configuration=(
+                    dataset_backend_configuration
+                ),
+                logging_config=logging_config,
+            ),
+            task_enable_docker_plugin(node.distribution),
+            task_enable_flocker_agent(
+                distribution=node.distribution,
+                action=setup_action,
+            ),
+        ]),
+    )
 
 
 def provision_as_root(node, package_source, variants=()):

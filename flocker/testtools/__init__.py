@@ -485,7 +485,7 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
             '{}'.format(tuple(unknown_defaults)))
 
     required_kwargs = kwargs.copy()
-    for k, v in expected_defaults.items():
+    for k in expected_defaults.keys():
         required_kwargs.pop(k)
 
     class WithInitTests(TestCase):
