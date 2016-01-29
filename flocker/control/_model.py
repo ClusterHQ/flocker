@@ -610,7 +610,10 @@ class Leases(CheckedPMap):
 
 
 class PersistentState(PClass):
-    pass
+    """
+    A ``PersistentState`` describes the persistent non-discoverable state of
+    the cluster.
+    """
 
 
 class Deployment(PClass):
