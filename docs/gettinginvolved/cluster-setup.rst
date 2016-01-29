@@ -375,7 +375,7 @@ An example of how to use it, without specifying any optional argument would be:
 
 .. prompt:: bash $
 
-  admin/setup-cluster-containers \
+  benchmark/setup-cluster-containers \
     --image "clusterhq/mongodb" \
     --mountpoint "/data/db" \
     --apps-per-node 5 \
@@ -394,12 +394,12 @@ so that it can be re-used for testing a different configuration.
 
 .. prompt:: bash $
 
-   admin/cleanup-cluster <options>
+   benchmark/cleanup-cluster <options>
 
 
-The :program:`admin/cleanup-cluster` script has several options:
+The :program:`benchmark/cleanup-cluster` script has several options:
 
-.. program:: admin/cleanup-cluster
+.. program:: benchmark/cleanup-cluster
 
 .. option:: --control-node <address>
 
