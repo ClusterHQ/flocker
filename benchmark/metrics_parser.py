@@ -81,21 +81,22 @@ def flatten(results):
     metric_type = results['metric']['type']
 
     for sample in results['samples']:
-        if metric_type == 'cputime':
-            for ip, data in sample['value'].iteritems():
-                wall_time = data[WALL_CLOCK_KEY]
-                for process, value in data.iteritems():
-                    if process != WALL_CLOCK_KEY:
-                        doc = dict(common)
-                        doc['node_ip'] = ip
-                        doc['process'] = process
-                        doc['value'] = value
-                        doc['wallclock'] = wall_time
-                        flattened.append(doc)
-        elif metric_type == 'wallclock':
-            doc = dict(common)
-            doc['value'] = sample['value']
-            flattened.append(doc)
+        if sample['success']:
+            if metric_type == 'cputime':
+                for ip, data in sample['value'].iteritems():
+                    wall_time = data[WALL_CLOCK_KEY]
+                    for process, value in data.iteritems():
+                        if process != WALL_CLOCK_KEY:
+                            doc = dict(common)
+                            doc['node_ip'] = ip
+                            doc['process'] = process
+                            doc['value'] = value
+                            doc['wallclock'] = wall_time
+                            flattened.append(doc)
+            elif metric_type == 'wallclock':
+                    doc = dict(common)
+                    doc['value'] = sample['value']
+                    flattened.append(doc)
     return flattened
 
 
