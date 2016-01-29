@@ -139,6 +139,8 @@ def perform_put(dispatcher, intent):
     Default implementation of `Put`.
     """
     def create_put_command(content, path):
+        # Escape printf format markers
+        content = content.replace('\\', '\\\\').replace('%', '%%')
         return 'printf -- %s > %s' % (shell_quote(content), shell_quote(path))
     return Effect(Run(
         command=create_put_command(intent.content, intent.path),

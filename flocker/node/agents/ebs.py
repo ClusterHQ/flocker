@@ -28,7 +28,7 @@ from uuid import UUID
 from bitmath import Byte, GiB
 
 from characteristic import with_cmp
-from pyrsistent import PClass, field, pset, pmap, thaw
+from pyrsistent import PClass, field, pmap
 from zope.interface import implementer
 from twisted.python.constants import (
     Names, NamedConstant, Values, ValueConstant
@@ -42,6 +42,8 @@ from .blockdevice import (
     AlreadyAttachedVolume, UnattachedVolume, UnknownInstanceID,
     MandatoryProfiles, ICloudAPI,
 )
+
+from flocker.common import poll_until
 
 from ..exceptions import StorageInitializationError
 
@@ -88,6 +90,13 @@ register_exception_extractor(
         "aws_request_id": e.response['ResponseMetadata']['RequestId'],
     }
 )
+
+
+class NoAvailableDevice(Exception):
+    """
+    Exception indicating that there are no free device names available
+    for attaching a volume to this node.
+    """
 
 
 class EBSVolumeTypes(Values):
@@ -538,12 +547,17 @@ def boto3_log(method):
     :return: A function which will call the method and do
         the extra exception logging.
     """
+    counter = itertools.count(1)
+
     def _run_with_logging(*args, **kwargs):
         """
         Run given boto3.ec2.ServiceResource method with exception
         logging for ``ClientError``.
         """
-        with AWS_ACTION(operation=[method.__name__, args[1:], kwargs]):
+        with AWS_ACTION(
+            operation=[method.__name__, args[1:], kwargs],
+            count=next(counter)
+        ):
             return method(*args, **kwargs)
     return _run_with_logging
 
@@ -599,6 +613,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     )
 
 
+@boto3_log
 def _get_ebs_volume_state(volume):
     """
     Fetch input EBS volume's latest state from backend.
@@ -613,8 +628,10 @@ def _get_ebs_volume_state(volume):
     return volume
 
 
-def _should_finish(operation, volume, update, start_time,
-                   timeout=VOLUME_STATE_CHANGE_TIMEOUT):
+def _reached_end_state(
+    operation, volume, update, elapsed_time,
+    timeout=VOLUME_STATE_CHANGE_TIMEOUT
+):
     """
     Helper function to determine if wait for volume's state transition
     resulting from given operation is over.
@@ -626,7 +643,7 @@ def _should_finish(operation, volume, update, start_time,
     :param boto3.resources.factory.ec2.Volume: Target volume of given
         operation.
     :param method update: Method to use to check volume state.
-    :param float start_time: Time when operation was executed on volume.
+    :param float elapsed_time: Time since operation was executed on volume.
     :param int timeout: Time, in seconds, to wait for volume to reach expected
         destination state.
 
@@ -640,7 +657,7 @@ def _should_finish(operation, volume, update, start_time,
     sets_attach = state_flow.sets_attach
     unsets_attach = state_flow.unsets_attach
 
-    if time.time() - start_time > timeout:
+    if elapsed_time > timeout:
         # We either:
         # 1) Timed out waiting to reach ``end_status``, or,
         # 2) Reached an unexpected status (state change resulted in error), or,
@@ -656,6 +673,11 @@ def _should_finish(operation, volume, update, start_time,
         # If AWS cannot find the volume, raise ``UnknownVolume``.
         if e.response['Error']['Code'] == NOT_FOUND:
             raise UnknownVolume(volume.id)
+
+    WAITING_FOR_VOLUME_STATUS_CHANGE(
+        volume_id=volume.id, status=volume.state, target_status=end_state,
+        needs_attach_data=sets_attach, wait_time=elapsed_time
+    ).write()
 
     if volume.state not in [start_state, transient_state, end_state]:
         raise UnexpectedStateException(unicode(volume.id), operation,
@@ -708,43 +730,40 @@ def _wait_for_volume_state_change(operation,
     # volume status to transition from
     # start_status -> transient_status -> end_status.
     start_time = time.time()
-    while not _should_finish(operation, volume, update, start_time, timeout):
-        time.sleep(1.0)
-        WAITING_FOR_VOLUME_STATUS_CHANGE(volume_id=volume.id,
-                                         status=volume.state,
-                                         wait_time=(time.time() - start_time))
+    poll_until(
+        lambda: _reached_end_state(
+            operation, volume, update, time.time() - start_time, timeout
+        ),
+        itertools.repeat(1)
+    )
 
 
 def _get_device_size(device):
     """
     Helper function to fetch the size of given block device.
 
+    We read ``/sys/block/<disk>/size``, which returns the number of 512-byte
+    sectors.  As far as I can tell, this matches the logical block size and
+    will always be 512. Unfortunately it's not documented in the Linux ABI:
+
+    * https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-block
+
+    Another method would be to issue a BLKGETSIZE64 ioctl, using the ``blockdev
+    --getsize64`` command, but that would require root permissions.
+
+    * http://lxr.free-electrons.com/ident?i=BLKGETSIZE64
+    * https://github.com/karelzak/util-linux/tree/master/disk-utils
+
     :param unicode device: Name of the block device to fetch size for.
 
     :returns: Size, in SI metric bytes, of device we are interested in.
     :rtype: int
     """
-    device_name = b"/dev/" + device.encode("ascii")
-
-    # Retrieve size of device as OS sees it using `lsblk`.
-    # Requires util-linux-ng package on CentOS, and
-    # util-linux on Ubuntu.
-    # Required package is installed by default
-    # on Ubuntu 14.04 and CentOS 7.
-    command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
-               b"--output", b"SIZE", device_name]
-
-    # Get the base device size, which is the first line in
-    # `lsblk` output. Ignore partition sizes.
-    # XXX: Handle error cases during `check_output()` run
-    # (https://clusterhq.atlassian.net/browse/FLOC-1886).
-    command_output = check_output(command).split(b'\n')[0]
-    device_size = int(command_output.strip().decode("ascii"))
-
-    return device_size
+    size_file = FilePath('/sys/block/{}/size'.format(device))
+    return int(size_file.getContent()) * 512
 
 
-def _wait_for_new_device(base, size, time_limit=60):
+def _wait_for_new_device(base, expected_size, time_limit=60):
     """
     Helper function to wait for up to 60s for new
     EBS block device (`/dev/sd*` or `/dev/xvd*`) to
@@ -753,8 +772,8 @@ def _wait_for_new_device(base, size, time_limit=60):
     :param list base: List of baseline block devices
         that existed before execution of operation that expects
         to create a new block device.
-    :param int size: Size of the block device we are expected
-        to manifest in the OS.
+    :param int expected_size: Size of the block device we are expected to
+        manifest in the OS.
     :param int time_limit: Time, in seconds, to wait for
         new device to manifest. Defaults to 60s.
 
@@ -766,9 +785,9 @@ def _wait_for_new_device(base, size, time_limit=60):
     while elapsed_time < time_limit:
         for device in list(set(FilePath(b"/sys/block").children()) -
                            set(base)):
-            device_name = FilePath.basename(device)
+            device_name = device.basename()
             if (device_name.startswith((b"sd", b"xvd")) and
-                    _get_device_size(device_name) == size):
+                    _get_device_size(device_name) == expected_size):
                 return FilePath(b"/dev").child(device_name)
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
@@ -776,11 +795,17 @@ def _wait_for_new_device(base, size, time_limit=60):
     # If we failed to find a new device of expected size,
     # log sizes of all new devices on this compute instance,
     # for debuggability.
-    new_devices = list(set(FilePath(b"/sys/block").children()) - set(base))
-    new_devices_size = [_get_device_size(device) for device in new_devices]
+    new_devices = list(
+        device.basename()
+        for device in set(FilePath(b"/sys/block").children()) - set(base)
+    )
+    new_devices_size = list(
+        _get_device_size(device_name)
+        for device_name in new_devices
+    )
     NO_NEW_DEVICE_IN_OS(new_devices=new_devices,
                         new_devices_size=new_devices_size,
-                        expected_size=size,
+                        expected_size=expected_size,
                         time_limit=time_limit).write()
     return None
 
@@ -811,8 +836,7 @@ def _is_cluster_volume(cluster_id, ebs_volume):
 
 
 def _attach_volume_and_wait_for_device(
-    volume, attach_to, attach_volume,
-    detach_volume, device, blockdevices,
+    volume, attach_to, attach_volume, detach_volume, device, blockdevices
 ):
     """
     Attempt to attach an EBS volume to an EC2 instance and wait for the
@@ -827,7 +851,6 @@ def _attach_volume_and_wait_for_device(
     :param list blockdevices: The OS device paths (as ``FilePath``) which are
         already present on the system before this operation is attempted
         (primarily useful to make testing easier).
-
     :raise: Anything ``attach_volume`` can raise.  Or
         ``AttachedUnexpectedDevice`` if the volume appears to become attached
         to the wrong OS device file.
@@ -853,7 +876,8 @@ def _attach_volume_and_wait_for_device(
         # to be available to the OS, and interpret it as ours.
         # Wait under lock scope to reduce false positives.
         device_path = _wait_for_new_device(
-            blockdevices, volume.size
+            base=blockdevices,
+            expected_size=volume.size,
         )
         # We do, however, expect the attached device name to follow
         # a certain simple pattern.  Verify that now and signal an
@@ -881,6 +905,85 @@ def _attach_volume_and_wait_for_device(
 
 def _get_blockdevices():
     return FilePath(b"/sys/block").children()
+
+
+def _next_device():
+    """
+    Get the next available EBS device name for this EC2 instance.
+
+    :return unicode file_name: available device name for attaching EBS volume.
+    """
+
+    return _select_free_device(_find_allocated_devices())
+
+
+def _find_allocated_devices():
+    """
+    Enumerate the allocated device names on this host.
+
+    :return Sequence[bytes]: List of allocated device basenames
+        (e.g. ``[b'sda']``).
+    """
+    command = [
+        b"/bin/lsblk",
+        b"--nodeps",           # Only print top-level devices
+        b"--noheadings",       # Do not display KNAME header
+        b"--output", b"KNAME"  # Only display kernel device name
+    ]
+    command_result = check_output(command)
+    existing = [
+        dev for dev in command_result.split("\n")
+        if dev.startswith(b"xvd") or dev.startswith(b'sd')
+    ]
+    return existing
+
+
+def _select_free_device(existing):
+    """
+    Given a list of allocated devices, return an available device name.
+
+    According to
+    http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html
+    all AWS Linux instances have ``/dev/sd[a-z]`` available.  However:
+
+    - ``sda`` is reserved for the root device (technically only ``sda1``);
+    - Amazon "strongly recommend that you don't" use instance store names
+      (usually ``/dev/sd[b-e]``) "because the behavior can be unpredictable";
+    - some "custom kernels might have restrictions that limit use to
+      ``/dev/sd[f-p]``".
+
+    ``sd[f-p]`` only allows 11 devices, so to increase this, ignore the
+    least stringent statement above, and allow ``sd[f-z]`` (21 devices).
+
+    To reduce the risk of failing on custom AMIs, select from ``[f-p]`` first.
+
+    Any further increase will need to start mining the ``hd[a-z][1-15]``
+    and ``xvd[b-c][a-z]`` namespaces, but which to use depends on whether
+    the AMI uses paravirtualization or HVM.
+
+    :param Sequence[bytes]: List of allocated device basenames
+        (e.g. ``[b'sda']``).
+    :return unicode file_name: available device name for attaching EBS volume.
+    """
+
+    local_devices = frozenset(existing)
+    sorted_devices = sorted(existing)
+    IN_USE_DEVICES(devices=sorted_devices).write()
+
+    for suffix in b"fghijklmonpqrstuvwxyz":
+        next_local_device = b'xvd' + suffix
+        next_local_sd_device = b'sd' + suffix
+        file_name = u'/dev/sd' + unicode(suffix)
+        possible_devices = [
+            next_local_device, next_local_sd_device
+        ]
+        if not local_devices.intersection(possible_devices):
+            return file_name
+
+    # Could not find any suitable device that is available
+    # for attachment. Log to Eliot before giving up.
+    NO_AVAILABLE_DEVICE(devices=sorted_devices).write()
+    raise NoAvailableDevice()
 
 
 @implementer(IBlockDeviceAPI)
@@ -1032,52 +1135,6 @@ class EBSBlockDeviceAPI(object):
         return volume.attach_to_instance(
             InstanceId=instance_id, Device=device)
 
-    def _next_device(self):
-        """
-        Get the next available EBS device name for this EC2 instance.
-
-        Devices available for EBS volume usage are ``/dev/sd[f-p]``.
-        Find the first device from this set that is currently not
-        in use.
-        XXX: Handle lack of free devices in ``/dev/sd[f-p]`` range
-        (see https://clusterhq.atlassian.net/browse/FLOC-1887).
-
-        :returns unicode file_name: available device name for attaching
-            EBS volume.
-        :returns ``None`` if suitable EBS device names on this EC2
-            instance are currently occupied.
-        """
-
-        command = [b"/bin/lsblk", b"--output", b"KNAME"]
-        # Command result returns a list of kernel device names
-        # separated by line breaks, with KNAME as the output of the
-        # header row. The top line is therefore ignored in the filter
-        # below.
-        command_result = check_output(command)
-        local_devices = pset(filter(
-            lambda d: d.startswith(b"xvd") or d.startswith('sd'),
-            command_result.split("\n")[1:]
-        ))
-        sorted_devices = sorted(list(thaw(local_devices)))
-        IN_USE_DEVICES(devices=sorted_devices).write()
-
-        for suffix in b"fghijklmonp":
-            next_local_device = b'xvd' + suffix
-            next_local_sd_device = b'sd' + suffix
-            file_name = u'/dev/sd' + unicode(suffix)
-            possible_devices = [
-                next_local_device, next_local_sd_device
-            ]
-            if not any(
-                list(device in local_devices for device in possible_devices)
-            ):
-                return file_name
-
-        # Could not find any suitable device that is available
-        # for attachment. Log to Eliot before giving up.
-        NO_AVAILABLE_DEVICE(devices=sorted_devices).write()
-        return None
-
     def create_volume(self, dataset_id, size):
         """
         Create a volume on EBS backend.
@@ -1205,6 +1262,7 @@ class EBSBlockDeviceAPI(object):
             associate the volume with the expected OS device file.  This
             indicates use on an unsupported OS, a misunderstanding of the EBS
             device assignment rules, or some other bug in this implementation.
+        :raises NoAvailableDevice: If there are no available device names.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
@@ -1218,14 +1276,9 @@ class EBSBlockDeviceAPI(object):
                 blockdevice_id, attach_to, local_instance_id)
 
         attached = False
-        for attach_attempt in range(3):
+        for _ in range(3):
             with self.lock:
-                device = self._next_device()
-                if device is None:
-                    # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
-                    # (https://clusterhq.atlassian.net/browse/FLOC-1887).
-                    # No point in attempting an ``attach_volume``, return.
-                    return
+                device = _next_device()
                 blockdevices = _get_blockdevices()
                 attached = _attach_volume_and_wait_for_device(
                     volume, attach_to,
@@ -1352,7 +1405,11 @@ class EBSBlockDeviceAPI(object):
     def list_live_nodes(self):
         instances = self.connection.instances.filter(
             Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])
-        return list(instance.id for instance in instances)
+        return list(unicode(instance.id) for instance in instances)
+
+    @boto3_log
+    def start_node(self, node_id):
+        self.connection.start_instances(instance_ids=[node_id])
 
 
 def aws_from_configuration(

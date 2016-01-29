@@ -112,11 +112,11 @@ def process_tab_node(node):
         assert isinstance(child, nodes.section)
         assert isinstance(child.children[0], nodes.title)
         title = child.children[0]
-        id = child['ids'][0]
+        child_id = child['ids'][0]
         new_tab = tab(child.rawsource, *child.children[1:],
                       ids=child['ids'], active=False)
         tabs.append(new_tab)
-        header = tablink([], *title.children, refid=id, active=False)
+        header = tablink([], *title.children, refid=child_id, active=False)
         headers.append(header)
     tabs[0]['active'] = True
     headers[0]['active'] = True

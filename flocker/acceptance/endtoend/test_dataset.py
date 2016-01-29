@@ -5,14 +5,20 @@ Tests for the datasets REST API.
 """
 
 from uuid import UUID
+from unittest import SkipTest, skipIf
+from datetime import timedelta
+
+from testtools import run_test_with
 
 from twisted.internet import reactor
 
 from ...common import loop_until
-from ...testtools import AsyncTestCase, flaky
+from ...testtools import AsyncTestCase, flaky, async_runner
+from ...node.agents.blockdevice import ICloudAPI
 
 from ..testtools import (
-    require_cluster, require_moving_backend, create_dataset, DatasetBackend
+    require_cluster, require_moving_backend, create_dataset, DatasetBackend,
+    get_backend_api, verify_socket
 )
 
 
@@ -44,11 +50,12 @@ class DatasetAPITests(AsyncTestCase):
 
         def confirm_gold(dataset):
             volumes = backend.list_volumes()
-            for volume in volumes:
-                if volume.dataset_id == dataset.dataset_id:
-                    break
-            ebs_volume = backend._get_ebs_volume(volume.blockdevice_id)
-            self.assertEqual('io1', ebs_volume.volume_type)
+            matching = [
+                v for v in volumes if v.dataset_id == dataset.dataset_id]
+            volume_types = [
+                backend._get_ebs_volume(v.blockdevice_id).volume_type
+                for v in matching]
+            self.assertEqual(volume_types, ['io1'])
 
         waiting_for_create.addCallback(confirm_gold)
         return waiting_for_create
@@ -102,3 +109,72 @@ class DatasetAPITests(AsyncTestCase):
             return deleted
         created.addCallback(delete_dataset)
         return created
+
+    @skipIf(True,
+            "Shutting down a node invalidates a public IP, which breaks all "
+            "kinds of things. So skip for now.")
+    @require_moving_backend
+    @run_test_with(async_runner(timeout=timedelta(minutes=6)))
+    @require_cluster(2)
+    def test_dataset_move_from_dead_node(self, cluster):
+        """
+        A dataset can be moved from a dead node to a live node.
+
+        All attributes, including the maximum size, are preserved.
+        """
+        api = get_backend_api(self, cluster.cluster_uuid)
+        if not ICloudAPI.providedBy(api):
+            raise SkipTest(
+                "Backend doesn't support ICloudAPI; therefore it might support"
+                " moving from dead node but as first pass we assume it "
+                "doesn't.")
+
+        # Find a node which is not running the control service.
+        # If the control node is shut down we won't be able to move anything!
+        node = list(node for node in cluster.nodes
+                    if node.public_address !=
+                    cluster.control_node.public_address)[0]
+        other_node = list(other_node for other_node in cluster.nodes
+                          if other_node != node)[0]
+        waiting_for_create = create_dataset(self, cluster, node=node)
+
+        def startup_node(node_id):
+            api.start_node(node_id)
+            # Wait for node to boot up:; we presume Flocker getting going after
+            # SSH is available will be pretty quick:
+            return loop_until(reactor, verify_socket(node.public_address, 22))
+
+        # Once created, shut down origin node and then request to move the
+        # dataset to node2:
+        def shutdown(dataset):
+            live_node_ids = set(api.list_live_nodes())
+            d = node.shutdown()
+            # Wait for shutdown to be far enough long that node is down:
+            d.addCallback(
+                lambda _:
+                loop_until(reactor, lambda:
+                           set(api.list_live_nodes()) != live_node_ids))
+            # Schedule node start up:
+            d.addCallback(
+                lambda _: self.addCleanup(
+                    startup_node,
+                    (live_node_ids - set(api.list_live_nodes())).pop()))
+            d.addCallback(lambda _: dataset)
+            return d
+        waiting_for_shutdown = waiting_for_create.addCallback(shutdown)
+
+        def move_dataset(dataset):
+            dataset_moving = cluster.client.move_dataset(
+                UUID(other_node.uuid), dataset.dataset_id)
+
+            # Wait for the dataset to be moved; we expect the state to
+            # match that of the originally created dataset in all ways
+            # other than the location.
+            moved_dataset = dataset.set(
+                primary=UUID(other_node.uuid))
+            dataset_moving.addCallback(
+                lambda dataset: cluster.wait_for_dataset(moved_dataset))
+            return dataset_moving
+
+        waiting_for_shutdown.addCallback(move_dataset)
+        return waiting_for_shutdown
