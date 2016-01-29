@@ -911,9 +911,7 @@ def _next_device():
     """
     Get the next available EBS device name for this EC2 instance.
 
-    :return Optional[unicode] file_name: available device name for
-        attaching EBS volume, or None if suitable EBS device names on this
-        EC2 instance are currently occupied
+    :return unicode file_name: available device name for attaching EBS volume.
     """
 
     return _select_free_device(_find_allocated_devices())
@@ -965,9 +963,7 @@ def _select_free_device(existing):
 
     :param Sequence[bytes]: List of allocated device basenames
         (e.g. ``[b'sda']``).
-    :return Optional[unicode] file_name: available device name for
-        attaching EBS volume, or None if suitable EBS device names on this
-        EC2 instance are currently occupied
+    :return unicode file_name: available device name for attaching EBS volume.
     """
 
     local_devices = frozenset(existing)
@@ -1266,6 +1262,7 @@ class EBSBlockDeviceAPI(object):
             associate the volume with the expected OS device file.  This
             indicates use on an unsupported OS, a misunderstanding of the EBS
             device assignment rules, or some other bug in this implementation.
+        :raises NoAvailableDevice: If there are no available device names.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
