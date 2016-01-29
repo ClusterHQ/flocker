@@ -204,7 +204,7 @@ for i in range(NUM_NODES):
     if i == 0:
         # Control Node configuration.
         control_service_instance = ec2_instance
-        user_data += ['flocker_node_type="control"\n'],
+        user_data += ['flocker_node_type="control"\n']
         user_data += _sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
         user_data += _sibling_lines(DOCKER_SWARM_CA_SETUP)
         user_data += _sibling_lines(DOCKER_SETUP)
