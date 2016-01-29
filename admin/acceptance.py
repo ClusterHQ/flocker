@@ -7,6 +7,7 @@ import sys
 import os
 import yaml
 import json
+from base64 import b32encode
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -29,7 +30,10 @@ from txeffect import perform
 
 from uuid import UUID
 
-from flocker.common import RACKSPACE_MINIMUM_VOLUME_SIZE, gather_deferreds
+from flocker.common import (
+    RACKSPACE_MINIMUM_VOLUME_SIZE, gather_deferreds,
+    validate_signature_against_kwargs, InvalidSignature
+)
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
@@ -528,7 +532,7 @@ class LibcloudRunner(object):
         # place, the node creation code, to perform cleanup when the create
         # operation fails in a way such that it isn't clear if the instance has
         # been created or not.
-        random_tag = os.urandom(8).encode("base64").strip("\n=")
+        random_tag = b32encode(os.urandom(8)).lower().strip("\n=")
         print "Assigning random tag:", random_tag
 
         for index in range(self.num_nodes):
@@ -812,7 +816,27 @@ class CommonOptions(Options):
         if provider_config is None:
             self._provider_config_missing(provider)
 
-        provisioner = CLOUD_PROVIDERS[provider](**provider_config)
+        provider_factory = CLOUD_PROVIDERS[provider]
+
+        try:
+            provisioner = provider_factory(**provider_config)
+        except TypeError:
+            try:
+                validate_signature_against_kwargs(provider_factory,
+                                                  set(provider_config.keys()))
+            except InvalidSignature as e:
+                raise SystemExit(
+                    "Missing or incorrect configuration for provider '{}'.\n"
+                    "Missing Keys: {}\n"
+                    "Unexpected Keys: {}\n"
+                    "Optional Missing Keys: {}".format(
+                        provider,
+                        ", ".join(e.missing_arguments) or "<None>",
+                        ", ".join(e.unexpected_arguments) or "<None>",
+                        ", ".join(e.missing_optional_arguments) or "<None>",
+                    )
+                )
+            raise
         return LibcloudRunner(
             config=self['config'],
             top_level=self.top_level,
@@ -825,6 +849,20 @@ class CommonOptions(Options):
             num_nodes=self['number-of-nodes'],
             identity=self._make_cluster_identity(dataset_backend),
             cert_path=self['cert-directory'],
+        )
+
+    def _runner_GCE(self, package_source, dataset_backend, provider_config):
+        """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param provider_config: The ``gce`` section of the acceptance
+            testing configuration file.  See the documentation linked below for
+            the form of the configuration.
+
+        :see: :ref:`acceptance-testing-gce-config`
+        """
+        return self._libcloud_runner(
+            package_source, dataset_backend, "gce", provider_config
         )
 
     def _runner_RACKSPACE(self, package_source, dataset_backend,

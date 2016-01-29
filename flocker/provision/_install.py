@@ -9,7 +9,9 @@ from pipes import quote
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
-from effect import Func, Effect, parallel
+from effect import Func, Effect, Constant, parallel
+from effect.retry import retry
+from time import time
 import yaml
 
 from zope.interface import implementer
@@ -313,7 +315,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
-    :param base_url: URL of repository, or ``None`` if we're not using
+    :param bytes base_url: URL of repository, or ``None`` if we're not using
         development branch.
 
     :return: a sequence of commands to run on the distribution
@@ -1568,3 +1570,66 @@ def configure_cluster(
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])
     ])
+
+
+def provision_as_root(node, package_source, variants=()):
+    """
+    Provision flocker on a node using the root user.
+
+    :param INode node: Node to provision.
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
+    """
+    commands = []
+
+    commands.append(run_remotely(
+        username='root',
+        address=node.address,
+        commands=provision(
+            package_source=package_source,
+            distribution=node.distribution,
+            variants=variants,
+        ),
+    ))
+
+    return sequence(commands)
+
+
+def provision_for_any_user(node, package_source, variants=()):
+    """
+    Provision flocker on a node using the default user. If the user is not
+    root, then copy the authorized_users over to the root user and then
+    provision as root.
+
+    :param INode node: Node to provision.
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
+    """
+    username = node.get_default_username()
+
+    if username == 'root':
+        return provision_as_root(node, package_source, variants)
+
+    commands = []
+
+    # cloud-init may not have allowed sudo without tty yet, so try SSH key
+    # installation for a few more seconds:
+    start = []
+
+    def for_thirty_seconds(*args, **kwargs):
+        if not start:
+            start.append(time())
+        return Effect(Constant((time() - start[0]) < 30))
+
+    commands.append(run_remotely(
+        username=username,
+        address=node.address,
+        commands=retry(task_install_ssh_key(), for_thirty_seconds),
+    ))
+
+    commands.append(
+        provision_as_root(node, package_source, variants))
+
+    return sequence(commands)
