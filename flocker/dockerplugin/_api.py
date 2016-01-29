@@ -414,9 +414,9 @@ class VolumePlugin(object):
                 # Datasets without a name can't be used by the Docker plugin:
                 if NAME_FIELD not in dataset.metadata:
                     continue
-                name = dataset.metadata[NAME_FIELD]
+                dataset_name = dataset.metadata[NAME_FIELD]
                 d = self._get_path_from_dataset_id(dataset.dataset_id)
-                d.addCallback(lambda path: (path, name))
+                d.addCallback(lambda path, name=dataset_name: (path, name))
                 results.append(d)
             return gatherResults(results)
 

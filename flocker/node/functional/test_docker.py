@@ -955,7 +955,7 @@ class GenericDockerClientTests(AsyncTestCase):
         def started((path1, path2)):
             expected1 = path1.child(b"a")
             expected2 = path2.child(b"b")
-            for i in range(100):
+            for _ in range(100):
                 if expected1.exists() and expected2.exists():
                     return
                 else:

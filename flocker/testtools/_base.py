@@ -15,7 +15,7 @@ from fixtures import Fixture
 import testtools
 from testtools.content import Content, text_content
 from testtools.content_type import UTF8_TEXT
-from testtools.deferredruntest import (
+from testtools.twistedsupport import (
     AsynchronousDeferredRunTestForBrokenTwisted, assert_fails_with,
 )
 
@@ -112,17 +112,42 @@ class TestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
     # exception that signals skipping.
     skipException = SkipTest
 
-    def __init__(self, *args, **kwargs):
-        super(TestCase, self).__init__(*args, **kwargs)
-        # XXX: Work around testing-cabal/unittest-ext#60. Delete after
-        # https://github.com/testing-cabal/testtools/pull/189 lands, is
-        # released, and we use it.
-        self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
-
     def setUp(self):
         log.msg("--> Begin: %s <--" % (self.id()))
         super(TestCase, self).setUp()
         self.useFixture(_SplitEliotLogs())
+
+
+class _AsyncRunner(AsynchronousDeferredRunTestForBrokenTwisted):
+    """
+    Runner for asynchronous tests.
+
+    Extends base functionality to correctly capture logs for failed tests.
+    """
+
+    def _get_log_fixture(self):
+        """Return a fixture used to capture logs."""
+        # XXX: This is a hack, relying on the internal implementation details
+        # of AsynchronousDeferredRunTest as implemented in
+        # https://github.com/testing-cabal/testtools/pull/172.
+        #
+        # We want to use the _SplitEliotLogs fixture, but we want to make sure
+        # that it's set up & torn down *outside* the test itself.
+        # Specifically, outside the Spinner.run call method that's in
+        # _run_core.
+        #
+        # Because there are no hooks provided for this (although maybe there
+        # should be), we're going to use what's available to us. The return
+        # value of _get_log_fixture is used outside the Spinner run loop, and
+        # its details gathered.
+        return _SplitEliotLogs()
+
+    def _run_core(self):
+        """Template method that actually runs the suite."""
+        # Record the log starter *before* we run core, so that the
+        # _SplitEliotLogs fixture doesn't include it.
+        log.msg("--> Begin: %s <--" % (self.case.id()))
+        super(_AsyncRunner, self)._run_core()
 
 
 def async_runner(timeout):
@@ -136,7 +161,7 @@ def async_runner(timeout):
     # migrate) aren't cleaning up after themselves even in the successful
     # case. Use AsynchronousDeferredRunTestForBrokenTwisted, which loops the
     # reactor a couple of times after the test is done.
-    async_factory = AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
+    async_factory = _AsyncRunner.make_factory(
         timeout=timeout.total_seconds(),
         suppress_twisted_logging=False,
         store_twisted_logs=False,
@@ -163,18 +188,6 @@ class AsyncTestCase(testtools.TestCase, _MktempMixin, _DeferredAssertionMixin):
     run_tests_with = async_runner(timeout=DEFAULT_ASYNC_TIMEOUT)
     # See comment on TestCase.skipException.
     skipException = SkipTest
-
-    def __init__(self, *args, **kwargs):
-        super(AsyncTestCase, self).__init__(*args, **kwargs)
-        # XXX: Work around testing-cabal/unittest-ext#60. Delete after
-        # https://github.com/testing-cabal/testtools/pull/189 lands, is
-        # released, and we use it.
-        self.exception_handlers.insert(-1, (unittest.SkipTest, _test_skipped))
-
-    def setUp(self):
-        log.msg("--> Begin: %s <--" % (self.id()))
-        super(AsyncTestCase, self).setUp()
-        self.useFixture(_SplitEliotLogs())
 
     def assertFailure(self, deferred, exception):
         """

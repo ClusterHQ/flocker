@@ -23,7 +23,7 @@ from zope.interface import implementer
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.internet.ssl import Certificate
-from twisted.internet import reactor
+from twisted.internet import reactor  # pylint: disable=unused-import
 from twisted.internet.defer import succeed
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.reflect import namedAny
@@ -426,6 +426,8 @@ class BackendDescription(PClass):
     :ivar api_factory: An object which can be called with some simple
         configuration data and which returns the API object implementing this
         storage backend.
+    :ivar required_config: A ``set`` of the dataset configuration keys
+        required to initialize this backend.
     :ivar deployer_type: A constant from ``DeployerType`` indicating which kind
         of ``IDeployer`` the API object returned by ``api_factory`` is usable
         with.
@@ -435,6 +437,8 @@ class BackendDescription(PClass):
     # XXX Eventually everyone will take cluster_id so we will throw this flag
     # out.
     needs_cluster_id = field(type=bool, mandatory=True)
+    # Config "dataset" keys required to initialize this backend.
+    required_config = field(type=set, mandatory=True)
     api_factory = field(mandatory=True)
     deployer_type = field(
         mandatory=True,
@@ -454,22 +458,28 @@ _DEFAULT_BACKENDS = [
     BackendDescription(
         name=u"zfs", needs_reactor=True, needs_cluster_id=False,
         api_factory=_zfs_storagepool, deployer_type=DeployerType.p2p,
+        required_config=set(),
     ),
     BackendDescription(
         name=u"loopback", needs_reactor=False, needs_cluster_id=False,
         # XXX compute_instance_id is the wrong type
         api_factory=LoopbackBlockDeviceAPI.from_path,
         deployer_type=DeployerType.block,
+        required_config=set(),
     ),
     BackendDescription(
         name=u"openstack", needs_reactor=False, needs_cluster_id=True,
         api_factory=cinder_from_configuration,
         deployer_type=DeployerType.block,
+        required_config=set(["region", ]),
     ),
     BackendDescription(
         name=u"aws", needs_reactor=False, needs_cluster_id=True,
         api_factory=aws_from_configuration,
         deployer_type=DeployerType.block,
+        required_config=set(
+            ["region", "zone", "access_key_id", "secret_access_key", ]
+        ),
     ),
 ]
 
@@ -524,6 +534,13 @@ def get_api(backend, api_args, reactor, cluster_id):
         api_args = api_args.set("cluster_id", cluster_id)
     if backend.needs_reactor:
         api_args = api_args.set("reactor", reactor)
+
+    for config_key in backend.required_config:
+        if config_key not in api_args:
+            raise UsageError(
+                u"Configuration error: Required key {} is missing.".format(
+                    config_key.decode("utf-8"))
+            )
 
     try:
         return backend.api_factory(**api_args)

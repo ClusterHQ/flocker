@@ -153,6 +153,41 @@ Rackspace can use these dataset backends:
   admin/run-acceptance-tests --distribution centos-7 --provider rackspace --config-file config.yml
 
 
+.. _acceptance-testing-gce-config:
+
+GCE
+=========
+
+To run the acceptance tests on GCE, you need:
+
+- GCE credentials (1 of the following):
+  - Preferred: run ``gcloud auth login``.
+  - Set the environment variable ``GOOGLE_APPLICATION_CREDENTIALS`` to point to a JSON file downloaded as the key to a service account.
+  - Run the tests from a GCE VM that has been given ``compute`` privileges.
+  - Add the JSON dict you get for a service accounts credentials to your ``acceptance.yaml``.
+- A location where the acceptance test cluster will be run (project and zone).
+
+.. code-block:: yaml
+
+   gce:
+     project: <gce project>
+     zone: <gce zone, e.g. "us-central1-f">
+     ssh_public_key: <public key to use with the instance "ssh-rsa AAAAB3N...">
+     gce_credentials:
+       <Optional dict equivalent to the json you get for service account keys>
+
+
+You will need an ssh agent running with access to the corresponding private key.
+
+GCE can use these dataset backends:
+
+* :ref:`Loopback<loopback-dataset-backend>`
+
+.. prompt:: bash $
+
+  admin/run-acceptance-tests --distribution centos-7 --provider gce --dataset-backend loopback --config-file config.yml
+
+
 .. _acceptance-testing-aws-config:
 
 AWS

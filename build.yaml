@@ -244,7 +244,7 @@ common_cli:
     function vagrant_up() {
       (
         retry_n_times_with_timeout 3 1200 \
-          VAGRANT_LOG=info vagrant up
+          vagrant up
       ) || abort_build
     }
 
@@ -255,7 +255,7 @@ common_cli:
     function vagrant_box_update() {
       (
         retry_n_times_with_timeout 2 1800 \
-          VAGRANT_LOG=info vagrant box update
+          vagrant box update
       ) || abort_build
     }
 
@@ -263,7 +263,7 @@ common_cli:
     # usage:
     # vagrant_destroy
     function vagrant_destroy() {
-      VAGRANT_LOG=info vagrant destroy -f
+      vagrant destroy -f
     }
 
   # TODO: do we need to clean up old files on ubuntu and centos or
@@ -490,7 +490,8 @@ common_cli:
     # hosts.
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} --number-of-nodes 1 \
-    --provider aws --dataset-backend loopback --branch ${TRIGGERED_BRANCH} \
+    --provider ${ACCEPTANCE_TEST_PROVIDER} --dataset-backend loopback \
+    --branch ${TRIGGERED_BRANCH} \
     --build-server  \
     http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
     --config-file /tmp/acceptance.yaml \
@@ -671,22 +672,6 @@ common_cli:
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
 
-  build_vagrant_tutorial_basebox: &build_vagrant_tutorial_basebox |
-    vagrant destroy -f
-    (
-      retry_n_times_with_timeout 3 2400 \
-        $venv/bin/python admin/build-vagrant-box \
-          --box tutorial \
-          --branch ${TRIGGERED_BRANCH} \
-          --build-server http://${eth0_ip}
-    )|| abort_build
-
-    (
-      retry_n_times_with_timeout 2 1200 \
-        vagrant box add --force "clusterhq/flocker-tutorial" \
-          vagrant/tutorial/flocker-tutorial-${FLOCKER_VERSION}.box
-    ) || abort_build
-
   do_not_abort_on_errors: &do_not_abort_on_errors |
     # make sure we don't abort the job on the first error we find.
     #
@@ -760,7 +745,7 @@ common_cli:
     # make sure we don't abort on the first error
     set +e
     # run the build.sh script inside our vagrant box
-    VAGRANT_LOG=info vagrant ssh -c 'bash build.sh' || abort_build
+    vagrant ssh -c 'bash build.sh' || abort_build
 
     # this removes the secrets files we used during provisioning
     for item in "/tmp/pip.sh build.sh git-commit.sh"
@@ -852,72 +837,17 @@ common_cli:
     # /tmp of the slave when the slave is instantiated.
     . /tmp/s3_vagrant_jenkins_boxes_clusterhq.com
 
-  get_s3_creds_for_clusterhq_dev_archive: &get_s3_creds_for_clusterhq_dev_archive |
-    # collects the S3 credentials that allows us to upload files to the S3
-    # clusterhq-dev-archive for our vagrant boxes
-    # the file with the credentials is deployed by the jenkins master to the
-    # /tmp of the slave when the slave is instantiated.
-    . /tmp/s3_dev_archive_clusterhq.com
-
   upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
     # uploads the new generated html to a folder on the S3 staging-docs bucket
     cd _build/html
-    aws --region ${S3_DOCS_REGION} s3 sync . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
+    aws --region ${S3_DOCS_REGION} s3 sync --delete . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
     echo "This branch is available at :"
     echo "http://clusterhq-staging-docs.s3.amazonaws.com/$TRIGGERED_BRANCH/index.html"
 
   sync_master_docs_to_doc_dev: &sync_master_docs_to_doc_dev |
     # ensure master docs at doc-dev are up-to-date
-    [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --acl public-read \
+    [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --delete --acl public-read \
       s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
-
-  upload_vagrant_tutorial_basebox_to_s3: &upload_vagrant_tutorial_basebox_to_s3 |
-    # uploads the generated vagrant box to a folder on the S3
-    # clusterhq-dev-archive bucket.
-    FLOCKER_TUTORIAL=flocker-tutorial-${FLOCKER_VERSION}
-    BOX_NAME=${FLOCKER_TUTORIAL}.box
-    BOX_PATH=vagrant/tutorial
-    SHA1=$( sha1sum ${BOX_NAME} | cut -f 1 -d " " )
-    HTTP_BOX_URL=http://${S3_BUCKET}.s3.amazonaws.com/${BOX_PATH}/${BOX_NAME}
-
-    # the JSON metadata for our box is flocker-tutorial.version.box.json
-    HTTP_BOX_JSON=http://${S3_BUCKET}.s3.amazonaws.com/${BOX_PATH}/${BOX_NAME}.json
-
-    # the JSON url below is what the vagrant file will consume
-    HTTP_BOX_JSON_LATEST=http://${S3_BUCKET}.s3.amazonaws.com/${BOX_PATH}/metadata.json
-
-    # vagrant doesn't support fully semantic versioning, numbering must be x.y.z
-    # https://github.com/mitchellh/vagrant/issues/6052
-    VAGRANT_BOX_VERSION="$( echo ${FLOCKER_VERSION} | cut -f 1,2,3 -d "." )"
-
-    cd $BOX_PATH
-
-    # generates the metadata.json, it used by vagrant box update operations.
-    create_vagrant_metadata_file \
-      metadata.json \
-      clusterhq/flocker-tutorial \
-      'This box contains the flocker-tutorial VM.' \
-      ${VAGRANT_BOX_VERSION} \
-      ${HTTP_BOX_URL} \
-      ${SHA1}
-
-    cp metadata.json ${BOX_NAME}.json
-
-    # uploads the vagrant box and metadata files to S3
-    # We won't overwrite the json metadata files if the upload of the box
-    # failed
-    box_files="${BOX_NAME} ${BOX_NAME}.json metadata.json"
-    (
-      s3_upload \
-        ${S3_BUCKET}/${BOX_PATH}/ "${BOX_NAME}" && \
-      s3_upload \
-        ${S3_BUCKET}/${BOX_PATH}/ "${BOX_NAME}.json" && \
-      s3_upload \
-        ${S3_BUCKET}/${BOX_PATH}/ "metadata.json"
-    ) ||  abort_build
-
-    cd -
-    echo "This vagrant box is available at : ${HTTP_BOX_JSON_LATEST}"
 
   upload_vagrant_basebox_osx_yosemite_to_s3: &upload_vagrant_basebox_osx_yosemite_to_s3 |
     # uploads the generated vagrant box to a folder on the S3
@@ -1163,6 +1093,7 @@ job_type:
                    *convert_results_to_junit ]
           }
       archive_artifacts: *flocker_artifacts
+      publish_test_results: true
       coverage_report: true
       clean_repo: true
       timeout: 45
@@ -1264,6 +1195,7 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=${MODULE}',
+                   'export ACCEPTANCE_TEST_PROVIDER=aws',
                    *run_acceptance_loopback_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
@@ -1286,6 +1218,7 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=${MODULE}',
+                   'export ACCEPTANCE_TEST_PROVIDER=aws',
                    *run_acceptance_loopback_tests,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
@@ -1361,6 +1294,7 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_docker_build_ubuntu_trusty_fpm:
       at: '0 1 * * *'
@@ -1389,31 +1323,7 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
-
-    build_vagrant_basebox_for_flocker_tutorial:
-      at: '0 4 * * *'
-      on_nodes_with_labels: 'mesos-2GB'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   *check_version,
-                   'export DISTRIBUTION_NAME=centos-7',
-                   *build_sdist, *build_package,
-                   *build_repo_metadata,
-                   'export HOME=/root',
-                   *build_vagrant_tutorial_basebox,
-
-                   # upload this new vagrant box to S3
-                   *install_aws_cli,
-                   *get_s3_creds_for_clusterhq_dev_archive,
-                   *upload_vagrant_tutorial_basebox_to_s3,
-                   *clean_packages,
-                   'vagrant_destroy'
-                ]
-          }
-      timeout: 60
-      directories_to_delete: []
+      notify_slack: '#engineering'
 
     build_vagrant_basebox_for_osx_yosemite:
       at: '0 5 * * *'
@@ -1461,6 +1371,7 @@ job_type:
           }
       timeout: 120
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_client_installation_on_OSX:
       at: '30 7 * * *'
@@ -1502,6 +1413,7 @@ job_type:
       # actually run the tests. Also has to be less than the timeout for the
       # main multijob, see jobs.groovy.j2:545.
       timeout: 50
+      notify_slack: '#engineering'
 
     run_acceptance_on_AWS_CentOS_7_with_EBS:
       at: '0 5 * * *'
@@ -1529,6 +1441,7 @@ job_type:
       # as of Dec 2015.
       timeout: 120
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
@@ -1553,6 +1466,57 @@ job_type:
       # but slightly shorter since Ubuntu runs the tests faster.
       timeout: 90
       directories_to_delete: []
+      notify_slack: '#engineering'
+
+    run_acceptance_on_GCE_CentOS_7_with_LOOPBACK:
+      at: '0 5 * * *'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=centos-7',
+                   *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
+                   'export ACCEPTANCE_TEST_PROVIDER=gce',
+                   *run_acceptance_loopback_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts
+      # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
+      timeout: 120
+      directories_to_delete: []
+      notify_slack: '#engineering'
+
+    run_acceptance_on_GCE_Ubuntu_Trusty_with_LOOPBACK:
+      at: '0 6 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
+                   'export ACCEPTANCE_TEST_PROVIDER=gce',
+                   *run_acceptance_loopback_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
+      timeout: 90
+      directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_acceptance_on_Rackspace_CentOS_7_with_Cinder:
       at: '0 5 * * *'
@@ -1578,6 +1542,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
@@ -1603,6 +1568,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_sphinx_link_check:
       at: '0 8 * * *'
@@ -1617,6 +1583,7 @@ job_type:
                    *sync_master_docs_to_doc_dev ]
           }
       timeout: 10
+      notify_slack: '#engineering'
 
 #-----------------------------------------------------------------------------#
 # View definitions below this point

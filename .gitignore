@@ -64,11 +64,6 @@ _trial_temp*
 # Sphinx documentation
 docs/_build/
 
-# Vagrant
-.vagrant
-vagrant/tutorial/*.box
-vagrant/dev/*.box
-
 # Mac stuff
 .DS_Store
 .DS_Store?
