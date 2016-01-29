@@ -9,7 +9,7 @@ import os
 import pwd
 from unittest import skipIf, SkipTest
 from uuid import uuid4
-from distutils.version import LooseVersion
+from distutils.version import LooseVersion  # pylint: disable=import-error
 
 import psutil
 

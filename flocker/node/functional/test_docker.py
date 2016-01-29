@@ -6,6 +6,7 @@ Functional tests for :module:`flocker.node._docker`.
 
 from __future__ import absolute_import
 
+from datetime import timedelta
 from functools import partial
 import time
 import socket
@@ -30,7 +31,7 @@ from ...common import loop_until
 from ...testtools import (
     find_free_port, flaky, DockerImageBuilder, assertContainsAll,
     random_name,
-    TestCase, AsyncTestCase,
+    async_runner, TestCase, AsyncTestCase,
 )
 
 from ..test.test_docker import ANY_IMAGE, make_idockerclient_tests
@@ -109,6 +110,13 @@ class GenericDockerClientTests(AsyncTestCase):
     real Docker.
     """
     clientException = APIError
+
+    # FLOC-3935: These tests (and the ones in NamespacedDockerClientTests) are
+    # often timing out, sometimes in weird ways that cause interference with
+    # other tests. Until we can identify the cause, effectively disable
+    # timeouts on these tests and rely on the Jenkins timeout (or the limited
+    # patience of developers) to ensure they halt.
+    run_tests_with = async_runner(timeout=timedelta(hours=1))
 
     @if_docker_configured
     def setUp(self):
@@ -260,7 +268,6 @@ class GenericDockerClientTests(AsyncTestCase):
         'which requires Docker-1.6.0 or newer. '
         'See https://docs.docker.com/registry/deploying/ for details.'
     )
-    @flaky(u"FLOC-3843")
     def test_private_registry_image(self):
         """
         ``DockerClient.add`` can start containers based on an image from a
@@ -643,14 +650,13 @@ class GenericDockerClientTests(AsyncTestCase):
 
         def extract_listening_port(client):
             listing = client.list()
-            listing.addCallback(
-                lambda applications: list(
-                    next(iter(application.ports)).external_port
-                    for application
-                    in applications
-                )[0]
-            )
+
+            def listed(apps):
+                [app] = [app for app in apps if app.name == registry_name]
+                return next(iter(app.ports)).external_port
+            listing.addCallback(listed)
             return listing
+
         registry_starting.addCallback(extract_listening_port)
 
         def wait_for_listening(external_port):
@@ -660,6 +666,7 @@ class GenericDockerClientTests(AsyncTestCase):
             registry_listening = self.request_until_response(registry.port)
             registry_listening.addCallback(lambda ignored: registry)
             return registry_listening
+
         registry_starting.addCallback(wait_for_listening)
 
         return registry_starting
@@ -948,7 +955,7 @@ class GenericDockerClientTests(AsyncTestCase):
         def started((path1, path2)):
             expected1 = path1.child(b"a")
             expected2 = path2.child(b"b")
-            for i in range(100):
+            for _ in range(100):
                 if expected1.exists() and expected2.exists():
                     return
                 else:
@@ -1319,8 +1326,3 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
         d.addCallback(lambda _: client2.list())
         d.addCallback(self.assertEqual, set())
         return d
-
-    @flaky(u'FLOC-1657')
-    def test_pull_image_if_necessary(self):
-        return super(
-            NamespacedDockerClientTests, self).test_pull_image_if_necessary()

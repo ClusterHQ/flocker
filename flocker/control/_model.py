@@ -156,11 +156,11 @@ class DockerImage(PClass):
             repository=self.repository, tag=self.tag)
 
     @classmethod
-    def from_string(cls, input):
+    def from_string(cls, input_name):
         """
         Given a Docker image name, return a :class:`DockerImage`.
 
-        :param unicode input: A Docker image name in the format
+        :param unicode input_name: A Docker image name in the format
             ``repository[:tag]``.
 
         :raises ValueError: If Docker image name is not in a valid format.
@@ -168,12 +168,12 @@ class DockerImage(PClass):
         :returns: A ``DockerImage`` instance.
         """
         kwargs = {}
-        parts = input.rsplit(u':', 1)
+        parts = input_name.rsplit(u':', 1)
         repository = parts[0]
         if not repository:
             raise ValueError("Docker image names must have format "
                              "'repository[:tag]'. Found '{image_name}'."
-                             .format(image_name=input))
+                             .format(image_name=input_name))
         kwargs['repository'] = repository
         if len(parts) == 2:
             kwargs['tag'] = parts[1]

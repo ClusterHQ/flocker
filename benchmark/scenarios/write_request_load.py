@@ -122,6 +122,9 @@ class WriteRequest(object):
             self.dataset_id
             )
 
+    def run_cleanup(self):
+        return self.control_service.delete_dataset(self.dataset_id)
+
 
 def write_request_load_scenario(reactor, cluster, request_rate=10,
                                 sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
