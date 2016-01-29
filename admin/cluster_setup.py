@@ -75,21 +75,21 @@ class LibcloudRunner(OldLibcloudRunner):
         )
         d = perform(make_dispatcher(reactor), commands)
 
-        def error(failure):
+        def configure_failed(failure):
             print "Failed to configure control node"
             write_failure(failure)
             return failure
 
-        d.addErrback(error)
-
         # It should be sufficient to configure just the control service here,
         # but there is an assumption that the control node is both a control
         # node and an agent node.
-        d.addCallback(
+        d.addCallbacks(
             lambda _: self._add_node_to_cluster(
                 reactor, cluster, node, index
-            )
+            ),
+            errback=configure_failed,
         )
+        # Return the cluster.
         d.addCallback(lambda _: cluster)
         return d
 

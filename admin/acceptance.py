@@ -644,14 +644,13 @@ class LibcloudRunner(object):
             def provision(node):
                 d = self._provision_node(reactor, node)
 
-                def error(failure):
+                def provisioning_failed(failure):
                     # Destroy a node if we failed to provision it.
                     self._destroy_node(node)
                     return failure
 
-                d.addErrback(error)
                 # Make sure too return the node.
-                d.addCallback(lambda _: node)
+                d.addCallbacks(lambda _: node, errback=provisioning_failed)
                 return d
 
             d.addCallback(provision)
@@ -720,7 +719,7 @@ class LibcloudRunner(object):
             cluster.agent_nodes.append(node)
             return node
 
-        def error(failure):
+        def configure_failed(failure):
             print "Failed to configure node {}".format(node.name)
             write_failure(failure)
             if node is not cluster.control_node:
@@ -730,8 +729,7 @@ class LibcloudRunner(object):
             # the partial success.
             return failure
 
-        d.addErrback(error)
-        d.addCallback(add_node)
+        d.addCallbacks(add_node, errback=configure_failed)
         return d
 
     def extend_cluster(self, reactor, cluster, count, tag, starting_index):
