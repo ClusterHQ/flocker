@@ -1673,7 +1673,11 @@ def reinstall_flocker_at_version(
                         task_enable_flocker_agent(
                             distribution=node.distribution,
                             action='restart',
-                        )
+                        ),
+                        if_firewall_available(
+                            node.distribution,
+                            open_firewall_for_docker_api(node.distribution),
+                        ),
                     ])
                 )
                 for node in managed_nodes
