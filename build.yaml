@@ -840,13 +840,13 @@ common_cli:
   upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
     # uploads the new generated html to a folder on the S3 staging-docs bucket
     cd _build/html
-    aws --region ${S3_DOCS_REGION} s3 sync . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
+    aws --region ${S3_DOCS_REGION} s3 sync --delete . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
     echo "This branch is available at :"
     echo "http://clusterhq-staging-docs.s3.amazonaws.com/$TRIGGERED_BRANCH/index.html"
 
   sync_master_docs_to_doc_dev: &sync_master_docs_to_doc_dev |
     # ensure master docs at doc-dev are up-to-date
-    [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --acl public-read \
+    [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --delete --acl public-read \
       s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
 
   upload_vagrant_basebox_osx_yosemite_to_s3: &upload_vagrant_basebox_osx_yosemite_to_s3 |
