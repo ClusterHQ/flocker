@@ -458,7 +458,7 @@ def make_managed_nodes(addresses, distribution):
 
 def get_default_volume_size(dataset_backend_configuration):
     """
-    Calcuate the default volume size for the given dataset backend
+    Calculate the default volume size for the given dataset backend
     configuration.
 
     :param dataset_backend_configuration: The backend configuration.
@@ -649,7 +649,7 @@ class LibcloudRunner(object):
                     self._destroy_node(node)
                     return failure
 
-                # Make sure too return the node.
+                # Make sure to return the node.
                 d.addCallbacks(lambda _: node, errback=provisioning_failed)
                 return d
 
