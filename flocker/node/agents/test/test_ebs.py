@@ -258,9 +258,14 @@ class FindAllocatedDeviceTests(TestCase):
 
     def test_returns_device_name_list(self):
         """
-        Returns at least one device (the root device).
+        Returns at least one device (the root device).  All returned
+        values are existing devices.
         """
-        self.assertGreater(len(_find_allocated_devices()), 0)
+        devices = _find_allocated_devices()
+        self.assertGreater(len(devices), 0)
+        self.assertTrue(
+            all(FilePath('/dev/{}'.format(d)).exists() for d in devices)
+        )
 
 
 class SelectFreeDeviceTests(TestCase):
