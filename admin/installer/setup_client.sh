@@ -56,4 +56,4 @@ ${DOCKER_CERT_HOME}/createclient.exp
 cp -r ${DOCKER_CERT_HOME} ${UBUNTU_HOME}
 
 # Signal successful stack creation.
-curl ${SUCCESS_SIGNAL_URL}
+curl ${SUCCESS_SIGNAL_URL} || echo "Failed to report success to ClusterHQ"
