@@ -2,6 +2,7 @@
     # Redirects in /latest/ introduced for 1.10.0 doc reorganization
     "introduction/": {replace_key: ""}
     "introduction/flocker-supports.html": {replace_key: "supported/"}
+    "introduction/flocker-plugin.html": {replace_key: "docker-integration/"}
     "install/": {replace_key: ""}
     "config/": {replace_key: ""}
     "control/": {replace_key: ""}
@@ -14,6 +15,7 @@
     "labs/mesosphere.html": {replace_key: "mesos-integration/"}
     "labs/kubernetes.html": {replace_key: "kubernetes-integration/"}
     "labs/flockercontainers.html": {replace_key: "supported/flockercontainers.html"}
+    # Changed in 1.4.0
     "labs/docker-plugin.html": {replace_key: "docker-integration/"}
 "en/":
     # Redirects for version of the documentation not published to S3.
