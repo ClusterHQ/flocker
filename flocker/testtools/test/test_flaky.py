@@ -42,7 +42,7 @@ from .._testhelpers import (
 
 
 # A JIRA key is just some text.
-jira_keys = text(average_size=5)
+jira_keys_strat = text(average_size=5)
 
 # Don't really want to run anything more than 5 times.
 num_runs = integers(min_value=1, max_value=5)
@@ -75,7 +75,7 @@ class FlakyTests(testtools.TestCase):
         """
         return getattr(f, _FLAKY_ATTRIBUTE).to_dict()
 
-    @given(jira_keys, num_runs, num_runs)
+    @given(jira_keys_strat, num_runs, num_runs)
     def test_annotation_dictionary(self, jira_key, max_runs, min_passes):
         [min_passes, max_runs] = sorted([min_passes, max_runs])
 
@@ -89,7 +89,9 @@ class FlakyTests(testtools.TestCase):
             'jira_keys': set([jira_key]),
         }))
 
-    @given(lists(jira_keys, min_size=1, average_size=2), num_runs, num_runs)
+    @given(
+        lists(jira_keys_strat, min_size=1, average_size=2),
+        num_runs, num_runs)
     def test_annotation_dictionary_multiple_keys(self, jira_keys, max_runs,
                                                  min_passes):
         [min_passes, max_runs] = sorted([min_passes, max_runs])
@@ -104,8 +106,9 @@ class FlakyTests(testtools.TestCase):
             'jira_keys': set(jira_keys),
         }))
 
-    @given(lists(jira_keys, min_size=1, average_size=2), num_runs, num_runs,
-           lists(jira_keys, min_size=1, average_size=2), num_runs, num_runs)
+    @given(
+        lists(jira_keys_strat, min_size=1, average_size=2), num_runs, num_runs,
+        lists(jira_keys_strat, min_size=1, average_size=2), num_runs, num_runs)
     def test_multiple_decorators(self, jira_keys1, max_runs1, min_passes1,
                                  jira_keys2, max_runs2, min_passes2):
         [min_passes1, max_runs1] = sorted([min_passes1, max_runs1])
@@ -140,7 +143,7 @@ class FlakyTests(testtools.TestCase):
         test = SomeTest('test_something')
         self.assertThat(run_test(test), has_results(tests_run=Equals(1)))
 
-    @given(jira_keys, num_runs, num_runs)
+    @given(jira_keys_strat, num_runs, num_runs)
     def test_always_erroring_flaky_test(self, jira_keys, max_runs, min_passes):
         """
         A flaky test always errors out is recorded as erroring.
@@ -252,7 +255,7 @@ class FlakyTests(testtools.TestCase):
         test = SubclassTest('test_something')
         self.assertThat(run_test(test), has_results(tests_run=Equals(1)))
 
-    @given(jira_keys, num_runs, num_runs,
+    @given(jira_keys_strat, num_runs, num_runs,
            streaming(text(average_size=10)).map(iter))
     def test_flaky_testtools_skipped_test(self, jira_keys, max_runs,
                                           min_passes, reasons):
@@ -273,7 +276,7 @@ class FlakyTests(testtools.TestCase):
         test = SkippingTest('test_skip')
         self.assertThat(run_test(test), only_skips(1, observed_reasons))
 
-    @given(jira_keys)
+    @given(jira_keys_strat)
     def test_sends_start_on_start(self, jira_keys):
         """
         Flaky tests send ``startTest`` as soon as they start.
@@ -304,7 +307,7 @@ class FlakyIntegrationTests(testtools.TestCase):
     test cases.
     """
 
-    @given(base_test_cases, jira_keys, num_runs, num_runs,
+    @given(base_test_cases, jira_keys_strat, num_runs, num_runs,
            streaming(text(average_size=10)).map(iter))
     def test_flaky_skipped_test(self, base_test_case, jira_keys, max_runs,
                                 min_passes, reasons):
@@ -328,7 +331,7 @@ class FlakyIntegrationTests(testtools.TestCase):
         test = SkippingTest('test_skip')
         self.assertThat(run_test(test), only_skips(1, observed_reasons))
 
-    @given(base_test_cases, jira_keys, num_runs, num_runs)
+    @given(base_test_cases, jira_keys_strat, num_runs, num_runs)
     def test_retry_by_default(self, base_test_case, jira_keys, max_runs,
                               min_passes):
         """

@@ -57,7 +57,7 @@ def sequence(effects):
 
 
 @sync_performer
-def perform_sequence(dispatcher, intent):
+def perform_sequence(_, intent):
     """Performer for :class:`Sequence`."""
     effects = list(intent.effects)
     if not effects:

@@ -994,16 +994,16 @@ class EBSBlockDeviceAPI(object):
     An EBS implementation of ``IBlockDeviceAPI`` which creates
     block devices in an EC2 cluster using Boto APIs.
     """
-    def __init__(self, ec2_client, cluster_id):
+    def __init__(self, client, cluster_id):
         """
         Initialize EBS block device API instance.
 
-        :param _EC2 ec2_client: A record of EC2 connection and zone.
+        :param _EC2 client: A record of EC2 connection and zone.
         :param UUID cluster_id: UUID of cluster for this
             API instance.
         """
-        self.connection = ec2_client.connection
-        self.zone = ec2_client.zone
+        self.connection = client.connection
+        self.zone = client.zone
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
 

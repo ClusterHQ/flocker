@@ -8,7 +8,7 @@ from subprocess import Popen, PIPE, check_output, CalledProcessError
 from contextlib import contextmanager
 from io import BytesIO
 from threading import current_thread
-from pipes import quote
+from pipes import quote as pipes_quote
 
 from zope.interface import Interface, implementer
 
@@ -122,7 +122,7 @@ class ProcessNode(object):
             # and result in an immediate failure).  As mentioned above, we'll
             # switch away from SSH soon.
             b"-o", b"PreferredAuthentications=publickey",
-            b"-p", b"%d" % (port,), host), quote=quote)
+            b"-p", b"%d" % (port,), host), quote=pipes_quote)
 
 
 @implementer(INode)

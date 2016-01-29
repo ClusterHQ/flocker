@@ -148,9 +148,9 @@ class _RetryFlaky(testtools.RunTest):
         This overrides a method in base ``RunTest`` which is intended to be
         overwritten.
         """
-        flaky = _get_flaky_annotation(self._case)
-        if flaky is not None:
-            return self._run_flaky_test(self._case, result, flaky)
+        flaky_annotation = _get_flaky_annotation(self._case)
+        if flaky_annotation is not None:
+            return self._run_flaky_test(self._case, result, flaky_annotation)
 
         # No flaky attributes? Then run as normal.
         return self._run_test(self._case, result)
@@ -167,15 +167,15 @@ class _RetryFlaky(testtools.RunTest):
         run_test = self._run_test_factory(case, *self._args, **self._kwargs)
         return run_test._run_prepared_result(result)
 
-    def _run_flaky_test(self, case, result, flaky):
+    def _run_flaky_test(self, case, result, flaky_annotation):
         """
         Run a test that has been decorated with the `@flaky` decorator.
 
         :param TestCase case: A ``testtools.TestCase`` to run.
         :param TestResult result: A ``TestResult`` object that conforms to the
             testtools extended result interface.
-        :param _FlakyAnnotation flaky: A description of the conditions of
-            flakiness.
+        :param _FlakyAnnotation flaky_annotation: A description of the
+            conditions of flakiness.
 
         :return: A ``TestResult`` with the result of running the flaky test.
         """
@@ -185,16 +185,16 @@ class _RetryFlaky(testtools.RunTest):
 
         # Optimization to stop running early if there's no way that we can
         # reach the minimum number of successes.
-        max_fails = flaky.max_runs - flaky.min_passes
-        while (successes < flaky.min_passes and
+        max_fails = flaky_annotation.max_runs - flaky_annotation.min_passes
+        while (successes < flaky_annotation.min_passes and
                len(results) - successes <= max_fails):
             was_successful, result_type, details = self._attempt_test(case)
             if was_successful:
                 successes += 1
             results.append((result_type, details))
-        successful = successes >= flaky.min_passes
+        successful = successes >= flaky_annotation.min_passes
 
-        flaky_data = flaky.to_dict()
+        flaky_data = flaky_annotation.to_dict()
         flaky_data.update({'runs': len(results), 'passes': successes})
         flaky_details = {
             'flaky': text_content(pformat(flaky_data)),
@@ -215,8 +215,8 @@ class _RetryFlaky(testtools.RunTest):
                     id=case.id(),
                     successes=successes,
                     passes=len(results),
-                    min_passes=flaky.min_passes,
-                    max_runs=flaky.max_runs,
+                    min_passes=flaky_annotation.min_passes,
+                    max_runs=flaky_annotation.max_runs,
                 ).write()
                 result.addSuccess(case, details=combined_details)
         else:

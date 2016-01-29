@@ -4,7 +4,7 @@
 Helpers for using libcloud.
 """
 
-from time import sleep
+import time
 from zope.interface import implementer
 
 from characteristic import attributes, Attribute
@@ -342,7 +342,7 @@ class LibcloudProvisioner(object):
                 return
 
 
-def _retry_exception(f, steps=(0.1,) * 10, sleep=sleep):
+def _retry_exception(f, steps=(0.1,) * 10, sleep=time.sleep):
     """
     Retry a function if it raises an exception.
 

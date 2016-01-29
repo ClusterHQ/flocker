@@ -204,15 +204,15 @@ def put(content, path, log_content_filter=identity):
         content=content, path=path, log_content_filter=log_content_filter))
 
 
-def comment(comment):
+def comment(text):
     """
     Record a comment to be shown in the documentation corresponding to a task.
 
-    :param bytes comment: The desired comment.
+    :param bytes text: The desired comment.
 
     :return Effect:
     """
-    return Effect(Comment(comment=comment))
+    return Effect(Comment(comment=text))
 
 
 def run_from_args(command, log_command_filter=identity):

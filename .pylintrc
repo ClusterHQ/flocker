@@ -77,13 +77,13 @@ enable=import-error,
        # Has common issues with our style due to
        # https://github.com/PyCQA/pylint/issues/210
        unused-variable,
-       boolean-datetime
+       boolean-datetime,
+       redefined-outer-name,
 
 # Things we'd like to enable someday:
-# redefined-outer-name (requires a bunch of work to clean up our code first)
 # undefined-variable (re-enable when pylint fixes https://github.com/PyCQA/pylint/issues/760)
 # no-name-in-module (giving us spurious warnings https://github.com/PyCQA/pylint/issues/73)
-# unused-argument (need to clean up or code a lot, e.g. prefix unused_?)
+# unused-argument (need to clean up our code a lot, e.g. prefix unused_?)
 
 # Things we'd like to try.
 # Procedure:
@@ -91,7 +91,6 @@ enable=import-error,
 # 2. See if there's spurious ones; if so disable.
 # 3. Record above.
 # 4. Remove from this list.
-       # deprecated-method,
        # anomalous-unicode-escape-in-string,
        # anomalous-backslash-in-string,
        # not-in-loop,

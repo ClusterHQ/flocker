@@ -698,8 +698,8 @@ class RetryEffectTests(TestCase):
         The timeout is measured from the time the effect is performed (not from
         the time it is created).
         """
-        timeout = 3.0
-        time = self.get_time([0.0] + list(timeout + i for i in range(10)))
+        timeout_secs = 3.0
+        time = self.get_time([0.0] + list(timeout_secs + i for i in range(10)))
 
         exceptions = [Exception("One problem")]
         result = object()

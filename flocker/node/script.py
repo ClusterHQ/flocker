@@ -23,7 +23,7 @@ from zope.interface import implementer
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.internet.ssl import Certificate
-from twisted.internet import reactor  # pylint: disable=unused-import
+from twisted.internet import reactor as mod_reactor
 from twisted.internet.defer import succeed
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.reflect import namedAny
@@ -571,7 +571,7 @@ class AgentService(PClass):
         factory=pvector, initial=_DEFAULT_BACKENDS, mandatory=True,
     )
     deployers = field(factory=pmap, initial=_DEFAULT_DEPLOYERS, mandatory=True)
-    reactor = field(initial=reactor, mandatory=True)
+    reactor = field(initial=mod_reactor, mandatory=True)
 
     get_external_ip = field(initial=_get_external_ip, mandatory=True)
 

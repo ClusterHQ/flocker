@@ -392,14 +392,14 @@ def _keys_match(attribute):
         which must equal the corresponding key.
     :return: A function suitable for use as a pyrsistent invariant.
     """
-    def key_match_invariant(pmap):
+    def key_match_invariant(required):
         # Either the field allows None, in which case this is necessary,
         # or it doesn't in which case this won't do any harm since
         # invalidity of None will be enforced elsewhere:
-        if pmap is None:
+        if required is None:
             return (True, "")
 
-        for (key, value) in pmap.items():
+        for (key, value) in required.items():
             if key != getattr(value, attribute):
                 return (
                     False, "{} is not correct key for {}".format(key, value)
@@ -946,10 +946,10 @@ class NodeState(PRecord):
         completely if result is ``NodeState`` with no knowledge of
         anything.
         """
-        attributes = [attr for attr in
-                      self._POTENTIALLY_IGNORANT_ATTRIBUTES
-                      if getattr(self, attr) is not None]
-        return _WipeNodeState(node_uuid=self.uuid, attributes=attributes)
+        attrs = [attr for attr in
+                 self._POTENTIALLY_IGNORANT_ATTRIBUTES
+                 if getattr(self, attr) is not None]
+        return _WipeNodeState(node_uuid=self.uuid, attributes=attrs)
 
 
 @implementer(IClusterStateChange)

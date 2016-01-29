@@ -102,10 +102,10 @@ class _OnMismatch(PClass):
         If it does not match, apply the given function to the mismatch, first
         ensuring that the mismatch has ``mismatched`` set.
         """
-        mismatch = self._matcher.match(matchee)
-        if mismatch is None:
+        mismatch_ = self._matcher.match(matchee)
+        if mismatch_ is None:
             return
-        return self._function(_adapt_mismatch(mismatch, matchee))
+        return self._function(_adapt_mismatch(mismatch_, matchee))
 
 
 def OnMismatch(function, matcher):

@@ -65,12 +65,12 @@ def create_simple_html_directive(name, pre, post,
         "run": run_directive,
     })
 
-    def setup(app):
+    def do_setup(app):
         app.add_node(node_class,
                      html=(visit_html, depart_html))
         app.add_directive(name, directive_class)
 
-    return node_class, directive_class, setup
+    return node_class, directive_class, do_setup
 
 
 intro_text, IntroTextDirective, intro_text_setup = (

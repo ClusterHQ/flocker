@@ -22,7 +22,7 @@ from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
-from twisted.internet import reactor
+from twisted.internet import reactor as mod_reactor
 from twisted.internet.error import ProcessTerminated
 
 from eliot import start_action, Message, write_failure
@@ -232,7 +232,7 @@ def get_backend_api(test_case, cluster_id):
     if 'backend' in backend_config:
         backend_config.pop('backend')
     backend = get_backend(backend_name)
-    return get_api(backend, pmap(backend_config), reactor, cluster_id)
+    return get_api(backend, pmap(backend_config), mod_reactor, cluster_id)
 
 
 def skip_backend(unsupported, reason):
@@ -304,7 +304,7 @@ def get_mongo_client(host, port=27017):
         except PyMongoError:
             return False
 
-    d = loop_until(reactor, create_mongo_client)
+    d = loop_until(mod_reactor, create_mongo_client)
     return d
 
 
@@ -342,7 +342,7 @@ class Node(PClass):
 
         :return Deferred: Deferred that fires when the process is ended.
         """
-        return run_ssh(reactor, "root", self.public_address, args,
+        return run_ssh(mod_reactor, "root", self.public_address, args,
                        handle_stdout=handle_stdout,
                        handle_stderr=handle_stderr)
 
@@ -516,7 +516,7 @@ class Cluster(PClass):
             request.addCallback(got_results)
             return request
 
-        waiting = loop_until(reactor, deleted)
+        waiting = loop_until(mod_reactor, deleted)
         waiting.addCallback(lambda _: deleted_dataset)
         return waiting
 
@@ -552,7 +552,7 @@ class Cluster(PClass):
             request.addCallback(got_results)
             return request
 
-        waiting = loop_until(reactor, created)
+        waiting = loop_until(mod_reactor, created)
         waiting.addCallback(lambda ignored: expected_dataset)
         return waiting
 
@@ -684,7 +684,7 @@ class Cluster(PClass):
             request.addCallback(got_response)
             return request
 
-        return loop_until(reactor, created)
+        return loop_until(mod_reactor, created)
 
     @log_method
     def current_nodes(self):
@@ -738,7 +738,7 @@ class Cluster(PClass):
                 get_items.addCallback(delete_items)
                 get_items.addCallback(
                     lambda ignored: loop_until(
-                        reactor, lambda: state_method().addCallback(
+                        mod_reactor, lambda: state_method().addCallback(
                             lambda result: [] == result
                         )
                     )
@@ -766,7 +766,7 @@ class Cluster(PClass):
                 lambda item: self.remove_container(item[u"name"]),
             )
             return timeout(
-                reactor, cleaning_containers, 30,
+                mod_reactor, cleaning_containers, 30,
                 Exception("Timed out cleaning up Flocker containers"),
             )
 
@@ -778,7 +778,7 @@ class Cluster(PClass):
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
             return timeout(
-                reactor, cleaning_datasets, 60,
+                mod_reactor, cleaning_datasets, 60,
                 Exception("Timed out cleaning up datasets"),
             )
 
@@ -797,7 +797,7 @@ class Cluster(PClass):
                 get_items.addCallback(release_all)
                 releasing_leases = get_items.addActionFinish()
                 return timeout(
-                    reactor, releasing_leases, 20,
+                    mod_reactor, releasing_leases, 20,
                     Exception("Timed out cleaning up leases"),
                 )
 
@@ -819,7 +819,7 @@ class Cluster(PClass):
         close(fd)
         destination = FilePath(name)
         d = download_file(
-            reactor, b"root", node.public_address, path, destination
+            mod_reactor, b"root", node.public_address, path, destination
         )
         d.addCallback(lambda ignored: destination)
         return d
@@ -969,7 +969,7 @@ def require_cluster(num_nodes, required_backend=None):
             # clean them up prior to the test.  The nodes must already
             # have been started and their flocker services started before
             # we clean them.
-            waiting_for_cluster = _get_test_cluster(reactor)
+            waiting_for_cluster = _get_test_cluster(mod_reactor)
 
             def clean(cluster):
                 existing = len(cluster.nodes)
@@ -1117,7 +1117,7 @@ def verify_socket(host, port):
             ).write()
             return conn == 0
 
-    dl = loop_until(reactor, can_connect)
+    dl = loop_until(mod_reactor, can_connect)
     return dl
 
 
@@ -1147,7 +1147,7 @@ def post_http_server(test, host, port, data, expected_response=b"ok"):
         request.addCallbacks(content, failed)
         return request
     d = verify_socket(host, port)
-    d.addCallback(lambda _: loop_until(reactor, lambda: make_post(
+    d.addCallback(lambda _: loop_until(mod_reactor, lambda: make_post(
         host, port, data)))
     d.addCallback(test.assertEqual, expected_response)
     return d
@@ -1211,7 +1211,7 @@ def query_http_server(host, port, path=b""):
         return req
 
     d = verify_socket(host, port)
-    d.addCallback(lambda _: loop_until(reactor, query))
+    d.addCallback(lambda _: loop_until(mod_reactor, query))
     return d
 
 

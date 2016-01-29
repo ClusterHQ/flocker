@@ -126,14 +126,14 @@ class FlockerScriptRunnerMainTests(TestCase):
 
         options = SpyOptions()
         script = SpyScript()
-        sys = FakeSysModule(argv=[b"flocker", b"--hello", b"world"])
+        fake_sys = FakeSysModule(argv=[b"flocker", b"--hello", b"world"])
         # XXX: We shouldn't be using this private fake and Twisted probably
         # shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
         # https://twistedmatrix.com/trac/ticket/7527
         from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
         runner = FlockerScriptRunner(script, options,
-                                     reactor=fakeReactor, sys_module=sys,
+                                     reactor=fakeReactor, sys_module=fake_sys,
                                      logging=False)
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(b"world", script.arguments.value)
@@ -149,14 +149,14 @@ class FlockerScriptRunnerMainTests(TestCase):
                 return succeed(None)
 
         script = Script()
-        sys = FakeSysModule(argv=[])
+        fake_sys = FakeSysModule(argv=[])
         # XXX: We shouldn't be using this private fake and Twisted probably
         # shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
         # https://twistedmatrix.com/trac/ticket/7527
         from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
         runner = FlockerScriptRunner(script, usage.Options(),
-                                     reactor=fakeReactor, sys_module=sys,
+                                     reactor=fakeReactor, sys_module=fake_sys,
                                      logging=False)
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(sys.stdout.getvalue(), b"")

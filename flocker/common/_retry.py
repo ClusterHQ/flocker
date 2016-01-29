@@ -12,7 +12,7 @@ from datetime import timedelta
 from functools import partial
 from inspect import getfile, getsourcelines
 from itertools import repeat
-import time
+import time as mod_time
 
 from eliot import (
     ActionType, MessageType, Message, Field, start_action,
@@ -228,7 +228,7 @@ def poll_until(predicate, steps, sleep=None):
         that sequence waiting for predicate to be truthy.
     """
     if sleep is None:
-        sleep = time.sleep
+        sleep = mod_time.sleep
     for step in steps:
         result = predicate()
         if result:
@@ -243,20 +243,22 @@ def poll_until(predicate, steps, sleep=None):
 # TODO: Would be nice if this interface were more similar to some of the other
 # retry functions in this module.  For example, accept an iterable of intervals
 # instead of timeout/retry_wait/backoff.
-def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
-                              backoff=True, time=time.time):
+def retry_effect_with_timeout(effect, timeout_secs,
+                              retry_wait=timedelta(seconds=1), backoff=True,
+                              time=mod_time.time):
     """
-    If ``effect`` fails, retry it until ``timeout`` expires.
+    If ``effect`` fails, retry it until ``timeout_secs`` expires.
 
     To avoid excessive retrying, this function uses the exponential backoff
     algorithm by default, waiting double the time between each retry.
 
     :param Effect effect: The Effect to retry.
-    :param int timeout: Keep retrying until timeout.  This is measured in
+    :param int timeout_secs: Keep retrying until timeout.  This is measured in
         seconds from the time of the first failure of ``effect``.
     :param timedelta retry_wait: The wait time between retries
     :param bool backoff: Whether we should use exponential backoff
-    :param callable time: A nullary callable that returns a UNIX timestamp.
+    :param callable current_time: A nullary callable that returns a UNIX
+        timestamp.
 
     :return: An Effect that does what ``effect`` does, but retrying on
         exception.
@@ -265,7 +267,7 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
         end_time = None
         wait_time = None
 
-    def should_retry(exc_info):
+    def should_retry(_):
         # This is the wrong time to compute end_time.  It's a lot simpler to do
         # this than to hook into the effect being wrapped and record the time
         # it starts to run.  Perhaps implementing that would be a nice thing to
@@ -274,7 +276,7 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
         # Anyway, make note of when we want to be finished if we haven't yet
         # done so.
         if State.end_time is None:
-            State.end_time = time() + timeout
+            State.end_time = time() + timeout_secs
 
         if time() >= State.end_time:
             return Effect(Constant(False))

@@ -86,21 +86,21 @@ def flocker_control_main():
     # want the profiler to include that.
     pr = cProfile.Profile(time.clock)
 
-    def enable_profiling(signal, frame):
+    def enable_profiling(sig, frame):
         """
         Enable profiling of the control service.
 
-        :param int signal: See ``signal.signal``.
+        :param int sig: See ``signal.signal``.
         :param frame: None or frame object. See ``signal.signal``.
         """
         pr.enable()
 
-    def disable_profiling(signal, frame):
+    def disable_profiling(sig, frame):
         """
         Disable profiling of the control service.
         Dump profiling statistics to a file.
 
-        :param int signal: See ``signal.signal``.
+        :param int sig: See ``signal.signal``.
         :param frame: None or frame object. See ``signal.signal``.
         """
         current_time = time.strftime("%Y%m%d%H%M%S")
