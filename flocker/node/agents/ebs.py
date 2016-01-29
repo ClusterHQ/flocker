@@ -28,7 +28,7 @@ from uuid import UUID
 from bitmath import Byte, GiB
 
 from characteristic import with_cmp
-from pyrsistent import PClass, field, pset, pmap, thaw
+from pyrsistent import PClass, field, pmap
 from zope.interface import implementer
 from twisted.python.constants import (
     Names, NamedConstant, Values, ValueConstant
@@ -90,6 +90,13 @@ register_exception_extractor(
         "aws_request_id": e.response['ResponseMetadata']['RequestId'],
     }
 )
+
+
+class NoAvailableDevice(Exception):
+    """
+    Exception indicating that there are no free device names available
+    for attaching a volume to this node.
+    """
 
 
 class EBSVolumeTypes(Values):
@@ -900,6 +907,85 @@ def _get_blockdevices():
     return FilePath(b"/sys/block").children()
 
 
+def _next_device():
+    """
+    Get the next available EBS device name for this EC2 instance.
+
+    :return unicode file_name: available device name for attaching EBS volume.
+    """
+
+    return _select_free_device(_find_allocated_devices())
+
+
+def _find_allocated_devices():
+    """
+    Enumerate the allocated device names on this host.
+
+    :return Sequence[bytes]: List of allocated device basenames
+        (e.g. ``[b'sda']``).
+    """
+    command = [
+        b"/bin/lsblk",
+        b"--nodeps",           # Only print top-level devices
+        b"--noheadings",       # Do not display KNAME header
+        b"--output", b"KNAME"  # Only display kernel device name
+    ]
+    command_result = check_output(command)
+    existing = [
+        dev for dev in command_result.split("\n")
+        if dev.startswith(b"xvd") or dev.startswith(b'sd')
+    ]
+    return existing
+
+
+def _select_free_device(existing):
+    """
+    Given a list of allocated devices, return an available device name.
+
+    According to
+    http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html
+    all AWS Linux instances have ``/dev/sd[a-z]`` available.  However:
+
+    - ``sda`` is reserved for the root device (technically only ``sda1``);
+    - Amazon "strongly recommend that you don't" use instance store names
+      (usually ``/dev/sd[b-e]``) "because the behavior can be unpredictable";
+    - some "custom kernels might have restrictions that limit use to
+      ``/dev/sd[f-p]``".
+
+    ``sd[f-p]`` only allows 11 devices, so to increase this, ignore the
+    least stringent statement above, and allow ``sd[f-z]`` (21 devices).
+
+    To reduce the risk of failing on custom AMIs, select from ``[f-p]`` first.
+
+    Any further increase will need to start mining the ``hd[a-z][1-15]``
+    and ``xvd[b-c][a-z]`` namespaces, but which to use depends on whether
+    the AMI uses paravirtualization or HVM.
+
+    :param Sequence[bytes]: List of allocated device basenames
+        (e.g. ``[b'sda']``).
+    :return unicode file_name: available device name for attaching EBS volume.
+    """
+
+    local_devices = frozenset(existing)
+    sorted_devices = sorted(existing)
+    IN_USE_DEVICES(devices=sorted_devices).write()
+
+    for suffix in b"fghijklmonpqrstuvwxyz":
+        next_local_device = b'xvd' + suffix
+        next_local_sd_device = b'sd' + suffix
+        file_name = u'/dev/sd' + unicode(suffix)
+        possible_devices = [
+            next_local_device, next_local_sd_device
+        ]
+        if not local_devices.intersection(possible_devices):
+            return file_name
+
+    # Could not find any suitable device that is available
+    # for attachment. Log to Eliot before giving up.
+    NO_AVAILABLE_DEVICE(devices=sorted_devices).write()
+    raise NoAvailableDevice()
+
+
 @implementer(IBlockDeviceAPI)
 @implementer(IProfiledBlockDeviceAPI)
 @implementer(ICloudAPI)
@@ -1049,52 +1135,6 @@ class EBSBlockDeviceAPI(object):
         return volume.attach_to_instance(
             InstanceId=instance_id, Device=device)
 
-    def _next_device(self):
-        """
-        Get the next available EBS device name for this EC2 instance.
-
-        Devices available for EBS volume usage are ``/dev/sd[f-p]``.
-        Find the first device from this set that is currently not
-        in use.
-        XXX: Handle lack of free devices in ``/dev/sd[f-p]`` range
-        (see https://clusterhq.atlassian.net/browse/FLOC-1887).
-
-        :returns unicode file_name: available device name for attaching
-            EBS volume.
-        :returns ``None`` if suitable EBS device names on this EC2
-            instance are currently occupied.
-        """
-
-        command = [b"/bin/lsblk", b"--output", b"KNAME"]
-        # Command result returns a list of kernel device names
-        # separated by line breaks, with KNAME as the output of the
-        # header row. The top line is therefore ignored in the filter
-        # below.
-        command_result = check_output(command)
-        local_devices = pset(filter(
-            lambda d: d.startswith(b"xvd") or d.startswith('sd'),
-            command_result.split("\n")[1:]
-        ))
-        sorted_devices = sorted(list(thaw(local_devices)))
-        IN_USE_DEVICES(devices=sorted_devices).write()
-
-        for suffix in b"fghijklmonp":
-            next_local_device = b'xvd' + suffix
-            next_local_sd_device = b'sd' + suffix
-            file_name = u'/dev/sd' + unicode(suffix)
-            possible_devices = [
-                next_local_device, next_local_sd_device
-            ]
-            if not any(
-                list(device in local_devices for device in possible_devices)
-            ):
-                return file_name
-
-        # Could not find any suitable device that is available
-        # for attachment. Log to Eliot before giving up.
-        NO_AVAILABLE_DEVICE(devices=sorted_devices).write()
-        return None
-
     def create_volume(self, dataset_id, size):
         """
         Create a volume on EBS backend.
@@ -1222,6 +1262,7 @@ class EBSBlockDeviceAPI(object):
             associate the volume with the expected OS device file.  This
             indicates use on an unsupported OS, a misunderstanding of the EBS
             device assignment rules, or some other bug in this implementation.
+        :raises NoAvailableDevice: If there are no available device names.
         """
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         volume = _blockdevicevolume_from_ebs_volume(ebs_volume)
@@ -1237,12 +1278,7 @@ class EBSBlockDeviceAPI(object):
         attached = False
         for _ in range(3):
             with self.lock:
-                device = self._next_device()
-                if device is None:
-                    # XXX: Handle lack of free devices in ``/dev/sd[f-p]``.
-                    # (https://clusterhq.atlassian.net/browse/FLOC-1887).
-                    # No point in attempting an ``attach_volume``, return.
-                    return
+                device = _next_device()
                 blockdevices = _get_blockdevices()
                 attached = _attach_volume_and_wait_for_device(
                     volume, attach_to,

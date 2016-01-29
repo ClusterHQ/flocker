@@ -16,6 +16,7 @@ Next Release
 * The new :ref:`CloudFormation installer <cloudformation>` has been made available, to provide a far simpler installation experience for users on AWS.
 * The :ref:`Flocker plugin for Docker <plugin>` should support the direct volume listing and inspection functionality added to Docker 1.10.
 * Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
+* Increase limit on maximum Flocker volumes per AWS instance from 11 to 21.
 
 This Release
 ============
