@@ -231,7 +231,8 @@ class _SplitEliotLogs(Fixture):
             # Memoize the split log so we don't iterate through it twice.
             if split_logs[0] is None:
                 split_logs[0] = _split_map_maybe(
-                    _get_eliot_data, _iter_content_lines(twisted_log),
+                    extract_eliot_from_twisted_log,
+                    _iter_content_lines(twisted_log),
                 )
             return split_logs[0]
 
@@ -286,13 +287,14 @@ def _prettyformat_lines(lines):
 _ELIOT_MARKER = ' [-] ELIOT: '
 
 
-def _get_eliot_data(twisted_log_line):
+def extract_eliot_from_twisted_log(twisted_log_line):
     """
     Given a line from a Twisted log message, return the text of the Eliot log
     message that is on that line.
 
     If there is no Eliot message on that line, return ``None``.
 
+    :param str twisted_log_line: A line from a Twisted test.log.
     :return: A logged eliot message without Twisted logging preamble, or
         ``None``.
     :rtype: unicode or ``NoneType``.

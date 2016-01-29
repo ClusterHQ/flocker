@@ -47,7 +47,9 @@ from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.python.logfile import LogFile
 
-from ._base import AsyncTestCase, TestCase, async_runner
+from ._base import (
+    AsyncTestCase, TestCase, async_runner, extract_eliot_from_twisted_log,
+)
 from ._flaky import flaky
 from .. import __version__
 from ..common import RACKSPACE_MINIMUM_VOLUME_SIZE
@@ -69,6 +71,7 @@ __all__ = [
     'assert_not_equal_comparison',
     'async_runner',
     'attempt_effective_uid',
+    'extract_eliot_from_twisted_log',
     'find_free_port',
     'flaky',
     'help_problems',

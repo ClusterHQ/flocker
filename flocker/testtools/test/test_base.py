@@ -50,9 +50,9 @@ from twisted.python.failure import Failure
 from .. import CustomException, AsyncTestCase, TestCase, async_runner
 from .._base import (
     _SplitEliotLogs,
-    _get_eliot_data,
     _iter_lines,
     _path_for_test_id,
+    extract_eliot_from_twisted_log,
 )
 from ..matchers import dir_exists, file_contents
 from ..strategies import fqpns
@@ -367,9 +367,9 @@ class IterLinesTests(TesttoolsTestCase):
         self.assertThat(observed[-1], Not(EndsWith(separator)))
 
 
-class GetEliotDataTests(TesttoolsTestCase):
+class ExtractEliotFromTwistedLogTests(TesttoolsTestCase):
     """
-    Tests for ``_get_eliot_data``.
+    Tests for ``extract_eliot_from_twisted_log``.
     """
 
     def test_twisted_line(self):
@@ -377,7 +377,7 @@ class GetEliotDataTests(TesttoolsTestCase):
         When given a line logged by Twisted, _get_eliot_data returns ``None``.
         """
         line = '2015-12-11 11:59:48+0000 [-] foo\n'
-        self.assertThat(_get_eliot_data(line), Is(None))
+        self.assertThat(extract_eliot_from_twisted_log(line), Is(None))
 
     def test_eliot_line(self):
         """
@@ -399,7 +399,8 @@ class GetEliotDataTests(TesttoolsTestCase):
             '"name": "qux", '
             '"task_level": [1]}'
         )
-        self.assertThat(_get_eliot_data(logged_line), Equals(expected))
+        self.assertThat(
+            extract_eliot_from_twisted_log(logged_line), Equals(expected))
 
 
 class MakeTemporaryTests(TesttoolsTestCase):

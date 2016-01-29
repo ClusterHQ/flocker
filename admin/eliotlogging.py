@@ -6,7 +6,7 @@ Filter Eliot logs out of Twisted test.log.
 
 import sys
 
-from flocker.testtools._base import _get_eliot_data
+from flocker.testtools import extract_eliot_from_twisted_log
 
 
 def chain_files(paths):
@@ -20,7 +20,7 @@ def chain_files(paths):
 
 
 def process_line(line):
-    eliot_line = _get_eliot_data(line)
+    eliot_line = extract_eliot_from_twisted_log(line)
     if eliot_line:
         yield eliot_line
         yield '\n'
