@@ -1294,6 +1294,7 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_docker_build_ubuntu_trusty_fpm:
       at: '0 1 * * *'
@@ -1322,6 +1323,7 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     build_vagrant_basebox_for_osx_yosemite:
       at: '0 5 * * *'
@@ -1369,6 +1371,7 @@ job_type:
           }
       timeout: 120
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_client_installation_on_OSX:
       at: '30 7 * * *'
@@ -1410,6 +1413,7 @@ job_type:
       # actually run the tests. Also has to be less than the timeout for the
       # main multijob, see jobs.groovy.j2:545.
       timeout: 50
+      notify_slack: '#engineering'
 
     run_acceptance_on_AWS_CentOS_7_with_EBS:
       at: '0 5 * * *'
@@ -1437,6 +1441,7 @@ job_type:
       # as of Dec 2015.
       timeout: 120
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
@@ -1461,6 +1466,7 @@ job_type:
       # but slightly shorter since Ubuntu runs the tests faster.
       timeout: 90
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_acceptance_on_GCE_CentOS_7_with_LOOPBACK:
       at: '0 5 * * *'
@@ -1534,6 +1540,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
@@ -1559,6 +1566,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
+      notify_slack: '#engineering'
 
     run_sphinx_link_check:
       at: '0 8 * * *'
@@ -1573,6 +1581,7 @@ job_type:
                    *sync_master_docs_to_doc_dev ]
           }
       timeout: 10
+      notify_slack: '#engineering'
 
 #-----------------------------------------------------------------------------#
 # View definitions below this point
