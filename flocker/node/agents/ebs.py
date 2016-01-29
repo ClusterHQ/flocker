@@ -28,7 +28,7 @@ from uuid import UUID
 from bitmath import Byte, GiB
 
 from characteristic import with_cmp
-from pyrsistent import PClass, field, pset, pmap
+from pyrsistent import PClass, field, pmap
 from zope.interface import implementer
 from twisted.python.constants import (
     Names, NamedConstant, Values, ValueConstant
@@ -963,7 +963,7 @@ def _select_free_device(existing):
         EC2 instance are currently occupied
     """
 
-    local_devices = pset(existing)
+    local_devices = frozenset(existing)
     sorted_devices = sorted(existing)
     IN_USE_DEVICES(devices=sorted_devices).write()
 
@@ -974,9 +974,7 @@ def _select_free_device(existing):
         possible_devices = [
             next_local_device, next_local_sd_device
         ]
-        if not any(
-            list(device in local_devices for device in possible_devices)
-        ):
+        if not local_devices.intersection(possible_devices):
             return file_name
 
     # Could not find any suitable device that is available
