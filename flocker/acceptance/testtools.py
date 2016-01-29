@@ -901,21 +901,22 @@ def _add_nodes(cluster):
             def get_public_ip(address):
                 for ips in node_ips:
                     if ip_address(address) in ips:
-                        return [unicode(ip) for ip in ips
-                                if not any([ip.is_private, ip.is_link_local,
-                                            ip.is_loopback])][0]
+                        return list(
+                            unicode(ip) for ip in ips
+                            if not any([ip.is_private, ip.is_link_local,
+                                        ip.is_loopback]))[0]
                 raise ValueError(
                     "Couldn't find address in cloud API reported IPs")
         else:
             get_public_ip = default_get_public_ip
 
     def node_from_dict(node):
-        reported_hostname = node["host"]
-        public_address = get_public_ip(reported_hostname)
+        reported_ip = node["host"]
+        public_address = get_public_ip(reported_ip)
         return Node(
             uuid=node[u"uuid"],
             public_address=public_address.encode("ascii"),
-            reported_hostname=reported_hostname.encode("ascii"),
+            reported_hostname=reported_ip.encode("ascii"),
         )
 
     d = cluster.current_nodes()
