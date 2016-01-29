@@ -157,6 +157,9 @@ base_user_data = [
 # from 0.
 flocker_agent_number = 1
 
+# Gather WaitConditions
+wait_condition_names = []
+
 for i in range(NUM_NODES):
     if i == 0:
         node_name = CONTROL_NODE_NAME
@@ -184,6 +187,9 @@ for i in range(NUM_NODES):
         Timeout="600",
     )
     template.add_resource(wait_condition)
+
+    # Gather WaitConditions
+    wait_condition_names.append(wait_condition.name)
 
     user_data = base_user_data[:]
     user_data += [
@@ -267,7 +273,10 @@ user_data += _sibling_lines(S3_SETUP)
 user_data += _sibling_lines(CLIENT_SETUP)
 user_data += _sibling_lines(SIGNAL_CONFIG_COMPLETION)
 client_instance.UserData = Base64(Join("", user_data))
-client_instance.DependsOn = control_service_instance.name
+
+# Start Client Node after Control Node and Agent Nodes are
+# up and running Flocker, Docker, Swarm stack.
+client_instance.DependsOn = wait_condition_names
 template.add_resource(client_instance)
 
 # List of Output fields upon successful creation of the stack.

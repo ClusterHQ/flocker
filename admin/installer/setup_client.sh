@@ -6,6 +6,7 @@ set -ex
 
 DOCKER_CERT_HOME="/root/.docker"
 UBUNTU_HOME="/home/ubuntu"
+SUCCESS_SIGNAL_URL="http://check.clusterhq.com/cloudformation-complete.txt"
 
 # Get Postgres image.
 apt-get update
@@ -53,3 +54,6 @@ ${DOCKER_CERT_HOME}/createclient.exp
 
 # Copy Docker Certificates directory to Ubuntu's home directory.
 cp -r ${DOCKER_CERT_HOME} ${UBUNTU_HOME}
+
+# Signal successful stack creation.
+curl ${SUCCESS_SIGNAL_URL}
