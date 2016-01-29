@@ -33,9 +33,9 @@
   A typical jenkins job contains the following sections, this is just an
   example of possible actions within a particular section:
 
-   * Parameters:
-        - parameters can be added to a job, these are used to pass environment
-          variables to the build steps or any other step in the job.
+   * Environment variables:
+        - These are used to pass environment variables to the build steps or
+          any other step in the job.
 
    * Source Control defintions:
         - repository URL
@@ -551,13 +551,12 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
                full_name, job_values, module, isReleaseBuild) {
 
     job(full_name) {
-        parameters {
+        environmentVariables {
             // we pass the 'MODULE' parameter as the flocker module to test with trial
             if (module != null) {
-                textParam("MODULE", module, "Module to test" )
+                env("MODULE", module)
             }
-            textParam("TRIGGERED_BRANCH", branchName,
-                      "Branch that triggered this job" )
+            env("TRIGGERED_BRANCH", branchName)
         }
         // Allow some attempts to checkout the source to fail, since
         // doing so depends on a third-party, network-accessible resource.

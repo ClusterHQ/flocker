@@ -252,8 +252,8 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
     algorithm by default, waiting double the time between each retry.
 
     :param Effect effect: The Effect to retry.
-    :param int timeout: Keep retrying until timeout.  This is measured from the
-        time of the first failure of ``effect``.
+    :param int timeout: Keep retrying until timeout.  This is measured in
+        seconds from the time of the first failure of ``effect``.
     :param timedelta retry_wait: The wait time between retries
     :param bool backoff: Whether we should use exponential backoff
     :param callable time: A nullary callable that returns a UNIX timestamp.

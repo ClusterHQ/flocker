@@ -815,7 +815,7 @@ class ConfigurationAPIUserV1(object):
                     )
                     saving = self.persistence_service.save(deployment)
 
-                    def saved(_):
+                    def saved(_, application=application):
                         result = container_configuration_response(
                             application, node_uuid
                         )
@@ -861,7 +861,9 @@ class ConfigurationAPIUserV1(object):
             for application in node.applications:
                 if application.name == name:
                     updated_node = node.transform(
-                        ["applications"], lambda s: s.remove(application))
+                        ["applications"],
+                        lambda s, application=application: s.remove(
+                            application))
                     d = self.persistence_service.save(
                         deployment.update_node(updated_node))
                     d.addCallback(lambda _: None)
