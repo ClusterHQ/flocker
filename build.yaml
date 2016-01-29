@@ -1270,6 +1270,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
+      publish_test_results: true
       timeout: 45
       directories_to_delete: *run_acceptance_directories_to_delete
 
@@ -1292,6 +1293,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
       timeout: 45
       directories_to_delete: *run_acceptance_directories_to_delete
 
