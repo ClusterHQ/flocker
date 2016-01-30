@@ -29,6 +29,11 @@ def write_as_docker(directory, filename, content):
     """
     Write content to a file in a directory using docker volume mounts.
 
+    Note this will also print "CONTAINER_RUNNING" to STDOUT if the container
+    starts running. This can be used by callers to determine on failure if
+    docker failed to start the container or if the job in the container failed
+    to write the file.
+
     :param FilePath directory: The directory to bind mount into the container.
     :param unicode filename: The name of the file to create in the bind mount.
     :param unicode content: The content to write to the container.
@@ -46,7 +51,7 @@ def write_as_docker(directory, filename, content):
         "-v", "%s:%s" % (directory.path, container_path.path),
         "busybox",  # Run the busybox image.
         # Use sh to echo the content into the file in the bind mount.
-        "/bin/sh", "-c", "echo -n %s > %s" % (
+        "/bin/sh", "-c", "echo CONTAINER_RUNNING && echo -n %s > %s" % (
             content, container_path.child(filename).path)
     ])
 
@@ -156,7 +161,9 @@ class _UnmountCleanup(PClass):
     def execute(self, blockdevice_manager):
         try:
             blockdevice_manager.unmount(self.path)
-        except UnmountError as e:
+        except UnmountError:
+            pass
+        except Exception as e:
             raise CleanupError(error=e)
 
 
@@ -179,17 +186,35 @@ class CleanupBlockDeviceManager(proxyForInterface(IBlockDeviceManager)):
         super(CleanupBlockDeviceManager, self).__init__(original)
         self._cleanup_operations = []
 
+    def _get_mount_point(self, unmount_target):
+        """
+        Translate an unmount_target to a mount path. This takes either a
+        mountpoint or a mounted block device. If the passed in argument is a
+        mounted block device this method returns the most recent mount of that
+        block device. Otherwise, it just returns the passed in argument.
+
+        :param FilePath unmount_target: A blockdevice or mountpoint to be
+            translated to a mountpoint.
+
+        :returns FilePath: The most recent mountpoint of a blockdevice if the
+            argument was the path to a blockdevice, or `unmount_target`.
+        """
+        return next((mount.mountpoint
+                     for mount in reversed(list(self.original.get_mounts()))
+                     if mount.blockdevice == unmount_target),
+                    unmount_target)
+
     def mount(self, blockdevice, mountpoint):
-        self._cleanup_operations.append(_UnmountCleanup(path=blockdevice))
+        self._cleanup_operations.append(_UnmountCleanup(path=mountpoint))
         return self.original.mount(blockdevice, mountpoint)
 
     def unmount(self, unmount_path):
         unmount_index = next(iter(
             -index
             for index, op in enumerate(reversed(self._cleanup_operations), 1)
-            if op == _UnmountCleanup(path=unmount_path)
+            if op == _UnmountCleanup(path=self._get_mount_point(unmount_path))
         ), None)
-        if unmount_path is not None:
+        if unmount_index is not None:
             self._cleanup_operations.pop(unmount_index)
         return self.original.unmount(unmount_path)
 

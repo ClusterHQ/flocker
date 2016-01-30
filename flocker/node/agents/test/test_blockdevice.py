@@ -34,8 +34,11 @@ from hypothesis.strategies import (
     dictionaries, tuples
 )
 
+from testtools.assertions import assert_that
 from testtools.deferredruntest import SynchronousDeferredRunTest
-from testtools.matchers import Equals, AllMatch, IsInstance
+from testtools.matchers import (
+    Equals, Not, Contains, PathExists, AllMatch, IsInstance,
+)
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
@@ -60,8 +63,8 @@ from ..blockdevice import (
     IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
-    UnmountBlockDevice, DetachVolume, AttachVolume,
-    CreateFilesystem, DestroyVolume, MountBlockDevice,
+    UnmountBlockDevice, DetachVolume, AttachVolume, CreateFilesystem,
+    DestroyVolume, MountBlockDevice, CreateMountSymlink, RemoveMountSymlink,
 
     DATASET_TRANSITIONS, IDatasetStateChangeFactory,
     ICalculator, NOTHING_TO_DO,
@@ -121,7 +124,10 @@ from ....control._model import Leases
 from ....common.test.test_thread import NonThreadPool, NonReactor
 from ....common import interface_decorator, RACKSPACE_MINIMUM_VOLUME_SIZE
 
-from ..testtools import create_tmpfs_shadow_mount_for_test, write_as_docker
+from ..testtools import (
+    create_tmpfs_shadow_mount_for_test, write_as_docker,
+    blockdevice_manager_fixture
+)
 
 CLEANUP_RETRY_LIMIT = 10
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
@@ -143,11 +149,14 @@ DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
     {
         'dataset_id': uuids(),
         'maximum_size': integers(min_value=1),
+        'link_path': builds(FilePath, sampled_from([
+            '/flocker/v2/abc', '/flocker/v2/xyz',
+        ])),
         'mount_point': builds(FilePath, sampled_from([
-            '/flocker/abc', '/flocker/xyz',
+            '/var/flocker/mounts/abc', '/var/flocker/mounts/xyz',
         ])),
         'share_path': builds(FilePath, sampled_from([
-            '/flocker/v1/abc', '/flocker/v1/xyz',
+            '/flocker/v2/abc', '/flocker/v2/xyz',
         ])),
         'blockdevice_id': just(u''),  # This gets overriden below.
         'device_path': builds(FilePath, sampled_from([
@@ -173,11 +182,14 @@ DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
     ),
     'metadata': dictionaries(keys=_METADATA_STRATEGY,
                              values=_METADATA_STRATEGY),
+    'link_path': builds(FilePath, sampled_from([
+        '/flocker/v2/abc', '/flocker/v2/xyz',
+    ])),
     'mount_point': builds(FilePath, sampled_from([
-        '/flocker/abc', '/flocker/xyz',
+        '/var/flocker/mounts/abc', '/var/flocker/mounts/xyz',
     ])),
     'share_path': builds(FilePath, sampled_from([
-        '/flocker/v1/abc', '/flocker/v1/xyz',
+        '/flocker/v2/abc', '/flocker/v2/xyz',
     ])),
 }
 
@@ -311,7 +323,7 @@ def mount(device, mountpoint):
 
 def create_blockdevicedeployer(
     test_case, hostname=u"192.0.2.1", node_uuid=uuid4(),
-    block_device_manager=BlockDeviceManager()
+    block_device_manager=None
 ):
     """
     Create a new ``BlockDeviceDeployer``.
@@ -324,6 +336,9 @@ def create_blockdevicedeployer(
 
     :return: The newly created ``BlockDeviceDeployer``.
     """
+    if block_device_manager is None:
+        block_device_manager = test_case.useFixture(
+            blockdevice_manager_fixture()).obj
     api = loopbackblockdeviceapi_for_test(test_case)
     async_api = _SyncToThreadedAsyncAPIAdapter(
         _sync=api, _reactor=NonReactor(), _threadpool=NonThreadPool(),
@@ -334,7 +349,8 @@ def create_blockdevicedeployer(
         node_uuid=node_uuid,
         block_device_api=api,
         _async_block_device_api=async_api,
-        mountroot=tmpfs_shadow_mount.backing_directory,
+        mountroot=mountroot_for_test(test_case),
+        link_root=tmpfs_shadow_mount.backing_directory,
         shared_root=tmpfs_shadow_mount.read_only_directory,
         block_device_manager=block_device_manager,
     )
@@ -523,11 +539,12 @@ class BlockDeviceDeployerLocalStateTests(TestCase):
 
     def test_mounted_dataset(self):
         """
-        When there is a dataset in the ``MOUNTED`` state, it is reported as a
-        manifest dataset.
+        When there is a dataset in the ``MANIFEST`` state,
+        it is reported as a manifest dataset.
         """
         dataset_id = uuid4()
         mount_point = FilePath('/mount/point')
+        link_path = FilePath('/link/path')
         share_path = FilePath('/share/path')
         device_path = FilePath('/dev/xvdf')
         local_state = BlockDeviceDeployerLocalState(
@@ -535,12 +552,13 @@ class BlockDeviceDeployerLocalStateTests(TestCase):
             hostname=self.hostname,
             datasets={
                 dataset_id: DiscoveredDataset(
-                    state=DatasetStates.MOUNTED,
+                    state=DatasetStates.MANIFEST,
                     dataset_id=dataset_id,
                     blockdevice_id=ARBITRARY_BLOCKDEVICE_ID,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device_path,
                     mount_point=mount_point,
+                    link_path=link_path,
                     share_path=share_path,
                 ),
             },
@@ -682,11 +700,14 @@ class BlockDeviceDeployerDiscoverRawStateTests(TestCase):
         self.expected_uuid = uuid4()
         self.api = loopbackblockdeviceapi_for_test(self)
         self.this_node = self.api.compute_instance_id()
+        link_root = link_root_for_test(self)
         self.deployer = BlockDeviceDeployer(
             node_uuid=self.expected_uuid,
             hostname=self.expected_hostname,
             block_device_api=self.api,
             mountroot=mountroot_for_test(self),
+            link_root=link_root,
+            shared_root=link_root
         )
 
     def test_compute_instance_id(self):
@@ -787,11 +808,14 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         self.expected_uuid = uuid4()
         self.api = loopbackblockdeviceapi_for_test(self)
         self.this_node = self.api.compute_instance_id()
+        link_root = link_root_for_test(self)
         self.deployer = BlockDeviceDeployer(
             node_uuid=self.expected_uuid,
             hostname=self.expected_hostname,
             block_device_api=self.api,
             mountroot=mountroot_for_test(self),
+            link_root=link_root,
+            shared_root=link_root,
         )
 
     def test_no_devices(self):
@@ -865,7 +889,6 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         )
         device = self.api.get_device_path(volume.blockdevice_id)
         mount_point = self.deployer.mountroot.child(bytes(dataset_id))
-        share_path = self.deployer.shared_root.child(bytes(dataset_id))
         mount_point.makedirs()
         make_filesystem(device, block_device=True)
         mount(device, mount_point)
@@ -880,7 +903,6 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device,
                     mount_point=mount_point,
-                    share_path=share_path,
                 ),
             ],
         )
@@ -1239,8 +1261,12 @@ def compare_dataset_state(discovered_dataset, desired_dataset):
         return discovered_dataset.state == DatasetStates.NON_MANIFEST
     if discovered_dataset.state != desired_dataset.state:
         return False
-    if discovered_dataset.state == DatasetStates.MOUNTED:
-        return discovered_dataset.mount_point == desired_dataset.mount_point
+    if discovered_dataset.state == DatasetStates.MANIFEST:
+        return (
+            discovered_dataset.mount_point == desired_dataset.mount_point and
+            discovered_dataset.link_path == desired_dataset.link_path and
+            discovered_dataset.share_path == desired_dataset.share_path
+        )
     elif discovered_dataset.state == DatasetStates.NON_MANIFEST:
         return True
     elif discovered_dataset.state == DatasetStates.DELETED:
@@ -1325,6 +1351,10 @@ class _WriteVerifyingExternalClient(object):
         """
         Imitate writing content to a file to a mounted directory using docker.
 
+        Asserts that either docker should fail to start the container or the
+        write should succeed. Specifically, this will raise an assertion error
+        if the docker command fails, but the command in the container was run.
+
         :param FilePath mountdir: The directory to be mounted as a docker
             volume.
         :param unicode filename: The name of the file to create in the docker
@@ -1333,7 +1363,8 @@ class _WriteVerifyingExternalClient(object):
         """
         try:
             write_as_docker(mountdir, filename, content)
-        except ProcessError:
+        except ProcessError as e:
+            assert_that(e.output, Not(Contains("CONTAINER_RUNNING")))
             raise _WriteError()
 
     def _has_file_with_content(self, filename, content):
@@ -1398,7 +1429,7 @@ class _WriteVerifyingExternalClient(object):
                 # If the dataset is mounted and we are currently converging
                 # toward a manifested dataset, the write should succeed.
                 write_to_current_path_should_succeed = (
-                    discovered_dataset.state == DatasetStates.MOUNTED and
+                    discovered_dataset.state == DatasetStates.MANIFEST and
                     converging_on_manifest
                 )
 
@@ -1431,9 +1462,10 @@ class _WriteVerifyingExternalClient(object):
             else:
                 case.assertTrue(
                     self._has_file_with_content(filename, random_string),
-                    "Successfully wrote to a path gotten from flocker, "
+                    "Successfully wrote to a path gotten from flocker(%s), "
                     "but the write was not persisted to the backing block "
-                    "device.")
+                    "device(%s)." % (path.child(filename).path,
+                                     self._device_path))
 
 
 def _empty_node_state(deployer):
@@ -1502,6 +1534,8 @@ class BlockDeviceCalculatorTestObjects(object):
 
         - Set the mountpoint to a real mountpoint in desired dataset states
           that have a mount point attribute.
+        - Set the link path to a real link path in desired dataset states that
+          have a link_path attribute.
 
         :param DesiredDataset dataset_state: The state to fix up for this test
             run.
@@ -1510,12 +1544,18 @@ class BlockDeviceCalculatorTestObjects(object):
         """
         mount_point = self.deployer._mountpath_for_dataset_id(
             unicode(self.dataset_id))
+        link_path = self.deployer._link_path_for_dataset_id(
+            unicode(self.dataset_id))
         share_path = self.deployer._sharepath_for_dataset_id(
             unicode(self.dataset_id))
         if getattr(dataset_state,
                    'mount_point',
                    _NoSuchThing) is not _NoSuchThing:
             dataset_state = dataset_state.set(mount_point=mount_point)
+        if getattr(dataset_state,
+                   'link_path',
+                   _NoSuchThing) is not _NoSuchThing:
+            dataset_state = dataset_state.set(link_path=link_path)
         if getattr(dataset_state,
                    'share_path',
                    _NoSuchThing) is not _NoSuchThing:
@@ -1540,6 +1580,7 @@ class BlockDeviceCalculatorTestObjects(object):
         """
         Cleanup the mountpoints and the volumes used in an example.
         """
+        unlink_all(self.deployer.link_root)
         umount_all(self.deployer.mountroot)
         detach_destroy_volumes(self.deployer.block_device_api)
 
@@ -1733,7 +1774,7 @@ class BlockDeviceCalculatorTests(TestCase):
 
     @given(
         desired_state=sampled_from([
-            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
+            DatasetStates.MANIFEST, DatasetStates.NON_MANIFEST,
             DatasetStates.DELETED,
         ]),
         discovered_state=sampled_from(
@@ -1835,7 +1876,6 @@ class CalculateDesiredStateTests(TestCase):
             node_uuid=self.node_uuid,
             hostname=self.hostname,
             block_device_api=self.api,
-            mountroot=FilePath('/flocker'),
         )
 
     def test_no_manifestations(self):
@@ -1852,12 +1892,12 @@ class CalculateDesiredStateTests(TestCase):
     def test_manifestation(self):
         """
         If there is a manifesation configured on this node, then the
-        corresponding desired dataset has a state of ``MOUNTED``.
+        corresponding desired dataset has a state of ``MANIFEST``.
         """
         assert_desired_datasets(
             self, self.deployer,
             desired_manifestations=[ScenarioMixin.MANIFESTATION],
-            expected_datasets=[ScenarioMixin.MOUNTED_DESIRED_DATASET],
+            expected_datasets=[ScenarioMixin.MANIFEST_DESIRED_DATASET],
         )
 
     def test_manifestation_metadata(self):
@@ -1870,9 +1910,11 @@ class CalculateDesiredStateTests(TestCase):
             desired_manifestations=[ScenarioMixin.MANIFESTATION.transform(
                 ['dataset', 'metadata'], ScenarioMixin.METADATA,
             )],
-            expected_datasets=[ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
-                ['metadata'], ScenarioMixin.METADATA,
-            )],
+            expected_datasets=[
+                ScenarioMixin.MANIFEST_DESIRED_DATASET.transform(
+                    ['metadata'], ScenarioMixin.METADATA,
+                )
+            ],
         )
 
     def test_manifestation_default_size(self):
@@ -1892,7 +1934,7 @@ class CalculateDesiredStateTests(TestCase):
                 ),
             ],
             expected_datasets=[
-                ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
+                ScenarioMixin.MANIFEST_DESIRED_DATASET.transform(
                     ['maximum_size'], expected_size,
                 ),
             ],
@@ -1927,19 +1969,19 @@ class CalculateDesiredStateTests(TestCase):
     def test_leased_mounted_manifestation(self, expected_size):
         """
         If there is a lease for a mounted dataset present on node, there is a
-        corresponding desired dataset that has a state of ``MOUNTED`` even if
+        corresponding desired dataset that has a state of ``MANIFEST`` even if
         the configuration of the node doesn't mention the dataset.
         """
         assert_desired_datasets(
             self, self.deployer,
             desired_manifestations=[],
             local_datasets=[
-                ScenarioMixin.MOUNTED_DISCOVERED_DATASET.transform(
+                ScenarioMixin.MANIFEST_DISCOVERED_DATASET.transform(
                     ['maximum_size'], expected_size,
                 ),
             ],
             expected_datasets=[
-                ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
+                ScenarioMixin.MANIFEST_DESIRED_DATASET.transform(
                     ['maximum_size'], expected_size,
                 ),
             ],
@@ -1952,7 +1994,7 @@ class CalculateDesiredStateTests(TestCase):
 
     @given(
         local_dataset=DISCOVERED_DATASET_STRATEGY.filter(
-            lambda dataset: dataset.state != DatasetStates.MOUNTED,
+            lambda dataset: dataset.state != DatasetStates.MANIFEST,
         ),
     )
     def test_leased_not_mounted(self, local_dataset):
@@ -1981,7 +2023,7 @@ class CalculateDesiredStateTests(TestCase):
         assert_desired_datasets(
             self, self.deployer,
             local_datasets=[
-                ScenarioMixin.MOUNTED_DISCOVERED_DATASET,
+                ScenarioMixin.MANIFEST_DISCOVERED_DATASET,
             ],
             expected_datasets=[],
             leases=Leases().acquire(
@@ -1991,16 +2033,16 @@ class CalculateDesiredStateTests(TestCase):
             )
         )
 
-    def test_application_mounted_manifestation(self):
+    def test_application_manifest_manifestation(self):
         """
         If there is an application with attached volume, there is a
-        corresponding desired dataset that has a state of ``MOUNTED``.
+        corresponding desired dataset that has a state of ``MANIFEST``.
         """
         assert_desired_datasets(
             self, self.deployer,
             desired_manifestations=[],
             local_datasets=[
-                ScenarioMixin.MOUNTED_DISCOVERED_DATASET,
+                ScenarioMixin.MANIFEST_DISCOVERED_DATASET,
             ],
             local_applications=[
                 Application(
@@ -2013,7 +2055,7 @@ class CalculateDesiredStateTests(TestCase):
                 ),
             ],
             expected_datasets=[
-                ScenarioMixin.MOUNTED_DESIRED_DATASET,
+                ScenarioMixin.MANIFEST_DESIRED_DATASET,
             ],
         )
 
@@ -2031,12 +2073,12 @@ class CalculateDesiredStateTests(TestCase):
             self, self.deployer,
             desired_manifestations=[ScenarioMixin.MANIFESTATION],
             local_datasets=[
-                ScenarioMixin.MOUNTED_DISCOVERED_DATASET.transform(
+                ScenarioMixin.MANIFEST_DISCOVERED_DATASET.transform(
                     ['maximum_size'], expected_size,
                 ),
             ],
             expected_datasets=[
-                ScenarioMixin.MOUNTED_DESIRED_DATASET.transform(
+                ScenarioMixin.MANIFEST_DESIRED_DATASET.transform(
                     ['maximum_size'], expected_size,
                 ),
             ],
@@ -2061,10 +2103,10 @@ class CalculateDesiredStateTests(TestCase):
                 ),
             ],
             local_datasets=[
-                ScenarioMixin.MOUNTED_DISCOVERED_DATASET,
+                ScenarioMixin.MANIFEST_DISCOVERED_DATASET,
             ],
             expected_datasets=[
-                ScenarioMixin.MOUNTED_DESIRED_DATASET,
+                ScenarioMixin.MANIFEST_DESIRED_DATASET,
             ],
             leases=Leases().acquire(
                 now=datetime.now(tz=UTC),
@@ -2153,6 +2195,13 @@ class ScenarioMixin(object):
         primary=True,
     )
 
+    MOUNT_ROOT = FilePath('/var/flocker/mounts')
+    LINK_ROOT = FilePath('/flocker/v2')
+    MOUNT_POINT = MOUNT_ROOT.child(unicode(DATASET_ID))
+    LINK_PATH = LINK_ROOT.child(unicode(DATASET_ID))
+    SHARE_PATH = LINK_PATH
+    BLOCKDEVICE_PATH = FilePath('/dev/sda')
+
     # The state of a single node which has a single primary manifestation for a
     # dataset.  Common starting point for several of the test scenarios.
     ONE_DATASET_STATE = NodeState(
@@ -2162,32 +2211,31 @@ class ScenarioMixin(object):
             unicode(DATASET_ID): MANIFESTATION,
         },
         paths={
-            unicode(DATASET_ID):
-            FilePath(b"/flocker/").child(bytes(DATASET_ID)),
+            unicode(DATASET_ID): SHARE_PATH,
         },
         devices={
-            DATASET_ID: FilePath(b"/dev/sda"),
+            DATASET_ID: BLOCKDEVICE_PATH,
         },
         applications=[],
     )
 
-    MOUNT_ROOT = FilePath('/flocker')
-    MOUNT_POINT = MOUNT_ROOT.child(unicode(DATASET_ID))
-    MOUNTED_DISCOVERED_DATASET = DiscoveredDataset(
+    MANIFEST_DISCOVERED_DATASET = DiscoveredDataset(
         dataset_id=DATASET_ID,
         blockdevice_id=BLOCKDEVICE_ID,
-        state=DatasetStates.MOUNTED,
+        state=DatasetStates.MANIFEST,
         maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
-        device_path=FilePath('/dev/xvdf'),
+        device_path=BLOCKDEVICE_PATH,
         mount_point=MOUNT_POINT,
-        share_path=MOUNT_POINT,
+        link_path=LINK_PATH,
+        share_path=LINK_PATH,
     )
-    MOUNTED_DESIRED_DATASET = DesiredDataset(
-        state=DatasetStates.MOUNTED,
+    MANIFEST_DESIRED_DATASET = DesiredDataset(
+        state=DatasetStates.MANIFEST,
         dataset_id=DATASET_ID,
         maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.bytes),
         mount_point=MOUNT_POINT,
-        share_path=MOUNT_POINT,
+        link_path=LINK_PATH,
+        share_path=LINK_PATH,
     )
 
 
@@ -2267,12 +2315,14 @@ def local_state_from_shared_state(
         for dataset_id, manifestation in node_state.manifestations.items():
             dataset_id = UUID(dataset_id)
             datasets[dataset_id] = DiscoveredDataset(
-                state=DatasetStates.MOUNTED,
+                state=DatasetStates.MANIFEST,
                 dataset_id=dataset_id,
                 maximum_size=manifestation.dataset.maximum_size or 0,
                 device_path=node_state.devices[dataset_id],
                 blockdevice_id=_create_blockdevice_id_for_test(dataset_id),
-                mount_point=node_state.paths[unicode(dataset_id)],
+                mount_point=FilePath('/var/flocker/mount').child(
+                    unicode(dataset_id)),
+                link_path=node_state.paths[unicode(dataset_id)],
                 share_path=node_state.paths[unicode(dataset_id)],
             )
 
@@ -2400,8 +2450,8 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
-                UnmountBlockDevice(dataset_id=self.DATASET_ID,
-                                   blockdevice_id=self.BLOCKDEVICE_ID)
+                RemoveMountSymlink(dataset_id=self.DATASET_ID,
+                                   link_path=self.LINK_PATH)
             ]),
             # Another node which is ignorant about its state:
             set([NodeState(hostname=u"1.2.3.4", uuid=uuid4())])
@@ -2415,12 +2465,12 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
     to dataset destruction.
     """
-    def test_deleted_dataset_volume_mounted(self):
+    def test_deleted_dataset_volume_symlinked(self):
         """
         If the configuration indicates a dataset with a primary manifestation
         on the node has been deleted and the volume associated with that
-        dataset is mounted, ``BlockDeviceDeployer.calculate_changes`` returns
-        a ``UnmountBlockDevice`` state change operation.
+        dataset is symlinked, ``BlockDeviceDeployer.calculate_changes`` returns
+        a ``RemoveMountSymlink`` state change operation.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state).transform(
@@ -2430,6 +2480,44 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         assert_calculated_changes(
             self, local_state, local_config, set(),
             in_parallel(changes=[
+                RemoveMountSymlink(dataset_id=self.DATASET_ID,
+                                   link_path=self.LINK_PATH)
+            ]),
+            discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.SYMLINKED,
+                    dataset_id=self.DATASET_ID,
+                    blockdevice_id=self.BLOCKDEVICE_ID,
+                    maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
+                    device_path=self.BLOCKDEVICE_PATH,
+                    mount_point=self.MOUNT_POINT,
+                    link_path=self.LINK_PATH,
+                    share_path=self.SHARE_PATH,
+                ),
+            ],
+        )
+
+    def test_deleted_dataset_volume_mounted(self):
+        """
+        If the configuration indicates a dataset with a primary manifestation
+        on the node has been deleted and the volume associated with that
+        dataset is mounted, ``BlockDeviceDeployer.calculate_changes`` returns
+        a ``UnmountBlockDevice`` state change operation.
+        """
+        local_state = self.ONE_DATASET_STATE.transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard,
+            ["paths"], {},
+        )
+        local_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        assert_calculated_changes(
+            self, local_state, local_config,
+            nonmanifest_datasets=[
+                self.MANIFESTATION.dataset,
+            ],
+            expected_changes=in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID,
                                    blockdevice_id=self.BLOCKDEVICE_ID)
             ]),
@@ -2439,13 +2527,8 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     dataset_id=self.DATASET_ID,
                     blockdevice_id=self.BLOCKDEVICE_ID,
                     maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
-                    device_path=FilePath(b"/dev/sda"),
-                    mount_point=FilePath(b"/flocker").child(
-                        bytes(self.DATASET_ID),
-                    ),
-                    share_path=FilePath(b"/flocker").child(
-                        bytes(self.DATASET_ID),
-                    ),
+                    device_path=self.BLOCKDEVICE_PATH,
+                    mount_point=self.MOUNT_POINT,
                 ),
             ],
         )
@@ -2619,7 +2702,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
                     blockdevice_id=_create_blockdevice_id_for_test(
                         self.DATASET_ID),
                     maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
-                    device_path=FilePath(b"/dev/sda"),
+                    device_path=self.BLOCKDEVICE_PATH,
                 ),
             ],
 
@@ -2647,7 +2730,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             ['paths', unicode(self.DATASET_ID)],
             discard
         )
-        device = FilePath(b"/dev/sda")
+        device = self.BLOCKDEVICE_PATH
 
         # Local state shows that there is a device for the (now) non-manifest
         # dataset. i.e it is attached.
@@ -2758,7 +2841,7 @@ class BlockDeviceDeployerMountCalculateChangesTests(
         """
         # Give it a state that says the volume is attached but nothing is
         # mounted.
-        device = FilePath(b"/dev/sda")
+        device = self.BLOCKDEVICE_PATH
         node_state = self.ONE_DATASET_STATE.set(
             manifestations={},
             paths={},
@@ -2776,9 +2859,7 @@ class BlockDeviceDeployerMountCalculateChangesTests(
                 MountBlockDevice(
                     dataset_id=self.DATASET_ID,
                     device_path=device,
-                    mountpoint=FilePath(b"/flocker/").child(
-                        bytes(self.DATASET_ID)
-                    )
+                    mountpoint=self.MOUNT_POINT
                 ),
             ]),
             discovered_datasets=[
@@ -2811,7 +2892,7 @@ class BlockDeviceDeployerCreateFilesystemCalculateChangesTests(
         """
         # Give it a state that says the volume is attached but nothing is
         # mounted.
-        device = FilePath(b"/dev/sda")
+        device = self.BLOCKDEVICE_PATH
         node_state = self.ONE_DATASET_STATE.set(
             manifestations={},
             paths={},
@@ -2848,6 +2929,31 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
     to unmounting of filesystems.
     """
+
+    def _one_mounted_dataset_state(self):
+        """
+        Generates a node state that is compatible with a single dataset in the
+        mounted state.
+        """
+        return self.ONE_DATASET_STATE.transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard,
+            ["paths"], {},
+        )
+
+    def _one_mounted_discovered_dataset_state(self):
+        """
+        Generates a discovered dataset state that is compatible with a single
+        dataset in the mounted state.
+        """
+        return DiscoveredDataset(
+            state=DatasetStates.MOUNTED,
+            dataset_id=self.DATASET_ID,
+            blockdevice_id=self.BLOCKDEVICE_ID,
+            maximum_size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
+            device_path=self.BLOCKDEVICE_PATH,
+            mount_point=self.MOUNT_POINT,
+        )
+
     def test_unmount_manifestation(self):
         """
         If the filesystem for a dataset is mounted on the node and the
@@ -2856,7 +2962,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         to unmount the filesystem.
         """
         # Give it a state that says it has a manifestation of the dataset.
-        node_state = self.ONE_DATASET_STATE
+        node_state = self._one_mounted_dataset_state()
 
         # Give it a configuration that says it shouldn't have that
         # manifestation.
@@ -2865,11 +2971,12 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, node_state, node_config, set(),
+            self, node_state, node_config, [self.MANIFESTATION.dataset],
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID,
                                    blockdevice_id=self.BLOCKDEVICE_ID)
-            ])
+            ]),
+            discovered_datasets=[self._one_mounted_discovered_dataset_state()],
         )
 
     def test_unmount_deleted_manifestation(self):
@@ -2880,7 +2987,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         unmount the filesystem.
         """
         # Give it a state that says it has a manifestation of the dataset.
-        node_state = self.ONE_DATASET_STATE
+        node_state = self._one_mounted_dataset_state()
 
         # Give it a configuration that says it shouldn't have that
         # manifestation.
@@ -2890,51 +2997,12 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, node_state, node_config, set(),
+            self, node_state, node_config, [self.MANIFESTATION.dataset],
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID,
                                    blockdevice_id=self.BLOCKDEVICE_ID)
-            ])
-        )
-
-    def test_no_unmount_if_in_use(self):
-        """
-        If a dataset should be unmounted *and* it is in use by an application,
-        no changes are made.
-        """
-        # State has a dataset in use by application
-        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
-
-        # Give it a configuration that says it shouldn't have that
-        # manifestation.
-        node_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        )
-
-        assert_calculated_changes(
-            self, local_state, node_config, set(),
-            in_parallel(changes=[]),
-        )
-
-    def test_no_unmount_if_leased(self):
-        """
-        If a dataset should be unmounted *and* it is leased on this node, no
-        changes are made.
-        """
-        # State has a dataset which is leased
-        local_state = self.ONE_DATASET_STATE
-        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
-                                  self.ONE_DATASET_STATE.uuid)
-
-        # Give it a configuration that says it shouldn't have that
-        # manifestation.
-        node_config = to_node(self.ONE_DATASET_STATE).transform(
-            ["manifestations", unicode(self.DATASET_ID)], discard
-        )
-
-        assert_calculated_changes(
-            self, local_state, node_config, set(),
-            in_parallel(changes=[]), leases=leases,
+            ]),
+            discovered_datasets=[self._one_mounted_discovered_dataset_state()],
         )
 
     def test_unmount_manifestation_when_leased_elsewhere(self):
@@ -2946,7 +3014,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         as the lease is for another node.
         """
         # Give it a state that says it has a manifestation of the dataset.
-        node_state = self.ONE_DATASET_STATE
+        node_state = self._one_mounted_dataset_state()
         leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
                                   uuid4())
 
@@ -2957,11 +3025,12 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, node_state, node_config, set(),
+            self, node_state, node_config, [self.MANIFESTATION.dataset],
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID,
                                    blockdevice_id=self.BLOCKDEVICE_ID)
             ]), leases=leases,
+            discovered_datasets=[self._one_mounted_discovered_dataset_state()],
         )
 
 
@@ -3145,8 +3214,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             hostname=expected_hostname,
             uuid=uuid4(),
             paths={
-                expected_dataset_id: FilePath(b"/flocker").child(
-                    expected_dataset_id.encode("ascii")),
+                expected_dataset_id: self.SHARE_PATH,
             },
             devices={
                 UUID(expected_dataset_id): FilePath(b"/dev/loop0"),
@@ -3337,7 +3405,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
             uuid=self.NODE_UUID, hostname=self.NODE,
             applications={},
             manifestations={},
-            devices={self.DATASET_ID: FilePath(b"/dev/xda")},
+            devices={self.DATASET_ID: self.BLOCKDEVICE_PATH},
             paths={},
         )
 
@@ -3367,7 +3435,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
             uuid=self.NODE_UUID, hostname=self.NODE,
             applications={},
             manifestations={},
-            devices={self.DATASET_ID: FilePath(b"/dev/xda")},
+            devices={self.DATASET_ID: self.BLOCKDEVICE_PATH},
             paths={},
         )
 
@@ -3514,11 +3582,15 @@ class BlockDeviceDeployerCalculateChangesTests(
         self.expected_change = ControllableAction(
             result=succeed(None),
         )
+        link_root = link_root_for_test(self)
         self.deployer = BlockDeviceDeployer(
             node_uuid=ScenarioMixin.NODE_UUID,
             hostname=ScenarioMixin.NODE,
             block_device_api=UnusableAPI(),
             calculator=RecordingCalculator(self.expected_change),
+            mountroot=mountroot_for_test(self),
+            link_root=link_root,
+            shared_root=link_root,
         )
         self.local_state = BlockDeviceDeployerLocalState(
             node_uuid=ScenarioMixin.NODE_UUID,
@@ -3607,6 +3679,46 @@ class BlockDeviceDeployerCalculateChangesTests(
             additional_node_config=set(),
             expected_changes=self.expected_change,
             local_state=self.local_state,
+        )
+
+    def test_no_removal_if_in_use(self):
+        """
+        If a dataset should be removed *and* it is in use by an application, no
+        changes are made.
+        """
+        # State has a dataset in use by application
+        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, local_state, node_config, [self.MANIFESTATION.dataset],
+            in_parallel(changes=[]),
+        )
+
+    def test_no_removal_if_leased(self):
+        """
+        If a dataset should be removed *and* it is leased on this node, no
+        changes are made.
+        """
+        # State has a dataset which is leased
+        local_state = self.ONE_DATASET_STATE
+        leases = Leases().acquire(datetime.now(tz=UTC), self.DATASET_ID,
+                                  self.ONE_DATASET_STATE.uuid)
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, local_state, node_config, [self.MANIFESTATION.dataset],
+            in_parallel(changes=[]), leases=leases,
         )
 
 
@@ -4761,10 +4873,37 @@ def mountroot_for_test(test_case):
     :param TestCase test_case: The ``TestCase`` which is being run.
     :returns: A ``FilePath`` for the newly created mount root.
     """
-    mountroot = FilePath(test_case.mktemp())
+    mountroot = FilePath(test_case.mktemp()).child(unicode(uuid4()))
     mountroot.makedirs()
     test_case.addCleanup(umount_all, mountroot)
     return mountroot
+
+
+def unlink_all(root):
+    """
+    Unlinks all symlinks that are in the passed in root.
+
+    :param FilePath root: the directory under which all symlinks should be
+        unlinked.
+    """
+    for child_name in root.listdir():
+        child_path = root.child(child_name)
+        if child_path.islink():
+            child_path.remove()
+
+
+def link_root_for_test(test_case):
+    """
+    Create a link root directory and unlink any symlinks beneath that
+    directory when the test exits.
+
+    :param TestCase test_case: The ``TestCase`` which is being run.
+    :returns: A ``FilePath`` for the newly created mount root.
+    """
+    link_root = FilePath(test_case.mktemp()).child(unicode(uuid4()))
+    link_root.makedirs()
+    test_case.addCleanup(unlink_all, link_root)
+    return link_root
 
 
 _ARBITRARY_VOLUME = BlockDeviceVolume(
@@ -5599,6 +5738,77 @@ class AttachVolumeTests(
         self.assertEqual(
             bad_blockdevice_id, failure.value.blockdevice_id
         )
+
+
+class CreateMountSymlinkInterfaceTests(
+    make_istatechange_tests(
+        CreateMountSymlink,
+        dict(dataset_id=uuid4(), mountpoint=FilePath(b"/var/flocker/mounts/a"),
+             link_path=FilePath(b"/flocker/a")),
+        dict(dataset_id=uuid4(), mountpoint=FilePath(b"/var/flocker/mounts/b"),
+             link_path=FilePath(b"/flocker/b")),
+    )
+):
+    """
+    Tests for ``CreateMountSymlink``'s ``IStateChange`` compliance.
+    """
+
+
+class CreateMountSymlinkTests(TestCase):
+    """
+    Tests for ``CreateMountSymlink``'s ``IStateChange`` implementation.
+    """
+
+    def test_creates_symlink(self):
+        """
+        When :class:`CreateMountSymlink` is run it creates a symlink from
+        ``mountpoint`` to ``link_path``.
+        """
+        symlink_target = FilePath(self.mktemp())
+        symlink = FilePath(self.mktemp())
+        symlink_target.touch()
+        state_change = CreateMountSymlink(dataset_id=uuid4(),
+                                          mountpoint=symlink_target,
+                                          link_path=symlink)
+        deployer = create_blockdevicedeployer(self)
+        state_change.run(deployer)
+        self.expectThat(symlink.realpath(), Equals(symlink_target),
+                        'Symlink does not target expected path.')
+
+
+class RemoveMountSymlinkInterfaceTests(
+    make_istatechange_tests(
+        RemoveMountSymlink,
+        dict(dataset_id=uuid4(), link_path=FilePath(b"/flocker/a")),
+        dict(dataset_id=uuid4(), link_path=FilePath(b"/flocker/b")),
+    )
+):
+    """
+    Tests for ``RemoveMountSymlink``'s ``IStateChange`` compliance.
+    """
+
+
+class RemoveMountSymlinkTests(TestCase):
+    """
+    Tests for ``RemoveMountSymlink``'s ``IStateChange`` implementation.
+    """
+
+    def test_removes_symlink(self):
+        """
+        When :class:`RemoveMountSymlink` is run it removes a symlink at
+        ``link_path``.
+        """
+        symlink_target = FilePath(self.mktemp())
+        symlink = FilePath(self.mktemp())
+        deployer = create_blockdevicedeployer(self)
+        deployer.block_device_manager.symlink(symlink, symlink_target)
+        state_change = RemoveMountSymlink(dataset_id=uuid4(),
+                                          link_path=symlink)
+        state_change.run(deployer)
+        self.expectThat(symlink.realpath(), Not(Equals(symlink_target)),
+                        'Symlink not removed.')
+        self.expectThat(symlink.path, Not(PathExists()),
+                        'Symlink file still exists.')
 
 
 class AllocatedSizeTypeTests(TestCase):

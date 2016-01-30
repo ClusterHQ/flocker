@@ -473,13 +473,33 @@ _DEFAULT_BACKENDS = [
     ),
 ]
 
+
+def _create_block_device_deployer(api, **kw):
+    """
+    Simple factory for a :class:`BlockDeviceDeployer`.
+
+    :param api: The :class:`IBlockDeviceAPI` provider that will be used to
+        manipulate blockdevices on the system.
+
+    :returns BlockDeviceDeployer: The :class:`BlockDeviceDeployer` to be used
+        by the dataset agent.
+    """
+    deployer = BlockDeviceDeployer(block_device_api=ProcessLifetimeCache(api),
+                                   _underlying_blockdevice_api=api,
+                                   **kw)
+
+    # For now, create the link root if it does not exist. Soon this will be
+    # replaced proper validation that the paths are set up correctly.
+    if not deployer.link_root.exists():
+        deployer.link_root.makedirs()
+
+    return deployer
+
+
 _DEFAULT_DEPLOYERS = {
     DeployerType.p2p: lambda api, **kw:
         P2PManifestationDeployer(volume_service=api, **kw),
-    DeployerType.block: lambda api, **kw:
-        BlockDeviceDeployer(block_device_api=ProcessLifetimeCache(api),
-                            _underlying_blockdevice_api=api,
-                            **kw),
+    DeployerType.block: _create_block_device_deployer,
 }
 
 
