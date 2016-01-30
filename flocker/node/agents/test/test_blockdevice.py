@@ -4138,11 +4138,10 @@ class LoopbackBlockDeviceAPIImplementationTests(TestCase):
             dataset_id=uuid4(),
             size=requested_size,
         )
-        allocated_size = volume.size
         size = get_size_info(self.api, volume)
 
         self.assertEqual(
-            (0, allocated_size),
+            (0, volume.size),
             (size.actual, size.reported)
         )
 

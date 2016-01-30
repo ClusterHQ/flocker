@@ -40,7 +40,7 @@ from twisted.internet.base import _ThreePhaseEvent
 from twisted.internet.task import Clock
 from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone
-from twisted.internet import reactor
+from twisted.internet import reactor as mod_reactor
 from twisted.trial.unittest import SkipTest
 from twisted.internet.protocol import Factory, ProcessProtocol, Protocol
 from twisted.test.proto_helpers import MemoryReactor
@@ -362,15 +362,15 @@ def make_standard_options_test(options):
             version string to stdout and causes the command to exit with status
             `0`.
             """
-            sys = FakeSysModule()
+            fake_sys = FakeSysModule()
             error = self.assertRaises(
                 SystemExit,
-                options(sys_module=sys).parseOptions,
+                options(sys_module=fake_sys).parseOptions,
                 ['--version']
             )
             self.assertEqual(
                 (__version__ + '\n', 0),
-                (sys.stdout.getvalue(), error.code)
+                (fake_sys.stdout.getvalue(), error.code)
             )
 
         def test_verbosity_default(self):
@@ -427,15 +427,16 @@ def make_standard_options_test(options):
             `--logfile` is optional and if ommited, logs will be directed to
             ``stdout``.
             """
-            sys = FakeSysModule()
-            options_instance = options(sys_module=sys)
+            fake_sys = FakeSysModule()
+            options_instance = options(sys_module=fake_sys)
             # The command may otherwise give a UsageError "Wrong
             # number of arguments." if there are arguments required.
             # See https://clusterhq.atlassian.net/browse/FLOC-184
             # about a solution which does not involve patching.
             self.patch(options_instance, "parseArgs", lambda: None)
             options_instance.parseOptions([])
-            self.assertIs(sys.stdout, options_instance.eliot_destination.file)
+            self.assertIs(
+                fake_sys.stdout, options_instance.eliot_destination.file)
 
         def test_logfile_override(self):
             """
@@ -672,7 +673,7 @@ class DockerImageBuilder(PClass):
             b'--tag=%s' % (tag,),
             docker_dir.path
         ]
-        d = logged_run_process(reactor, command)
+        d = logged_run_process(mod_reactor, command)
         if self.cleanup:
             def remove_image():
                 client = DockerClient(version="1.15")

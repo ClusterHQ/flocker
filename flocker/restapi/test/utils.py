@@ -51,7 +51,7 @@ def _assertRequestLogged(path, method=b"GET"):
 
 
 def _assertTracebackLogged(exceptionType):
-    def _assertTracebackLogged(self, logger):
+    def __assertTracebackLogged(self, logger):
         """
         Assert that a traceback for an L{ArbitraryException} was logged as a
         child of a L{REQUEST} action.
@@ -79,7 +79,7 @@ def _assertTracebackLogged(exceptionType):
                 "Traceback was logged outside of the context of a request "
                 "action.")
 
-    return _assertTracebackLogged
+    return __assertTracebackLogged
 
 
 class _anything(object):

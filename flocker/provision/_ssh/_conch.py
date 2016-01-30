@@ -143,7 +143,7 @@ def get_connection_helper(reactor, address, username, port):
 
 @deferred_performer
 @inlineCallbacks
-def perform_run_remotely(reactor, base_dispatcher, intent):
+def perform_run_remotely(reactor, child_dispatcher, intent):
     connection_helper = get_connection_helper(
         reactor,
         username=intent.username, address=intent.address, port=intent.port)
@@ -164,7 +164,7 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
             connection=connection,
             context=context,
         ),
-        base_dispatcher,
+        child_dispatcher,
     ])
 
     yield perform(dispatcher, intent.commands)

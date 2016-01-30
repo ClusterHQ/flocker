@@ -2608,11 +2608,13 @@ class CreateAPIServiceTests(TestCase):
         """
         ``create_api_service`` returns an object providing ``IService``.
         """
-        reactor = MemoryReactor()
-        endpoint = TCP4ServerEndpoint(reactor, 6789)
+        mem_reactor = MemoryReactor()
+        endpoint = TCP4ServerEndpoint(mem_reactor, 6789)
         verifyObject(IService, create_api_service(
-            ConfigurationPersistenceService(reactor, FilePath(self.mktemp())),
-            ClusterStateService(reactor), endpoint, ClientContextFactory()))
+            ConfigurationPersistenceService(
+                mem_reactor, FilePath(self.mktemp())),
+            ClusterStateService(mem_reactor), endpoint,
+            ClientContextFactory()))
 
 
 class DatasetsStateTestsMixin(APITestsMixin):

@@ -61,8 +61,8 @@ APPLICATION_WITHOUT_VOLUME = Application(
 
 # This models an application that has a volume.
 APPLICATION_WITH_VOLUME_NAME = u"psql-clusterhq"
-DATASET_ID = unicode(uuid4())
-DATASET = Dataset(dataset_id=DATASET_ID)
+GLOBAL_DATASET_ID = unicode(uuid4())
+DATASET = Dataset(dataset_id=GLOBAL_DATASET_ID)
 APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
 APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
 APPLICATION_WITH_VOLUME = Application(
@@ -76,7 +76,7 @@ APPLICATION_WITH_VOLUME = Application(
 )
 MANIFESTATION = APPLICATION_WITH_VOLUME.volume.manifestation
 
-DATASET_WITH_SIZE = Dataset(dataset_id=DATASET_ID,
+DATASET_WITH_SIZE = Dataset(dataset_id=GLOBAL_DATASET_ID,
                             metadata=DATASET.metadata,
                             maximum_size=1024 * 1024 * 100)
 

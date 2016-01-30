@@ -59,7 +59,7 @@ def _can_query_journald():
 class EliotScript(object):
     key = 123
 
-    def main(self, reactor, options):
+    def main(self, _, options):
         Message.log(key=self.key)
         return succeed(None)
 
@@ -74,21 +74,21 @@ class EliotLargeScript(EliotScript):
 
 @implementer(ICommandLineScript)
 class TwistedScript(object):
-    def main(self, reactor, options):
+    def main(self, _, options):
         msg(b"hello")
         return succeed(None)
 
 
 @implementer(ICommandLineScript)
 class TwistedErrorScript(object):
-    def main(self, reactor, options):
+    def main(self, _, options):
         err(ZeroDivisionError("onoes"), b"A zero division ono")
         return succeed(None)
 
 
 @implementer(ICommandLineScript)
 class StdoutStderrScript(object):
-    def main(self, reactor, options):
+    def main(self, _, options):
         sys.stdout.write(b"stdout!\n")
         sys.stderr.write(b"stderr!\n")
         return succeed(None)
@@ -96,14 +96,14 @@ class StdoutStderrScript(object):
 
 @implementer(ICommandLineScript)
 class FailScript(object):
-    def main(self, reactor, options):
+    def main(self, _, options):
         raise ZeroDivisionError("ono")
 
 
 @implementer(ICommandLineScript)
 class SigintScript(object):
-    def main(self, reactor, options):
-        reactor.callLater(0.05, os.kill, os.getpid(), SIGINT)
+    def main(self, _reactor, options):
+        _reactor.callLater(0.05, os.kill, os.getpid(), SIGINT)
         return Deferred()
 
 # Code to run a minimal script:

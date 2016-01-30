@@ -10,7 +10,7 @@ from __future__ import unicode_literals, absolute_import
 import math
 import os
 import re
-import types
+import types as mod_types
 
 from ipaddr import IPv4Address, AddressValueError
 from uuid import UUID
@@ -153,7 +153,7 @@ def parse_storage_string(value):
         'K': 1024, 'M': 1048576,
         'G': 1073741824, 'T': 1099511627776
     }
-    if not isinstance(value, types.StringTypes):
+    if not isinstance(value, mod_types.StringTypes):
         raise ValueError("Value must be string, got {type}.".format(
             type=type(value).__name__))
     pattern = re.compile("^(\d+\.?\d*)(K|M|G|T)?$", re.I | re.U)
@@ -962,11 +962,11 @@ class FlockerConfiguration(object):
             for key, value in environment.iteritems():
                 # We should normailzie strings to either bytes or unicode here
                 # https://clusterhq.atlassian.net/browse/FLOC-636
-                _check_type(value=key, types=types.StringTypes,
+                _check_type(value=key, types=mod_types.StringTypes,
                             description="Environment variable name "
                                         "must be a string",
                             application_name=application_name)
-                _check_type(value=value, types=types.StringTypes,
+                _check_type(value=value, types=mod_types.StringTypes,
                             description="Environment variable '{key}' "
                                         "must be a string".format(key=key),
                             application_name=application_name)
@@ -1015,7 +1015,7 @@ class FlockerConfiguration(object):
                     # We should normailzie strings to either bytes or unicode
                     # here. https://clusterhq.atlassian.net/browse/FLOC-636
                     alias = link.pop('alias')
-                    _check_type(value=alias, types=types.StringTypes,
+                    _check_type(value=alias, types=mod_types.StringTypes,
                                 description="Link alias must be a string",
                                 application_name=application_name)
                 except KeyError:

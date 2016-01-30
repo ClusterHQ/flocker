@@ -90,7 +90,7 @@ def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
     ca_set.copy_to(scratch_directory, node=True)
     test.ca_set = ca_set
 
-deployer = object()
+global_deployer = object()
 
 
 # This should have an explicit interface:
@@ -98,7 +98,7 @@ deployer = object()
 def deployer_factory_stub(**kw):
     if set(kw.keys()) != {"node_uuid", "cluster_uuid", "hostname"}:
         raise TypeError("wrong arguments")
-    return deployer
+    return global_deployer
 
 
 class DummyAgentService(PClass):
@@ -661,7 +661,7 @@ class AgentServiceFactoryTests(TestCase):
         self.assertEqual(
             AgentLoopService(
                 reactor=reactor,
-                deployer=deployer,
+                deployer=global_deployer,
                 host=b"10.0.0.1",
                 port=1234,
                 context_factory=_context_factory_and_credential(
@@ -697,7 +697,7 @@ class AgentServiceFactoryTests(TestCase):
         self.assertEqual(
             AgentLoopService(
                 reactor=reactor,
-                deployer=deployer,
+                deployer=global_deployer,
                 host=b"10.0.0.2",
                 port=4524,
                 context_factory=_context_factory_and_credential(

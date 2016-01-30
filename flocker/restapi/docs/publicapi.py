@@ -90,13 +90,13 @@ def getRoutes(app):
 
         # Klein sets `segment_count` which we don't care about
         # so ignore it.
-        attributes = vars(app._endpoints[rule.endpoint]).copy()
-        if 'segment_count' in attributes:
+        attrs = vars(app._endpoints[rule.endpoint]).copy()
+        if 'segment_count' in attrs:
             del attributes['segment_count']
 
         yield KleinRoute(
             methods=methods, path=path, endpoint=rule.endpoint,
-            attributes=attributes)
+            attributes=attrs)
 
 
 def _parseSchema(schema, schema_store):
