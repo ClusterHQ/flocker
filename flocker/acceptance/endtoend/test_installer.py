@@ -29,6 +29,7 @@ INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
 
 CLOUDFORMATION_STACK_NAME = 'testinstallerstack'
+CLOUDFORMATION_STACK_TIMEOUT = 900
 
 POSTGRESQL_PORT = 5432
 POSTGRESQL_USERNAME = 'flocker'
@@ -141,7 +142,9 @@ def wait_for_stack_status(stack_id, target_status):
         if current_status == target_status:
             return stack_report
 
-    return loop_until(reactor, predicate, repeat(10, 60))
+    return loop_until(reactor,
+                      predicate,
+                      repeat(30, CLOUDFORMATION_STACK_TIMEOUT))
 
 
 def create_cloudformation_stack(template_url, access_key_id,
