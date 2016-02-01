@@ -891,8 +891,9 @@ def _add_nodes(cluster):
 
     try:
         backend = get_backend_api(None, cluster.cluster_uuid)
-    except SkipTest:
+    except SkipTest as e:
         # Can't load backend, will have to trust Flocker's reported IPs.
+        print "Can't use backend", e
         get_public_ip = default_get_public_ip
     else:
         if ICloudAPI.providedBy(backend):
@@ -909,11 +910,13 @@ def _add_nodes(cluster):
                 raise ValueError(
                     "Couldn't find address in cloud API reported IPs")
         else:
+            print "Backend doesn't provide ICloudAPI", backend
             get_public_ip = default_get_public_ip
 
     def node_from_dict(node):
         reported_ip = node["host"]
         public_address = get_public_ip(reported_ip)
+        print reported_ip, get_public_ip, public_address
         return Node(
             uuid=node[u"uuid"],
             public_address=public_address.encode("ascii"),
