@@ -54,8 +54,7 @@ class RequestLoadScenario(object):
     requests at a specified rate.
 
     :ivar reactor: Reactor to use.
-    :ivar scenario_setup: provider of the interface
-        ``IRequest``.
+    :ivar scenario_setup: provider of the interface ``IRequest``.
     :ivar request_rate: The target number of requests per second.
     :ivar sample_size: The number of samples to collect when measuring
         the rate.
@@ -84,8 +83,7 @@ class RequestLoadScenario(object):
         ``RequestLoadScenario`` constructor.
 
         :param reactor: Reactor to use.
-        :param scenario_setup_instance: provider of the
-            ``IRequest`` interface.
+        :param scenario_setup_instance: provider of the ``IRequest`` interface.
         :param request_rate: target number of request per second.
         :param sample_size: number of samples to collect when measuring
             the rate.
