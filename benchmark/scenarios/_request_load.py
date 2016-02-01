@@ -8,7 +8,7 @@ from zope.interface import implementer
 from eliot import start_action, write_failure, Message
 from eliot.twisted import DeferredContext
 
-from twisted.internet.defer import CancelledError, Deferred
+from twisted.internet.defer import CancelledError, Deferred, succeed
 from twisted.internet.task import LoopingCall
 
 from flocker.common import loop_until, timeout
@@ -117,30 +117,44 @@ class RequestLoadScenario(object):
         Update the rate with the current value and send ``request_rate``
         number of new requests.
 
+        This function expects to be called from a ``LoopingCall`` with a 1
+        second interval.  Normally, count == 1 and this gets runs once.  If
+        this function takes longer than the loop interval (1 second) it will
+        miss a call and will subsequently be called with count > 1 to allow it
+        to catch up.
+
         :param count: The number of seconds passed since the last time
             ``_request_and_measure`` was called.
-        """
-        for i in range(count):
-            self.rate_measurer.update_rate()
 
+        :return Deferred[None]: LoopingCall expects a ``Deferred``.  Results of
+            Deferred's created in this function are handled in the rate
+            measurer.  Meanwhile we want this function to return quickly to
+            avoid missing loop iterations.  We don't worry about overload, as
+            that is checked in the `check_rate` function.
+        """
         def handle_request_error(result):
             self.rate_measurer.request_failed(result)
             write_failure(result)
 
-        for i in range(self.request_rate):
-            t0 = self.reactor.seconds()
+        for i in range(count):
+            self.rate_measurer.update_rate()
 
-            d = self.scenario_setup.make_request()
+            for i in range(self.request_rate):
+                t0 = self.reactor.seconds()
 
-            def get_time(_ignore):
-                return self.reactor.seconds() - t0
-            d.addCallback(get_time)
+                d = self.scenario_setup.make_request()
 
-            self.rate_measurer.request_sent()
-            d.addCallbacks(
-                self.rate_measurer.response_received,
-                handle_request_error
-            )
+                def get_time(_ignore):
+                    return self.reactor.seconds() - t0
+                d.addCallback(get_time)
+
+                self.rate_measurer.request_sent()
+                d.addCallbacks(
+                    self.rate_measurer.response_received,
+                    handle_request_error
+                )
+
+        return succeed(None)
 
     def _fail(self, exception):
         """
