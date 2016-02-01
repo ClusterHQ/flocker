@@ -1171,8 +1171,7 @@ job_type:
 
     run_trial_for_gce_storage_driver_on_Ubuntu_trusty:
       on_nodes_with_labels: 'gce-ubuntu-trusty-n1-standard-2'
-      with_modules:
-        - flocker/node/agents/gce.py
+      with_modules: *run_trial_functional_agent_modules
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
@@ -1187,6 +1186,7 @@ job_type:
       coverage_report: true
       clean_repo: true
       timeout: 45
+      directories_to_delete: *run_trial_directories_to_delete
 
   # http://build.clusterhq.com/builders/flocker-docs
   run_sphinx:
