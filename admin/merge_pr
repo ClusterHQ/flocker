@@ -370,7 +370,8 @@ def main(args):
         sys.stderr.write(
             "You must set {} and {}.\n"
             "You can generate a token at "
-            "https://github.com/settings/tokens\n".format(
+            "https://github.com/settings/tokens (this script requires "
+            "the repo:status and public_repo scopes)\n".format(
                 GITHUB_USERNAME_ENV_VAR, GITHUB_TOKEN_ENV_VAR))
         return 1
     session = requests.Session()
