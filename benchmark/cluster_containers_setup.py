@@ -54,9 +54,6 @@ class ContainerOptions(usage.Options):
         ['wait', None, 7200,
          "The timeout in seconds for waiting until the operation is complete. "
          "Waits two hours by default."],
-        ['wait-interval', None, 4,
-         "How often are we going to check if the creation of containers and "
-         "datasets has finished, in second"],
     ]
 
     synopsis = ('Usage: setup-cluster-containers --app-per-node <containers '
@@ -66,7 +63,7 @@ class ContainerOptions(usage.Options):
                 '--cert-directory <path where all the certificates are> '
                 '[--max-size <volume size in GB>] '
                 '[--wait <total seconds to wait>]'
-                '[--wait-interval <seconds to wait between list calls]')
+                )
 
     def postOptions(self):
         # Mandatory parameters
@@ -118,12 +115,6 @@ class ContainerOptions(usage.Options):
         except ValueError:
             raise usage.UsageError("The wait timeout must be an integer.")
 
-        try:
-            self['wait-interval'] = int(self['wait-interval'])
-        except ValueError:
-            raise usage.UsageError(
-                "The wait-interval must be an integer.")
-
 
 def main(reactor, argv, environ):
     # Setup eliot to print better human-readable output to standard
@@ -159,19 +150,16 @@ class ClusterContainerDeployment(object):
     :ivar control_node_address: public ip address of the control node.
     :ivar timeout: total time to wait for the containers and datasets
         to be created.
-    :ivar wait_interval: how much to wait between list calls when waiting for
-        the containers and datasets to be created.
-    :ivar _num_loops: number of times to repeat the looping call based on the
-        ``tiemeout`` and the ``wait_interval``.
     :ivar cluster_cert: ``FilePath`` of the cluster certificate.
     :ivar user_cert: ``FilePath`` of the user certificate.
     :ivar user_key: ``FilePath`` of the user key.
     :ivar client: ``FlockerClient`` conected to the cluster.
     :ivar reactor: ``Reactor`` used by the client.
     """
-    def __init__(self, reactor, image, max_size, mountpoint,
-                 control_node_address, timeout, wait_interval, cluster_cert,
-                 user_cert, user_key, client):
+    def __init__(
+        self, reactor, image, max_size, mountpoint, control_node_address,
+        timeout, cluster_cert, user_cert, user_key, client
+    ):
         """
         ``ClusterContainerDeployment`` constructor.
         It is not meant to be called directly. See ``from_options`` if you
@@ -183,13 +171,9 @@ class ClusterContainerDeployment(object):
         self.mountpoint = mountpoint
         self.control_node_address = control_node_address
         self.timeout = timeout
-        self.wait_interval = wait_interval
         if self.timeout is None:
             # Wait two hours by default
             self.timeout = 72000
-        self._num_loops = 1
-        if self.wait_interval < self.timeout:
-            self._num_loops = self.timeout / self.wait_interval
 
         self.cluster_cert = cluster_cert
         self.user_cert = user_cert
@@ -215,8 +199,6 @@ class ClusterContainerDeployment(object):
             mountpoint = unicode(options['mountpoint'])
             control_node_address = options['control-node']
             timeout = options['wait']
-            wait_interval = options['wait-interval']
-
         except Exception as e:
             sys.stderr.write("%s: %s\n" % ("Missing or wrong arguments", e))
             sys.stderr.write(e.args[0])
@@ -241,10 +223,10 @@ class ClusterContainerDeployment(object):
             user_key
         )
 
-        return cls(reactor, image, max_size, mountpoint,
-                   control_node_address, timeout, wait_interval,
-                   cluster_cert,
-                   user_cert, user_key, client)
+        return cls(
+            reactor, image, max_size, mountpoint, control_node_address,
+            timeout, cluster_cert, user_cert, user_key, client
+        )
 
     def _dataset_to_volume(self, dataset):
         """
