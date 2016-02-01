@@ -1629,14 +1629,15 @@ def reinstall_flocker_at_version(
                     username='root',
                     address=node.address,
                     commands=sequence([
+                        task_enable_docker(node.distribution),
+                        if_firewall_available(
+                            node.distribution,
+                            open_firewall_for_docker_api(node.distribution),
+                        ),
                         task_enable_docker_plugin(node.distribution),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
                             action='restart',
-                        ),
-                        if_firewall_available(
-                            node.distribution,
-                            open_firewall_for_docker_api(node.distribution),
                         ),
                     ])
                 )
