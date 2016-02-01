@@ -157,6 +157,9 @@ base_user_data = [
 # from 0.
 flocker_agent_number = 1
 
+# Gather WaitConditions
+wait_condition_names = []
+
 for i in range(NUM_NODES):
     if i == 0:
         node_name = CONTROL_NODE_NAME
@@ -185,6 +188,9 @@ for i in range(NUM_NODES):
     )
     template.add_resource(wait_condition)
 
+    # Gather WaitConditions
+    wait_condition_names.append(wait_condition.name)
+
     user_data = base_user_data[:]
     user_data += [
         'node_number="{}"\n'.format(i),
@@ -198,7 +204,7 @@ for i in range(NUM_NODES):
     if i == 0:
         # Control Node configuration.
         control_service_instance = ec2_instance
-        user_data += 'flocker_node_type="control"\n',
+        user_data += ['flocker_node_type="control"\n']
         user_data += _sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
         user_data += _sibling_lines(DOCKER_SWARM_CA_SETUP)
         user_data += _sibling_lines(DOCKER_SETUP)
@@ -216,10 +222,12 @@ for i in range(NUM_NODES):
     else:
         # Agent Node configuration.
         ec2_instance.DependsOn = control_service_instance.name
-        user_data += 'flocker_node_type="agent"\n'
-        user_data += 'flocker_agent_number="{}"\n'.format(
-            flocker_agent_number
-        )
+        user_data += [
+            'flocker_node_type="agent"\n',
+            'flocker_agent_number="{}"\n'.format(
+                flocker_agent_number
+            )
+        ]
         flocker_agent_number += 1
         user_data += _sibling_lines(DOCKER_SETUP)
 
@@ -253,7 +261,7 @@ template.add_resource(wait_condition_handle)
 wait_condition = WaitCondition(
     CLIENT_WAIT_CONDITION,
     Handle=Ref(wait_condition_handle),
-    Timeout="600",
+    Timeout="900",
 )
 template.add_resource(wait_condition)
 
@@ -267,7 +275,10 @@ user_data += _sibling_lines(S3_SETUP)
 user_data += _sibling_lines(CLIENT_SETUP)
 user_data += _sibling_lines(SIGNAL_CONFIG_COMPLETION)
 client_instance.UserData = Base64(Join("", user_data))
-client_instance.DependsOn = control_service_instance.name
+
+# Start Client Node after Control Node and Agent Nodes are
+# up and running Flocker, Docker, Swarm stack.
+client_instance.DependsOn = wait_condition_names
 template.add_resource(client_instance)
 
 # List of Output fields upon successful creation of the stack.

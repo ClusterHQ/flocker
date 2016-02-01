@@ -26,7 +26,7 @@ from ..ebs import (
     VolumeOperations, VolumeStateTable, VolumeStates,
     TimeoutException, _reached_end_state, UnexpectedStateException,
     EBSMandatoryProfileAttributes, _get_volume_tag,
-    AttachUnexpectedInstance, VolumeBusy,
+    AttachUnexpectedInstance, VolumeBusy, _next_device,
 )
 from ....testtools import AsyncTestCase, async_runner
 
@@ -199,8 +199,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         instance_id = self.api.compute_instance_id()
 
         # Attach manual volume using /xvd* device.
-        device_name = self.api._next_device()
-        device_name = device_name.replace('/sd', '/xvd')
+        device_name = _next_device().replace(u'/sd', u'/xvd')
         self.api._attach_ebs_volume(
             created_volume.id, instance_id, device_name)
         _wait_for_volume_state_change(VolumeOperations.ATTACH, created_volume)
@@ -454,11 +453,11 @@ class VolumeStub(object):
         equal = True
         for key, value in self._volume_attributes.items():
             other_value = getattr(other, key, None)
-            if self._volume_attributes[key] is not None:
-                if self._volume_attributes[key] != other_value:
+            if value is not None:
+                if value != other_value:
                     equal = False
             if other_value is not None:
-                if self._volume_attributes[key] != other_value:
+                if value != other_value:
                     equal = False
         return equal
 

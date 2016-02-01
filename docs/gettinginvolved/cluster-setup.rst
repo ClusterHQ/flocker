@@ -68,6 +68,13 @@ The :program:`admin/setup-cluster` script has several options:
    Specifies the number of nodes (machines) to create for use in the cluster.
    This option is only applicable if the nodes are created dynamically.
 
+.. option:: --cert-directory <directory>
+
+   If this option is used then the generated cluster certificate files will be stored
+   in the directory specified.
+   Otherwise a random temporary directory will be used.
+   The specified directory must not exist or it must be an empty directory.
+
 To see the supported values for each option, run:
 
 .. prompt:: bash $
@@ -83,6 +90,17 @@ An example of how to run :program:`setup-cluster` would be:
     --provider rackspace \
     --config-file $PWD/cluster.yml \
     --number-of-nodes 2 
+
+The :program:`setup-cluster` script also creates the following files in the directory
+specified by :option:`--cert-directory`:
+
+    :file:`environment.env`
+        contains definitions of the environment variables that are needed to run the
+        acceptance tests on the cluster.
+
+    :file:`managed.yaml`
+        a YAML configuration file based on the file specified with :option:`--config-file` that
+        in addition contains a ``managed`` section describing the newly created cluster nodes.
 
 Configuration File
 ==================
@@ -170,6 +188,119 @@ Or you can run, for example, the acceptance tests against the created cluster:
      --branch=master \
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
+
+=========================
+Extending a Cluster
+=========================
+
+It is possible to add more nodes to an existing Flocker cluster.
+
+.. prompt:: bash $
+
+   admin/add-cluster-nodes <options>
+
+
+The :program:`admin/add-cluster-nodes` script has several options,
+some of them the same as for :program:`admin/setup-cluster`:
+
+.. program:: admin/add-cluster-nodes
+
+.. option:: --distribution <distribution>
+
+   See :program:`admin/setup-cluster`.
+   Typically this would be the same distribution as for the existing cluster nodes,
+   however that's not required.
+
+.. option:: --provider <provider>
+
+   See :program:`admin/setup-cluster`.
+   This should be the same provider as for the existing nodes.
+   The new nodes may fail to work properly otherwise.
+   At present ``rackspace`` and ``aws`` providers are supported.
+
+.. option:: --dataset-backend <dataset-backend>
+
+   See :program:`admin/setup-cluster`.
+
+.. option:: --branch <branch>
+
+   See :program:`admin/setup-cluster`.
+   Different Flocker versions might fail to inter-operate.
+
+.. option:: --flocker-version <version>
+
+   See :program:`admin/setup-cluster`.
+   Different Flocker versions might fail to inter-operate.
+
+.. option:: --build-server <buildserver>
+
+   See :program:`admin/setup-cluster`.
+
+.. option:: --config-file <config-file>
+
+   See :program:`admin/setup-cluster`.
+   The configuration file must include a ``managed`` section that describes the existing nodes.
+   Typically this would be :file:`managed.yaml` file from the certificates directory
+   of the cluster.  See :option:`--cert-directory`.
+
+.. option:: --purpose <purpose>
+
+   See :program:`admin/setup-cluster`.
+   The purpose should be the same as used when creating the existing node.
+   That makes the administration of the nodes easier.
+
+.. option:: --tag <tag>
+
+   :program:`admin/setup-cluster` generates a random tag that is added to names
+   of the cluster nodes.
+   This option allows to use the same tag for the new nodes.
+   That makes the administration of the nodes easier.
+
+.. option:: --number-of-nodes <number>
+
+   Specifies the number of additional nodes to add to the cluster.
+
+.. option:: --cert-directory <directory>
+
+   This mandatory option specifies a directory with the cluster certificate files.
+   Certificate files for the new nodes will also be added to this directory.
+   The :file:`environment.env` and :file:`managed.yaml` files in this directory will
+   be updated in place.
+
+.. option:: --control-node <IP address>
+
+   IP address of the cluster's control node.
+
+.. option:: --starting-index <number>
+
+   A starting index to use when naming the new nodes.
+   If not specified then the number of the existing nodes will be used as the starting index.
+   The indexes of nodes are reflected in their names and in file names of node certificates.
+
+
+:program:`add-cluster-nodes` may create fewer nodes than requested with :option:`--number-of-nodes`,
+the partial success is still considered as a success.
+A diagnostic message will be printed in such a case.
+
+To see the supported values for each option, run:
+
+.. prompt:: bash $
+
+   admin/add-cluster-nodes --help
+
+An example of how to run :program:`add-cluster-nodes` would be:
+
+.. prompt:: bash $
+
+  admin/add-cluster-node \
+    --distribution centos-7 \
+    --branch master \
+    --config-file ~/clusters/test0/managed.yaml \
+    --purpose FLOC-3947 \
+    --tag '4S4Av0gRJ9c' \
+    --cert-directory ~/clusters/test0 \
+    --control-node 52.33.228.33 \
+    --number-of-nodes 3
 
 Adding Containers and Datasets
 ==============================

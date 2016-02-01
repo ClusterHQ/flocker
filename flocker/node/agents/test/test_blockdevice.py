@@ -49,7 +49,7 @@ from twisted.python.filepath import FilePath
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
-    LoggedAction, assertHasMessage, assertHasAction
+    LoggedAction, LoggedMessage, assertHasMessage, assertHasAction
 )
 
 from .strategies import blockdevice_volumes
@@ -90,6 +90,8 @@ from ..blockdevice import (
 
     ICloudAPI,
     _SyncToThreadedAsyncCloudAPIAdapter,
+
+    log_list_volumes, CALL_LIST_VOLUMES,
 )
 from ..blockdevice_manager import (
     BlockDeviceManager, IBlockDeviceManager, MountError
@@ -1629,7 +1631,7 @@ class BlockDeviceCalculatorTestObjects(object):
             that there will always be fewer than 20 steps to transition from
             one desired state to another if there are no bugs.
         """
-        for i in range(max_iterations):
+        for _ in range(max_iterations):
             self.run_convergence_step(
                 dataset_map_from_iterable(desired_datasets))
             note(self.discover_state().datasets)
@@ -5185,7 +5187,7 @@ class MountBlockDeviceTests(
         intermediate = mountroot.child(b"mount-error-test")
         intermediate.setContent(b"collision")
         mountpoint = intermediate.child(b"mount-test")
-        scenario, mount_result = self._run_test(mountpoint)
+        _, mount_result = self._run_test(mountpoint)
 
         failure = self.failureResultOf(mount_result, OSError)
         self.assertEqual(ENOTDIR, failure.value.errno)
@@ -5984,7 +5986,7 @@ class ProcessLifetimeCacheTests(TestCase):
         The result of ``compute_instance_id`` is cached indefinitely.
         """
         initial = self.cache.compute_instance_id()
-        later = [self.cache.compute_instance_id() for i in range(10)]
+        later = [self.cache.compute_instance_id() for _ in range(10)]
         self.assertEqual(
             (later, self.counting_proxy.num_calls("compute_instance_id")),
             ([initial] * 10, 1))
@@ -6032,7 +6034,7 @@ class ProcessLifetimeCacheTests(TestCase):
         The result of ``get_device_path`` is no longer cached after an
         ``detach_device`` call.
         """
-        attached_id1, attached_id2 = self.attached_volumes()
+        attached_id1, _ = self.attached_volumes()
         # Warm up cache:
         self.cache.get_device_path(attached_id1)
         # Invalidate cache:
@@ -6163,3 +6165,41 @@ class BlockDeviceVolumeTests(TestCase):
                 ),
             ))
         )
+
+
+class LogListVolumesTest(TestCase):
+    """
+    Tests for ``log_list_volumes``
+    """
+
+    @capture_logging(lambda self, logger: None)
+    def test_generates_log_with_incrementing_count(self, logger):
+        """
+        ``log_list_volumes`` increments the count field of log messages.
+        """
+        @log_list_volumes
+        def wrapped():
+            pass
+
+        wrapped()
+        wrapped()
+        wrapped()
+
+        counts = [
+            logged.message['count'] for logged in LoggedMessage.of_type(
+                logger.messages, CALL_LIST_VOLUMES
+            )
+        ]
+
+        self.assertEqual(counts, [1, 2, 3])
+
+    def test_args_passed(self):
+        """
+        Arguments and result passed to/from wrapped function.
+        """
+        @log_list_volumes
+        def wrapped(x, y, z):
+            return (x, y, z)
+
+        result = wrapped(3, 5, z=7)
+        self.assertEqual(result, (3, 5, 7))

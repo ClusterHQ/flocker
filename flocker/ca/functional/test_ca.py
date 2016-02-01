@@ -127,7 +127,7 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         to verify the generated node certificate and private key is
         signed by the previously generated certificate authority.
         """
-        status, output = flocker_ca(
+        _, output = flocker_ca(
             b"create-node-certificate", cwd=self.temp_path.path)
         # Find the generated file name with UUID from the output.
         file_pattern = re.compile("([a-zA-Z0-9\-]*\.crt)")
@@ -161,5 +161,5 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         expected = ""
         for line in helptext.splitlines():
             expected = expected + line.strip() + "\n"
-        status, output = flocker_ca(b"--help")
+        _, output = flocker_ca(b"--help")
         self.assertIn(expected, output)

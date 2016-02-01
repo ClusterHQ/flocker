@@ -528,13 +528,15 @@ def dummyRequest(method, path, headers, body=b""):
     @return: A L{IRequest} which can be used to render an L{IResource} using
         only in-memory data structures.
     """
-    scheme, location, path, params, query, fragment = urlparse(path)
-    if query:
+    parsed = urlparse(path)
+    if parsed.query:
         # Oops, dropped params.  Good thing no one cares.
-        path = path + "?" + query
+        new_path = parsed.path + "?" + parsed.query
+    else:
+        new_path = parsed.path
     return _DummyRequest(
         next(_dummyRequestCounter),
-        method, path, headers, body)
+        method, new_path, headers, body)
 
 
 def render(resource, request):
