@@ -69,12 +69,15 @@ JENKINS_BUILD_INFO_PATH = (
 
 
 def url_path(url):
-    """Return the path portion of a URL."""
+    """
+    Return the path portion of a URL.
+    """
     return urlparse.urlsplit(url).path
 
 
 def url_path_parts(url):
-    """Return the path segments of a URL.
+    """
+    Return the path segments of a URL.
 
     http://example.com/foo/bar/baz -> ['foo', 'bar', 'baz']
     """
@@ -82,7 +85,8 @@ def url_path_parts(url):
 
 
 def replace(a, b, x):
-    """Return x, unless x == a then return b
+    """
+    Return x, unless x == a then return b
 
     l2 = map(partial(replace, a, b), l1)
 
@@ -95,7 +99,9 @@ def replace(a, b, x):
 
 
 def pr_api_url_from_web_url(url):
-    """Get the API url for a pull request from the web one."""
+    """
+    Get the API url for a pull request from the web one.
+    """
     path = '/'.join(
         map(partial(replace, 'pull', 'pulls'),
             url_path_parts(url))
@@ -104,7 +110,8 @@ def pr_api_url_from_web_url(url):
 
 
 def fetch_page(base_url, page, session):
-    """Fetch a particular page number for a github API resource.
+    """
+    Fetch a particular page number for a github API resource.
 
     :param unicode base_url: the URL of the github API resource.
     :param int page: the page number to request (0 indexed).
@@ -116,31 +123,40 @@ def fetch_page(base_url, page, session):
 
 
 def final_status(statuses):
-    """Get the most recent entry for a list of github statuses."""
+    """
+    Get the most recent entry for a list of github statuses.
+    """
     return sorted(statuses, key=itemgetter('updated_at'))[-1]
 
 
 def not_success(status):
-    """Whether the github status is not a success."""
+    """
+    Whether the github status is not a success.
+    """
     return status['state'] != u'success'
 
 
 def format_status(status):
-    """Format a github status for presentation."""
+    """
+    Format a github status for presentation.
+    """
     github, jenkins = status
     return "{}: {} ({})".format(
         github['context'], jenkins.value, github['target_url'])
 
 
 def infinite_sleeps(sleep_for):
-    """Generator that will sleep between each yield."""
+    """
+    Generator that will sleep between each yield.
+    """
     for i in count():
         yield i
         time.sleep(sleep_for)
 
 
 def delete_branch(pr, session):
-    """Delete the source branch of a pull request using the API.
+    """
+    Delete the source branch of a pull request using the API.
 
     :param dict pr: the github API pull request representation.
     :param requests.Session session: the requests Session to use
@@ -153,7 +169,8 @@ def delete_branch(pr, session):
 
 
 def get_statuses(pr, session):
-    """Get all of the statuses for a pull request.
+    """
+    Get all of the statuses for a pull request.
 
     This takes care of pagination, and deduplicating the
     entries.
@@ -190,7 +207,9 @@ class JenkinsResults(Values):
 
 
 def jenkins_result_from_api(result):
-    """Convert a Jenkins job result in to a value from JenkinsResults."""
+    """
+    Convert a Jenkins job result in to a value from JenkinsResults.
+    """
     if result is None:
         return JenkinsResults.RUNNING
     elif result in ['FAILURE', 'ABORTED']:
@@ -203,7 +222,8 @@ def jenkins_result_from_api(result):
 
 
 def properties_to_params(props):
-    """Given Jenkins build properties, return the default parameters.
+    """
+    Given Jenkins build properties, return the default parameters.
 
     The default parameters are in the form that can be used to start
     a build with those parameters.
@@ -221,7 +241,8 @@ def properties_to_params(props):
 
 
 def get_jenkins_info(jenkins_session, status):
-    """Get the Jenkins job info for a github status, if any.
+    """
+    Get the Jenkins job info for a github status, if any.
 
     :param requests.Session session: the requests Session to
         use to make requests.
@@ -245,7 +266,8 @@ def get_jenkins_info(jenkins_session, status):
 
 
 def retry(jenkins_session, url, params):
-    """Retry a Jenkins job.
+    """
+    Retry a Jenkins job.
 
     :param unicode url: the url of the job.
     :param dict params: the params to use to start the new build,
@@ -259,7 +281,8 @@ def retry(jenkins_session, url, params):
 
 
 def do_merge(pr_url, pr, session):
-    """Attempt a merge using the github API then delete the source branch.
+    """
+    Attempt a merge using the github API then delete the source branch.
 
     :param unicode pr_url: the URL of the pull request.
     :param dict pr: the pull request API dict.
@@ -285,7 +308,8 @@ def do_merge(pr_url, pr, session):
 
 
 def maybe_retry_jobs(statuses, retry_counts, max_retries, jenkins_session):
-    """Maybe trigger some retries on Jenkins.
+    """
+    Maybe trigger some retries on Jenkins.
 
     Given a list of statuses that aren't successful, see if there
     are any Jenkins jobs that can be retried that might make them
@@ -334,7 +358,8 @@ def maybe_retry_jobs(statuses, retry_counts, max_retries, jenkins_session):
 def loop_until_passed(
     pr_url, sleep_between, session, jenkins_session, max_retries
 ):
-    """Loop until all the statuses for the target pull request are green.
+    """
+    Loop until all the statuses for the target pull request are green.
 
     :param unicode pr_url: the API URL of the pull request to watch.
     :param int sleep_between: the number of seconds to sleep between
