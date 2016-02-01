@@ -9,12 +9,12 @@ from twisted.internet.defer import succeed
 
 from flocker.apiclient import IFlockerAPIV1Client
 
-from .._interfaces import IRequestScenarioSetup
+from .._interfaces import IRequest
 from .._method import validate_no_arg_method
 from ._request_load import RequestLoadScenario, DEFAULT_SAMPLE_SIZE
 
 
-@implementer(IRequestScenarioSetup)
+@implementer(IRequest)
 class ReadRequest(object):
     """
     Implementation of the setup and request maker for the read load
