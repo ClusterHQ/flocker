@@ -281,4 +281,21 @@ class RequestLoadScenario(object):
                 return self.rate_measurer.get_metrics()
             scenario.addCallback(return_metrics)
 
+            def scenario_cleanup(ignored):
+                """
+                Calls the scenario cleanup, and wraps it inside an eliot
+                start action, so we can see the logs if something goes
+                wrong within the cleanup
+
+                :return Deferred: that will fire once the cleanup has been
+                    completed
+                """
+                with start_action(
+                    action_type=u'flocker:benchmark:scenario:cleanup',
+                    scenario='request_load'
+                ):
+                    return self.scenario_setup.run_cleanup()
+
+            scenario.addBoth(scenario_cleanup)
+
             return scenario.addActionFinish()
