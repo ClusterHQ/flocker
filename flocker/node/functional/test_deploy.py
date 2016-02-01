@@ -91,8 +91,6 @@ class P2PNodeDeployer(object):
             self.manifestations_deployer.calculate_changes(
                 configuration, cluster_state, local_state),
         ])
-def P2PNodeDeployer(hostname, volume_service, docker_client=None, network=None, node_uuid=None):
-    return ApplicationNodeDeployer(hostname, docker_client, network, node_uuid=node_uuid)
 
 
 def change_node_state(deployer, desired_configuration):
@@ -105,7 +103,7 @@ def change_node_state(deployer, desired_configuration):
         nodes.
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
-    state_recorder = InMemoryStatePersister()
+    state_persister = InMemoryStatePersister()
 
     def converge():
         d = deployer.discover_state(
@@ -114,7 +112,7 @@ def change_node_state(deployer, desired_configuration):
                           applications=[],
                           manifestations={}, paths={}, devices={}),
             }),
-            persistent_state=state_recorder.get_state(),
+            persistent_state=state_persister.get_state(),
         )
 
         def got_changes(local_state):
@@ -127,7 +125,7 @@ def change_node_state(deployer, desired_configuration):
         d.addCallback(got_changes)
         d.addCallback(lambda change: run_state_change(
             change, deployer=deployer,
-            state_recorder=state_recorder))
+            state_persister=state_persister))
         return d
     # Repeat a few times until things settle down:
     result = converge()
