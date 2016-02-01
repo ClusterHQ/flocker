@@ -24,7 +24,6 @@ import requests
 from requests.auth import HTTPBasicAuth
 from twisted.python.constants import Values, ValueConstant
 
-
 API_BASE_URL = 'https://api.github.com/'
 REPOS_API_PATH = 'repos'
 
@@ -37,6 +36,31 @@ JENKINS_PASSWORD_ENV_VAR = 'JENKINS_PASSWORD'
 MINIMUM_STATUSES = 50
 MAX_RETRIES = 1
 SLEEP_FOR = 60
+
+GITHUB_VARS_REQUIRED = """"You must set {} and {}.
+You can generate a token at https://github.com/settings/tokens
+(this script requires the repo:status and public_repo scopes)
+""".format(GITHUB_USERNAME_ENV_VAR, GITHUB_TOKEN_ENV_VAR)
+
+JENKINS_VARS_REQUIRED = """Please specify the jenkins user and\
+password in the {} and {} env vars.
+""".format(JENKINS_USERNAME_ENV_VAR, JENKINS_PASSWORD_ENV_VAR)
+
+DESCRIPTION = """Merge a branch when all the tests pass.
+
+Given the URL to a pull request on github this script will
+loop until all the tests pass, and then merge the branch.
+
+It will retry failures on Jenkins, and will also respond
+to any retries you make yourself, and cope with the branch
+being updated while it is running, waiting for the tests
+to pass for the new HEAD.
+
+It can optionally skip the merge if you just want to know
+when all the tests pass.
+
+It requires the following environment variables to be set:
+""" + GITHUB_VARS_REQUIRED + "\n" + JENKINS_VARS_REQUIRED
 
 JENKINS_BUILD_INFO_PATH = (
     '/api/json?tree=inQueue,builds[result],'
@@ -354,7 +378,7 @@ def loop_until_passed(
 
 
 def main(args):
-    argparse = ArgumentParser()
+    argparse = ArgumentParser(description=DESCRIPTION)
     argparse.add_argument('url', help="URL of the PR to merge")
     argparse.add_argument(
         '--no-merge', help="Don't merge, just wait until tests pass",
@@ -367,23 +391,15 @@ def main(args):
     username = os.environ.get(GITHUB_USERNAME_ENV_VAR, None)
     token = os.environ.get(GITHUB_TOKEN_ENV_VAR, None)
     if username is None or token is None:
-        sys.stderr.write(
-            "You must set {} and {}.\n"
-            "You can generate a token at "
-            "https://github.com/settings/tokens (this script requires "
-            "the repo:status and public_repo scopes)\n".format(
-                GITHUB_USERNAME_ENV_VAR, GITHUB_TOKEN_ENV_VAR))
+        sys.stderr.write(GITHUB_VARS_REQUIRED)
         return 1
     session = requests.Session()
     session.auth = HTTPBasicAuth(username, token)
     jenkins_username = os.environ.get(JENKINS_USERNAME_ENV_VAR, None)
     jenkins_password = os.environ.get(JENKINS_PASSWORD_ENV_VAR, None)
     if jenkins_username is None or jenkins_password is None:
-        raise AssertionError(
-            "Please specify the jenkins user and password in the "
-            "{} and {} env vars.".format(
-                JENKINS_USERNAME_ENV_VAR, JENKINS_PASSWORD_ENV_VAR)
-        )
+        sys.stderr.write(JENKINS_VARS_REQUIRED)
+        return 1
     jenkins_session = requests.Session()
     jenkins_session.auth = HTTPBasicAuth(jenkins_username, jenkins_password)
     pr_url = pr_api_url_from_web_url(opts.url)
