@@ -71,6 +71,9 @@ JENKINS_BUILD_INFO_PATH = (
 def url_path(url):
     """
     Return the path portion of a URL.
+
+    :param unicode url: the URL.
+    :return unicode: the path portion of the input URL.
     """
     return urlparse.urlsplit(url).path
 
@@ -80,13 +83,17 @@ def url_path_parts(url):
     Return the path segments of a URL.
 
     http://example.com/foo/bar/baz -> ['foo', 'bar', 'baz']
+
+    :param unicode url: the URL.
+    :return Sequence[unicode]: the segments of the path
+        of the input url.
     """
     return url_path(url).split('/')
 
 
 def replace(a, b, x):
     """
-    Return x, unless x == a then return b
+    return x, unless x == a then return b
 
     l2 = map(partial(replace, a, b), l1)
 
@@ -100,7 +107,10 @@ def replace(a, b, x):
 
 def pr_api_url_from_web_url(url):
     """
-    Get the API url for a pull request from the web one.
+    get the api url for a pull request from the web one.
+
+    :param unicode url: the web URL of the pull request.
+    :return unicode: the API URL of the same pull request.
     """
     path = '/'.join(
         map(partial(replace, 'pull', 'pulls'),
@@ -125,6 +135,9 @@ def fetch_page(base_url, page, session):
 def final_status(statuses):
     """
     Get the most recent entry for a list of github statuses.
+
+    :param Iterable[dict] statuses: the statuses.
+    :return dict: the last of the input statues by updated_at key.
     """
     return sorted(statuses, key=itemgetter('updated_at'))[-1]
 
@@ -132,6 +145,9 @@ def final_status(statuses):
 def not_success(status):
     """
     Whether the github status is not a success.
+
+    :param dict status: a github API status.
+    :return bool: whether the status isn't a success
     """
     return status['state'] != u'success'
 
@@ -139,6 +155,11 @@ def not_success(status):
 def format_status(status):
     """
     Format a github status for presentation.
+
+    :param (dict, JenkinsResult) status: a github API status
+        and Jenkins build result.
+    :return unicode: a string formatting of the pair
+         for display to the user.
     """
     github, jenkins = status
     return "{}: {} ({})".format(
@@ -148,6 +169,11 @@ def format_status(status):
 def infinite_sleeps(sleep_for):
     """
     Generator that will sleep between each yield.
+
+    :param int sleep_for: How long to sleep between
+         each iteration.
+    :return Iterable[None]: iterable that will sleep for
+        `sleep_for` between each item.
     """
     for i in count():
         yield i
@@ -200,6 +226,9 @@ def get_statuses(pr, session):
 
 
 class JenkinsResults(Values):
+    """
+    The outcome of a Jenkins build.
+    """
     RUNNING = ValueConstant('running')
     PASSED = ValueConstant('success')
     FAILED = ValueConstant('failed')
@@ -209,6 +238,9 @@ class JenkinsResults(Values):
 def jenkins_result_from_api(result):
     """
     Convert a Jenkins job result in to a value from JenkinsResults.
+
+    :param unicode result: the result of the job from the Jenkins API.
+    :return JenkinsResults: the corresponding JenkinsResults value.
     """
     if result is None:
         return JenkinsResults.RUNNING
@@ -227,6 +259,10 @@ def properties_to_params(props):
 
     The default parameters are in the form that can be used to start
     a build with those parameters.
+
+    :param Iterable[dict]: a list of properties for a job from the Jenkins API.
+    :return dict or None: the default params for the job if any, or
+        None if there aren't any parameters.
     """
     candidates = filter(lambda x: 'parameterDefinitions' in x, props)
     if candidates:
@@ -403,6 +439,12 @@ def loop_until_passed(
 
 
 def main(args):
+    """
+    Perform the function of the script.
+
+    :param Iterable[unicode] args: the command-line arguments for this run.
+    :return int: The recommended return code of the process.
+    """
     argparse = ArgumentParser(description=DESCRIPTION)
     argparse.add_argument('url', help="URL of the PR to merge")
     argparse.add_argument(
