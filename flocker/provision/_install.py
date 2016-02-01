@@ -1623,22 +1623,23 @@ def reinstall_flocker_at_version(
 
     def restart_services(ignored):
         restart_commands = sequence([
-            # First, restart docker on all nodes.
-            parallel([
-                run_remotely(
-                    username='root',
-                    address=node.address,
-                    commands=sequence([
-                        task_enable_docker(node.distribution),
-                        if_firewall_available(
-                            node.distribution,
-                            open_firewall_for_docker_api(node.distribution),
-                        ),
-                    ])
-                )
-                for node in managed_nodes
-            ]),
-            # Then restart the control and node agents.
+            # First restart the control agent.
+            run_remotely(
+                username='root',
+                address=control_node,
+                commands=sequence([
+                    task_enable_flocker_control(
+                        distribution,
+                        'restart'),
+                    if_firewall_available(
+                        distribution,
+                        task_open_control_firewall(
+                            distribution
+                        )
+                    ),
+                ])
+            ),
+            # Then restart the node agents (and docker on all of the nodes).
             parallel([
                 run_remotely(
                     username='root',
@@ -1652,22 +1653,6 @@ def reinstall_flocker_at_version(
                     ])
                 )
                 for node in managed_nodes
-            ] + [
-                run_remotely(
-                    username='root',
-                    address=control_node,
-                    commands=sequence([
-                        task_enable_flocker_control(
-                            distribution,
-                            'restart'),
-                        if_firewall_available(
-                            distribution,
-                            task_open_control_firewall(
-                                distribution
-                            )
-                        ),
-                    ])
-                )
             ])
         ])
         return perform(
