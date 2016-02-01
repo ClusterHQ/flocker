@@ -567,7 +567,7 @@ class LibcloudRunner(object):
         self.creator = creator
 
         self.metadata.update(self.identity.metadata)
-        self.metadata['distribution'] = self.distribution,
+        self.metadata['distribution'] = self.distribution
 
         # Try to make names unique even if the same creator is starting
         # multiple clusters at the same time.  This lets other code use the
