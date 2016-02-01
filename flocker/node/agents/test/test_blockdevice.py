@@ -1339,10 +1339,9 @@ class BlockDeviceCalculatorTests(TestCase):
                       e.iteration_count)
 
     @given(
-        desired_state=sampled_from([
-            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
-            DatasetStates.DELETED,
-        ]),
+        desired_state=sampled_from(
+            DesiredDataset.__invariant__.attributes_for_tag.keys()
+        ),
         discovered_state=sampled_from(
             DiscoveredDataset.__invariant__.attributes_for_tag.keys() +
             [DatasetStates.NON_EXISTENT]
