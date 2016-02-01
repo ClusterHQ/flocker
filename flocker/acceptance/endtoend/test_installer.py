@@ -252,15 +252,15 @@ class DockerComposeTests(AsyncTestCase):
         secret_access_key = os.environ['SECRET_ACCESS_KEY']
         parameters = [
             {
-                'ParameterKey': 'KeyPair',
+                'ParameterKey': 'EC2KeyPair',
                 'ParameterValue': os.environ['KEY_PAIR']
             },
             {
-                'ParameterKey': 'AccessKeyID',
+                'ParameterKey': 'AmazonAccessKeyID',
                 'ParameterValue': os.environ['ACCESS_KEY_ID']
             },
             {
-                'ParameterKey': 'SecretAccessKey',
+                'ParameterKey': 'AmazonSecretAccessKey',
                 'ParameterValue': os.environ['SECRET_ACCESS_KEY']
             },
             {
