@@ -25,7 +25,6 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
-from twisted.internet.threads import deferToThreadPool
 from twisted.python.reflect import prefixedMethodNames
 
 from effect import parallel
@@ -636,12 +635,15 @@ class LibcloudRunner(object):
         :return: Deferred that fires with the created node when
             the provisioning is completed.
         """
+        print "re-creating and re-trying node", name
+
         def create_attempt():
-            d = deferToThreadPool(
-                reactor,
-                reactor.getThreadPool(),
-                self._create_node,
-                name,
+            # A list with a single Deferred must be returned.
+            [d] = self.provisioner.create_nodes(
+                reactor=reactor,
+                names=[name],
+                distribution=self.distribution,
+                metadata=self.metadata,
             )
 
             def provision(node):
@@ -671,6 +673,37 @@ class LibcloudRunner(object):
         d.addErrback(error)
         return d
 
+    def _provision_with_retry(self, reactor, name, result):
+        def provision(node):
+            print "created node", name
+            print "provisioning..."
+            self.nodes.append(node)
+            d = self._provision_node(reactor, node)
+
+            def provisioning_failed(failure):
+                print "provisioning failed", name
+                # Destroy a node if we failed to provision it.
+                self._destroy_node(node)
+                return failure
+
+            # Make sure to return the node.
+            d.addCallbacks(lambda _: node, errback=provisioning_failed)
+            return d
+
+        result.addCallback(provision)
+
+        # If the initial bulk creation failed for this node for whatever
+        # reason or if its provisioning failed, then beging the process
+        # for this node from the very start.
+        def retry_on_error(failure):
+            print "bulk creation failed", name
+            print "error:", failure
+            write_failure(failure)
+            return self._create_and_provision(reactor, name)
+
+        result.addErrback(retry_on_error)
+        return result
+
     def _create_nodes(self, reactor, names):
         """
         Create and provision a number of nodes with the given names.
@@ -681,10 +714,15 @@ class LibcloudRunner(object):
         :return: List of Deferreds each firing when the corresponding node
             is created and provisioned.
         """
-        reactor.suggestThreadPoolSize(len(names))
-        return [
-            self._create_and_provision(reactor, name) for name in names
-        ]
+        results = self.provisioner.create_nodes(
+            reactor=reactor,
+            names=names,
+            distribution=self.distribution,
+            metadata=self.metadata,
+        )
+        for name, result in zip(names, results):
+            self._provision_with_retry(reactor, name, result)
+        return results
 
     def _make_node_name(self, tag, index):
         """
