@@ -1622,8 +1622,8 @@ def reinstall_flocker_at_version(
     uninstalling.addCallback(install)
 
     def restart_services(ignored):
-        return perform(
-            dispatcher,
+        restart_commands = sequence([
+            # First, restart docker on all nodes.
             parallel([
                 run_remotely(
                     username='root',
@@ -1634,6 +1634,16 @@ def reinstall_flocker_at_version(
                             node.distribution,
                             open_firewall_for_docker_api(node.distribution),
                         ),
+                    ])
+                )
+                for node in managed_nodes
+            ]),
+            # Then restart the control and node agents.
+            parallel([
+                run_remotely(
+                    username='root',
+                    address=node.address,
+                    commands=sequence([
                         task_enable_docker_plugin(node.distribution),
                         task_enable_flocker_agent(
                             distribution=node.distribution,
@@ -1659,6 +1669,10 @@ def reinstall_flocker_at_version(
                     ])
                 )
             ])
+        ])
+        return perform(
+            dispatcher,
+            restart_commands
         )
 
     uninstalling.addCallback(restart_services)
