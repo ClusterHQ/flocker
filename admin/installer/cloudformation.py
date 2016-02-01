@@ -87,7 +87,7 @@ keyname_param = template.add_parameter(Parameter(
 volumehub_token = template.add_parameter(Parameter(
     "VolumeHubToken",
     Description=(
-        "Your Volume Hub token. "
+        "Your Volume Hub token (optional). "
         "You'll find the token at https://volumehub.clusterhq.com/v1/token."
     ),
     Type="String",
