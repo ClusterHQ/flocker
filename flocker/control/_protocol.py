@@ -64,7 +64,7 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 from ._persistence import wire_encode, wire_decode
 from ._model import (
     Deployment, DeploymentState, ChangeSource, UpdateNodeStateEra,
-    BlockDeviceOwnership,
+    BlockDeviceOwnership, DatasetAlreadyOwned,
 )
 
 PING_INTERVAL = timedelta(seconds=30)
@@ -270,6 +270,19 @@ class NodeStateCommand(Command):
     response = []
 
 
+class SetBlockDeviceIdForDatasetId(Command):
+    """
+    Indicate a specific block device id is the one for given dataset id.
+    """
+    arguments = [
+        ('dataset_id', Unicode()),
+        ('blockdevice_id', Unicode()),
+    ]
+    reponse = []
+    errors = {DatasetAlreadyOwned: 'ALREADY_OWNED'}
+
+
+
 class Timeout(object):
     """
     Call the specified action after the specified delay in seconds.
@@ -363,6 +376,21 @@ class ControlServiceLocator(CommandLocator):
         # We don't bother sending an update to other nodes because this
         # command will immediately be followed by a ``NodeStateCommand``
         # with more interesting information.
+        return {}
+
+    @SetBlockDeviceIdForDatasetId.responder
+    def set_blockdevice_id(self, dataset_id, blockdevice_id):
+        deployment = self.control_amp_service.configuration_service.get()
+        self.control_amp_service.configuration_service.save(
+            deployment.transform(
+                ["persistent_state", "blockdevice_ownership"],
+                partial(
+                    BlockDeviceOwnership.record_ownership,
+                    dataset_id=UUID(dataset_id),
+                    blockdevice_id=blockdevice_id,
+                ),
+            )
+        )
         return {}
 
 

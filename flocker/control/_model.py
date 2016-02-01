@@ -609,6 +609,13 @@ class Leases(CheckedPMap):
         return updated
 
 
+class DatasetAlreadyOwned(Exception):
+    """
+    There is already a blockdevice owned by the given dataset, when trying to
+    record ownership of a differnt blockdevice.
+    """
+
+
 class BlockDeviceOwnership(CheckedPMap):
     """
     Persistent mapping of blockdevices to datasets.
@@ -626,8 +633,8 @@ class BlockDeviceOwnership(CheckedPMap):
         auto-generated from name, e.g. flocker-deploy or Docker
         plugin. That is pre-existing issue, though.
         """
-        if self.get(dataset_id) is not None:
-            raise
+        if self.get(dataset_id) != blockdevice_id:
+            raise DatasetAlreadyOwned()
         return self.set(dataset_id, blockdevice_id)
 
 
