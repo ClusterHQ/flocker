@@ -20,6 +20,16 @@ valid_cluster_size = integers(min_value=MIN_CLUSTER_SIZE,
                               max_value=MAX_CLUSTER_SIZE)
 
 
+def _get_cloudformation_full_path():
+    """
+    """
+    root_path = FilePath(b"/")
+    cloudformation_script = b'cloudformation.py'
+    for root, dirs, files in root_path.walk():
+        if b'cloudformation.py' in files:
+            return FilePath(root + cloudformation_script)
+
+
 class ClusterSizeLimitsTests(TestCase):
     """
     """
@@ -28,7 +38,8 @@ class ClusterSizeLimitsTests(TestCase):
     def test_valid_cluster(self, cluster_size):
         """
         """
-        cloudformation_file = FilePath(b"cloudformation.py").realpath()
+        cloudformation_file = root_path.childSearchPreauth(b'cloudformation.py')
+
         check_output([b"python",
                       cloudformation_file.path,
                       b"-s",
