@@ -114,7 +114,7 @@ def change_node_state(deployer, desired_configuration):
                           applications=[],
                           manifestations={}, paths={}, devices={}),
             }),
-            persistent_state=state_recorder.get_model(),
+            persistent_state=state_recorder.get_state(),
         )
 
         def got_changes(local_state):
