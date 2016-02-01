@@ -232,6 +232,12 @@ class write_request_load_scenarioTest(TestCase):
         c.pump(repeat(1, sample_size))
         s.maintained().addBoth(lambda x: self.fail())
         d.addCallback(lambda ignored: s.stop())
+
+        def verify_scenario_returns_metrics(result):
+            self.assertIsInstance(result, dict)
+
+        d.addCallback(verify_scenario_returns_metrics)
+
         self.successResultOf(d)
 
     @capture_logging(None)
