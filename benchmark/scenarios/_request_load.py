@@ -277,10 +277,6 @@ class RequestLoadScenario(object):
                 Message.log(key='force_stop_request', value=msg)
             scenario.addErrback(handle_timeout)
 
-            def return_metrics(_ignore):
-                return self.rate_measurer.get_metrics()
-            scenario.addCallback(return_metrics)
-
             def scenario_cleanup(ignored):
                 """
                 Calls the scenario cleanup, and wraps it inside an eliot
@@ -297,5 +293,9 @@ class RequestLoadScenario(object):
                     return self.scenario_setup.run_cleanup()
 
             scenario.addBoth(scenario_cleanup)
+
+            def return_metrics(_ignore):
+                return self.rate_measurer.get_metrics()
+            scenario.addCallback(return_metrics)
 
             return scenario.addActionFinish()
