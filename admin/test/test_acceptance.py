@@ -49,6 +49,7 @@ class ManagedRunnerTests(TestCase):
                 prefix=u'test',
             ),
             cert_path=FilePath(mkdtemp()),
+            logging_config=None,
         )
         self.assertTrue(
             verifyObject(IClusterRunner, runner)

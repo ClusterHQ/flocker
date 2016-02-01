@@ -70,7 +70,7 @@ Access
 
 * The ability to create issues in `the ClusterHQ JIRA <https://clusterhq.atlassian.net/secure/Dashboard.jspa>`_.
 
-* The ability to force builds on ClusterHQ's BuildBot.
+* The ability to force builds on ClusterHQ's BuildBot and Jenkins.
   This requires an administrator password which can be found in ClusterHQ's LastPass.
 
 * Access to ClusterHQ's Google Drive for access to ClusterHQ versioning policy documents.
@@ -139,13 +139,17 @@ Preparing For a Release
 
       git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
 
-#. Ensure all the required tests pass on BuildBot:
+#. Ensure all the required tests pass on Jenkins:
 
-   Pushing the branch in the previous step should have started a build on BuildBot.
-   If not, you can force a build by logging in to BuildBot, entering the release branch name in to the box at the top right and clicking the ``Force`` button.
+   To run the tests on `Jenkins`_, first run ``setup_ClusterHQ-flocker-release`` using the release branch as the parameter to the job.
+   This will generate two sets of test jobs for the release branch which can be accessed from the `releases view <http://ci-live.clusterhq.com:8080/job/ClusterHQ-flocker/view/releases/>`_.
+   For the following steps, use the results of the jobs within "Release release/flocker-<VERSION>" as these do not perform any pre-build merging with master.
+
+   To run the tests, force a build of the ``__main_multijob`` job.
+   Some of the tests will not be triggered by this (such as the acceptance tests), so these will also need to be started.
 
    Discuss with the team whether the release can continue given any failed tests outside of expected failures.
-   Some Buildbot builders may have to be run again if temporary issues with external dependencies have caused failures.
+   Some jobs may have to be run again if temporary issues with external dependencies have caused failures.
 
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
@@ -168,13 +172,13 @@ It is important to check that the code in the release branch is working before i
 
 .. note::
 
-   Make sure to follow the `latest review process <http://clusterhq-staging-docs.s3.amazonaws.com/master/gettinginvolved/infrastructure/release-process.html#pre-tag-review>`_ when reviewing a release.
+   Make sure to follow the `latest review process <http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html#pre-tag-review>`_ when reviewing a release.
 
 #. Check the changes in the Pull Request:
 
    * The release notes at :file:`docs/releasenotes/index.rst` should be up to date.
    * The build should be passing to the team's satisfaction.
-     See "Ensure all the required tests pass on BuildBot" in :ref:`preparing-for-a-release`.
+     See "Ensure all the required tests pass on Jenkins" in :ref:`preparing-for-a-release`.
 
    For some releases the Pull Request may include bug fixes or documentation changes which have been merged into the branch from which the release branch was created,
    for example a previous pre-release.
@@ -209,7 +213,16 @@ Release
       git tag --annotate "${TAG}" "${BRANCH}" -m "Tag version ${TAG}"
       git push origin "${TAG}"
 
+#. Go to `Jenkins`_ and force a build on the release branch to test the latest commit.
+
+   Currently, jobs cannot be created for git tags so the latest commit must be tested instead.
+   This must be the same commit as the tag.
+   The git commit that was used can be seen on the summary page for any build.
+   To test this commit, force a build of the ``__main_multijob`` job and any other jobs which are not triggered by this.
+
 #. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
+
+   Although the tests are run on Jenkins, we still use Buildbot to build the packages.
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
@@ -302,5 +315,6 @@ If there is no existing issue for the planned improvements then a new one should
 Look at `existing issues relating to the release process <https://clusterhq.atlassian.net/issues/?jql=labels%20%3D%20release_process%20AND%20status%20!%3D%20done>`_.
 The issue(s) for the planned improvements should be put into the next sprint.
 
+.. _Jenkins: http://ci-live.clusterhq.com:8080/
 .. _CloudFront: https://console.aws.amazon.com/cloudfront/home
 .. _S3: https://console.aws.amazon.com/s3/home

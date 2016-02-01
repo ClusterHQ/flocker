@@ -7,7 +7,8 @@ import sys
 import os
 import yaml
 import json
-import re
+from itertools import repeat
+from base64 import b32encode
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
 
@@ -22,8 +23,9 @@ from bitmath import GiB
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
+from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
-from twisted.conch.ssh.keys import Key
+from twisted.internet.threads import deferToThreadPool
 from twisted.python.reflect import prefixedMethodNames
 
 from effect import parallel
@@ -31,8 +33,13 @@ from txeffect import perform
 
 from uuid import UUID
 
-from admin.vagrant import vagrant_version
-from flocker.common import RACKSPACE_MINIMUM_VOLUME_SIZE, gather_deferreds
+from flocker.common import (
+    RACKSPACE_MINIMUM_VOLUME_SIZE,
+    InvalidSignature,
+    gather_deferreds,
+    loop_until,
+    validate_signature_against_kwargs,
+)
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
@@ -44,6 +51,7 @@ from flocker.provision._install import (
     uninstall_flocker,
     install_flocker,
     configure_cluster,
+    configure_node,
     configure_zfs,
 )
 from flocker.provision._ca import Certificates
@@ -198,6 +206,23 @@ class IClusterRunner(Interface):
             found.  Otherwise, fails with ``AgentNotFound`` or ``KeyNotFound``.
         """
 
+    def extend_cluster(reactor, cluster, count, tag, starting_index):
+        """
+        Create new nodes and add them to the given cluster.
+
+        :param reactor: Reactor to use.
+        :param Cluster cluster: The cluster.
+        :param int count: How many new nodes to create.
+        :param str tag: Tag used for naming the new nodes.
+        :param int starting_index: A number used for naming the new nodes.
+        :return: List of ``Deferred``s that fire when a new node is configured
+            or fails.
+
+        .. note::
+            The cluster object is modified by this call and, thus, it should be
+            mutable
+        """
+
 
 RUNNER_ATTRIBUTES = [
     # Name of the distribution the nodes run - eg "ubuntu-14.04"
@@ -235,10 +260,12 @@ class ManagedRunner(object):
     :ivar ClusterIdentity identity: The identity information of the cluster.
     :ivar FilePath cert_path: The directory where the cluster certificate
         files will be placed.
+    :ivar dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
     """
     def __init__(self, node_addresses, package_source, distribution,
                  dataset_backend, dataset_backend_configuration, identity,
-                 cert_path):
+                 cert_path, logging_config):
         """
         :param list: A ``list`` of public IP addresses or
             ``[private_address, public_address]`` lists.
@@ -246,29 +273,15 @@ class ManagedRunner(object):
         See ``ManagedRunner`` and ``ManagedNode`` for other parameter
         documentation.
         """
-        # Blow up if the list contains mixed types.
-        [address_type] = set(type(address) for address in node_addresses)
-        if address_type is list:
-            # A list of 2 item lists
-            self._nodes = pvector(
-                ManagedNode(
-                    address=address,
-                    private_address=private_address,
-                    distribution=distribution
-                )
-                for (private_address, address) in node_addresses
-            )
-        else:
-            # A list of strings.
-            self._nodes = pvector(
-                ManagedNode(address=address, distribution=distribution)
-                for address in node_addresses
-            )
+        self._nodes = pvector(
+            make_managed_nodes(node_addresses, distribution)
+        )
         self.package_source = package_source
         self.dataset_backend = dataset_backend
         self.dataset_backend_configuration = dataset_backend_configuration
         self.identity = identity
         self.cert_path = cert_path
+        self.logging_config = logging_config
 
     def _upgrade_flocker(self, reactor, nodes, package_source):
         """
@@ -333,11 +346,12 @@ class ManagedRunner(object):
                 self._nodes,
                 self.dataset_backend,
                 self.dataset_backend_configuration,
-                _save_backend_configuration(
+                save_backend_configuration(
                     self.dataset_backend,
                     self.dataset_backend_configuration
                 ),
-                provider="managed"
+                provider="managed",
+                logging_config=self.logging_config,
             )
         configuring = upgrading.addCallback(configure)
         return configuring
@@ -347,6 +361,10 @@ class ManagedRunner(object):
         Don't stop any nodes.
         """
         return succeed(None)
+
+    def extend_cluster(self, reactor, cluster, count, tag, starting_index):
+        raise UsageError("Extending a cluster with managed nodes "
+                         "is not implemented yet.")
 
 
 def _provider_for_cluster_id(dataset_backend):
@@ -389,8 +407,8 @@ def generate_certificates(cluster_name, cluster_id, nodes, cert_path):
     return certificates
 
 
-def _save_backend_configuration(dataset_backend_name,
-                                dataset_backend_configuration):
+def save_backend_configuration(dataset_backend_name,
+                               dataset_backend_configuration):
     """
     Saves the backend configuration to a local file for consumption by the
     trial process.
@@ -410,28 +428,45 @@ def _save_backend_configuration(dataset_backend_name,
     return dataset_path
 
 
-def configured_cluster_for_nodes(
-    reactor, certificates, nodes, dataset_backend,
-    dataset_backend_configuration, dataset_backend_config_file,
-    provider=None
-):
+def make_managed_nodes(addresses, distribution):
     """
-    Get a ``Cluster`` with Flocker services running on the right nodes.
+    Create a list of managed nodes from a list of node addresses
+    or address pairs.
 
-    :param reactor: The reactor.
-    :param Certificates certificates: The certificates to install on the
-        cluster.
-    :param nodes: The ``ManagedNode``s on which to operate.
-    :param NamedConstant dataset_backend: The ``DatasetBackend`` constant
-        representing the dataset backend that the nodes will be configured to
-        use when they are "started".
-    :param dict dataset_backend_configuration: The backend-specific
-        configuration the nodes will be given for their dataset backend.
-    :param FilePath dataset_backend_config_file: A FilePath that has the
-        dataset_backend info stored.
+    :param addresses: The list of addresses or address pairs for each node.
+    :type addresses: list of bytes or list of list of bytes
+    :param bytes distribution: Distribution installed on the nodes.
+    :return: List of nodes.
+    :rtype: list of ManagedNode
+    """
+    # Blow up if the list contains mixed types.
+    [address_type] = set(type(address) for address in addresses)
+    if address_type is list:
+        # A list of 2 item lists
+        return [
+            ManagedNode(
+                address=address,
+                private_address=private_address,
+                distribution=distribution
+            )
+            for (private_address, address) in addresses
+        ]
+    else:
+        # A list of strings.
+        return [
+            ManagedNode(address=address, distribution=distribution)
+            for address in addresses
+        ]
 
-    :returns: A ``Deferred`` which fires with ``Cluster`` when it is
-        configured.
+
+def get_default_volume_size(dataset_backend_configuration):
+    """
+    Calculate the default volume size for the given dataset backend
+    configuration.
+
+    :param dataset_backend_configuration: The backend configuration.
+    :return: The default size in bytes.
+    :rtype: int
     """
     # XXX: There is duplication between the values here and those in
     # f.node.agents.test.blockdevicefactory.MINIMUM_ALLOCATABLE_SIZES. We want
@@ -452,126 +487,56 @@ def configured_cluster_for_nodes(
     default_volume_size = GiB(1)
     if dataset_backend_configuration.get('auth_plugin') == 'rackspace':
         default_volume_size = RACKSPACE_MINIMUM_VOLUME_SIZE
+    return int(default_volume_size.to_Byte().value)
 
+
+def configured_cluster_for_nodes(
+    reactor, certificates, nodes, dataset_backend,
+    dataset_backend_configuration, dataset_backend_config_file,
+    provider=None, logging_config=None
+):
+    """
+    Get a ``Cluster`` with Flocker services running on the right nodes.
+
+    :param reactor: The reactor.
+    :param Certificates certificates: The certificates to install on the
+        cluster.
+    :param nodes: The ``ManagedNode``s on which to operate.
+    :param NamedConstant dataset_backend: The ``DatasetBackend`` constant
+        representing the dataset backend that the nodes will be configured to
+        use when they are "started".
+    :param dict dataset_backend_configuration: The backend-specific
+        configuration the nodes will be given for their dataset backend.
+    :param FilePath dataset_backend_config_file: A FilePath that has the
+        dataset_backend info stored.
+    :param bytes provider: provider of the nodes - aws, rackspace, or managed.
+    :param dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
+
+    :returns: A ``Deferred`` which fires with ``Cluster`` when it is
+        configured.
+    """
+    default_volume_size = get_default_volume_size(
+        dataset_backend_configuration
+    )
     cluster = Cluster(
         all_nodes=pvector(nodes),
         control_node=nodes[0],
         agent_nodes=nodes,
         dataset_backend=dataset_backend,
-        default_volume_size=int(default_volume_size.to_Byte().value),
+        default_volume_size=default_volume_size,
         certificates=certificates,
         dataset_backend_config_file=dataset_backend_config_file
     )
 
     configuring = perform(
         make_dispatcher(reactor),
-        configure_cluster(cluster, dataset_backend_configuration, provider)
+        configure_cluster(
+            cluster, dataset_backend_configuration, provider, logging_config
+        )
     )
     configuring.addCallback(lambda ignored: cluster)
     return configuring
-
-
-@implementer(IClusterRunner)
-@attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
-class VagrantRunner(object):
-    """
-    Start and stop vagrant cluster for acceptance testing.
-
-    :cvar list NODE_ADDRESSES: List of address of vagrant nodes created.
-    """
-    # TODO: This should acquire the vagrant image automatically,
-    # rather than assuming it is available.
-    # https://clusterhq.atlassian.net/browse/FLOC-1163
-
-    NODE_ADDRESSES = ["172.16.255.250", "172.16.255.251"]
-
-    def __init__(self):
-        self.vagrant_path = self._get_vagrant_path(self.top_level,
-                                                   self.distribution)
-
-        self.certificates_path = self.top_level.descendant([
-            'vagrant', 'tutorial', 'credentials'])
-
-        if self.variants:
-            raise UsageError("Variants unsupported on vagrant.")
-
-    def _get_vagrant_path(self, top_level, distribution):
-        """
-        Get the path to the Vagrant directory for ``distribution``.
-
-        :param FilePath top_level: the directory containing the ``admin``
-            package.
-        :param bytes distribution: the name of a distribution
-        :raise UsageError: if no such distribution found.
-        :return: ``FilePath`` of the vagrant directory.
-        """
-        vagrant_dir = top_level.descendant([
-            'admin', 'vagrant-acceptance-targets'
-        ])
-        vagrant_path = vagrant_dir.child(distribution)
-        if not vagrant_path.exists():
-            distributions = vagrant_dir.listdir()
-            raise UsageError(
-                "Distribution not found: %s. Valid distributions: %s."
-                % (self.distribution, ', '.join(distributions)))
-        return vagrant_path
-
-    def ensure_keys(self, reactor):
-        key = Key.fromFile(os.path.expanduser(
-            "~/.vagrant.d/insecure_private_key"))
-        return ensure_agent_has_ssh_key(reactor, key)
-
-    @inlineCallbacks
-    def start_cluster(self, reactor):
-        # Destroy the box to begin, so that we are guaranteed
-        # a clean build.
-        yield run(
-            reactor,
-            ['vagrant', 'destroy', '-f'],
-            path=self.vagrant_path.path)
-
-        if self.package_source.version:
-            env = extend_environ(
-                FLOCKER_BOX_VERSION=vagrant_version(
-                    self.package_source.version))
-        else:
-            env = os.environ
-        # Boot the VMs
-        yield run(
-            reactor,
-            ['vagrant', 'up'],
-            path=self.vagrant_path.path,
-            env=env)
-
-        for node in self.NODE_ADDRESSES:
-            yield remove_known_host(reactor, node)
-
-        nodes = pvector(
-            ManagedNode(address=address, distribution=self.distribution)
-            for address in self.NODE_ADDRESSES
-        )
-
-        certificates = Certificates(self.certificates_path)
-        # Default volume size is meaningless here as Vagrant only uses ZFS, and
-        # not a block device backend.
-        # XXX Change ``Cluster`` to not require default_volume_size
-        default_volume_size = int(GiB(1).to_Byte().value)
-        cluster = Cluster(
-            all_nodes=pvector(nodes),
-            control_node=nodes[0],
-            agent_nodes=nodes,
-            dataset_backend=self.dataset_backend,
-            certificates=certificates,
-            default_volume_size=default_volume_size,
-        )
-
-        returnValue(cluster)
-
-    def stop_cluster(self, reactor):
-        return run(
-            reactor,
-            ['vagrant', 'destroy', '-f'],
-            path=self.vagrant_path.path)
 
 
 @attributes(RUNNER_ATTRIBUTES + [
@@ -606,18 +571,8 @@ class LibcloudRunner(object):
             )
         self.creator = creator
 
-    @inlineCallbacks
-    def start_cluster(self, reactor):
-        """
-        Provision cloud cluster for acceptance tests.
-
-        :return Cluster: The cluster to connect to for acceptance tests.
-        """
-        metadata = {
-            'distribution': self.distribution,
-        }
-        metadata.update(self.identity.metadata)
-        metadata.update(self.metadata)
+        self.metadata.update(self.identity.metadata)
+        self.metadata['distribution'] = self.distribution
 
         # Try to make names unique even if the same creator is starting
         # multiple clusters at the same time.  This lets other code use the
@@ -625,19 +580,194 @@ class LibcloudRunner(object):
         # place, the node creation code, to perform cleanup when the create
         # operation fails in a way such that it isn't clear if the instance has
         # been created or not.
-        random_tag = os.urandom(8).encode("base64").strip("\n=")
-        print "Assigning random tag:", random_tag
+        self.random_tag = b32encode(os.urandom(8)).lower().strip("\n=")
 
-        for index in range(self.num_nodes):
-            name = "%s-%s-%s-%d" % (
-                self.identity.prefix, self.creator, random_tag, index,
+    def _create_node(self, name):
+        """
+        Create a cloud node with the given name.
+
+        Additional properties of the node are defined in the instance.
+        :param str name: The name.
+        :return: Node instance.
+        """
+        try:
+            print "Creating node {}".format(name)
+            node = self.provisioner.create_node(
+                name=name,
+                distribution=self.distribution,
+                metadata=self.metadata,
             )
+            self.nodes.append(node)
+            return node
+        except BaseException:
+            print "Error creating node %s" % (name,)
+            print "It may have leaked into the cloud."
+            write_failure(Failure())
+            raise
+
+    def _provision_node(self, reactor, node):
+        """
+        Make the given node ready for Flocker installation by provisioning
+        it with required software and configuration.
+
+        :param reactor: The reactor.
+        :param Node node: The node.
+        :return: Deferred that fires when the provisioning is completed.
+        """
+        commands = node.provision(package_source=self.package_source,
+                                  variants=self.variants)
+        if self.dataset_backend == DatasetBackend.zfs:
+            zfs_commands = configure_zfs(node, variants=self.variants)
+            commands = commands.on(success=lambda _: zfs_commands)
+
+        d = remove_known_host(reactor, node.address)
+        d.addCallback(lambda _: perform(make_dispatcher(reactor), commands))
+        return d
+
+    def _create_and_provision(self, reactor, name, retries=10):
+        """
+        Create a node and make it ready for Flocker installation
+        by provisioning it with required software and configuration.
+        The process is transparently retried if necessary.
+
+        :param reactor: The reactor.
+        :param str name: The name.
+        :param int retries: Maximum number of retries.
+        :return: Deferred that fires with the created node when
+            the provisioning is completed.
+        """
+        def create_attempt():
+            d = deferToThreadPool(
+                reactor,
+                reactor.getThreadPool(),
+                self._create_node,
+                name,
+            )
+
+            def provision(node):
+                d = self._provision_node(reactor, node)
+
+                def provisioning_failed(failure):
+                    # Destroy a node if we failed to provision it.
+                    self._destroy_node(node)
+                    return failure
+
+                # Make sure to return the node.
+                d.addCallbacks(lambda _: node, errback=provisioning_failed)
+                return d
+
+            d.addCallback(provision)
+
+            # Log and discard a failure to keep looping.
+            d.addErrback(write_failure)
+            return d
+
+        d = loop_until(reactor, create_attempt, repeat(0, retries))
+
+        def error(failure):
+            print "Failed to provision node {}".format(name)
+            return failure
+
+        d.addErrback(error)
+        return d
+
+    def _create_nodes(self, reactor, names):
+        """
+        Create and provision a number of nodes with the given names.
+
+        :param reactor: The reactor.
+        :param names: The names.
+        :type names: list of str
+        :return: List of Deferreds each firing when the corresponding node
+            is created and provisioned.
+        """
+        reactor.suggestThreadPoolSize(len(names))
+        return [
+            self._create_and_provision(reactor, name) for name in names
+        ]
+
+    def _make_node_name(self, tag, index):
+        """
+        Construct a node name out of various components.
+        """
+        return "%s-%s-%s-%d" % (
+            self.identity.prefix, self.creator, tag, index,
+        )
+
+    def _add_node_to_cluster(self, reactor, cluster, node, index):
+        """
+        Configure the given node as an agent node for the given cluster.
+
+        :param reactor: The reactor.
+        :param reactor: The cluster.
+        :param Node node: The node.
+        :param int index: The index of the ndoe in the cluster.
+        :return: Deferred that fires with the :param:`node` when it is
+            configured.
+        """
+        node_cert_and_key = cluster.certificates.add_node(index)
+        commands = configure_node(
+            cluster,
+            node,
+            node_cert_and_key,
+            self.dataset_backend_configuration,
+            'libcloud',
+            logging_config=self.config.get('logging'),
+        )
+        d = perform(make_dispatcher(reactor), commands)
+
+        def add_node(ignored):
+            if node is not cluster.control_node:
+                cluster.all_nodes.append(node)
+            cluster.agent_nodes.append(node)
+            return node
+
+        def configure_failed(failure):
+            print "Failed to configure node {}".format(node.name)
+            write_failure(failure)
+            if node is not cluster.control_node:
+                self._destroy_node(node)
+            # Failure to add a node to a cluster is not fatal.
+            # As long as we have the control node we can claim
+            # the partial success.
+            return failure
+
+        d.addCallbacks(add_node, errback=configure_failed)
+        return d
+
+    def extend_cluster(self, reactor, cluster, count, tag, starting_index):
+        """
+        Extend a cluster with nodes provisioned via libcloud.
+        """
+        names = []
+        for index in range(starting_index, starting_index + count):
+            names.append(self._make_node_name(tag, index))
+        results = self._create_nodes(reactor, names)
+
+        def add_node(node, index):
+            return self._add_node_to_cluster(reactor, cluster, node, index)
+
+        for i, d in enumerate(results):
+            d.addCallback(add_node, starting_index + i)
+
+        return results
+
+    @inlineCallbacks
+    def start_cluster(self, reactor):
+        """
+        Provision cloud cluster for acceptance tests.
+
+        :return Cluster: The cluster to connect to for acceptance tests.
+        """
+        print "Assigning random tag:", self.random_tag
+        for index in range(self.num_nodes):
+            name = self._make_node_name(self.random_tag, index)
             try:
                 print "Creating node %d: %s" % (index, name)
                 node = self.provisioner.create_node(
                     name=name,
                     distribution=self.distribution,
-                    metadata=metadata,
+                    metadata=self.metadata,
                 )
             except:
                 print "Error creating node %d: %s" % (index, name)
@@ -673,8 +803,11 @@ class LibcloudRunner(object):
             self.nodes,
             self.dataset_backend,
             self.dataset_backend_configuration,
-            _save_backend_configuration(self.dataset_backend,
-                                        self.dataset_backend_configuration)
+            save_backend_configuration(
+                self.dataset_backend,
+                self.dataset_backend_configuration,
+            ),
+            logging_config=self.config.get('logging'),
         )
 
         returnValue(cluster)
@@ -683,12 +816,17 @@ class LibcloudRunner(object):
         """
         Deprovision the cluster provisioned by ``start_cluster``.
         """
-        for node in self.nodes:
-            try:
-                print "Destroying %s" % (node.name,)
-                node.destroy()
-            except Exception as e:
-                print "Failed to destroy %s: %s" % (node.name, e)
+        # NB: _destroy_node modifies self.nodes
+        for node in list(self.nodes):
+            self._destroy_node(node)
+
+    def _destroy_node(self, node):
+        try:
+            print "Destroying %s" % (node.name,)
+            self.nodes.remove(node)
+            node.destroy()
+        except Exception as e:
+            print "Failed to destroy %s: %s" % (node.name, e)
 
     def ensure_keys(self, reactor):
         key = self.provisioner.get_ssh_key()
@@ -709,7 +847,7 @@ class CommonOptions(Options):
         ['distribution', None, None,
          'The target distribution. '
          'One of {}.'.format(', '.join(DISTRIBUTIONS))],
-        ['provider', None, 'vagrant',
+        ['provider', None, None,
          'The compute-resource provider to test against. '
          'One of {}.'],
         ['dataset-backend', None, 'zfs',
@@ -802,6 +940,8 @@ class CommonOptions(Options):
         if self.get('cert-directory') is None:
             self['cert-directory'] = FilePath(mkdtemp())
 
+        if self.get('provider') is None:
+            raise UsageError("Provider required.")
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
@@ -853,26 +993,6 @@ class CommonOptions(Options):
             "{!r} config stanza.".format(provider)
         )
 
-    def _runner_VAGRANT(self, package_source,
-                        dataset_backend, provider_config):
-        """
-        :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
-        :param provider_config: The ``vagrant`` section of the acceptance
-            testing configuration file.  Since the Vagrant runner accepts no
-            configuration, this is ignored.
-        :returns: ``VagrantRunner``
-        """
-        return VagrantRunner(
-            config=self['config'],
-            top_level=self.top_level,
-            distribution=self['distribution'],
-            package_source=package_source,
-            variants=self['variants'],
-            dataset_backend=dataset_backend,
-            dataset_backend_configuration=self.dataset_backend_configuration()
-        )
-
     def _runner_MANAGED(self, package_source, dataset_backend,
                         provider_config):
         """
@@ -905,6 +1025,7 @@ class CommonOptions(Options):
             dataset_backend_configuration=self.dataset_backend_configuration(),
             identity=self._make_cluster_identity(dataset_backend),
             cert_path=self['cert-directory'],
+            logging_config=self['config'].get('logging'),
         )
 
     def _libcloud_runner(self, package_source, dataset_backend,
@@ -925,7 +1046,27 @@ class CommonOptions(Options):
         if provider_config is None:
             self._provider_config_missing(provider)
 
-        provisioner = CLOUD_PROVIDERS[provider](**provider_config)
+        provider_factory = CLOUD_PROVIDERS[provider]
+
+        try:
+            provisioner = provider_factory(**provider_config)
+        except TypeError:
+            try:
+                validate_signature_against_kwargs(provider_factory,
+                                                  set(provider_config.keys()))
+            except InvalidSignature as e:
+                raise SystemExit(
+                    "Missing or incorrect configuration for provider '{}'.\n"
+                    "Missing Keys: {}\n"
+                    "Unexpected Keys: {}\n"
+                    "Optional Missing Keys: {}".format(
+                        provider,
+                        ", ".join(e.missing_arguments) or "<None>",
+                        ", ".join(e.unexpected_arguments) or "<None>",
+                        ", ".join(e.missing_optional_arguments) or "<None>",
+                    )
+                )
+            raise
         return LibcloudRunner(
             config=self['config'],
             top_level=self.top_level,
@@ -940,20 +1081,28 @@ class CommonOptions(Options):
             cert_path=self['cert-directory'],
         )
 
+    def _runner_GCE(self, package_source, dataset_backend, provider_config):
+        """
+        :param PackageSource package_source: The source of omnibus packages.
+        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param provider_config: The ``gce`` section of the acceptance
+            testing configuration file.  See the documentation linked below for
+            the form of the configuration.
+
+        :see: :ref:`acceptance-testing-gce-config`
+        """
+        return self._libcloud_runner(
+            package_source, dataset_backend, "gce", provider_config
+        )
+
     def _runner_RACKSPACE(self, package_source, dataset_backend,
                           provider_config):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
-        :param provider_config: The ``rackspace`` section of the acceptance
-            testing configuration file.  The section of the configuration
-            file should look something like:
-
-               rackspace:
-                 region: <rackspace region, e.g. "iad">
-                 username: <rackspace username>
-                 key: <access key>
-                 keyname: <ssh-key-name>
+        :param dict provider_config: The ``rackspace`` section of the
+            acceptance testing configuration file.  See the linked
+            documentation for the form of that section.
 
         :see: :ref:`acceptance-testing-rackspace-config`
         """
@@ -966,19 +1115,9 @@ class CommonOptions(Options):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
-        :param provider_config: The ``aws`` section of the acceptance testing
-            configuration file.  The section of the configuration file should
-            look something like:
-
-               aws:
-                 region: <aws region, e.g. "us-west-2">
-                 zone: <aws zone, e.g. "us-west-2a">
-                 access_key: <aws access key>
-                 secret_access_token: <aws secret access token>
-                 session_token: <optional session token>
-                 keyname: <ssh-key-name>
-                 security_groups: ["<permissive security group>"]
-                 instance_type: m3.large
+        :param dict provider_config: The ``aws`` section of the acceptance
+            testing configuration file.  See the linked documentation for the
+            form of that section.
 
         :see: :ref:`acceptance-testing-aws-config`
         """

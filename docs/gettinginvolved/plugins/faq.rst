@@ -77,7 +77,11 @@ What do I do if I see the following error while running acceptance tests?
    Created 40d78681-5755-48c6-8e28-c36bf5a485c5.crt. Copy it over to /etc/flocker/node.crt on your node machine and sure to chmod 0600 it.
    Created 03e53f5a-894f-44e4-8296-0c319a689179.crt. Copy it over to /etc/flocker/node.crt on your node machine and sure to chmod 0600 it.
 
-Please check that you have configured Flocker CA certs as documented :ref:`here <authentication>`.
+Please check that you have configured Flocker CA certs as documented for your specific choice of integration:
+
+* :ref:`Configuring Cluster Authentication for the Docker Integration <authentication-docker>`
+* :ref:`Configuring Cluster Authentication for the Kubernetes Integration <authentication-kubernetes>`
+* :ref:`Configuring Cluster Authentication for an Integration of Flocker with Other Systems <authentication-docker>`
 
 How do I reset the Flocker control service state if my test environment is messed up? 
 -------------------------------------------------------------------------------------

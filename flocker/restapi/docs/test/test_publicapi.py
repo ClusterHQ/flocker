@@ -69,7 +69,7 @@ class MakeRstTests(TestCase):
         app = Klein()
 
         @app.route(b"/", methods=[b"GET"])
-        def f():
+        def dummy_f():
             """
             Developer docs.
             """
@@ -88,7 +88,7 @@ class MakeRstTests(TestCase):
         @app.route(b"/", methods=[b"GET"])
         @user_documentation(
             u"Undocumented.", header=u"Header", section=u'other-section')
-        def f():
+        def dummy_f():
             """
             Developer docs.
             """
@@ -96,7 +96,7 @@ class MakeRstTests(TestCase):
         @app.route(b"/", methods=[b"GET"])
         @user_documentation(
             u"Documented.", header=u"Header", section=u'section')
-        def g():
+        def dummy_g():
             """
             Developer docs.
             """
@@ -267,7 +267,7 @@ class MakeRstTests(TestCase):
         )
         @user_documentation(
             u"Undocumented.", header=u"Header", section=u'section')
-        def f():
+        def dummy_f():
             """
             Developer docs,
             """
@@ -356,7 +356,7 @@ class MakeRstTests(TestCase):
         )
         @user_documentation(
             u"Undocumented.", header=u"Header", section=u'section')
-        def f():
+        def dummy_f():
             """
             Developer docs,
             """
@@ -433,7 +433,7 @@ class MakeRstTests(TestCase):
         )
         @user_documentation(
             u"Undocumented.", header=u"Header", section=u'section')
-        def f():
+        def dummy_f():
             """
             Developer docs,
             """
@@ -512,7 +512,7 @@ class MakeRstTests(TestCase):
         )
         @user_documentation(
             u"Undocumented.", header=u"Header", section=u'section')
-        def f():
+        def dummy_f():
             """
             Developer docs,
             """
@@ -589,7 +589,7 @@ class MakeRstTests(TestCase):
         )
         @user_documentation(
             u"Undocumented.", header=u"Header", section=u'section')
-        def f():
+        def dummy_f():
             """
             Developer docs,
             """
@@ -663,7 +663,7 @@ class MakeRstTests(TestCase):
         )
         @user_documentation(
             u"Undocumented.", header=u"Header", section=u'section')
-        def f():
+        def dummy_f():
             """
             Developer docs,
             """
@@ -835,7 +835,7 @@ class VariableInterpolationTests(TestCase):
         @app.route(b"/", methods=[b"GET"])
         @user_documentation(
             u"", examples=[u"dummy id"], header=u"Header", section=u'section')
-        def f():
+        def dummy_f():
             pass
 
         rst = makeRst(

@@ -4,6 +4,8 @@
 Some interface-related tools.
 """
 
+from inspect import getargspec
+from characteristic import attributes, Attribute
 from zope.interface.interface import Method
 
 
@@ -78,3 +80,55 @@ def provides(interface):
     invariant.__name__ = "provides_{}_invariant".format(interface_name)
 
     return invariant
+
+
+@attributes([
+    Attribute("unexpected_arguments", default_value=frozenset()),
+    Attribute("missing_arguments", default_value=frozenset()),
+    Attribute("missing_optional_arguments", default_value=frozenset())
+])
+class InvalidSignature(Exception):
+    """
+    See :func:`validate_signature_against_kwargs` raises clause.
+    """
+    def __str__(self):
+        return repr(self)
+
+
+def validate_signature_against_kwargs(function, keyword_arguments):
+    """
+    Validates that ``function`` can be called with keyword arguments with
+    exactly the specified ``keyword_arguments_keys`` and no positional
+    arguments. In this case validation is verifying that the function's
+    signature allows it to be called with exactly the given keyword arguments.
+
+    :param function: The function of which to verify the signature.
+    :param set keyword_arguments_keys: A set of keyword argument names to
+        validate against the function signature.
+
+    :returns: ``None`` if the validation succeeds.
+
+    :raises InvalidSignature: If validation fails.
+    """
+    arg_spec = getargspec(function)
+    accepted_arguments = frozenset(arg_spec.args)
+    optional_arguments = frozenset()
+    if arg_spec.defaults is not None:
+        optional_arguments = frozenset(arg_spec.args[-len(arg_spec.defaults):])
+
+    if arg_spec.keywords is None:
+        unexpected_arguments = frozenset(
+            keyword_arguments - accepted_arguments)
+    else:
+        # Accept all arguments if the function captures **kwargs.
+        unexpected_arguments = frozenset()
+    missing_arguments = frozenset(
+        accepted_arguments - keyword_arguments - optional_arguments)
+
+    if missing_arguments != frozenset() or unexpected_arguments != frozenset():
+        raise InvalidSignature(
+            unexpected_arguments=unexpected_arguments,
+            missing_arguments=missing_arguments,
+            missing_optional_arguments=frozenset(
+                optional_arguments - keyword_arguments)
+        )

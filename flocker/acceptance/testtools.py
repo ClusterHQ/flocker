@@ -43,7 +43,7 @@ from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
 from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
-from ..node.agents.ebs import aws_from_configuration
+from ..node.script import get_backend, get_api
 from ..node import dockerpy_client
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
@@ -102,6 +102,8 @@ def get_docker_client(cluster, address):
         return cluster.certificates_path.child(name).path
 
     tls = TLSConfig(
+        # XXX Hardcoded certificate filenames mean that this will only work on
+        # clusters where Docker is configured to use the Flocker certificates.
         client_cert=(get_path(b"user.crt"), get_path(b"user.key")),
         # Blows up if not set
         # (https://github.com/shazow/urllib3/issues/695):
@@ -174,6 +176,7 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
 class DatasetBackend(Names):
     loopback = NamedConstant()
     zfs = NamedConstant()
+    gce = NamedConstant()
     aws = NamedConstant()
     openstack = NamedConstant()
 
@@ -209,12 +212,6 @@ def get_backend_api(test_case, cluster_id):
     :param cluster_id: The unique cluster_id, used for backend APIs that
         require this in order to be constructed.
     """
-    backend_type = get_dataset_backend(test_case)
-    if backend_type != DatasetBackend.aws:
-        raise SkipTest(
-            'This test is asking for backend type {} but only constructing '
-            'aws backends is currently supported'.format(backend_type.name))
-    backend_name = backend_type.name
     backend_config_filename = environ.get(
         "FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG")
     if backend_config_filename is None:
@@ -223,13 +220,19 @@ def get_backend_api(test_case, cluster_id):
             'in order to verify construction. Please set '
             'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG to a yaml filepath '
             'with the dataset configuration.')
+    backend_name = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
+    if backend_name is None:
+        raise SkipTest(
+            "Set acceptance testing volume backend using the " +
+            "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
     backend_config_filepath = FilePath(backend_config_filename)
     full_backend_config = yaml.safe_load(
         backend_config_filepath.getContent())
     backend_config = full_backend_config.get(backend_name)
     if 'backend' in backend_config:
         backend_config.pop('backend')
-    return aws_from_configuration(cluster_id=cluster_id, **backend_config)
+    backend = get_backend(backend_name)
+    return get_api(backend, pmap(backend_config), reactor, cluster_id)
 
 
 def skip_backend(unsupported, reason):
@@ -349,6 +352,15 @@ class Node(PClass):
         """
         result = self.run_as_root([b"shutdown", b"-r", b"now"])
         # Reboot kills the SSH connection:
+        result.addErrback(lambda f: f.trap(ProcessTerminated))
+        return result
+
+    def shutdown(self):
+        """
+        Shutdown the node.
+        """
+        result = self.run_as_root([b"shutdown", b"-h", b"now"])
+        # Shutdown kills the SSH connection:
         result.addErrback(lambda f: f.trap(ProcessTerminated))
         return result
 
@@ -691,7 +703,7 @@ class Cluster(PClass):
         return request
 
     @log_method
-    def clean_nodes(self):
+    def clean_nodes(self, remove_foreign_containers=True):
         """
         Clean containers and datasets via the API.
 
@@ -791,7 +803,8 @@ class Cluster(PClass):
 
         d = DeferredContext(cleanup_leases())
         d.addCallback(cleanup_flocker_containers)
-        d.addCallback(cleanup_all_containers)
+        if remove_foreign_containers:
+            d.addCallback(cleanup_all_containers)
         d.addCallback(cleanup_datasets)
         return d.result
 
@@ -812,33 +825,17 @@ class Cluster(PClass):
         return d
 
 
-def _get_test_cluster(reactor):
-    """
-    Build a ``Cluster`` instance.
-
-    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
-    """
-    control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
-
-    if control_node is None:
-        raise SkipTest(
-            "Set acceptance testing control node IP address using the " +
-            "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
-
-    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_NUM_AGENT_NODES')
-
-    if agent_nodes_env_var is None:
-        raise SkipTest(
-            "Set the number of configured acceptance testing nodes using the "
-            "FLOCKER_ACCEPTANCE_NUM_AGENT_NODES environment variable.")
-
-    num_agent_nodes = int(agent_nodes_env_var)
-
-    certificates_path = FilePath(
-        environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
+def connected_cluster(
+        reactor, control_node, certificates_path, num_agent_nodes,
+        hostname_to_public_address, username='user',
+):
     cluster_cert = certificates_path.child(b"cluster.crt")
-    user_cert = certificates_path.child(b"user.crt")
-    user_key = certificates_path.child(b"user.key")
+    user_cert = certificates_path.child(
+        "{}.crt".format(username).encode('ascii')
+    )
+    user_key = certificates_path.child(
+        "{}.key".format(username).encode('ascii')
+    )
     user_credential = UserCredential.from_files(user_cert, user_key)
     cluster = Cluster(
         control_node=ControlService(public_address=control_node),
@@ -851,14 +848,10 @@ def _get_test_cluster(reactor):
         cluster_uuid=user_credential.cluster_uuid,
     )
 
-    hostname_to_public_address_env_var = environ.get(
-        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
-    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
-
     # Wait until nodes are up and running:
     def nodes_available():
         Message.new(
-            message_type="acceptance:get_test_cluster:polling",
+            message_type="acceptance:testtools:cluster:polling",
         ).write()
 
         def failed_query(failure):
@@ -895,6 +888,44 @@ def _get_test_cluster(reactor):
     agents_connected.addCallback(lambda nodes: cluster.set(
         "nodes", map(node_from_dict, nodes)))
     return agents_connected
+
+
+def _get_test_cluster(reactor):
+    """
+    Build a ``Cluster`` instance.
+
+    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
+    """
+    control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
+
+    if control_node is None:
+        raise SkipTest(
+            "Set acceptance testing control node IP address using the " +
+            "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
+
+    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_NUM_AGENT_NODES')
+
+    if agent_nodes_env_var is None:
+        raise SkipTest(
+            "Set the number of configured acceptance testing nodes using the "
+            "FLOCKER_ACCEPTANCE_NUM_AGENT_NODES environment variable.")
+
+    num_agent_nodes = int(agent_nodes_env_var)
+
+    certificates_path = FilePath(
+        environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
+
+    hostname_to_public_address_env_var = environ.get(
+        "FLOCKER_ACCEPTANCE_HOSTNAME_TO_PUBLIC_ADDRESS", "{}")
+    hostname_to_public_address = json.loads(hostname_to_public_address_env_var)
+
+    return connected_cluster(
+        reactor,
+        control_node,
+        certificates_path,
+        num_agent_nodes,
+        hostname_to_public_address
+    )
 
 
 def require_cluster(num_nodes, required_backend=None):

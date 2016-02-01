@@ -36,7 +36,9 @@ from .._loop import (
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS, LOG_DISCOVERY,
     _UNCONVERGED_DELAY, _Sleep,
     )
-from ..testtools import ControllableDeployer, ControllableAction, to_node
+from ..testtools import (
+    ControllableDeployer, ControllableAction, to_node, NodeLocalState,
+)
 from ...control import (
     NodeState, Deployment, Manifestation, Dataset, DeploymentState,
     Application, DockerImage,
@@ -259,7 +261,7 @@ class SleepTests(TestCase):
         ``_Sleep.with_jitter`` adds some noise to the given delay.
         """
         base = 100
-        delays = [_Sleep.with_jitter(base).delay_seconds for i in range(3000)]
+        delays = [_Sleep.with_jitter(base).delay_seconds for _ in range(3000)]
         # Since we're dealing with random results we can't quite assert
         # deterministically, but we can get some assurance.
         self.assertEqual(
@@ -333,7 +335,9 @@ class ConvergenceLoopFSMTests(TestCase):
         Discovery action was logged in context of the convergence iteration
         action.
         """
-        discovery = assertHasAction(self, logger, LOG_DISCOVERY, True)
+        discovery = assertHasAction(
+            self, logger, LOG_DISCOVERY, True,
+            endFields={u"state": NodeLocalState(node_state=self.local_state)})
         convergence = assertHasAction(self, logger, LOG_CONVERGE, True)
         send = assertHasAction(
             self, logger, LOG_SEND_TO_CONTROL_SERVICE, True)
@@ -347,7 +351,7 @@ class ConvergenceLoopFSMTests(TestCase):
         discovered state to the control service using the last received
         client.
         """
-        local_state = NodeState(hostname=u"192.0.2.123")
+        self.local_state = local_state = NodeState(hostname=u"192.0.2.123")
         client = self.make_amp_client([local_state])
         action = ControllableAction(result=succeed(None))
         deployer = ControllableDeployer(
@@ -592,9 +596,7 @@ class ConvergenceLoopFSMTests(TestCase):
             nodes=[local_node_state])
         [calculate_necessary_state_changes_inputs] = deployer.calculate_inputs
 
-        (actual_local_state,
-         actual_desired_configuration,
-         actual_cluster_state) = calculate_necessary_state_changes_inputs
+        (_, _, actual_cluster_state) = calculate_necessary_state_changes_inputs
 
         self.assertEqual(expected_local_cluster_state, actual_cluster_state)
 

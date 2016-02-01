@@ -7,6 +7,7 @@ from txeffect import perform
 from eliot.testing import capture_logging, assertHasMessage
 
 from twisted.python.filepath import FilePath
+from unittest import skip
 
 from .._ssh import run, put, run_remotely
 from .._ssh._conch import make_dispatcher, RUN_OUTPUT_MESSAGE
@@ -14,14 +15,13 @@ from ...testtools import AsyncTestCase
 
 from flocker.testtools.ssh import create_ssh_server, create_ssh_agent
 
-skip = "See FLOC-1883. These tests don't properly clean up the reactor."
-
 
 class Tests(AsyncTestCase):
     """
     Tests for conch implementation of ``flocker.provision._ssh.RunRemotely``.
     """
 
+    @skip("See FLOC-1883. These tests don't properly clean up the reactor.")
     def setUp(self):
         super(Tests, self).setUp()
         self.sshd_config = FilePath(self.mktemp())
@@ -50,18 +50,19 @@ class Tests(AsyncTestCase):
         def check(_):
             self.assertEqual(self.server.home.child('hello').getContent(),
                              "")
+        d.addCallback(check)
         return d
 
     def test_put(self):
         """
         The ``Put`` intent puts the provided contents in the specified file.
         """
-
+        content = '\\hell%o'
         command = run_remotely(
             username="root",
             address=str(self.server.ip),
             port=self.server.port,
-            commands=put(content="hello", path="file"),
+            commands=put(content=content, path="file"),
         )
 
         d = perform(
@@ -71,7 +72,7 @@ class Tests(AsyncTestCase):
 
         def check(_):
             self.assertEqual(self.server.home.child('file').getContent(),
-                             "hello")
+                             content)
         d.addCallback(check)
         return d
 
