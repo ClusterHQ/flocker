@@ -43,20 +43,6 @@ class _PackerOutputParser(object):
             if parts[2] == 'artifact':
                 self._parse_line_ARTIFACT(parts)
 
-    @classmethod
-    def parse_string(cls, packer_output):
-        """
-        Parse a string containing multiple packer machine readable lines.
-
-        :param unicode packer_output: Multiple lines of packer machine readable
-            output.
-        :returns: A ``_PackerOutputParser`` after parsing the input lines.
-        """
-        parser = cls()
-        for line in packer_output.splitlines():
-            parser.parse_line(line)
-        return parser
-
 
 def _unserialize_packer_dict(serialized_packer_dict):
     """
