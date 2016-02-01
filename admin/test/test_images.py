@@ -19,15 +19,22 @@ PACKER_OUTPUTS = FilePath(__file__).sibling('packer_outputs')
 
 
 class ParserData(PClass):
+    """
+    A record to store sample input and output which can be used to test the
+    PackerOutputParser.
+
+    ;ivar FilePath input: A file containing sample ``packer build
+         -machine-readable`` output which will be fed into the parser.
+    :ivar pmap output: The expected dictionary of the regional AMI values after
+        parsing ``input``.
+    """
     input = field(type=FilePath, mandatory=True)
     output = pmap_field(key_type=unicode, value_type=unicode, optional=False)
 
 
-PACKER_OUTPUT_US_WEST_1 = ParserData(
-    input=PACKER_OUTPUTS.child('PACKER_OUTPUT_US_WEST_1'),
-    output={u"us-west-1": u"ami-e098f380"}
-)
-
+# These are sample outputs of running ``packer build -machine-readable`` with
+# configuration files which result in Packer publishing AMI images to multiple
+# or one Amazon region.
 PACKER_OUTPUT_US_ALL = ParserData(
     input=PACKER_OUTPUTS.child('PACKER_OUTPUT_US_ALL'),
     output={
@@ -37,6 +44,13 @@ PACKER_OUTPUT_US_ALL = ParserData(
     }
 )
 
+PACKER_OUTPUT_US_WEST_1 = ParserData(
+    input=PACKER_OUTPUTS.child('PACKER_OUTPUT_US_WEST_1'),
+    output={u"us-west-1": u"ami-e098f380"}
+)
+
+# This is an example of running ``packer build -machine-readble`` with a
+# configuration file that has no builders.
 PACKER_OUTPUT_NONE = ParserData(
     input=PACKER_OUTPUTS.child('PACKER_OUTPUT_NONE'),
     output={},
