@@ -48,7 +48,7 @@ from ...control.testtools import (
     make_loopback_control_client,
 )
 from ...control.test.test_protocol import (
-    iconvergence_agent_tests_factory
+    iconvergence_agent_tests_factory,
 )
 from .. import NoOp
 

@@ -633,7 +633,8 @@ class BlockDeviceOwnership(CheckedPMap):
         auto-generated from name, e.g. flocker-deploy or Docker
         plugin. That is pre-existing issue, though.
         """
-        if self.get(dataset_id) != blockdevice_id:
+        current_blockdevice_id = self.get(blockdevice_id)
+        if current_blockdevice_id not in (None, blockdevice_id):
             raise DatasetAlreadyOwned()
         return self.set(dataset_id, blockdevice_id)
 

@@ -21,6 +21,8 @@ from .test.test_protocol import (
     LoopbackAMPClient,
 )
 
+from hypothesis import given
+from hypothesis.strategies import uuids, text
 
 __all__ = [
     'InMemoryStatePersister',
@@ -48,6 +50,22 @@ def make_istatepersister_tests(fixture):
             """
             state_persister, get_state = fixture(self)
             verifyObject(IStatePersister, state_persister)
+
+        @given(
+            dataset_id=uuids(),
+            blockdevice_id=text(),
+        )
+        def test_records_blockid(self, dataset_id, blockdevice_id):
+            state_persister, get_state = fixture(self)
+            d = state_persister.record_ownership(
+                dataset_id=dataset_id,
+                blockdevice_id=blockdevice_id,
+            )
+            self.successResultOf(d)
+            self.assertEqual(
+                get_state().blockdevice_ownership[dataset_id],
+                blockdevice_id,
+            )
 
     return IStatePersisterTests
 
