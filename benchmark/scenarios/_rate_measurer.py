@@ -61,9 +61,9 @@ class RateMeasurer(object):
         Update the current rate and record a new sample.
         """
         self._rate = (
-            (self._received - self._samples[0]) / float(self.sample_size)
+            (self._sent - self._samples[0]) / float(self.sample_size)
         )
-        self._samples.append(self._received)
+        self._samples.append(self._sent)
 
     def outstanding(self):
         """
