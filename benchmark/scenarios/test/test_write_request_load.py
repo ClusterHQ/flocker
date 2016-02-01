@@ -159,12 +159,12 @@ class write_request_load_scenarioTest(TestCase):
             self.assertNotEqual(returned_datasets, [])
 
         # Create a datasest and verify we get a success
-        d = s.scenario_setup._create_dataset(self.node1)
-        d.addCallback(s.scenario_setup._set_dataset_id)
+        d = s.request._create_dataset(self.node1)
+        d.addCallback(s.request._set_dataset_id)
         self.successResultOf(d)
 
         # Verify that a dataset is actually being created
-        d2 = s.scenario_setup.control_service.list_datasets_configuration()
+        d2 = s.request.control_service.list_datasets_configuration()
         d2.addCallback(assert_created)
         s.stop()
 
@@ -176,14 +176,16 @@ class write_request_load_scenarioTest(TestCase):
         """
         reactor = Clock()
         cluster = self.make_cluster(self.get_fake_flocker_client_instance())
-        write_scenario = write_request_load_scenario(reactor, cluster, 5, sample_size=3)
+        write_scenario = write_request_load_scenario(
+            reactor, cluster, 5, sample_size=3
+        )
 
         d = write_scenario.start()
 
         d.addCallback(write_scenario.stop)
 
         def list_datasets(ignored):
-            return write_scenario.scenario_setup.control_service.list_datasets_state()
+            return write_scenario.request.control_service.list_datasets_state()
 
         d.addCallback(list_datasets)
 
@@ -208,7 +210,7 @@ class write_request_load_scenarioTest(TestCase):
         s = write_request_load_scenario(c, cluster, 5, sample_size=3)
 
         d = s.start()
-        c.pump(repeat(1, s.scenario_setup.timeout+1))
+        c.pump(repeat(1, s.request.timeout+1))
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, DatasetCreationTimeout)

@@ -54,7 +54,7 @@ class RequestLoadScenario(object):
     requests at a specified rate.
 
     :ivar reactor: Reactor to use.
-    :ivar scenario_setup: provider of the interface ``IRequest``.
+    :ivar request: provider of the interface ``IRequest``.
     :ivar request_rate: The target number of requests per second.
     :ivar sample_size: The number of samples to collect when measuring
         the rate.
@@ -75,25 +75,20 @@ class RequestLoadScenario(object):
     """
 
     def __init__(
-        self, reactor, scenario_setup_instance, request_rate=10,
+        self, reactor, request, request_rate=10,
         sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
         tolerance_percentage=0.2
     ):
         """
         ``RequestLoadScenario`` constructor.
 
-        :param reactor: Reactor to use.
-        :param scenario_setup_instance: provider of the ``IRequest`` interface.
-        :param request_rate: target number of request per second.
-        :param sample_size: number of samples to collect when measuring
-            the rate.
         :param tolerance_percentage: error percentage in the rate that is
             considered valid. For example, if we request a ``request_rate``
             of 20, and we give a tolerance_percentage of 0.2 (20%), anything
             in [16,20] will be a valid rate.
         """
         self.reactor = reactor
-        self.scenario_setup = scenario_setup_instance
+        self.request = request
         self.request_rate = request_rate
         self.timeout = timeout
         self._maintained = Deferred()
@@ -143,7 +138,7 @@ class RequestLoadScenario(object):
             for i in range(self.request_rate):
                 t0 = self.reactor.seconds()
 
-                d = self.scenario_setup.make_request()
+                d = self.request.make_request()
 
                 def get_time(_ignore):
                     return self.reactor.seconds() - t0
@@ -199,7 +194,7 @@ class RequestLoadScenario(object):
         else:
             self.is_started = True
 
-        d = self.scenario_setup.run_setup()
+        d = self.request.run_setup()
         d.addCallback(self.run_scenario)
         return d
 
@@ -309,7 +304,7 @@ class RequestLoadScenario(object):
                     action_type=u'flocker:benchmark:scenario:cleanup',
                     scenario='request_load'
                 ):
-                    return self.scenario_setup.run_cleanup()
+                    return self.request.run_cleanup()
 
             scenario.addBoth(scenario_cleanup)
 
