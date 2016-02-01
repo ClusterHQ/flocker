@@ -197,6 +197,11 @@ class LibcloudProvisioner(object):
 
         create_node_arguments = self._create_node_arguments()
 
+        print "HERE"
+        print metadata
+        metadata['distribution'] = distribution
+        print metadata
+        print "HERE"
         node, addresses = self._create_with_retry(
             name=name,
             image=get_image(self._driver, image_name),

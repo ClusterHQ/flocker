@@ -59,11 +59,11 @@ class DatasetAPITests(AsyncTestCase):
             raise SkipTest(
                 'Missing environment variables for upgrade test: %s.' %
                 ', '.join(missing_vars))
-        version = (os.environ.get('FLOCKER_ACCEPTANCE_PACKAGE_VERSION') or
+        version = (os.environ['FLOCKER_ACCEPTANCE_PACKAGE_VERSION'] or
                    default_version)
         return PackageSource(
             version=version,
-            branch=os.environ.get('FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'),
+            branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'],
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
     @skip_backend(
