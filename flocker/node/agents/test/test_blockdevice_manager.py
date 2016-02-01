@@ -20,6 +20,7 @@ from ..blockdevice_manager import (
     MakeTmpfsMountError,
     MountError,
     MountInfo,
+    MountType,
     Permissions,
     RemountError,
     ShareMountError,
@@ -74,18 +75,23 @@ class BlockDeviceManagerTests(TestCase):
         self.assertTrue(verifyObject(IBlockDeviceManager,
                                      self.manager_under_test))
 
-    def test_get_mounts_shows_only_mounted(self):
+    def test_get_disk_mounts_shows_only_mounted(self):
         """
-        Only mounted blockdevices appear in get_mounts.
+        Only mounted blockdevices appear in get_disk_mounts.
         """
         blockdevice = self._get_free_blockdevice()
         mountpoint = self._get_directory_for_mount()
         self.manager_under_test.make_filesystem(blockdevice, 'ext4')
         self.manager_under_test.mount(blockdevice, mountpoint)
-        mount_info = MountInfo(blockdevice=blockdevice, mountpoint=mountpoint)
-        self.assertIn(mount_info, self.manager_under_test.get_mounts())
+        mount_info = MountInfo(
+            mount_type=MountType.BLOCKDEVICE,
+            permissions=Permissions.READ_WRITE,
+            blockdevice=blockdevice,
+            mountpoint=mountpoint
+        )
+        self.assertIn(mount_info, self.manager_under_test.get_disk_mounts())
         self.manager_under_test.unmount(blockdevice)
-        self.assertNotIn(mount_info, self.manager_under_test.get_mounts())
+        self.assertNotIn(mount_info, self.manager_under_test.get_disk_mounts())
 
     def test_mount_multiple_times(self):
         """
@@ -99,18 +105,24 @@ class BlockDeviceManagerTests(TestCase):
         for mountpoint in mountpoints:
             self.manager_under_test.mount(blockdevice, mountpoint)
 
-        mount_infos = list(MountInfo(blockdevice=blockdevice,
-                                     mountpoint=mountpoint)
-                           for mountpoint in mountpoints)
+        mount_infos = list(
+            MountInfo(
+                mount_type=MountType.BLOCKDEVICE,
+                permissions=Permissions.READ_WRITE,
+                blockdevice=blockdevice,
+                mountpoint=mountpoint
+            ) for mountpoint in mountpoints)
         while mount_infos:
             self.assertSetEqual(
                 set(mount_infos),
-                set(m for m in self.manager_under_test.get_mounts()
+                set(m for m in self.manager_under_test.get_disk_mounts()
                     if m.blockdevice == blockdevice))
             self.manager_under_test.unmount(blockdevice)
             mount_infos.pop()
-        self.assertFalse(any(m.blockdevice == blockdevice
-                             for m in self.manager_under_test.get_mounts()))
+        self.assertFalse(
+            any(m.blockdevice == blockdevice
+                for m in self.manager_under_test.get_disk_mounts())
+        )
 
     def test_mount_multiple_blockdevices(self):
         """
@@ -125,22 +137,26 @@ class BlockDeviceManagerTests(TestCase):
             self.manager_under_test.make_filesystem(blockdevice, 'ext4')
             self.manager_under_test.mount(blockdevice, mountpoint)
 
-        mount_infos = list(MountInfo(blockdevice=blockdevice,
-                                     mountpoint=mountpoint)
-                           for blockdevice in blockdevices)
+        mount_infos = list(
+            MountInfo(
+                mount_type=MountType.BLOCKDEVICE,
+                permissions=Permissions.READ_WRITE,
+                blockdevice=blockdevice,
+                mountpoint=mountpoint
+            ) for blockdevice in blockdevices)
 
         blockdevices.reverse()
         for blockdevice in blockdevices:
             self.assertSetEqual(
                 set(mount_infos),
-                set(m for m in self.manager_under_test.get_mounts()
+                set(m for m in self.manager_under_test.get_disk_mounts()
                     if m.mountpoint == mountpoint))
             self.manager_under_test.unmount(blockdevice)
             mount_infos = list(m for m in mount_infos
                                if m.blockdevice != blockdevice)
 
         self.assertSetEqual(
-            set(), set(m for m in self.manager_under_test.get_mounts()
+            set(), set(m for m in self.manager_under_test.get_disk_mounts()
                        if m.mountpoint == mountpoint))
 
     def test_unmount_unmounted(self):

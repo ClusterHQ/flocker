@@ -199,10 +199,12 @@ class CleanupBlockDeviceManager(proxyForInterface(IBlockDeviceManager)):
         :returns FilePath: The most recent mountpoint of a blockdevice if the
             argument was the path to a blockdevice, or `unmount_target`.
         """
-        return next((mount.mountpoint
-                     for mount in reversed(list(self.original.get_mounts()))
-                     if mount.blockdevice == unmount_target),
-                    unmount_target)
+        return next(
+            (mount.mountpoint
+             for mount in reversed(list(self.original.get_disk_mounts()))
+             if mount.blockdevice == unmount_target),
+            unmount_target
+        )
 
     def mount(self, blockdevice, mountpoint):
         self._cleanup_operations.append(_UnmountCleanup(path=mountpoint))

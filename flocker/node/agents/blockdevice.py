@@ -1772,7 +1772,7 @@ class BlockDeviceDeployer(PClass):
         volumes = api.list_volumes()
         system_mounts = {
             mount.mountpoint: mount.blockdevice
-            for mount in self.block_device_manager.get_mounts()
+            for mount in self.block_device_manager.get_disk_mounts()
         }
 
         def is_existing_block_device(dataset_id, path):

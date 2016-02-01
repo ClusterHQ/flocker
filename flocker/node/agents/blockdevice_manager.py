@@ -14,9 +14,16 @@ from zope.interface import Interface, implementer
 from pyrsistent import PClass, field
 
 from twisted.python.filepath import FilePath
-from twisted.python.constants import ValueConstant, Values
+from twisted.python.constants import (
+    NamedConstant,
+    Names,
+    ValueConstant,
+    Values,
+)
 
 from characteristic import attributes
+
+from ...common.algebraic import TaggedUnionInvariant
 
 
 class Permissions(Values):
@@ -126,15 +133,39 @@ class UnmountError(Exception):
         return self.__repr__()
 
 
+class MountType(Names):
+    # A blockdevice mounted to a location.
+    BLOCKDEVICE = NamedConstant()
+    # One location in the filesystem bind mounted to another.
+    BIND = NamedConstant()
+    # A tmpfs mount.
+    TMPFS = NamedConstant()
+
+
 class MountInfo(PClass):
     """
     Information about an existing mount on the system.
 
+    :ivar MountType mount_type: The type of mount.
+    :ivar FilePath mountpoint: The file path to the mount point.
+    :ivar Permissions permissions: The permissions on the mount.
     :ivar FilePath blockdevice: The device path to the mounted blockdevice.
-    :ivar FilePath mounpoint: The file path to the mount point.
+    :ivar FilePath source: The file path of the source of a bind mount.
     """
-    blockdevice = field(type=FilePath, mandatory=True)
+    mount_type = field(type=NamedConstant, mandatory=True)
     mountpoint = field(type=FilePath, mandatory=True)
+    permissions = field(type=ValueConstant, mandatory=True)
+    blockdevice = field(type=FilePath)
+    source = field(type=FilePath)
+
+    __invariant__ = TaggedUnionInvariant(
+        tag_attribute='mount_type',
+        attributes_for_tag={
+            MountType.BLOCKDEVICE: frozenset({'blockdevice'}),
+            MountType.BIND: frozenset({'source'}),
+            MountType.TMPFS: frozenset(),
+        },
+    )
 
 
 class IBlockDeviceManager(Interface):
@@ -185,7 +216,7 @@ class IBlockDeviceManager(Interface):
             umount.
         """
 
-    def get_mounts():
+    def get_disk_mounts():
         """
         Returns all known disk device mounts on the system.
 
@@ -293,6 +324,16 @@ def _run_command(command_arg_list):
     return _CommandResult(succeeded=True)
 
 
+def _parse_permissions_from_opts(opts):
+    """
+    """
+    parsed_opts = opts.split(',')
+    if 'rw' in parsed_opts:
+        return Permissions.READ_WRITE
+    elif 'ro' in parsed_opts:
+        return Permissions.READ_ONLY
+
+
 @implementer(IBlockDeviceManager)
 class BlockDeviceManager(PClass):
     """
@@ -348,11 +389,19 @@ class BlockDeviceManager(PClass):
             raise UnmountError(unmount_target=unmount_target,
                                source_message=result.error_message)
 
-    def get_mounts(self):
+    def get_disk_mounts(self):
         mounts = psutil.disk_partitions()
-        return (MountInfo(blockdevice=FilePath(mount.device),
-                          mountpoint=FilePath(mount.mountpoint))
-                for mount in mounts)
+        return (
+            MountInfo(
+                mount_type=MountType.BLOCKDEVICE,
+                blockdevice=FilePath(mount.device),
+                mountpoint=FilePath(mount.mountpoint),
+                permissions=_parse_permissions_from_opts(mount.opts)
+            ) for mount in mounts
+        )
+
+    def get_all_mounts(self):
+        pass
 
     def symlink(self, existing_path, link_path):
         existing_path.linkTo(link_path)
