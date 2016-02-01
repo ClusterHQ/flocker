@@ -70,7 +70,7 @@ class PackerAmisTests(TestCase):
 
     def test_no_ami(self):
         """
-        If there are no AMI artifacts, the return value is ``None``.
+        If there are no AMI artifacts, the return value is an empty dictionary.
         """
         self.assert_packer_amis(PACKER_OUTPUT_NONE)
 
@@ -83,5 +83,7 @@ class PackerAmisTests(TestCase):
 
     def test_multiple_ami(self):
         """
+        If there are multiple AMI artifacts, the return value is a multiple
+        item dictionary.
         """
         self.assert_packer_amis(PACKER_OUTPUT_US_ALL)
