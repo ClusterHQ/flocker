@@ -38,7 +38,7 @@ class _PackerOutputParser(object):
 
         :param unicode line: A line to be parsed.
         """
-        parts = line.split(",")
+        parts = line.rstrip().split(",")
         if len(parts) >= 3:
             if parts[2] == 'artifact':
                 self._parse_line_ARTIFACT(parts)
