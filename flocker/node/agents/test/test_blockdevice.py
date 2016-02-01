@@ -31,7 +31,7 @@ from characteristic import attributes
 from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
-    dictionaries, tuples
+    dictionaries, tuples, booleans,
 )
 
 from testtools.deferredruntest import SynchronousDeferredRunTest
@@ -62,6 +62,7 @@ from ..blockdevice import (
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice,
+    RegisterVolume,
 
     DATASET_TRANSITIONS, IDatasetStateChangeFactory,
     ICalculator, NOTHING_TO_DO,
@@ -313,7 +314,9 @@ def create_blockdevicedeployer(
 
     :return: The newly created ``BlockDeviceDeployer``.
     """
-    api = loopbackblockdeviceapi_for_test(test_case)
+    from ..loopback import EventuallyConsistentBlockDeviceAPI
+    api = EventuallyConsistentBlockDeviceAPI(
+        loopbackblockdeviceapi_for_test(test_case))
     async_api = _SyncToThreadedAsyncAPIAdapter(
         _sync=api, _reactor=NonReactor(), _threadpool=NonThreadPool(),
     )
@@ -1170,6 +1173,11 @@ def compare_dataset_state(discovered_dataset, desired_dataset):
         )
     if desired_dataset is None:
         return discovered_dataset.state == DatasetStates.NON_MANIFEST
+    # Since we never clean up blockdevice ownership, once a mapping is
+    # created, that dataset will always be reported.
+    if (desired_dataset.state == DatasetStates.DELETED
+            and discovered_dataset.state == DatasetStates.REGISTERED):
+        return True
     if discovered_dataset.state != desired_dataset.state:
         return False
     if discovered_dataset.state == DatasetStates.MOUNTED:
@@ -1220,13 +1228,12 @@ class BlockDeviceCalculatorTests(TestCase):
     """
     def setUp(self):
         super(BlockDeviceCalculatorTests, self).setUp()
-        self.deployer = create_blockdevicedeployer(self)
-        self.persistent_state = InMemoryStatePersister()
 
     def teardown_example(self, token):
         """
         Cleanup after running a hypothesis example.
         """
+        self.persistent_state._state = PersistentState()
         umount_all(self.deployer.mountroot)
         detach_destroy_volumes(self.deployer.block_device_api)
 
@@ -1285,14 +1292,20 @@ class BlockDeviceCalculatorTests(TestCase):
             raise DidNotConverge(iteration_count=max_iterations)
 
     @given(
-        two_dataset_states=TWO_DESIRED_DATASET_STRATEGY
+        two_dataset_states=TWO_DESIRED_DATASET_STRATEGY,
+        eventually_consistent=booleans(),
     )
-    def test_simple_transitions(self, two_dataset_states):
+    def test_simple_transitions(self, two_dataset_states,
+                                eventually_consistent):
         """
         Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
         dataset.
         """
+        self.deployer = create_blockdevicedeployer(
+            self, eventually_consistent=eventually_consistent)
+        self.persistent_state = InMemoryStatePersister()
+
         initial_dataset, next_dataset = two_dataset_states
 
         dataset_id = initial_dataset.dataset_id
@@ -5411,4 +5424,35 @@ class BlockDeviceVolumeTests(TestCase):
                     volume.size, volume.attached_to
                 ),
             ))
+        )
+
+
+class RegisterVolumeTests(TestCase):
+    """
+    Tests for ``RegisterVolume``.
+    """
+
+    @given(
+        dataset_id=uuids(),
+        blockdevice_id=text(),
+    )
+    def test_run(self, dataset_id, blockdevice_id):
+        """
+        """
+        state_persister = InMemoryStatePersister()
+
+        api = UnusableAPI()
+        deployer = BlockDeviceDeployer(
+            hostname=u"192.0.2.1",
+            node_uuid=uuid4(),
+            block_device_api=api,
+        )
+        RegisterVolume(
+            dataset_id=dataset_id,
+            blockdevice_id=blockdevice_id,
+        ).run(deployer, state_persister)
+
+        self.assertEqual(
+            state_persister.get_state().blockdevice_ownership,
+            {dataset_id: blockdevice_id},
         )

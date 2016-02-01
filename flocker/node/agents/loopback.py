@@ -10,6 +10,7 @@ from subprocess import check_output
 from zope.interface import implementer
 
 from twisted.python.filepath import FilePath
+from twisted.python.components import proxyForInterface
 
 from .blockdevice import (
     BlockDeviceVolume,
@@ -404,3 +405,21 @@ class LoopbackBlockDeviceAPI(object):
             self._allocate_device(volume_path)
             path = _device_for_path(volume_path)
         return path
+
+
+class EventuallyConsistentBlockDeviceAPI(
+    proxyForInterface(IBlockDeviceAPI, "_original")
+):
+    """
+    IBlockDeivceAPI implementation that provides delayed results about volumes.
+    """
+
+    def __init__(self, _original):
+        super(EventuallyConsistentBlockDeviceAPI, self).__init__(_original)
+        self.cached_volumes = [[], []]
+
+    def list_volumes(self):
+        self.cached_volumes.append(
+            self._original.list_volumes()
+        )
+        return self.cached_volumes.pop(0)

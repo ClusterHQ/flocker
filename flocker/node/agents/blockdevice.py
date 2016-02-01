@@ -22,7 +22,7 @@ from pyrsistent import PClass, field, pmap_field, pset_field, thaw, CheckedPMap
 from characteristic import with_cmp
 
 from twisted.python.reflect import safe_repr
-from twisted.internet.defer import succeed, fail
+from twisted.internet.defer import succeed, fail, maybeDeferred
 from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
 from twisted.python.constants import (
@@ -64,6 +64,10 @@ class DatasetStates(Names):
     """
     # Doesn't exist yet.
     NON_EXISTENT = NamedConstant()
+    # Existing volume not recorded as owning a dataset
+    UNREGISTGERED = NamedConstant()
+    # Ownership recorded but not reported as a volume
+    REGISTERED = NamedConstant()
     # Exists, but attached elsewhere
     ATTACHED_ELSEWHERE = NamedConstant()
     # Exists, but not attached
@@ -97,7 +101,7 @@ class DiscoveredDataset(PClass):
         mandatory=True,
     )
     dataset_id = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int, mandatory=True)
+    maximum_size = field(type=int)
     blockdevice_id = field(type=unicode, mandatory=True)
     device_path = field(FilePath)
     mount_point = field(FilePath)
@@ -105,11 +109,16 @@ class DiscoveredDataset(PClass):
     __invariant__ = TaggedUnionInvariant(
         tag_attribute='state',
         attributes_for_tag={
-            DatasetStates.ATTACHED_ELSEWHERE: set(),
-            DatasetStates.NON_MANIFEST: set(),
-            DatasetStates.ATTACHED_NO_FILESYSTEM: {'device_path'},
-            DatasetStates.ATTACHED: {'device_path'},
-            DatasetStates.MOUNTED: {'device_path', 'mount_point'},
+            DatasetStates.ATTACHED_ELSEWHERE: {'maximum_size'},
+            DatasetStates.NON_MANIFEST: {'maximum_size'},
+            DatasetStates.UNREGISTGERED: {'maximum_size'},
+            DatasetStates.REGISTERED: set(),
+            DatasetStates.ATTACHED_NO_FILESYSTEM: {
+                'device_path', 'maximum_size'},
+            DatasetStates.ATTACHED: {
+                'device_path', 'maximum_size'},
+            DatasetStates.MOUNTED: {
+                'device_path', 'mount_point', 'maximum_size'},
         },
     )
 
@@ -420,6 +429,13 @@ DISCOVERED_RAW_STATE = MessageType(
     u"agent:blockdevice:raw_state",
     [Field(u"raw_state", safe_repr)],
     u"The discovered raw state of the node's block device volumes.")
+
+UNREGISTERED_VOLUME_ATTACHED = MessageType(
+    u"agent:blockdevice:unregistered_volume_attached",
+    [DATASET_ID, BLOCK_DEVICE_ID],
+    u"A blockdevice that isn't registered as belonging to a dataset is "
+    u"attached to an instance."
+)
 
 
 def _volume_field():
@@ -863,7 +879,46 @@ class CreateBlockDeviceDataset(PClass):
         except:
             return fail()
 
-        return self._create_volume(deployer)
+        def record_ownership(volume):
+            return state_persister.record_ownership(
+                dataset_id=volume.dataset_id,
+                blockdevice_id=volume.blockdevice_id,
+            )
+
+        d = maybeDeferred(self._create_volume, deployer)
+        d.addCallback(record_ownership)
+        return d
+
+
+@implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
+class RegisterVolume(PClass):
+        # XXX also, if we have in output of list_volumes()
+        # (i.e. local_state.volumes) a volume with a mapping between
+        # dataset_id and blockdevice_id that is not in registry, send AMP
+        # command to control service indicating this mapping. Since
+        # control service registry won't allow more than one mapping, if
+        # there are two block device volumes we end up picking one,
+        # ensuring no ambiguity. This is both the crash recovery
+        # optimization (allowing us to reuse already created block
+        # devices) and also the upgrade mechanism from time when registry
+        # didn't exist.
+
+    dataset_id = field(type=UUID, mandatory=True)
+    blockdevice_id = field(type=unicode, mandatory=True)
+
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=discovered_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
+
+    def run(self, deployer, state_persister):
+        return state_persister.record_ownership(
+            dataset_id=self.dataset_id,
+            blockdevice_id=self.blockdevice_id,
+        )
 
 
 class IBlockDeviceAsyncAPI(Interface):
@@ -1014,6 +1069,11 @@ class IBlockDeviceAPI(Interface):
         newly created volume should be given a name that contains the
         dataset_id in order to ease debugging. Some implementations may
         choose not to do so or may not be able to do so.
+
+        The dataset_id *can* be stored by backend for debugging/human
+        readability, but it is not the canonical location of
+        information (which is the control service registry).
+        XXX: supporting upgrades?
 
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this
             volume.
@@ -1383,7 +1443,7 @@ class DoNothing(PClass):
 
 
 @provider(IDatasetStateChangeFactory)
-class PollUntilAttached(PClass):
+class Poll(PClass):
     """
     Wake up more frequently to see if remote node has detached a volume we
     wish to attach.
@@ -1408,7 +1468,9 @@ DATASET_TRANSITIONS = TransitionTable.create({
         # Other node will need to detach first, but we need to wake up to
         # notice that it has detached until FLOC-3834 makes that info part
         # of cluster state. So we need to poll... but not too often:
-        Discovered.ATTACHED_ELSEWHERE: PollUntilAttached,
+        Discovered.ATTACHED_ELSEWHERE: Poll,
+        Discovered.REGISTERED: Poll,
+        Discovered.UNREGISTGERED: RegisterVolume,
         Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
         Discovered.NON_MANIFEST: AttachVolume,
         DatasetStates.ATTACHED: MountBlockDevice,
@@ -1419,6 +1481,8 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
         # Other node will detach:
         Discovered.ATTACHED_ELSEWHERE: DoNothing,
+        Discovered.REGISTERED: Poll,
+        Discovered.UNREGISTGERED: RegisterVolume,
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
@@ -1429,6 +1493,8 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.ATTACHED_ELSEWHERE: DoNothing,
         # Can't pick node that will do destruction yet.
         Discovered.NON_MANIFEST: DestroyVolume,
+        Discovered.REGISTERED: DoNothing,
+        Discovered.UNREGISTGERED: RegisterVolume,
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
@@ -1629,6 +1695,22 @@ class BlockDeviceDeployer(PClass):
         datasets = {}
         for volume in raw_state.volumes:
             dataset_id = volume.dataset_id
+            owning_blockdevice_id = persistent_state.blockdevice_ownership.get(
+                dataset_id)
+            if owning_blockdevice_id is None:
+                datasets[dataset_id] = DiscoveredDataset(
+                    state=DatasetStates.UNREGISTGERED,
+                    dataset_id=dataset_id,
+                    maximum_size=volume.size,
+                    blockdevice_id=volume.blockdevice_id,
+                )
+            elif volume.blockdevice_id != owning_blockdevice_id:
+                # XXX Should we cleanup duplicate volumes?
+                if volume.attached_to is not None:
+                    UNREGISTERED_VOLUME_ATTACHED(
+                        dataset_id=dataset_id,
+                        block_device_id=volume.blockdevice_id,
+                    ).write()
             if dataset_id in raw_state.devices:
                 device_path = raw_state.devices[dataset_id]
                 mount_point = self._mountpath_for_dataset_id(
@@ -1676,6 +1758,16 @@ class BlockDeviceDeployer(PClass):
                         maximum_size=volume.size,
                         blockdevice_id=volume.blockdevice_id,
                     )
+
+        for dataset_id, blockdevice_id in (
+            persistent_state.blockdevice_ownership.items()
+        ):
+            if dataset_id not in datasets:
+                datasets[dataset_id] = DiscoveredDataset(
+                    state=DatasetStates.REGISTERED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=blockdevice_id,
+                )
 
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=self.node_uuid,
