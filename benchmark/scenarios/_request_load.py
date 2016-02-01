@@ -136,6 +136,9 @@ class RequestLoadScenario(object):
             self.rate_measurer.request_failed(result)
             write_failure(result)
 
+        if count != 1:
+            Message.log(function='_request_and_measure', count=count)
+
         for i in range(count):
             self.rate_measurer.update_rate()
 
