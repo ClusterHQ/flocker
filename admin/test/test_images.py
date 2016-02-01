@@ -2,8 +2,6 @@
 """
 Tests for ``admin.installer``.
 """
-from textwrap import dedent
-
 from pyrsistent import PClass, field, pmap_field
 
 from flocker.testtools import (
