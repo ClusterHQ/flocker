@@ -13,7 +13,7 @@ from twisted.python import usage
 from eliot import add_destination, start_action, write_failure
 from eliot.twisted import DeferredContext
 
-from flocker.common import gather_deferreds, timeout as deferred_timeout
+from flocker.common import gather_deferreds
 from flocker.control.httpapi import REST_API_PORT
 from flocker.control import DockerImage
 from flocker.apiclient import FlockerClient, MountedDataset
