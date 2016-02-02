@@ -9,7 +9,10 @@ the PR.
 
 from __future__ import print_function
 
-from argparse import ArgumentParser
+from argparse import (
+    ArgumentParser,
+    RawDescriptionHelpFormatter,
+    )
 from collections import Counter
 from functools import partial
 from itertools import count
@@ -37,18 +40,18 @@ MINIMUM_STATUSES = 50
 MAX_RETRIES = 1
 SLEEP_FOR = 60
 
-GITHUB_VARS_REQUIRED = """"You must set {} and {}.
+GITHUB_VARS_REQUIRED = """You must set {} and {}.
 You can generate a token at https://github.com/settings/tokens
 (this script requires the repo:status and public_repo scopes)
 """.format(GITHUB_USERNAME_ENV_VAR, GITHUB_TOKEN_ENV_VAR)
 
-JENKINS_VARS_REQUIRED = """Please specify the jenkins user and\
-password in the {} and {} env vars.
+JENKINS_VARS_REQUIRED = """\
+Please specify the jenkins user and password in the {} and {} env vars.
 """.format(JENKINS_USERNAME_ENV_VAR, JENKINS_PASSWORD_ENV_VAR)
 
 DESCRIPTION = """Merge a branch when all the tests pass.
 
-Given the URL to a pull request on github this script will
+Given the URL to a pull request on GitHub this script will
 loop until all the tests pass, and then merge the branch.
 
 It will retry failures on Jenkins, and will also respond
@@ -121,20 +124,20 @@ def pr_api_url_from_web_url(url):
 
 def fetch_page(base_url, page, session):
     """
-    Fetch a particular page number for a github API resource.
+    Fetch a particular page number for a GitHub API resource.
 
-    :param unicode base_url: the URL of the github API resource.
+    :param unicode base_url: the URL of the GitHub API resource.
     :param int page: the page number to request (0 indexed).
     :param requests.Session session: the requests Session to use for
         the request.
-    :return dict: The deserialized response content from github.
+    :return dict: The deserialized response content from GitHub.
     """
     return session.get(base_url + "?page={}".format(page)).json()
 
 
 def final_status(statuses):
     """
-    Get the most recent entry for a list of github statuses.
+    Get the most recent entry for a list of GitHub statuses.
 
     :param Iterable[dict] statuses: the statuses.
     :return dict: the last of the input statues by updated_at key.
@@ -144,9 +147,9 @@ def final_status(statuses):
 
 def not_success(status):
     """
-    Whether the github status is not a success.
+    Whether the GitHub status is not a success.
 
-    :param dict status: a github API status.
+    :param dict status: a GitHub API status.
     :return bool: whether the status isn't a success
     """
     return status['state'] != u'success'
@@ -154,16 +157,16 @@ def not_success(status):
 
 def format_status(status):
     """
-    Format a github status for presentation.
+    Format a GitHub status for presentation.
 
-    :param (dict, JenkinsResult) status: a github API status
+    :param (dict, JenkinsResult) status: a GitHub API status
         and Jenkins build result.
     :return unicode: a string formatting of the pair
          for display to the user.
     """
-    github, jenkins = status
+    GitHub, jenkins = status
     return "{}: {} ({})".format(
-        github['context'], jenkins.value, github['target_url'])
+        GitHub['context'], jenkins.value, GitHub['target_url'])
 
 
 def infinite_sleeps(sleep_for):
@@ -184,10 +187,10 @@ def delete_branch(pr, session):
     """
     Delete the source branch of a pull request using the API.
 
-    :param dict pr: the github API pull request representation.
+    :param dict pr: the GitHub API pull request representation.
     :param requests.Session session: the requests Session to use
         for the request.
-    :return requests.Response: the response from github.
+    :return requests.Response: the response from GitHub.
     """
     refs_url = pr['head']['repo']['git_refs_url']
     branch_url = refs_url.replace('{/sha}', '/heads/' + pr['head']['ref'])
@@ -201,10 +204,10 @@ def get_statuses(pr, session):
     This takes care of pagination, and deduplicating the
     entries.
 
-    :param dict pr: the github API pull request representation.
+    :param dict pr: the GitHub API pull request representation.
     :param requests.Session session: the requests Session to use
         for the requests.
-    :return Iterable[dict]: an iterable of github status dicts.
+    :return Iterable[dict]: an iterable of GitHub status dicts.
     """
     base_url = pr['_links']['statuses']['href']
     statuses = []
@@ -278,11 +281,11 @@ def properties_to_params(props):
 
 def get_jenkins_info(jenkins_session, status):
     """
-    Get the Jenkins job info for a github status, if any.
+    Get the Jenkins job info for a GitHub status, if any.
 
     :param requests.Session session: the requests Session to
         use to make requests.
-    :param dict status: the github status.
+    :param dict status: the GitHub status.
     :return (JenkinsResults, dict): The first element will
         be a JenkinsResults value if the information can
         be found, None if not. The second element will be
@@ -318,7 +321,7 @@ def retry(jenkins_session, url, params):
 
 def do_merge(pr_url, pr, session):
     """
-    Attempt a merge using the github API then delete the source branch.
+    Attempt a merge using the GitHub API then delete the source branch.
 
     :param unicode pr_url: the URL of the pull request.
     :param dict pr: the pull request API dict.
@@ -353,7 +356,7 @@ def maybe_retry_jobs(statuses, retry_counts, max_retries, jenkins_session):
 
     It won't retry the same job more than `max_retries` times.
 
-    :param Iterable[dict] statuses: a list of github statuses that
+    :param Iterable[dict] statuses: a list of GitHub statuses that
         aren't successful.
     :param dict retry_counts: the number of times each status has
         been retried already.
@@ -401,14 +404,14 @@ def loop_until_passed(
     :param int sleep_between: the number of seconds to sleep between
         checking whether all the statuses are green.
     :param requests.Session session: the session to use to communicate
-        with github.
+        with GitHub.
     :param requests.Session jenkins_session: the session to sue to
         communicate with Jenkins.
     :param int max_retries: the maximum number of retries for any
         single Jenkins job.
     :return (dict, Iterable[dict]): if all the statuses are green,
-        the first element is the github pull request API representation,
-        the second is the list of the github status API representations
+        the first element is the GitHub pull request API representation,
+        the second is the list of the GitHub status API representations
         for that pull request. If the statuses aren't all green
         but the loop wants to exit for some reason (maybe the PR
         was deleted) then the first element of the tuple will
@@ -452,7 +455,8 @@ def main(args):
     :param Iterable[unicode] args: the command-line arguments for this run.
     :return int: The recommended return code of the process.
     """
-    argparse = ArgumentParser(description=DESCRIPTION)
+    argparse = ArgumentParser(description=DESCRIPTION,
+                              formatter_class=RawDescriptionHelpFormatter)
     argparse.add_argument('url', help="URL of the PR to merge")
     argparse.add_argument(
         '--no-merge', help="Don't merge, just wait until tests pass",
