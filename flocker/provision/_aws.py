@@ -259,6 +259,20 @@ class AWSProvisioner(PClass):
                 distribution=distribution,
             )
 
+    def _get_nodes(self, filters):
+        """
+        Get AWS instances with the given parameters.
+
+        Return a list of boto.ec2.instance objects.
+        """
+        with start_action(
+            action_type=u"flocker:provision:aws:get_nodes:get_only_instances",
+        ) as context:
+            instances = self._connection.get_only_instances(
+                filters
+            )
+            context.add_success_fields(instance_ids=[i.id for i in instances])
+
     def _get_node(self, image_id, size, diskmap, metadata):
         """
         Create an AWS instance with the given parameters.

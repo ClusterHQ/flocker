@@ -152,4 +152,13 @@ class IProvisioner(Interface):
         :param dict metadata: Metadata to associate with the node.
 
         :return INode: The created node.
+        """ 
+
+    def get_nodes(filters):
+        """
+        Get all instances matching the specified filters for the interface
+
+        :param filters dict: Filters to use to find nodes
+
+        :return INode: The node.
         """
