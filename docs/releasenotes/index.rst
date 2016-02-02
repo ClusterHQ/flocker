@@ -12,7 +12,7 @@ You can learn more about where we might be going with future releases by:
 This Release
 ============
 
-v1.10.0
+v1.10.1
 -------
 
 * The :ref:`Flocker documentation <supported-orchestration-frameworks>` has been re-designed to better reflect that Flocker now integrates with Cluster Managers, rather than providing its own container management features.
@@ -28,6 +28,11 @@ Previous Releases
    :local:
    :backlinks: none
    :depth: 2
+
+v1.10.0
+-------
+
+Unreleased.
 
 v1.9.0
 ------
