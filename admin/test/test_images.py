@@ -438,7 +438,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         self.s3 = self.useFixture(S3BucketFixture(test_case=self))
         returncode, stdout, stderr = self.publish_installer_images(
             args=['--target_bucket', self.s3.bucket_name,
-                  '--template', 'dockers'],
+                  '--template', 'docker'],
         )
         # The script should have uploaded AMI map to an object called "docker"
         content = self.s3.get_object_content(key=u'docker')
