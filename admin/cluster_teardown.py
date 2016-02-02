@@ -7,7 +7,8 @@ from twisted.python.usage import UsageError
 
 from .acceptance import (
     eliot_output,
-    ReallyCommonOptions
+    make_managed_nodes,
+    RunOptions
 )
 
 
@@ -19,9 +20,8 @@ def main(reactor, args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the Flocker repository.
     """
-    import pdb; pdb.set_trace()
     add_destination(eliot_output)
-    options = ReallyCommonOptions(top_level=top_level)
+    options = RunOptions(top_level=top_level)
     try:
         options.parseOptions(args)
     except UsageError as e:
