@@ -813,7 +813,7 @@ class LibcloudRunner(object):
         returnValue(cluster)
 
     def gather_managed_nodes(self, reactor):
-        
+        pass    
 
     def stop_cluster(self, reactor):
         """
