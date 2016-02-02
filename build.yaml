@@ -842,7 +842,7 @@ common_cli:
     cd _build/html
     aws --region ${S3_DOCS_REGION} s3 sync --delete . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
     echo "This branch is available at :"
-    echo "http://clusterhq-staging-docs.s3.amazonaws.com/$TRIGGERED_BRANCH/index.html"
+    echo "http://clusterhq-staging-docs.s3-website-us-east-1.amazonaws.com/$TRIGGERED_BRANCH/"
 
   sync_master_docs_to_doc_dev: &sync_master_docs_to_doc_dev |
     # ensure master docs at doc-dev are up-to-date
