@@ -136,13 +136,37 @@ class UnmountError(Exception):
 class MountType(Names):
     # A blockdevice mounted to a location.
     BLOCKDEVICE = NamedConstant()
-    # One location in the filesystem bind mounted to another.
-    BIND = NamedConstant()
     # A tmpfs mount.
     TMPFS = NamedConstant()
 
-
 class MountInfo(PClass):
+    """
+    Information about an existing mount on the system.
+
+    :ivar MountType mount_type: The type of mount.
+    :ivar FilePath mountpoint: The file path to the mount point.
+    :ivar Permissions permissions: The permissions on the mount.
+    :ivar FilePath blockdevice: The device path to the mounted blockdevice.
+    """
+    mount_type = field(type=NamedConstant, mandatory=True)
+    mountpoint = field(type=FilePath, mandatory=True)
+    permissions = field(type=ValueConstant, mandatory=True)
+    blockdevice = field(type=FilePath)
+
+    __invariant__ = TaggedUnionInvariant(
+        tag_attribute='mount_type',
+        attributes_for_tag={
+            MountType.BLOCKDEVICE: frozenset({'blockdevice'}),
+            MountType.TMPFS: frozenset(),
+        },
+    )
+
+
+class SystemFileLocation(PClass):
+    st_dev = field(type=bytes, mandatory=True)
+    dev_path = field(type=FilePath, mandatory=True)
+
+class DetailedMountInfo(PClass):
     """
     Information about an existing mount on the system.
 
@@ -155,14 +179,13 @@ class MountInfo(PClass):
     mount_type = field(type=NamedConstant, mandatory=True)
     mountpoint = field(type=FilePath, mandatory=True)
     permissions = field(type=ValueConstant, mandatory=True)
+    root_location = field(type=SystemFileLocation, mandatory=True)
     blockdevice = field(type=FilePath)
-    source = field(type=FilePath)
 
     __invariant__ = TaggedUnionInvariant(
         tag_attribute='mount_type',
         attributes_for_tag={
             MountType.BLOCKDEVICE: frozenset({'blockdevice'}),
-            MountType.BIND: frozenset({'source'}),
             MountType.TMPFS: frozenset(),
         },
     )
@@ -222,6 +245,15 @@ class IBlockDeviceManager(Interface):
 
         This only includes mounted block devices and not tmpfs mounts or bind
         mounts.
+
+        :returns: An iterable of ``MountInfo``s of all disk known mounts.
+        """
+
+    def get_all_mounts():
+        """
+        Returns all known tmpfs, bind, and disk device mounts on the system.
+
+        This only includes mounted block devices, tmpfs mounts and bind mounts.
 
         :returns: An iterable of ``MountInfo``s of all known mounts.
         """
@@ -401,7 +433,43 @@ class BlockDeviceManager(PClass):
         )
 
     def get_all_mounts(self):
-        pass
+        mounts_string = FilePath('/proc/self/mountinfo').getContent()
+
+        def process_line(line):
+            parts = line.split()
+            separator_index = parts.index("-")
+            mount_parts = parts[:separator_index]
+            fs_parts = parts[separator_index+1:]
+            _, _, st_dev, root, mountpoint, mount_opts = mount_parts[:6]
+            fs_type, blockdevice = fs_parts[:2]
+            if fs_type == 'tmpfs':
+                return DetailedMountInfo(
+                    mount_type=MountType.TMPFS,
+                    mountpoint=FilePath(mountpoint),
+                    permissions=_parse_permissions_from_opts(mount_opts),
+                    root_location=SystemFileLocation(
+                        st_dev=st_dev,
+                        dev_path=FilePath(root)
+                    )
+                )
+            elif blockdevice.startswith('/dev/'):
+                return DetailedMountInfo(
+                    mount_type=MountType.BLOCKDEVICE,
+                    mountpoint=FilePath(mountpoint),
+                    permissions=_parse_permissions_from_opts(mount_opts),
+                    blockdevice=FilePath(blockdevice),
+                    root_location=SystemFileLocation(
+                        st_dev=st_dev,
+                        dev_path=FilePath(root)
+                    )
+                )
+            else:
+                return None
+
+        return filter(
+            lambda x: x is not None,
+            (process_line(line) for line in mounts_string.splitlines())
+        )
 
     def symlink(self, existing_path, link_path):
         existing_path.linkTo(link_path)

@@ -7,7 +7,8 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 from uuid import uuid4
 
 from testtools import ExpectedException
-from testtools.matchers import Not, FileExists, HasLength
+from testtools.matchers import Not, FileExists, HasLength, MatchesAll, Contains
+from twisted.python.filepath import FilePath
 from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase
@@ -15,6 +16,7 @@ from ....testtools import TestCase
 from ..blockdevice_manager import (
     BindMountError,
     BlockDeviceManager,
+    DetailedMountInfo,
     IBlockDeviceManager,
     MakeFilesystemError,
     MakeTmpfsMountError,
@@ -24,6 +26,7 @@ from ..blockdevice_manager import (
     Permissions,
     RemountError,
     ShareMountError,
+    SystemFileLocation,
     UnmountError,
 )
 
@@ -74,6 +77,63 @@ class BlockDeviceManagerTests(TestCase):
         """
         self.assertTrue(verifyObject(IBlockDeviceManager,
                                      self.manager_under_test))
+
+    def test_get_all_mounts_shows_all_types(self):
+        """
+        bind mounts, tmpfs mounts, and disk mounts show up in get_all_mounts.
+        """
+        blockdevice = self._get_free_blockdevice()
+        blockdevice_mountpoint = self._get_directory_for_mount()
+        tmpfs_mountpoint = self._get_directory_for_mount()
+        bind_mountpoint = self._get_directory_for_mount()
+        self.manager_under_test.make_filesystem(blockdevice, 'ext4')
+        self.manager_under_test.mount(blockdevice, blockdevice_mountpoint)
+        self.manager_under_test.make_tmpfs_mount(tmpfs_mountpoint)
+        self.manager_under_test.bind_mount(tmpfs_mountpoint, bind_mountpoint)
+        self.manager_under_test.remount(bind_mountpoint, Permissions.READ_ONLY)
+        mounts = self.manager_under_test.get_all_mounts()
+        blockdevice_st_dev = next(x.root_location.st_dev
+                                  for x in mounts
+                                  if (x.mount_type == MountType.BLOCKDEVICE and
+                                      x.blockdevice == blockdevice))
+        tmpfs_st_dev = next(x.root_location.st_dev
+                            for x in mounts
+                            if x.mountpoint == tmpfs_mountpoint)
+        mount_infos = {
+            DetailedMountInfo(
+                mount_type=MountType.BLOCKDEVICE,
+                permissions=Permissions.READ_WRITE,
+                blockdevice=blockdevice,
+                mountpoint=blockdevice_mountpoint,
+                root_location=SystemFileLocation(
+                    st_dev=blockdevice_st_dev,
+                    dev_path=FilePath("/"),
+                )
+            ),
+            DetailedMountInfo(
+                mount_type=MountType.TMPFS,
+                permissions=Permissions.READ_WRITE,
+                mountpoint=tmpfs_mountpoint,
+                root_location=SystemFileLocation(
+                    st_dev=tmpfs_st_dev,
+                    dev_path=FilePath("/"),
+                )
+            ),
+            DetailedMountInfo(
+                mount_type=MountType.TMPFS,
+                permissions=Permissions.READ_ONLY,
+                mountpoint=bind_mountpoint,
+                root_location=SystemFileLocation(
+                    st_dev=tmpfs_st_dev,
+                    dev_path=FilePath("/"),
+                )
+            ),
+        }
+        self.expectThat(self.manager_under_test.get_all_mounts(),
+                        MatchesAll(*map(Contains, mount_infos)))
+        self.manager_under_test.unmount(bind_mountpoint)
+        self.manager_under_test.unmount(tmpfs_mountpoint)
+        self.manager_under_test.unmount(blockdevice_mountpoint)
 
     def test_get_disk_mounts_shows_only_mounted(self):
         """

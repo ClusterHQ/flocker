@@ -1755,7 +1755,8 @@ class BlockDeviceCalculatorTests(TestCase):
                 actual_blockdevice_manager)
 
             non_side_effect_methods = frozenset(['has_filesystem',
-                                                 'get_disk_mounts'])
+                                                 'get_disk_mounts',
+                                                 'get_all_mounts'])
 
             # Only run the invariant check on methods of the
             # IBlockDeviceManager that actually change the state of the
