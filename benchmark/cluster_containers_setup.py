@@ -265,26 +265,31 @@ class ClusterContainerDeployment(object):
                     dataset_id=dataset.dataset_id,
                     mountpoint=self.mountpoint
                 )
-                return create_container(
+                d = create_container(
                     self.reactor,
                     control_service=self.client,
                     node_uuid=node.uuid,
                     name=unicode(uuid4()),
                     image=self.image,
-                    volumes=[volume])
-            d.addCallback(start_container)
+                    volumes=[volume],
+                    timeout=self.timeout)
 
-            # DeferredContext does not support ``cancel`` method.  Use the
-            # underlying Deferred for the timeout.
-            deferred_timeout(
-                self.reactor, d.result, self.timeout.total_seconds()
-            )
+                # If container creation fails, delete dataset as well
+                def delete_dataset(failure):
+                    d = self.client.delete_dataset(dataset.dataset_id)
+                    d.addErrback(write_failure)
+                    d.addBoth(lambda _ignore: failure)
+                d.addErrback(delete_dataset)
+
+                return d
+            d.addCallback(start_container)
 
             def update_container_count(container):
                 self.container_count += 1
 
             def update_error_count(failure):
                 self.error_count += 1
+                failure.printTraceback()
                 write_failure(failure)
 
             d.addCallbacks(update_container_count, update_error_count)

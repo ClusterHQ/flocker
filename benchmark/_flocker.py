@@ -102,19 +102,28 @@ def create_container(
 
     d = control_service.create_container(node_uuid, name, image, volumes)
 
-    def container_matches(container, state):
-        return (
-            container.name == state.name and
-            container.node_uuid == state.node_uuid and
-            state.running
-        )
+    def wait_until_running(container):
+        def container_matches(container, state):
+            return (
+                container.name == state.name and
+                container.node_uuid == state.node_uuid and
+                state.running
+            )
 
-    d.addCallback(
-        lambda container: loop_until_state_found(
+        d = loop_until_state_found(
             reactor, control_service.list_containers_state,
             partial(container_matches, container), timeout
         )
-    )
+
+        # If an error occurs, delete container
+        def delete_container(failure):
+            d = control_service.delete_container(container.name)
+            d.addCallback(lambda _ignore: failure)
+            return d
+        d.addErrback(delete_container)
+
+        return d
+    d.addCallback(wait_until_running)
 
     return d
 
