@@ -394,6 +394,7 @@ common_cli:
   # from our _main_multijob.
   # These are the remote logs from the acceptance tests.
   acceptance_tests_artifacts: &acceptance_tests_artifacts
+    - results.xml
     - run-acceptance-tests.log
     - _trial_temp/test.log
     - remote_logs.log
@@ -401,6 +402,7 @@ common_cli:
   # Ubuntu acceptance tests do not collect the logs from the remote nodes
   # https://clusterhq.atlassian.net/browse/FLOC-2560
   acceptance_tests_artifacts_ubuntu_special_case: &acceptance_tests_artifacts_ubuntu_special_case
+    - results.xml
     - run-acceptance-tests.log
     - remote_logs.log
     - _trial_temp/test.log
