@@ -29,7 +29,6 @@ INSERT_STATEMENT = 'insert into test values(1);'
 SELECT_STATEMENT = 'select count(*) from test;'
 
 CLOUDFORMATION_STACK_NAME = 'testinstallerstack'
-CLOUDFORMATION_STACK_TIMEOUT = 900
 
 POSTGRESQL_PORT = 5432
 POSTGRESQL_USERNAME = 'flocker'
@@ -130,21 +129,21 @@ def wait_for_stack_status(stack_id, target_status):
     :param unicode target_status: The desired stack status.
     :returns: A ``Deferred`` which fires when the stack has ``target_status``.
     """
-    Message.log(
-        function='wait_for_stack_status',
-        stack_id=stack_id,
-        target_status=target_status,
-    )
-
     def predicate():
         stack_report = get_stack_report(stack_id)
         current_status = stack_report['StackStatus']
+        Message.log(
+            function='wait_for_stack_status',
+            stack_id=stack_id,
+            target_status=target_status,
+            current_status=current_status
+        )
         if current_status == target_status:
             return stack_report
 
     return loop_until(reactor,
                       predicate,
-                      repeat(30, CLOUDFORMATION_STACK_TIMEOUT))
+                      repeat(10, 120))
 
 
 def create_cloudformation_stack(template_url, access_key_id,
@@ -217,7 +216,7 @@ class DockerComposeTests(AsyncTestCase):
     """
     Tests for AWS CloudFormation installer.
     """
-    run_tests_with = async_runner(timeout=timedelta(minutes=20))
+    run_tests_with = async_runner(timeout=timedelta(minutes=30))
 
     def _stack_from_environment(self):
         """
