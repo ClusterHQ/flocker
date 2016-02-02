@@ -627,7 +627,7 @@ class Deployment(PClass):
 
     :ivar PSet nodes: A set containing ``Node`` instances
         describing the configuration of each cooperating node.
-    :ivar Leases leases: A map of ``Lease`` instances by dataset id.
+    :ivar Leases leases: A map of configured ``Lease``s.
     :ivar PersistentState persistent_state: The non-discoverable persistent
         state of the cluster. (Note: XXX This should idealy be a sibling to the
         configuration of the cluster, instead of child; but the required
