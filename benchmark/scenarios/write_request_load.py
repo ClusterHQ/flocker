@@ -10,7 +10,7 @@ from twisted.internet.defer import CancelledError
 
 from flocker.common import timeout
 
-from .._interfaces import IRequestScenarioSetup
+from .._interfaces import IRequest
 from ._request_load import (
     RequestLoadScenario, NoNodesFound
 )
@@ -23,7 +23,7 @@ class DatasetCreationTimeout(Exception):
     """
 
 
-@implementer(IRequestScenarioSetup)
+@implementer(IRequest)
 class WriteRequest(object):
     """
     Implementation of the write setup.
