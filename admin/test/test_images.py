@@ -3,7 +3,6 @@
 Tests for ``admin.installer``.
 """
 import json
-from textwrap import dedent
 from unittest import skipIf
 
 import boto3
@@ -28,7 +27,7 @@ from flocker.testtools import (
 )
 
 from ..installer._images import (
-    _packer_amis, _PublishInstallerImagesMain, WriteToS3, PackerBuild,
+    _PublishInstallerImagesMain, WriteToS3, PackerBuild,
     _PackerOutputParser, DISPATCHER, PackerConfigure,
 )
 
@@ -45,6 +44,8 @@ except (ClientError, NoCredentialsError, EndpointConnectionError) as e:
 else:
     S3_INACCESSIBLE = False
     S3_INACCESSIBLE_REASON = ""
+
+PACKER_OUTPUTS = FilePath(__file__).sibling('packer_outputs')
 
 
 class ParserData(PClass):
