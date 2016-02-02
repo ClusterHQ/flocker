@@ -21,9 +21,8 @@ class RateMeasurerTest(TestCase):
         :param num_samples: The number of samples to collect.
         """
         call_duration = 4.567
-        for i in range(num_samples):
-            for i in range(num_requests):
-                rate_measurer.response_received(call_duration)
+        for i in range(num_samples*num_requests):
+            rate_measurer.response_received(call_duration)
 
     def send_requests(self, rate_measurer, num_requests, num_samples):
         """
