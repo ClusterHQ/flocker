@@ -23,7 +23,7 @@ from zope.interface import implementer
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.internet.ssl import Certificate
-from twisted.internet import reactor  # pylint: disable=unused-import
+from twisted.internet import reactor
 from twisted.internet.defer import succeed
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.reflect import namedAny
@@ -438,7 +438,7 @@ class BackendDescription(PClass):
     # out.
     needs_cluster_id = field(type=bool, mandatory=True)
     # Config "dataset" keys required to initialize this backend.
-    required_config = field(type=set, mandatory=True)
+    required_config = field(type=set, mandatory=True, initial=set())
     api_factory = field(mandatory=True)
     deployer_type = field(
         mandatory=True,
