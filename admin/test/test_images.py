@@ -391,14 +391,14 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         stdout_path = working_directory.child('stdout')
         stderr_path = working_directory.child('stderr')
         self.addDetail(
-            'stdout',
+            'stdout {!r}'.format(args),
             content_from_file(
                 stdout_path.path,
                 ContentType('text', 'plain')
             )
         )
         self.addDetail(
-            'stderr',
+            'stderr {!r}'.format(args),
             content_from_file(
                 stderr_path.path,
                 ContentType('text', 'plain')
@@ -414,6 +414,11 @@ class PublishInstallerImagesIntegrationTests(TestCase):
                         stdout=stdout, stderr=stderr
                     )
                 except CalledProcessError as e:
+                    self.addDetail(
+                        'CalledProcessError {!r}'.format(args),
+                        text_content(str(e))
+                    )
+
                     if expect_error:
                         return_code = e.returncode
                     else:
@@ -421,7 +426,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
 
         return (return_code, stdout_path, stderr_path,)
 
-    def test_script_help(self):
+    def test_help(self):
         """
         """
         returncode, stdout, stderr = self.publish_installer_images(
@@ -433,17 +438,35 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         )
 
     @skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
-    def test_build_docker_one_region(self):
+    def test_build_both(self):
         """
         """
+        build_region = u"us-west-1"
         self.s3 = self.useFixture(S3BucketFixture(test_case=self))
         returncode, stdout, stderr = self.publish_installer_images(
             args=['--target_bucket', self.s3.bucket_name,
-                  '--template', 'docker'],
+                  '--template', 'docker',
+                  '--build_region', build_region],
         )
         # The script should have uploaded AMI map to an object called "docker"
-        content = self.s3.get_object_content(key=u'docker')
+        docker_object_content = self.s3.get_object_content(key=u'docker')
+        self.addDetail(
+            'docker_object_content', text_content(docker_object_content)
+        )
+
         # It should be valid JSON.
-        ami_map = json.loads(content)
-        # And the
-        self.assertEqual('foobar', ami_map)
+        docker_ami_map = json.loads(docker_object_content)
+        # We can use that image as the source for the Flocker image
+        returncode, stdout, stderr = self.publish_installer_images(
+            args=['--target_bucket', self.s3.bucket_name,
+                  '--template', 'flocker',
+                  '--build_region', build_region,
+                  '--source_ami', docker_ami_map[build_region]]
+        )
+        # And now we should have a "flocker" AMI map
+        flocker_object_content = self.s3.get_object_content(key=u'flocker')
+        self.addDetail(
+            'flocker_object_content', text_content(flocker_object_content)
+        )
+        # It should be valid JSON.
+        flocker_ami_map = json.loads(flocker_object_content)
