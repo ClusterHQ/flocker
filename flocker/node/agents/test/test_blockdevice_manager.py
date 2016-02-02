@@ -107,7 +107,7 @@ class BlockDeviceManagerTests(TestCase):
                 mountpoint=blockdevice_mountpoint,
                 root_location=SystemFileLocation(
                     st_dev=blockdevice_st_dev,
-                    dev_path=FilePath("/"),
+                    path=FilePath("/"),
                 )
             ),
             DetailedMountInfo(
@@ -116,7 +116,7 @@ class BlockDeviceManagerTests(TestCase):
                 mountpoint=tmpfs_mountpoint,
                 root_location=SystemFileLocation(
                     st_dev=tmpfs_st_dev,
-                    dev_path=FilePath("/"),
+                    path=FilePath("/"),
                 )
             ),
             DetailedMountInfo(
@@ -125,7 +125,7 @@ class BlockDeviceManagerTests(TestCase):
                 mountpoint=bind_mountpoint,
                 root_location=SystemFileLocation(
                     st_dev=tmpfs_st_dev,
-                    dev_path=FilePath("/"),
+                    path=FilePath("/"),
                 )
             ),
         }

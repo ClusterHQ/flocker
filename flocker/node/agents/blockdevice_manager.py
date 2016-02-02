@@ -163,8 +163,24 @@ class MountInfo(PClass):
 
 
 class SystemFileLocation(PClass):
+    """
+    A representation of the absolute path to a file that is agnostic of where
+    the file is mounted. This is conceptually a tuple of (device that contains
+    the file, relative path within filesystem). So if a single device is
+    mounted on multiple locations of the filesystem, the ``SystemFileLocation``
+    of the files on that device should be the same no matter which mountpoint
+    they are accessed from.
+
+    :ivar bytes st_dev: Opaque type that should be unique for a given
+        filesystem. On linux a good candidate is the third column of
+        ``/proc/self/mountinfo``.
+
+    :ivar FilePath path: Path within the st_dev to the file / relative path
+        from the root of the partition.
+    """
     st_dev = field(type=bytes, mandatory=True)
-    dev_path = field(type=FilePath, mandatory=True)
+    path = field(type=FilePath, mandatory=True)
+
 
 class DetailedMountInfo(PClass):
     """
@@ -449,7 +465,7 @@ class BlockDeviceManager(PClass):
                     permissions=_parse_permissions_from_opts(mount_opts),
                     root_location=SystemFileLocation(
                         st_dev=st_dev,
-                        dev_path=FilePath(root)
+                        path=FilePath(root)
                     )
                 )
             elif blockdevice.startswith('/dev/'):
@@ -460,7 +476,7 @@ class BlockDeviceManager(PClass):
                     blockdevice=FilePath(blockdevice),
                     root_location=SystemFileLocation(
                         st_dev=st_dev,
-                        dev_path=FilePath(root)
+                        path=FilePath(root)
                     )
                 )
             else:
