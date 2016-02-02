@@ -30,7 +30,9 @@ For more information read the :ref:`cluster architecture<architecture>` document
    deprecated_api
 
 The ``flockerctl`` Command
-========================
+==========================
+
+``flockerctl`` is an experimental CLI for controlling the Flocker Control Service.
 
 .. include:: ../reference/flockerctl.rst
    :start-after: .. begin-body
