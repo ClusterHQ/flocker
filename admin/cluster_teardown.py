@@ -2,7 +2,7 @@ import sys
 
 from eliot import FileDestination, add_destination
 
-from twisted.internet.defer import DeferredList, inlineCallbacks
+from twisted.internet.defer import DeferredList, inlineCallbacks, succeed
 from twisted.python.usage import UsageError
 
 from .acceptance import (
@@ -12,7 +12,6 @@ from .acceptance import (
 )
 
 
-@inlineCallbacks
 def main(reactor, args, base_path, top_level):
     """
     :param reactor: Reactor to use.
@@ -36,10 +35,5 @@ def main(reactor, args, base_path, top_level):
         options['config']['managed']['addresses'],
         options['distribution'],
     )
-    # The following code assumes that one of the managed nodes
-    # is both a control node and an agent node.
-    [control_node] = [
-        node for node in existing_nodes
-        if node.address == options['control-node']
-    ]
-
+    print(existing_nodes)
+    return succeed('ok')
