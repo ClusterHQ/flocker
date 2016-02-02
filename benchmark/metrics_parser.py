@@ -19,9 +19,11 @@ HEADERS = [
     u'ControlServiceCPUReadLoad',
     u'DatasetAgentCPUReadLoad',
     u'ContainerAgentCPUReadLoad',
+    u'RequestsWithinLimitReadLoad',
     u'ControlServiceCPUWriteLoad',
     u'DatasetAgentCPUWriteLoad',
     u'ContainerAgentCPUWriteLoad',
+    u'RequestsWithinLimitWriteLoad',
     u'ContainerAdditionConvergence',
 ]
 
@@ -41,6 +43,10 @@ def filter_results(results, attribute, attribute_value):
 
 
 def control_service_attribute(results, key):
+    """
+    Extract all unique results from the "control_service" section
+    that contain a particular key.
+    """
     counts = [r['control_service'][key] for r in results]
     return list(set(counts))
 
@@ -52,6 +58,11 @@ def mean(values):
 
 
 def cputime_for_process(results, process, scenario, fn=mean):
+    """
+    Calculate the CPU time for a process running in a particular scenario.
+
+    By default this will return the `mean` result.
+    """
     process_results = itertools.ifilter(
         lambda r: r['metric']['type'] == 'cputime'
         and r['process'] == process
@@ -63,6 +74,12 @@ def cputime_for_process(results, process, scenario, fn=mean):
 
 
 def wallclock_for_operation(results, operation, fn=mean):
+    """
+    Calculate the wallclock time for a process running in a particular
+    scenario.
+
+    By default this will return the `mean` result.
+    """
     operation_results = itertools.ifilter(
         lambda r: r['metric']['type'] == 'wallclock'
         and r['operation']['type'] == operation,
@@ -73,6 +90,10 @@ def wallclock_for_operation(results, operation, fn=mean):
 
 
 def container_convergence(results, seconds):
+    """
+    Calculate the percentage of containers that converge within a given
+    time period.
+    """
     convergence_results = [
         r for r in results if r['metric']['type'] == 'wallclock'
         and r['operation']['type'] == 'create-container'
@@ -84,6 +105,37 @@ def container_convergence(results, seconds):
         ]
         return len(convergences_within_limit) / num_convergences
 
+    return None
+
+
+def request_latency(results, scenario, seconds):
+    """
+    Calculate the percentage of scenario requests have a latency under the
+    specified time limit.
+    """
+    scenario_results = [
+        r['scenario'] for r in results
+        if r['scenario']['type'] == scenario
+        and r['scenario'].get('metrics')
+        and r['scenario']['metrics'].get('call_durations')
+    ]
+
+    if len(scenario_results) > 0:
+        unique_metrics = []
+        for result in scenario_results:
+            if result['metrics'] not in unique_metrics:
+                unique_metrics.append(result['metrics'])
+
+        total_requests = 0
+        requests_under_limit = 0
+        for metric in unique_metrics:
+            for k, v in metric['call_durations'].iteritems():
+                if float(k) < seconds:
+                    requests_under_limit += v
+            total_requests += (
+                metric['ok_count'] + metric['err_count']
+            )
+        return requests_under_limit / total_requests
     return None
 
 
@@ -118,7 +170,9 @@ def flatten(results):
 def extract_results(all_results):
     summary = []
     node_counts = control_service_attribute(all_results, 'node_count')
-    container_counts = control_service_attribute(all_results, 'container_count')
+    container_counts = control_service_attribute(
+        all_results, 'container_count'
+    )
     versions = control_service_attribute(all_results, 'flocker_version')
     for node_count, container_count, version in itertools.product(
         node_counts, container_counts, versions
@@ -131,26 +185,42 @@ def extract_results(all_results):
                 u'FlockerVersion': version,
                 u'Nodes': node_count,
                 u'Containers': container_count,
-                u'ControlServiceCPUSteady':
-                    cputime_for_process(results, 'flocker-control', 'no-load'),
-                u'ControlServiceCPUReadLoad':
-                    cputime_for_process(results, 'flocker-control', 'read-request-load'),
-                u'ControlServiceCPUWriteLoad':
-                    cputime_for_process(results, 'flocker-control', 'write-request-load'),
-                u'DatasetAgentCPUSteady':
-                    cputime_for_process(results, 'flocker-dataset', 'no-load'),
-                u'DatasetAgentCPUReadLoad':
-                    cputime_for_process(results, 'flocker-dataset', 'read-request-load'),
-                u'DatasetAgentCPUWriteLoad':
-                    cputime_for_process(results, 'flocker-dataset', 'write-request-load'),
-                u'ContainerAgentCPUSteady':
-                    cputime_for_process(results, 'flocker-contain', 'no-load'),
-                u'ContainerAgentCPUReadLoad':
-                    cputime_for_process(results, 'flocker-contain', 'read-request-load'),
-                u'ContainerAgentCPUWriteLoad':
-                    cputime_for_process(results, 'flocker-contain', 'write-request-load'),
-                u'ContainerAdditionConvergence':
-                    container_convergence(results, 60),
+                u'ControlServiceCPUSteady': cputime_for_process(
+                    results, 'flocker-control', 'no-load'
+                ),
+                u'ControlServiceCPUReadLoad': cputime_for_process(
+                    results, 'flocker-control', 'read-request-load'
+                ),
+                u'ControlServiceCPUWriteLoad': cputime_for_process(
+                    results, 'flocker-control', 'write-request-load'
+                ),
+                u'DatasetAgentCPUSteady': cputime_for_process(
+                    results, 'flocker-dataset', 'no-load'
+                ),
+                u'DatasetAgentCPUReadLoad': cputime_for_process(
+                    results, 'flocker-dataset', 'read-request-load'
+                ),
+                u'DatasetAgentCPUWriteLoad': cputime_for_process(
+                    results, 'flocker-dataset', 'write-request-load'
+                ),
+                u'ContainerAgentCPUSteady': cputime_for_process(
+                    results, 'flocker-contain', 'no-load'
+                ),
+                u'ContainerAgentCPUReadLoad': cputime_for_process(
+                    results, 'flocker-contain', 'read-request-load'
+                ),
+                u'ContainerAgentCPUWriteLoad': cputime_for_process(
+                    results, 'flocker-contain', 'write-request-load'
+                ),
+                u'ContainerAdditionConvergence': container_convergence(
+                    results, 60
+                ),
+                u'RequestsWithinLimitReadLoad': request_latency(
+                    results, 'read-request-load', 30
+                ),
+                u'RequestsWithinLimitWriteLoad': request_latency(
+                    results, 'write-request-load', 30
+                ),
             }
             summary.append(result)
     return summary
