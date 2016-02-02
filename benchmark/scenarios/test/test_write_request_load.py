@@ -307,61 +307,6 @@ class write_request_load_scenarioTest(TestCase):
         self.assertRaises(RequestScenarioAlreadyStarted, s.start)
 
     @capture_logging(None)
-    def test_scenario_throws_exception_when_rate_drops(self, _logger):
-        """
-        ``write_request_load_scenario`` raises ``RequestRateTooLow`` if rate
-        drops below the requested rate.
-
-        Establish the requested rate by having the ``FakeFlockerClient``
-        respond to all requests, then lower the rate by dropping
-        alternate requests. This should result in ``RequestRateTooLow``
-        being raised.
-        """
-        c = Clock()
-        control_service = self.get_dropping_flocker_client_instance()
-        cluster = self.make_cluster(control_service)
-        sample_size = 5
-        s = write_request_load_scenario(c, cluster, sample_size=sample_size,
-                                        tolerance_percentage=0)
-
-        s.start()
-
-        # Advance the clock by `sample_size` seconds to establish the
-        # requested rate.
-        c.pump(repeat(1, sample_size))
-
-        control_service.drop_requests = True
-
-        # Advance the clock by 2 seconds so that a request is dropped
-        # and a new rate which is below the target can be established.
-        c.advance(2)
-
-        failure = self.failureResultOf(s.maintained())
-        self.assertIsInstance(failure.value, RequestRateTooLow)
-
-    @capture_logging(None)
-    def test_scenario_throws_exception_if_requested_rate_not_reached(
-        self, _logger
-    ):
-        """
-        ``write_request_load_scenario`` raises ``RequestRateNotReached`` if
-        the target rate cannot be established within a given timeframe.
-        """
-        c = Clock()
-        control_service = self.get_dropping_flocker_client_instance()
-        cluster = self.make_cluster(control_service)
-        s = write_request_load_scenario(c, cluster)
-        control_service.drop_requests = True
-        d = s.start()
-
-        # Continue the clock for one second longer than the timeout
-        # value to allow the timeout to be triggered.
-        c.advance(s.timeout + 1)
-
-        failure = self.failureResultOf(d)
-        self.assertIsInstance(failure.value, RequestRateNotReached)
-
-    @capture_logging(None)
     def test_scenario_throws_exception_if_overloaded(self, __logger):
         """
         ``write_request_load_scenario`` raises ``RequestOverload`` if the
