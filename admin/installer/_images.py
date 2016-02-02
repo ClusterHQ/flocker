@@ -47,7 +47,7 @@ class _PackerOutputParser(object):
     def packer_amis(self):
         """
         :return: A ``dict`` of ``{aws_region: ami_id}`` found in the
-            ``packer_output``.
+            ``artifacts``.
         """
         for artifact in self.artifacts:
             if artifact['type'] == 'amazon-ebs':
