@@ -29,7 +29,7 @@ For more information read the :ref:`cluster architecture<architecture>` document
    api
    deprecated_api
 
-The `flockerctl` Command
+The ``flockerctl`` Command
 ========================
 
 .. include:: ../reference/flockerctl.rst
