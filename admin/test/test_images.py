@@ -3,7 +3,8 @@
 Tests for ``admin.installer``.
 """
 import json
-from subprocess import check_call, check_output
+import os
+from subprocess import check_call, CalledProcessError
 from unittest import skipIf
 
 import boto3
@@ -19,7 +20,7 @@ from txeffect import perform as async_perform
 from pyrsistent import PClass, field, pmap_field, thaw
 
 from testtools.matchers import StartsWith
-from testtools.content import text_content
+from testtools.content import text_content, content_from_file, ContentType
 
 from fixtures import Fixture
 
@@ -273,16 +274,16 @@ class S3BucketFixture(Fixture):
 
     def empty_bucket(self):
         bucket = self.s3client.list_objects(Bucket=self.bucket_name)
-        for s3object in bucket["Contents"]:
+        for s3object in bucket.get("Contents", []):
             self.s3client.delete_object(
                 Bucket=self.bucket_name,
                 Key=s3object["Key"],
             )
 
-    def bucket_content(self, key_name):
+    def get_object_content(self, key):
         return self.s3client.get_object(
             Bucket=self.bucket_name,
-            Key=key_name
+            Key=key
         )["Body"].read()
 
 
@@ -309,7 +310,7 @@ class WriteToS3Tests(TestCase):
         self.assertIs(None, result)
         self.assertEqual(
             intent.content,
-            self.s3.bucket_content(key_name=intent.target_key),
+            self.s3.get_object_content(key=intent.target_key),
         )
 
 
@@ -378,16 +379,55 @@ class PublishInstallerImagesIntegrationTests(TestCase):
     """
     script = REPOSITORY.descendant(['admin', 'publish-installer-images'])
 
+    def publish_installer_images(self, args, expect_error=False):
+        """
+        """
+        working_directory = FilePath(self.mktemp())
+        working_directory.makedirs()
+        environment = os.environ.copy()
+        environment["TMPDIR"] = working_directory.path
+        stdout_path = working_directory.child('stdout')
+        stderr_path = working_directory.child('stderr')
+
+        with stdout_path.open('w') as stdout:
+            with stderr_path.open('w') as stderr:
+                try:
+                    return_code = check_call(
+                        [self.script.path] + args,
+                        env=environment,
+                        stdout=stdout, stderr=stderr
+                    )
+                except CalledProcessError as e:
+                    if expect_error:
+                        return_code = e.returncode
+                    else:
+                        self.addDetail(
+                            'stdout',
+                            content_from_file(
+                                stdout_path.path,
+                                ContentType('text', 'plain')
+                            )
+                        )
+                        self.addDetail(
+                            'stderr',
+                            content_from_file(
+                                stderr_path.path,
+                                ContentType('text', 'plain')
+                            )
+                        )
+
+                        raise
+
+        return (return_code, stdout_path, stderr_path,)
+
     def test_script_help(self):
         """
         """
-        output = check_output(
-            [REPOSITORY.descendant(['admin', 'publish-installer-images']).path,
-             '--help'],
+        returncode, stdout, stderr = self.publish_installer_images(
+            args=["--help"]
         )
-        output = output.decode('utf-8')
         self.expectThat(
-            output,
+            stdout.getContent(),
             StartsWith(u"Usage: {}".format(self.script.basename()))
         )
 
@@ -396,8 +436,13 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         """
         """
         self.s3 = self.useFixture(S3BucketFixture(test_case=self))
-        check_call(
-            [self.script.path,
-             '--target_bucket', self.s3.bucket_name]
+        returncode, stdout, stderr = self.publish_installer_images(
+            args=['--target_bucket', self.s3.bucket_name,
+                  '--template', 'dockers'],
         )
-        import pdb; pdb.set_trace()
+        # The script should have uploaded AMI map to an object called "docker"
+        content = self.s3.get_object_content(key=u'docker')
+        # It should be valid JSON.
+        ami_map = json.loads(content)
+        # And the
+        self.assertEqual('foobar', ami_map)
