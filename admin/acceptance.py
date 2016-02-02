@@ -812,6 +812,9 @@ class LibcloudRunner(object):
 
         returnValue(cluster)
 
+    def gather_managed_nodes(self, reactor):
+        
+
     def stop_cluster(self, reactor):
         """
         Deprovision the cluster provisioned by ``start_cluster``.
