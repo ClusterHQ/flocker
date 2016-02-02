@@ -332,3 +332,5 @@ class _PublishInstallerImagesMain(object):
         options = self._parse_options(args)
         effect = self.main_effect(reactor, options)
         return async_perform(DISPATCHER, effect)
+
+publish_installer_images_main = _PublishInstallerImagesMain().main

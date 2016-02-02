@@ -3,7 +3,7 @@
 Tests for ``admin.installer``.
 """
 import json
-from subprocess import check_call
+from subprocess import check_call, check_output
 from unittest import skipIf
 
 import boto3
@@ -18,6 +18,7 @@ from txeffect import perform as async_perform
 
 from pyrsistent import PClass, field, pmap_field, thaw
 
+from testtools.matchers import StartsWith
 from testtools.content import text_content
 
 from fixtures import Fixture
@@ -255,31 +256,34 @@ class S3BucketFixture(Fixture):
     def __init__(self, test_case):
         super(S3BucketFixture, self).__init__()
         self.test_case = test_case
+        # Bucket names must be a valid DNS label
+        # https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-s3-bucket-naming-requirements.html
         self.bucket_name = random_name(
             test_case
         ).lower().replace("_", "")[-63:]
-        self.key_name = random_name(test_case)
 
     def _setUp(self):
         self.s3client = boto3.client("s3")
         self.s3client.create_bucket(Bucket=self.bucket_name)
 
         def cleanup():
-            self.s3client.delete_object(
-                Bucket=self.bucket_name,
-                Key=self.key_name,
-            )
+            self.empty_bucket()
             self.s3client.delete_bucket(Bucket=self.bucket_name)
         self.addCleanup(cleanup)
 
-    def assert_object_content(self, key, expected_content):
-        self.test_case.assertEqual(
-            expected_content,
-            self.s3client.get_object(
+    def empty_bucket(self):
+        bucket = self.s3client.list_objects(Bucket=self.bucket_name)
+        for s3object in bucket["Contents"]:
+            self.s3client.delete_object(
                 Bucket=self.bucket_name,
-                Key=key
-            )["Body"].read()
-        )
+                Key=s3object["Key"],
+            )
+
+    def bucket_content(self, key_name):
+        return self.s3client.get_object(
+            Bucket=self.bucket_name,
+            Key=key_name
+        )["Body"].read()
 
 
 class WriteToS3Tests(TestCase):
@@ -295,7 +299,7 @@ class WriteToS3Tests(TestCase):
         self.s3 = self.useFixture(S3BucketFixture(test_case=self))
         intent = WriteToS3(
             content=random_name(self).encode('ascii'),
-            target_key=self.s3.key_name,
+            target_key=random_name(self),
             target_bucket=self.s3.bucket_name,
         )
         result = sync_perform(
@@ -303,9 +307,9 @@ class WriteToS3Tests(TestCase):
             effect=Effect(intent=intent)
         )
         self.assertIs(None, result)
-        self.s3.assert_object_content(
-            key=intent.target_key,
-            expected_content=intent.content
+        self.assertEqual(
+            intent.content,
+            self.s3.bucket_content(key_name=intent.target_key),
         )
 
 
@@ -372,12 +376,28 @@ class PublishInstallerImagesIntegrationTests(TestCase):
     """
     Integration test for ``publish-installer-images``.
     """
+    script = REPOSITORY.descendant(['admin', 'publish-installer-images'])
+
+    def test_script_help(self):
+        """
+        """
+        output = check_output(
+            [REPOSITORY.descendant(['admin', 'publish-installer-images']).path,
+             '--help'],
+        )
+        output = output.decode('utf-8')
+        self.expectThat(
+            output,
+            StartsWith(u"Usage: {}".format(self.script.basename()))
+        )
+
     @skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
     def test_build_docker_one_region(self):
         """
         """
         self.s3 = self.useFixture(S3BucketFixture(test_case=self))
         check_call(
-            [REPOSITORY.descendant(['admin', 'publish-installer-images']).path,
-             '--help'],
+            [self.script.path,
+             '--target_bucket', self.s3.bucket_name]
         )
+        import pdb; pdb.set_trace()
