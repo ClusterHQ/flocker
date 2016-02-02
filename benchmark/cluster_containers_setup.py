@@ -273,7 +273,12 @@ class ClusterContainerDeployment(object):
                     image=self.image,
                     volumes=[volume])
             d.addCallback(start_container)
-            deferred_timeout(self.reactor, d, self.timeout.total_seconds())
+
+            # DeferredContext does not support ``cancel`` method.  Use the
+            # underlying Deferred for the timeout.
+            deferred_timeout(
+                self.reactor, d.result, self.timeout.total_seconds()
+            )
 
             def update_container_count(container):
                 self.container_count += 1
