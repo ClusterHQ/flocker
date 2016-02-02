@@ -410,13 +410,20 @@ def loop_until_passed(
         the first element is the github pull request API representation,
         the second is the list of the github status API representations
         for that pull request. If the statuses aren't all green
-        then this function will only return via an Exception.
+        but the loop wants to exit for some reason (maybe the PR
+        was deleted) then the first element of the tuple will
+        be None.
     """
     retry_counts = Counter()
     for i in infinite_sleeps(sleep_between):
-        pr = session.get(pr_url).json()
+        resp = session.get(pr_url)
+        if resp.status_code != 200:
+            print("PR not found: {}".format(resp.content))
+            return None, None
+        pr = resp.json()
         if pr['state'] != u'open':
             print("Merge request not open: {}".format(pr['state']))
+            return None, None
         else:
             statuses = get_statuses(pr, session)
             if len(statuses) < MINIMUM_STATUSES:
