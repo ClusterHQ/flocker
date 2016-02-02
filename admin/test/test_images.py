@@ -385,9 +385,25 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         working_directory = FilePath(self.mktemp())
         working_directory.makedirs()
         environment = os.environ.copy()
-        environment["TMPDIR"] = working_directory.path
+        # XXX Don't use TMPDIR because it breaks packer
+        # https://github.com/mitchellh/packer/issues/2792
+        environment["TEMP"] = working_directory.path
         stdout_path = working_directory.child('stdout')
         stderr_path = working_directory.child('stderr')
+        self.addDetail(
+            'stdout',
+            content_from_file(
+                stdout_path.path,
+                ContentType('text', 'plain')
+            )
+        )
+        self.addDetail(
+            'stderr',
+            content_from_file(
+                stderr_path.path,
+                ContentType('text', 'plain')
+            )
+        )
 
         with stdout_path.open('w') as stdout:
             with stderr_path.open('w') as stderr:
@@ -401,21 +417,6 @@ class PublishInstallerImagesIntegrationTests(TestCase):
                     if expect_error:
                         return_code = e.returncode
                     else:
-                        self.addDetail(
-                            'stdout',
-                            content_from_file(
-                                stdout_path.path,
-                                ContentType('text', 'plain')
-                            )
-                        )
-                        self.addDetail(
-                            'stderr',
-                            content_from_file(
-                                stderr_path.path,
-                                ContentType('text', 'plain')
-                            )
-                        )
-
                         raise
 
         return (return_code, stdout_path, stderr_path,)
