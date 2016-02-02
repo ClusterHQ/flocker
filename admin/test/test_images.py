@@ -421,13 +421,16 @@ class PublishInstallerImagesIntegrationTests(TestCase):
     """
     script = REPOSITORY.descendant(['admin', 'publish-installer-images'])
 
-    def publish_installer_images(self, args, expect_error=False):
+    def publish_installer_images(self, args, expect_error=False,
+                                 extra_enviroment=None):
         """
         Call ``publish-installer-images`` capturing stdout and stderr.
         """
         working_directory = FilePath(self.mktemp())
         working_directory.makedirs()
         environment = os.environ.copy()
+        if extra_enviroment is not None:
+            environment.update(extra_enviroment)
         # XXX Don't use TMPDIR because it breaks packer
         # https://github.com/mitchellh/packer/issues/2792
         environment["TEMP"] = working_directory.path
@@ -509,7 +512,8 @@ class PublishInstallerImagesIntegrationTests(TestCase):
             args=['--target_bucket', self.s3.bucket_name,
                   '--template', 'flocker',
                   '--build_region', build_region,
-                  '--source_ami', docker_ami_map[build_region]]
+                  '--source_ami', docker_ami_map[build_region]],
+            extra_enviroment={u'FLOCKER_BRANCH': u'master'}
         )
         # And now we should have a "flocker" AMI map
         flocker_object_content = self.s3.get_object_content(key=u'flocker')
