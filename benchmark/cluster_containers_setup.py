@@ -1,4 +1,5 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
+from datetime import timedelta
 import sys
 from ipaddr import IPAddress
 from uuid import uuid4
@@ -12,7 +13,7 @@ from twisted.python import usage
 from eliot import add_destination, start_action, write_failure
 from eliot.twisted import DeferredContext
 
-from flocker.common import gather_deferreds
+from flocker.common import gather_deferreds, timeout as deferred_timeout
 from flocker.control.httpapi import REST_API_PORT
 from flocker.control import DockerImage
 from flocker.apiclient import FlockerClient, MountedDataset
@@ -51,9 +52,9 @@ class ContainerOptions(usage.Options):
          'Location of the user and control certificates and user key'],
         ['max-size', None, 1,
          'Size of the volume, in gigabytes. One GB by default'],
-        ['wait', None, 7200,
+        ['wait', None, 3600,
          "The timeout in seconds for waiting until the operation is complete. "
-         "Waits two hours by default."],
+         "Defaults to 1 hour."],
     ]
 
     synopsis = ('Usage: setup-cluster-containers --app-per-node <containers '
@@ -111,7 +112,7 @@ class ContainerOptions(usage.Options):
                 "The max-size timeout must be an integer.")
 
         try:
-            self['wait'] = int(self['wait'])
+            self['wait'] = timedelta(seconds=int(self['wait']))
         except ValueError:
             raise usage.UsageError("The wait timeout must be an integer.")
 
@@ -171,9 +172,6 @@ class ClusterContainerDeployment(object):
         self.mountpoint = mountpoint
         self.control_node_address = control_node_address
         self.timeout = timeout
-        if self.timeout is None:
-            # Wait two hours by default
-            self.timeout = 72000
 
         self.cluster_cert = cluster_cert
         self.user_cert = user_cert
@@ -275,6 +273,7 @@ class ClusterContainerDeployment(object):
                     image=self.image,
                     volumes=[volume])
             d.addCallback(start_container)
+            deferred_timeout(self.reactor, d, self.timeout.total_seconds())
 
             def update_container_count(container):
                 self.container_count += 1
@@ -319,7 +318,6 @@ class ClusterContainerDeployment(object):
                     )
                 deferred_list.append(d)
 
-            # XXX Support timeouts
             d = gather_deferreds(deferred_list)
 
             def stop_loop(result):
