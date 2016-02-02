@@ -10,9 +10,7 @@ from flocker.testtools import (
     TestCase
 )
 
-from ..installer._images import (
-    _packer_amis, _PackerOutputParser,
-)
+from ..installer._images import _PackerOutputParser
 
 
 PACKER_OUTPUTS = FilePath(__file__).sibling('packer_outputs')
@@ -57,16 +55,47 @@ PACKER_OUTPUT_NONE = ParserData(
 )
 
 
+class PackerOutputParserTests(TestCase):
+    def test_artifact(self):
+        """
+        An artifact is recorded when the first ``end`` parameter is
+        encountered.
+        """
+        parser = _PackerOutputParser()
+        parser.parse_line(
+            '1450420216,amazon-ebs,artifact,0,builder-id,mitchellh.amazonebs\n'
+        )
+        parser.parse_line('1450420216,amazon-ebs,artifact,0,end\n')
+        self.assertEqual(
+            [{u'type': u'amazon-ebs',
+              u'builder-id': u'mitchellh.amazonebs'}],
+            parser.artifacts
+        )
+
+    def test_artifact_multiple(self):
+        """
+        An artifact is appended when another ``end`` parameter is encountered.
+        """
+        parser = _PackerOutputParser()
+        parser.parse_line('1450420216,amazon-ebs,artifact,0,end\n')
+        parser.parse_line('1450420216,foobar,artifact,0,end\n')
+        self.assertEqual(
+            [{'type': 'amazon-ebs'},
+             {'type': 'foobar'}],
+            parser.artifacts
+        )
+
+
 class PackerAmisTests(TestCase):
     """
-    Tests for ``_packer_amis``.
+    Tests for ``PackerOutputParser.packer_amis``.
     """
     def assert_packer_amis(self, parser_data):
         parser = _PackerOutputParser()
         with parser_data.input.open('r') as f:
             for line in f:
                 parser.parse_line(line)
-        self.assertEqual(parser_data.output, _packer_amis(parser))
+        self.assertEqual(parser_data.output, parser.packer_amis())
 
     def test_no_ami(self):
         """
