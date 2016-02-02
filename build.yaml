@@ -1419,6 +1419,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
+      publish_test_results: true
       # Give the acceptance test suite a nice long time to run.  Give it even
       # longer on CentOS than Ubuntu because Docker configuration on CentOS
       # causes some things to be particularly slow.  This value is just a guess
@@ -1449,6 +1450,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
       # Similar to the reasoning for run_acceptance_on_AWS_CentOS_7_with_EBS
       # but slightly shorter since Ubuntu runs the tests faster.
       timeout: 90
@@ -1476,6 +1478,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
+      publish_test_results: true
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
       directories_to_delete: []
@@ -1502,6 +1505,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
@@ -1530,6 +1534,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
+      publish_test_results: true
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
       directories_to_delete: []
@@ -1558,6 +1563,7 @@ job_type:
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
