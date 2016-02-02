@@ -182,7 +182,7 @@ def perform_packer_build(dispatcher, intent):
         parser.parse_line(line)
         intent.sys_module.stderr.write(line + "\n")
     d = run(intent.reactor, command, handle_stdout=handle_stdout)
-    d.addCallback(lambda ignored:  _packer_amis(parser))
+    d.addCallback(lambda ignored: parser.packer_amis(parser))
     return d
 
 
