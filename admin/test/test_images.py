@@ -99,6 +99,9 @@ PACKER_OUTPUT_NONE = ParserData(
 
 
 class PackerOutputParserTests(TestCase):
+    """
+    Tests for ``_PackerOutputParser``.
+    """
     def test_artifact(self):
         """
         An artifact is recorded when the first ``end`` parameter is
@@ -134,6 +137,11 @@ class PackerAmisTests(TestCase):
     Tests for ``PackerOutputParser.packer_amis``.
     """
     def assert_packer_amis(self, parser_data):
+        """
+        Assert that parser input produces the expected AMI artifacts.
+
+        :param ParserData parser_data: The input and and expected AMI map.
+        """
         parser = _PackerOutputParser()
         with parser_data.input.open('r') as f:
             for line in f:
@@ -155,6 +163,8 @@ class PackerAmisTests(TestCase):
 
     def test_multiple_ami(self):
         """
+        If there are multiple AMI artifacts, the return value is a multiple
+        item dictionary.
         """
         self.assert_packer_amis(PACKER_OUTPUT_US_ALL)
 
@@ -164,11 +174,18 @@ class PackerConfigureTests(TestCase):
     Tests for ``PackerConfigure``.
     """
     def setUp(self):
+        """
+        Create a temporary working directory.
+        """
         super(PackerConfigureTests, self).setUp()
         self.working_directory = FilePath(self.mktemp())
         self.working_directory.makedirs()
 
     def test_configuration(self):
+        """
+        Source AMI ID, build region, and target regions can all be overridden
+        in a chosen template.
+        """
         expected_build_region = random_name(self)
         expected_publish_regions = [random_name(self)]
         expected_source_ami = random_name(self)
@@ -205,6 +222,10 @@ class PackerBuildIntegrationTests(AsyncTestCase):
     Integration tests for ``PackerBuild``.
     """
     def setUp(self):
+        """
+        Create a ``FakeSysModule`` and a cleanup operation to add the
+        ``stderr`` as a test detail.
+        """
         super(PackerBuildIntegrationTests, self).setUp()
         self.sys_module = FakeSysModule()
         self.addCleanup(
@@ -217,6 +238,12 @@ class PackerBuildIntegrationTests(AsyncTestCase):
         )
 
     def perform_packer_build(self, template):
+        """
+        Run the real ``PackerBuild`` performer with the supplied ``template``.
+
+        :param unicode template: The name of a template to build.
+        :returns: A ``Deferred`` that fires with the result of the performer.
+        """
         from twisted.internet import reactor
         d = async_perform(
             dispatcher=DISPATCHER,
@@ -234,6 +261,9 @@ class PackerBuildIntegrationTests(AsyncTestCase):
         """
         Template errors result in the process exiting and an error message
         printed to stderr.
+        Packer prints machine-readable output to stderr and
+        ``publish-installer-images`` echos those lines to its stderr as well as
+        parsing the output.
         """
         template = FilePath(self.mktemp())
         template.setContent("")
@@ -273,6 +303,9 @@ class S3BucketFixture(Fixture):
         self.addCleanup(cleanup)
 
     def empty_bucket(self):
+        """
+        Delete all the objects in the temporary bucket.
+        """
         bucket = self.s3client.list_objects(Bucket=self.bucket_name)
         for s3object in bucket.get("Contents", []):
             self.s3client.delete_object(
@@ -281,6 +314,10 @@ class S3BucketFixture(Fixture):
             )
 
     def get_object_content(self, key):
+        """
+        :param unicode key: The key name of an object in the bucket.
+        :returns: The content of the object with ``key``
+        """
         return self.s3client.get_object(
             Bucket=self.bucket_name,
             Key=key
@@ -316,6 +353,10 @@ class WriteToS3Tests(TestCase):
 
 def packer_publish_sequence(reactor, working_directory, template,
                             source_ami, ami_map, options):
+    """
+    Generate the sequence of intents and canned output matching the output of
+    the real performer for each intent.
+    """
     template_path = working_directory.child('packer_configuration')
     return [
         (PackerConfigure(
@@ -347,7 +388,8 @@ class PublishInstallerImagesMainTests(TestCase):
     """
     def test_sequence(self):
         """
-        The main function performs a sequence of effects.
+        The main function generates a packer configuration file, runs packer
+        build and uploads the AMI ids to a given S3 bucket.
         """
         script = _PublishInstallerImagesMain(
             working_directory=FilePath(self.mktemp())
@@ -381,6 +423,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
 
     def publish_installer_images(self, args, expect_error=False):
         """
+        Call ``publish-installer-images`` capturing stdout and stderr.
         """
         working_directory = FilePath(self.mktemp())
         working_directory.makedirs()
@@ -428,6 +471,8 @@ class PublishInstallerImagesIntegrationTests(TestCase):
 
     def test_help(self):
         """
+        ``publish-installer-images`` has a ``--help`` option and includes the
+        name of the script in its usage message.
         """
         returncode, stdout, stderr = self.publish_installer_images(
             args=["--help"]
@@ -440,6 +485,9 @@ class PublishInstallerImagesIntegrationTests(TestCase):
     @skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
     def test_build_both(self):
         """
+        ``publish-installer-images`` can be called twice to first generate
+        Docker images and then Flocker images built on the Docker images.
+        The IDs of the generated AMIs are published to S3.
         """
         build_region = u"us-west-1"
         self.s3 = self.useFixture(S3BucketFixture(test_case=self))
@@ -470,3 +518,4 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         )
         # It should be valid JSON.
         flocker_ami_map = json.loads(flocker_object_content)
+        self.assertEqual([build_region], flocker_ami_map.keys())

@@ -27,6 +27,9 @@ from flocker.common.runner import run
 
 PACKER_TEMPLATE_DIR = FilePath(__file__).sibling('packer')
 
+# The AWS regions supported by Packer.
+# XXX ap-northeast-2 is not supported by the current packer release:
+# https://github.com/mitchellh/packer/issues/3058
 AWS_REGIONS = (
     u"ap-northeast-1",
     u"ap-southeast-1",
@@ -38,6 +41,11 @@ AWS_REGIONS = (
     u"us-west-1",
     u"us-west-2",
 )
+# Hard coded Ubuntu 14.04 base AMI.
+# XXX These AMIs are constantly being updated.
+# This should be looked up dynamically using Canonical's AWS owner ID
+# 099720109477. See:
+# http://askubuntu.com/a/53568
 SOURCE_AMIS = {
     u"ubuntu-14.04": {
         u"us-west-1": u"ami-56f59e36",
@@ -116,6 +124,20 @@ def _unserialize_packer_dict(serialized_packer_dict):
 
 class PackerConfigure(PClass):
     """
+    The attributes necessary to create a custom packer configuration file from
+    the prototype files in ``admin/installer/packer``.
+
+    :ivar build_region: The AWS region to build images in.
+    :ivar publish_regions: The AWS regions to publish the build images to.
+    :ivar template: The prototype configuration to use as a base. One of
+        `docker` or `flocker`.
+    :ivar distribution: The operating system distribution to install.
+        ubuntu-14.04 is the only one implemented so far.
+    :ivar configuration_directory: The directory containing prototype
+        configuration templates.
+    :ivar source_ami: The AMI ID to use as the base image.
+    :ivar working_directory: The directory in which templates will be copied
+        and modified.
     """
     build_region = field(type=unicode, mandatory=True)
     publish_regions = pvector_field(item_type=unicode)
@@ -129,6 +151,9 @@ class PackerConfigure(PClass):
 @sync_performer
 def perform_packer_configure(dispatcher, intent):
     """
+    Copy the prototype configuration files and provisioning scripts to a
+    temporary location and modify one of the configurations witht the values
+    found in ``intent``.
     """
     temporary_configuration_directory = intent.working_directory.child(
         'packer_configuration'
@@ -164,6 +189,15 @@ def perform_packer_configure(dispatcher, intent):
 
 class PackerBuild(PClass):
     """
+    The attributes necessary to run ``packer build``.
+
+    # XXX This attribute should be called configuration_path
+    :ivar template: The path to a packer build configuration file.
+    :ivar reactor: The Twisted reactor object used to run the ``packer build``
+        subprocess.
+    :ivar sys_module: A ``sys`` like object with ``stdout`` and ``stderr``
+        attributes. The ``stderr`` of ``packer build`` will be written to
+        ``sys_module.stderr``.
     """
     template = field(type=FilePath)
     reactor = field(mandatory=True)
@@ -173,6 +207,11 @@ class PackerBuild(PClass):
 @deferred_performer
 def perform_packer_build(dispatcher, intent):
     """
+    Run ``packer build`` using the configuration in the supplied ``intent`` and
+    parse its output.
+
+    :returns: A ``Deferred`` which fires with a dict mapping the ID of the AMI
+        published to each AWS region.
     """
     command = ['/opt/packer/packer', 'build',
                '-machine-readable', intent.template.path]
@@ -188,6 +227,12 @@ def perform_packer_build(dispatcher, intent):
 
 class WriteToS3(PClass):
     """
+    The attributes necessary to write bytes to an S3 bucket.
+
+    :ivar content: The bytes to write.
+    :ivar target_bucket: The name of the S3 bucket.
+    :ivar target_key: The name of the object which will be created in the S3
+        bucket.
     """
     content = field(type=bytes, mandatory=True)
     target_bucket = field(type=unicode, mandatory=True)
@@ -197,6 +242,8 @@ class WriteToS3(PClass):
 @sync_performer
 def perform_write_to_s3(dispatcher, intent):
     """
+    Create a new object in an existing S3 bucket with the key and content in
+    ``intent``.
     """
     client = boto3.client("s3")
     client.put_object(
@@ -205,7 +252,7 @@ def perform_write_to_s3(dispatcher, intent):
         Body=intent.content
     )
 
-
+# Map intents to performers.
 DISPATCHER = ComposedDispatcher([
     TypeDispatcher(
         {
@@ -262,6 +309,11 @@ class PublishInstallerImagesOptions(Options):
 
 
 class _PublishInstallerImagesMain(object):
+    """
+    A container for the main functions of ``publish-installer-images`` with
+    attributes to allow overriding the stdout and stderr and the working
+    directory used by the constituent Effects.
+    """
     def __init__(self, sys_module=None, working_directory=None):
         if sys_module is None:
             sys_module = sys
