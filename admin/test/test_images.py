@@ -3,6 +3,7 @@
 Tests for ``admin.installer``.
 """
 import json
+from subprocess import check_call
 from unittest import skipIf
 
 import boto3
@@ -18,6 +19,8 @@ from txeffect import perform as async_perform
 from pyrsistent import PClass, field, pmap_field, thaw
 
 from testtools.content import text_content
+
+from fixtures import Fixture
 
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
@@ -44,6 +47,12 @@ except (ClientError, NoCredentialsError, EndpointConnectionError) as e:
 else:
     S3_INACCESSIBLE = False
     S3_INACCESSIBLE_REASON = ""
+
+try:
+    import flocker as _flocker
+    REPOSITORY = FilePath(_flocker.__file__).parent().parent()
+finally:
+    del _flocker
 
 PACKER_OUTPUTS = FilePath(__file__).sibling('packer_outputs')
 
@@ -239,16 +248,20 @@ class PackerBuildIntegrationTests(AsyncTestCase):
         return d.addCallback(check_error)
 
 
-class WriteToS3Tests(TestCase):
+class S3BucketFixture(Fixture):
     """
-    Tests for ``WriteToS3``.
+    Create a temporary S3 bucket for the duration of a test.
     """
-    @skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
-    def setUp(self):
-        super(WriteToS3Tests, self).setUp()
+    def __init__(self, test_case):
+        super(S3BucketFixture, self).__init__()
+        self.test_case = test_case
+        self.bucket_name = random_name(
+            test_case
+        ).lower().replace("_", "")[-63:]
+        self.key_name = random_name(test_case)
+
+    def _setUp(self):
         self.s3client = boto3.client("s3")
-        self.bucket_name = random_name(self).lower().replace("_", "")
-        self.key_name = random_name(self)
         self.s3client.create_bucket(Bucket=self.bucket_name)
 
         def cleanup():
@@ -260,7 +273,7 @@ class WriteToS3Tests(TestCase):
         self.addCleanup(cleanup)
 
     def assert_object_content(self, key, expected_content):
-        self.assertEqual(
+        self.test_case.assertEqual(
             expected_content,
             self.s3client.get_object(
                 Bucket=self.bucket_name,
@@ -268,20 +281,29 @@ class WriteToS3Tests(TestCase):
             )["Body"].read()
         )
 
+
+class WriteToS3Tests(TestCase):
+    """
+    Tests for ``WriteToS3``.
+    """
+    @skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
     def test_perform(self):
         """
+        ``WriteToS3`` has a performer that creates a new object with
+        ``target_key`` and ``content`` in ``target_bucket``
         """
+        self.s3 = self.useFixture(S3BucketFixture(test_case=self))
         intent = WriteToS3(
             content=random_name(self).encode('ascii'),
-            target_key=self.key_name,
-            target_bucket=self.bucket_name,
+            target_key=self.s3.key_name,
+            target_bucket=self.s3.bucket_name,
         )
         result = sync_perform(
             dispatcher=DISPATCHER,
             effect=Effect(intent=intent)
         )
         self.assertIs(None, result)
-        self.assert_object_content(
+        self.s3.assert_object_content(
             key=intent.target_key,
             expected_content=intent.content
         )
@@ -314,7 +336,7 @@ def packer_publish_sequence(reactor, working_directory, template,
     ]
 
 
-class PackerInstallerImagesMainTests(TestCase):
+class PublishInstallerImagesMainTests(TestCase):
     """
     Tests for ``_PublishInstallerImagesMain``
     """
@@ -343,4 +365,19 @@ class PackerInstallerImagesMainTests(TestCase):
         self.assertEqual(
             PACKER_OUTPUT_US_ALL.output,
             result
+        )
+
+
+class PublishInstallerImagesIntegrationTests(TestCase):
+    """
+    Integration test for ``publish-installer-images``.
+    """
+    @skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
+    def test_build_docker_one_region(self):
+        """
+        """
+        self.s3 = self.useFixture(S3BucketFixture(test_case=self))
+        check_call(
+            [REPOSITORY.descendant(['admin', 'publish-installer-images']).path,
+             '--help'],
         )
