@@ -136,7 +136,7 @@ class write_request_load_scenarioTest(TestCase):
         return UnresponsiveDatasetCreationFakeFlockerClient(
             self.get_fake_flocker_client_instance())
 
-    def get_error_response_client(self, reactor):
+    def get_error_response_client_instance(self, reactor):
         """
         Returns a ``RequestErrorFakeFlockerClient`` instance using the
         nodes defined in the init.
@@ -270,6 +270,43 @@ class write_request_load_scenarioTest(TestCase):
         self.successResultOf(d)
 
     @capture_logging(None)
+    def test_scenario_throws_exception_when_rate_drops(self, _logger):
+        """
+        ``read_request_load_scenario`` raises ``RequestRateTooLow`` if rate
+        drops below the requested rate.
+
+        Establish the requested rate by having the ``FakeFlockerClient``
+        respond to all requests, then lower the rate by dropping
+        alternate requests. This should result in ``RequestRateTooLow``
+        being raised.
+        """
+        c = Clock()
+
+        cluster = self.make_cluster(self.get_error_response_client_instance(c))
+        sample_size = 5
+        cluster.get_control_service(c).delay = 0
+        s = write_request_load_scenario(c, cluster, sample_size=sample_size,
+                                        tolerance_percentage=0.0)
+        s.start()
+
+        # Advance the clock by `sample_size` seconds to establish the
+        # requested rate.
+        c.pump(repeat(1, sample_size))
+
+        cluster.get_control_service(c).fail_requests = True
+
+        # Advance the clock by 2 seconds so that a request is dropped
+        # and a new rate which is below the target can be established.
+        time_to_advance = s.tolerated_errors / sample_size
+        c.pump(repeat(1, time_to_advance))
+
+        failure = self.failureResultOf(s.maintained())
+
+        _logger.flushTracebacks(FakeNetworkError)
+
+        self.assertIsInstance(failure.value, RequestRateTooLow)
+
+    @capture_logging(None)
     def test_write_scenario_start_stop_start_succeeds(self, _logger):
         """
         ``write_request_load_scenario`` starts, stops and starts
@@ -357,7 +394,7 @@ class write_request_load_scenarioTest(TestCase):
         """
         c = Clock()
 
-        control_service = self.get_error_response_client(c)
+        control_service = self.get_error_response_client_instance(c)
         cluster = self.make_cluster(control_service)
         delay = 1
 
@@ -402,7 +439,7 @@ class write_request_load_scenarioTest(TestCase):
         """
         c = Clock()
 
-        control_service = self.get_error_response_client(c)
+        control_service = self.get_error_response_client_instance(c)
         cluster = self.make_cluster(control_service)
         sample_size = 5
         s = write_request_load_scenario(

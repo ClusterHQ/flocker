@@ -29,6 +29,7 @@ class RateMeasurer(object):
         self._rate = 0
         self._call_durations = {}
         self._errors = {}
+        self._total_errors = 0
 
     def request_sent(self):
         """
@@ -46,6 +47,9 @@ class RateMeasurer(object):
         key = round(duration, 1)
         self._call_durations[key] = self._call_durations.get(key, 0) + 1
 
+    def num_of_erros(self):
+        return self._total_errors
+
     def request_failed(self, failure):
         """
         Increase the error count for failed requests.
@@ -55,6 +59,7 @@ class RateMeasurer(object):
         self._error_count += 1
         key = failure.getErrorMessage()
         self._errors[key] = self._errors.get(key, 0) + 1
+        self._total_errors += 1
 
     def update_rate(self):
         """
