@@ -35,8 +35,10 @@ Flocker Installation Options
 
 .. _kubernetes-tutorials:
 
-Follow a Tutorial
-=================
+Tutorial
+========
+
+.. XXX this title should be renamed to "Tutorials" when there are more than one tutorial
 
 .. raw:: html
 
