@@ -796,7 +796,7 @@ common_cli:
     BOX_NAME="jenkins-osx-yosemite-${FLOCKER_VERSION}.box"
     (
       retry_n_times_with_timeout 2 1800 \
-        vagrant package --output "${BOX_NAME}"
+        VAGRANT_LOG=info vagrant package --output "${BOX_NAME}"
     ) || abort_build
 
   start_vanilla_osx_yosemite_vagrant_box: &start_vanilla_osx_yosemite_vagrant_box |
