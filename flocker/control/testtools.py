@@ -19,12 +19,13 @@ from ._protocol import (
     ControlAMPService, ControlAMP,
 )
 from ._registry import IStatePersister, InMemoryStatePersister
+from ._model import DatasetAlreadyOwned
 
 from ..testtools.amp import (
     LoopbackAMPClient,
 )
 
-from hypothesis import given
+from hypothesis import given, assume
 from hypothesis.strategies import uuids, text
 
 __all__ = [
@@ -59,13 +60,45 @@ def make_istatepersister_tests(fixture):
             dataset_id=uuids(),
             blockdevice_id=text(),
         )
-        def test_records_blockid(self, dataset_id, blockdevice_id):
+        def test_records_blockdeviceid(self, dataset_id, blockdevice_id):
+            """
+            Calling ``record_ownership`` records the blockdevice
+            mapping in the state.
+            """
             state_persister, get_state = fixture(self)
             d = state_persister.record_ownership(
                 dataset_id=dataset_id,
                 blockdevice_id=blockdevice_id,
             )
             self.successResultOf(d)
+            self.assertEqual(
+                get_state().blockdevice_ownership[dataset_id],
+                blockdevice_id,
+            )
+
+        @given(
+            dataset_id=uuids(),
+            blockdevice_id=text(),
+            other_blockdevice_id=text()
+        )
+        def test_duplicate_blockdevice_id(
+            self, dataset_id, blockdevice_id, other_blockdevice_id
+        ):
+            """
+            Calling ``record_ownership`` raises
+            ``DatasetAlreadyOwned`` if the dataset already has a
+            associated blockdevice.
+            """
+            assume(blockdevice_id != other_blockdevice_id)
+            state_persister, get_state = fixture(self)
+            self.successResultOf(state_persister.record_ownership(
+                dataset_id=dataset_id,
+                blockdevice_id=blockdevice_id,
+            ))
+            self.failureResultOf(state_persister.record_ownership(
+                dataset_id=dataset_id,
+                blockdevice_id=other_blockdevice_id,
+            ), DatasetAlreadyOwned)
             self.assertEqual(
                 get_state().blockdevice_ownership[dataset_id],
                 blockdevice_id,
@@ -108,6 +141,6 @@ def make_loopback_control_client(test_case, reactor):
     """
     control_amp_service = build_control_amp_service(test_case, reactor=reactor)
     client = LoopbackAMPClient(
-        locator=ControlAMP(reactor, control_amp_service).locator,
+        command_locator=ControlAMP(reactor, control_amp_service).locator,
     )
     return control_amp_service, client

@@ -618,7 +618,7 @@ class DatasetAlreadyOwned(Exception):
 
 class BlockDeviceOwnership(CheckedPMap):
     """
-    Persistent mapping of blockdevices to datasets.
+    Persistent mapping of datasets to blockdevices.
     """
     __key_type__ = UUID
     __value_type__ = unicode
@@ -632,8 +632,16 @@ class BlockDeviceOwnership(CheckedPMap):
         interact badly with deletion of dataset where dataset_id is
         auto-generated from name, e.g. flocker-deploy or Docker
         plugin. That is pre-existing issue, though.
+
+        :param UUID dataset_id: The dataset being associated with a
+            blockdevice.
+        :param unicode blockdevice_id: The blockdevice to associate with the
+            dataset.
+
+        :raises DatasetAlreadyOwned: if the dataset already has an associated
+            blockdevice.
         """
-        current_blockdevice_id = self.get(blockdevice_id)
+        current_blockdevice_id = self.get(dataset_id)
         if current_blockdevice_id not in (None, blockdevice_id):
             raise DatasetAlreadyOwned()
         return self.set(dataset_id, blockdevice_id)
