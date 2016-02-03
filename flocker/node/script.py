@@ -492,7 +492,7 @@ def _create_block_device_deployer(api, **kw):
     shared_root = b"/flocker/v2"
     block_device_manager = BlockDeviceManager()
 
-    if not is_shadow_mount(link_root, shared_root):
+    if not is_shadow_mount(link_root, shared_root, block_device_manager):
         create_tmpfs_shadow_mount(link_root, shared_root, block_device_manager)
 
     deployer = BlockDeviceDeployer(block_device_api=ProcessLifetimeCache(api),
