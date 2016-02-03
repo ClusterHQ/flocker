@@ -139,28 +139,6 @@ class MountType(Names):
     # A tmpfs mount.
     TMPFS = NamedConstant()
 
-class MountInfo(PClass):
-    """
-    Information about an existing mount on the system.
-
-    :ivar MountType mount_type: The type of mount.
-    :ivar FilePath mountpoint: The file path to the mount point.
-    :ivar Permissions permissions: The permissions on the mount.
-    :ivar FilePath blockdevice: The device path to the mounted blockdevice.
-    """
-    mount_type = field(type=NamedConstant, mandatory=True)
-    mountpoint = field(type=FilePath, mandatory=True)
-    permissions = field(type=ValueConstant, mandatory=True)
-    blockdevice = field(type=FilePath)
-
-    __invariant__ = TaggedUnionInvariant(
-        tag_attribute='mount_type',
-        attributes_for_tag={
-            MountType.BLOCKDEVICE: frozenset({'blockdevice'}),
-            MountType.TMPFS: frozenset(),
-        },
-    )
-
 
 class SystemFileLocation(PClass):
     """
@@ -262,7 +240,8 @@ class IBlockDeviceManager(Interface):
         This only includes mounted block devices and not tmpfs mounts or bind
         mounts.
 
-        :returns: An iterable of ``MountInfo``s of all disk known mounts.
+        :returns: An iterable of ``DetailedMountInfo``s of all disk known
+            mounts.
         """
 
     def get_all_mounts():
@@ -271,7 +250,7 @@ class IBlockDeviceManager(Interface):
 
         This only includes mounted block devices, tmpfs mounts and bind mounts.
 
-        :returns: An iterable of ``MountInfo``s of all known mounts.
+        :returns: An iterable of ``DetailedMountInfo``s of all known mounts.
         """
 
     def symlink(existing_path, link_path):
@@ -440,7 +419,7 @@ class BlockDeviceManager(PClass):
     def get_disk_mounts(self):
         mounts = psutil.disk_partitions()
         return (
-            MountInfo(
+            DetailedMountInfo(
                 mount_type=MountType.BLOCKDEVICE,
                 blockdevice=FilePath(mount.device),
                 mountpoint=FilePath(mount.mountpoint),

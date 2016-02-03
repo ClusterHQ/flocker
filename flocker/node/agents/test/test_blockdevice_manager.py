@@ -7,7 +7,17 @@ Tests for ``flocker.node.agents.blockdevice_manager``.
 from uuid import uuid4
 
 from testtools import ExpectedException
-from testtools.matchers import Not, FileExists, HasLength, MatchesAll, Contains
+from testtools.matchers import (
+    AnyMatch,
+    AllMatch,
+    Contains,
+    FileExists,
+    HasLength,
+    MatchesAll,
+    MatchesSetwise,
+    MatchesStructure,
+    Not,
+)
 from twisted.python.filepath import FilePath
 from zope.interface.verify import verifyObject
 
@@ -21,7 +31,6 @@ from ..blockdevice_manager import (
     MakeFilesystemError,
     MakeTmpfsMountError,
     MountError,
-    MountInfo,
     MountType,
     Permissions,
     RemountError,
@@ -143,15 +152,21 @@ class BlockDeviceManagerTests(TestCase):
         mountpoint = self._get_directory_for_mount()
         self.manager_under_test.make_filesystem(blockdevice, 'ext4')
         self.manager_under_test.mount(blockdevice, mountpoint)
-        mount_info = MountInfo(
+        matches_blockdevice = MatchesStructure.byEquality(
             mount_type=MountType.BLOCKDEVICE,
             permissions=Permissions.READ_WRITE,
             blockdevice=blockdevice,
             mountpoint=mountpoint
         )
-        self.assertIn(mount_info, self.manager_under_test.get_disk_mounts())
+        self.assertThat(
+            self.manager_under_test.get_disk_mounts(),
+            AnyMatch(matches_blockdevice)
+        )
         self.manager_under_test.unmount(blockdevice)
-        self.assertNotIn(mount_info, self.manager_under_test.get_disk_mounts())
+        self.assertThat(
+            self.manager_under_test.get_disk_mounts(),
+            AllMatch(Not(matches_blockdevice))
+        )
 
     def test_mount_multiple_times(self):
         """
@@ -165,20 +180,21 @@ class BlockDeviceManagerTests(TestCase):
         for mountpoint in mountpoints:
             self.manager_under_test.mount(blockdevice, mountpoint)
 
-        mount_infos = list(
-            MountInfo(
+        matches_mounts = list(
+            MatchesStructure.byEquality(
                 mount_type=MountType.BLOCKDEVICE,
                 permissions=Permissions.READ_WRITE,
                 blockdevice=blockdevice,
                 mountpoint=mountpoint
             ) for mountpoint in mountpoints)
-        while mount_infos:
-            self.assertSetEqual(
-                set(mount_infos),
+        while matches_mounts:
+            self.assertThat(
                 set(m for m in self.manager_under_test.get_disk_mounts()
-                    if m.blockdevice == blockdevice))
+                    if m.blockdevice == blockdevice),
+                MatchesSetwise(*matches_mounts)
+            )
             self.manager_under_test.unmount(blockdevice)
-            mount_infos.pop()
+            matches_mounts.pop()
         self.assertFalse(
             any(m.blockdevice == blockdevice
                 for m in self.manager_under_test.get_disk_mounts())
@@ -197,8 +213,8 @@ class BlockDeviceManagerTests(TestCase):
             self.manager_under_test.make_filesystem(blockdevice, 'ext4')
             self.manager_under_test.mount(blockdevice, mountpoint)
 
-        mount_infos = list(
-            MountInfo(
+        matches_dicts = list(
+            dict(
                 mount_type=MountType.BLOCKDEVICE,
                 permissions=Permissions.READ_WRITE,
                 blockdevice=blockdevice,
@@ -207,13 +223,17 @@ class BlockDeviceManagerTests(TestCase):
 
         blockdevices.reverse()
         for blockdevice in blockdevices:
-            self.assertSetEqual(
-                set(mount_infos),
+            self.assertThat(
                 set(m for m in self.manager_under_test.get_disk_mounts()
-                    if m.mountpoint == mountpoint))
+                    if m.mountpoint == mountpoint),
+                MatchesSetwise(*list(
+                    MatchesStructure.byEquality(**kw)
+                    for kw in matches_dicts
+                )),
+            )
             self.manager_under_test.unmount(blockdevice)
-            mount_infos = list(m for m in mount_infos
-                               if m.blockdevice != blockdevice)
+            matches_dicts = list(m for m in matches_dicts
+                                 if m['blockdevice'] != blockdevice)
 
         self.assertSetEqual(
             set(), set(m for m in self.manager_under_test.get_disk_mounts()
