@@ -1,30 +1,26 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 import argparse
+from collections import defaultdict
 import csv
 import itertools
 import json
 
+itertools.groupby
 
 WALL_CLOCK_KEY = u'-- WALL --'
 
 
 HEADERS = [
-    u'FlockerVersion',
+    u'Flocker Version',
     u'Nodes',
     u'Containers',
-    u'ControlServiceCPUSteady',
-    u'DatasetAgentCPUSteady',
-    u'ContainerAgentCPUSteady',
-    u'ControlServiceCPUReadLoad',
-    u'DatasetAgentCPUReadLoad',
-    u'ContainerAgentCPUReadLoad',
-    u'RequestsWithinLimitReadLoad',
-    u'ControlServiceCPUWriteLoad',
-    u'DatasetAgentCPUWriteLoad',
-    u'ContainerAgentCPUWriteLoad',
-    u'RequestsWithinLimitWriteLoad',
-    u'ContainerAdditionConvergence',
+    u'Scenario',
+    u'Control Service CPU',
+    u'Dataset Agent CPU',
+    u'Container Agent CPU',
+    u'Containers Converged Within Limit',
+    u'Scenario Requests Within Limit',
 ]
 
 
@@ -42,6 +38,10 @@ def filter_results(results, attribute, attribute_value):
     ]
 
 
+def filter_results_scenario(results, scenario):
+    return [r for r in results if r['scenario']['name'] == scenario]
+
+
 def control_service_attribute(results, key):
     """
     Extract all unique results from the "control_service" section
@@ -51,29 +51,35 @@ def control_service_attribute(results, key):
     return list(set(counts))
 
 
+def scenario_attribute(results):
+    """
+    Extract all unique scenarios that are available in the results.
+    """
+    scenarios = [r['scenario']['name'] for r in results]
+    return list(set(scenarios))
+
+
 def mean(values):
     if len(values) > 0:
         return sum(values) / len(values)
     return None
 
 
-def cputime_for_process(results, process, scenario, fn=mean):
+def cputime_for_process(results, process):
     """
     Calculate the CPU time for a process running in a particular scenario.
 
     By default this will return the `mean` result.
     """
     process_results = itertools.ifilter(
-        lambda r: r['metric']['type'] == 'cputime'
-        and r['process'] == process
-        and r['scenario']['type'] == scenario,
+        lambda r: r['metric']['type'] == 'cputime' and r['process'] == process,
         results
     )
     values = [r['value'] / r['wallclock'] for r in process_results]
-    return fn(values)
+    return mean(values)
 
 
-def wallclock_for_operation(results, operation, fn=mean):
+def wallclock_for_operation(results, operation):
     """
     Calculate the wallclock time for a process running in a particular
     scenario.
@@ -86,7 +92,7 @@ def wallclock_for_operation(results, operation, fn=mean):
         results
     )
     values = [r['value'] for r in operation_results]
-    return fn(values)
+    return mean(values)
 
 
 def container_convergence(results, seconds):
@@ -108,15 +114,14 @@ def container_convergence(results, seconds):
     return None
 
 
-def request_latency(results, scenario, seconds):
+def request_latency(results, seconds):
     """
     Calculate the percentage of scenario requests have a latency under the
     specified time limit.
     """
     scenario_results = [
         r['scenario'] for r in results
-        if r['scenario']['type'] == scenario
-        and r['scenario'].get('metrics')
+        if r['scenario'].get('metrics')
         and r['scenario']['metrics'].get('call_durations')
     ]
 
@@ -132,9 +137,7 @@ def request_latency(results, scenario, seconds):
             for k, v in metric['call_durations'].iteritems():
                 if float(k) < seconds:
                     requests_under_limit += v
-            total_requests += (
-                metric['ok_count'] + metric['err_count']
-            )
+            total_requests += metric['ok_count'] + metric['err_count']
         return requests_under_limit / total_requests
     return None
 
@@ -168,61 +171,43 @@ def flatten(results):
 
 
 def extract_results(all_results):
-    summary = []
+    summary = defaultdict(list)
     node_counts = control_service_attribute(all_results, 'node_count')
     container_counts = control_service_attribute(
         all_results, 'container_count'
     )
     versions = control_service_attribute(all_results, 'flocker_version')
-    for node_count, container_count, version in itertools.product(
-        node_counts, container_counts, versions
+    scenarios = scenario_attribute(all_results)
+    for node_count, container_count, version, scenario in itertools.product(
+        node_counts, container_counts, versions, scenarios
     ):
         results = filter_results(all_results, 'node_count', node_count)
         results = filter_results(results, 'container_count', container_count)
         results = filter_results(results, 'flocker_version', version)
+        results = filter_results_scenario(results, scenario)
         if len(results) > 0:
             result = {
-                u'FlockerVersion': version,
+                u'Flocker Version': version,
                 u'Nodes': node_count,
                 u'Containers': container_count,
-                u'ControlServiceCPUSteady': cputime_for_process(
-                    results, 'flocker-control', 'no-load'
+                u'Scenario': scenario,
+                u'Control Service CPU': cputime_for_process(
+                    results, 'flocker-control'
                 ),
-                u'ControlServiceCPUReadLoad': cputime_for_process(
-                    results, 'flocker-control', 'read-request-load'
+                u'Dataset Agent CPU': cputime_for_process(
+                    results, 'flocker-dataset'
                 ),
-                u'ControlServiceCPUWriteLoad': cputime_for_process(
-                    results, 'flocker-control', 'write-request-load'
+                u'Container Agent CPU': cputime_for_process(
+                    results, 'flocker-contain'
                 ),
-                u'DatasetAgentCPUSteady': cputime_for_process(
-                    results, 'flocker-dataset', 'no-load'
-                ),
-                u'DatasetAgentCPUReadLoad': cputime_for_process(
-                    results, 'flocker-dataset', 'read-request-load'
-                ),
-                u'DatasetAgentCPUWriteLoad': cputime_for_process(
-                    results, 'flocker-dataset', 'write-request-load'
-                ),
-                u'ContainerAgentCPUSteady': cputime_for_process(
-                    results, 'flocker-contain', 'no-load'
-                ),
-                u'ContainerAgentCPUReadLoad': cputime_for_process(
-                    results, 'flocker-contain', 'read-request-load'
-                ),
-                u'ContainerAgentCPUWriteLoad': cputime_for_process(
-                    results, 'flocker-contain', 'write-request-load'
-                ),
-                u'ContainerAdditionConvergence': container_convergence(
+                u'Containers Converged Within Limit': container_convergence(
                     results, 60
                 ),
-                u'RequestsWithinLimitReadLoad': request_latency(
-                    results, 'read-request-load', 30
-                ),
-                u'RequestsWithinLimitWriteLoad': request_latency(
-                    results, 'write-request-load', 30
+                u'Scenario Requests Within Limit': request_latency(
+                    results, 30
                 ),
             }
-            summary.append(result)
+            summary[scenario].append(result)
     return summary
 
 
@@ -241,4 +226,7 @@ def main(args):
     results = []
     for f in files:
         results.extend(flatten(json.load(f)))
-    write_csv(extract_results(results), 'results.csv')
+    results = extract_results(results)
+
+    for scenario, result in results.iteritems():
+        write_csv(result, 'results-{}.csv'.format(scenario))
