@@ -41,7 +41,7 @@ from .._container import (
     StartApplication, StopApplication, SetProxies, _link_environment, OpenPorts
 )
 from ...control._model import (
-    AttachedVolume, Dataset, Manifestation,
+    AttachedVolume, Dataset, Manifestation, PersistentState,
 )
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -631,7 +631,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                     application=app
                 ).run(api)
         cluster_state = DeploymentState(nodes={current_state})
-        d = api.discover_state(cluster_state)
+        d = api.discover_state(cluster_state,
+                               persistent_state=PersistentState())
 
         self.assertEqual(NodeState(uuid=api.node_uuid, hostname=api.hostname,
                                    applications=expected_applications),
