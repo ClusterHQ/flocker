@@ -637,7 +637,6 @@ class Deployment(PClass):
     nodes = pset_field(Node)
     leases = field(type=Leases, mandatory=True, initial=Leases())
     persistent_state = field(type=PersistentState, initial=PersistentState())
-    new_field = field(type=int, initial=0)
 
     get_node = _get_node(Node)
 

@@ -62,9 +62,6 @@
                     "leases": [
                         "flocker.control._model.Leases"
                     ],
-                    "new_field": [
-                        "__builtin__.int"
-                    ],
                     "nodes": [
                         "flocker.control._model.NodePSet"
                     ],
@@ -198,5 +195,5 @@
         },
         "root": "flocker.control._model.Deployment"
     },
-    "version": "1.10.1+67.ge0c35f2.dirty"
+    "version": "1.9.0.dev1+1173.ga4906ba.dirty"
 }
