@@ -15,6 +15,7 @@ def loop_until_state_found(reactor, get_states, state_matches, timeout):
     """
     Loop until a state has been reached.
 
+    :param IReactorTime reactor: Twisted Reactor.
     :param get_states: Callable returning a Deferred firing with a list
         of states.
     :param state_matches: Callable that accepts a state parameter, and
@@ -115,7 +116,7 @@ def create_container(
             partial(container_matches, container), timeout
         )
 
-        # If an error occurs, delete container
+        # If an error occurs, delete container, but return original failure
         def delete_container(failure):
             d = control_service.delete_container(container.name)
             d.addCallback(lambda _ignore: failure)
