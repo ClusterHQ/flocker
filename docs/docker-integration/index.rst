@@ -39,8 +39,10 @@ Flocker Installation Options
 
 .. _docker-tutorials:
 
-Next Step: Follow a Tutorial
-============================
+Tutorial
+========
+
+.. XXX this title should be renamed to "Tutorials" when there are more than one tutorial
 
 .. raw:: html
 
@@ -51,8 +53,8 @@ Next Step: Follow a Tutorial
 	    </div>
     </div>
 
-Next Step: Related Blog Articles
-================================
+Related Blog Articles
+=====================
 
 * `Tutorial: PostgreSQL on Docker with Flocker <https://clusterhq.com/2016/01/08/tutorial-flocker-volume-driver-postgres/>`_
 * `Walkthrough: Docker Volumes vs Docker Volumes with Flocker <https://clusterhq.com/2015/12/09/difference-docker-volumes-flocker-volumes/>`_

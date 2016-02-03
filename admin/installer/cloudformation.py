@@ -6,11 +6,19 @@ python cloudformation.py > /tmp/flocker-cluster.cloudformation.json
 
 Resulting JSON template has the following blueprint to describe the
 desired stack's resources and properties:
-1 Control Node with Flocker Control Service, (TLS-enabled) Swarm Manager,
-                    (TLS-enabled) Docker, Ubuntu 14.04
-2 Agent Nodes with Flocker Dataset Agent, Swarm Agent, (TLS-enabled) Docker,
-                   Ubuntu 14.04
-1 Client Node with Flockerctl, Docker, Docker-compose, Ubuntu 14.04
+
+* 1 Control Node with Flocker Control Service, (TLS-enabled) Swarm Manager,
+  (TLS-enabled) Docker, Ubuntu 14.04
+
+  After Control Node is booted, proceed with creating rest of the stack.
+
+* 2 Agent Nodes with Flocker Dataset Agent, Swarm Agent, (TLS-enabled) Docker,
+  Ubuntu 14.04
+
+  After Agent Nodes are booted and configured with Flocker and Swarm, proceed
+  with creating rest of the stack.
+
+* 1 Client Node with Flockerctl, Docker, Docker-compose, Ubuntu 14.04
 
 To manifest the blueprint, please input the JSON template at AWS CloudFormation
 Create Stack console (after replacing ``us-east-1`` with your Region):
@@ -25,6 +33,7 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
+NODE_CONFIGURATION_TIMEOUT = u"900"
 NUM_NODES = 3
 AGENT_NODE_NAME_TEMPLATE = u"AgentNode{index}"
 EC2_INSTANCE_NAME_TEMPLATE = u"{stack_name}_{node_type}"
@@ -59,30 +68,30 @@ def _sibling_lines(filename):
 template = Template()
 
 # Keys corresponding to CloudFormation user Inputs.
-keyname_param = template.add_parameter(Parameter(
-    "KeyPair",
-    Description="Name of an existing EC2 KeyPair to enable SSH "
-                "access to the instance",
-    Type="String",
-))
 access_key_id_param = template.add_parameter(Parameter(
-    "AccessKeyID",
+    "AmazonAccessKeyID",
     Description="Your Amazon AWS access key ID",
     Type="String",
 ))
 secret_access_key_param = template.add_parameter(Parameter(
-    "SecretAccessKey",
+    "AmazonSecretAccessKey",
     Description="Your Amazon AWS secret access key.",
     Type="String",
 ))
-
+keyname_param = template.add_parameter(Parameter(
+    "EC2KeyPair",
+    Description="Name of an existing EC2 KeyPair to enable SSH "
+                "access to the instance",
+    Type="String",
+))
 volumehub_token = template.add_parameter(Parameter(
     "VolumeHubToken",
     Description=(
-        "Your Volume Hub token. "
+        "Your Volume Hub token (optional). "
         "You'll find the token at https://volumehub.clusterhq.com/v1/token."
     ),
     Type="String",
+    Default="",
 ))
 
 # Base AMIs pre-baked with the following products:
@@ -184,7 +193,7 @@ for i in range(NUM_NODES):
     wait_condition = WaitCondition(
         INFRA_WAIT_CONDITION_TEMPLATE.format(node=node_name),
         Handle=Ref(wait_condition_handle),
-        Timeout="600",
+        Timeout=NODE_CONFIGURATION_TIMEOUT,
     )
     template.add_resource(wait_condition)
 
@@ -261,7 +270,7 @@ template.add_resource(wait_condition_handle)
 wait_condition = WaitCondition(
     CLIENT_WAIT_CONDITION,
     Handle=Ref(wait_condition_handle),
-    Timeout="900",
+    Timeout=NODE_CONFIGURATION_TIMEOUT,
 )
 template.add_resource(wait_condition)
 

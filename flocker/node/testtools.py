@@ -29,7 +29,9 @@ from . import (
 from ..common import loop_until
 from ..testtools import AsyncTestCase, find_free_port
 from ..control import (
-    IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
+    IClusterStateChange, Node, NodeState, Deployment, DeploymentState,
+    PersistentState,
+)
 from ..control._model import ip_to_uuid, Leases
 from ._docker import AddressInUse, DockerClient
 
@@ -166,7 +168,7 @@ class DummyDeployer(object):
     hostname = u"127.0.0.1"
     node_uuid = uuid4()
 
-    def discover_state(self, cluster_state):
+    def discover_state(self, cluster_state, persistent_state):
         return succeed(DummyLocalState())
 
     def calculate_changes(self, desired_configuration, cluster_state,
@@ -195,8 +197,8 @@ class ControllableDeployer(object):
         self.calculate_inputs = []
         self.discover_inputs = []
 
-    def discover_state(self, cluster_state):
-        self.discover_inputs.append(cluster_state)
+    def discover_state(self, cluster_state, persistent_state):
+        self.discover_inputs.append((cluster_state, persistent_state))
         state = self.local_states.pop(0)
         if isinstance(state, Exception):
             raise state
@@ -273,7 +275,9 @@ def ideployer_tests_factory(fixture):
             # cache?
             self._deployer = self._make_deployer()
             result = self._deployer.discover_state(
-                DeploymentState(nodes={NodeState(hostname=b"10.0.0.1")}))
+                DeploymentState(nodes={NodeState(hostname=b"10.0.0.1")}),
+                persistent_state=PersistentState(),
+            )
             return result
 
         def test_discover_state_ilocalstate_result(self):

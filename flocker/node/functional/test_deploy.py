@@ -20,7 +20,9 @@ from .. import (
 from ...common import loop_until
 from ...control._model import (
     Deployment, Application, DockerImage, Node, AttachedVolume, Link,
-    Manifestation, Dataset, DeploymentState, NodeState)
+    Manifestation, Dataset, DeploymentState, NodeState,
+    PersistentState,
+)
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
@@ -51,13 +53,16 @@ class P2PNodeDeployer(object):
         self.docker_client = self.applications_deployer.docker_client
         self.network = self.applications_deployer.network
 
-    def discover_state(self, cluster_state):
-        d = self.manifestations_deployer.discover_state(cluster_state)
+    def discover_state(self, cluster_state, persistent_state):
+        d = self.manifestations_deployer.discover_state(
+            cluster_state, persistent_state=persistent_state)
 
         def got_manifestations_state(manifestations_local_state):
             manifestations_state = manifestations_local_state.node_state
             app_discovery = self.applications_deployer.discover_state(
-                DeploymentState(nodes={manifestations_state}))
+                DeploymentState(nodes={manifestations_state}),
+                persistent_state=PersistentState(),
+            )
 
             def got_app_local_state(app_local_state):
                 app_state = app_local_state.node_state
@@ -104,6 +109,7 @@ def change_node_state(deployer, desired_configuration):
                           applications=[],
                           manifestations={}, paths={}, devices={}),
             }),
+            persistent_state=PersistentState(),
         )
 
         def got_changes(local_state):
@@ -317,7 +323,9 @@ class DeployerTests(AsyncTestCase):
                 NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
                           applications=[],
                           manifestations={}, paths={}, devices={}),
-            })))
+            }),
+            persistent_state=PersistentState(),
+        ))
         return d
 
     @if_docker_configured

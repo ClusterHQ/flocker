@@ -465,7 +465,8 @@ class ConvergenceLoop(object):
             log_discovery = LOG_DISCOVERY(self.fsm.logger)
             with log_discovery.context():
                 discover = DeferredContext(maybeDeferred(
-                    self.deployer.discover_state, self.cluster_state))
+                    self.deployer.discover_state, self.cluster_state,
+                    persistent_state=self.configuration.persistent_state))
 
                 def got_local_state(local_state):
                     log_discovery.addSuccessFields(state=local_state)

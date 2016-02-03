@@ -19,8 +19,10 @@ Flocker works with Mesos via two different integration paths.
 
 .. _mesos-tutorials:
 
-Follow a Tutorial
-=================
+Tutorial
+========
+
+.. XXX this title should be renamed to "Tutorials" when there are more than one tutorial
 
 .. raw:: html
 

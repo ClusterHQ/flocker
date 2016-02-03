@@ -171,7 +171,7 @@ class LibcloudProvisioner(object):
                 # available. Re-raise the the exception, so that we can
                 # accurately see the cause of the error.
                 raise
-            raise CloudKeyNotFound(self._keyname)
+            raise CloudKeyNotFound("{}: {}".format(self._keyname, str(e)))
         if key_pair.public_key is not None:
             return Key.fromString(key_pair.public_key, type='public_openssh')
         else:
