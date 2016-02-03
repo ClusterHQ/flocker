@@ -149,7 +149,8 @@ def get_node_cpu_times(reactor, runner, node, processes):
     def get_parser_result(ignored):
         result = parser.result
         # Remove unwanted ps values.
-        del result['ps']
+        if 'ps' in result:
+            del result['ps']
         return result
     d.addCallback(get_parser_result)
 
