@@ -72,11 +72,14 @@ access_key_id_param = template.add_parameter(Parameter(
     "AmazonAccessKeyID",
     Description="Your Amazon AWS access key ID",
     Type="String",
+    NoEcho=True,
+    AllowedPattern="[\w]+",
 ))
 secret_access_key_param = template.add_parameter(Parameter(
     "AmazonSecretAccessKey",
     Description="Your Amazon AWS secret access key.",
     Type="String",
+    NoEcho=True,
 ))
 keyname_param = template.add_parameter(Parameter(
     "EC2KeyPair",
