@@ -45,11 +45,15 @@ from .diagnostics import (
 from .agents.blockdevice import (
     BlockDeviceDeployer, ProcessLifetimeCache,
 )
+from .agents.blockdevice_manager import BlockDeviceManager
 from .agents.loopback import (
     LoopbackBlockDeviceAPI,
 )
 from .agents.cinder import cinder_from_configuration
 from .agents.ebs import aws_from_configuration
+from .agents.shadow_bind_mounter import (
+    create_tmpfs_shadow_mount, is_shadow_mount
+)
 from ..ca import ControlServicePolicy, NodeCredential
 from ..common._era import get_era
 
@@ -494,14 +498,19 @@ def _create_block_device_deployer(api, **kw):
     :returns BlockDeviceDeployer: The :class:`BlockDeviceDeployer` to be used
         by the dataset agent.
     """
+    link_root = b"/var/flocker/links"
+    shared_root = b"/flocker/v2"
+    block_device_manager = BlockDeviceManager()
+
+    if not is_shadow_mount(link_root, shared_root):
+        create_tmpfs_shadow_mount(link_root, shared_root, block_device_manager)
+
     deployer = BlockDeviceDeployer(block_device_api=ProcessLifetimeCache(api),
                                    _underlying_blockdevice_api=api,
+                                   link_root=link_root,
+                                   shared_root=shared_root,
+                                   block_device_manager=block_device_manager,
                                    **kw)
-
-    # For now, create the link root if it does not exist. Soon this will be
-    # replaced proper validation that the paths are set up correctly.
-    if not deployer.link_root.exists():
-        deployer.link_root.makedirs()
 
     return deployer
 
