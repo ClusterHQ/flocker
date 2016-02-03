@@ -26,7 +26,7 @@ from ....testtools import TestCase
 from ..blockdevice_manager import (
     BindMountError,
     BlockDeviceManager,
-    DetailedMountInfo,
+    MountInfo,
     IBlockDeviceManager,
     MakeFilesystemError,
     MakeTmpfsMountError,
@@ -109,7 +109,7 @@ class BlockDeviceManagerTests(TestCase):
                             for x in mounts
                             if x.mountpoint == tmpfs_mountpoint)
         mount_infos = {
-            DetailedMountInfo(
+            MountInfo(
                 mount_type=MountType.BLOCKDEVICE,
                 permissions=Permissions.READ_WRITE,
                 blockdevice=blockdevice,
@@ -119,7 +119,7 @@ class BlockDeviceManagerTests(TestCase):
                     path=FilePath("/"),
                 )
             ),
-            DetailedMountInfo(
+            MountInfo(
                 mount_type=MountType.TMPFS,
                 permissions=Permissions.READ_WRITE,
                 mountpoint=tmpfs_mountpoint,
@@ -128,7 +128,7 @@ class BlockDeviceManagerTests(TestCase):
                     path=FilePath("/"),
                 )
             ),
-            DetailedMountInfo(
+            MountInfo(
                 mount_type=MountType.TMPFS,
                 permissions=Permissions.READ_ONLY,
                 mountpoint=bind_mountpoint,

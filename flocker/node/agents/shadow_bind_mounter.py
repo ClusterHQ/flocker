@@ -4,7 +4,7 @@
 from pyrsistent import PClass, field
 
 from .blockdevice_manager import (
-    DetailedMountInfo, Permissions, SystemFileLocation,
+    MountInfo, Permissions, SystemFileLocation,
 )
 
 
@@ -65,7 +65,7 @@ def _is_ancestor(candidate_ancestor, path):
 class _DirInfo(PClass):
     """
     Helper utility for holding the :class:`SystemFileLocation` location of a
-    directory and the :class:`DetailedMountInfo` of the mount that it is under.
+    directory and the :class:`MountInfo` of the mount that it is under.
 
     :ivar system_file_location: The :class:`SystemFileLocation` of the
         directory.
@@ -73,7 +73,7 @@ class _DirInfo(PClass):
         located within.
     """
     system_file_location = field(type=SystemFileLocation, mandatory=True)
-    mount_info = field(type=DetailedMountInfo, mandatory=True)
+    mount_info = field(type=MountInfo, mandatory=True)
 
 
 def _get_dir_info_for_dir_in_mount(file_path, mount_info):

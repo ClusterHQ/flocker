@@ -6,7 +6,6 @@ Interactions between the OS pertaining to block devices.
 This controls actions such as formatting and mounting a blockdevice.
 """
 
-import psutil
 from subprocess import CalledProcessError, check_output, STDOUT
 
 from zope.interface import Interface, implementer
@@ -160,7 +159,7 @@ class SystemFileLocation(PClass):
     path = field(type=FilePath, mandatory=True)
 
 
-class DetailedMountInfo(PClass):
+class MountInfo(PClass):
     """
     Information about an existing mount on the system.
 
@@ -240,8 +239,7 @@ class IBlockDeviceManager(Interface):
         This only includes mounted block devices and not tmpfs mounts or bind
         mounts.
 
-        :returns: An iterable of ``DetailedMountInfo``s of all disk known
-            mounts.
+        :returns: An iterable of ``MountInfo``s of all disk known mounts.
         """
 
     def get_all_mounts():
@@ -250,7 +248,7 @@ class IBlockDeviceManager(Interface):
 
         This only includes mounted block devices, tmpfs mounts and bind mounts.
 
-        :returns: An iterable of ``DetailedMountInfo``s of all known mounts.
+        :returns: An iterable of ``MountInfo``s of all known mounts.
         """
 
     def symlink(existing_path, link_path):
@@ -417,14 +415,10 @@ class BlockDeviceManager(PClass):
                                source_message=result.error_message)
 
     def get_disk_mounts(self):
-        mounts = psutil.disk_partitions()
-        return (
-            DetailedMountInfo(
-                mount_type=MountType.BLOCKDEVICE,
-                blockdevice=FilePath(mount.device),
-                mountpoint=FilePath(mount.mountpoint),
-                permissions=_parse_permissions_from_opts(mount.opts)
-            ) for mount in mounts
+        return list(
+            mount_info
+            for mount_info in self.get_all_mounts()
+            if mount_info.mount_type == MountType.BLOCKDEVICE
         )
 
     def get_all_mounts(self):
@@ -438,7 +432,7 @@ class BlockDeviceManager(PClass):
             _, _, st_dev, root, mountpoint, mount_opts = mount_parts[:6]
             fs_type, blockdevice = fs_parts[:2]
             if fs_type == 'tmpfs':
-                return DetailedMountInfo(
+                return MountInfo(
                     mount_type=MountType.TMPFS,
                     mountpoint=FilePath(mountpoint),
                     permissions=_parse_permissions_from_opts(mount_opts),
@@ -448,7 +442,7 @@ class BlockDeviceManager(PClass):
                     )
                 )
             elif blockdevice.startswith('/dev/'):
-                return DetailedMountInfo(
+                return MountInfo(
                     mount_type=MountType.BLOCKDEVICE,
                     mountpoint=FilePath(mountpoint),
                     permissions=_parse_permissions_from_opts(mount_opts),
