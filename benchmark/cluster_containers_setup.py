@@ -279,6 +279,7 @@ class ClusterContainerDeployment(object):
                     d = self.client.delete_dataset(dataset.dataset_id)
                     d.addErrback(write_failure)
                     d.addBoth(lambda _ignore: failure)
+                    return d
                 d.addErrback(delete_dataset)
 
                 return d
@@ -314,7 +315,9 @@ class ClusterContainerDeployment(object):
 
             def display_count():
                 print(
-                    '{} / {}'.format(self.container_count, total)
+                    '{} / {}'.format(
+                        self.container_count + self.error_count, total
+                    )
                 )
             loop = LoopingCall(display_count)
             loop.start(10, now=False)
