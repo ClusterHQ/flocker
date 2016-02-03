@@ -1581,7 +1581,7 @@ def configure_cluster(
     ])
 
 
-def reinstall_flocker_at_version(
+def reinstall_flocker_from_package_source(
     reactor, nodes, control_node, package_source, distribution
 ):
     """

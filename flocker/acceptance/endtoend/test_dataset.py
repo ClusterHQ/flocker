@@ -13,7 +13,7 @@ from testtools import run_test_with
 from twisted.internet import reactor
 
 
-from flocker import __version__ as version
+from flocker import __version__ as HEAD_FLOCKER_VERSION
 from flocker.common.version import get_installable_version
 from ...common import loop_until
 from ...testtools import AsyncTestCase, flaky, async_runner
@@ -45,8 +45,21 @@ class DatasetAPITests(AsyncTestCase):
         Get the package source for the flocker version under test from
         environment variables.
 
+        The environment variables that will be read are as follows. Note that
+        if any of them are not specified the test will be skipped.
+
+        FLOCKER_ACCEPTANCE_PACKAGE_BRANCH:
+            The branch to build from or an empty string to use the default.
+        FLOCKER_ACCEPTANCE_PACKAGE_VERSION:
+            The version of the package of flocker under test or the empty
+            string to use the default.
+        FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER:
+            The build server from which to download the flocker package under
+            test.
+
         :param unicode default_version: The version of flocker to use
-            if not specified in environment variables.
+            if the ``FLOCKER_ACCEPTANCE_PACKAGE_VERSION`` specifies to use the
+            default.
 
         :return: A ``PackageSource`` that can be used to install the version of
             flocker under test.
@@ -54,11 +67,19 @@ class DatasetAPITests(AsyncTestCase):
         env_vars = ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH',
                     'FLOCKER_ACCEPTANCE_PACKAGE_VERSION',
                     'FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER']
-        missing_vars = list(x for x in env_vars if x not in os.environ)
+        defaultable = frozenset(['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH',
+                                 'FLOCKER_ACCEPTANCE_PACKAGE_VERSION'])
+        missing_vars = list(var for var in env_vars if var not in os.environ)
         if missing_vars:
-            raise SkipTest(
-                'Missing environment variables for upgrade test: %s.' %
-                ', '.join(missing_vars))
+            message = ('Missing environment variables for upgrade test: %s.' %
+                       ', '.join(missing_vars))
+            missing_defaultable = list(var for var in missing_vars
+                                       if var in defaultable)
+            if missing_defaultable:
+                message += (' Note that (%s) can be set to an empty string to '
+                            'use a default value' %
+                            ', '.join(missing_defaultable))
+            raise SkipTest(message)
         version = (os.environ['FLOCKER_ACCEPTANCE_PACKAGE_VERSION'] or
                    default_version)
         return PackageSource(
@@ -81,7 +102,7 @@ class DatasetAPITests(AsyncTestCase):
         node = cluster.nodes[0]
         SAMPLE_STR = '123456' * 100
 
-        upgrade_from_version = get_installable_version(version)
+        upgrade_from_version = get_installable_version(HEAD_FLOCKER_VERSION)
 
         # Get the initial flocker version and setup a cleanup call to restore
         # flocker to that version when the test is done.
@@ -89,9 +110,10 @@ class DatasetAPITests(AsyncTestCase):
         original_package_source = [None]
 
         def setup_restore_original_flocker(version):
+            version_bytes = version.get('flocker', u'').encode('ascii')
             original_package_source[0] = (
                 self._get_package_source(
-                    default_version=str(version.get('flocker')) or None)
+                    default_version=version_bytes or None)
             )
             self.addCleanup(
                 lambda: cluster.install_flocker_version(

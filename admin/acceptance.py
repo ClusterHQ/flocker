@@ -937,7 +937,9 @@ class CommonOptions(Options):
             )
 
     def package_source(self):
-        """Getter for the configured package source."""
+        """
+        Getter for the configured package source.
+        """
         return PackageSource(
             version=self['flocker-version'],
             branch=self['branch'],

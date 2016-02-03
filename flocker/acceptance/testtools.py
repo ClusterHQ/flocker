@@ -45,7 +45,7 @@ from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.script import get_backend, get_api
 from ..node import dockerpy_client
-from ..provision import reinstall_flocker_at_version
+from ..provision import reinstall_flocker_from_package_source
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
@@ -575,7 +575,10 @@ class Cluster(PClass):
                 actual_dataset_states = list(
                     d for d in results
                     if d.set('path', None) == expected_dataset_state)
-                return (actual_dataset_states or [None])[0]
+                if actual_dataset_states:
+                    return actual_dataset_states[0]
+                else:
+                    return None
             request.addCallback(got_results)
             return request
 
@@ -735,7 +738,7 @@ class Cluster(PClass):
         version indicated by `package_source`.
         """
         control_node_address = self.control_node.public_address
-        all_cluster_nodes = set([x.public_address for x in self.nodes] +
+        all_cluster_nodes = set(list(x.public_address for x in self.nodes) +
                                 [control_node_address])
         distribution = self.distribution
 
@@ -756,27 +759,31 @@ class Cluster(PClass):
         d = get_flocker_version()
 
         # If we fail to get the current version, assume we must reinstall
-        # flocker.
+        # flocker. The following line consumes the error, and continues down
+        # the callback chain of the deferred.
         d.addErrback(write_failure)
 
-        def reinstall_if_needed(v):
-            if v and v == package_source.version:
-                return v
-            return reinstall_flocker_at_version(
-                reactor, all_cluster_nodes, control_node_address,
-                package_source, distribution)
+        def reinstall_if_needed(current_version):
+            if (not current_version or
+                    current_version != package_source.version):
+                # If we did not get the version, or if the version does not
+                # match the target version, then we must re-install flocker.
+                return reinstall_flocker_from_package_source(
+                    reactor, all_cluster_nodes, control_node_address,
+                    package_source, distribution)
+            return current_version
         d.addCallback(reinstall_if_needed)
 
         d.addCallback(lambda _: get_flocker_version())
 
-        def verify_version(v):
+        def verify_version(current_version):
             if package_source.version:
-                if v != package_source.version:
+                if current_version != package_source.version:
                     raise FailureToUpgrade(
                         "Failed to set version of flocker to %s, it is still "
-                        "%s." % (package_source.version, v)
+                        "%s." % (package_source.version, current_version)
                     )
-            return v
+            return current_version
         d.addCallback(verify_version)
 
         return d
