@@ -28,6 +28,9 @@ from benchmark._driver import driver
 
 to_file(sys.stderr)
 
+# Change this number when changing the format of the output JSON
+OUTPUT_VERSION = 1
+
 # If modifying scenarios, operations, or metrics, please update
 # docs/gettinginvolved/benchmarking.rst
 
@@ -289,6 +292,7 @@ def main(argv, environ, react=react):
     timestamp = datetime.now().isoformat()
 
     result = dict(
+        version=OUTPUT_VERSION,
         timestamp=timestamp,
         client=dict(
             flocker_version=flocker_client_version,
@@ -303,6 +307,7 @@ def main(argv, environ, react=react):
     )
 
     userdata = parse_userdata(options)
+    print(userdata)
     if userdata:
         result['userdata'] = userdata
 
