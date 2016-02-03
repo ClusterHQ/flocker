@@ -13,8 +13,8 @@
         "ami_groups": ["all"],
         "ami_regions": [],
         "tags": {
-            "DOCKER_VERSION", "{{user `DOCKER_VERSION`}}",
-            "SWARM_VERSION", "{{user `SWARM_VERSION`}}"
+            "DOCKER_VERSION": "{{user `DOCKER_VERSION`}}",
+            "SWARM_VERSION": "{{user `SWARM_VERSION`}}"
         }
     }],
     "provisioners": [
