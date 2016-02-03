@@ -116,7 +116,8 @@ from ....control import (
     NonManifestDatasets, Application, AttachedVolume, DockerImage,
     PersistentState,
 )
-from ....control._model import Leases
+from ....control import Leases
+from ....control.testtools import InMemoryStatePersister
 
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
@@ -1272,6 +1273,7 @@ class BlockDeviceCalculatorTests(TestCase):
     def setUp(self):
         super(BlockDeviceCalculatorTests, self).setUp()
         self.deployer = create_blockdevicedeployer(self)
+        self.persistent_state = InMemoryStatePersister()
 
     def teardown_example(self, token):
         """
@@ -1291,7 +1293,7 @@ class BlockDeviceCalculatorTests(TestCase):
                     hostname=self.deployer.hostname,
                 ),
             }),
-            persistent_state=PersistentState(),
+            persistent_state=self.persistent_state.get_state(),
         )).datasets
 
     def run_convergence_step(self, desired_datasets):
@@ -1307,7 +1309,9 @@ class BlockDeviceCalculatorTests(TestCase):
             desired_datasets=desired_datasets,
         )
         note("Running changes: {changes}".format(changes=changes))
-        self.successResultOf(run_state_change(changes, self.deployer))
+        self.successResultOf(run_state_change(
+            changes, deployer=self.deployer,
+            state_persister=self.persistent_state))
 
     def run_to_convergence(self, desired_datasets, max_iterations=20):
         """
@@ -4567,6 +4571,7 @@ class _MountScenario(PClass):
                 filesystem=self.filesystem_type
             ),
             self.deployer,
+            InMemoryStatePersister(),
         )
 
 
@@ -4592,7 +4597,8 @@ class MountBlockDeviceTests(
         self.successResultOf(scenario.create())
 
         change = scenario.state_change()
-        return scenario, run_state_change(change, scenario.deployer)
+        return scenario, run_state_change(change, scenario.deployer,
+                                          InMemoryStatePersister())
 
     def _run_success_test(self, mountpoint):
         scenario, mount_result = self._run_test(mountpoint)
@@ -4618,7 +4624,7 @@ class MountBlockDeviceTests(
     def _mount(self, scenario, mountpoint):
         self.successResultOf(run_state_change(
             scenario.state_change().set(mountpoint=mountpoint),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
 
     def test_run(self):
         """
@@ -4721,7 +4727,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
 
     def test_lost_found_deleted_remount(self):
         """
@@ -4733,7 +4739,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
         self.assertEqual(mountpoint.children(), [])
 
     def test_lost_found_not_deleted_if_other_files_exist(self):
@@ -4748,7 +4754,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
                                mountpoint.child(b"lost+found")])
@@ -4766,7 +4772,7 @@ class MountBlockDeviceTests(
         mountpoint.restat()
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
         self.assertEqual(mountpoint.getPermissions().shorthand(),
                          'rwx------')
 
@@ -4828,7 +4834,8 @@ class UnmountBlockDeviceTests(
 
         change = UnmountBlockDevice(dataset_id=dataset_id,
                                     blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
         self.assertNotIn(
             device,
             list(
@@ -4880,7 +4887,8 @@ class DetachVolumeTests(
 
         change = DetachVolume(dataset_id=dataset_id,
                               blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
 
         [listed_volume] = api.list_volumes()
         self.assertIs(None, listed_volume.attached_to)
@@ -4922,7 +4930,8 @@ class DestroyVolumeTests(
         )
 
         change = DestroyVolume(blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
 
         self.assertEqual([], api.list_volumes())
 
@@ -4985,7 +4994,7 @@ class CreateBlockDeviceDatasetImplementationMixin(object):
             metadata=metadata
         )
 
-        run_state_change(change, self.deployer)
+        run_state_change(change, self.deployer, InMemoryStatePersister())
 
         [volume] = self.api.list_volumes()
         return volume
@@ -5066,7 +5075,8 @@ class CreateBlockDeviceDatasetImplementationTests(
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
-        changing = run_state_change(change, self.deployer)
+        changing = run_state_change(change, self.deployer,
+                                    InMemoryStatePersister())
 
         failure = self.failureResultOf(changing, DatasetExists)
         self.assertEqual(
@@ -5211,7 +5221,8 @@ class AttachVolumeTests(
         change = AttachVolume(dataset_id=dataset_id,
                               blockdevice_id=volume.blockdevice_id)
         self.patch(blockdevice, "_logger", logger)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
 
         expected_volume = volume.set(
             attached_to=api.compute_instance_id()
@@ -5231,7 +5242,8 @@ class AttachVolumeTests(
         change = AttachVolume(dataset_id=dataset_id,
                               blockdevice_id=bad_blockdevice_id)
         failure = self.failureResultOf(
-            run_state_change(change, deployer), UnknownVolume
+            run_state_change(change, deployer, InMemoryStatePersister()),
+            UnknownVolume
         )
         self.assertEqual(
             bad_blockdevice_id, failure.value.blockdevice_id
