@@ -11,7 +11,11 @@
         "ssh_username": "ubuntu",
         "ami_name": "clusterhq_ubuntu-14.04_docker_{{timestamp}}",
         "ami_groups": ["all"],
-        "ami_regions": []
+        "ami_regions": [],
+        "tags": {
+            "DOCKER_VERSION", "{{user `DOCKER_VERSION`}}",
+            "SWARM_VERSION", "{{user `SWARM_VERSION`}}"
+        }
     }],
     "provisioners": [
         {
