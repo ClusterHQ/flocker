@@ -1,4 +1,8 @@
 {
+    "variables": {
+        "DOCKER_VERSION": "{{env `DOCKER_VERSION`}}",
+        "SWARM_VERSION": "{{env `SWARM_VERSION`}}"
+    },
     "builders": [{
         "type": "amazon-ebs",
         "region": "",
@@ -13,6 +17,10 @@
         {
             "type": "shell",
             "script": "{{template_dir}}/provision_ubuntu-14.04_docker.sh",
+            "environment_vars": [
+                "DOCKER_VERSION={{user `DOCKER_VERSION`}}",
+                "SWARM_VERSION={{user `SWARM_VERSION`}}"
+            ],
             "execute_command": "{{ .Vars }} sudo -E -S sh '{{ .Path }}'"
         }
     ]
