@@ -743,15 +743,17 @@ class Cluster(PClass):
         distribution = self.distribution
 
         def get_flocker_version():
-            # Retry getting the flocker version for 10 seconds. Flocker might
-            # not be running yet on the control node when this is called.
-            d = timeout(
+            # Retry getting the flocker version for 10 times, with a 10 second
+            # timeout on each. Flocker might not be running yet on the control
+            # node when this is called.
+            d = retry_failure(
                 self.reactor,
-                retry_failure(
+                lambda: timeout(
                     self.reactor,
-                    self.client.version
+                    self.client.version(),
+                    10
                 ),
-                10
+                [1]*10
             )
             d.addCallback(
                 lambda v: v.get('flocker', u'').encode('ascii') or None)
