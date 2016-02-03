@@ -70,19 +70,29 @@ template = Template()
 # Keys corresponding to CloudFormation user Inputs.
 access_key_id_param = template.add_parameter(Parameter(
     "AmazonAccessKeyID",
-    Description="Your Amazon AWS access key ID",
+    Description="Your Amazon AWS access key ID (mandatory)",
     Type="String",
+    NoEcho=True,
+    AllowedPattern="[\w]+",
+    MinLength="16",
+    MaxLength="32",
 ))
 secret_access_key_param = template.add_parameter(Parameter(
     "AmazonSecretAccessKey",
-    Description="Your Amazon AWS secret access key.",
+    Description="Your Amazon AWS secret access key (mandatory)",
     Type="String",
+    NoEcho=True,
+    MinLength="1",
 ))
 keyname_param = template.add_parameter(Parameter(
     "EC2KeyPair",
     Description="Name of an existing EC2 KeyPair to enable SSH "
-                "access to the instance",
+                "access to the instance (mandatory)",
     Type="String",
+    MinLength="1",
+    AllowedPattern="[\x20-\x7E]*",
+    MaxLength="255",
+    ConstraintDescription="can contain only ASCII characters.",
 ))
 volumehub_token = template.add_parameter(Parameter(
     "VolumeHubToken",
