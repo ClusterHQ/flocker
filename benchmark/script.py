@@ -307,7 +307,6 @@ def main(argv, environ, react=react):
     )
 
     userdata = parse_userdata(options)
-    print(userdata)
     if userdata:
         result['userdata'] = userdata
 
