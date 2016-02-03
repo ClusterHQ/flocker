@@ -118,7 +118,8 @@ from ....testtools import (
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
-    NonManifestDatasets, Application, AttachedVolume, DockerImage
+    NonManifestDatasets, Application, AttachedVolume, DockerImage,
+    PersistentState,
 )
 from ....control._model import Leases
 
@@ -678,6 +679,7 @@ def assert_discovered_state(
     )
     discovering = deployer.discover_state(
         DeploymentState(nodes={previous_state}),
+        persistent_state=PersistentState(),
     )
     local_state = case.successResultOf(discovering)
 
@@ -1573,7 +1575,8 @@ class BlockDeviceCalculatorTestObjects(object):
             self.deployer.discover_state(
                 DeploymentState(nodes={
                     _empty_node_state(self.deployer)
-                })
+                }),
+                persistent_state=PersistentState()
             )
         )
         return local_state

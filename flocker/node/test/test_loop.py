@@ -41,7 +41,7 @@ from ..testtools import (
 )
 from ...control import (
     NodeState, Deployment, Manifestation, Dataset, DeploymentState,
-    Application, DockerImage,
+    Application, DockerImage, PersistentState,
 )
 from ...control._protocol import NodeStateCommand, AgentAMP, SetNodeEraCommand
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
@@ -607,7 +607,7 @@ class ConvergenceLoopFSMTests(TestCase):
         cluster state.
         """
         local_state = NodeState(hostname=u'192.0.2.123')
-        configuration = object()
+        configuration = Deployment()
         received_state = DeploymentState(nodes=[])
         # Since this Deferred is unfired we never proceed to next
         # iteration; if we did we'd get exception from discovery since we
@@ -1158,7 +1158,7 @@ class ConvergenceLoopFSMTests(TestCase):
                                          state=cluster_state))
         self.assertEqual(
             deployer.discover_inputs,
-            [cluster_state],
+            [(cluster_state, PersistentState())],
         )
 
 

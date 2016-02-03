@@ -64,6 +64,9 @@
                     ],
                     "nodes": [
                         "flocker.control._model.NodePSet"
+                    ],
+                    "persistent_state": [
+                        "flocker.control._model.PersistentState"
                     ]
                 }
             },
@@ -149,6 +152,10 @@
                     "flocker.control._model.Node"
                 ]
             },
+            "flocker.control._model.PersistentState": {
+                "category": "record",
+                "fields": {}
+            },
             "flocker.control._model.Port": {
                 "category": "record",
                 "fields": {
@@ -188,5 +195,5 @@
         },
         "root": "flocker.control._model.Deployment"
     },
-    "version": "1.2.0+60.g7e31395.dirty"
+    "version": "1.9.0.dev1+1173.ga4906ba.dirty"
 }

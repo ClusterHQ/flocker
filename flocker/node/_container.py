@@ -411,7 +411,7 @@ class ApplicationNodeDeployer(object):
             )
         )
 
-    def discover_state(self, cluster_state):
+    def discover_state(self, cluster_state, persistent_state):
         """
         List all the ``Application``\ s running on this node.
 
