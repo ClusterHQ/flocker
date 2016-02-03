@@ -234,7 +234,7 @@ common_cli:
     # <some code> || abort_build
     function abort_build() {
       echo "aborting ..."
-      vagrant_destroy
+      VAGRANT_LOG=info vagrant_destroy
       exit 1
     }
 
@@ -244,7 +244,7 @@ common_cli:
     function vagrant_up() {
       (
         retry_n_times_with_timeout 3 1200 \
-          vagrant up
+          VAGRANT_LOG=info vagrant up
       ) || abort_build
     }
 
@@ -255,7 +255,7 @@ common_cli:
     function vagrant_box_update() {
       (
         retry_n_times_with_timeout 2 1800 \
-          vagrant box update
+          VAGRANT_LOG=info vagrant box update
       ) || abort_build
     }
 
@@ -263,7 +263,7 @@ common_cli:
     # usage:
     # vagrant_destroy
     function vagrant_destroy() {
-      vagrant destroy -f
+      VAGRANT_LOG=info vagrant destroy -f
     }
 
   # TODO: do we need to clean up old files on ubuntu and centos or
@@ -394,6 +394,7 @@ common_cli:
   # from our _main_multijob.
   # These are the remote logs from the acceptance tests.
   acceptance_tests_artifacts: &acceptance_tests_artifacts
+    - results.xml
     - run-acceptance-tests.log
     - _trial_temp/test.log
     - remote_logs.log
@@ -401,6 +402,7 @@ common_cli:
   # Ubuntu acceptance tests do not collect the logs from the remote nodes
   # https://clusterhq.atlassian.net/browse/FLOC-2560
   acceptance_tests_artifacts_ubuntu_special_case: &acceptance_tests_artifacts_ubuntu_special_case
+    - results.xml
     - run-acceptance-tests.log
     - remote_logs.log
     - _trial_temp/test.log
@@ -458,7 +460,7 @@ common_cli:
     eval `ssh-agent -s`
     ssh-add ${HOME}/.ssh/id_rsa
 
-  run_acceptance_aws_tests: &run_acceptance_aws_tests |
+  run_acceptance_tests: &run_acceptance_tests |
     # We gather the return code but make sure we come out of these tests with 0
     # we store that code and pass it to the end of the job execution,
     # as part of the JOB_EXIT_STATUS variable.
@@ -473,11 +475,12 @@ common_cli:
     # through the --build-server parameter below.
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} \
-    --provider aws --dataset-backend aws --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
+    --provider ${ACCEPTANCE_TEST_PROVIDER} \
+    --dataset-backend ${ACCEPTANCE_TEST_PROVIDER} \
+    --branch ${TRIGGERED_BRANCH} --build-server  \
     http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
     --config-file /tmp/acceptance.yaml \
-    ${ACCEPTANCE_TEST_MODULE}
+    -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_acceptance_loopback_tests: &run_acceptance_loopback_tests |
@@ -495,30 +498,7 @@ common_cli:
     --build-server  \
     http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
     --config-file /tmp/acceptance.yaml \
-    ${ACCEPTANCE_TEST_MODULE}
-    JOB_EXIT_STATUS="$( updateExitStatus $? )"
-
-  run_acceptance_rackspace_tests: &run_acceptance_rackspace_tests |
-    # We gather the return code but make sure we come out of these tests with 0
-    # we store that code and pass it to the end of the job execution,
-    # as part of the JOB_EXIT_STATUS variable.
-    #
-    # The admin/run-acceptance-tests will provision a flocker cluster of
-    # several nodes. These nodes will install the flocker packages (RPM/DEB)
-    # during the provisioning process by that tool. These packages are fetched
-    # from a repository on the network through a common apt-get/yum install.
-    # The jenkins slave will be the repository host containing those packages
-    # which are made available through a webserver running on port 80.
-    # We pass the URL of our Jenkins Slave to the acceptance test nodes
-    # through the --build-server parameter below.
-    ${venv}/bin/python admin/run-acceptance-tests \
-    --distribution ${DISTRIBUTION_NAME} \
-    --provider rackspace --dataset-backend rackspace \
-    --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
-    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
-    --config-file /tmp/acceptance.yaml \
-    ${ACCEPTANCE_TEST_MODULE}
+    -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_client_tests: &run_client_tests |
@@ -745,7 +725,7 @@ common_cli:
     # make sure we don't abort on the first error
     set +e
     # run the build.sh script inside our vagrant box
-    vagrant ssh -c 'bash build.sh' || abort_build
+    VAGRANT_LOG=info vagrant ssh -c 'bash build.sh' || abort_build
 
     # this removes the secrets files we used during provisioning
     for item in "/tmp/pip.sh build.sh git-commit.sh"
@@ -815,7 +795,7 @@ common_cli:
 
     (
       retry_n_times_with_timeout 3 1200 \
-        vagrant up
+        VAGRANT_LOG=info vagrant up
     ) || abort_build
 
   install_aws_cli: &install_aws_cli |
@@ -1197,11 +1177,13 @@ job_type:
                    'export ACCEPTANCE_TEST_MODULE=${MODULE}',
                    'export ACCEPTANCE_TEST_PROVIDER=aws',
                    *run_acceptance_loopback_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
+      publish_test_results: true
       timeout: 45
       directories_to_delete: *run_acceptance_directories_to_delete
 
@@ -1220,11 +1202,13 @@ job_type:
                    'export ACCEPTANCE_TEST_MODULE=${MODULE}',
                    'export ACCEPTANCE_TEST_PROVIDER=aws',
                    *run_acceptance_loopback_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
       timeout: 45
       directories_to_delete: *run_acceptance_directories_to_delete
 
@@ -1428,12 +1412,15 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
-                   *run_acceptance_aws_tests,
+                   'export ACCEPTANCE_TEST_PROVIDER=aws',
+                   *run_acceptance_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
+      publish_test_results: true
       # Give the acceptance test suite a nice long time to run.  Give it even
       # longer on CentOS than Ubuntu because Docker configuration on CentOS
       # causes some things to be particularly slow.  This value is just a guess
@@ -1456,12 +1443,15 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
-                   *run_acceptance_aws_tests,
+                   'export ACCEPTANCE_TEST_PROVIDER=aws',
+                   *run_acceptance_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
       # Similar to the reasoning for run_acceptance_on_AWS_CentOS_7_with_EBS
       # but slightly shorter since Ubuntu runs the tests faster.
       timeout: 90
@@ -1483,11 +1473,13 @@ job_type:
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
                    'export ACCEPTANCE_TEST_PROVIDER=gce',
                    *run_acceptance_loopback_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
+      publish_test_results: true
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
       directories_to_delete: []
@@ -1508,11 +1500,13 @@ job_type:
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
                    'export ACCEPTANCE_TEST_PROVIDER=gce',
                    *run_acceptance_loopback_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
@@ -1533,12 +1527,15 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
-                   *run_acceptance_rackspace_tests,
+                   'export ACCEPTANCE_TEST_PROVIDER=rackspace',
+                   *run_acceptance_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts
+      publish_test_results: true
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
       directories_to_delete: []
@@ -1559,12 +1556,15 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
-                   *run_acceptance_rackspace_tests,
+                   'export ACCEPTANCE_TEST_PROVIDER=rackspace',
+                   *run_acceptance_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
       clean_repo: true
       archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
