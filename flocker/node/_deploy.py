@@ -67,11 +67,14 @@ class IDeployer(Interface):
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.
 
-        :param DeploymentState local_state: The previously known state of the
-            cluster. This may include information that this deployer cannot
-            discover on its own. Information here should NOT be copied
-            into the result; the return result should include only
-            information discovered by this particular deployer.
+        :param DeploymentState cluster_state: The previously discovered state
+            of the cluster. Information here should NOT be copied into the
+            result; the return result should include only information
+            discovered by this particular deployer.
+
+        :param PersistentState persistent_state: The persisted non-discoverable
+            state of the cluster. This includes association between entities
+            that can't reliably be determined by inspecting the running system.
 
         :return: A ``Deferred`` which fires with a ``ILocalState``. The
             result of shared_state_changes() will be passed to the control

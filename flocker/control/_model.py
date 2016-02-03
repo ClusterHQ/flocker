@@ -643,6 +643,10 @@ class PersistentState(PClass):
     """
     A ``PersistentState`` describes the persistent non-discoverable state of
     the cluster.
+
+    .. note: This is state created by flocker, as opposed to configuration
+        specified by the user, that can't be discovered by querying the
+        underlying systems.
     """
     # XXX having IBlockDeviceAPI specific fields is kinda bogus. Some
     # sort of generic method for storing data moving forward?
@@ -657,7 +661,12 @@ class Deployment(PClass):
 
     :ivar PSet nodes: A set containing ``Node`` instances
         describing the configuration of each cooperating node.
-    :ivar Leases leases: A map of ``Lease`` instances by dataset id.
+    :ivar Leases leases: A map of configured ``Lease``s.
+    :ivar PersistentState persistent_state: The non-discoverable persistent
+        state of the cluster. (Note: XXX This should idealy be a sibling to the
+        configuration of the cluster, instead of child; but the required
+        refactoring doesn't seem worth it currently, and can be done later if
+        ever).
     """
     nodes = pset_field(Node)
     leases = field(type=Leases, mandatory=True, initial=Leases())

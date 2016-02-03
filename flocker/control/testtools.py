@@ -6,7 +6,10 @@ Tools for testing :py:module:`flocker.control`.
 
 from zope.interface.verify import verifyObject
 
+from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.task import Clock
+from twisted.test.proto_helpers import MemoryReactor
 
 from ..testtools import TestCase
 
@@ -17,7 +20,7 @@ from ._protocol import (
 )
 from ._registry import IStatePersister, InMemoryStatePersister
 
-from .test.test_protocol import (
+from ..testtools.amp import (
     LoopbackAMPClient,
 )
 
@@ -70,6 +73,31 @@ def make_istatepersister_tests(fixture):
     return IStatePersisterTests
 
 
+def build_control_amp_service(test_case, reactor=None):
+    """
+    Create a new ``ControlAMPService``.
+
+    :param TestCase test_case: The test this service is for.
+
+    :return ControlAMPService: Not started.
+    """
+    if reactor is None:
+        reactor = Clock()
+    cluster_state = ClusterStateService(reactor)
+    cluster_state.startService()
+    test_case.addCleanup(cluster_state.stopService)
+    persistence_service = ConfigurationPersistenceService(
+        reactor, test_case.make_temporary_directory())
+    persistence_service.startService()
+    test_case.addCleanup(persistence_service.stopService)
+    return ControlAMPService(
+        reactor, cluster_state, persistence_service,
+        TCP4ServerEndpoint(MemoryReactor(), 1234),
+        # Easiest TLS context factory to create:
+        ClientContextFactory(),
+    )
+
+
 def make_loopback_control_client(test_case, clock):
     """
     Create a control service and a client connected to it.
@@ -91,13 +119,7 @@ def make_loopback_control_client(test_case, clock):
     cluster_state.startService()
     test_case.addCleanup(cluster_state.stopService)
 
-    control_amp_service = ControlAMPService(
-        reactor=clock,
-        cluster_state=cluster_state,
-        configuration_service=persistence_service,
-        endpoint=object(),
-        context_factory=ClientContextFactory(),
-    )
+    control_amp_service = build_control_amp_service(test_case, reactor=clock)
     # Don't start the control_amp_service, since we don't want to listen
     client = LoopbackAMPClient(
         command_locator=ControlServiceLocator(
