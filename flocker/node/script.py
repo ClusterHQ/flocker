@@ -426,6 +426,8 @@ class BackendDescription(PClass):
     :ivar api_factory: An object which can be called with some simple
         configuration data and which returns the API object implementing this
         storage backend.
+    :ivar required_config: A ``set`` of the dataset configuration keys
+        required to initialize this backend.
     :ivar deployer_type: A constant from ``DeployerType`` indicating which kind
         of ``IDeployer`` the API object returned by ``api_factory`` is usable
         with.
@@ -467,11 +469,15 @@ _DEFAULT_BACKENDS = [
         name=u"openstack", needs_reactor=False, needs_cluster_id=True,
         api_factory=cinder_from_configuration,
         deployer_type=DeployerType.block,
+        required_config=set(["region", ]),
     ),
     BackendDescription(
         name=u"aws", needs_reactor=False, needs_cluster_id=True,
         api_factory=aws_from_configuration,
         deployer_type=DeployerType.block,
+        required_config=set(
+            ["region", "zone", "access_key_id", "secret_access_key", ]
+        ),
     ),
 ]
 
@@ -526,6 +532,13 @@ def get_api(backend, api_args, reactor, cluster_id):
         api_args = api_args.set("cluster_id", cluster_id)
     if backend.needs_reactor:
         api_args = api_args.set("reactor", reactor)
+
+    for config_key in backend.required_config:
+        if config_key not in api_args:
+            raise UsageError(
+                u"Configuration error: Required key {} is missing.".format(
+                    config_key.decode("utf-8"))
+            )
 
     try:
         return backend.api_factory(**api_args)
