@@ -91,7 +91,7 @@ class HTTPGet(PClass):
 
     :ivar bytes url: The URL to make a GET request to.
     """
-    url = field(type=bytes)
+    url = field(type=bytes, mandatory=True)
 
 
 def http_get(url):
