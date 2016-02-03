@@ -1582,7 +1582,8 @@ def configure_cluster(
 
 
 def reinstall_flocker_from_package_source(
-    reactor, nodes, control_node, package_source, distribution
+    reactor, nodes, control_node, package_source, distribution,
+    destroy_persisted_state=False
 ):
     """
     Put the version of Flocker indicated by ``package_source`` onto all of
@@ -1601,6 +1602,10 @@ def reinstall_flocker_from_package_source(
     :param PackageSource package_source: The version of the software to
         install.
     :param distribution: The distribution installed on the nodes.
+    :param bool destroy_persisted_state: Whether to destroy the control
+        node's state file when upgrading or not. This might be desirable if you
+        know the nodes are clean (all datasets destroyed and all leases
+        destroyed) and you are downgrading flocker.
 
     :return: A ``Deferred`` that fires when the software has been upgraded.
     """
@@ -1613,6 +1618,25 @@ def reinstall_flocker_from_package_source(
     uninstalling = perform(dispatcher, uninstall_flocker(managed_nodes))
 
     uninstalling.addErrback(write_failure, logger=None)
+
+    def destroy_control_node_state(_):
+        return perform(
+            dispatcher,
+            run_remotely(
+                username='root',
+                address=control_node,
+                commands=sequence([
+                    run_from_args([
+                        'mv',
+                        '/var/lib/flocker/current_configuration.json',
+                        '/var/lib/flocker/current_configuration.json.old',
+                    ]),
+                ])
+            ),
+        )
+
+    if destroy_persisted_state:
+        uninstalling.addCallback(destroy_control_node_state)
 
     def install(ignored):
         return perform(

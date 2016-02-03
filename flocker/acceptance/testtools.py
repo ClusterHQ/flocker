@@ -732,10 +732,16 @@ class Cluster(PClass):
         return request
 
     @log_method
-    def install_flocker_version(self, package_source):
+    def install_flocker_version(self, package_source,
+                                destroy_persisted_state=False):
         """
         Change the version of flocker installed on all of the nodes to the
         version indicated by `package_source`.
+
+        :param PackageSource package_source: The :class:`PackageSource` to
+            install flocker from on all of the nodes.
+        :param bool destroy_persisted_state: Whether to destroy the control
+            node's state file when upgrading or not.
         """
         control_node_address = self.control_node.public_address
         all_cluster_nodes = set(list(x.public_address for x in self.nodes) +
@@ -773,7 +779,8 @@ class Cluster(PClass):
                 # match the target version, then we must re-install flocker.
                 return reinstall_flocker_from_package_source(
                     reactor, all_cluster_nodes, control_node_address,
-                    package_source, distribution)
+                    package_source, distribution,
+                    destroy_persisted_state=destroy_persisted_state)
             return current_version
         d.addCallback(reinstall_if_needed)
 

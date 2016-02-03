@@ -122,10 +122,17 @@ class DatasetAPITests(AsyncTestCase):
 
         d.addCallback(setup_restore_original_flocker)
 
+        # Double check that the nodes are clean before we destroy the persisted
+        # state.
+        d.addCallback(lambda _: cluster.clean_nodes())
+
         # Downgrade flocker to the most recent released version.
         d.addCallback(
             lambda _: cluster.install_flocker_version(
-                PackageSource(version=upgrade_from_version)))
+                PackageSource(version=upgrade_from_version),
+                destroy_persisted_state=True
+            )
+        )
 
         # Create a dataset with the code from the most recent release.
         d.addCallback(lambda _: create_dataset(self, cluster, node=node))
