@@ -495,7 +495,7 @@ class Cluster(PClass):
     client = field(type=FlockerClient, mandatory=True)
     certificates_path = field(FilePath, mandatory=True)
     cluster_uuid = field(mandatory=True, type=UUID)
-    raw_distribution = field(mandatory=True, type=(str, type(None)))
+    raw_distribution = field(mandatory=True, type=(bytes, type(None)))
 
     @property
     def distribution(self):
@@ -753,7 +753,8 @@ class Cluster(PClass):
                 ),
                 10
             )
-            d.addCallback(lambda v: str(v.get('flocker')) or None)
+            d.addCallback(
+                lambda v: v.get('flocker', u'').encode('ascii') or None)
             return d
 
         d = get_flocker_version()
