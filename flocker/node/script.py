@@ -488,8 +488,8 @@ def _create_block_device_deployer(api, **kw):
     :returns BlockDeviceDeployer: The :class:`BlockDeviceDeployer` to be used
         by the dataset agent.
     """
-    link_root = b"/var/flocker/links"
-    shared_root = b"/flocker/v2"
+    link_root = FilePath("/var/flocker/links")
+    shared_root = FilePath("/flocker/v2")
     block_device_manager = BlockDeviceManager()
 
     if not is_shadow_mount(link_root, shared_root, block_device_manager):
