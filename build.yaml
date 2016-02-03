@@ -1202,6 +1202,7 @@ job_type:
                    'export ACCEPTANCE_TEST_MODULE=${MODULE}',
                    'export ACCEPTANCE_TEST_PROVIDER=aws',
                    *run_acceptance_loopback_tests,
+                   *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
