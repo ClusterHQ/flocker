@@ -32,7 +32,7 @@ _CLASS_MARKER = u"$__class__$"
 
 # The latest configuration version. Configuration versions are
 # always integers.
-_CONFIG_VERSION = 4
+_CONFIG_VERSION = 5
 
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
@@ -156,6 +156,19 @@ class ConfigurationMigration(object):
         decoded_config[u"deployment"][u"persistent_state"] = {
             _CLASS_MARKER: u"PersistentState",
         }
+        return dumps(decoded_config)
+
+    @classmethod
+    def upgrade_from_v4(cls, config):
+        """
+        Migrate a v4 JSON configuration to v5.
+
+        :param bytes config: The v4 JSON data.
+        :return bytes: The v5 JSON data.
+        """
+        decoded_config = loads(config)
+        decoded_config[u"version"] = 5
+        decoded_config[u"deployment"][u"new_field"] = 0
         return dumps(decoded_config)
 
 
