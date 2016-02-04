@@ -1,4 +1,4 @@
-// vim: ai ts=2 sts=2 et sw=2 ft=groovy fdm=indent et foldlevel=0
+// vim: ai ts=2 sts=2 et sw=2 ft=groovy et
 /* jobs.groovy
 
   This Groovy file contains the jenkins job DSL plugin code to build all the
