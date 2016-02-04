@@ -945,12 +945,9 @@ class CommonOptions(Options):
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
-        print "\n\n\n GOT FLOCKER VERSION: ", self.get('flocker-version')
         if self.get('flocker-version') is not None:
             try:
-                v = parse_version(self['flocker-version'])
-                print "Got parsed version ", v
-                print "\n\n\n"
+                parse_version(self['flocker-version'])
             except UnparseableVersion:
                 raise UsageError(
                     "Flocker vesion {!r} is not a valid version".format(
