@@ -18,9 +18,7 @@ from effect.do import do, do_return
 
 from txeffect import deferred_performer, perform as async_perform
 
-from pyrsistent import (
-    PClass, field, freeze, thaw, pvector_field, CheckedPVector
-)
+from pyrsistent import PClass, field, freeze, thaw, pvector_field
 
 from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
@@ -36,10 +34,6 @@ class RegionConstant(ValueConstant):
     """
     The name of a cloud region.
     """
-
-
-class Regions(CheckedPVector):
-    __type__ = RegionConstant
 
 
 # The AWS regions supported by Packer.
@@ -335,36 +329,16 @@ class PublishInstallerImagesOptions(Options):
          "The template to build.\n", unicode],
     ]
 
-    def __init__(self):
-        Options.__init__(self)
-        self['regions'] = Regions()
-
-    def opt_region(self, value):
-        """
-        Specify a region to publish the images to. Can be used multiple times.
-        """
-        region = _validate_constant(
-            constants=AWS_REGIONS,
-            option_value=value.decode('utf-8'),
-            option_name=u'region'
-        )
-        self['regions'] += [region]
-
     def postOptions(self):
         self["build_region"] = _validate_constant(
             constants=AWS_REGIONS,
             option_value=self["build_region"],
             option_name=u"build_region"
         )
-        self["copy_to_all_regions"] = bool(self["copy_to_all_regions"])
         if self['copy_to_all_regions']:
-            if self['regions']:
-                raise UsageError(
-                    '--copy_to_all_regions and --region '
-                    'can not be used together.'
-                )
-            else:
-                self['regions'] = tuple(AWS_REGIONS.iterconstants())
+            self['regions'] = tuple(AWS_REGIONS.iterconstants())
+        else:
+            self['regions'] = tuple()
 
 
 @do
