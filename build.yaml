@@ -1260,6 +1260,7 @@ job_type:
           }
       timeout: 10
       publish_lint: true
+      archive_artifacts: ["*.lint"]
       directories_to_delete: []
 
 
