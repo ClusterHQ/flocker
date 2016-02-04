@@ -223,7 +223,9 @@ class RealPerformers(object):
             'packer_configuration'
         )
         temporary_configuration_directory.makedirs()
-        intent.configuration_directory.copyTo(temporary_configuration_directory)
+        intent.configuration_directory.copyTo(
+            temporary_configuration_directory
+        )
 
         template_name = (
             u"template_{distribution}_{template}.json".format(
@@ -240,7 +242,9 @@ class RealPerformers(object):
 
         configuration['builders'][0]['region'] = intent.build_region
         configuration['builders'][0]['source_ami'] = intent.source_ami
-        configuration['builders'][0]['ami_regions'] = thaw(intent.publish_regions)
+        configuration['builders'][0]['ami_regions'] = thaw(
+            intent.publish_regions
+        )
         output_template_path = template_path.temporarySibling()
         with output_template_path.open('w') as outfile:
             _json_dump(configuration, outfile)
@@ -251,11 +255,11 @@ class RealPerformers(object):
     @deferred_performer
     def perform_packer_build(self, dispatcher, intent):
         """
-        Run ``packer build`` using the configuration in the supplied ``intent`` and
-        parse its output.
+        Run ``packer build`` using the configuration in the supplied ``intent``
+        and parse its output.
 
-        :returns: A ``Deferred`` which fires with a dict mapping the ID of the AMI
-            published to each AWS region.
+        :returns: A ``Deferred`` which fires with a dict mapping the ID of the
+            AMI published to each AWS region.
         """
         command = ['packer', 'build',
                    '-machine-readable', intent.configuration_path.path]
@@ -274,8 +278,8 @@ class RealPerformers(object):
     @sync_performer
     def perform_write_to_s3(self, dispatcher, intent):
         """
-        Create a new object in an existing S3 bucket with the key and content in
-        ``intent``.
+        Create a new object in an existing S3 bucket with the key and content
+        in ``intent``.
         """
         client = boto3.client("s3")
         client.put_object(
