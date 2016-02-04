@@ -316,7 +316,7 @@ class ClusterContainerDeployment(object):
 
             def update_error_count(failure):
                 self.error_count += 1
-                failure.printTraceback()
+                failure.printTraceback(sys.stderr)
                 write_failure(failure)
 
             d.addCallbacks(update_container_count, update_error_count)
