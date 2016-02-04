@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Find and report on tests marked as flaky.
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+if __name__ == '__main__':
+    from admin.flaky import find_flaky_tests_main as main
+    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)

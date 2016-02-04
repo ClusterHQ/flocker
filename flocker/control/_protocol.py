@@ -282,7 +282,6 @@ class SetBlockDeviceIdForDatasetId(Command):
     errors = {DatasetAlreadyOwned: 'ALREADY_OWNED'}
 
 
-
 class Timeout(object):
     """
     Call the specified action after the specified delay in seconds.

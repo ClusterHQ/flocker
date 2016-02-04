@@ -176,10 +176,11 @@ class CreateContainerTestsMixin(APITestsMixin):
         ))
 
         for request in request_data:
-            saving.addCallback(lambda _: self.assertResponseCode(
-                b"POST", b"/configuration/containers",
-                request, CREATED
-            ))
+            saving.addCallback(
+                lambda _, req=request: self.assertResponseCode(
+                    b"POST", b"/configuration/containers",
+                    req, CREATED
+                ))
 
         def created(_):
             deployment = self.persistence_service.get()

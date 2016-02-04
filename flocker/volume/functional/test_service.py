@@ -53,7 +53,7 @@ class RealisticTests(AsyncTestCase):
                 volume, service_pair.remote)
         d.addCallback(created)
 
-        def handed_off(volume):
+        def handed_off(_):
             return service_pair.to_service.handoff(
                 service_pair.to_service.get(
                     VolumeName(namespace=u"myns", dataset_id=u"myvolume")),

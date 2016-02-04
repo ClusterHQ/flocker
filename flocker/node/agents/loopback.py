@@ -77,7 +77,7 @@ def _losetup_list_parse(output):
         parts = line.split(u":", 2)
         if len(parts) != 3:
             continue
-        device_file, attributes, backing_file = parts
+        device_file, _, backing_file = parts
         device_file = FilePath(device_file.strip().encode("utf-8"))
 
         # Trim everything from the first left bracket, skipping over the

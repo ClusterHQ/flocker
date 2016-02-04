@@ -19,37 +19,36 @@ from eliot.testing import (
 
 from twisted.internet.error import ConnectionDone
 from twisted.test.iosim import connectedServerAndClient
-from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.protocols.amp import (
     MAX_VALUE_LENGTH, IArgumentType, Command, String, ListOf, Integer,
-    UnknownRemoteError, RemoteAmpError, CommandLocator, AMP, parseString,
+    CommandLocator, AMP, parseString,
 )
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
-from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet.defer import succeed
-from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
-from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
+from ..testtools import build_control_amp_service
 from ...testtools import TestCase
-from ...testtools.amp import DelayedAMPClient, connected_amp_protocol
+from ...testtools.amp import (
+    DelayedAMPClient, connected_amp_protocol,
+    LoopbackAMPClient, StringTransportWithAbort,
+)
 
 from .._protocol import (
     PING_INTERVAL, Big, SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    NoOp, AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
+    NoOp, AgentAMP, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
     AGENT_CONNECTED, caching_wire_encode, SetNodeEraCommand,
     timeout_for_protocol,
 )
-from .._clusterstate import ClusterStateService
 from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset, DeploymentState, NonManifestDatasets,
 )
-from .._persistence import ConfigurationPersistenceService, wire_encode
+from .._persistence import wire_encode
 from .clusterstatetools import advance_some, advance_rest
 
 
@@ -68,76 +67,6 @@ def arbitrary_transformation(deployment):
         ["nodes"],
         lambda nodes: nodes.add(Node(uuid=uuid4())),
     )
-
-
-class LoopbackAMPClient(object):
-    """
-    Allow sending commands, in-memory, to an AMP command locator.
-    """
-    def __init__(self, command_locator):
-        """
-        :param command_locator: A ``CommandLocator`` instance that
-            will handle commands sent using ``callRemote``.
-        """
-        self._locator = command_locator
-        self.transport = StringTransportWithAbort()
-
-    def callRemote(self, command, **kwargs):
-        """
-        Call the corresponding responder on the configured locator.
-
-        @param commandType: a subclass of L{AMP_MODULE.Command}.
-
-        @param kwargs: Keyword arguments taken by the command, a C{dict}.
-
-        @return: A C{Deferred} that fires with the result of the responder.
-        """
-        # Get a Box for the supplied arguments. E.g.
-        # command = ClusterStatusUpdate
-        # kwargs = {"configuration": Deployment(nodes={Node(...)})}
-        # The Box contains the Deployment object converted to nested dict. E.g.
-        # Box({"configuration": {"$__class__$": "Deployment", ...}})
-        argument_box = command.makeArguments(kwargs, self._locator)
-
-        # Serialize the arguments to prove that we can.  For example, if an
-        # argument would serialize to more than 64kB then we can't actually
-        # serialize it so we want a test attempting this to fail.
-        # Wire format will contain bytes. E.g.
-        # b"\x12\x32configuration..."
-        wire_format = argument_box.serialize()
-
-        # Now decode the bytes back to a Box
-        [decoded_argument_box] = parseString(wire_format)
-
-        # And supply that to the responder which internally reverses
-        # makeArguments -> back to kwargs
-        responder = self._locator.locateResponder(command.commandName)
-        d = responder(decoded_argument_box)
-
-        def serialize_response(response_box):
-            # As above, prove we can serialize the response.
-            wire_format = response_box.serialize()
-            [decoded_response_box] = parseString(wire_format)
-            return decoded_response_box
-
-        d.addCallback(serialize_response)
-        d.addCallback(command.parseResponse, self._locator)
-
-        def massage_error(error):
-            if error.check(RemoteAmpError):
-                rje = error.value
-                errorType = command.reverseErrors.get(
-                    rje.errorCode, UnknownRemoteError)
-                return Failure(errorType(rje.description))
-
-            # In this case the actual AMP implementation closes the connection.
-            # Weakly simulate that here by failing how things fail if the
-            # connection closes and commands are outstanding.  This is sort of
-            # terrible behavior but oh well.  https://tm.tl/7055
-            return Failure(ConnectionLost(str(error)))
-
-        d.addErrback(massage_error)
-        return d
 
 
 APP1 = Application(
@@ -427,29 +356,6 @@ class SerializationTests(TestCase):
                       argument.toString(TEST_DEPLOYMENT))
 
 
-def build_control_amp_service(test, reactor=None):
-    """
-    Create a new ``ControlAMPService``.
-
-    :param TestCase test: The test this service is for.
-
-    :return ControlAMPService: Not started.
-    """
-    if reactor is None:
-        reactor = Clock()
-    cluster_state = ClusterStateService(reactor)
-    cluster_state.startService()
-    test.addCleanup(cluster_state.stopService)
-    persistence_service = ConfigurationPersistenceService(
-        reactor, FilePath(test.mktemp()))
-    persistence_service.startService()
-    test.addCleanup(persistence_service.stopService)
-    return ControlAMPService(reactor, cluster_state, persistence_service,
-                             TCP4ServerEndpoint(MemoryReactor(), 1234),
-                             # Easiest TLS context factory to create:
-                             ClientContextFactory())
-
-
 class ControlTestCase(TestCase):
     """
     Base TestCase for control tests that supplies a utility
@@ -482,19 +388,6 @@ class ControlTestCase(TestCase):
             lambda *args, **kwargs: capture_call_remote(
                 capture_list, *args, **kwargs)
         )
-
-
-class StringTransportWithAbort(StringTransport):
-    """
-    A ``StringTransport`` that implements ``abortConnection``.
-    """
-    def __init__(self, *args, **kwargs):
-        self.aborted = False
-        StringTransport.__init__(self, *args, **kwargs)
-
-    def abortConnection(self):
-        self.aborted = True
-        self.connected = False
 
 
 class ControlAMPTests(ControlTestCase):
@@ -752,7 +645,7 @@ class ControlAMPServiceTests(ControlTestCase):
         """
         service = build_control_amp_service(self)
         service.startService()
-        connections = [ControlAMP(Clock(), service) for i in range(3)]
+        connections = [ControlAMP(Clock(), service) for _ in range(3)]
         initial_disconnecting = []
         for c in connections:
             c.makeConnection(StringTransportWithAbort())

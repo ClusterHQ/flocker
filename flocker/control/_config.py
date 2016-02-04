@@ -868,8 +868,8 @@ class FlockerConfiguration(object):
         present_keys = set(self._application_configuration)
         if flocker_keys.issubset(present_keys):
             valid = True
-            for application_name, application in (
-                self._application_configuration['applications'].items()
+            for application in (
+                self._application_configuration['applications'].values()
             ):
                 if not isinstance(application, dict):
                     valid = False

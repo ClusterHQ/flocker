@@ -157,8 +157,8 @@ class _Sequentially(PClass):
         d = DeferredContext(succeed(None))
         for subchange in self.changes:
             d.addCallback(
-                lambda _, subchange=subchange: run_state_change(
-                    subchange, deployer=deployer,
+                lambda _, sub=subchange: run_state_change(
+                    sub, deployer,
                     state_persister=state_persister,
                 )
             )

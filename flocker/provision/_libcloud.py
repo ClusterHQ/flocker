@@ -171,7 +171,7 @@ class LibcloudProvisioner(object):
                 # available. Re-raise the the exception, so that we can
                 # accurately see the cause of the error.
                 raise
-            raise CloudKeyNotFound(self._keyname)
+            raise CloudKeyNotFound("{}: {}".format(self._keyname, str(e)))
         if key_pair.public_key is not None:
             return Key.fromString(key_pair.public_key, type='public_openssh')
         else:
@@ -180,28 +180,22 @@ class LibcloudProvisioner(object):
             # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html
             return None
 
-    def create_node(self, name, distribution,
-                    size=None, disk_size=8,
-                    metadata={}):
+    def create_node(self, name, distribution, metadata={}):
         """
         Create a node.  If at first this does not succeed, try, try again.
 
         :param str name: The name of the node.
         :param str distribution: The name of the distribution to install on the
             node.
-        :param str size: The name of the size to use.
-        :param int disk_size: The size of disk to allocate.
         :param dict metadata: Metadata to associate with the node.
 
         :return libcloud.compute.base.Node: The created node.
         """
-        if size is None:
-            size = self._default_size
+        size = self._default_size
 
         image_name = self._image_names[distribution]
 
-        create_node_arguments = self._create_node_arguments(
-            disk_size=disk_size)
+        create_node_arguments = self._create_node_arguments()
 
         node, addresses = self._create_with_retry(
             name=name,

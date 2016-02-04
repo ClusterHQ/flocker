@@ -166,7 +166,8 @@ class InParallelIStateChangeTests(
         deployer = DummyDeployer()
         the_change = RunSpyStateChange(value=0)
         parallel = in_parallel(changes=[the_change, the_change])
-        self.successResultOf(parallel.run(deployer))
+        self.successResultOf(
+            parallel.run(deployer, state_persister=InMemoryStatePersister()))
         self.assertEqual(2, the_change.value)
 
 
@@ -181,7 +182,8 @@ class NoOpIStateChangeTests(make_istatechange_tests(
         ``NoOp.run`` returns a fired ``Deferred``.
         """
         self.assertEqual(
-            self.successResultOf(NoOp(sleep=timedelta(seconds=0.0)).run(None)),
+            self.successResultOf(
+                NoOp(sleep=timedelta(seconds=0.0)).run(None, None)),
             None)
 
 

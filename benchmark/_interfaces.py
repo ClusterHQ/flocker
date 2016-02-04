@@ -89,31 +89,33 @@ class IMetric(Interface):
         """
 
 
-class IRequestScenarioSetup(Interface):
+class IRequest(Interface):
     """
-    Setup for a load scenario.
-    It will provide a setup function and a make request function to
-    make requests of a certain type
+    A request that may require setup and cleanup.
     """
+
     def run_setup():
         """
-        Interface for the scenario load setup. It should do all the actions
-        needed to configure the environment to make the requests defined in
-        the ``make_request`` function, like creating dataset or configuring
-        all we need in the cluster.
+        Perform any steps that need to be done before a request.
 
-        :return: ``Deferred`` firing once the setup has been completed and the
-            requests defined in ``make_request`` can be safely done. It should
-            have a timeout set so the Deferred fails if something went wrong
-            and the setup got stuck.
+        :return Deferred: firing once the setup has been completed and the
+            requests defined in ``make_request`` can be safely done.
         """
+
     def make_request():
         """
-        Interface for request generator
-        This function will make a single REST request. It can use everything
+        This function will make a single request. It can use everything
         that has been setup and/or created in ``run_setup``, and has the
-        pre-requesite that ``run_setup`` has successfully finished.
+        pre-requisite that ``run_setup`` has successfully finished.
 
-        :return: ``Deferred`` that fires when the REST request has been
+        :return Deferred: that fires when the REST request has been
             completed, and returns the results of the request.
+        """
+
+    def run_cleanup():
+        """
+        Interface function for the request cleanup, to delete anything that
+        might have been created or modified.
+
+        :return Deferred: that will fire once the cleanup is completed.
         """

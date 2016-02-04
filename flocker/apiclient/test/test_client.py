@@ -486,12 +486,12 @@ def make_clientv1_tests():
             Creating two containers with same ``name`` results in an
             ``ContainerAlreadyExists``.
             """
-            expected_container, d = create_container_for_test(
+            _, d = create_container_for_test(
                 self, self.client,
             )
 
             def got_result(container):
-                expected_container, d = create_container_for_test(
+                _, d = create_container_for_test(
                     self, self.client,
                     name=container.name
                 )
@@ -1000,7 +1000,7 @@ class ConditionalCreateTests(TestCase):
         # Every time we advance we change the config, invalidating
         # previous result. 2 queries (list+create) for 20 tries, 40th
         # query fails:
-        for i in range(39):
+        for _ in range(39):
             self.assertNoResult(d)
             self.successResultOf(self.client.create_dataset(
                 primary=self.node_id))

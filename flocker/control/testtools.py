@@ -6,25 +6,30 @@ Tools for testing :py:module:`flocker.control`.
 
 from zope.interface.verify import verifyObject
 
+from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.task import Clock
+from twisted.test.proto_helpers import MemoryReactor
 
 from ..testtools import TestCase
 
 from ._clusterstate import ClusterStateService
 from ._persistence import ConfigurationPersistenceService
 from ._protocol import (
-    ControlAMPService, ControlServiceLocator, Timeout,
+    ControlAMPService, ControlAMP,
 )
 from ._registry import IStatePersister, InMemoryStatePersister
+from ._model import DatasetAlreadyOwned
 
-from .test.test_protocol import (
+from ..testtools.amp import (
     LoopbackAMPClient,
 )
 
-from hypothesis import given
+from hypothesis import given, assume
 from hypothesis.strategies import uuids, text
 
 __all__ = [
+    'build_control_amp_service',
     'InMemoryStatePersister',
     'make_istatepersister_tests',
     'make_loopback_control_client',
@@ -55,7 +60,11 @@ def make_istatepersister_tests(fixture):
             dataset_id=uuids(),
             blockdevice_id=text(),
         )
-        def test_records_blockid(self, dataset_id, blockdevice_id):
+        def test_records_blockdeviceid(self, dataset_id, blockdevice_id):
+            """
+            Calling ``record_ownership`` records the blockdevice
+            mapping in the state.
+            """
             state_persister, get_state = fixture(self)
             d = state_persister.record_ownership(
                 dataset_id=dataset_id,
@@ -67,43 +76,71 @@ def make_istatepersister_tests(fixture):
                 blockdevice_id,
             )
 
+        @given(
+            dataset_id=uuids(),
+            blockdevice_id=text(),
+            other_blockdevice_id=text()
+        )
+        def test_duplicate_blockdevice_id(
+            self, dataset_id, blockdevice_id, other_blockdevice_id
+        ):
+            """
+            Calling ``record_ownership`` raises
+            ``DatasetAlreadyOwned`` if the dataset already has a
+            associated blockdevice.
+            """
+            assume(blockdevice_id != other_blockdevice_id)
+            state_persister, get_state = fixture(self)
+            self.successResultOf(state_persister.record_ownership(
+                dataset_id=dataset_id,
+                blockdevice_id=blockdevice_id,
+            ))
+            self.failureResultOf(state_persister.record_ownership(
+                dataset_id=dataset_id,
+                blockdevice_id=other_blockdevice_id,
+            ), DatasetAlreadyOwned)
+            self.assertEqual(
+                get_state().blockdevice_ownership[dataset_id],
+                blockdevice_id,
+            )
+
     return IStatePersisterTests
 
 
-def make_loopback_control_client(test_case, clock):
+def build_control_amp_service(test_case, reactor=None):
+    """
+    Create a new ``ControlAMPService``.
+
+    :param TestCase test_case: The test this service is for.
+
+    :return ControlAMPService: Not started.
+    """
+    if reactor is None:
+        reactor = Clock()
+    cluster_state = ClusterStateService(reactor)
+    cluster_state.startService()
+    test_case.addCleanup(cluster_state.stopService)
+    persistence_service = ConfigurationPersistenceService(
+        reactor, test_case.make_temporary_directory())
+    persistence_service.startService()
+    test_case.addCleanup(persistence_service.stopService)
+    return ControlAMPService(
+        reactor, cluster_state, persistence_service,
+        TCP4ServerEndpoint(MemoryReactor(), 1234),
+        # Easiest TLS context factory to create:
+        ClientContextFactory(),
+    )
+
+
+def make_loopback_control_client(test_case, reactor):
     """
     Create a control service and a client connected to it.
 
     :return: A tuple of a ``ControlAMPService`` and a
         ``LoopbackAMPClient`` connected to it.
     """
-    from twisted.python.filepath import FilePath
-    path = FilePath(test_case.mktemp())
-    path.createDirectory()
-    persistence_service = ConfigurationPersistenceService(
-        reactor=clock,
-        path=path,  # path=test_case.make_temporary_directory()
-    )
-    persistence_service.startService()
-    test_case.addCleanup(persistence_service.stopService)
-
-    cluster_state = ClusterStateService(clock)
-    cluster_state.startService()
-    test_case.addCleanup(cluster_state.stopService)
-
-    control_amp_service = ControlAMPService(
-        reactor=clock,
-        cluster_state=cluster_state,
-        configuration_service=persistence_service,
-        endpoint=object(),
-        context_factory=ClientContextFactory(),
-    )
-    # Don't start the control_amp_service, since we don't want to listen
+    control_amp_service = build_control_amp_service(test_case, reactor=reactor)
     client = LoopbackAMPClient(
-        command_locator=ControlServiceLocator(
-            reactor=clock,
-            control_amp_service=control_amp_service,
-            timeout=Timeout(clock, 1, lambda: None),
-        ),
+        command_locator=ControlAMP(reactor, control_amp_service).locator,
     )
     return control_amp_service, client

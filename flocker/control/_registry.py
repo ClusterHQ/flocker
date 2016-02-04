@@ -5,7 +5,7 @@ Store information about relationships between configuration and state.
 from functools import partial
 
 from zope.interface import Interface, implementer
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 
 from ._model import PersistentState, BlockDeviceOwnership
 
@@ -27,6 +27,14 @@ class IStatePersister(Interface):
 
         XXX having IBlockDeviceAPI specific method is kinda bogus. Some
         sort of generic method for storing data moving forward?
+
+        :param UUID dataset_id: The dataset being associated with a
+            blockdevice.
+        :param unicode blockdevice_id: The blockdevice to associate with the
+            dataset.
+
+        :raises DatasetAlreadyOwned: if the dataset already has an associated
+            blockdevice.
         """
 
 
@@ -42,13 +50,16 @@ class InMemoryStatePersister(object):
         self._state = PersistentState()
 
     def record_ownership(self, dataset_id, blockdevice_id):
-        self._state = self._state.transform(
-            ['blockdevice_ownership'], partial(
-                BlockDeviceOwnership.record_ownership,
-                dataset_id=dataset_id,
-                blockdevice_id=blockdevice_id,
-            ),
-        )
+        try:
+            self._state = self._state.transform(
+                ['blockdevice_ownership'], partial(
+                    BlockDeviceOwnership.record_ownership,
+                    dataset_id=dataset_id,
+                    blockdevice_id=blockdevice_id,
+                ),
+            )
+        except Exception:
+            return fail()
         return succeed(None)
 
     def get_state(self):

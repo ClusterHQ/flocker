@@ -156,11 +156,11 @@ class DockerImage(PClass):
             repository=self.repository, tag=self.tag)
 
     @classmethod
-    def from_string(cls, input):
+    def from_string(cls, input_name):
         """
         Given a Docker image name, return a :class:`DockerImage`.
 
-        :param unicode input: A Docker image name in the format
+        :param unicode input_name: A Docker image name in the format
             ``repository[:tag]``.
 
         :raises ValueError: If Docker image name is not in a valid format.
@@ -168,12 +168,12 @@ class DockerImage(PClass):
         :returns: A ``DockerImage`` instance.
         """
         kwargs = {}
-        parts = input.rsplit(u':', 1)
+        parts = input_name.rsplit(u':', 1)
         repository = parts[0]
         if not repository:
             raise ValueError("Docker image names must have format "
                              "'repository[:tag]'. Found '{image_name}'."
-                             .format(image_name=input))
+                             .format(image_name=input_name))
         kwargs['repository'] = repository
         if len(parts) == 2:
             kwargs['tag'] = parts[1]
@@ -618,7 +618,7 @@ class DatasetAlreadyOwned(Exception):
 
 class BlockDeviceOwnership(CheckedPMap):
     """
-    Persistent mapping of blockdevices to datasets.
+    Persistent mapping of datasets to blockdevices.
     """
     __key_type__ = UUID
     __value_type__ = unicode
@@ -632,8 +632,17 @@ class BlockDeviceOwnership(CheckedPMap):
         interact badly with deletion of dataset where dataset_id is
         auto-generated from name, e.g. flocker-deploy or Docker
         plugin. That is pre-existing issue, though.
+
+        :param UUID dataset_id: The dataset being associated with a
+            blockdevice.
+        :param unicode blockdevice_id: The blockdevice to associate with the
+            dataset.
+
+        :return BlockDeviceOwnership: The updated ownership mapping.
+        :raises DatasetAlreadyOwned: if the dataset already has an associated
+            blockdevice.
         """
-        current_blockdevice_id = self.get(blockdevice_id)
+        current_blockdevice_id = self.get(dataset_id)
         if current_blockdevice_id not in (None, blockdevice_id):
             raise DatasetAlreadyOwned()
         return self.set(dataset_id, blockdevice_id)
@@ -643,6 +652,10 @@ class PersistentState(PClass):
     """
     A ``PersistentState`` describes the persistent non-discoverable state of
     the cluster.
+
+    .. note: This is state created by flocker, as opposed to configuration
+        specified by the user, that can't be discovered by querying the
+        underlying systems.
     """
     # XXX having IBlockDeviceAPI specific fields is kinda bogus. Some
     # sort of generic method for storing data moving forward?
@@ -657,7 +670,12 @@ class Deployment(PClass):
 
     :ivar PSet nodes: A set containing ``Node`` instances
         describing the configuration of each cooperating node.
-    :ivar Leases leases: A map of ``Lease`` instances by dataset id.
+    :ivar Leases leases: A map of configured ``Lease``s.
+    :ivar PersistentState persistent_state: The non-discoverable persistent
+        state of the cluster. (Note: XXX This should idealy be a sibling to the
+        configuration of the cluster, instead of child; but the required
+        refactoring doesn't seem worth it currently, and can be done later if
+        ever).
     """
     nodes = pset_field(Node)
     leases = field(type=Leases, mandatory=True, initial=Leases())

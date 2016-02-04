@@ -1,10 +1,10 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
+from __future__ import absolute_import
+
 """
 Various utilities to help with unit and functional testing.
 """
-
-from __future__ import absolute_import
 
 import gc
 import io
@@ -47,7 +47,9 @@ from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.python.logfile import LogFile
 
-from ._base import AsyncTestCase, TestCase, async_runner
+from ._base import (
+    AsyncTestCase, TestCase, async_runner, extract_eliot_from_twisted_log,
+)
 from ._flaky import flaky
 from .. import __version__
 from ..common import RACKSPACE_MINIMUM_VOLUME_SIZE
@@ -59,10 +61,9 @@ __all__ = [
     'DockerImageBuilder',
     'FakeProcessReactor',
     'FakeSysModule',
-    'FlockerScriptTestsMixin',
     'MemoryCoreReactor',
     'REALISTIC_BLOCKDEVICE_SIZE',
-    'make_standard_options_tests',
+    'make_standard_options_test',
     'TestCase',
     'assertContainsAll',
     'assertNoFDsLeaked',
@@ -70,6 +71,7 @@ __all__ = [
     'assert_not_equal_comparison',
     'async_runner',
     'attempt_effective_uid',
+    'extract_eliot_from_twisted_log',
     'find_free_port',
     'flaky',
     'help_problems',
@@ -486,7 +488,7 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
             '{}'.format(tuple(unknown_defaults)))
 
     required_kwargs = kwargs.copy()
-    for k, v in expected_defaults.items():
+    for k in expected_defaults.keys():
         required_kwargs.pop(k)
 
     class WithInitTests(TestCase):
@@ -783,9 +785,9 @@ class MemoryCoreReactor(MemoryReactor, Clock):
         Clock.__init__(self)
         self._triggers = {}
 
-    def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
+    def addSystemEventTrigger(self, phase, eventType, f, *args, **kw):
         event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
-        return eventType, event.addTrigger(phase, callable, *args, **kw)
+        return eventType, event.addTrigger(phase, f, *args, **kw)
 
     def removeSystemEventTrigger(self, triggerID):
         eventType, handle = triggerID

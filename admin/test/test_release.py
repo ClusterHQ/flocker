@@ -17,7 +17,12 @@ from unittest import skipUnless, skipIf
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import Repo
 
+from hypothesis import given
+from hypothesis.strategies import text, sampled_from
+
 from requests.exceptions import HTTPError
+
+from boto.s3.website import RoutingRules, RoutingRule
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
@@ -27,13 +32,13 @@ from .. import release
 
 from ..release import (
     upload_python_packages, upload_packages, update_repo,
-    publish_docs, Environments,
+    parse_routing_rules, publish_docs, Environments,
     DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     UploadOptions, create_pip_index, upload_pip_index,
     publish_homebrew_recipe, PushFailed,
-    publish_vagrant_metadata, TestRedirectsOptions, get_expected_redirects,
+    TestRedirectsOptions, get_expected_redirects,
     update_license_file,
 )
 
@@ -42,6 +47,8 @@ from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 
 from flocker.testtools import TestCase
+
+from testtools.matchers import AfterPreprocessing, Equals
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
@@ -63,13 +70,123 @@ def hard_linking_possible():
         scratch_directory.remove()
 
 
+def MatchesRoutingRules(rules):
+    """
+    Matches against routing rules.
+
+    :param rules: The routing rules to match against.
+    :type rules: ``list`` of ``RoutingRule``
+    """
+    return AfterPreprocessing(RoutingRules.to_xml,
+                              Equals(RoutingRules(rules).to_xml()))
+
+
+class ParseRoutingRulesTests(TestCase):
+    """
+    Tests for :func:``parse_routing_rules``.
+    """
+
+    def test_empty_config(self):
+        """
+        """
+        rules = parse_routing_rules({}, "hostname")
+        self.assertThat(rules, MatchesRoutingRules([]))
+
+    @given(
+        hostname=text(),
+        replace=sampled_from(["replace_key", "replace_key_prefix"]),
+    )
+    def test_add_hostname(self, hostname, replace):
+        """
+        If a rule doesn't have a hostname
+        - the passed hostname is added.
+        - the replacement is prefixed with the common prefix.
+        """
+        rules = parse_routing_rules({
+            "prefix/": {
+                "key/": {replace: "replacement"},
+            },
+        }, hostname)
+        self.assertThat(rules, MatchesRoutingRules([
+            RoutingRule.when(key_prefix="prefix/key/").then_redirect(
+                hostname=hostname,
+                protocol="https",
+                http_redirect_code=302,
+                **{replace: "prefix/replacement"}
+            ),
+        ]))
+
+    @given(
+        hostname=text(),
+        other_hostname=text(),
+        replace=sampled_from(["replace_key", "replace_key_prefix"]),
+    )
+    def test_given_hostname(self, hostname, replace, other_hostname):
+        """
+        If a rule has a hostname, it is used unchanged and the common prefix is
+        not included in the replacement.
+        """
+        rules = parse_routing_rules({
+            "prefix/": {
+                "key/": {replace: "replacement", "hostname": other_hostname},
+            },
+        }, hostname)
+        self.assertThat(rules, MatchesRoutingRules([
+            RoutingRule.when(key_prefix="prefix/key/").then_redirect(
+                hostname=other_hostname,
+                protocol="https",
+                http_redirect_code=302,
+                **{replace: "replacement"}
+            ),
+        ]))
+
+    @given(
+        hostname=text(),
+    )
+    def test_long_match_first(self, hostname):
+        """
+        When multiple redirects exist under a single prefix, the longest match
+        is listed first.
+        """
+        rules = parse_routing_rules({
+            "long/": {
+                "est/first/": {"replace_key": "there"},
+                "": {"replace_key": "here"},
+            },
+            "": {
+                "long/est/": {"replace_key": "everywhere"},
+            },
+        }, hostname)
+        self.assertThat(rules, MatchesRoutingRules([
+            RoutingRule.when(key_prefix="long/est/first/").then_redirect(
+                hostname=hostname,
+                protocol="https",
+                replace_key="long/there",
+                http_redirect_code=302,
+            ),
+            RoutingRule.when(key_prefix="long/est/").then_redirect(
+                hostname=hostname,
+                protocol="https",
+                replace_key="everywhere",
+                http_redirect_code=302,
+            ),
+            RoutingRule.when(key_prefix="long/").then_redirect(
+                hostname=hostname,
+                protocol="https",
+                replace_key="long/here",
+                http_redirect_code=302,
+            ),
+        ]))
+
+
 class PublishDocsTests(TestCase):
     """
     Tests for :func:``publish_docs``.
     """
 
     def publish_docs(self, aws,
-                     flocker_version, doc_version, environment):
+                     flocker_version, doc_version, environment,
+                     routing_config={}):
         """
         Call :func:``publish_docs``, interacting with a fake AWS.
 
@@ -81,42 +198,47 @@ class PublishDocsTests(TestCase):
         sync_perform(
             ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
             publish_docs(flocker_version, doc_version,
-                         environment=environment))
+                         environment=environment,
+                         routing_config=routing_config))
 
     def test_copies_documentation(self):
         """
         Calling :func:`publish_docs` copies documentation from
-        ``s3://clusterhq-dev-docs/<flocker_version>/`` to
-        ``s3://clusterhq-staging-docs/en/<doc_version>/``.
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
+        ``s3://clusterhq-staging-docs/en/<doc_version>/`` and
+        ``s3://clusterhq-staging-docs/en/latest/``.
         """
         aws = FakeAWS(
-            routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
-            },
+            routing_rules={},
             s3_buckets={
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
-                    'en/latest/index.html': '',
-                },
-                'clusterhq-dev-docs': {
-                    '0.3.0+444.gf05215b/index.html': 'index-content',
-                    '0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
-                    '0.3.0+444.gf05215b/other.html': 'other-content',
-                    '0.3.0+392.gd50b558/index.html': 'bad-index',
-                    '0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
-                    '0.3.0+392.gd50b558/other.html': 'bad-other',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                    'release/flocker-0.3.0+444.gf05215b/other.html': 'other-content',
+                    'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
+                    'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                    'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
         self.assertEqual(
             aws.s3_buckets['clusterhq-staging-docs'], {
+                # originals
                 'index.html': '',
                 'en/index.html': '',
-                'en/latest/index.html': '',
+                'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
+                'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                'release/flocker-0.3.0+444.gf05215b/other.html': 'other-content',
+                'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
+                'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
+                # and new copies
+                'en/latest/index.html': 'index-content',
+                'en/latest/sub/index.html': 'sub-index-content',
+                'en/latest/other.html': 'other-content',
                 'en/0.3.1/index.html': 'index-content',
                 'en/0.3.1/sub/index.html': 'sub-index-content',
                 'en/0.3.1/other.html': 'other-content',
@@ -125,14 +247,12 @@ class PublishDocsTests(TestCase):
     def test_copies_documentation_production(self):
         """
         Calling :func:`publish_docs` in production copies documentation from
-        ``s3://clusterhq-dev-docs/<flocker_version>/`` to
-        ``s3://clusterhq-docs/en/<doc_version>/``.
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
+        ``s3://clusterhq-docs/en/<doc_version>/`` and
+        ``s3://clusterhq-docs/en/latest/``.
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-docs': {
@@ -140,13 +260,13 @@ class PublishDocsTests(TestCase):
                     'en/index.html': '',
                     'en/latest/index.html': '',
                 },
-                'clusterhq-dev-docs': {
-                    '0.3.1/index.html': 'index-content',
-                    '0.3.1/sub/index.html': 'sub-index-content',
-                    '0.3.1/other.html': 'other-content',
-                    '0.3.0+392.gd50b558/index.html': 'bad-index',
-                    '0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
-                    '0.3.0+392.gd50b558/other.html': 'bad-other',
+                'clusterhq-staging-docs': {
+                    'release/flocker-0.3.1/index.html': 'index-content',
+                    'release/flocker-0.3.1/sub/index.html': 'sub-index-content',
+                    'release/flocker-0.3.1/other.html': 'other-content',
+                    'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
+                    'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
+                    'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
                 }
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
@@ -155,7 +275,9 @@ class PublishDocsTests(TestCase):
             aws.s3_buckets['clusterhq-docs'], {
                 'index.html': '',
                 'en/index.html': '',
-                'en/latest/index.html': '',
+                'en/latest/index.html': 'index-content',
+                'en/latest/sub/index.html': 'sub-index-content',
+                'en/latest/other.html': 'other-content',
                 'en/0.3.1/index.html': 'index-content',
                 'en/0.3.1/sub/index.html': 'sub-index-content',
                 'en/0.3.1/other.html': 'other-content',
@@ -165,15 +287,13 @@ class PublishDocsTests(TestCase):
         """
         Calling :func:`publish_docs` replaces documentation from
         ``s3://clusterhq-staging-docs/en/<doc_version>/``.
-        with documentation from ``s3://clusterhq-dev-docs/<flocker_version>/``.
+        with documentation from
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/``.
         In particular, files with changed content are updated, and removed
         files are deleted.
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -183,10 +303,8 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1/index.html': 'old-index-content',
                     'en/0.3.1/sub/index.html': 'old-sub-index-content',
                     'en/0.3.1/other.html': 'other-content',
-                },
-                'clusterhq-dev-docs': {
-                    '0.3.0+444.gf05215b/index.html': 'index-content',
-                    '0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -195,91 +313,70 @@ class PublishDocsTests(TestCase):
             aws.s3_buckets['clusterhq-staging-docs'], {
                 'index.html': '',
                 'en/index.html': '',
-                'en/latest/index.html': '',
+                'en/latest/index.html': 'index-content',
+                'en/latest/sub/index.html': 'sub-index-content',
                 'en/0.3.1/index.html': 'index-content',
                 'en/0.3.1/sub/index.html': 'sub-index-content',
+                # and the originals
+                'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
+                'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
             })
 
-    def test_updates_redirects(self):
+    def test_updated_routing_rules(self):
         """
-        Calling :func:`publish_docs` with a release version updates the
-        redirect for ``en/latest/*`` to point at ``en/<doc_version>/*``. Any
-        other redirects are left untouched.
+        Calling :func:`publish_docs` updates the routing rules for the
+        "clusterhq-staging-docs" bucket.
         """
         aws = FakeAWS(
-            routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                    'en/devel/': 'en/0.3.1.dev4/',
-                },
-            },
+            routing_rules={},
             s3_buckets={
-                'clusterhq-staging-docs': {},
-                'clusterhq-dev-docs': {},
+                'clusterhq-staging-docs': {
+                },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.routing_rules, {
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.1/',
-                    'en/devel/': 'en/0.3.1.dev4/',
-                },
-            })
+                          environment=Environments.STAGING,
+                          routing_config={
+                              "prefix/": {"key/": {"replace_key": "replace"}},
+                          })
+        self.assertThat(
+            aws.routing_rules['clusterhq-staging-docs'],
+            MatchesRoutingRules([
+                RoutingRule.when(key_prefix="prefix/key/").then_redirect(
+                    replace_key="prefix/replace",
+                    hostname="docs.staging.clusterhq.com",
+                    protocol="https",
+                    http_redirect_code="302",
+                ),
+            ]))
 
-    def test_updates_redirects_devel(self):
+    def test_updated_routing_rules_production(self):
         """
-        Calling :func:`publish_docs` for a development version updates the
-        redirect for ``en/devel/*`` to point at ``en/<doc_version>/*``. Any
-        other redirects are left untouched.
+        Calling :func:`publish_docs` updates the routing rules for the
+        "clusterhq-docs" bucket.
         """
         aws = FakeAWS(
-            routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                    'en/devel/': 'en/0.3.1.dev4/',
-                },
-            },
+            routing_rules={},
             s3_buckets={
-                'clusterhq-staging-docs': {},
-                'clusterhq-dev-docs': {},
-            })
-        self.publish_docs(aws, '0.3.0+444.gf01215b', '0.3.1.dev5',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.routing_rules, {
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                    'en/devel/': 'en/0.3.1.dev5/',
-                },
-            })
-
-    def test_updates_redirects_production(self):
-        """
-        Calling :func:`publish_docs` with a release or documentation version
-        and in production updates the redirect for the
-        ``clusterhq-docs`` S3 bucket.
-        """
-        aws = FakeAWS(
-            routing_rules={
                 'clusterhq-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                    'en/devel/': 'en/0.3.1.dev4/',
                 },
-            },
-            s3_buckets={
-                'clusterhq-docs': {},
-                'clusterhq-dev-docs': {},
+                'clusterhq-staging-docs': {
+                },
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
-                          environment=Environments.PRODUCTION)
-        self.assertEqual(
-            aws.routing_rules, {
-                'clusterhq-docs': {
-                    'en/latest/': 'en/0.3.1/',
-                    'en/devel/': 'en/0.3.1.dev4/',
-                },
-            })
+                          environment=Environments.PRODUCTION,
+                          routing_config={
+                              "prefix/": {"key/": {"replace_key": "replace"}},
+                          })
+        self.assertThat(
+            aws.routing_rules['clusterhq-docs'],
+            MatchesRoutingRules([
+                RoutingRule.when(key_prefix="prefix/key/").then_redirect(
+                    replace_key="prefix/replace",
+                    hostname="docs.clusterhq.com",
+                    protocol="https",
+                    http_redirect_code="302",
+                ),
+            ]))
 
     def test_creates_cloudfront_invalidation_new_files(self):
         """
@@ -291,9 +388,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -302,11 +396,9 @@ class PublishDocsTests(TestCase):
                     'en/latest/index.html': '',
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
-                },
-                'clusterhq-dev-docs': {
-                    '0.3.0+444.gf05215b/index.html': '',
-                    '0.3.0+444.gf05215b/sub/index.html': '',
-                    '0.3.0+444.gf05215b/sub/other.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -336,18 +428,13 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
                     'en/latest/index.html': '',
-                },
-                'clusterhq-dev-docs': {
-                    '0.3.0+444.gf05215b/sub_index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub_index.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -374,9 +461,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -386,7 +470,6 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
@@ -417,9 +500,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -428,8 +508,9 @@ class PublishDocsTests(TestCase):
                     'en/latest/index.html': '',
                     'en/0.3.0/index.html': '',
                     'en/0.3.0/sub/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
                           environment=Environments.STAGING)
@@ -470,11 +551,9 @@ class PublishDocsTests(TestCase):
                     'en/devel/index.html': '',
                     'en/0.3.1.dev1/index.html': '',
                     'en/0.3.1.dev1/sub/index.html': '',
-                },
-                'clusterhq-dev-docs': {
-                    '0.3.0+444.gf05215b/index.html': '',
-                    '0.3.0+444.gf05215b/sub/index.html': '',
-                    '0.3.0+444.gf05215b/sub/other.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/other.html': '',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
@@ -507,9 +586,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/devel/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -519,7 +595,6 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1.dev1/index.html': '',
                     'en/0.3.1.dev1/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
                           environment=Environments.STAGING)
@@ -550,9 +625,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/devel/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-staging-docs': {
@@ -561,8 +633,9 @@ class PublishDocsTests(TestCase):
                     'en/devel/index.html': '',
                     'en/0.3.0/index.html': '',
                     'en/0.3.0/sub/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
                           environment=Environments.STAGING)
@@ -573,8 +646,8 @@ class PublishDocsTests(TestCase):
                     paths={
                         'en/devel/',
                         'en/devel/index.html',
-                        'en/devel/sub/',
                         'en/devel/sub/index.html',
+                        'en/devel/sub/',
                         'en/0.3.1.dev1/',
                         'en/0.3.1.dev1/index.html',
                         'en/0.3.1.dev1/sub/',
@@ -589,9 +662,6 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-docs': {
@@ -601,7 +671,7 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
+                'clusterhq-staging-docs': {},
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
                           environment=Environments.PRODUCTION)
@@ -633,33 +703,6 @@ class PublishDocsTests(TestCase):
             aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
             environment=Environments.PRODUCTION)
 
-    def test_publish_to_doc_version(self):
-        """
-        Trying to publish to a documentation version in a staging environment
-        publishes to to the version being updated.
-        """
-        aws = FakeAWS(
-            routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/latest/': '',
-                },
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {},
-                'clusterhq-dev-docs': {},
-            })
-
-        self.publish_docs(
-            aws, '0.3.1+444.gf05215b', '0.3.1.post1',
-            environment=Environments.STAGING)
-
-        self.assertEqual(
-            aws.routing_rules, {
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.1/',
-                },
-            })
-
     def test_production_can_publish_doc_version(self):
         """
         Publishing a documentation version to the version of the latest full
@@ -667,13 +710,10 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-docs': {
-                    'en/latest/': 'en/0.3.0/',
-                },
             },
             s3_buckets={
                 'clusterhq-docs': {},
-                'clusterhq-dev-docs': {},
+                'clusterhq-staging-docs': {},
             })
         # Does not raise:
         self.publish_docs(
@@ -685,13 +725,10 @@ class PublishDocsTests(TestCase):
         """
         aws = FakeAWS(
             routing_rules={
-                'clusterhq-docs': {
-                    'en/devel/': 'en/0.3.1.dev4/',
-                },
             },
             s3_buckets={
                 'clusterhq-docs': {},
-                'clusterhq-dev-docs': {},
+                'clusterhq-staging-docs': {},
             })
         # Does not raise:
         self.publish_docs(
@@ -729,26 +766,15 @@ class PublishDocsTests(TestCase):
             bucket_names.add(
                 DOCUMENTATION_CONFIGURATIONS[e].documentation_bucket
             )
-        # Pretend that both devel and latest aliases are currently pointing to
-        # an older version.
-        empty_routes = {
-            'en/devel/': 'en/0.0.0/',
-            'en/latest/': 'en/0.0.0/',
-        }
-        # In all the S3 buckets.
-        empty_routing_rules = {
-            bucket_name: empty_routes.copy()
-            for bucket_name in bucket_names
-        }
         # And that all the buckets themselves are empty.
         empty_buckets = {bucket_name: {} for bucket_name in bucket_names}
         # Including the dev bucket
-        empty_buckets['clusterhq-dev-docs'] = {}
+        empty_buckets['clusterhq-staging-docs'] = {}
         # And that all the buckets have an empty error_key
         empty_error_keys = {bucket_name: b'' for bucket_name in bucket_names}
 
         aws = FakeAWS(
-            routing_rules=empty_routing_rules,
+            routing_rules={},
             s3_buckets=empty_buckets,
             error_key=empty_error_keys
         )
@@ -1749,233 +1775,6 @@ class CalculateBaseBranchTests(TestCase):
                     version='0.3.0rc2',
                     path=clone.working_dir).name,
             "master")
-
-
-class PublishVagrantMetadataTests(TestCase):
-    """
-    Tests for :func:`publish_vagrant_metadata`.
-    """
-
-    def setUp(self):
-        super(PublishVagrantMetadataTests, self).setUp()
-        self.target_bucket = 'clusterhq-archive'
-        self.metadata_key = 'vagrant/flocker-tutorial.json'
-
-    def metadata_version(self, version, box_filename, provider="virtualbox"):
-        """
-        Create a version section for Vagrant metadata, for a given box, with
-        one provider: virtualbox.
-
-        :param bytes version: The version of the box, normalised for Vagrant.
-        :param bytes box_filename: The filename of the box.
-        :param bytes provider: The provider for the box.
-
-        :return: Dictionary to be used as a version section in Vagrant
-            metadata.
-        """
-        return {
-            "version": version,
-            "providers": [
-                {
-                    "url": "https://example.com/" + box_filename,
-                    "name": provider,
-                }
-            ],
-        }
-
-    def tutorial_metadata(self, versions):
-        """
-        Create example tutorial metadata.
-
-        :param list versions: List of dictionaries of version sections.
-
-        :return: Dictionary to be used as Vagrant metadata.
-        """
-        return {
-            "description": "clusterhq/flocker-tutorial box.",
-            "name": "clusterhq/flocker-tutorial",
-            "versions": versions,
-        }
-
-    def publish_vagrant_metadata(self, aws, version):
-        """
-        Call :func:``publish_vagrant_metadata``, interacting with a fake AWS.
-
-        :param FakeAWS aws: Fake AWS to interact with.
-        :param version: See :py:func:`publish_vagrant_metadata`.
-        """
-        scratch_directory = FilePath(self.mktemp())
-        scratch_directory.makedirs()
-        box_url = "https://example.com/flocker-tutorial-{}.box".format(version)
-        box_name = 'flocker-tutorial'
-        sync_perform(
-            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
-            publish_vagrant_metadata(
-                version=version,
-                box_url=box_url,
-                box_name=box_name,
-                target_bucket=self.target_bucket,
-                scratch_directory=scratch_directory))
-
-    def test_no_metadata_exists(self):
-        """
-        A metadata file is added when one does not exist.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
-        )
-
-        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
-        expected_version = self.metadata_version(
-            version="0.3.0",
-            box_filename="flocker-tutorial-0.3.0.box",
-        )
-
-        self.assertEqual(
-            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
-            self.tutorial_metadata(versions=[expected_version]),
-        )
-
-    def test_metadata_content_type(self):
-        """
-        Vagrant requires a JSON metadata file to have a Content-Type of
-        application/json.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
-        )
-
-        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
-
-        self.assertEqual(
-            aws.s3_buckets[self.target_bucket][self.metadata_key].content_type,
-            'application/json'
-        )
-
-    def test_url_escaped(self):
-        """
-        When a URL includes special characters, they are escaped so that
-        Vagrant can download the box from Amazon S3 without getting 403 errors.
-
-        "/" and ":" are not escaped (these only appear in the protocol).
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
-        )
-
-        self.publish_vagrant_metadata(aws=aws, version='0.3.0+1')
-
-        expected_version = self.metadata_version(
-            version="0.3.0.1",
-            box_filename="flocker-tutorial-0.3.0%2B1.box",
-            provider="virtualbox",
-        )
-
-        metadata_versions = json.loads(
-            aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
-
-        self.assertEqual(metadata_versions, [expected_version])
-
-    def test_version_added(self):
-        """
-        A version is added to an existing metadata file.
-        """
-        existing_old_version = self.metadata_version(
-            version="0.3.0",
-            box_filename="flocker-tutorial-0.3.0.box",
-        )
-
-        existing_metadata = json.dumps(
-            self.tutorial_metadata(versions=[existing_old_version])
-        )
-
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {
-                    'vagrant/flocker-tutorial.json': existing_metadata,
-                },
-            },
-        )
-
-        expected_new_version = self.metadata_version(
-            version="0.4.0",
-            box_filename="flocker-tutorial-0.4.0.box",
-        )
-
-        expected_metadata = self.tutorial_metadata(
-            versions=[existing_old_version, expected_new_version])
-
-        self.publish_vagrant_metadata(aws=aws, version='0.4.0')
-        self.assertEqual(
-            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
-            expected_metadata,
-        )
-
-    def test_version_normalised(self):
-        """
-        The version given is converted to a version number acceptable to
-        Vagrant.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
-        )
-
-        self.publish_vagrant_metadata(aws=aws, version='0.3.0_1')
-        metadata = json.loads(
-            aws.s3_buckets[self.target_bucket][self.metadata_key])
-        # The underscore is converted to a period in the version.
-        self.assertEqual(metadata['versions'][0]['version'], "0.3.0.1")
-
-    def test_version_already_exists(self):
-        """
-        If a version already exists then its data is overwritten by the new
-        metadata. This works even if the version is changed when being
-        normalised.
-        """
-        existing_version = self.metadata_version(
-            version="0.4.0.2314.g941011b",
-            box_filename="old_filename",
-            provider="old_provider",
-        )
-
-        existing_metadata = json.dumps(
-            self.tutorial_metadata(versions=[existing_version])
-        )
-
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {
-                    'vagrant/flocker-tutorial.json': existing_metadata,
-                },
-            },
-        )
-
-        expected_version = self.metadata_version(
-            version="0.4.0.2314.g941011b",
-            box_filename="flocker-tutorial-0.4.0-2314-g941011b.box",
-            provider="virtualbox",
-        )
-
-        self.publish_vagrant_metadata(aws=aws, version='0.4.0-2314-g941011b')
-
-        metadata_versions = json.loads(
-            aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
-
-        self.assertEqual(metadata_versions, [expected_version])
 
 
 class PublishHomebrewRecipeTests(TestCase):
