@@ -1,3 +1,4 @@
+# -*- test-case-name: admin.test.test_images -*-
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
@@ -17,8 +18,9 @@ from effect.do import do, do_return
 
 from txeffect import deferred_performer, perform as async_perform
 
-from pyrsistent import PClass, field, freeze, thaw, pvector_field
+from pyrsistent import PClass, field, freeze, thaw, pvector_field, CheckedPVector
 
+from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
@@ -27,20 +29,34 @@ from flocker.common.runner import run
 
 PACKER_TEMPLATE_DIR = FilePath(__file__).sibling('packer')
 
+
+class RegionConstant(ValueConstant):
+    """
+    The name of a cloud region.
+    """
+
+
+class Regions(CheckedPVector):
+    __type__ = RegionConstant
+
+
 # The AWS regions supported by Packer.
 # XXX ap-northeast-2 is not supported by the current packer release:
 # https://github.com/mitchellh/packer/issues/3058
-AWS_REGIONS = (
-    u"ap-northeast-1",
-    u"ap-southeast-1",
-    u"ap-southeast-2",
-    u"eu-central-1",
-    u"eu-west-1",
-    u"sa-east-1",
-    u"us-east-1",
-    u"us-west-1",
-    u"us-west-2",
-)
+class AWS_REGIONS(Values):
+    """
+    Constants representing supported target packaging formats.
+    """
+    AP_NORTHEAST_1 = RegionConstant(u"ap-northeast-1")
+    AP_SOUTHEAST_1 = RegionConstant(u"ap-southeast-1")
+    AP_SOUTHEAST_2 = RegionConstant(u"ap-southeast-2")
+    EU_CENTRAL_1 = RegionConstant(u"eu-central-1")
+    EU_WEST_1 = RegionConstant(u"eu-west-1")
+    SA_EAST_1 = RegionConstant(u"sa-east-1")
+    US_EAST_1 = RegionConstant(u"us-east-1")
+    US_WEST_1 = RegionConstant(u"us-west-1")
+    US_WEST_2 = RegionConstant(u"us-west-2")
+
 # Hard coded Ubuntu 14.04 base AMI.
 # XXX These AMIs are constantly being updated.
 # This should be looked up dynamically using Canonical's AWS owner ID
@@ -48,12 +64,12 @@ AWS_REGIONS = (
 # https://askubuntu.com/a/53586
 SOURCE_AMIS = {
     u"ubuntu-14.04": {
-        u"us-west-1": u"ami-56f59e36",
+        AWS_REGIONS.US_WEST_2: u"ami-56f59e36",
     }
 }
 
 DEFAULT_IMAGE_BUCKET = u'clusterhq-installer-images'
-DEFAULT_BUILD_REGION = u"us-west-1"
+DEFAULT_BUILD_REGION = AWS_REGIONS.US_WEST_2
 DEFAULT_DISTRIBUTION = u"ubuntu-14.04"
 DEFAULT_AMI = SOURCE_AMIS[DEFAULT_DISTRIBUTION][DEFAULT_BUILD_REGION]
 DEFAULT_TEMPLATE = u"docker"
@@ -122,6 +138,20 @@ def _unserialize_packer_dict(serialized_packer_dict):
     return freeze(packer_dict)
 
 
+class _ConfigurationEncoder(json.JSONEncoder):
+    """
+    JSON encoder that can encode ValueConstant etc.
+    """
+    def default(self, obj):
+        if isinstance(obj, ValueConstant):
+            return obj.value
+        return JSONEncoder.default(self, obj)
+
+
+def _json_dump(obj, fp):
+    return json.dump(obj, fp, cls=_ConfigurationEncoder)
+
+
 class PackerConfigure(PClass):
     """
     The attributes necessary to create a custom packer configuration file from
@@ -139,8 +169,8 @@ class PackerConfigure(PClass):
     :ivar working_directory: The directory in which templates will be copied
         and modified.
     """
-    build_region = field(type=unicode, mandatory=True)
-    publish_regions = pvector_field(item_type=unicode)
+    build_region = field(type=RegionConstant, mandatory=True)
+    publish_regions = pvector_field(item_type=RegionConstant)
     template = field(type=unicode, mandatory=True)
     distribution = field(type=unicode, mandatory=True)
     configuration_directory = field(type=FilePath, initial=PACKER_TEMPLATE_DIR)
@@ -181,7 +211,7 @@ def perform_packer_configure(dispatcher, intent):
     configuration['builders'][0]['ami_regions'] = thaw(intent.publish_regions)
     output_template_path = template_path.temporarySibling()
     with output_template_path.open('w') as outfile:
-        json.dump(configuration, outfile)
+        _json_dump(configuration, outfile)
     # XXX temporarySibling sets alwaysCreate = True for some reason.
     output_template_path.alwaysCreate = False
     return output_template_path
@@ -265,6 +295,20 @@ DISPATCHER = ComposedDispatcher([
 ])
 
 
+def _validate_constant(constants, option_value, option_name):
+    try:
+        constant_value = constants.lookupByValue(option_value)
+    except ValueError:
+        raise UsageError(
+            "The option '--{}' got unsupported value: '{}'. "
+            "Must be one of: {}.".format(
+                option_name, option_value,
+                ', '.join(c.value for c in constants.iterconstants())
+            )
+        )
+    return constant_value
+
+
 class PublishInstallerImagesOptions(Options):
     """
     Options for uploading Packer-generated image IDs.
@@ -276,7 +320,7 @@ class PublishInstallerImagesOptions(Options):
     optParameters = [
         ["target_bucket", None, DEFAULT_IMAGE_BUCKET,
          "The bucket to upload installer AMI names to.\n", unicode],
-        ["build_region", None, DEFAULT_BUILD_REGION,
+        ["build_region", None, DEFAULT_BUILD_REGION.value,
          "A region where the image will be built.\n", unicode],
         ["distribution", None, DEFAULT_DISTRIBUTION,
          "The distribution of operating system to install.\n", unicode],
@@ -288,15 +332,25 @@ class PublishInstallerImagesOptions(Options):
 
     def __init__(self):
         Options.__init__(self)
-        self['regions'] = []
+        self['regions'] = Regions()
 
-    def opt_region(self, region):
+    def opt_region(self, value):
         """
         Specify a region to publish the images to. Can be used multiple times.
         """
-        self['regions'].append(region.decode('utf-8'))
+        region = _validate_constant(
+            constants=AWS_REGIONS,
+            option_value=value.decode('utf-8'),
+            option_name=u'region'
+        )
+        self['regions'] += [region]
 
     def postOptions(self):
+        self["build_region"] = _validate_constant(
+            constants=AWS_REGIONS,
+            option_value=self["build_region"],
+            option_name=u"build_region"
+        )
         self["copy_to_all_regions"] = bool(self["copy_to_all_regions"])
         if self['copy_to_all_regions']:
             if self['regions']:
@@ -305,7 +359,7 @@ class PublishInstallerImagesOptions(Options):
                     'can not be used together.'
                 )
             else:
-                self['regions'] = AWS_REGIONS
+                self['regions'] = tuple(AWS_REGIONS.iterconstants())
 
 
 class _PublishInstallerImagesMain(object):
