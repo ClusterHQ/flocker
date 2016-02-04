@@ -49,7 +49,7 @@ from . import run_state_change, NoOp
 from ..common import gather_deferreds
 from ..control import (
     NodeStateCommand, IConvergenceAgent, AgentAMP, SetNodeEraCommand,
-    IStatePersister,
+    IStatePersister, SetBlockDeviceIdForDatasetId,
 )
 from ..control._persistence import to_unserialized_json
 
@@ -643,6 +643,13 @@ class RemoteStatePersister(PClass):
     :ivar AMP client: The client connected to the control node.
     """
     client = field(mandatory=True)
+
+    def record_ownership(self, dataset_id, blockdevice_id):
+        return self.client.callRemote(
+            SetBlockDeviceIdForDatasetId,
+            dataset_id=unicode(dataset_id),
+            blockdevice_id=blockdevice_id,
+        )
 
 
 @implementer(IConvergenceAgent)
