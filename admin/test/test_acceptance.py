@@ -9,6 +9,7 @@ from tempfile import mkdtemp
 from uuid import UUID
 
 from twisted.python.filepath import FilePath
+from twisted.python.usage import UsageError
 
 from zope.interface.verify import verifyObject
 
@@ -23,6 +24,7 @@ from flocker.ca import RootCredential
 from flocker.provision import PackageSource
 from flocker.provision._install import ManagedNode
 from flocker.acceptance.testtools import DatasetBackend
+from ..acceptance import CommonOptions
 
 
 class ManagedRunnerTests(TestCase):
@@ -204,4 +206,20 @@ class JournaldJSONFormatter(TestCase):
                 _PROCESS_NAME="docker.service",
             )],
             self._convert(NON_JSON_JOURNAL_EXPORT),
+        )
+
+
+class CommonOptionsParser(TestCase):
+    """
+    Tests for ``CommonOptions``
+    """
+    def test_invalid_version(self):
+
+        arg_options = "--distribution ubuntu-14.04 --provider AWS " \
+            "--config-file acceptance.yml " \
+            "flocker-version invalid-version"
+        common_options = CommonOptions(arg_options)
+        self.assertRaises(
+            UsageError,
+            common_options.parseOptions, arg_options
         )

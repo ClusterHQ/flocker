@@ -61,7 +61,7 @@ from flocker.acceptance.testtools import DatasetBackend
 from flocker.testtools.cluster_utils import (
     make_cluster_id, Providers, TestTypes
 )
-
+from flocker.common import parse_version, UnparseableVersion
 from flocker.common.runner import run, run_ssh
 
 
@@ -944,6 +944,19 @@ class CommonOptions(Options):
             raise UsageError("Provider required.")
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
+
+        print "\n\n\n GOT FLOCKER VERSION: ", self.get('flocker-version')
+        if self.get('flocker-version') is not None:
+            try:
+                v = parse_version(self['flocker-version'])
+                print "Got parsed version ", v
+                print "\n\n\n"
+            except UnparseableVersion:
+                raise UsageError(
+                    "Flocker vesion {!r} is not a valid version".format(
+                        self['flocker-version']
+                    )
+                )
 
         package_source = PackageSource(
             version=self['flocker-version'],
