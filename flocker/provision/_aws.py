@@ -259,6 +259,9 @@ class AWSProvisioner(PClass):
                 distribution=distribution,
             )
 
+    def get_nodes(self, filters):
+        return self._get_nodes(filters)
+
     def _get_nodes(self, filters):
         """
         Get AWS instances with the given parameters.
@@ -269,9 +272,19 @@ class AWSProvisioner(PClass):
             action_type=u"flocker:provision:aws:get_nodes:get_only_instances",
         ) as context:
             instances = self._connection.get_only_instances(
-                filters
+                filters=filters
             )
             context.add_success_fields(instance_ids=[i.id for i in instances])
+        
+        return [
+            AWSNode(
+                name=instance.tags['Name'],
+                _provisioner=self,
+                _instance=instance,
+                distribution=instance.tags['distribution']
+            )
+            for instance in instances
+        ]
 
     def _get_node(self, image_id, size, diskmap, metadata):
         """

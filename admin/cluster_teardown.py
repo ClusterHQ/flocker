@@ -33,7 +33,9 @@ def main(reactor, args, base_path, top_level):
     # of the configuration.
     existing_nodes = make_managed_nodes(
         options['config']['managed']['addresses'],
-        options['distribution'],
+        options['distribution']
     )
-    print(existing_nodes)
-    return succeed('ok')
+    node_ips = [node.address for node in existing_nodes]
+    options.runner.gather_managed_nodes(reactor, node_ips)
+    options.runner.stop_cluster(reactor)
+    succeed('OK')

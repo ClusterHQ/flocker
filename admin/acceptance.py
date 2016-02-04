@@ -812,8 +812,10 @@ class LibcloudRunner(object):
 
         returnValue(cluster)
 
-    def gather_managed_nodes(self, reactor):
-        pass    
+    def gather_managed_nodes(self, reactor, ip_addresses):
+        self.nodes = self.provisioner.get_nodes(
+            filters={'ip_address': ip_addresses}
+        )
 
     def stop_cluster(self, reactor):
         """
