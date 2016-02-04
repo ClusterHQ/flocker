@@ -567,6 +567,9 @@ class StructuredJSONTests(TestCase):
         """
         If the response body doesn't match the provided schema, then the
         request automatically receives a I{INTERNAL SERVER ERROR} response.
+
+        This test fails if we are not running under trial.  Hence it also
+        confirms that validation is enabled under trial.
         """
         request = dummyRequest(
             b"GET", b"/foo/badresponse",

@@ -6,6 +6,8 @@ This module implements tools for exposing Python methods as API endpoints.
 from __future__ import absolute_import
 
 from functools import wraps
+import os
+import sys
 
 from json import loads, dumps
 
@@ -142,6 +144,17 @@ def _remote_logging(original):
     return logger
 
 
+# Set _validate_responses to True to perform jsonschema validation of
+# API responses from the control service.  Schema validation
+# demonstrates that outputs are valid, but is computationally expensive
+# for large responses.  Currently, validation is only enabled when
+# running using trial or the Python unittest module.
+if os.path.basename(sys.argv[0]) in ('trial', 'python -m unittest'):
+    _validate_responses = True
+else:
+    _validate_responses = Flse
+
+
 def _serialize(outputValidator):
     """
     Decorate a function so that its return value is automatically JSON encoded
@@ -160,7 +173,8 @@ def _serialize(outputValidator):
                 code = result.code
                 headers = result.headers
                 result = result.result
-            outputValidator.validate(result)
+            if _validate_responses:
+                outputValidator.validate(result)
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
             for key, value in headers.items():
