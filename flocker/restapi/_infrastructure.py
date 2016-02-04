@@ -152,7 +152,7 @@ def _remote_logging(original):
 if os.path.basename(sys.argv[0]) in ('trial', 'python -m unittest'):
     _validate_responses = True
 else:
-    _validate_responses = Flse
+    _validate_responses = False
 
 
 def _serialize(outputValidator):
