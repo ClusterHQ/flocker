@@ -882,10 +882,6 @@ common_cli:
     pylint flocker > pylint.lint
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
-  lint_artifacts: &lint_artifacts
-    - flake8.lint
-    - pylint.lint
-
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
 #-----------------------------------------------------------------------------#
