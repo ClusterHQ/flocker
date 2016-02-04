@@ -219,15 +219,14 @@ class PackerBuild(PClass):
     """
     The attributes necessary to run ``packer build``.
 
-    # XXX This attribute should be called configuration_path
-    :ivar template: The path to a packer build configuration file.
+    :ivar configuration_path: The path to a packer build configuration file.
     :ivar reactor: The Twisted reactor object used to run the ``packer build``
         subprocess.
     :ivar sys_module: A ``sys`` like object with ``stdout`` and ``stderr``
         attributes. The ``stderr`` of ``packer build`` will be written to
         ``sys_module.stderr``.
     """
-    template = field(type=FilePath)
+    configuration_path = field(type=FilePath)
     reactor = field(mandatory=True)
     sys_module = field(initial=sys)
 
@@ -242,7 +241,7 @@ def perform_packer_build(dispatcher, intent):
         published to each AWS region.
     """
     command = ['/opt/packer/packer', 'build',
-               '-machine-readable', intent.template.path]
+               '-machine-readable', intent.configuration_path.path]
     parser = _PackerOutputParser()
 
     def handle_stdout(line):
@@ -392,7 +391,7 @@ class _PublishInstallerImagesMain(object):
     @do
     def packer_publish(self, reactor, template, options, source_ami):
         # Create configuration directory
-        template_path = yield Effect(
+        configuration_path = yield Effect(
             intent=PackerConfigure(
                 build_region=options["build_region"],
                 publish_regions=options["regions"],
@@ -406,7 +405,7 @@ class _PublishInstallerImagesMain(object):
         ami_map = yield Effect(
             intent=PackerBuild(
                 reactor=reactor,
-                template=template_path,
+                configuration_path=configuration_path,
             )
         )
         # Publish the regional AMI map to S3

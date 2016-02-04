@@ -34,6 +34,7 @@ from flocker.testtools import (
 from ..installer._images import (
     _PublishInstallerImagesMain, WriteToS3, PackerBuild,
     _PackerOutputParser, DISPATCHER, PackerConfigure,
+    AWS_REGIONS,
 )
 
 try:
@@ -186,8 +187,12 @@ class PackerConfigureTests(TestCase):
         Source AMI ID, build region, and target regions can all be overridden
         in a chosen template.
         """
-        expected_build_region = random_name(self)
-        expected_publish_regions = [random_name(self)]
+        expected_build_region = AWS_REGIONS.EU_WEST_1
+        expected_publish_regions = [
+            AWS_REGIONS.AP_NORTHEAST_1,
+            AWS_REGIONS.AP_SOUTHEAST_1,
+            AWS_REGIONS.AP_SOUTHEAST_2,
+        ]
         expected_source_ami = random_name(self)
         intent = PackerConfigure(
             build_region=expected_build_region,
@@ -210,7 +215,8 @@ class PackerConfigureTests(TestCase):
         publish_regions = builder['ami_regions']
         [provisioner] = packer_configuration["provisioners"]
         self.assertEqual(
-            (expected_build_region, set(expected_publish_regions),
+            (expected_build_region.value,
+             set(c.value for c in expected_publish_regions),
              expected_source_ami),
             (build_region, set(publish_regions),
              build_source_ami)
@@ -237,9 +243,10 @@ class PackerBuildIntegrationTests(AsyncTestCase):
             )
         )
 
-    def perform_packer_build(self, template):
+    def perform_packer_build(self, configuration_path):
         """
-        Run the real ``PackerBuild`` performer with the supplied ``template``.
+        Run the real ``PackerBuild`` performer with the supplied
+        ``configuration_path``.
 
         :param unicode template: The name of a template to build.
         :returns: A ``Deferred`` that fires with the result of the performer.
@@ -250,7 +257,7 @@ class PackerBuildIntegrationTests(AsyncTestCase):
             effect=Effect(
                 intent=PackerBuild(
                     reactor=reactor,
-                    template=template,
+                    configuration_path=configuration_path,
                     sys_module=self.sys_module,
                 )
             )
@@ -265,10 +272,10 @@ class PackerBuildIntegrationTests(AsyncTestCase):
         ``publish-installer-images`` echos those lines to its stderr as well as
         parsing the output.
         """
-        template = FilePath(self.mktemp())
-        template.setContent("")
+        configuration_path = FilePath(self.mktemp())
+        configuration_path.setContent("")
 
-        d = self.perform_packer_build(template)
+        d = self.perform_packer_build(configuration_path)
 
         d = self.assertFailure(d, ProcessTerminated)
 
@@ -357,7 +364,7 @@ def packer_publish_sequence(reactor, working_directory, template,
     Generate the sequence of intents and canned output matching the output of
     the real performer for each intent.
     """
-    template_path = working_directory.child('packer_configuration')
+    configuration_path = working_directory.child('packer_configuration')
     return [
         (PackerConfigure(
             build_region=options["build_region"],
@@ -366,10 +373,10 @@ def packer_publish_sequence(reactor, working_directory, template,
             working_directory=working_directory,
             template=template,
             distribution=options["distribution"],
-        ), lambda intent: template_path),
+        ), lambda intent: configuration_path),
         (PackerBuild(
             reactor=reactor,
-            template=template_path,
+            configuration_path=configuration_path,
         ), lambda intent: ami_map),
         (WriteToS3(
             content=json.dumps(
