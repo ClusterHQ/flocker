@@ -878,7 +878,9 @@ common_cli:
   run_lint: &run_lint |
     # run flake8 lint tests on Flocker source code
     flake8 --format=pylint --output flake8.lint flocker
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
     pylint flocker > pylint.lint
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   lint_artifacts: &lint_artifacts
     - flake8.lint
@@ -1255,7 +1257,7 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *run_lint ]
+                   *run_lint, *exit_with_return_code_from_test ]
           }
       timeout: 10
       directories_to_delete: []
