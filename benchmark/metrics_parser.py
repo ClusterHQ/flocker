@@ -129,7 +129,10 @@ class BenchmarkingResults(object):
         """
         summary = self._create_summary()
         for scenario, result in summary.iteritems():
-            write_csv(result, '{0}-{1}.csv'.format(prefix, scenario))
+            filename = '{prefix}-{scenario}.csv'.format(
+                prefix=prefix, scenario=scenario
+            )
+            write_csv(result, filename)
 
     def _versions(self):
         """
