@@ -7,7 +7,7 @@ Tools for running commands.
 import os
 from pipes import quote as shell_quote
 
-from characteristic import attributes, Attribute
+from characteristic import attributes
 from eliot import MessageType, ActionType, Field
 from eliot.twisted import DeferredContext
 
@@ -83,8 +83,6 @@ class _LineParser(LineOnlyReceiver, object):
     "deferred",
     "handle_stdout",
     "handle_stderr",
-    Attribute('close_stdin', default_value=False),
-
 ])
 class CommandProtocol(ProcessProtocol, object):
     """
@@ -95,15 +93,10 @@ class CommandProtocol(ProcessProtocol, object):
         Otherwise, errbacks with the reason.
     :ivar handle_stdout: Callable to call with lines from stdout.
     :ivar handle_stderr: Callable to call with lines from stderr.
-    :ivar bool close_stdin: Immediately close stdin of the process.
     """
     def __init__(self):
         self._stdout_parser = _LineParser(handle_line=self.handle_stdout)
         self._stderr_parser = _LineParser(handle_line=self.handle_stderr)
-
-    def connectionMade(self):
-        if self.close_stdin:
-            self.transport.closeStdin()
 
     def outReceived(self, data):
         self._stdout_parser.dataReceived(data)
@@ -118,8 +111,7 @@ class CommandProtocol(ProcessProtocol, object):
             self.deferred.errback(reason)
 
 
-def run(reactor, command, handle_stdout=None, handle_stderr=None,
-        close_stdin=False, **kwargs):
+def run(reactor, command, handle_stdout=None, handle_stderr=None, **kwargs):
     """
     Run a process and kill it if the reactor stops.
 
@@ -129,7 +121,6 @@ def run(reactor, command, handle_stdout=None, handle_stderr=None,
         from the command stdout. By default logs an Eliot message.
     :param handle_stderr: Callable that will be called with lines parsed
         from the command stderr. By default logs an Eliot message.
-    :param bool close_stdin: Immediately close the stdin of the process.
     :return Deferred: Deferred that fires when the process is ended.
     """
     if 'env' not in kwargs:
@@ -154,7 +145,6 @@ def run(reactor, command, handle_stdout=None, handle_stderr=None,
         deferred=protocol_done,
         handle_stdout=handle_stdout,
         handle_stderr=handle_stderr,
-        close_stdin=close_stdin,
     )
 
     with action.context():

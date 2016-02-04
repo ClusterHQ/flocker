@@ -26,7 +26,6 @@ from fixtures import Fixture
 
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
-from twisted.python.procutils import which
 
 from flocker.testtools import (
     AsyncTestCase, TestCase, random_name, FakeSysModule

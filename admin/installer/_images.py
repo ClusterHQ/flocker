@@ -270,10 +270,7 @@ class RealPerformers(object):
         def handle_stdout(line):
             parser.parse_line(line)
             self.sys_module.stderr.write(line + "\n")
-        d = run(
-            self.reactor, command,
-            handle_stdout=handle_stdout, close_stdin=True
-        )
+        d = run(self.reactor, command, handle_stdout=handle_stdout)
         d.addCallback(lambda ignored: parser.packer_amis())
         return d
 
