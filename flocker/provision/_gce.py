@@ -461,7 +461,7 @@ class GCEProvisioner(PClass):
             compute=self.compute
         )
 
-    def create_nodes(reactor, names, distribution, metadata={}):
+    def create_nodes(self, reactor, names, distribution, metadata={}):
         """
         Create nodes with the given names.
 
