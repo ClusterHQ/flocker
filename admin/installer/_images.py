@@ -60,7 +60,7 @@ class AWS_REGIONS(Values):
 # https://askubuntu.com/a/53586
 SOURCE_AMIS = {
     u"ubuntu-14.04": {
-        AWS_REGIONS.US_WEST_2: u"ami-56f59e36",
+        AWS_REGIONS.US_WEST_2: u"ami-25c52345",
     }
 }
 
