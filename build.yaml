@@ -1260,6 +1260,7 @@ job_type:
                    *run_lint, *exit_with_return_code_from_test ]
           }
       timeout: 10
+      publish_lint: true
       directories_to_delete: []
 
 
