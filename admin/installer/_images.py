@@ -18,7 +18,9 @@ from effect.do import do, do_return
 
 from txeffect import deferred_performer, perform as async_perform
 
-from pyrsistent import PClass, field, freeze, thaw, pvector_field, CheckedPVector
+from pyrsistent import (
+    PClass, field, freeze, thaw, pvector_field, CheckedPVector
+)
 
 from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
@@ -145,7 +147,7 @@ class _ConfigurationEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, ValueConstant):
             return obj.value
-        return JSONEncoder.default(self, obj)
+        return json.JSONEncoder.default(self, obj)
 
 
 def _json_dump(obj, fp):
@@ -166,8 +168,6 @@ class PackerConfigure(PClass):
     :ivar configuration_directory: The directory containing prototype
         configuration templates.
     :ivar source_ami: The AMI ID to use as the base image.
-    :ivar working_directory: The directory in which templates will be copied
-        and modified.
     """
     build_region = field(type=RegionConstant, mandatory=True)
     publish_regions = pvector_field(item_type=RegionConstant)
@@ -175,44 +175,6 @@ class PackerConfigure(PClass):
     distribution = field(type=unicode, mandatory=True)
     configuration_directory = field(type=FilePath, initial=PACKER_TEMPLATE_DIR)
     source_ami = field(type=unicode, mandatory=True)
-    working_directory = field(type=FilePath, mandatory=True)
-
-
-@sync_performer
-def perform_packer_configure(dispatcher, intent):
-    """
-    Copy the prototype configuration files and provisioning scripts to a
-    temporary location and modify one of the configurations with the values
-    found in ``intent``.
-    """
-    temporary_configuration_directory = intent.working_directory.child(
-        'packer_configuration'
-    )
-    temporary_configuration_directory.makedirs()
-    intent.configuration_directory.copyTo(temporary_configuration_directory)
-
-    template_name = (
-        u"template_{distribution}_{template}.json".format(
-            distribution=intent.distribution,
-            template=intent.template,
-        )
-    )
-    template_path = temporary_configuration_directory.child(
-        template_name
-    )
-
-    with template_path.open('r') as infile:
-        configuration = json.load(infile)
-
-    configuration['builders'][0]['region'] = intent.build_region
-    configuration['builders'][0]['source_ami'] = intent.source_ami
-    configuration['builders'][0]['ami_regions'] = thaw(intent.publish_regions)
-    output_template_path = template_path.temporarySibling()
-    with output_template_path.open('w') as outfile:
-        _json_dump(configuration, outfile)
-    # XXX temporarySibling sets alwaysCreate = True for some reason.
-    output_template_path.alwaysCreate = False
-    return output_template_path
 
 
 class PackerBuild(PClass):
@@ -220,36 +182,12 @@ class PackerBuild(PClass):
     The attributes necessary to run ``packer build``.
 
     :ivar configuration_path: The path to a packer build configuration file.
-    :ivar reactor: The Twisted reactor object used to run the ``packer build``
-        subprocess.
     :ivar sys_module: A ``sys`` like object with ``stdout`` and ``stderr``
         attributes. The ``stderr`` of ``packer build`` will be written to
         ``sys_module.stderr``.
     """
     configuration_path = field(type=FilePath)
-    reactor = field(mandatory=True)
     sys_module = field(initial=sys)
-
-
-@deferred_performer
-def perform_packer_build(dispatcher, intent):
-    """
-    Run ``packer build`` using the configuration in the supplied ``intent`` and
-    parse its output.
-
-    :returns: A ``Deferred`` which fires with a dict mapping the ID of the AMI
-        published to each AWS region.
-    """
-    command = ['/opt/packer/packer', 'build',
-               '-machine-readable', intent.configuration_path.path]
-    parser = _PackerOutputParser()
-
-    def handle_stdout(line):
-        parser.parse_line(line)
-        intent.sys_module.stderr.write(line + "\n")
-    d = run(intent.reactor, command, handle_stdout=handle_stdout)
-    d.addCallback(lambda ignored: parser.packer_amis())
-    return d
 
 
 class WriteToS3(PClass):
@@ -266,31 +204,101 @@ class WriteToS3(PClass):
     target_key = field(type=unicode, mandatory=True)
 
 
-@sync_performer
-def perform_write_to_s3(dispatcher, intent):
-    """
-    Create a new object in an existing S3 bucket with the key and content in
-    ``intent``.
-    """
-    client = boto3.client("s3")
-    client.put_object(
-        Bucket=intent.target_bucket,
-        Key=intent.target_key,
-        Body=intent.content
-    )
+class RealPerformers(object):
+    def __init__(self, reactor=None, working_directory=None, sys_module=None):
+        if reactor is None:
+            from twisted.internet import reactor
+        self.reactor = reactor
 
-# Map intents to performers.
-DISPATCHER = ComposedDispatcher([
-    TypeDispatcher(
-        {
-            PackerConfigure: perform_packer_configure,
-            PackerBuild: perform_packer_build,
-            WriteToS3: perform_write_to_s3,
-        }
-    ),
-    base_dispatcher
-])
+        if sys_module is None:
+            sys_module = sys
+        self.sys_module = sys_module
 
+        if working_directory is None:
+            working_directory = FilePath(mkdtemp())
+        self.working_directory = working_directory
+
+    @sync_performer
+    def perform_packer_configure(self, dispatcher, intent):
+        """
+        Copy the prototype configuration files and provisioning scripts to a
+        temporary location and modify one of the configurations with the values
+        found in ``intent``.
+        """
+        temporary_configuration_directory = self.working_directory.child(
+            'packer_configuration'
+        )
+        temporary_configuration_directory.makedirs()
+        intent.configuration_directory.copyTo(temporary_configuration_directory)
+
+        template_name = (
+            u"template_{distribution}_{template}.json".format(
+                distribution=intent.distribution,
+                template=intent.template,
+            )
+        )
+        template_path = temporary_configuration_directory.child(
+            template_name
+        )
+
+        with template_path.open('r') as infile:
+            configuration = json.load(infile)
+
+        configuration['builders'][0]['region'] = intent.build_region
+        configuration['builders'][0]['source_ami'] = intent.source_ami
+        configuration['builders'][0]['ami_regions'] = thaw(intent.publish_regions)
+        output_template_path = template_path.temporarySibling()
+        with output_template_path.open('w') as outfile:
+            _json_dump(configuration, outfile)
+        # XXX temporarySibling sets alwaysCreate = True for some reason.
+        output_template_path.alwaysCreate = False
+        return output_template_path
+
+    @deferred_performer
+    def perform_packer_build(self, dispatcher, intent):
+        """
+        Run ``packer build`` using the configuration in the supplied ``intent`` and
+        parse its output.
+
+        :returns: A ``Deferred`` which fires with a dict mapping the ID of the AMI
+            published to each AWS region.
+        """
+        command = ['/opt/packer/packer', 'build',
+                   '-machine-readable', intent.configuration_path.path]
+        parser = _PackerOutputParser()
+
+        def handle_stdout(line):
+            parser.parse_line(line)
+            self.sys_module.stderr.write(line + "\n")
+        d = run(self.reactor, command, handle_stdout=handle_stdout)
+        d.addCallback(lambda ignored: parser.packer_amis())
+        return d
+
+    @sync_performer
+    def perform_write_to_s3(self, dispatcher, intent):
+        """
+        Create a new object in an existing S3 bucket with the key and content in
+        ``intent``.
+        """
+        client = boto3.client("s3")
+        client.put_object(
+            Bucket=intent.target_bucket,
+            Key=intent.target_key,
+            Body=intent.content
+        )
+
+    # Map intents to performers.
+    def dispatcher(self):
+        return ComposedDispatcher([
+            TypeDispatcher(
+                {
+                    PackerConfigure: self.perform_packer_configure,
+                    PackerBuild: self.perform_packer_build,
+                    WriteToS3: self.perform_write_to_s3,
+                }
+            ),
+            base_dispatcher
+        ])
 
 def _validate_constant(constants, option_value, option_name):
     try:
@@ -359,6 +367,35 @@ class PublishInstallerImagesOptions(Options):
                 self['regions'] = tuple(AWS_REGIONS.iterconstants())
 
 
+@do
+def publish_installer_images_effects(options):
+    # Create configuration directory
+    configuration_path = yield Effect(
+        intent=PackerConfigure(
+            build_region=options["build_region"],
+            publish_regions=options["regions"],
+            template=options["template"],
+            distribution=options["distribution"],
+            source_ami=options["source_ami"],
+        )
+    )
+    # Build the Docker images
+    ami_map = yield Effect(
+        intent=PackerBuild(
+            configuration_path=configuration_path,
+        )
+    )
+    # Publish the regional AMI map to S3
+    yield Effect(
+        intent=WriteToS3(
+            content=json.dumps(thaw(ami_map), encoding="utf-8"),
+            target_bucket=options['target_bucket'],
+            target_key=options["template"],
+        )
+    )
+    yield do_return(ami_map)
+
+
 class _PublishInstallerImagesMain(object):
     """
     A container for the main functions of ``publish-installer-images`` with
@@ -388,52 +425,14 @@ class _PublishInstallerImagesMain(object):
             raise SystemExit(1)
         return options
 
-    @do
-    def packer_publish(self, reactor, template, options, source_ami):
-        # Create configuration directory
-        configuration_path = yield Effect(
-            intent=PackerConfigure(
-                build_region=options["build_region"],
-                publish_regions=options["regions"],
-                working_directory=self.working_directory,
-                template=template,
-                distribution=options["distribution"],
-                source_ami=source_ami,
-            )
-        )
-        # Build the Docker images
-        ami_map = yield Effect(
-            intent=PackerBuild(
-                reactor=reactor,
-                configuration_path=configuration_path,
-            )
-        )
-        # Publish the regional AMI map to S3
-        yield Effect(
-            intent=WriteToS3(
-                content=json.dumps(thaw(ami_map), encoding="utf-8"),
-                target_bucket=options['target_bucket'],
-                target_key=template,
-            )
-        )
-        yield do_return(ami_map)
-
-    @do
-    def main_effect(self, reactor, options):
-        amis = yield self.packer_publish(
-            reactor=reactor,
-            template=options["template"],
-            source_ami=options["source_ami"],
-            options=options,
-        )
-        yield do_return(amis)
-
     def main(self, reactor, args, base_path, top_level):
-        self.reactor = reactor
         self.base_path = base_path
         self.top_level = top_level
         options = self._parse_options(args)
-        effect = self.main_effect(reactor, options)
-        return async_perform(DISPATCHER, effect)
+
+        return async_perform(
+            dispatcher=RealPerformers(reactor=reactor).dispatcher(),
+            effect=publish_installer_images_effects(options=options)
+        )
 
 publish_installer_images_main = _PublishInstallerImagesMain().main
