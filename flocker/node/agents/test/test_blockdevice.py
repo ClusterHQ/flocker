@@ -98,6 +98,7 @@ from ..loopback import (
     _losetup_list_parse,
     _losetup_list, _blockdevicevolume_from_dataset_id,
     _backing_file_name,
+    EventuallyConsistentBlockDeviceAPI,
 )
 from ....common.algebraic import tagged_union_strategy
 
@@ -305,7 +306,8 @@ def mount(device, mountpoint):
 
 
 def create_blockdevicedeployer(
-        test_case, hostname=u"192.0.2.1", node_uuid=uuid4()
+    test_case, hostname=u"192.0.2.1", node_uuid=uuid4(),
+    eventually_consistent=False,
 ):
     """
     Create a new ``BlockDeviceDeployer``.
@@ -316,9 +318,9 @@ def create_blockdevicedeployer(
 
     :return: The newly created ``BlockDeviceDeployer``.
     """
-    from ..loopback import EventuallyConsistentBlockDeviceAPI
-    api = EventuallyConsistentBlockDeviceAPI(
-        loopbackblockdeviceapi_for_test(test_case))
+    api = loopbackblockdeviceapi_for_test(test_case)
+    if eventually_consistent:
+        api = EventuallyConsistentBlockDeviceAPI(api)
     async_api = _SyncToThreadedAsyncAPIAdapter(
         _sync=api, _reactor=NonReactor(), _threadpool=NonThreadPool(),
     )
