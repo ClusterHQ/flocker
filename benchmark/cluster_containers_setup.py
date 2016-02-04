@@ -1,32 +1,64 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
+from datetime import timedelta
 import sys
-from itertools import repeat
 from ipaddr import IPAddress
-from functools import partial
 from uuid import uuid4
 from bitmath import GiB
 
-from eliot import add_destination, Message
-from twisted.internet.defer import inlineCallbacks, gatherResults
+from twisted.internet.defer import succeed
+from twisted.internet.task import LoopingCall
 from twisted.python.filepath import FilePath
 from twisted.python import usage
 
-from flocker.common import loop_until, gather_deferreds
+from eliot import add_destination, start_action, write_failure, Message
+from eliot.twisted import DeferredContext
+
+from flocker.common import gather_deferreds
 from flocker.control.httpapi import REST_API_PORT
 from flocker.control import DockerImage
 from flocker.apiclient import FlockerClient, MountedDataset
+
+from benchmark._flocker import create_container
+
+
+DEFAULT_TIMEOUT = 3600
+
+MESSAGE_FORMATS = {
+    'flocker.benchmark.container_setup:start':
+        'Starting %(containers_per_node)s containers per node '
+        'on %(total_nodes)s nodes...\n',
+    'flocker.benchmark.container_setup:finish':
+        'Started %(container_count)s containers with %(error_count)s '
+        'failures.\n',
+    'flocker.benchmark.container_setup:progress':
+        'Created %(container_count)s / %(total_containers)s containers '
+        '(%(error_count)s failures)\n',
+}
+ACTION_START_FORMATS = {
+}
 
 
 def eliot_output(message):
     """
     Write pretty versions of eliot log messages to stdout.
     """
-    message_action = message.get('action')
+    message_type = message.get('message_type')
+    action_type = message.get('action_type')
+    action_status = message.get('action_status')
 
-    if message_action is not None:
-        msg = "%s\n" % message_action
-        sys.stdout.write(msg)
-        sys.stdout.flush()
+    format = ''
+    if message_type is not None:
+        if message_type == 'twisted:log' and message.get('error'):
+            format = '%(message)s'
+        else:
+            format = MESSAGE_FORMATS.get(message_type, '')
+    elif action_type is not None:
+        if action_status == 'started':
+            format = ACTION_START_FORMATS.get('action_type', '')
+        # We don't consider other status, since we
+        # have no meaningful messages to write.
+    sys.stdout.write(format % message)
+    sys.stdout.flush()
 
 
 class ContainerOptions(usage.Options):
@@ -47,13 +79,10 @@ class ContainerOptions(usage.Options):
         ['cert-directory', None, None,
          'Location of the user and control certificates and user key'],
         ['max-size', None, 1,
-         'Size of the volume, in gigabytes. One GB by default'],
-        ['wait', None, 7200,
-         "The timeout in seconds for waiting until the operation is complete. "
-         "Waits two hours by default."],
-        ['wait-interval', None, 4,
-         "How often are we going to check if the creation of containers and "
-         "datasets has finished, in second"],
+         'Size of the volume, in gigabytes.'],
+        ['wait', None, DEFAULT_TIMEOUT,
+         "The timeout in seconds for waiting until the operation is complete."
+         ],
     ]
 
     synopsis = ('Usage: setup-cluster-containers --app-per-node <containers '
@@ -63,7 +92,7 @@ class ContainerOptions(usage.Options):
                 '--cert-directory <path where all the certificates are> '
                 '[--max-size <volume size in GB>] '
                 '[--wait <total seconds to wait>]'
-                '[--wait-interval <seconds to wait between list calls]')
+                )
 
     def postOptions(self):
         # Mandatory parameters
@@ -111,15 +140,9 @@ class ContainerOptions(usage.Options):
                 "The max-size timeout must be an integer.")
 
         try:
-            self['wait'] = int(self['wait'])
+            self['wait'] = timedelta(seconds=int(self['wait']))
         except ValueError:
             raise usage.UsageError("The wait timeout must be an integer.")
-
-        try:
-            self['wait-interval'] = int(self['wait-interval'])
-        except ValueError:
-            raise usage.UsageError(
-                "The wait-interval must be an integer.")
 
 
 def main(reactor, argv, environ):
@@ -141,12 +164,7 @@ def main(reactor, argv, environ):
     container_deployment = ClusterContainerDeployment.from_options(reactor,
                                                                    options)
 
-    def deploy_and_wait(cluster_container_deployment):
-        return cluster_container_deployment.deploy_and_wait_for_creation()
-
-    container_deployment.addCallback(deploy_and_wait)
-
-    return container_deployment
+    return container_deployment.deploy(options['apps-per-node'])
 
 
 class ClusterContainerDeployment(object):
@@ -158,29 +176,19 @@ class ClusterContainerDeployment(object):
     :ivar max_size: maximum volume (dataset) size in bytes.
     :ivar mountpoint: unicode string containing the absolute path of the
         mountpoint.
-    :ivar per_node: number of containers and dataset per node.
     :ivar control_node_address: public ip address of the control node.
     :ivar timeout: total time to wait for the containers and datasets
         to be created.
-    :ivar wait_interval: how much to wait between list calls when waiting for
-        the containers and datasets to be created.
-    :ivar _num_loops: number of times to repeat the looping call based on the
-        ``tiemeout`` and the ``wait_interval``.
     :ivar cluster_cert: ``FilePath`` of the cluster certificate.
     :ivar user_cert: ``FilePath`` of the user certificate.
     :ivar user_key: ``FilePath`` of the user key.
-    :ivar _initial_num_datasets: number of datasets that are already present
-        in the cluster.
-    :ivar _initial_num_containers: number of containers that are already
-        present in the cluster.
     :ivar client: ``FlockerClient`` conected to the cluster.
     :ivar reactor: ``Reactor`` used by the client.
-    :ivar nodes: list of `Node` returned by client.list_nodes
     """
-    def __init__(self, reactor, image, max_size, mountpoint, per_node,
-                 control_node_address, timeout, wait_interval, cluster_cert,
-                 user_cert, user_key, initial_num_datasets,
-                 initial_num_containers, client, nodes):
+    def __init__(
+        self, reactor, image, max_size, mountpoint, control_node_address,
+        timeout, cluster_cert, user_cert, user_key, client
+    ):
         """
         ``ClusterContainerDeployment`` constructor.
         It is not meant to be called directly. See ``from_options`` if you
@@ -190,25 +198,16 @@ class ClusterContainerDeployment(object):
         self.image = image
         self.max_size = max_size
         self.mountpoint = mountpoint
-        self.per_node = per_node
         self.control_node_address = control_node_address
         self.timeout = timeout
-        self.wait_interval = wait_interval
-        if self.timeout is None:
-            # Wait two hours by default
-            self.timeout = 72000
-        self._num_loops = 1
-        if self.wait_interval < self.timeout:
-            self._num_loops = self.timeout / self.wait_interval
 
         self.cluster_cert = cluster_cert
         self.user_cert = user_cert
         self.user_key = user_key
-        self._initial_num_datasets = initial_num_datasets
-        self._initial_num_containers = initial_num_containers
         self.client = client
         self.reactor = reactor
-        self.nodes = nodes
+        self.container_count = 0
+        self.error_count = 0
 
     @classmethod
     def from_options(cls, reactor, options):
@@ -224,11 +223,8 @@ class ClusterContainerDeployment(object):
             image = DockerImage(repository=options['image'])
             max_size = int(GiB(options['max-size']).to_Byte().value)
             mountpoint = unicode(options['mountpoint'])
-            per_node = options['apps-per-node']
             control_node_address = options['control-node']
             timeout = options['wait']
-            wait_interval = options['wait-interval']
-
         except Exception as e:
             sys.stderr.write("%s: %s\n" % ("Missing or wrong arguments", e))
             sys.stderr.write(e.args[0])
@@ -253,34 +249,10 @@ class ClusterContainerDeployment(object):
             user_key
         )
 
-        # Listing datasets and containers to know the initial number of
-        # datasets and containers, so we know the total number of them
-        # we are expecting to have.
-        # XXX please note that, if some of those initial datasets or containers
-        # are being deleted, the output of this script won't be as expected,
-        # and it will end up timing out waiting for all the containers and
-        # datasets to be ready. This is a possible future improvement (bear
-        # it in mind if reusing the code), but it is not needed by benchmarking
-        # as it is not an scenario we will have, and even if we had it, we
-        # still can re-run this script to create the extra datasets and
-        # containers we may need, or even cleanup the cluster and start again.
-
-        d = gatherResults([client.list_nodes(),
-                          client.list_datasets_state(),
-                          client.list_containers_state()])
-
-        def create_instance(result):
-            nodes, datasets, containers = result
-
-            return cls(reactor, image, max_size, mountpoint, per_node,
-                       control_node_address, timeout, wait_interval,
-                       cluster_cert,
-                       user_cert, user_key, len(datasets),
-                       len(containers), client, nodes)
-
-        d.addCallback(create_instance)
-
-        return d
+        return cls(
+            reactor, image, max_size, mountpoint, control_node_address,
+            timeout, cluster_cert, user_cert, user_key, client
+        )
 
     def _dataset_to_volume(self, dataset):
         """
@@ -299,95 +271,61 @@ class ClusterContainerDeployment(object):
         else:
             return None
 
-    def deploy(self):
+    def create_stateful_container(self, node, count):
         """
-        Deploy the new configuration: create the requested containers
-        and dataset in the cluster nodes.
-
-        :return Deferred: that will fire once the request to create all
-            the containers and datasets has been sent.
+        Configure a stateful container to mount a new dataset, and wait for
+        it to be running.
         """
-        Message.log(action="Listing current nodes")
-        d = self.create_datasets_and_containers()
-        return d
-
-    def is_datasets_deployment_complete(self):
-        """
-        Check if all the dataset have been created.
-
-        :return Deferred: that will fire once the list datasets call
-            has been completed, and which result will bee True if all the
-            dataset have been created, or false otherwise.
-        """
-        number_of_datasets = self.per_node * len(self.nodes)
-
-        d = self.client.list_datasets_state()
-
-        def do_we_have_enough_datasets(datasets):
-            created_datasets = len(datasets) - self._initial_num_datasets
-            msg = (
-                "Waiting for the datasets to be ready..."
-                "Created {current_datasets} of {datasets_to_create} "
-                "(Total = {total_datasets})"
-
-            ).format(
-                current_datasets=created_datasets,
-                datasets_to_create=number_of_datasets,
-                total_datasets=len(datasets),
+        with start_action(
+            action_type=u'flocker:benchmark:create_stateful_container',
+            node=unicode(node.uuid),
+            count=count
+        ):
+            d = DeferredContext(
+                self.client.create_dataset(
+                    primary=node.uuid,
+                    maximum_size=self.max_size,
+                )
             )
-            Message.log(action=msg)
 
-            return (created_datasets >= number_of_datasets)
+            def start_container(dataset):
+                volume = MountedDataset(
+                    dataset_id=dataset.dataset_id,
+                    mountpoint=self.mountpoint
+                )
+                d = create_container(
+                    self.reactor,
+                    control_service=self.client,
+                    node_uuid=node.uuid,
+                    name=unicode(uuid4()),
+                    image=self.image,
+                    volumes=[volume],
+                    timeout=self.timeout)
 
-        d.addCallback(do_we_have_enough_datasets)
-        return d
+                # If container creation fails, delete dataset as well
+                def delete_dataset(failure):
+                    d = self.client.delete_dataset(dataset.dataset_id)
+                    d.addErrback(write_failure)
+                    d.addBoth(lambda _ignore: failure)
+                    return d
+                d.addErrback(delete_dataset)
 
-    def is_container_deployment_complete(self):
-        """
-        Check if all the containers have been created.
+                return d
+            d.addCallback(start_container)
 
-        :return Deferred: that will fire once the list containers call
-            has been completed, and which result will bee True if all the
-            containers have been created, or False otherwise.
-        """
-        number_of_containers = self.per_node * len(self.nodes)
+            def update_container_count(container):
+                self.container_count += 1
 
-        d = self.client.list_containers_state()
+            def update_error_count(failure):
+                self.error_count += 1
+                failure.printTraceback(sys.stderr)
+                write_failure(failure)
 
-        def do_we_have_enough_containers(containers):
-            created_containers = len(containers) - self._initial_num_containers
-            msg = (
-                "Waiting for the containers to be ready..."
-                "Created {current_containers} of {containers_to_create} "
-                "(Total = {total_containers})"
+            d.addCallbacks(update_container_count, update_error_count)
 
-            ).format(
-                current_containers=created_containers,
-                containers_to_create=number_of_containers,
-                total_containers=len(containers),
-            )
-            Message.log(action=msg)
-            return (created_containers >= number_of_containers)
+            return d.addActionFinish()
 
-        d.addCallback(do_we_have_enough_containers)
-        return d
-
-    @inlineCallbacks
-    def deploy_and_wait_for_creation(self):
-        """
-        Function that will deploy the new configuration (create all the
-        dataset and container requested) and will only return once all
-        of them have been created.
-        """
-        yield self.deploy()
-        yield loop_until(self.reactor,
-                         self.is_datasets_deployment_complete,
-                         repeat(self.wait_interval, self._num_loops))
-        yield loop_until(self.reactor,
-                         self.is_container_deployment_complete,
-                         repeat(self.wait_interval, self._num_loops))
-
-    def create_datasets_and_containers(self):
+    def deploy(self, per_node):
         """
         Create ``per_node`` containers and datasets in each node of the
         cluster.
@@ -395,49 +333,55 @@ class ClusterContainerDeployment(object):
         :return Deferred: once all the requests to create the datasets and
             containers are made.
         """
-        deferred_list = []
-        for node in self.nodes:
-            create_container_in_node = partial(self.create_container,
-                                               node=node)
-            for i in range(self.per_node):
-                msg = (
-                    "Creating dataset {num_dataset} in node {node_uuid}"
+        d = self.client.list_nodes()
 
-                ).format(
-                    num_dataset=i+1,
-                    node_uuid=node.uuid,
+        def start_containers(nodes):
+
+            Message.log(
+                message_type='flocker.benchmark.container_setup:start',
+                containers_per_node=per_node,
+                total_nodes=len(nodes)
+            )
+            total = per_node * len(nodes)
+
+            def log_progress():
+                Message.log(
+                    message_type='flocker.benchmark.container_setup:progress',
+                    container_count=self.container_count,
+                    error_count=self.error_count,
+                    total_containers=total
                 )
-                Message.log(action=msg)
+            loop = LoopingCall(log_progress)
+            loop.start(10, now=False)
 
-                d = self.client.create_dataset(node.uuid,
-                                               maximum_size=self.max_size)
-                d.addCallback(create_container_in_node)
+            deferred_list = []
+            for node in nodes:
+                d = succeed(None)
+                for i in range(per_node):
+                    d.addCallback(
+                        lambda _ignore, node=node, i=i:
+                            self.create_stateful_container(node, i)
+                    )
                 deferred_list.append(d)
 
-        return gather_deferreds(deferred_list)
+            d = gather_deferreds(deferred_list)
 
-    def create_container(self, dataset, node):
-        """
-        Create a container in the given node with the give dataset attached.
+            def stop_loop(result):
+                loop.stop()
+                return result
+            d.addBoth(stop_loop)
 
-        :param dataset: ``Dataset`` to attach to the container.
-        :param node: ``Node`` where to create the container.
+            return d
 
-        :return Deferred: that will fire once the request to create the
-            container is made.
-        """
-        msg = (
-            "Creating container in node {node_uuid} with attached "
-            "dataset {dataset_id}"
+        d.addCallback(start_containers)
 
-        ).format(
-            node_uuid=node.uuid,
-            dataset_id=dataset.dataset_id
-        )
-        Message.log(action=msg)
+        def log_totals(result):
+            Message.log(
+                action_type='flocker.benchmark.container_setup:finish',
+                container_count=self.container_count,
+                error_count=self.error_count
+            )
+            return result
+        d.addBoth(log_totals)
 
-        return self.client.create_container(node.uuid,
-                                            unicode(uuid4()),
-                                            self.image,
-                                            volumes=[self._dataset_to_volume
-                                                     (dataset)])
+        return d
