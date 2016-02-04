@@ -26,7 +26,7 @@ from twisted.python.usage import Options, UsageError
 
 from flocker.common.runner import run
 
-
+PACKER_PATH = FilePath('/opt/packer/packer')
 PACKER_TEMPLATE_DIR = FilePath(__file__).sibling('packer')
 
 
@@ -263,7 +263,7 @@ class RealPerformers(object):
         :returns: A ``Deferred`` which fires with a dict mapping the ID of the
             AMI published to each AWS region.
         """
-        command = ['packer', 'build',
+        command = [PACKER_PATH.path, 'build',
                    '-machine-readable', intent.configuration_path.path]
         parser = _PackerOutputParser()
 

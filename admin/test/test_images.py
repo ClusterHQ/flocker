@@ -36,7 +36,7 @@ from ..installer._images import (
     WriteToS3, PackerBuild,
     _PackerOutputParser, PackerConfigure,
     AWS_REGIONS, publish_installer_images_effects, RealPerformers,
-    PublishInstallerImagesOptions,
+    PublishInstallerImagesOptions, PACKER_PATH
 )
 
 try:
@@ -64,8 +64,8 @@ finally:
 PACKER_OUTPUTS = FilePath(__file__).sibling('packer_outputs')
 
 require_packer = skipIf(
-    not which('packer'),
-    "Tests require the ``packer`` command."
+    not PACKER_PATH.exists(),
+    "Tests require ``packer`` to be installed at ``/opt/packer/packer``."
 )
 
 
