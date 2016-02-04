@@ -396,43 +396,20 @@ def publish_installer_images_effects(options):
     yield do_return(ami_map)
 
 
-class _PublishInstallerImagesMain(object):
-    """
-    A container for the main functions of ``publish-installer-images`` with
-    attributes to allow overriding the stdout and stderr and the working
-    directory used by the constituent Effects.
-    """
-    def __init__(self, sys_module=None, working_directory=None):
-        if sys_module is None:
-            sys_module = sys
-        self.sys_module = sys_module
+def publish_installer_images_main(reactor, args, base_path, top_level):
+    options = PublishInstallerImagesOptions()
 
-        if working_directory is None:
-            working_directory = FilePath(mkdtemp())
-        self.working_directory = working_directory
-
-    def _parse_options(self, args):
-        options = PublishInstallerImagesOptions()
-
-        try:
-            options.parseOptions(args)
-        except UsageError as e:
-            self.sys_module.stderr.write(
-                "Usage Error: %s: %s\n" % (
-                    self.base_path.basename(), e
-                )
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write(
+            "Usage Error: %s: %s\n" % (
+                base_path.basename(), e
             )
-            raise SystemExit(1)
-        return options
-
-    def main(self, reactor, args, base_path, top_level):
-        self.base_path = base_path
-        self.top_level = top_level
-        options = self._parse_options(args)
-
-        return async_perform(
-            dispatcher=RealPerformers(reactor=reactor).dispatcher(),
-            effect=publish_installer_images_effects(options=options)
         )
+        raise SystemExit(1)
 
-publish_installer_images_main = _PublishInstallerImagesMain().main
+    return async_perform(
+        dispatcher=RealPerformers(reactor=reactor).dispatcher(),
+        effect=publish_installer_images_effects(options=options)
+    )

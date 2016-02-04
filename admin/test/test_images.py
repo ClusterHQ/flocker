@@ -32,9 +32,10 @@ from flocker.testtools import (
 )
 
 from ..installer._images import (
-    _PublishInstallerImagesMain, WriteToS3, PackerBuild,
+    WriteToS3, PackerBuild,
     _PackerOutputParser, PackerConfigure,
     AWS_REGIONS, publish_installer_images_effects, RealPerformers,
+    PublishInstallerImagesOptions,
 )
 
 try:
@@ -58,6 +59,15 @@ finally:
     del _flocker
 
 PACKER_OUTPUTS = FilePath(__file__).sibling('packer_outputs')
+
+
+def default_options():
+    """
+    :return: The default ``PublishInstallerOptions``.
+    """
+    options = PublishInstallerImagesOptions()
+    options.parseOptions([])
+    return options
 
 
 class ParserData(PClass):
@@ -344,7 +354,7 @@ class PublishInstallerImagesEffectsTests(TestCase):
         The function generates a packer configuration file, runs packer
         build and uploads the AMI ids to a given S3 bucket.
         """
-        options = _PublishInstallerImagesMain()._parse_options([])
+        options = default_options()
         configuration_path = FilePath(self.mktemp())
         ami_map = PACKER_OUTPUT_US_ALL.output
         result = perform_sequence(
