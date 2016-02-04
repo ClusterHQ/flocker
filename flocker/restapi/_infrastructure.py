@@ -146,13 +146,22 @@ def _remote_logging(original):
 
 # Set _validate_responses to True to perform jsonschema validation of
 # API responses from the control service.  Schema validation
-# demonstrates that outputs are valid, but is computationally expensive
-# for large responses.  Currently, validation is only enabled when
-# running using trial or the Python unittest module.
-if os.path.basename(sys.argv[0]) in ('trial', 'python -m unittest'):
-    _validate_responses = True
-else:
-    _validate_responses = Flse
+# confirms that outputs are valid, but is computationally expensive for
+# large responses.  Validation can be explicitly controlled by setting
+# the environment variable FLOCKER_VALIDATE_API_RESPONSES to "no" to
+# disable validation or any other value to enable.  If the environment
+# variable is not set, validation is only enabled when running using
+# trial or the Python unittest module.
+try:
+    if os.environ['FLOCKER_VALIDATE_API_RESPONSES'] == 'no':
+        _validate_responses = False
+    else:
+        _validate_responses = True
+except KeyError:
+    if os.path.basename(sys.argv[0]) in ('trial', 'python -m unittest'):
+        _validate_responses = True
+    else:
+        _validate_responses = False
 
 
 def _serialize(outputValidator):
