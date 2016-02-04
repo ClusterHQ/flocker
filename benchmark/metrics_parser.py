@@ -6,7 +6,6 @@ import csv
 import itertools
 import json
 
-itertools.groupby
 
 WALL_CLOCK_KEY = u'-- WALL --'
 
