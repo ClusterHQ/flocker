@@ -4,6 +4,11 @@ from characteristic import attributes
 from effect import (
     sync_performer, Effect,
     ComposedDispatcher, TypeDispatcher, base_dispatcher)
+from treq import get
+from pyrsistent import PClass, field
+from txeffect import deferred_performer
+from eliot import startAction, Message
+from eliot.twisted import DeferredContext
 
 
 # This is from https://github.com/radix/effect/pull/46
@@ -80,9 +85,48 @@ def perform_sequence(dispatcher, intent):
     return reduce(reducer, reversed(effects), results)
 
 
+class HTTPGet(PClass):
+    """
+    Intent for HTTP GET requests.
+
+    :ivar bytes url: The URL to make a GET request to.
+    """
+    url = field(type=bytes, mandatory=True)
+
+
+def http_get(url):
+    """
+    Wrapper to create an :class:`HTTPGet` Effect.
+
+    :param bytes url: The url to make a GET request to.
+
+    :returns: The ``Effect`` of making a GET request to ``url``.
+    """
+    return Effect(HTTPGet(url=url))
+
+
+@deferred_performer
+def treq_get(dispatcher, intent):
+    """
+    Performer to execute an HTTP GET.
+
+    :param dispatcher: The dispatcher used to dispatch this performance.
+    :param HTTPGet intent: The intent to be performed.
+    """
+    action = startAction(action_type=u"flocker:provision:_effect:treq_get")
+    with action.context():
+        Message.log(url=intent.url)
+        # Do not use persistent HTTP connections, because they will not be
+        # cleaned up by the end of the test.
+        d = DeferredContext(get(intent.url, persistent=False))
+        d.addActionFinish()
+        return d.result
+
+
 dispatcher = ComposedDispatcher([
     TypeDispatcher({
         Sequence: perform_sequence,
+        HTTPGet: treq_get,
     }),
     base_dispatcher,
 ])
