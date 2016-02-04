@@ -21,6 +21,8 @@ from flocker.apiclient import FlockerClient, MountedDataset
 from benchmark._flocker import create_container
 
 
+DEFAULT_TIMEOUT = 3600
+
 MESSAGE_FORMATS = {
     'flocker.benchmark.container_setup:start':
         'Starting %(containers_per_node)s containers per node '
@@ -77,10 +79,10 @@ class ContainerOptions(usage.Options):
         ['cert-directory', None, None,
          'Location of the user and control certificates and user key'],
         ['max-size', None, 1,
-         'Size of the volume, in gigabytes. One GB by default'],
-        ['wait', None, 3600,
-         "The timeout in seconds for waiting until the operation is complete. "
-         "Defaults to 1 hour."],
+         'Size of the volume, in gigabytes.'],
+        ['wait', None, DEFAULT_TIMEOUT,
+         "The timeout in seconds for waiting until the operation is complete."
+         ],
     ]
 
     synopsis = ('Usage: setup-cluster-containers --app-per-node <containers '
