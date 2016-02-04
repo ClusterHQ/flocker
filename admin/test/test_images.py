@@ -214,7 +214,7 @@ class PackerConfigureTests(TestCase):
         # Call the performer
         packer_configuration_path = sync_perform(
             dispatcher=RealPerformers(
-                working_directory=FilePath(self.mktemp())
+                working_directory=self.make_temporary_directory()
             ).dispatcher(),
             effect=Effect(intent=intent)
         )
@@ -258,8 +258,7 @@ class PackerBuildIntegrationTests(AsyncTestCase):
             )
         )
 
-        configuration_path = FilePath(self.mktemp())
-        configuration_path.setContent("")
+        configuration_path = self.make_temporary_file(content='')
 
         d = async_perform(
             dispatcher=RealPerformers(
@@ -363,7 +362,7 @@ class PublishInstallerImagesEffectsTests(TestCase):
         build and uploads the AMI ids to a given S3 bucket.
         """
         options = default_options()
-        configuration_path = FilePath(self.mktemp())
+        configuration_path = self.make_temporary_directory()
         ami_map = PACKER_OUTPUT_US_ALL.output
         perform_sequence(
             seq=[
@@ -401,8 +400,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         """
         Call ``publish-installer-images`` capturing stdout and stderr.
         """
-        working_directory = FilePath(self.mktemp())
-        working_directory.makedirs()
+        working_directory = self.make_temporary_directory()
         environment = os.environ.copy()
         if extra_enviroment is not None:
             environment.update(extra_enviroment)
