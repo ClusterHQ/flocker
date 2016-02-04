@@ -160,7 +160,7 @@ def _serialize(outputValidator):
                 code = result.code
                 headers = result.headers
                 result = result.result
-            outputValidator.validate(result)
+            # outputValidator.validate(result)
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
             for key, value in headers.items():

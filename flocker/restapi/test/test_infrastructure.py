@@ -560,22 +560,22 @@ class StructuredJSONTests(TestCase):
              len(response[u'errors'])),
             (BAD_REQUEST, FAILED_INPUT_VALIDATION, 2))
 
-    @validateLogging(_assertTracebackLogged(ValidationError))
-    # See above
-    # @validateLogging(_assertRequestLogged(b"/foo/badresponse"))
-    def test_responseValidationError(self, logger):
-        """
-        If the response body doesn't match the provided schema, then the
-        request automatically receives a I{INTERNAL SERVER ERROR} response.
-        """
-        request = dummyRequest(
-            b"GET", b"/foo/badresponse",
-            Headers({b"content-type": [b"application/json"]}), b"")
+    # @validateLogging(_assertTracebackLogged(ValidationError))
+    # # See above
+    # # @validateLogging(_assertRequestLogged(b"/foo/badresponse"))
+    # def test_responseValidationError(self, logger):
+    #     """
+    #     If the response body doesn't match the provided schema, then the
+    #     request automatically receives a I{INTERNAL SERVER ERROR} response.
+    #     """
+    #     request = dummyRequest(
+    #         b"GET", b"/foo/badresponse",
+    #         Headers({b"content-type": [b"application/json"]}), b"")
 
-        app = self.Application(logger, None)
-        render(app.app.resource(), request)
+    #     app = self.Application(logger, None)
+    #     render(app.app.resource(), request)
 
-        self.assertEqual(request._code, INTERNAL_SERVER_ERROR)
+    #     self.assertEqual(request._code, INTERNAL_SERVER_ERROR)
 
     @validateLogging(_assertRequestLogged(b"/baz/quux", b"POST"))
     def test_onlyArgumentsFromRoute(self, logger):
