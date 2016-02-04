@@ -308,6 +308,7 @@ def mount(device, mountpoint):
 def create_blockdevicedeployer(
     test_case, hostname=u"192.0.2.1", node_uuid=uuid4(),
     eventually_consistent=False,
+    profiled_api=False,
 ):
     """
     Create a new ``BlockDeviceDeployer``.
@@ -321,6 +322,8 @@ def create_blockdevicedeployer(
     api = loopbackblockdeviceapi_for_test(test_case)
     if eventually_consistent:
         api = EventuallyConsistentBlockDeviceAPI(api)
+    if profiled_api:
+        api = FakeProfiledLoopbackBlockDeviceAPI(api)
     async_api = _SyncToThreadedAsyncAPIAdapter(
         _sync=api, _reactor=NonReactor(), _threadpool=NonThreadPool(),
     )
@@ -5038,23 +5041,10 @@ def make_createblockdevicedataset_mixin(profiled_api):
                 TestCase):
         def setUp(self):
             super(Mixin, self).setUp()
-            if profiled_api:
-                self.api = fakeprofiledloopbackblockdeviceapi_for_test(
-                    self,
-                    allocation_unit=LOOPBACK_ALLOCATION_UNIT
-                )
-            else:
-                self.api = loopbackblockdeviceapi_for_test(
-                    self,
-                    allocation_unit=LOOPBACK_ALLOCATION_UNIT
-                )
-            self.mountroot = mountroot_for_test(self)
-            self.deployer = BlockDeviceDeployer(
-                node_uuid=uuid4(),
-                hostname=u"192.0.2.10",
-                block_device_api=self.api,
-                mountroot=self.mountroot
-            )
+            self.deployer = create_blockdevicedeployer(
+                self, profiled_api=profiled_api)
+            self.mountroot = self.deployer.mountroot
+            self.api = self.deployer.block_device_api
 
     return Mixin
 
