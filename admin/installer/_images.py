@@ -204,8 +204,6 @@ def perform_packer_configure(dispatcher, intent):
     with template_path.open('r') as infile:
         configuration = json.load(infile)
 
-    # If a region was specified, just build the image there and don't do
-    # any copying.
     configuration['builders'][0]['region'] = intent.build_region
     configuration['builders'][0]['source_ami'] = intent.source_ami
     configuration['builders'][0]['ami_regions'] = thaw(intent.publish_regions)
