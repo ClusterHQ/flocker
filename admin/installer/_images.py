@@ -45,7 +45,7 @@ AWS_REGIONS = (
 # XXX These AMIs are constantly being updated.
 # This should be looked up dynamically using Canonical's AWS owner ID
 # 099720109477. See:
-# http://askubuntu.com/a/53568
+# https://askubuntu.com/a/53586
 SOURCE_AMIS = {
     u"ubuntu-14.04": {
         u"us-west-1": u"ami-56f59e36",
