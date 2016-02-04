@@ -674,6 +674,22 @@ class LibcloudRunner(object):
         return d
 
     def _provision_with_retry(self, reactor, name, result):
+        """
+        Wait for a node to get created and the provision it.
+        Re-create the node and retry the provisioning if either the node
+        creation or provisioning fails.
+
+        This method is used in conjuction with bulk creation of new nodes,
+        so that a failure for any single node can be retried individually
+        (rather than failing all the nodes and starting from scratch).
+
+        :param reactor: The reactor.
+        :param str name: The name of the node.
+        :param Deferred result: Deferred that fires with the node when it's
+            created.
+        :return: Deferred that fires with the node when it's created and
+            provisioned.
+        """
         def provision(node):
             print "created node", name
             print "provisioning..."
