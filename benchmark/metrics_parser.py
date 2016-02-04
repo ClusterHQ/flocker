@@ -8,8 +8,6 @@ import json
 
 
 WALL_CLOCK_KEY = u'-- WALL --'
-
-
 HEADERS = [
     u'Flocker Version',
     u'Nodes',
@@ -58,8 +56,8 @@ def wallclock_for_operation(results, operation):
     By default this will return the `mean` result.
     """
     operation_results = itertools.ifilter(
-        lambda r: r['metric']['type'] == 'wallclock'
-        and r['operation']['type'] == operation,
+        lambda r: r['metric']['type'] == 'wallclock' and
+        r['operation']['type'] == operation,
         results
     )
     values = [r['value'] for r in operation_results]
@@ -72,8 +70,8 @@ def container_convergence(results, seconds):
     time period.
     """
     convergence_results = [
-        r for r in results if r['metric']['type'] == 'wallclock'
-        and r['operation']['type'] == 'create-container'
+        r for r in results if r['metric']['type'] == 'wallclock' and
+        r['operation']['type'] == 'create-container'
     ]
     num_convergences = len(convergence_results)
     if num_convergences > 0:
@@ -91,9 +89,8 @@ def request_latency(results, seconds):
     specified time limit.
     """
     scenario_results = [
-        r['scenario'] for r in results
-        if r['scenario'].get('metrics')
-        and r['scenario']['metrics'].get('call_durations')
+        r['scenario'] for r in results if r['scenario'].get('metrics') and
+        r['scenario']['metrics'].get('call_durations')
     ]
 
     if len(scenario_results) > 0:
@@ -172,10 +169,10 @@ class BenchmarkingResults(object):
         number of containers, Flocker version and benchmarking scenario.
         """
         return [r for r in self.results
-                if r['control_service']['node_count'] == node_count
-                and r['control_service']['container_count'] == container_count
-                and r['control_service']['flocker_version'] == version
-                and r['scenario']['name'] == scenario]
+                if r['control_service']['node_count'] == node_count and
+                r['control_service']['container_count'] == container_count and
+                r['control_service']['flocker_version'] == version and
+                r['scenario']['name'] == scenario]
 
     def _create_summary(self):
         """
@@ -243,9 +240,9 @@ class BenchmarkingResults(object):
                                 doc['wallclock'] = wall_time
                                 flattened.append(doc)
                 elif metric_type == 'wallclock':
-                        doc = dict(common)
-                        doc['value'] = sample['value']
-                        flattened.append(doc)
+                    doc = dict(common)
+                    doc['value'] = sample['value']
+                    flattened.append(doc)
         return flattened
 
 
