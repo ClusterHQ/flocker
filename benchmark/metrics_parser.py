@@ -31,34 +31,6 @@ def write_csv(results, filename):
         writer.writerows(results)
 
 
-def filter_results(results, attribute, attribute_value):
-    return [
-        r for r in results
-        if r['control_service'][attribute] == attribute_value
-    ]
-
-
-def filter_results_scenario(results, scenario):
-    return [r for r in results if r['scenario']['name'] == scenario]
-
-
-def control_service_attribute(results, key):
-    """
-    Extract all unique results from the "control_service" section
-    that contain a particular key.
-    """
-    counts = [r['control_service'][key] for r in results]
-    return list(set(counts))
-
-
-def scenario_attribute(results):
-    """
-    Extract all unique scenarios that are available in the results.
-    """
-    scenarios = [r['scenario']['name'] for r in results]
-    return list(set(scenarios))
-
-
 def mean(values):
     if len(values) > 0:
         return sum(values) / len(values)
@@ -142,73 +114,140 @@ def request_latency(results, seconds):
     return None
 
 
-def flatten(results):
-    flattened = []
-    common = dict(
-        [(k, results.get(k)) for k in results.iterkeys() if k != 'samples']
-    )
+class BenchmarkingResults(object):
+    """
+    Processes benchmarking results and produces reports.
+    """
+    def __init__(self):
+        self.results = []
 
-    metric_type = results['metric']['type']
+    def add_results(self, results):
+        """
+        Add a set of results to the existing results.
+        """
+        self.results.extend(self._flatten(results))
 
-    for sample in results['samples']:
-        if sample['success']:
-            if metric_type == 'cputime':
-                for ip, data in sample['value'].iteritems():
-                    wall_time = data[WALL_CLOCK_KEY]
-                    for process, value in data.iteritems():
-                        if process != WALL_CLOCK_KEY:
-                            doc = dict(common)
-                            doc['node_ip'] = ip
-                            doc['process'] = process
-                            doc['value'] = value
-                            doc['wallclock'] = wall_time
-                            flattened.append(doc)
-            elif metric_type == 'wallclock':
-                    doc = dict(common)
-                    doc['value'] = sample['value']
-                    flattened.append(doc)
-    return flattened
+    def output_csv(self, prefix):
+        """
+        Output a CSV representation of a set of results.
+        """
+        summary = self._create_summary()
+        for scenario, result in summary.iteritems():
+            write_csv(result, '{0}-{1}.csv'.format(prefix, scenario))
 
+    def _versions(self):
+        """
+        Return all unique versions present in the results.
+        """
+        versions = [
+            r['control_service']['flocker_version'] for r in self.results
+        ]
+        return list(set(versions))
 
-def extract_results(all_results):
-    summary = defaultdict(list)
-    node_counts = control_service_attribute(all_results, 'node_count')
-    container_counts = control_service_attribute(
-        all_results, 'container_count'
-    )
-    versions = control_service_attribute(all_results, 'flocker_version')
-    scenarios = scenario_attribute(all_results)
-    for node_count, container_count, version, scenario in itertools.product(
-        node_counts, container_counts, versions, scenarios
-    ):
-        results = filter_results(all_results, 'node_count', node_count)
-        results = filter_results(results, 'container_count', container_count)
-        results = filter_results(results, 'flocker_version', version)
-        results = filter_results_scenario(results, scenario)
-        if len(results) > 0:
-            result = {
-                u'Flocker Version': version,
-                u'Nodes': node_count,
-                u'Containers': container_count,
-                u'Scenario': scenario,
-                u'Control Service CPU': cputime_for_process(
-                    results, 'flocker-control'
-                ),
-                u'Dataset Agent CPU': cputime_for_process(
-                    results, 'flocker-dataset'
-                ),
-                u'Container Agent CPU': cputime_for_process(
-                    results, 'flocker-contain'
-                ),
-                u'Containers Converged Within Limit': container_convergence(
-                    results, 60
-                ),
-                u'Scenario Requests Within Limit': request_latency(
-                    results, 30
-                ),
-            }
-            summary[scenario].append(result)
-    return summary
+    def _node_counts(self):
+        """
+        Return all unique node counts present in the results.
+        """
+        nodes = [r['control_service']['node_count'] for r in self.results]
+        return list(set(nodes))
+
+    def _container_counts(self):
+        """
+        Return all unique container counts present in the results.
+        """
+        containers = [
+            r['control_service']['container_count'] for r in self.results
+        ]
+        return list(set(containers))
+
+    def _scenarios(self):
+        """
+        Return all unique scenarios present in the results.
+        """
+        scenarios = [r['scenario']['name'] for r in self.results]
+        return list(set(scenarios))
+
+    def _filter_results(self, node_count, container_count, version, scenario):
+        """
+        Extract results which match the specified number of nodes,
+        number of containers, Flocker version and benchmarking scenario.
+        """
+        return [r for r in self.results
+                if r['control_service']['node_count'] == node_count
+                and r['control_service']['container_count'] == container_count
+                and r['control_service']['flocker_version'] == version
+                and r['scenario']['name'] == scenario]
+
+    def _create_summary(self):
+        """
+        Summarise the results.
+
+        For each scenario, include the CPU usage for each process,
+        the percentage of containers that converge within a given time
+        limit and the percentage of scenario requests that complete
+        within a given time limit.
+        """
+        summary = defaultdict(list)
+        node_counts = self._node_counts()
+        container_counts = self._container_counts()
+        versions = self._versions()
+        scenarios = self._scenarios()
+        for node, container, version, scenario in itertools.product(
+            node_counts, container_counts, versions, scenarios
+        ):
+            results = self._filter_results(
+                node, container, version, scenario
+            )
+            if len(results) > 0:
+                result = {
+                    u'Flocker Version': version,
+                    u'Nodes': node,
+                    u'Containers': container,
+                    u'Scenario': scenario,
+                    u'Control Service CPU':
+                        cputime_for_process(results, 'flocker-control'),
+                    u'Dataset Agent CPU':
+                        cputime_for_process(results, 'flocker-dataset'),
+                    u'Container Agent CPU':
+                        cputime_for_process(results, 'flocker-contain'),
+                    u'Containers Converged Within Limit':
+                        container_convergence(results, 60),
+                    u'Scenario Requests Within Limit':
+                        request_latency(results, 30),
+                }
+                summary[scenario].append(result)
+        return summary
+
+    def _flatten(self, results):
+        """
+        Flatten a set of results by creating a separate object for each
+        sample in the results.
+        """
+        flattened = []
+        common = dict(
+            [(k, results.get(k)) for k in results.iterkeys() if k != 'samples']
+        )
+
+        metric_type = results['metric']['type']
+
+        for sample in results['samples']:
+            if sample['success']:
+                if metric_type == 'cputime':
+                    for ip, data in sample['value'].iteritems():
+                        wall_time = data[WALL_CLOCK_KEY]
+                        for process, value in data.iteritems():
+                            if process != WALL_CLOCK_KEY:
+                                doc = dict(common)
+                                doc['node_ip'] = ip
+                                doc['process'] = process
+                                doc['value'] = value
+                                doc['wallclock'] = wall_time
+                                flattened.append(doc)
+                elif metric_type == 'wallclock':
+                        doc = dict(common)
+                        doc['value'] = sample['value']
+                        flattened.append(doc)
+        return flattened
 
 
 def parse_args(args):
@@ -218,15 +257,21 @@ def parse_args(args):
     parser.add_argument("files", nargs="*", type=argparse.FileType(),
                         help="Input JSON files to be processed")
 
-    return parser.parse_args(args).files
+    parser.add_argument("--output-file-prefix", nargs='?', type=str,
+                        dest='prefix', default="results",
+                        help="Prefix to to be used for the output files")
+    parsed_args = parser.parse_args(args)
+    return parsed_args.files, parsed_args.prefix
 
 
 def main(args):
-    files = parse_args(args)
-    results = []
-    for f in files:
-        results.extend(flatten(json.load(f)))
-    results = extract_results(results)
+    files, prefix = parse_args(args)
 
-    for scenario, result in results.iteritems():
-        write_csv(result, 'results-{}.csv'.format(scenario))
+    br = BenchmarkingResults()
+    for f in files:
+        try:
+            result = json.load(f)
+            br.add_results(result)
+        except ValueError:
+            print "Could not decode JSON from file: ", f.name
+    br.output_csv(prefix)
