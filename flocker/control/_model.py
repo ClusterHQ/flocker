@@ -638,6 +638,7 @@ class BlockDeviceOwnership(CheckedPMap):
         :param unicode blockdevice_id: The blockdevice to associate with the
             dataset.
 
+        :return BlockDeviceOwnership: The updated ownership mapping.
         :raises DatasetAlreadyOwned: if the dataset already has an associated
             blockdevice.
         """
