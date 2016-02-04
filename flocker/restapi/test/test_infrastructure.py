@@ -21,6 +21,7 @@ from twisted.web.http import (
     BAD_REQUEST, INTERNAL_SERVER_ERROR, PAYMENT_REQUIRED, GONE,
     NOT_ALLOWED, NOT_FOUND, OK)
 
+from .. import _infrastructure
 from .._infrastructure import (
     EndpointResponse, user_documentation, structured, UserDocumentation)
 from .._logging import REQUEST, JSON_REQUEST
@@ -579,6 +580,26 @@ class StructuredJSONTests(TestCase):
         render(app.app.resource(), request)
 
         self.assertEqual(request._code, INTERNAL_SERVER_ERROR)
+
+    @validateLogging(_assertRequestLogged(b"/foo/badresponse", b"GET"))
+    def test_responseNoValidation(self, logger):
+        """
+        If _validate_responses is False, then JSON is not validated.
+        """
+        def cleanup(saved=_infrastructure._validate_responses):
+            _infrastructure._validate_responses = saved
+        self.addCleanup(cleanup)
+
+        _infrastructure._validate_responses = False
+
+        request = dummyRequest(
+            b"GET", b"/foo/badresponse",
+            Headers({b"content-type": [b"application/json"]}), b"")
+
+        app = self.Application(logger, None)
+        render(app.app.resource(), request)
+
+        self.assertEqual(request._code, OK)
 
     @validateLogging(_assertRequestLogged(b"/baz/quux", b"POST"))
     def test_onlyArgumentsFromRoute(self, logger):
