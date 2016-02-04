@@ -328,11 +328,11 @@ class WriteToS3Tests(TestCase):
         ``WriteToS3`` has a performer that creates a new object with
         ``target_key`` and ``content`` in ``target_bucket``
         """
-        self.s3 = self.useFixture(S3BucketFixture(test_case=self))
+        s3 = self.useFixture(S3BucketFixture(test_case=self))
         intent = WriteToS3(
             content=random_name(self).encode('ascii'),
             target_key=random_name(self),
-            target_bucket=self.s3.bucket_name,
+            target_bucket=s3.bucket_name,
         )
         result = sync_perform(
             dispatcher=RealPerformers().dispatcher(),
@@ -341,7 +341,7 @@ class WriteToS3Tests(TestCase):
         self.assertIs(None, result)
         self.assertEqual(
             intent.content,
-            self.s3.get_object_content(key=intent.target_key),
+            s3.get_object_content(key=intent.target_key),
         )
 
 
@@ -460,14 +460,14 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         The IDs of the generated AMIs are published to S3.
         """
         build_region = u"us-west-1"
-        self.s3 = self.useFixture(S3BucketFixture(test_case=self))
+        s3 = self.useFixture(S3BucketFixture(test_case=self))
         returncode, stdout, stderr = self.publish_installer_images(
-            args=['--target_bucket', self.s3.bucket_name,
+            args=['--target_bucket', s3.bucket_name,
                   '--template', 'docker',
                   '--build_region', build_region],
         )
         # The script should have uploaded AMI map to an object called "docker"
-        docker_object_content = self.s3.get_object_content(key=u'docker')
+        docker_object_content = s3.get_object_content(key=u'docker')
         self.addDetail(
             'docker_object_content', text_content(docker_object_content)
         )
@@ -476,14 +476,14 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         docker_ami_map = json.loads(docker_object_content)
         # We can use that image as the source for the Flocker image
         returncode, stdout, stderr = self.publish_installer_images(
-            args=['--target_bucket', self.s3.bucket_name,
+            args=['--target_bucket', s3.bucket_name,
                   '--template', 'flocker',
                   '--build_region', build_region,
                   '--source_ami', docker_ami_map[build_region]],
             extra_enviroment={u'FLOCKER_BRANCH': u'master'}
         )
         # And now we should have a "flocker" AMI map
-        flocker_object_content = self.s3.get_object_content(key=u'flocker')
+        flocker_object_content = s3.get_object_content(key=u'flocker')
         self.addDetail(
             'flocker_object_content', text_content(flocker_object_content)
         )
