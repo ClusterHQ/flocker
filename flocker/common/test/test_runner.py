@@ -211,3 +211,27 @@ class RunTests(TestCase):
 
         reactor.fireSystemEvent('shutdown')
         process.processProtocol.processEnded(Failure(ProcessDone(0)))
+
+    def test_process_close_stdin_false(self):
+        """
+        The stdin of the process is left open by default.
+        """
+        reactor = ProcessCoreReactor()
+        run(reactor, ['command', 'and', 'args'])
+        [process] = reactor.processes
+        self.assertEqual(
+            [True],
+            process.transport.stdin_open
+        )
+
+    def test_process_close_stdin_true(self):
+        """
+        The stdin of the process can be closed.
+        """
+        reactor = ProcessCoreReactor()
+        run(reactor, ['command', 'and', 'args'], close_stdin=True)
+        [process] = reactor.processes
+        self.assertEqual(
+            [True, False],
+            process.transport.stdin_open
+        )

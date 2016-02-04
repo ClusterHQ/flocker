@@ -26,6 +26,7 @@ from fixtures import Fixture
 
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
+from twisted.python.procutils import which
 
 from flocker.testtools import (
     AsyncTestCase, TestCase, random_name, FakeSysModule
@@ -52,6 +53,8 @@ else:
     S3_INACCESSIBLE = False
     S3_INACCESSIBLE_REASON = ""
 
+require_s3_credentials = skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
+
 try:
     import flocker as _flocker
     REPOSITORY = FilePath(_flocker.__file__).parent().parent()
@@ -59,6 +62,11 @@ finally:
     del _flocker
 
 PACKER_OUTPUTS = FilePath(__file__).sibling('packer_outputs')
+
+require_packer = skipIf(
+    not which('packer'),
+    "Tests require the ``packer`` command."
+)
 
 
 def default_options():
@@ -232,6 +240,7 @@ class PackerBuildIntegrationTests(AsyncTestCase):
     """
     Integration tests for ``PackerBuild``.
     """
+    @require_packer
     def test_template_error(self):
         """
         Template errors result in the process exiting and an error message
@@ -322,7 +331,7 @@ class WriteToS3Tests(TestCase):
     """
     Tests for ``WriteToS3``.
     """
-    @skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
+    @require_s3_credentials
     def test_perform(self):
         """
         ``WriteToS3`` has a performer that creates a new object with
@@ -452,8 +461,9 @@ class PublishInstallerImagesIntegrationTests(TestCase):
             StartsWith(u"Usage: {}".format(self.script.basename()))
         )
 
-    @skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
-    def xtest_build_both(self):
+    @require_packer
+    @require_s3_credentials
+    def test_build_both(self):
         """
         ``publish-installer-images`` can be called twice to first generate
         Docker images and then Flocker images built on the Docker images.

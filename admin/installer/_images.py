@@ -257,14 +257,17 @@ class RealPerformers(object):
         :returns: A ``Deferred`` which fires with a dict mapping the ID of the AMI
             published to each AWS region.
         """
-        command = ['/opt/packer/packer', 'build',
+        command = ['packer', 'build',
                    '-machine-readable', intent.configuration_path.path]
         parser = _PackerOutputParser()
 
         def handle_stdout(line):
             parser.parse_line(line)
             self.sys_module.stderr.write(line + "\n")
-        d = run(self.reactor, command, handle_stdout=handle_stdout)
+        d = run(
+            self.reactor, command,
+            handle_stdout=handle_stdout, close_stdin=True
+        )
         d.addCallback(lambda ignored: parser.packer_amis())
         return d
 
