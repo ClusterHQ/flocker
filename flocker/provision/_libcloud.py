@@ -506,8 +506,8 @@ class LibcloudProvisioner(object):
         :param set target_states: The states to compare the compute instance's
             actual state against.
 
-        :return: ``True`` if the compute instance is currently in one of
-            ``target_states``, ``False`` otherwise.
+        :return: Deferred that fires with ``True`` if the compute instance is
+            currently in one of ``target_states``, ``False`` otherwise.
         """
         d = self._async_refresh_node(reactor, target_node)
 

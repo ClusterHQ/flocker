@@ -638,7 +638,8 @@ class LibcloudRunner(object):
         print "re-creating and re-trying node", name
 
         def create_attempt():
-            # A list with a single Deferred must be returned.
+            # A list with a single Deferred must be returned as we are
+            # requesting a single node.
             [d] = self.provisioner.create_nodes(
                 reactor=reactor,
                 names=[name],
