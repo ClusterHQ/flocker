@@ -10,7 +10,7 @@ from twisted.internet.task import LoopingCall
 from twisted.python.filepath import FilePath
 from twisted.python import usage
 
-from eliot import add_destination, start_action, write_failure
+from eliot import add_destination, start_action, write_failure, Message
 from eliot.twisted import DeferredContext
 
 from flocker.common import gather_deferreds
@@ -21,16 +21,42 @@ from flocker.apiclient import FlockerClient, MountedDataset
 from benchmark._flocker import create_container
 
 
+MESSAGE_FORMATS = {
+    'flocker.benchmark.container_setup:start':
+        'Starting %(containers_per_node)s containers per node '
+        'on %(total_nodes)s nodes...\n',
+    'flocker.benchmark.container_setup:finish':
+        'Started %(container_count)s containers with %(error_count)s '
+        'failures.\n',
+    'flocker.benchmark.container_setup:progress':
+        'Created %(container_count)s / %(total_containers)s containers '
+        '(%(error_count)s failures)\n',
+}
+ACTION_START_FORMATS = {
+}
+
+
 def eliot_output(message):
     """
     Write pretty versions of eliot log messages to stdout.
     """
-    message_action = message.get('action')
+    message_type = message.get('message_type')
+    action_type = message.get('action_type')
+    action_status = message.get('action_status')
 
-    if message_action is not None:
-        msg = "%s\n" % message_action
-        sys.stdout.write(msg)
-        sys.stdout.flush()
+    format = ''
+    if message_type is not None:
+        if message_type == 'twisted:log' and message.get('error'):
+            format = '%(message)s'
+        else:
+            format = MESSAGE_FORMATS.get(message_type, '')
+    elif action_type is not None:
+        if action_status == 'started':
+            format = ACTION_START_FORMATS.get('action_type', '')
+        # We don't consider other status, since we
+        # have no meaningful messages to write.
+    sys.stdout.write(format % message)
+    sys.stdout.flush()
 
 
 class ContainerOptions(usage.Options):
@@ -308,18 +334,22 @@ class ClusterContainerDeployment(object):
         d = self.client.list_nodes()
 
         def start_containers(nodes):
-            print('Starting {} containers per node on {} nodes...'.format(
-                per_node, len(nodes))
+
+            Message.log(
+                message_type='flocker.benchmark.container_setup:start',
+                containers_per_node=per_node,
+                total_nodes=len(nodes)
             )
             total = per_node * len(nodes)
 
-            def display_count():
-                print(
-                    '{} / {}'.format(
-                        self.container_count + self.error_count, total
-                    )
+            def log_progress():
+                Message.log(
+                    message_type='flocker.benchmark.container_setup:progress',
+                    container_count=self.container_count,
+                    error_count=self.error_count,
+                    total_containers=total
                 )
-            loop = LoopingCall(display_count)
+            loop = LoopingCall(log_progress)
             loop.start(10, now=False)
 
             deferred_list = []
@@ -343,13 +373,13 @@ class ClusterContainerDeployment(object):
 
         d.addCallback(start_containers)
 
-        def display_totals(result):
-            print(
-                'Started {} containers with {} failures.'.format(
-                    self.container_count, self.error_count
-                )
+        def log_totals(result):
+            Message.log(
+                action_type='flocker.benchmark.container_setup:finish',
+                container_count=self.container_count,
+                error_count=self.error_count
             )
             return result
-        d.addBoth(display_totals)
+        d.addBoth(log_totals)
 
         return d
