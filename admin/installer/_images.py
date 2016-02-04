@@ -14,7 +14,7 @@ from effect import (
     Effect, ComposedDispatcher, TypeDispatcher,
     sync_performer, base_dispatcher,
 )
-from effect.do import do, do_return
+from effect.do import do
 
 from txeffect import deferred_performer, perform as async_perform
 
@@ -367,7 +367,6 @@ def publish_installer_images_effects(options):
             target_key=options["template"],
         )
     )
-    yield do_return(ami_map)
 
 
 def publish_installer_images_main(reactor, args, base_path, top_level):

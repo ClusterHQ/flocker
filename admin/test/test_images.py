@@ -357,7 +357,7 @@ class PublishInstallerImagesEffectsTests(TestCase):
         options = default_options()
         configuration_path = FilePath(self.mktemp())
         ami_map = PACKER_OUTPUT_US_ALL.output
-        result = perform_sequence(
+        perform_sequence(
             seq=[
                 (PackerConfigure(
                     build_region=options["build_region"],
@@ -379,10 +379,6 @@ class PublishInstallerImagesEffectsTests(TestCase):
                 ), lambda intent: None),
             ],
             eff=publish_installer_images_effects(options=options)
-        )
-        self.assertEqual(
-            PACKER_OUTPUT_US_ALL.output,
-            result
         )
 
 
