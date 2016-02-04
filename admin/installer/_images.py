@@ -182,7 +182,7 @@ class PackerConfigure(PClass):
 def perform_packer_configure(dispatcher, intent):
     """
     Copy the prototype configuration files and provisioning scripts to a
-    temporary location and modify one of the configurations witht the values
+    temporary location and modify one of the configurations with the values
     found in ``intent``.
     """
     temporary_configuration_directory = intent.working_directory.child(
