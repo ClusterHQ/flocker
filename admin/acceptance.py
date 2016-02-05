@@ -25,7 +25,6 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
-from twisted.internet.threads import deferToThreadPool
 from twisted.python.reflect import prefixedMethodNames
 
 from effect import parallel
@@ -89,13 +88,16 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def get_trial_environment(cluster):
+def get_trial_environment(cluster, package_source):
     """
-    Return a dictionary of environment varibles describing a cluster for
-    accetpance testing.
+    Return a dictionary of environment variables describing a cluster for
+    acceptance testing.
 
     :param Cluster cluster: Description of the cluster to get environment
         variables for.
+
+    :param PackageSource package_source: The source of flocker omnibus package
+        under test.
     """
     return {
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
@@ -112,17 +114,23 @@ def get_trial_environment(cluster):
             cluster.default_volume_size
         ),
         'FLOCKER_ACCEPTANCE_TEST_VOLUME_BACKEND_CONFIG':
-            cluster.dataset_backend_config_file.path
+            cluster.dataset_backend_config_file.path,
+        'FLOCKER_ACCEPTANCE_DISTRIBUTION': cluster.control_node.distribution,
+        'FLOCKER_ACCEPTANCE_PACKAGE_BRANCH': package_source.branch or '',
+        'FLOCKER_ACCEPTANCE_PACKAGE_VERSION': package_source.version or '',
+        'FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER': package_source.build_server,
     }
 
 
-def run_tests(reactor, cluster, trial_args):
+def run_tests(reactor, cluster, trial_args, package_source):
     """
     Run the acceptance tests.
 
     :param Cluster cluster: The cluster to run acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
+    :param PackageSource package_source: The source of flocker omnibus package
+        under test.
 
     :return int: The exit-code of trial.
     """
@@ -140,7 +148,7 @@ def run_tests(reactor, cluster, trial_args):
         reactor,
         ['trial'] + list(trial_args),
         env=extend_environ(
-            **get_trial_environment(cluster)
+            **get_trial_environment(cluster, package_source)
         )
     ).addCallbacks(
         callback=lambda _: 0,
@@ -636,12 +644,16 @@ class LibcloudRunner(object):
         :return: Deferred that fires with the created node when
             the provisioning is completed.
         """
+        print "re-creating and re-trying node", name
+
         def create_attempt():
-            d = deferToThreadPool(
-                reactor,
-                reactor.getThreadPool(),
-                self._create_node,
-                name,
+            # A list with a single Deferred must be returned as we are
+            # requesting a single node.
+            [d] = self.provisioner.create_nodes(
+                reactor=reactor,
+                names=[name],
+                distribution=self.distribution,
+                metadata=self.metadata,
             )
 
             def provision(node):
@@ -671,6 +683,53 @@ class LibcloudRunner(object):
         d.addErrback(error)
         return d
 
+    def _provision_with_retry(self, reactor, name, result):
+        """
+        Wait for a node to get created and the provision it.
+        Re-create the node and retry the provisioning if either the node
+        creation or provisioning fails.
+
+        This method is used in conjuction with bulk creation of new nodes,
+        so that a failure for any single node can be retried individually
+        (rather than failing all the nodes and starting from scratch).
+
+        :param reactor: The reactor.
+        :param str name: The name of the node.
+        :param Deferred result: Deferred that fires with the node when it's
+            created.
+        :return: Deferred that fires with the node when it's created and
+            provisioned.
+        """
+        def provision(node):
+            print "created node", name
+            print "provisioning..."
+            self.nodes.append(node)
+            d = self._provision_node(reactor, node)
+
+            def provisioning_failed(failure):
+                print "provisioning failed", name
+                # Destroy a node if we failed to provision it.
+                self._destroy_node(node)
+                return failure
+
+            # Make sure to return the node.
+            d.addCallbacks(lambda _: node, errback=provisioning_failed)
+            return d
+
+        result.addCallback(provision)
+
+        # If the initial bulk creation failed for this node for whatever
+        # reason or if its provisioning failed, then beging the process
+        # for this node from the very start.
+        def retry_on_error(failure):
+            print "bulk creation failed", name
+            print "error:", failure
+            write_failure(failure)
+            return self._create_and_provision(reactor, name)
+
+        result.addErrback(retry_on_error)
+        return result
+
     def _create_nodes(self, reactor, names):
         """
         Create and provision a number of nodes with the given names.
@@ -681,10 +740,15 @@ class LibcloudRunner(object):
         :return: List of Deferreds each firing when the corresponding node
             is created and provisioned.
         """
-        reactor.suggestThreadPoolSize(len(names))
-        return [
-            self._create_and_provision(reactor, name) for name in names
-        ]
+        results = self.provisioner.create_nodes(
+            reactor=reactor,
+            names=names,
+            distribution=self.distribution,
+            metadata=self.metadata,
+        )
+        for name, result in zip(names, results):
+            self._provision_with_retry(reactor, name, result)
+        return results
 
     def _make_node_name(self, tag, index):
         """
@@ -927,6 +991,16 @@ class CommonOptions(Options):
                 )
             )
 
+    def package_source(self):
+        """
+        Getter for the configured package source.
+        """
+        return PackageSource(
+            version=self['flocker-version'],
+            branch=self['branch'],
+            build_server=self['build-server'],
+        )
+
     def postOptions(self):
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
@@ -945,11 +1019,6 @@ class CommonOptions(Options):
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
 
-        package_source = PackageSource(
-            version=self['flocker-version'],
-            branch=self['branch'],
-            build_server=self['build-server'],
-        )
         try:
             get_runner = getattr(self, "_runner_" + provider.upper())
         except AttributeError:
@@ -962,7 +1031,7 @@ class CommonOptions(Options):
             )
         else:
             self.runner = get_runner(
-                package_source=package_source,
+                package_source=self.package_source(),
                 dataset_backend=self.dataset_backend(),
                 provider_config=provider_config,
             )
@@ -1430,8 +1499,8 @@ def main(reactor, args, base_path, top_level):
         result = yield run_tests(
             reactor=reactor,
             cluster=cluster,
-            trial_args=options['trial-args'])
-
+            trial_args=options['trial-args'],
+            package_source=options.package_source())
     finally:
         reached_finally = True
         # We delete the nodes if the user hasn't asked to keep them
@@ -1445,7 +1514,8 @@ def main(reactor, args, base_path, top_level):
             print ("To run acceptance tests against these nodes, "
                    "set the following environment variables: ")
 
-            environment_variables = get_trial_environment(cluster)
+            environment_variables = get_trial_environment(
+                cluster, options.package_source())
 
             for environment_variable in environment_variables:
                 print "export {name}={value};".format(
