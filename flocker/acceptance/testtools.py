@@ -45,7 +45,7 @@ from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.script import get_backend, get_api
 from ..node import dockerpy_client
-from ..node.agents.blockdevice import _SyncToThreadedAsync
+from ..node.agents.blockdevice import _SyncToThreadedAsyncAPIAdapter
 from ..provision import reinstall_flocker_from_package_source
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
@@ -908,7 +908,7 @@ class Cluster(PClass):
                 # Can't clean up volumes if we don't have a backend api.
                 return
 
-            async_api = _SyncToThreadedAsync.from_api(api)
+            async_api = _SyncToThreadedAsyncAPIAdapter.from_api(api)
 
             cleaning_volumes = api_clean_state(
                 u"volumes",
