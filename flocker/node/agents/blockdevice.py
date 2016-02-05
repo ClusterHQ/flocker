@@ -15,6 +15,7 @@ from datetime import timedelta
 
 from eliot import MessageType, ActionType, Field, Logger
 from eliot.serializers import identity
+from eliot.twisted import DeferredContext
 
 from zope.interface import implementer, Interface, provider
 
@@ -39,7 +40,10 @@ from .. import (
 )
 from .._deploy import NotInUseDatasets
 
-from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
+from ...control import (
+    NodeState, Manifestation, Dataset, NonManifestDatasets,
+    DatasetAlreadyOwned,
+)
 from ...control._model import pvector_field
 from ...common import RACKSPACE_MINIMUM_VOLUME_SIZE, auto_threaded, provides
 from ...common.algebraic import TaggedUnionInvariant
@@ -338,13 +342,6 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
     [DATASET_ID, MAXIMUM_SIZE, METADATA],
     [],
     u"A block-device-backed dataset is being created.",
-)
-
-DESTROY_BLOCK_DEVICE_DATASET = ActionType(
-    u"agent:blockdevice:destroy",
-    [DATASET_ID],
-    [],
-    u"A block-device-backed dataset is being destroyed.",
 )
 
 UNMOUNT_BLOCK_DEVICE = ActionType(
@@ -895,14 +892,33 @@ class CreateBlockDeviceDataset(PClass):
         except:
             return fail()
 
-        def record_ownership(volume):
-            return state_persister.record_ownership(
-                dataset_id=volume.dataset_id,
-                blockdevice_id=volume.blockdevice_id,
-            )
-
         d = maybeDeferred(self._create_volume, deployer)
+
+        def record_ownership(volume):
+            with REGISTER_BLOCKDEVICE(
+                dataset_id=self.dataset_id,
+                block_device_id=volume.blockdevice_id,
+            ).context():
+                d = DeferredContext(state_persister.record_ownership(
+                    dataset_id=self.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                ))
+
+            def already_owned(f):
+                f.trap(DatasetAlreadyOwned)
+                with DESTROY_VOLUME(
+                    block_device_id=volume.blockdevice_id
+                ).context():
+                    return DeferredContext(
+                        deployer.async_block_device_api.destroy_volume(
+                            volume.blockdevice_id
+                        )
+                    ).addActionFinish()
+            d = d.addActionFinish()
+            d.addErrback(already_owned)
+            return d
         d.addCallback(record_ownership)
+
         return d
 
 
