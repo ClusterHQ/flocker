@@ -21,7 +21,7 @@ from pyrsistent import PClass, field, pmap_field, thaw
 
 from testtools.matchers import StartsWith
 from testtools.content import text_content, content_from_file, ContentType
-from testtols.matchers import Contains
+from testtools.matchers import Contains
 
 from fixtures import Fixture
 
