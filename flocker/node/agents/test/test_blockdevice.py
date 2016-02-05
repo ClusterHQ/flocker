@@ -35,7 +35,7 @@ from hypothesis.strategies import (
 )
 
 from testtools.deferredruntest import SynchronousDeferredRunTest
-from testtools.matchers import Equals
+from testtools.matchers import Equals, AllMatch, IsInstance
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
@@ -46,7 +46,7 @@ from twisted.python.filepath import FilePath
 from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
-    LoggedAction, assertHasMessage, assertHasAction
+    LoggedAction, LoggedMessage, assertHasMessage, assertHasAction
 )
 
 from .strategies import blockdevice_volumes
@@ -87,6 +87,8 @@ from ..blockdevice import (
 
     ICloudAPI,
     _SyncToThreadedAsyncCloudAPIAdapter,
+
+    log_list_volumes, CALL_LIST_VOLUMES,
 )
 
 from ..loopback import (
@@ -111,9 +113,11 @@ from ....testtools import (
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
-    NonManifestDatasets, Application, AttachedVolume, DockerImage
+    NonManifestDatasets, Application, AttachedVolume, DockerImage,
+    PersistentState,
 )
-from ....control._model import Leases
+from ....control import Leases
+from ....control.testtools import InMemoryStatePersister
 
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
@@ -578,7 +582,6 @@ class BlockDeviceDeployerAsyncAPITests(TestCase):
         ``_SyncToThreadedAsyncAPIAdapter`` using the global reactor, the global
         reactor's thread pool, and the value of ``block_device_api``.
         """
-        from twisted.internet import reactor
         threadpool = reactor.getThreadPool()
 
         api = UnusableAPI()
@@ -641,6 +644,7 @@ def assert_discovered_state(
     )
     discovering = deployer.discover_state(
         DeploymentState(nodes={previous_state}),
+        persistent_state=PersistentState(),
     )
     local_state = case.successResultOf(discovering)
 
@@ -1269,6 +1273,7 @@ class BlockDeviceCalculatorTests(TestCase):
     def setUp(self):
         super(BlockDeviceCalculatorTests, self).setUp()
         self.deployer = create_blockdevicedeployer(self)
+        self.persistent_state = InMemoryStatePersister()
 
     def teardown_example(self, token):
         """
@@ -1288,6 +1293,7 @@ class BlockDeviceCalculatorTests(TestCase):
                     hostname=self.deployer.hostname,
                 ),
             }),
+            persistent_state=self.persistent_state.get_state(),
         )).datasets
 
     def run_convergence_step(self, desired_datasets):
@@ -1303,7 +1309,9 @@ class BlockDeviceCalculatorTests(TestCase):
             desired_datasets=desired_datasets,
         )
         note("Running changes: {changes}".format(changes=changes))
-        self.successResultOf(run_state_change(changes, self.deployer))
+        self.successResultOf(run_state_change(
+            changes, deployer=self.deployer,
+            state_persister=self.persistent_state))
 
     def run_to_convergence(self, desired_datasets, max_iterations=20):
         """
@@ -1316,7 +1324,7 @@ class BlockDeviceCalculatorTests(TestCase):
             that there will always be fewer than 20 steps to transition from
             one desired state to another if there are no bugs.
         """
-        for i in range(max_iterations):
+        for _ in range(max_iterations):
             self.run_convergence_step(
                 dataset_map_from_iterable(desired_datasets))
             note(self.current_datasets())
@@ -4047,9 +4055,9 @@ class LoopbackBlockDeviceAPIConstructorTests(TestCase):
         loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
             root_path=b'',
         )
-        id = loopback_blockdevice_api.compute_instance_id()
-        self.assertIsInstance(id, unicode)
-        self.assertNotEqual(u"", id)
+        instance_id = loopback_blockdevice_api.compute_instance_id()
+        self.assertIsInstance(instance_id, unicode)
+        self.assertNotEqual(u"", instance_id)
 
     def test_unique_instance_id_if_not_provided(self):
         """
@@ -4563,6 +4571,7 @@ class _MountScenario(PClass):
                 filesystem=self.filesystem_type
             ),
             self.deployer,
+            InMemoryStatePersister(),
         )
 
 
@@ -4588,7 +4597,8 @@ class MountBlockDeviceTests(
         self.successResultOf(scenario.create())
 
         change = scenario.state_change()
-        return scenario, run_state_change(change, scenario.deployer)
+        return scenario, run_state_change(change, scenario.deployer,
+                                          InMemoryStatePersister())
 
     def _run_success_test(self, mountpoint):
         scenario, mount_result = self._run_test(mountpoint)
@@ -4614,7 +4624,7 @@ class MountBlockDeviceTests(
     def _mount(self, scenario, mountpoint):
         self.successResultOf(run_state_change(
             scenario.state_change().set(mountpoint=mountpoint),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
 
     def test_run(self):
         """
@@ -4679,7 +4689,7 @@ class MountBlockDeviceTests(
         intermediate = mountroot.child(b"mount-error-test")
         intermediate.setContent(b"collision")
         mountpoint = intermediate.child(b"mount-test")
-        scenario, mount_result = self._run_test(mountpoint)
+        _, mount_result = self._run_test(mountpoint)
 
         failure = self.failureResultOf(mount_result, OSError)
         self.assertEqual(ENOTDIR, failure.value.errno)
@@ -4717,7 +4727,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
 
     def test_lost_found_deleted_remount(self):
         """
@@ -4729,7 +4739,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
         self.assertEqual(mountpoint.children(), [])
 
     def test_lost_found_not_deleted_if_other_files_exist(self):
@@ -4744,7 +4754,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
                                mountpoint.child(b"lost+found")])
@@ -4762,7 +4772,7 @@ class MountBlockDeviceTests(
         mountpoint.restat()
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
         self.assertEqual(mountpoint.getPermissions().shorthand(),
                          'rwx------')
 
@@ -4824,7 +4834,8 @@ class UnmountBlockDeviceTests(
 
         change = UnmountBlockDevice(dataset_id=dataset_id,
                                     blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
         self.assertNotIn(
             device,
             list(
@@ -4876,7 +4887,8 @@ class DetachVolumeTests(
 
         change = DetachVolume(dataset_id=dataset_id,
                               blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
 
         [listed_volume] = api.list_volumes()
         self.assertIs(None, listed_volume.attached_to)
@@ -4918,7 +4930,8 @@ class DestroyVolumeTests(
         )
 
         change = DestroyVolume(blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
 
         self.assertEqual([], api.list_volumes())
 
@@ -4981,7 +4994,7 @@ class CreateBlockDeviceDatasetImplementationMixin(object):
             metadata=metadata
         )
 
-        run_state_change(change, self.deployer)
+        run_state_change(change, self.deployer, InMemoryStatePersister())
 
         [volume] = self.api.list_volumes()
         return volume
@@ -5062,7 +5075,8 @@ class CreateBlockDeviceDatasetImplementationTests(
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
-        changing = run_state_change(change, self.deployer)
+        changing = run_state_change(change, self.deployer,
+                                    InMemoryStatePersister())
 
         failure = self.failureResultOf(changing, DatasetExists)
         self.assertEqual(
@@ -5207,7 +5221,8 @@ class AttachVolumeTests(
         change = AttachVolume(dataset_id=dataset_id,
                               blockdevice_id=volume.blockdevice_id)
         self.patch(blockdevice, "_logger", logger)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
 
         expected_volume = volume.set(
             attached_to=api.compute_instance_id()
@@ -5227,7 +5242,8 @@ class AttachVolumeTests(
         change = AttachVolume(dataset_id=dataset_id,
                               blockdevice_id=bad_blockdevice_id)
         failure = self.failureResultOf(
-            run_state_change(change, deployer), UnknownVolume
+            run_state_change(change, deployer, InMemoryStatePersister()),
+            UnknownVolume
         )
         self.assertEqual(
             bad_blockdevice_id, failure.value.blockdevice_id
@@ -5407,7 +5423,7 @@ class ProcessLifetimeCacheTests(TestCase):
         The result of ``compute_instance_id`` is cached indefinitely.
         """
         initial = self.cache.compute_instance_id()
-        later = [self.cache.compute_instance_id() for i in range(10)]
+        later = [self.cache.compute_instance_id() for _ in range(10)]
         self.assertEqual(
             (later, self.counting_proxy.num_calls("compute_instance_id")),
             ([initial] * 10, 1))
@@ -5455,7 +5471,7 @@ class ProcessLifetimeCacheTests(TestCase):
         The result of ``get_device_path`` is no longer cached after an
         ``detach_device`` call.
         """
-        attached_id1, attached_id2 = self.attached_volumes()
+        attached_id1, _ = self.attached_volumes()
         # Warm up cache:
         self.cache.get_device_path(attached_id1)
         # Invalidate cache:
@@ -5500,6 +5516,14 @@ def make_icloudapi_tests(
             d.addCallback(lambda live:
                           self.assertIn(self.api.compute_instance_id(), live))
             return d
+
+        def test_list_live_nodes(self):
+            """
+            ``list_live_nodes`` returns an iterable of unicode values.
+            """
+            live_nodes = self.api.list_live_nodes()
+            self.assertThat(live_nodes, AllMatch(IsInstance(unicode)))
+
     return Tests
 
 
@@ -5533,3 +5557,41 @@ class BlockDeviceVolumeTests(TestCase):
                 ),
             ))
         )
+
+
+class LogListVolumesTest(TestCase):
+    """
+    Tests for ``log_list_volumes``
+    """
+
+    @capture_logging(lambda self, logger: None)
+    def test_generates_log_with_incrementing_count(self, logger):
+        """
+        ``log_list_volumes`` increments the count field of log messages.
+        """
+        @log_list_volumes
+        def wrapped():
+            pass
+
+        wrapped()
+        wrapped()
+        wrapped()
+
+        counts = [
+            logged.message['count'] for logged in LoggedMessage.of_type(
+                logger.messages, CALL_LIST_VOLUMES
+            )
+        ]
+
+        self.assertEqual(counts, [1, 2, 3])
+
+    def test_args_passed(self):
+        """
+        Arguments and result passed to/from wrapped function.
+        """
+        @log_list_volumes
+        def wrapped(x, y, z):
+            return (x, y, z)
+
+        result = wrapped(3, 5, z=7)
+        self.assertEqual(result, (3, 5, 7))

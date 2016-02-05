@@ -54,38 +54,18 @@ Have questions or need help?
 Development Environment
 =======================
 
-You will need Python 2.7 (and optionally a recent version of PyPy) installed on your development machine.
-To run the complete test suite you will also need `ZFS`_ and `Docker`_ installed.
+You will need Python 2.7 installed on your development machine.
+To run the complete test suite you will also need `Docker`_ installed.
 
-The recommended way to get an environment with these installed is to use Vagrant to run a pre-configured Flocker development virtual machine.
-
-First, clone the Flocker repository on your local machine:
-
-.. prompt:: bash $
-
-   git clone https://github.com/ClusterHQ/flocker.git
-   cd flocker
-
-Vagrant 1.6.2 or later is required.
-Once you have Vagrant installed (see the `Vagrant documentation <https://docs.vagrantup.com/v2/>`_) you can run the following to get going:
-
-.. prompt:: bash $
-
-   vagrant up
-   vagrant ssh
-
-The ``flocker`` directory created above will be shared in the virtual machine at ``/vagrant``.
 Install Flocker's development dependencies in a ``virtualenv`` by running the following commands:
 
 .. prompt:: bash $
 
-   cd /vagrant
    mkvirtualenv flocker
    pip install --process-dependency-links --editable .[dev]
 
 .. Need --process-dependency-links while are using a fork of testtools.
 
-.. _ZFS: http://zfsonlinux.org
 .. _Docker: https://www.docker.com/
 
 
@@ -104,14 +84,14 @@ You can also run specific tests in a specific environment:
 
    tox -e py27 flocker.control.test.test_httpapi
 
-Functional tests require ``ZFS`` and ``Docker`` to be installed and, in the case of Docker, running.
+Functional tests require ``Docker`` to be installed and, in the case of Docker, running.
 In addition, ``tox`` needs to be run as root:
 
 .. prompt:: bash $
 
    sudo tox
 
-Since these tests involve global state on your machine (filesystems, ``iptables``, Docker containers, etc.) we recommend running them in the development Vagrant image.
+Since these tests involve global state on your machine (filesystems, ``iptables``, Docker containers, etc.) we recommend running them in a virtual machine.
 
 
 Documentation

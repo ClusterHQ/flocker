@@ -4,20 +4,9 @@
 Generate a Flocker package that can be deployed onto cluster nodes.
 """
 
-import os
 import platform
 from setuptools import setup, find_packages
 import versioneer
-
-# Hard linking doesn't work inside VirtualBox shared folders. This means that
-# you can't use tox in a directory that is being shared with Vagrant,
-# since tox relies on `python setup.py sdist` which uses hard links. As a
-# workaround, disable hard-linking if setup.py is a descendant of /vagrant.
-# See
-# https://stackoverflow.com/questions/7719380/python-setup-py-sdist-error-operation-not-permitted
-# for more details.
-if os.path.abspath(__file__).split(os.path.sep)[1] == 'vagrant':
-    del os.link
 
 with open("README.rst") as readme:
     description = readme.read()
@@ -109,13 +98,6 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
 
     dependency_links = [
-        # Use our fork of testtools until #165, #171, and #172 are merged and
-        # released. See FLOC-3498.
-        #
-        # "git+https" weirdness is due to setuptools expecting:
-        #     vcs+proto://host/path@revision#egg=project-version
-        # See https://setuptools.readthedocs.org/en/latest/setuptools.html
-        "git+https://github.com/ClusterHQ/testtools@clusterhq-fork#egg=testtools-1.8.2chq2",  # noqa
     ],
 
     # Some "trove classifiers" which are relevant.

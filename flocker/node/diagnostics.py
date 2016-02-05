@@ -330,7 +330,7 @@ def current_distribution():
     :returns: A ``str`` label for the operating system distribution running
         this script.
     """
-    name, version, nickname = platform_dist()
+    name, version, _ = platform_dist()
     return name.lower() + '-' + version
 
 

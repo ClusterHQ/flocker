@@ -70,7 +70,7 @@ Follow these steps to build the virtual machine images:
    .. prompt:: bash #
 
       /opt/packer/packer build \
-          admin/packer/template_ubuntu-14.04_docker.json
+          admin/installer/packer/template_ubuntu-14.04_docker.json
 
    Packer will copy the new image to all available AWS regions.
    The image will have a unique name in each region.
@@ -88,7 +88,7 @@ Follow these steps to build the virtual machine images:
       /opt/packer/packer build \
           -var "flocker_branch=master" \
           -var "source_ami=<name of AMI image from previous step>" \
-          admin/packer/template_ubuntu-14.04_flocker.json
+          admin/installer/packer/template_ubuntu-14.04_flocker.json
 
 .. note::
 

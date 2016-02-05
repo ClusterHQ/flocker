@@ -95,6 +95,7 @@ class INode(Interface):
     address = InterfaceAttribute('Public IP address for node')
     private_address = InterfaceAttribute('Private IP address for node')
     distribution = InterfaceAttribute('distribution on node')
+    name = InterfaceAttribute('The name of the node, used for logging.')
 
     def get_default_username():
         """
@@ -103,6 +104,8 @@ class INode(Interface):
         Some cloud systems (e.g. AWS) provide a specific username, which
         depends on the OS distribution started.  This method returns
         the username based on the node distribution.
+
+        :return bytes:
         """
 
     def provision(package_source, variants):
@@ -139,18 +142,30 @@ class IProvisioner(Interface):
         :return Key: The ssh public key or ``None`` if it can't be determined.
         """
 
-    def create_node(name, distribution,
-                    size=None, disk_size=8,
-                    metadata={}):
+    def create_node(name, distribution, metadata={}):
         """
         Create a node.
 
         :param str name: The name of the node.
         :param str distribution: The name of the distribution to
             install on the node.
-        :param str size: The name of the size to use.
-        :param int disk_size: The size of disk to allocate.
         :param dict metadata: Metadata to associate with the node.
 
         :return INode: The created node.
+        """
+
+    def create_nodes(reactor, names, distribution, metadata={}):
+        """
+        Create nodes with the given names.
+
+        :param reactor: The reactor.
+        :param name: The names of the nodes.
+        :type name: list of str
+        :param str distribution: The name of the distribution to
+            install on the nodes.
+        :param dict metadata: Metadata to associate with the nodes.
+
+        :return: A list of ``Deferred``s each firing with an INode
+            when the corresponding node is created.   The list has
+            the same order as :param:`names`.
         """

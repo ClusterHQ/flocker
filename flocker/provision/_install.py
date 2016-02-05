@@ -9,13 +9,17 @@ from pipes import quote
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
-from effect import Func, Effect, parallel
+from effect import Func, Effect, Constant, parallel
+from effect.retry import retry
+from time import time
 import yaml
 
 from zope.interface import implementer
 
+from eliot import write_failure
 from characteristic import attributes
 from pyrsistent import PClass, field
+from txeffect import perform
 
 from twisted.internet.error import ProcessTerminated
 
@@ -28,7 +32,8 @@ from ._ssh import (
     put,
     run_remotely,
 )
-from ._effect import sequence
+from ._ssh._conch import make_dispatcher
+from ._effect import sequence, http_get
 
 from ..common import retry_effect_with_timeout
 
@@ -58,6 +63,36 @@ class UnknownAction(Exception):
     """
     def __init__(self, action):
         Exception.__init__(self, action)
+
+
+def tag_as_test_install(flocker_version, distribution, package_name):
+    """
+    Creates an effect of making an HTTP GET to a specific URL in an s3 bucket
+    that has logging enabled. This is done so that when computing flocker
+    downloads we can subtract the number of requests to this file.
+
+    :param unicode flocker_version: The version of flocker being installed.
+    :param unicode distribution: The distribution flocker is being installed
+        on.
+    :param unicode package_name: The name of the package being installed.
+
+    :returns: An :class:`HTTPGet` ``Effect`` to retrieve a URL that flags this
+        as an internal testing install.
+    """
+    repository_url = get_repository_url(
+        distribution=distribution,
+        flocker_version=flocker_version)
+    repository_host = urlparse(repository_url).hostname
+    tag_url = bytes(
+        "https://{host}/clusterhq-internal-acceptance-test/{distribution}/"
+        "{package}/{version}".format(
+            host=repository_host,
+            distribution=distribution,
+            package=package_name,
+            version=flocker_version
+        )
+    )
+    return http_get(tag_url)
 
 
 def is_centos(distribution):
@@ -313,7 +348,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
-    :param base_url: URL of repository, or ``None`` if we're not using
+    :param bytes base_url: URL of repository, or ``None`` if we're not using
         development branch.
 
     :return: a sequence of commands to run on the distribution
@@ -361,9 +396,17 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
         repo_options = get_repo_options(
             flocker_version=get_installable_version(version))
 
+    base_package = package_name
     os_version = package_source.os_version()
     if os_version:
         package_name += '-%s' % (os_version,)
+
+    # Execute a request to s3 so that this can be tagged as a test install for
+    # statistical tracking.
+    if base_url is None:
+        commands.append(tag_as_test_install(flocker_version,
+                                            distribution,
+                                            base_package))
 
     # Install package and all dependencies:
 
@@ -395,6 +438,9 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # support empty values other than None, as '' sometimes used to
         # indicate latest version, due to previous behaviour
         flocker_version = get_installable_version(version)
+    repository_url = get_repository_url(
+        distribution=distribution,
+        flocker_version=flocker_version)
     commands = [
         # Minimal images often have cleared apt caches and are missing
         # packages that are common in a typical release.  These commands
@@ -406,34 +452,32 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
         # Add ClusterHQ repo for installation of Flocker packages.
         # XXX This needs retry
-        run(command='add-apt-repository -y "deb {} /"'.format(
-            get_repository_url(
-                distribution=distribution,
-                flocker_version=flocker_version)))
+        run(command='add-apt-repository -y "deb {} /"'.format(repository_url))
         ]
+
+    pinned_host = urlparse(repository_url).hostname
 
     if base_url is not None:
         # Add BuildBot repo for running tests
         commands.append(run_network_interacting_from_args([
             "add-apt-repository", "-y", "deb {} /".format(base_url)]))
-        # During a release, the ClusterHQ repo may contain packages with
-        # a higher version number than the Buildbot repo for a branch.
-        # Use a pin file to ensure that any Buildbot repo has higher
-        # priority than the ClusterHQ repo.  We only add the Buildbot
-        # repo when a branch is specified, so it wil not interfere with
-        # attempts to install a release (when no branch is specified).
-        buildbot_host = urlparse(package_source.build_server).hostname
-        commands.append(put(dedent('''\
-            Package: *
-            Pin: origin {}
-            Pin-Priority: 700
-        '''.format(buildbot_host)), '/tmp/apt-pref'))
-        commands.append(run_from_args([
-            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
+        # During a release, or during upgrade testing, we might not be able to
+        # rely on package management to install flocker from the correct
+        # server. Thus, in all cases we pin precisely which url we want to
+        # install flocker from.
+        pinned_host = urlparse(package_source.build_server).hostname
+    commands.append(put(dedent('''\
+        Package: *
+        Pin: origin {}
+        Pin-Priority: 700
+    '''.format(pinned_host)), '/tmp/apt-pref'))
+    commands.append(run_from_args([
+        'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
 
     # Update to read package info from new repos
     commands.append(apt_get_update())
 
+    base_package = package_name
     os_version = package_source.os_version()
 
     if os_version:
@@ -453,6 +497,13 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         '''.format(os_version)), '/tmp/apt-pref'))
         commands.append(run_from_args([
             'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/clusterhq-900']))
+
+    # Execute a request to s3 so that this can be tagged as a test install for
+    # statistical tracking.
+    if base_url is None:
+        commands.append(tag_as_test_install(flocker_version,
+                                            distribution,
+                                            base_package))
 
     # Install package and all dependencies
     # We use --force-yes here because our packages aren't signed.
@@ -1508,63 +1559,287 @@ def configure_cluster(
     :param dict logging_config: A Python logging configuration dictionary,
         following the structure of PEP 391.
     """
-    setup_action = 'start'
-    if provider == "managed":
-        setup_action = 'restart'
-
     return sequence([
-        run_remotely(
-            username='root',
-            address=cluster.control_node.address,
-            commands=sequence([
-                task_install_control_certificates(
-                    cluster.certificates.cluster.certificate,
-                    cluster.certificates.control.certificate,
-                    cluster.certificates.control.key),
-                task_enable_flocker_control(cluster.control_node.distribution,
-                                            setup_action),
-                if_firewall_available(
-                    cluster.control_node.distribution,
-                    task_open_control_firewall(
-                        cluster.control_node.distribution
-                    )
-                ),
-                ]),
+        configure_control_node(
+            cluster,
+            provider,
+            logging_config,
         ),
         parallel([
             sequence([
-                run_remotely(
-                    username='root',
-                    address=node.address,
-                    commands=sequence([
-                        task_install_node_certificates(
-                            cluster.certificates.cluster.certificate,
-                            certnkey.certificate,
-                            certnkey.key),
-                        task_install_api_certificates(
-                            cluster.certificates.user.certificate,
-                            cluster.certificates.user.key),
-                        task_enable_docker(node.distribution),
-                        if_firewall_available(
-                            node.distribution,
-                            open_firewall_for_docker_api(node.distribution),
-                        ),
-                        task_configure_flocker_agent(
-                            control_node=cluster.control_node.address,
-                            dataset_backend=cluster.dataset_backend,
-                            dataset_backend_configuration=(
-                                dataset_backend_configuration
-                            ),
-                            logging_config=logging_config,
-                        ),
-                        task_enable_docker_plugin(node.distribution),
-                        task_enable_flocker_agent(
-                            distribution=node.distribution,
-                            action=setup_action,
-                        ),
-                    ]),
+                configure_node(
+                    cluster,
+                    node,
+                    certnkey,
+                    dataset_backend_configuration,
+                    provider,
+                    logging_config,
                 ),
             ]) for certnkey, node
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
         ])
     ])
+
+
+def reinstall_flocker_from_package_source(
+    reactor, nodes, control_node, package_source, distribution,
+    destroy_persisted_state=False
+):
+    """
+    Put the version of Flocker indicated by ``package_source`` onto all of
+    the given nodes.
+
+    This takes a primitive approach of uninstalling the software and then
+    installing the new version instead of trying to take advantage of any
+    OS-level package upgrade support.  Because it's easier.  The package
+    removal step is allowed to fail in case the package is not installed
+    yet (other failures are not differentiated).  The only action taken on
+    failure is that the failure is logged.
+
+    :param reactor: The reactor to use to schedule the work.
+    :param nodes: An iterable of node addresses of nodes in the cluster.
+    :param control_node: The address of the control node.
+    :param PackageSource package_source: The version of the software to
+        install.
+    :param distribution: The distribution installed on the nodes.
+    :param bool destroy_persisted_state: Whether to destroy the control
+        node's state file when upgrading or not. This might be desirable if you
+        know the nodes are clean (all datasets destroyed and all leases
+        destroyed) and you are downgrading flocker.
+
+    :return: A ``Deferred`` that fires when the software has been upgraded.
+    """
+    managed_nodes = list(
+        ManagedNode(address=node, distribution=distribution)
+        for node in nodes
+    )
+    dispatcher = make_dispatcher(reactor)
+
+    uninstalling = perform(dispatcher, uninstall_flocker(managed_nodes))
+
+    uninstalling.addErrback(write_failure, logger=None)
+
+    def destroy_control_node_state(_):
+        return perform(
+            dispatcher,
+            run_remotely(
+                username='root',
+                address=control_node,
+                commands=sequence([
+                    run_from_args([
+                        'mv',
+                        '/var/lib/flocker/current_configuration.json',
+                        '/var/lib/flocker/current_configuration.json.old',
+                    ]),
+                ])
+            ),
+        )
+
+    if destroy_persisted_state:
+        uninstalling.addCallback(destroy_control_node_state)
+
+    def install(ignored):
+        return perform(
+            dispatcher,
+            install_flocker(managed_nodes, package_source),
+        )
+    uninstalling.addCallback(install)
+
+    def restart_services(ignored):
+        restart_commands = sequence([
+            # First restart the control agent.
+            run_remotely(
+                username='root',
+                address=control_node,
+                commands=sequence([
+                    task_enable_flocker_control(
+                        distribution,
+                        'restart'),
+                    if_firewall_available(
+                        distribution,
+                        task_open_control_firewall(
+                            distribution
+                        )
+                    ),
+                ])
+            ),
+            # Then restart the node agents (and docker on all of the nodes).
+            parallel([
+                run_remotely(
+                    username='root',
+                    address=node.address,
+                    commands=sequence([
+                        task_enable_docker_plugin(node.distribution),
+                        task_enable_flocker_agent(
+                            distribution=node.distribution,
+                            action='restart',
+                        ),
+                    ])
+                )
+                for node in managed_nodes
+            ])
+        ])
+        return perform(
+            dispatcher,
+            restart_commands
+        )
+
+    uninstalling.addCallback(restart_services)
+
+    return uninstalling
+
+
+def configure_control_node(
+    cluster,
+    provider,
+    logging_config=None
+):
+    """
+    Configure Flocker control service on the given node.
+
+    :param Cluster cluster: Description of the cluster.
+    :param bytes provider: provider of the nodes  - aws. rackspace or managed.
+    :param dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
+    """
+    setup_action = 'start'
+    if provider == "managed":
+        setup_action = 'restart'
+
+    return run_remotely(
+        username='root',
+        address=cluster.control_node.address,
+        commands=sequence([
+            task_install_control_certificates(
+                cluster.certificates.cluster.certificate,
+                cluster.certificates.control.certificate,
+                cluster.certificates.control.key),
+            task_enable_flocker_control(cluster.control_node.distribution,
+                                        setup_action),
+            if_firewall_available(
+                cluster.control_node.distribution,
+                task_open_control_firewall(
+                    cluster.control_node.distribution
+                )
+            ),
+        ]),
+    )
+
+
+def configure_node(
+    cluster,
+    node,
+    certnkey,
+    dataset_backend_configuration,
+    provider,
+    logging_config=None
+):
+    """
+    Configure flocker-dataset-agent and flocker-container-agent on a node,
+    so that it could join an existing Flocker cluster.
+
+    :param Cluster cluster: Description of the cluster.
+    :param Node node: The node to configure.
+    :param CertAndKey certnkey: The node's certificate and key.
+    :param bytes provider: provider of the nodes  - aws. rackspace or managed.
+    :param dict logging_config: A Python logging configuration dictionary,
+        following the structure of PEP 391.
+    """
+    setup_action = 'start'
+    if provider == "managed":
+        setup_action = 'restart'
+
+    return run_remotely(
+        username='root',
+        address=node.address,
+        commands=sequence([
+            task_install_node_certificates(
+                cluster.certificates.cluster.certificate,
+                certnkey.certificate,
+                certnkey.key),
+            task_install_api_certificates(
+                cluster.certificates.user.certificate,
+                cluster.certificates.user.key),
+            task_enable_docker(node.distribution),
+            if_firewall_available(
+                node.distribution,
+                open_firewall_for_docker_api(node.distribution),
+            ),
+            task_configure_flocker_agent(
+                control_node=cluster.control_node.address,
+                dataset_backend=cluster.dataset_backend,
+                dataset_backend_configuration=(
+                    dataset_backend_configuration
+                ),
+                logging_config=logging_config,
+            ),
+            task_enable_docker_plugin(node.distribution),
+            task_enable_flocker_agent(
+                distribution=node.distribution,
+                action=setup_action,
+            ),
+        ]),
+    )
+
+
+def provision_as_root(node, package_source, variants=()):
+    """
+    Provision flocker on a node using the root user.
+
+    :param INode node: Node to provision.
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
+    """
+    commands = []
+
+    commands.append(run_remotely(
+        username='root',
+        address=node.address,
+        commands=provision(
+            package_source=package_source,
+            distribution=node.distribution,
+            variants=variants,
+        ),
+    ))
+
+    return sequence(commands)
+
+
+def provision_for_any_user(node, package_source, variants=()):
+    """
+    Provision flocker on a node using the default user. If the user is not
+    root, then copy the authorized_users over to the root user and then
+    provision as root.
+
+    :param INode node: Node to provision.
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
+    """
+    username = node.get_default_username()
+
+    if username == 'root':
+        return provision_as_root(node, package_source, variants)
+
+    commands = []
+
+    # cloud-init may not have allowed sudo without tty yet, so try SSH key
+    # installation for a few more seconds:
+    start = []
+
+    def for_thirty_seconds(*args, **kwargs):
+        if not start:
+            start.append(time())
+        return Effect(Constant((time() - start[0]) < 30))
+
+    commands.append(run_remotely(
+        username=username,
+        address=node.address,
+        commands=retry(task_install_ssh_key(), for_thirty_seconds),
+    ))
+
+    commands.append(
+        provision_as_root(node, package_source, variants))
+
+    return sequence(commands)

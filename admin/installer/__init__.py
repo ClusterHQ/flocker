@@ -1,5 +1,9 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
-Installer scripts and modules which should not be shipped with Flocker.
+Helper utilities for the CloudFormation installer.
 """
+
+from ._images import publish_installer_images_main
+
+__all__ = ["publish_installer_images_main"]

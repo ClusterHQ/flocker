@@ -287,7 +287,6 @@ html > body h2.step-stages__heading {
 }
 
 .step-stages__step {
-	text-align: center;	
 	margin-bottom: 24px;
 }
 
@@ -304,6 +303,9 @@ html > body h2.step-stages__heading {
 	display: block;
 	margin-bottom: 8px;
 	font-size: 14px;
+}
+.step-stages__step span strong {
+    font-weight: 900;
 }
 
 .step-stages__step span>ul>li {
@@ -394,9 +396,13 @@ Legacy
 }
 
 .admonition.labs {
-    background: url(../images/experimental.png) no-repeat #BCED91;
+    background: url(../images/icon-labs2x.png) no-repeat #BCED91;
     background-size:30px; background-position: 30px 20px;
     padding-right:20px;
+}
+
+.admonition.labs p {
+    padding-bottom:1em;
 }
 
 /* Nav Style from website */

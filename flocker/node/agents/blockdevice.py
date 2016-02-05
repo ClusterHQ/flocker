@@ -7,6 +7,7 @@ convergence agent that can be re-used against many different kinds of block
 devices.
 """
 
+import itertools
 from uuid import UUID
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
@@ -31,6 +32,7 @@ from twisted.python.constants import (
 )
 
 from .blockdevice_manager import BlockDeviceManager
+from ._logging import DATASET_ID, COUNT
 
 from .. import (
     IDeployer, ILocalState, IStateChange, in_parallel, NoOp,
@@ -272,12 +274,6 @@ FILESYSTEM_TYPE = Field.forTypes(
     u"The name of a filesystem."
 )
 
-DATASET_ID = Field(
-    u"dataset_id",
-    lambda dataset_id: unicode(dataset_id),
-    u"The unique identifier of a dataset."
-)
-
 MOUNTPOINT = Field(
     u"mountpoint",
     lambda path: path.path,
@@ -424,6 +420,15 @@ DISCOVERED_RAW_STATE = MessageType(
     [Field(u"raw_state", safe_repr)],
     u"The discovered raw state of the node's block device volumes.")
 
+FUNCTION_NAME = Field.for_types(
+    "function", [bytes, unicode],
+    u"The name of the function.")
+
+CALL_LIST_VOLUMES = MessageType(
+    u"flocker:node:agents:blockdevice:list_volumes",
+    [FUNCTION_NAME, COUNT],
+    u"list_volumes called.",)
+
 
 def _volume_field():
     """
@@ -507,7 +512,7 @@ class CreateFilesystem(PClass):
             filesystem_type=self.filesystem
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         try:
             _ensure_no_filesystem(self.device, deployer.block_device_manager)
             deployer.block_device_manager.make_filesystem(self.device,
@@ -576,7 +581,7 @@ class MountBlockDevice(PClass):
         return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id,
                                   block_device_path=self.device_path)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Run the system ``mount`` tool to mount this change's volume's block
         device.  The volume must be attached to this node.
@@ -642,7 +647,7 @@ class UnmountBlockDevice(PClass):
     def eliot_action(self):
         return UNMOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Run the system ``unmount`` tool to unmount this change's volume's block
         device.  The volume must be attached to this node and the corresponding
@@ -689,7 +694,7 @@ class AttachVolume(PClass):
         return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id,
                              block_device_id=self.blockdevice_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
         """
@@ -731,7 +736,7 @@ class DetachVolume(PClass):
         return DETACH_VOLUME(_logger, dataset_id=self.dataset_id,
                              block_device_id=self.blockdevice_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Use the deployer's ``IBlockDeviceAPI`` to detach the volume.
         """
@@ -758,7 +763,7 @@ class DestroyVolume(PClass):
     def eliot_action(self):
         return DESTROY_VOLUME(_logger, block_device_id=self.blockdevice_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
         """
@@ -846,7 +851,7 @@ class CreateBlockDeviceDataset(PClass):
         else:
             return api.create_volume(dataset_id=self.dataset_id, size=size)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Create a block device, attach it to the local host, create an ``ext4``
         filesystem on the device and mount it.
@@ -1121,8 +1126,8 @@ class ICloudAPI(Interface):
         This is used to figure out which nodes are dead, so that other
         nodes can do the detach.
 
-        :returns: A collection of compute instance IDs, compatible with
-            those returned by ``IBlockDeviceAPI.compute_instance_id``.
+        :returns: A collection of ``unicode`` compute instance IDs, compatible
+            with those returned by ``IBlockDeviceAPI.compute_instance_id``.
         """
 
     def start_node(node_id):
@@ -1232,6 +1237,29 @@ class _SyncToThreadedAsyncAPIAdapter(PClass):
     _threadpool = field()
 
 
+def log_list_volumes(function):
+    """
+    Decorator to count calls to list_volumes.
+
+    :param func function: The function to call.
+
+    :return: A function which will call the method and do
+        the extra logging.
+    """
+    counter = itertools.count(1)
+
+    def _count_calls(*args, **kwargs):
+        """
+        Run given function with count.
+        """
+        CALL_LIST_VOLUMES(
+            function=function.__name__, count=next(counter)
+        ).write()
+        return function(*args, **kwargs)
+    return _count_calls
+
+
+@log_list_volumes
 def check_for_existing_dataset(api, dataset_id):
     """
     :param IBlockDeviceAPI api: The ``api`` for listing the existing volumes.
@@ -1246,6 +1274,7 @@ def check_for_existing_dataset(api, dataset_id):
             raise DatasetExists(volume)
 
 
+@log_list_volumes
 def get_blockdevice_volume(api, blockdevice_id):
     """
     Find a ``BlockDeviceVolume`` matching the given identifier.
@@ -1607,6 +1636,7 @@ class BlockDeviceDeployer(PClass):
             )
         return self._async_block_device_api
 
+    @log_list_volumes
     def _discover_raw_state(self):
         """
         Find the state of this node that is relevant to determining which
@@ -1664,7 +1694,7 @@ class BlockDeviceDeployer(PClass):
         DISCOVERED_RAW_STATE(raw_state=result).write()
         return result
 
-    def discover_state(self, cluster_state):
+    def discover_state(self, cluster_state, persistent_state):
         """
         Find all datasets that are currently associated with this host and
         return a ``BlockDeviceDeployerLocalState`` containing all the datasets

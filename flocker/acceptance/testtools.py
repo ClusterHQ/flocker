@@ -36,7 +36,7 @@ from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
 
-from ..common import gather_deferreds, loop_until, timeout
+from ..common import gather_deferreds, loop_until, timeout, retry_failure
 from ..common.runner import download_file, run_ssh
 
 from ..control.httpapi import REST_API_PORT
@@ -45,6 +45,7 @@ from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.script import get_backend, get_api
 from ..node import dockerpy_client
+from ..provision import reinstall_flocker_from_package_source
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
@@ -87,6 +88,12 @@ DOCKER_PORT = 2376
 # polling for a condition, it's better to time out quickly and retry instead of
 # possibly getting stuck in this case.
 SOCKET_TIMEOUT_FOR_POLLING = 2.0
+
+
+class FailureToUpgrade(Exception):
+    """
+    Exception raised to indicate a failure to install a new version of Flocker.
+    """
 
 
 def get_docker_client(cluster, address):
@@ -176,6 +183,7 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
 class DatasetBackend(Names):
     loopback = NamedConstant()
     zfs = NamedConstant()
+    gce = NamedConstant()
     aws = NamedConstant()
     openstack = NamedConstant()
 
@@ -475,14 +483,32 @@ class Cluster(PClass):
 
     :ivar treq: A ``treq`` client, eventually to be completely replaced by
         ``FlockerClient`` usage.
+    :ivar reactor: A reactor to use to execute operations.
     :ivar client: A ``FlockerClient``.
+    :ivar raw_distribution: Either a string with the distribution being run on
+        the cluster or None if it is unknown.
     """
     control_node = field(mandatory=True, type=ControlService)
     nodes = field(mandatory=True, type=_NodeList)
     treq = field(mandatory=True)
+    reactor = field(mandatory=True)
     client = field(type=FlockerClient, mandatory=True)
     certificates_path = field(FilePath, mandatory=True)
     cluster_uuid = field(mandatory=True, type=UUID)
+    raw_distribution = field(mandatory=True, type=(bytes, type(None)))
+
+    @property
+    def distribution(self):
+        """
+        :returns: The name of the distribution installed on the cluster.
+        :raises SkipTest: If the distribution was not set in environment
+            variables.
+        """
+        if self.raw_distribution is None:
+            raise SkipTest(
+                'Set FLOCKER_ACCEPTANCE_DISTRIBUTION with the distribution '
+                'that is installed on the nodes of the cluster.')
+        return self.raw_distribution
 
     @property
     def base_url(self):
@@ -527,9 +553,9 @@ class Cluster(PClass):
         :param Dataset expected_dataset: The configured dataset that
             we're waiting for in state.
 
-        :returns: A ``Deferred`` which fires with ``expected_datasets``
-            when the cluster state matches the configuration for the given
-            dataset.
+        :returns: A ``Deferred`` which fires with the ``DatasetState`` of the
+            cluster when the cluster state matches the configuration for the
+            given dataset.
         """
         expected_dataset_state = DatasetState(
             dataset_id=expected_dataset.dataset_id,
@@ -546,13 +572,17 @@ class Cluster(PClass):
             def got_results(results):
                 # State has unpredictable path, so we don't bother
                 # checking for its contents:
-                actual_dataset_states = [d.set(path=None) for d in results]
-                return expected_dataset_state in actual_dataset_states
+                actual_dataset_states = list(
+                    d for d in results
+                    if d.set('path', None) == expected_dataset_state)
+                if actual_dataset_states:
+                    return actual_dataset_states[0]
+                else:
+                    return None
             request.addCallback(got_results)
             return request
 
         waiting = loop_until(reactor, created)
-        waiting.addCallback(lambda ignored: expected_dataset)
         return waiting
 
     @log_method
@@ -702,6 +732,73 @@ class Cluster(PClass):
         return request
 
     @log_method
+    def install_flocker_version(self, package_source,
+                                destroy_persisted_state=False):
+        """
+        Change the version of flocker installed on all of the nodes to the
+        version indicated by `package_source`.
+
+        :param PackageSource package_source: The :class:`PackageSource` to
+            install flocker from on all of the nodes.
+        :param bool destroy_persisted_state: Whether to destroy the control
+            node's state file when upgrading or not.
+        """
+        control_node_address = self.control_node.public_address
+        all_cluster_nodes = set(list(x.public_address for x in self.nodes) +
+                                [control_node_address])
+        distribution = self.distribution
+
+        def get_flocker_version():
+            # Retry getting the flocker version for 10 times, with a 10 second
+            # timeout on each. Flocker might not be running yet on the control
+            # node when this is called.
+            d = retry_failure(
+                self.reactor,
+                lambda: timeout(
+                    self.reactor,
+                    self.client.version(),
+                    10
+                ),
+                [1]*10
+            )
+            d.addCallback(
+                lambda v: v.get('flocker', u'').encode('ascii') or None)
+            return d
+
+        d = get_flocker_version()
+
+        # If we fail to get the current version, assume we must reinstall
+        # flocker. The following line consumes the error, and continues down
+        # the callback chain of the deferred.
+        d.addErrback(write_failure)
+
+        def reinstall_if_needed(current_version):
+            if (not current_version or
+                    current_version != package_source.version):
+                # If we did not get the version, or if the version does not
+                # match the target version, then we must re-install flocker.
+                return reinstall_flocker_from_package_source(
+                    reactor, all_cluster_nodes, control_node_address,
+                    package_source, distribution,
+                    destroy_persisted_state=destroy_persisted_state)
+            return current_version
+        d.addCallback(reinstall_if_needed)
+
+        d.addCallback(lambda _: get_flocker_version())
+
+        def verify_version(current_version):
+            if package_source.version:
+                if current_version != package_source.version:
+                    raise FailureToUpgrade(
+                        "Failed to set version of flocker to %s, it is still "
+                        "%s." % (package_source.version, current_version)
+                    )
+            return current_version
+        d.addCallback(verify_version)
+
+        return d
+
+    @log_method
     def clean_nodes(self, remove_foreign_containers=True):
         """
         Clean containers and datasets via the API.
@@ -841,10 +938,12 @@ def connected_cluster(
         nodes=[],
         treq=treq_with_authentication(
             reactor, cluster_cert, user_cert, user_key),
+        reactor=reactor,
         client=FlockerClient(reactor, control_node, REST_API_PORT,
                              cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
         cluster_uuid=user_credential.cluster_uuid,
+        raw_distribution=environ.get('FLOCKER_ACCEPTANCE_DISTRIBUTION'),
     )
 
     # Wait until nodes are up and running:

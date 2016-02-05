@@ -35,16 +35,23 @@ from .._loop import (
     LOG_SEND_TO_CONTROL_SERVICE,
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS, LOG_DISCOVERY,
     _UNCONVERGED_DELAY, _Sleep,
+    RemoteStatePersister,
     )
 from ..testtools import (
     ControllableDeployer, ControllableAction, to_node, NodeLocalState,
 )
 from ...control import (
     NodeState, Deployment, Manifestation, Dataset, DeploymentState,
-    Application, DockerImage,
+    Application, DockerImage, PersistentState,
 )
 from ...control._protocol import NodeStateCommand, AgentAMP, SetNodeEraCommand
-from ...control.test.test_protocol import iconvergence_agent_tests_factory
+from ...control.testtools import (
+    make_istatepersister_tests,
+    make_loopback_control_client,
+)
+from ...control.test.test_protocol import (
+    iconvergence_agent_tests_factory,
+)
 from .. import NoOp
 
 
@@ -261,7 +268,7 @@ class SleepTests(TestCase):
         ``_Sleep.with_jitter`` adds some noise to the given delay.
         """
         base = 100
-        delays = [_Sleep.with_jitter(base).delay_seconds for i in range(3000)]
+        delays = [_Sleep.with_jitter(base).delay_seconds for _ in range(3000)]
         # Since we're dealing with random results we can't quite assert
         # deterministically, but we can get some assurance.
         self.assertEqual(
@@ -596,9 +603,7 @@ class ConvergenceLoopFSMTests(TestCase):
             nodes=[local_node_state])
         [calculate_necessary_state_changes_inputs] = deployer.calculate_inputs
 
-        (actual_local_state,
-         actual_desired_configuration,
-         actual_cluster_state) = calculate_necessary_state_changes_inputs
+        (_, _, actual_cluster_state) = calculate_necessary_state_changes_inputs
 
         self.assertEqual(expected_local_cluster_state, actual_cluster_state)
 
@@ -609,7 +614,7 @@ class ConvergenceLoopFSMTests(TestCase):
         cluster state.
         """
         local_state = NodeState(hostname=u'192.0.2.123')
-        configuration = object()
+        configuration = Deployment()
         received_state = DeploymentState(nodes=[])
         # Since this Deferred is unfired we never proceed to next
         # iteration; if we did we'd get exception from discovery since we
@@ -1160,7 +1165,7 @@ class ConvergenceLoopFSMTests(TestCase):
                                          state=cluster_state))
         self.assertEqual(
             deployer.discover_inputs,
-            [cluster_state],
+            [(cluster_state, PersistentState())],
         )
 
 
@@ -1331,4 +1336,30 @@ class AgentLoopServiceInterfaceTests(
         iconvergence_agent_tests_factory(_build_service)):
     """
     ``IConvergenceAgent`` tests for ``AgentLoopService``.
+    """
+
+
+def make_remotestatepersister(test_case):
+    """
+    Create a ``RemoteStatePersister`` for use in tests.
+
+    :return: ``tuple`` of ``IStatePersiter`` and 0-argument callable returning
+    a ``PersistentState``.
+    """
+    clock = Clock()
+    control_amp_service, client = make_loopback_control_client(
+        test_case,
+        reactor=clock,
+    )
+    persistence_service = control_amp_service.configuration_service
+    return RemoteStatePersister(client=client), (
+        lambda: persistence_service.get().persistent_state
+    )
+
+
+class RemoteStatePersisterTests(
+    make_istatepersister_tests(make_remotestatepersister)
+):
+    """
+    Tests for ``RemoteStatePersister``.
     """

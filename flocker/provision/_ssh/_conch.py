@@ -46,9 +46,9 @@ RUN_OUTPUT_MESSAGE = MessageType(
 )
 
 
-def extReceived(self, type, data):
+def extReceived(self, ext_type, data):
     from twisted.conch.ssh.connection import EXTENDED_DATA_STDERR
-    if type == EXTENDED_DATA_STDERR:
+    if ext_type == EXTENDED_DATA_STDERR:
         self.dataReceived(data)
 
 
@@ -168,6 +168,16 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
     ])
 
     yield perform(dispatcher, intent.commands)
+
+    #  Work around https://twistedmatrix.com/trac/ticket/8138 by reaching deep
+    #  into a different layer and closing a leaked connection.
+    if (connection.transport and
+            connection.transport.instance and
+            connection.transport.instance.agent):
+        connection.transport.instance.agent.transport.loseConnection()
+        # Set the agent to None as the agent is unusable and cleaned up at this
+        # point.
+        connection.transport.instance.agent = None
 
     yield connection_helper.cleanupConnection(
         connection, False)

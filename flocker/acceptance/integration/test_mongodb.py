@@ -4,10 +4,14 @@
 Tests for interoperability between MongoDB and Flocker datasets.
 """
 
+from datetime import timedelta
+
 from twisted.python.filepath import FilePath
 
 from ..testtools import get_mongo_client, require_mongo
 from .testtools import make_dataset_integration_testcase
+
+from ...testtools import async_runner
 
 
 def insert_data(test_case, host, port):
@@ -57,6 +61,10 @@ class MongoIntegrationTests(make_dataset_integration_testcase(
     """
     Integration tests for MongoDB.
     """
+
+    # Disable timeout for MongoDB integration tests.
+    run_tests_with = async_runner(timeout=timedelta(hours=1))
+
     @require_mongo
     def setUp(self):
         super(MongoIntegrationTests, self).setUp()

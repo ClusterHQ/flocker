@@ -1,4 +1,4 @@
-// vim: ai ts=2 sts=2 et sw=2 ft=groovy fdm=indent et foldlevel=0
+// vim: ai ts=2 sts=2 et sw=2 ft=groovy et
 /* jobs.groovy
 
   This Groovy file contains the jenkins job DSL plugin code to build all the
@@ -33,9 +33,9 @@
   A typical jenkins job contains the following sections, this is just an
   example of possible actions within a particular section:
 
-   * Parameters:
-        - parameters can be added to a job, these are used to pass environment
-          variables to the build steps or any other step in the job.
+   * Environment variables:
+        - These are used to pass environment variables to the build steps or
+          any other step in the job.
 
    * Source Control defintions:
         - repository URL
@@ -122,7 +122,12 @@ GLOBAL_CONFIG = jsonSlurper.parseText(
 // --------------------------------------------------------------------------
 
 def updateGitHubStatus(status, description, branch, dashProject,
-                       dashBranchName, jobName) {
+                       dashBranchName, jobName, buildNumber=true) {
+    if (buildNumber) {
+      buildURL = "\${BUILD_URL}"
+    } else {
+      buildURL = "\$JENKINS_URL/job/${dashProject}/job/${dashBranchName}/job/${jobName}/"
+    }
     return """#!/bin/bash
 # Jenkins jobs are usually run using 'set -x' however we use 'set +x' here
 # to avoid leaking credentials into the build logs.
@@ -131,7 +136,7 @@ set +x
 """ + new File('/etc/slave_config/github_status.sh').text + """
 # Send a request to Github to update the commit with the build status
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/${branch}`
-BUILD_URL="\$JENKINS_URL/job/${dashProject}/job/${dashBranchName}/job/${jobName}/"
+BUILD_URL="${buildURL}"
 PAYLOAD="{\\"state\\": \\"${status}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"${description}\\", \\"context\\": \\"jenkins-${jobName}\\" }"
 curl \\
   -H "Content-Type: application/json" \\
@@ -262,6 +267,17 @@ def build_wrappers(v) {
 }
 
 
+/*
+    Is the specified branch the master branch?
+
+    :param unicode branchName: the name of the branch.
+    :return bool: whether the branch is the master branch.
+*/
+def is_master(branchName) {
+    return branchName == "master"
+}
+
+
 /* adds a list of triggers to the build job
 
    param  _type: type of job
@@ -270,18 +286,18 @@ def build_wrappers(v) {
 */
 def build_triggers(_type, _value, _branch ) {
     return {
-        /* the job_type 'cron' is used by the docker_build jobs running every 24h
+        /* the job_type 'cronly_jobs' is used by the docker_build jobs running every 24h
            but we only configure the scheduler if the jobs is for the master branch.
            If we were to schedule the job on every branch we would have multiple jobs
            running at the same time. */
-        if (_type == "cron" && _branch == "master") {
+        if (_type == "cronly_jobs" && is_master(_branch)) {
             //  the cron  string below is a common crontab style string
             cron(_value)
         }
-        /*  the job_type 'githubPush' is used by the multijob, we use it to
+        /*  the job_type 'multijob' is used by the multijob, we use it to
             configure that job so that builds on master are triggered automatically
             this block enables 'Build when a change is pushed to GitHub' */
-        if (_type == "githubPush" && _branch == "master") {
+        if (_type == "multijob" && is_master(_branch)) {
             githubPush()
         }
     }
@@ -378,6 +394,12 @@ def build_publishers(v, branchName, dashProject, dashBranchName, job_name) {
                 failNoReports(true)
             }
         }
+        if (v.publish_lint) {
+          violations {
+            sourcePathPattern('**/*.py')
+            pylint(1, null, null, '*.lint')
+          }
+        }
         if (job_name) {
             /* Update the commit status on GitHub with the build result We use the
                flexible-publish plugin combined with the the any-buildstep plugin to
@@ -423,6 +445,33 @@ def build_steps(job) {
                 shell(_step.cli.join("\n") + "\n")
             }
         }
+    }
+}
+
+
+/*
+    Closure that configures the current project to notify slack on failure.
+    The specified channel will be notified.
+*/
+Closure notify_slack(String channel) {
+    return {
+        // I'm not sure how to put these magic strings in a variable
+        // or avoid them altogether.
+        it / 'properties' << 'jenkins.plugins.slack.SlackNotifier_-SlackJobProperty'(plugin: 'slack@1.8.1') {
+            room(channel)
+            startNotification(false)
+            notifySuccess(false)
+            notifyAborted(false)
+            notifyNotBuilt(true)
+            notifyUnstable(true)
+            notifyFailure(true)
+            notifyBackToNormal(false)
+            notifyRepeatedFailure(true)
+            includeTestSummary(true)
+            showCommitList(true)
+            includeCustomMessage(false)
+        }
+        it / 'publishers' << 'jenkins.plugins.slack.SlackNotifier'(plugin: 'slack@1.8.1')
     }
 }
 
@@ -551,13 +600,12 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
                full_name, job_values, module, isReleaseBuild) {
 
     job(full_name) {
-        parameters {
+        environmentVariables {
             // we pass the 'MODULE' parameter as the flocker module to test with trial
             if (module != null) {
-                textParam("MODULE", module, "Module to test" )
+                env("MODULE", module)
             }
-            textParam("TRIGGERED_BRANCH", branchName,
-                      "Branch that triggered this job" )
+            env("TRIGGERED_BRANCH", branchName)
         }
         // Allow some attempts to checkout the source to fail, since
         // doing so depends on a third-party, network-accessible resource.
@@ -570,9 +618,18 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
         checkoutRetryCount(5)
         label(job_values.on_nodes_with_labels)
         wrappers build_wrappers(job_values)
+        triggers build_triggers(job_type, job_values.at, branchName)
         scm build_scm(git_url, branchName, isReleaseBuild)
+        steps {
+          shell(updateGitHubStatus(
+                'pending', 'Build started',
+                branchName, dashProject, dashBranchName, job_name))
+        }
         steps build_steps(job_values)
         publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
+        if (job_values.notify_slack && is_master(branchName)) {
+            configure notify_slack(job_values.notify_slack)
+        }
     }
 
 }
@@ -641,7 +698,7 @@ def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
            This however only happens for the master branch, no other branches are
            automatically built when new commits are pushed to those branches.
         */
-        triggers build_triggers('githubPush', 'none', branchName)
+        triggers build_triggers('multijob', 'none', branchName)
         wrappers {
             timestamps()
             colorizeOutput()
@@ -657,7 +714,7 @@ def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
         steps {
             /* Set the commit status on GitHub to pending for each subtask we will run */
             list_jobs(dashProject, dashBranchName).findAll { it.type in PULL_REQUEST_JOB_TYPES }.each {
-                shell(updateGitHubStatus('pending', 'Build started', branchName, dashProject, dashBranchName, it.name))
+                shell(updateGitHubStatus('pending', 'Build triggered', branchName, dashProject, dashBranchName, it.name, false))
             }
             /* make sure we are starting with a clean workspace  */
             shell('rm -rf *')
@@ -721,12 +778,13 @@ def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
 }
 
 
-def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseBuild) {
+def generate_jobs_for_branch(dashProject, dashBranchName, displayFolderName, branchName, isReleaseBuild) {
     /*
         Generate all the jobs for the specific branch.
 
         :param unicode dashProject: the project name escaped with dashes
         :param unicode dashBranchName: the branch name escaped with dashes
+        :param unicode displayFolderName: The display name of the folder.
         :param unicode branchName: the name of the branch for display - spaces
              etc. allowed
         :param bool isReleaseBuild: whether to generate a release build that
@@ -735,16 +793,14 @@ def generate_jobs_for_branch(dashProject, dashBranchName, branchName, isReleaseB
 
     // create a folder for every branch: /git-username/git-repo/branch
     folder(folder_name(dashProject, dashBranchName)) {
-        displayName(branchName)
+        displayName(displayFolderName)
     }
 
     // create tabs
     build_tabs(dashBranchName)
 
     // create individual jobs
-    list_jobs(dashProject, dashBranchName).findAll {
-        it.type != 'cronly_jobs'
-    }.each {
+    list_jobs(dashProject, dashBranchName).each {
         define_job(
             dashProject, dashBranchName, branchName, it.type, it.name,
             it.full_name, it.values, it.module, isReleaseBuild
@@ -765,43 +821,14 @@ branches.each { branchName ->
     println("iterating over branch... ${branchName}")
     dashBranchName = escape_name(branchName)
     // our convention for release branches is release/flocker-<version>
-    isReleaseBuild = branchName.startsWith("release/*")
+    isReleaseBuild = branchName.startsWith("release/")
 
-    generate_jobs_for_branch(dashProject, dashBranchName, branchName, false)
+    generate_jobs_for_branch(dashProject, dashBranchName, branchName, branchName, false)
 
     if (isReleaseBuild) {
         generate_jobs_for_branch(
             dashProject, "release-" + dashBranchName, "Release " + branchName,
-            true
+            branchName, true
         )
-    }
-
-
-    /* ------------------------------------------------------------------------- */
-    /* CRON JOBS BELOW                                                           */
-    /* --------------------------------------------------------------------------*/
-
-    /* Configure cronly jobs, these are not part of the main branches loop       */
-    /* As we only run them from the master branch, they get executed a few       */
-    /* times a day based on a cron type schedule.                                */
-
-    cronly_jobs = list_jobs(dashProject, dashBranchName).findAll {
-        it.type == 'cronly_jobs'
-    }.each {
-        values = it.values
-        job(it.full_name) {
-            parameters {
-                textParam("TRIGGERED_BRANCH", branchName,
-                          "Branch that triggered this job" )
-            }
-            // See above.
-            checkoutRetryCount(5)
-            label(values.on_nodes_with_labels)
-            wrappers build_wrappers(values)
-            triggers build_triggers('cron', values.at, branchName)
-            scm build_scm("${git_url}", "${branchName}", false)
-            steps build_steps(values)
-            publishers build_publishers(values, null, null, null, null)
-        }
     }
 }

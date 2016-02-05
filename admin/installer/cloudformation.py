@@ -6,11 +6,19 @@ python cloudformation.py > /tmp/flocker-cluster.cloudformation.json
 
 Resulting JSON template has the following blueprint to describe the
 desired stack's resources and properties:
-1 Control Node with Flocker Control Service, (TLS-enabled) Swarm Manager,
-                    (TLS-enabled) Docker, Ubuntu 14.04
-2 Agent Nodes with Flocker Dataset Agent, Swarm Agent, (TLS-enabled) Docker,
-                   Ubuntu 14.04
-1 Client Node with Flockerctl, Docker, Docker-compose, Ubuntu 14.04
+
+* 1 Control Node with Flocker Control Service, (TLS-enabled) Swarm Manager,
+  (TLS-enabled) Docker, Ubuntu 14.04
+
+  After Control Node is booted, proceed with creating rest of the stack.
+
+* 2 Agent Nodes with Flocker Dataset Agent, Swarm Agent, (TLS-enabled) Docker,
+  Ubuntu 14.04
+
+  After Agent Nodes are booted and configured with Flocker and Swarm, proceed
+  with creating rest of the stack.
+
+* 1 Client Node with Flockerctl, Docker, Docker-compose, Ubuntu 14.04
 
 To manifest the blueprint, please input the JSON template at AWS CloudFormation
 Create Stack console (after replacing ``us-east-1`` with your Region):
@@ -31,6 +39,8 @@ MAX_CLUSTER_SIZE = 20
 CLUSTER_SIZE_TEMPLATE = u"Supported cluster sizes: min={0} max={1}".format(
     MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE)
 DEFAULT_CLUSTER_SIZE = MIN_CLUSTER_SIZE
+NODE_CONFIGURATION_TIMEOUT = u"900"
+# NUM_NODES = 3
 AGENT_NODE_NAME_TEMPLATE = u"AgentNode{index}"
 EC2_INSTANCE_NAME_TEMPLATE = u"{stack_name}_{node_type}"
 CONTROL_NODE_NAME = u"ControlNode"
@@ -98,30 +108,40 @@ num_nodes = _get_cluster_size()
 template = Template()
 
 # Keys corresponding to CloudFormation user Inputs.
-keyname_param = template.add_parameter(Parameter(
-    "KeyPair",
-    Description="Name of an existing EC2 KeyPair to enable SSH "
-                "access to the instance",
-    Type="String",
-))
 access_key_id_param = template.add_parameter(Parameter(
-    "AccessKeyID",
-    Description="Your Amazon AWS access key ID",
+    "AmazonAccessKeyID",
+    Description="Your Amazon AWS access key ID (mandatory)",
     Type="String",
+    NoEcho=True,
+    AllowedPattern="[\w]+",
+    MinLength="16",
+    MaxLength="32",
 ))
 secret_access_key_param = template.add_parameter(Parameter(
-    "SecretAccessKey",
-    Description="Your Amazon AWS secret access key",
+    "AmazonSecretAccessKey",
+    Description="Your Amazon AWS secret access key (mandatory)",
     Type="String",
+    NoEcho=True,
+    MinLength="1",
 ))
-
+keyname_param = template.add_parameter(Parameter(
+    "EC2KeyPair",
+    Description="Name of an existing EC2 KeyPair to enable SSH "
+                "access to the instance (mandatory)",
+    Type="String",
+    MinLength="1",
+    AllowedPattern="[\x20-\x7E]*",
+    MaxLength="255",
+    ConstraintDescription="can contain only ASCII characters.",
+))
 volumehub_token = template.add_parameter(Parameter(
     "VolumeHubToken",
     Description=(
-        "Your Volume Hub token. "
+        "Your Volume Hub token (optional). "
         "You'll find the token at https://volumehub.clusterhq.com/v1/token."
     ),
     Type="String",
+    Default="",
 ))
 
 # Base AMIs pre-baked with the following products:
@@ -196,6 +216,10 @@ base_user_data = [
 # from 0.
 flocker_agent_number = 1
 
+# Gather WaitConditions
+wait_condition_names = []
+
+# for i in range(NUM_NODES):
 for i in range(num_nodes):
     if i == 0:
         node_name = CONTROL_NODE_NAME
@@ -220,9 +244,12 @@ for i in range(num_nodes):
     wait_condition = WaitCondition(
         INFRA_WAIT_CONDITION_TEMPLATE.format(node=node_name),
         Handle=Ref(wait_condition_handle),
-        Timeout="600",
+        Timeout=NODE_CONFIGURATION_TIMEOUT,
     )
     template.add_resource(wait_condition)
+
+    # Gather WaitConditions
+    wait_condition_names.append(wait_condition.name)
 
     user_data = base_user_data[:]
     user_data += [
@@ -237,7 +264,7 @@ for i in range(num_nodes):
     if i == 0:
         # Control Node configuration.
         control_service_instance = ec2_instance
-        user_data += 'flocker_node_type="control"\n',
+        user_data += ['flocker_node_type="control"\n']
         user_data += _sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
         user_data += _sibling_lines(DOCKER_SWARM_CA_SETUP)
         user_data += _sibling_lines(DOCKER_SETUP)
@@ -255,10 +282,12 @@ for i in range(num_nodes):
     else:
         # Agent Node configuration.
         ec2_instance.DependsOn = control_service_instance.name
-        user_data += 'flocker_node_type="agent"\n'
-        user_data += 'flocker_agent_number="{}"\n'.format(
-            flocker_agent_number
-        )
+        user_data += [
+            'flocker_node_type="agent"\n',
+            'flocker_agent_number="{}"\n'.format(
+                flocker_agent_number
+            )
+        ]
         flocker_agent_number += 1
         user_data += _sibling_lines(DOCKER_SETUP)
 
@@ -292,7 +321,7 @@ template.add_resource(wait_condition_handle)
 wait_condition = WaitCondition(
     CLIENT_WAIT_CONDITION,
     Handle=Ref(wait_condition_handle),
-    Timeout="600",
+    Timeout=NODE_CONFIGURATION_TIMEOUT,
 )
 template.add_resource(wait_condition)
 
@@ -306,7 +335,10 @@ user_data += _sibling_lines(S3_SETUP)
 user_data += _sibling_lines(CLIENT_SETUP)
 user_data += _sibling_lines(SIGNAL_CONFIG_COMPLETION)
 client_instance.UserData = Base64(Join("", user_data))
-client_instance.DependsOn = control_service_instance.name
+
+# Start Client Node after Control Node and Agent Nodes are
+# up and running Flocker, Docker, Swarm stack.
+client_instance.DependsOn = wait_condition_names
 template.add_resource(client_instance)
 
 # List of Output fields upon successful creation of the stack.
