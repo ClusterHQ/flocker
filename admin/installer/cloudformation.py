@@ -34,10 +34,10 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
-from _limits import MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE
+from _cloudformation_helper import (
+    MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE, InvalidClusterSizeException
+)
 
-CLUSTER_SIZE_TEMPLATE = u"Supported cluster sizes: min={0} max={1}".format(
-    MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE)
 DEFAULT_CLUSTER_SIZE = MIN_CLUSTER_SIZE
 NODE_CONFIGURATION_TIMEOUT = u"900"
 # NUM_NODES = 3
@@ -71,17 +71,6 @@ def _sibling_lines(filename):
         return f.readlines()
 
 
-class InvalidClusterSize(Exception):
-    """
-    """
-    def __init__(self, size):
-        message = ". ".join([
-            u"The requested cluster size of {0} is not supported".format(size),
-            CLUSTER_SIZE_TEMPLATE])
-        Exception.__init__(self, message, size)
-        self.size = size
-
-
 def _get_cluster_size():
     """
     """
@@ -99,7 +88,7 @@ def _get_cluster_size():
                                  MAX_CLUSTER_SIZE))
     size = parser.parse_args().size
     if size < MIN_CLUSTER_SIZE or size > MAX_CLUSTER_SIZE:
-        raise InvalidClusterSize(size)
+        raise InvalidClusterSizeException(size)
     return size
 
 num_nodes = _get_cluster_size()
