@@ -308,6 +308,7 @@ def mount(device, mountpoint):
 def create_blockdevicedeployer(
     test_case, hostname=u"192.0.2.1", node_uuid=uuid4(),
     eventually_consistent=False,
+    profiled_api=False,
 ):
     """
     Create a new ``BlockDeviceDeployer``.
@@ -317,12 +318,16 @@ def create_blockdevicedeployer(
         deployer.
     :param bool eventually_consistent: The ``IBlockDeviceAPI``
         should only be eventually consistent.
+    :param bool profiled_api: The ``IBlockDeviceAPI`` should provide
+        ``IProfiledBlockDeviceAPI``.
 
     :return: The newly created ``BlockDeviceDeployer``.
     """
     api = loopbackblockdeviceapi_for_test(test_case)
     if eventually_consistent:
         api = EventuallyConsistentBlockDeviceAPI(api)
+    if profiled_api:
+        api = FakeProfiledLoopbackBlockDeviceAPI(api)
     async_api = _SyncToThreadedAsyncAPIAdapter(
         _sync=api, _reactor=NonReactor(), _threadpool=NonThreadPool(),
     )
@@ -4991,8 +4996,11 @@ class CreateBlockDeviceDatasetImplementationMixin(object):
     Utility Mixin for ``CreateBlockDeviceDataset`` implementation tests.
     """
 
-    def _create_blockdevice_dataset(self, dataset_id, maximum_size,
-                                    metadata=pmap({})):
+    def _create_blockdevice_dataset(
+        self, dataset_id, maximum_size,
+        metadata=pmap({}),
+        state_persister=None,
+    ):
         """
         Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.
 
@@ -5002,18 +5010,24 @@ class CreateBlockDeviceDatasetImplementationMixin(object):
             be created.
         :param pmap(unicode, unicode) metadata: The metadata for the dataset.
 
-        :returns: A ``BlockDeviceVolume`` for the created volume.
+        :returns: The volumes created.
+        :rtype: ``list`` of ``BlockDeviceVolume``s.
         """
+        if state_persister is None:
+            state_persister = InMemoryStatePersister()
+
         change = CreateBlockDeviceDataset(
             dataset_id=dataset_id,
             maximum_size=maximum_size,
             metadata=metadata
         )
 
-        run_state_change(change, self.deployer, InMemoryStatePersister())
+        self.successResultOf(
+            run_state_change(change, self.deployer,
+                             state_persister=state_persister)
+        )
 
-        [volume] = self.api.list_volumes()
-        return volume
+        return self.api.list_volumes()
 
 
 def make_createblockdevicedataset_mixin(profiled_api):
@@ -5040,23 +5054,10 @@ def make_createblockdevicedataset_mixin(profiled_api):
                 TestCase):
         def setUp(self):
             super(Mixin, self).setUp()
-            if profiled_api:
-                self.api = fakeprofiledloopbackblockdeviceapi_for_test(
-                    self,
-                    allocation_unit=LOOPBACK_ALLOCATION_UNIT
-                )
-            else:
-                self.api = loopbackblockdeviceapi_for_test(
-                    self,
-                    allocation_unit=LOOPBACK_ALLOCATION_UNIT
-                )
-            self.mountroot = mountroot_for_test(self)
-            self.deployer = BlockDeviceDeployer(
-                node_uuid=uuid4(),
-                hostname=u"192.0.2.10",
-                block_device_api=self.api,
-                mountroot=self.mountroot
-            )
+            self.deployer = create_blockdevicedeployer(
+                self, profiled_api=profiled_api)
+            self.mountroot = self.deployer.mountroot
+            self.api = self.deployer.block_device_api
 
     return Mixin
 
@@ -5106,7 +5107,7 @@ class CreateBlockDeviceDatasetImplementationTests(
         to create a new volume.
         """
         dataset_id = uuid4()
-        volume = self._create_blockdevice_dataset(
+        [volume] = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
@@ -5117,6 +5118,28 @@ class CreateBlockDeviceDatasetImplementationTests(
         )
 
         self.assertEqual(expected_volume, volume)
+
+    def test_create_already_registered(self):
+        """
+        If the dataset already has a blockdevice associated to it,
+        ``CreateBlockDeviceDataset.run`` deletes the volume it
+        created.
+        """
+        dataset_id = uuid4()
+
+        state_persister = InMemoryStatePersister()
+        self.successResultOf(
+            state_persister.record_ownership(
+                dataset_id, u"other-blockdevice-id")
+        )
+
+        volumes = self._create_blockdevice_dataset(
+            dataset_id=dataset_id,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            state_persister=state_persister,
+        )
+
+        self.assertEqual(volumes, [])
 
     @capture_logging(assertHasMessage, CREATE_VOLUME_PROFILE_DROPPED)
     def test_run_create_profile_dropped(self, logger):
@@ -5131,7 +5154,7 @@ class CreateBlockDeviceDatasetImplementationTests(
             u"IProfiledBlockDeviceAPI. If the API now does provide that "
             u"interface, this test needs a bit of love.")
         dataset_id = uuid4()
-        volume = self._create_blockdevice_dataset(
+        [volume] = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
             metadata={PROFILE_METADATA_KEY: u"gold"}
@@ -5150,7 +5173,7 @@ class CreateBlockDeviceDatasetImplementationTests(
         requested size is less than ``allocation_unit``.
         """
         dataset_id = uuid4()
-        volume_info = self._create_blockdevice_dataset(
+        [volume_info] = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             # Request a size which will force over allocation.
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE + 1,
@@ -5183,7 +5206,7 @@ class CreateBlockDeviceDatasetProfiledImplementationTests(
             u"bit of love.")
         dataset_id = uuid4()
         profile = u"gold"
-        volume_info = self._create_blockdevice_dataset(
+        [volume_info] = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
             metadata={u"clusterhq:flocker:profile": profile}
