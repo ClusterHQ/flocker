@@ -152,7 +152,8 @@ _SYSTEMD_UNIT=docker.service
 MESSAGE=time="2015-10-02T13:33:26.192780138Z" level=info msg="GET /v1.20/containers/json"
 """
 
-class JournaldJSONFormatter(TestCase):
+
+class JournaldJSONFormatterTests(TestCase):
     """
     Tests for ``journald_json_formatter``.
     """
@@ -187,7 +188,7 @@ class JournaldJSONFormatter(TestCase):
                  _HOSTNAME="some-host-1",
                  _PROCESS_NAME="flocker-container-agent.service",
              ),
-         ],
+            ],
             self._convert(JOURNAL_EXPORT),
         )
 
@@ -209,17 +210,25 @@ class JournaldJSONFormatter(TestCase):
         )
 
 
-class CommonOptionsParser(TestCase):
+class CommonOptionsTests(TestCase):
     """
-    Tests for ``CommonOptions``
+    Tests for ``CommonOptions``.
     """
     def test_invalid_version(self):
-
-        arg_options = "--distribution ubuntu-14.04 --provider AWS " \
-            "--config-file acceptance.yml " \
-            "flocker-version invalid-version"
-        common_options = CommonOptions(arg_options)
-        self.assertRaises(
+        """
+        An ``UsageError`` is thrown if an invalid flocker version is passed
+        to the ``CommonOptions``.
+        """
+        arg_options = (
+            "--distribution ubuntu-14.04 --provider AWS "
+            "--flocker-version invalid-version"
+        )
+        common_options = CommonOptions(self.mktemp())
+        exception = self.assertRaises(
             UsageError,
-            common_options.parseOptions, arg_options
+            common_options.parseOptions, arg_options.split()
+        )
+
+        self.assertIn(
+            "Flocker version", exception.args[0]
         )

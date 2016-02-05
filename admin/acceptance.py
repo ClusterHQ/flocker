@@ -950,7 +950,7 @@ class CommonOptions(Options):
                 parse_version(self['flocker-version'])
             except UnparseableVersion:
                 raise UsageError(
-                    "Flocker vesion {!r} is not a valid version".format(
+                    "Flocker version {!r} is not a valid version".format(
                         self['flocker-version']
                     )
                 )
