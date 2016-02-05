@@ -4,7 +4,7 @@
 Tests for the datasets REST API.
 """
 
-from uuid import UUID
+from uuid import UUID, uuid4
 from unittest import SkipTest, skipIf
 from datetime import timedelta
 
@@ -18,7 +18,7 @@ from ...node.agents.blockdevice import ICloudAPI
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset, DatasetBackend,
-    get_backend_api, verify_socket
+    get_backend_api, verify_socket, get_default_volume_size,
 )
 
 
@@ -178,3 +178,22 @@ class DatasetAPITests(AsyncTestCase):
 
         waiting_for_shutdown.addCallback(move_dataset)
         return waiting_for_shutdown
+
+    @require_cluster(1)
+    def test_unregistered_volume(self, cluster):
+        """
+        If there is already a backend volume for a dataset when it is created,
+        that volume is used for that dataset.
+        """
+        api = get_backend_api(self, cluster.cluster_uuid)
+
+        dataset_id = uuid4()
+        volume = api.create_volume(dataset_id, size=get_default_volume_size())
+
+        wait_for_dataset = create_dataset(self, cluster, dataset_id=dataset_id)
+
+        def check_volumes(dataset):
+            volumes = api.list_volumes()
+            self.assertEqual([volume], volumes)
+        wait_for_dataset.addCallback(check_volumes)
+        return wait_for_dataset
