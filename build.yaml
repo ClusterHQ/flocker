@@ -1157,6 +1157,7 @@ job_type:
                    *sync_master_docs_to_doc_dev ]
           }
       timeout: 10
+      archive_artifacts: ["docs/_build/spelling/output.txt"]
       directories_to_delete: []
 
 
@@ -1583,6 +1584,7 @@ job_type:
                    *sync_master_docs_to_doc_dev ]
           }
       timeout: 10
+      archive_artifacts: ["docs/_build/linkcheck/output.txt"]
       notify_slack: '#engineering'
 
 #-----------------------------------------------------------------------------#
