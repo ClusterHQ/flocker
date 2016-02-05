@@ -377,7 +377,7 @@ class ClusterContainerDeployment(object):
 
         def log_totals(result):
             Message.log(
-                action_type='flocker.benchmark.container_setup:finish',
+                message_type='flocker.benchmark.container_setup:finish',
                 container_count=self.container_count,
                 error_count=self.error_count
             )
