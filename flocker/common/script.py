@@ -164,18 +164,18 @@ def eliot_to_stdout(message_formats, action_formats, stdout=sys.stdout):
         action_type = message.get('action_type')
         action_status = message.get('action_status')
 
-        format = ''
+        message_format = '%s'
         if message_type is not None:
             if message_type == 'twisted:log' and message.get('error'):
-                format = '%(message)s'
+                message_format = '%(message)s'
             else:
-                format = message_formats.get(message_type, '')
+                message_format = message_formats.get(message_type, '%s')
         elif action_type is not None:
             if action_status == 'started':
-                format = action_formats.get('action_type', '')
+                message_format = action_formats.get('action_type', '%s')
             # We don't consider other status, since we
             # have no meaningful messages to write.
-        stdout.write(format % message)
+        stdout.write(message_format % message)
         stdout.flush()
 
     add_destination(eliot_output)
