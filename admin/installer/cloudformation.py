@@ -34,8 +34,8 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
-MIN_CLUSTER_SIZE = 3
-MAX_CLUSTER_SIZE = 20
+from _limits import MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE
+
 CLUSTER_SIZE_TEMPLATE = u"Supported cluster sizes: min={0} max={1}".format(
     MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE)
 DEFAULT_CLUSTER_SIZE = MIN_CLUSTER_SIZE
