@@ -72,6 +72,10 @@ def _sibling_lines(filename):
 
 def _get_cluster_size():
     """
+    Gather desired number of nodes in the cluster from input argument.
+
+    :returns: Desired cluster size, with a default of ``MIN_CLUSTER_SIZE``
+    :rtype: int
     """
     parser = argparse.ArgumentParser(
         description='Create CloudFormation template'
