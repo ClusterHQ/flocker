@@ -316,6 +316,10 @@ def create_blockdevicedeployer(
     :param unicode hostname: The hostname to assign the deployer.
     :param UUID node_uuid: The unique identifier of the node to assign the
         deployer.
+    :param bool eventually_consistent: The ``IBlockDeviceAPI``
+        should only be eventually consistent.
+    :param bool profiled_api: The ``IBlockDeviceAPI`` should provide
+        ``IProfiledBlockDeviceAPI``.
 
     :return: The newly created ``BlockDeviceDeployer``.
     """

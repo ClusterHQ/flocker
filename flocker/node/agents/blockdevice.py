@@ -902,16 +902,25 @@ class CreateBlockDeviceDataset(PClass):
 @implementer(IStateChange)
 @provider(IDatasetStateChangeFactory)
 class RegisterVolume(PClass):
-        # XXX also, if we have in output of list_volumes()
-        # (i.e. local_state.volumes) a volume with a mapping between
-        # dataset_id and blockdevice_id that is not in registry, send AMP
-        # command to control service indicating this mapping. Since
-        # control service registry won't allow more than one mapping, if
-        # there are two block device volumes we end up picking one,
-        # ensuring no ambiguity. This is both the crash recovery
-        # optimization (allowing us to reuse already created block
-        # devices) and also the upgrade mechanism from time when registry
-        # didn't exist.
+    """
+    Register a blockdevice volume as belonging to a particular dataset.
+
+    If we have a volume in the output of list_volumes() that is associated to
+    a dataset that doesn't have a mapping in the blockdevice ownership
+    registry, send a command to the control service indicating this mapping.
+
+    Since control service registry won't allow more than one mapping, if there
+    are two block device volumes we end up picking one, ensuring no
+    ambiguity. This is both the crash recovery optimization (allowing us to
+    reuse already created block devices) and also the upgrade mechanism from
+    time when registry didn't exist.
+
+    :ivar UUID dataset_id: The unique identifier of the dataset to have a
+        blockdevice registered to it.
+    :ivar unicode blockdevice_id: The unique identifier of the mounted
+        ``IBlockDeviceAPI``-managed volume to be registered as belonging to the
+        dataset.
+    """
 
     dataset_id = field(type=UUID, mandatory=True)
     blockdevice_id = field(type=unicode, mandatory=True)
@@ -1079,10 +1088,9 @@ class IBlockDeviceAPI(Interface):
         dataset_id in order to ease debugging. Some implementations may
         choose not to do so or may not be able to do so.
 
-        The dataset_id *can* be stored by backend for debugging/human
-        readability, but it is not the canonical location of
-        information (which is the control service registry).
-        XXX: supporting upgrades?
+        The dataset_id must be stored by backend and reported when, but it is
+        not the canonical location of information (which is the control service
+        registry).
 
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this
             volume.
