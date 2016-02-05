@@ -609,6 +609,45 @@ class Leases(CheckedPMap):
         return updated
 
 
+class DatasetAlreadyOwned(Exception):
+    """
+    There is already a blockdevice owned by the given dataset, when trying to
+    record ownership of a differnt blockdevice.
+    """
+
+
+class BlockDeviceOwnership(CheckedPMap):
+    """
+    Persistent mapping of datasets to blockdevices.
+    """
+    __key_type__ = UUID
+    __value_type__ = unicode
+
+    def record_ownership(self, dataset_id, blockdevice_id):
+        """
+        Record that blockdevice_id is the relevant one for given dataset_id.
+
+        Once a record is made no other entry can overwrite the existing
+        one; the relationship is hardcoded and permanent. XXX this may
+        interact badly with deletion of dataset where dataset_id is
+        auto-generated from name, e.g. flocker-deploy or Docker
+        plugin. That is pre-existing issue, though.
+
+        :param UUID dataset_id: The dataset being associated with a
+            blockdevice.
+        :param unicode blockdevice_id: The blockdevice to associate with the
+            dataset.
+
+        :return BlockDeviceOwnership: The updated ownership mapping.
+        :raises DatasetAlreadyOwned: if the dataset already has an associated
+            blockdevice.
+        """
+        current_blockdevice_id = self.get(dataset_id)
+        if current_blockdevice_id not in (None, blockdevice_id):
+            raise DatasetAlreadyOwned()
+        return self.set(dataset_id, blockdevice_id)
+
+
 class PersistentState(PClass):
     """
     A ``PersistentState`` describes the persistent non-discoverable state of
@@ -618,6 +657,10 @@ class PersistentState(PClass):
         specified by the user, that can't be discovered by querying the
         underlying systems.
     """
+    # XXX having IBlockDeviceAPI specific fields is kinda bogus. Some
+    # sort of generic method for storing data moving forward?
+    blockdevice_ownership = field(type=BlockDeviceOwnership, mandatory=True,
+                                  initial=BlockDeviceOwnership())
 
 
 class Deployment(PClass):

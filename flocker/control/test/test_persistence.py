@@ -35,7 +35,7 @@ from .._persistence import (
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
     AttachedVolume, SERIALIZABLE_CLASSES, NodeState, Configuration,
-    Port, Link, Leases, Lease,
+    Port, Link, Leases, Lease, BlockDeviceOwnership, PersistentState,
     )
 
 # The UUID values for the Dataset and Node in TEST_DEPLOYMENT match
@@ -59,7 +59,13 @@ TEST_DEPLOYMENT = Deployment(
                             manifestation=MANIFESTATION,
                             mountpoint=FilePath(b"/xxx/yyy"))
                     )],
-                manifestations={DATASET.dataset_id: MANIFESTATION})])
+                manifestations={DATASET.dataset_id: MANIFESTATION})],
+    persistent_state=PersistentState(
+        blockdevice_ownership=BlockDeviceOwnership({
+            UUID(u'b229d949-0856-4011-96e5-3dd0a5586180'): u'block-device-id',
+        })
+    )
+)
 
 
 V1_TEST_DEPLOYMENT_JSON = FilePath(__file__).sibling(
@@ -637,6 +643,16 @@ NODES = st.lists(
         pset).flatmap(_build_node)
 
 
+BLOCKDEVICE_OWNERSHIP = st.builds(
+    BlockDeviceOwnership,
+    st.dictionaries(keys=st.uuids(), values=st.text()),
+)
+
+PERSISTENT_STATES = st.builds(
+    PersistentState,
+    blockdevice_ownership=BLOCKDEVICE_OWNERSHIP,
+)
+
 DEPLOYMENTS = st.builds(
     # If we leave the number of nodes unbounded, Hypothesis will take too long
     # to build examples, causing intermittent timeouts. Making it roughly 3
@@ -644,6 +660,7 @@ DEPLOYMENTS = st.builds(
     Deployment, nodes=st.sets(NODES, average_size=3),
     leases=st.sets(LEASES, average_size=3).map(
         lambda ls: dict((l.dataset_id, l) for l in ls)),
+    persistent_state=PERSISTENT_STATES,
 )
 
 

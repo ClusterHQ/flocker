@@ -27,6 +27,7 @@ from ._protocol import (
     NodeStateCommand,
     AgentAMP,
     SetNodeEraCommand,
+    SetBlockDeviceIdForDatasetId,
 )
 from ._registry import (
     IStatePersister,
@@ -60,6 +61,7 @@ __all__ = [
     'IConvergenceAgent',
     'NodeStateCommand',
     'SetNodeEraCommand',
+    'SetBlockDeviceIdForDatasetId',
     'AgentAMP',
     'pmap_field',
     'Lease',

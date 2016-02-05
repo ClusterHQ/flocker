@@ -98,9 +98,13 @@ class FakeProcessTransport(object):
 
     def __init__(self):
         self.signals = []
+        self.stdin_open = [True]
 
     def signalProcess(self, signal):
         self.signals.append(signal)
+
+    def closeStdin(self):
+        self.stdin_open.append(False)
 
 
 class SpawnProcessArguments(namedtuple(
