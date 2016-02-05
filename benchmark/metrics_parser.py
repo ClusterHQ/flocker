@@ -141,14 +141,14 @@ class BenchmarkingResults(object):
         versions = [
             r['control_service']['flocker_version'] for r in self.results
         ]
-        return list(set(versions))
+        return set(versions)
 
     def _node_counts(self):
         """
         Return all unique node counts present in the results.
         """
         nodes = [r['control_service']['node_count'] for r in self.results]
-        return list(set(nodes))
+        return set(nodes)
 
     def _container_counts(self):
         """
@@ -157,14 +157,14 @@ class BenchmarkingResults(object):
         containers = [
             r['control_service']['container_count'] for r in self.results
         ]
-        return list(set(containers))
+        return set(containers)
 
     def _scenarios(self):
         """
         Return all unique scenarios present in the results.
         """
         scenarios = [r['scenario']['name'] for r in self.results]
-        return list(set(scenarios))
+        return set(scenarios)
 
     def _filter_results(self, node_count, container_count, version, scenario):
         """
