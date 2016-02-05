@@ -1,7 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
-Tests for ``flocker.admin.installer``.
+Tests for ``flocker.admin.installer.cloudformation``.
 """
 
 from os import walk
@@ -30,6 +30,10 @@ invalid_cluster_size = one_of(too_small_cluster_size, too_big_cluster_size)
 
 def _get_cloudformation_full_path():
     """
+    Get fully qualified pathname of cloudformation.py script.
+
+    :returns: Fully qualified pathname of cloudformation.py
+    :rtype: twisted.python.filepath.FilePath
     """
     root_path = b'/'
     cloudformation_path_suffix = b'flocker/admin/installer'
@@ -42,16 +46,23 @@ def _get_cloudformation_full_path():
 
 class ClusterSizeLimitsTests(TestCase):
     """
+    Cluster size limits.
     """
 
     def setUp(self):
         """
+        Gather fully qualified pathname of cloudformation.py
         """
         super(ClusterSizeLimitsTests, self).setUp()
         self._cloudformation_file = _get_cloudformation_full_path()
 
     def _run_cloudformation_with_cluster_size(self, size):
         """
+        Create CloudFormation template for a cluster of desired size.
+
+        :param int: Desired number of cluster nodes in the template.
+
+        :returns: None
         """
         run_process_args = [b'/usr/bin/python',
                             self._cloudformation_file.path,
@@ -62,12 +73,14 @@ class ClusterSizeLimitsTests(TestCase):
     @given(cluster_size=valid_cluster_size)
     def test_valid_cluster_size(self, cluster_size):
         """
+        Create CloudFormation template for supported cluster size.
         """
         self._run_cloudformation_with_cluster_size(cluster_size)
 
     @given(cluster_size=invalid_cluster_size)
     def test_invalid_cluster_size(self, cluster_size):
         """
+        Attempt to create CloudFormation template for unsupported cluster size.
         """
         output = None
         try:

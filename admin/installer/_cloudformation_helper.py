@@ -10,6 +10,7 @@ CLUSTER_SIZE_TEMPLATE = u"Supported cluster sizes: min={0} max={1}".format(
 
 class InvalidClusterSizeException(Exception):
     """
+    Exception indicating requested CloudFormation cluster size is invalid.
     """
     def __init__(self, size):
         message = ". ".join([
