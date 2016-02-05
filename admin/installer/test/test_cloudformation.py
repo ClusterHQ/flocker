@@ -5,27 +5,27 @@ Tests for ``flocker.admin.installer``.
 """
 
 from os import walk
-from subprocess import check_output
-from sys import executable
+from subprocess import CalledProcessError
 
 from hypothesis import given
-from hypothesis.strategies import integers
+from hypothesis.strategies import integers, one_of
 
 from twisted.python.filepath import FilePath
 
-from flocker.testtools import TestCase
+from flocker.testtools import TestCase, run_process
 
-from .. import (
-    MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE, InvalidClusterSizeException
-)
+from .. import MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE
 
 # A Hypothesis strategy for generating supported cluster size.
 valid_cluster_size = integers(min_value=MIN_CLUSTER_SIZE,
                               max_value=MAX_CLUSTER_SIZE)
 
 # A Hypothesis strategy for generating unsupported cluster size.
-invalid_cluster_size = integers(min_value=0,
-                                max_value=MIN_CLUSTER_SIZE)
+too_small_cluster_size = integers(min_value=0,
+                                  max_value=MIN_CLUSTER_SIZE-1)
+too_big_cluster_size = integers(min_value=MAX_CLUSTER_SIZE+1,
+                                max_value=100)
+invalid_cluster_size = one_of(too_small_cluster_size, too_big_cluster_size)
 
 
 def _get_cloudformation_full_path():
@@ -50,21 +50,29 @@ class ClusterSizeLimitsTests(TestCase):
         super(ClusterSizeLimitsTests, self).setUp()
         self._cloudformation_file = _get_cloudformation_full_path()
 
+    def _run_cloudformation_with_cluster_size(self, size):
+        """
+        """
+        run_process_args = [b'/usr/bin/python',
+                            self._cloudformation_file.path,
+                            b"-s",
+                            str(size)]
+        run_process(run_process_args)
+
     @given(cluster_size=valid_cluster_size)
     def test_valid_cluster_size(self, cluster_size):
         """
         """
-        check_output([b"python",
-                      self._cloudformation_file.path,
-                      b"-s",
-                      str(cluster_size)])
+        self._run_cloudformation_with_cluster_size(cluster_size)
 
     @given(cluster_size=invalid_cluster_size)
     def test_invalid_cluster_size(self, cluster_size):
         """
         """
-        self.assertRaises(InvalidClusterSizeException,
-                          executable,
-                          self._cloudformation_file.path,
-                          b"-s",
-                          str(cluster_size))
+        output = None
+        try:
+            self._run_cloudformation_with_cluster_size(cluster_size)
+        except CalledProcessError as e:
+            output = e.output
+        self.assertEquals(True,
+                          'InvalidClusterSizeException' in output)
