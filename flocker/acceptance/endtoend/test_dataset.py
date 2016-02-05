@@ -187,13 +187,70 @@ class DatasetAPITests(AsyncTestCase):
         """
         api = get_backend_api(self, cluster.cluster_uuid)
 
+        # Create a volume for a dataset
         dataset_id = uuid4()
         volume = api.create_volume(dataset_id, size=get_default_volume_size())
 
+        # Then create the coresponding dataset.
         wait_for_dataset = create_dataset(self, cluster, dataset_id=dataset_id)
 
         def check_volumes(dataset):
             volumes = api.list_volumes()
+            # That volume should be the only dataset in the cluster.
             self.assertEqual([volume], volumes)
         wait_for_dataset.addCallback(check_volumes)
+        return wait_for_dataset
+
+    @require_cluster(2)
+    def test_extra_volume(self, cluster):
+        """
+        If an extra volume is created for a dataset, that volume isn't used.
+
+        .. note:
+           This test will be flaky if flocker doesn't correctly ignore extra
+           volumes that claim to belong to a dataset, since the dataset picked
+           will be random.
+        """
+        api = get_backend_api(self, cluster.cluster_uuid)
+
+        # Create the dataset
+        wait_for_dataset = create_dataset(self, cluster)
+
+        created_volume = []
+
+        # Create an extra volume claiming to belong to that dataset
+        def create_extra(dataset):
+            # Create a second volume for that dataset
+            volume = api.create_volume(dataset.dataset_id,
+                                       size=get_default_volume_size())
+            created_volume.append(volume)
+
+        wait_for_extra_volume = wait_for_dataset.addCallback(create_extra)
+
+        # Once created, request to move the dataset to node2
+        def move_dataset(dataset):
+            dataset_moving = cluster.client.move_dataset(
+                UUID(cluster.nodes[1].uuid), dataset.dataset_id)
+
+            # Wait for the dataset to be moved; we expect the state to
+            # match that of the originally created dataset in all ways
+            # other than the location.
+            moved_dataset = dataset.set(
+                primary=UUID(cluster.nodes[1].uuid))
+            dataset_moving.addCallback(
+                lambda dataset: cluster.wait_for_dataset(moved_dataset))
+            return dataset_moving
+        wait_for_move = wait_for_extra_volume.addCallback(move_dataset)
+
+        # Check that the extra volume isn't attached to a node.
+        # This indicates that the originally created volume is attached.
+        def check_attached(dataset):
+            blockdevice_id = created_volume[0].blockdevice_id
+            [volume] = [volume for volume in api.list_volumes()
+                        if volume.blockdevice_id == blockdevice_id]
+
+            self.assertEqual(volume.attached_to, None)
+
+        return wait_for_move.addCallback(check_attached)
+
         return wait_for_dataset
