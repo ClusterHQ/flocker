@@ -26,6 +26,10 @@ For a maintenance or documentation release, we will have:
 - a tag in version control,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_.
 
+  .. raw:: html
+
+     <!-- We really can do docs releases -->
+
 
 Prerequisites
 =============
