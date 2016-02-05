@@ -75,8 +75,6 @@ def create_factory_from_config(table, config):
 
 
 class BenchmarkOptions(Options):
-    description = "Run benchmark tests."
-
     optParameters = [
         ['cluster', None, None,
          'Directory containing cluster configuration files.  '
