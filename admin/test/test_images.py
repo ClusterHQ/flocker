@@ -21,6 +21,7 @@ from pyrsistent import PClass, field, pmap_field, thaw
 
 from testtools.matchers import StartsWith
 from testtools.content import text_content, content_from_file, ContentType
+from testtols.matchers import Contains
 
 from fixtures import Fixture
 
@@ -466,12 +467,15 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         Docker images and then Flocker images built on the Docker images.
         The IDs of the generated AMIs are published to S3.
         """
+        swarm_version = u"1.0.1"
         build_region = u"us-west-1"
         s3 = self.useFixture(S3BucketFixture(test_case=self))
         returncode, stdout, stderr = self.publish_installer_images(
             args=['--target_bucket', s3.bucket_name,
                   '--template', 'docker',
+                  '--copy_to_all_regions',
                   '--build_region', build_region],
+            extra_enviroment={u'SWARM_VERSION': swarm_version}
         )
         # The script should have uploaded AMI map to an object called "docker"
         docker_object_content = s3.get_object_content(key=u'docker')
@@ -486,6 +490,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
             args=['--target_bucket', s3.bucket_name,
                   '--template', 'flocker',
                   '--build_region', build_region,
+                  '--copy_to_all_regions',
                   '--source_ami', docker_ami_map[build_region]],
             extra_enviroment={u'FLOCKER_BRANCH': u'master'}
         )
@@ -496,4 +501,34 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         )
         # It should be valid JSON.
         flocker_ami_map = json.loads(flocker_object_content)
-        self.assertEqual([build_region], flocker_ami_map.keys())
+
+        ec2 = boto3.resource('ec2', region_name=build_region)
+        # Get a list of all the related images and tags in case of errors.
+        all_images = dict(
+            (i.id, dict(name=i.name, tags=i.tags))
+            for i in ec2.images.filter(
+                Owners=[u'self'],
+                Filters=[
+                    {
+                        u'Name': 'name',
+                        u'Values': [
+                            u'clusterhq_ubuntu-14.04_docker*',
+                            u'clusterhq_ubuntu-14.04_flocker*'
+                        ]
+                    }
+                ]
+            )
+        )
+        self.addDetail(
+            u"all_images",
+            text_content(json.dumps(all_images))
+        )
+
+        docker_image = ec2.Image(docker_ami_map[build_region])
+        self.expectThat(
+            docker_image.tags,
+            Contains({u'Key': 'SWARM_VERSION', u'Value': swarm_version}),
+        )
+
+        flocker_image = ec2.Image(flocker_ami_map[build_region])
+        self.assertEqual(None, flocker_image.tags)
