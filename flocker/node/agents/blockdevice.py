@@ -446,6 +446,13 @@ CALL_LIST_VOLUMES = MessageType(
     [FUNCTION_NAME, COUNT],
     u"list_volumes called.",)
 
+REGISTER_BLOCKDEVICE = ActionType(
+    u"agent:blockdevice:register",
+    [DATASET_ID, BLOCK_DEVICE_ID],
+    [],
+    u"A block-device is being registered as belonging to a dataset.",
+)
+
 
 def _volume_field():
     """
@@ -930,6 +937,13 @@ class RegisterVolume(PClass):
         return cls(
             dataset_id=discovered_dataset.dataset_id,
             blockdevice_id=discovered_dataset.blockdevice_id,
+        )
+
+    @property
+    def eliot_action(self):
+        return REGISTER_BLOCKDEVICE(
+            dataset_id=self.dataset_id,
+            block_device_id=self.blockdevice_id,
         )
 
     def run(self, deployer, state_persister):
