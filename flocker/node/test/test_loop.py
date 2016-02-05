@@ -1349,7 +1349,7 @@ def make_remotestatepersister(test_case):
     clock = Clock()
     control_amp_service, client = make_loopback_control_client(
         test_case,
-        clock=clock,
+        reactor=clock,
     )
     persistence_service = control_amp_service.configuration_service
     return RemoteStatePersister(client=client), (

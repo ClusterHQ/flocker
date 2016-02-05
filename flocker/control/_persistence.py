@@ -155,6 +155,9 @@ class ConfigurationMigration(object):
         decoded_config[u"version"] = 4
         decoded_config[u"deployment"][u"persistent_state"] = {
             _CLASS_MARKER: u"PersistentState",
+            u"blockdevice_ownership": {
+                u"values": [], _CLASS_MARKER: "PMap",
+            },
         }
         return dumps(decoded_config)
 
