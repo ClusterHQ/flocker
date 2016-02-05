@@ -876,16 +876,14 @@ common_cli:
     tar --verbose --list --file "${BOX_NAME}" || abort_build
 
   run_lint: &run_lint |
-    # we need to unset PIP_INDEX_URL since it causes tox to fail.
-    # in order to use our pip caching we need to append --trusted-hosts
-    # which we currently can't do through tox.
-    unset PIP_INDEX_URL
+    # Disable exiting on error, so we can run multiple lints
+    set +e
     # run flake8 lint tests on Flocker source code
-    tox -e lint
-
-  install_flake8: &install_flake8 |
-    # flake8 is used by lint tests on Flocker source code
-    pip install flake8 ${PIP_ADDITIONAL_OPTIONS}
+    flake8 --format=pylint --output flake8.lint.txt flocker
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+    pylint flocker > pylint.lint.txt
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+    set -e
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -1258,9 +1256,11 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *install_flake8, *run_lint ]
+                   *run_lint, *exit_with_return_code_from_test ]
           }
       timeout: 10
+      publish_lint: true
+      archive_artifacts: ["*.lint.txt"]
       directories_to_delete: []
 
 

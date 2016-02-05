@@ -394,6 +394,12 @@ def build_publishers(v, branchName, dashProject, dashBranchName, job_name) {
                 failNoReports(true)
             }
         }
+        if (v.publish_lint) {
+          violations {
+            sourcePathPattern('**/*.py')
+            pylint(1, null, null, '*.lint')
+          }
+        }
         if (job_name) {
             /* Update the commit status on GitHub with the build result We use the
                flexible-publish plugin combined with the the any-buildstep plugin to
