@@ -40,7 +40,6 @@ from _cloudformation_helper import (
 
 DEFAULT_CLUSTER_SIZE = MIN_CLUSTER_SIZE
 NODE_CONFIGURATION_TIMEOUT = u"900"
-# NUM_NODES = 3
 AGENT_NODE_NAME_TEMPLATE = u"AgentNode{index}"
 EC2_INSTANCE_NAME_TEMPLATE = u"{stack_name}_{node_type}"
 CONTROL_NODE_NAME = u"ControlNode"
