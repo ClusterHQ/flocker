@@ -1304,6 +1304,16 @@ class _SyncToThreadedAsyncAPIAdapter(PClass):
     _sync = field()
     _threadpool = field()
 
+    @classmethod
+    def from_api(cls, block_device_api, reactor=None):
+        if reactor is None:
+            from twisted.internet import reactor
+        return cls(
+            _sync=block_device_api,
+            _reactor=reactor,
+            _threadpool=reactor.getThreadPool(),
+        )
+
 
 def log_list_volumes(function):
     """
@@ -1702,11 +1712,8 @@ class BlockDeviceDeployer(PClass):
         subclass).
         """
         if self._async_block_device_api is None:
-            from twisted.internet import reactor
-            return _SyncToThreadedAsyncAPIAdapter(
-                _sync=self.block_device_api,
-                _reactor=reactor,
-                _threadpool=reactor.getThreadPool(),
+            return _SyncToThreadedAsyncAPIAdapter.from_api(
+                self.block_device_api,
             )
         return self._async_block_device_api
 
