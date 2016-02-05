@@ -300,6 +300,7 @@ class RealPerformers(object):
             base_dispatcher
         ])
 
+
 def _validate_constant(constants, option_value, option_name):
     try:
         constant_value = constants.lookupByValue(option_value)
