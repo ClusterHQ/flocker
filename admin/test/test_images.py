@@ -11,6 +11,14 @@ import boto3
 from botocore.exceptions import (
     ClientError, NoCredentialsError, EndpointConnectionError
 )
+from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
+    extract_from_urllib3,
+)
+
+# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
+# exception when we try an API call on an idled persistent connection.
+# See https://github.com/boto/boto3/issues/220
+extract_from_urllib3()
 
 from effect import Effect, sync_perform
 from effect.testing import perform_sequence
