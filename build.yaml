@@ -879,9 +879,9 @@ common_cli:
     # Disable exiting on error, so we can run multiple lints
     set +e
     # run flake8 lint tests on Flocker source code
-    flake8 --format=pylint --output flake8.lint flocker
+    flake8 --format=pylint --output flake8.lint.txt flocker
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    pylint flocker > pylint.lint
+    pylint flocker > pylint.lint.txt
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
     set -e
 
@@ -1260,7 +1260,7 @@ job_type:
           }
       timeout: 10
       publish_lint: true
-      archive_artifacts: ["*.lint"]
+      archive_artifacts: ["*.lint.txt"]
       directories_to_delete: []
 
 
