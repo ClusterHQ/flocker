@@ -504,6 +504,23 @@ common_cli:
     -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
+  setup_benchmarking_cluster: &setup_benchmarking_cluster |
+    ${venv}/bin/python admin/setup-cluster \
+    --distribution ${DISTRIBUTION_NAME} \
+    --number-of-nodes ${BENCHMARK_NODES} \
+    --provider ${ACCEPTANCE_TEST_PROVIDER} \
+    --dataset-backend ${ACCEPTANCE_TEST_PROVIDER} \
+    --branch ${TRIGGERED_BRANCH} --build-server \
+    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4) \
+    --config-file /tmp/benchmarking.yaml \
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+
+  run_benchmarking: &run_benchmarking_cluster |
+    ${venv}/bin/python benchmark/benchmark \
+    --cluster= \
+    --scenario= \
+    --operation= \                                                                  --metric=
+
   run_client_tests: &run_client_tests |
     # We gather the return code but make sure we come out of these tests with 0
     # we store that code and pass it to the end of the job execution,
@@ -1673,6 +1690,32 @@ job_type:
       directories_to_delete: []
 
 
+
+    run_benchmarking_on_AWS_Ubuntu_Trusty_with_EBS:
+      at: '0 7 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_PROVIDER=aws',
+                   *run_benchmarking,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
+      # Similar to the reasoning for run_acceptance_on_AWS_CentOS_7_with_EBS
+      # but slightly shorter since Ubuntu runs the tests faster.
+      timeout: 120
+      directories_to_delete: []
+      notify_slack: '#flocker-benchmarking'
 
 #-----------------------------------------------------------------------------#
 # View definitions below this point
