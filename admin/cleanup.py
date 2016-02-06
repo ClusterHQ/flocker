@@ -300,6 +300,10 @@ class CleanupCloudResourcesOptions(Options):
          lambda option_value: _yaml_configuration_path_option(
              u"config-file", option_value
          )],
+        [u"volume-lag", None, timedelta(minutes=30),
+         u"The oldest in minutes a volume may be "
+         u"without being considered for deletion.\n",
+         lambda option_value: timedelta(minutes=int(option_value))]
     ]
 
     def postOptions(self):
@@ -322,9 +326,8 @@ def cleanup_cloud_resources_main(reactor, args, base_path, top_level):
             ).encode('utf-8')
         )
         raise SystemExit(1)
-    cleaner = CleanVolumes(
-        lag=timedelta(minutes=30)
-    )
+
+    cleaner = CleanVolumes(lag=options["volume-lag"])
 
     actions = cleaner.start(config=options["config-file"])
     d = succeed(actions)
