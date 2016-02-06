@@ -7,6 +7,7 @@ import json
 import sys
 from uuid import UUID
 import yaml
+from yaml.parser import ParserError
 
 from characteristic import attributes
 
@@ -15,7 +16,8 @@ from dateutil.tz import tzutc
 
 from libcloud.compute.providers import get_driver, Provider
 
-from twisted.internet.threads import deferToThread
+from twisted.internet.defer import succeed
+from twisted.python.filepath import FilePath
 from twisted.python.log import err
 from twisted.python.usage import Options, UsageError
 
@@ -63,6 +65,55 @@ def get_ec2_driver(aws):
     return ec2
 
 
+def _get_volume_creation_time(volume):
+    """
+    Extract the creation time from an AWS or Rackspace volume.
+
+    libcloud doesn't represent volume creation time uniformly across
+    drivers.  Thus this method only works on drivers specifically accounted
+    for.
+    """
+    try:
+        # AWS
+        return volume.extra['create_time']
+    except KeyError:
+        # Rackspace.  Timestamps have no timezone indicated.  Manual
+        # experimentation indicates timestamps are in UTC (which of course
+        # is the only reasonable thing).
+        return parse_date(
+            volume.extra['created_at']
+        ).replace(tzinfo=tzutc())
+
+
+def _get_volume_region(volume):
+    """
+    Get the name of the region the volume is in.
+    """
+    return (
+        # Rackspace
+        getattr(volume.driver, "region", None) or
+        # AWS
+        getattr(volume.driver, "region_name", None)
+    )
+
+
+def _describe_volume(volume):
+    """
+    Create a dictionary giving lots of interesting details about a cloud
+    volume.
+    """
+    return {
+        'id': volume.id,
+        'creation_time': _format_time(
+            _get_volume_creation_time(volume),
+        ),
+        'provider': volume.driver.name,
+        'region': _get_volume_region(volume),
+        # *Stuffed* with non-JSON-encodable goodies.
+        'extra': repr(volume.extra),
+    }
+
+
 @attributes(["lag"])
 class CleanVolumes(object):
     """
@@ -75,11 +126,15 @@ class CleanVolumes(object):
     haltOnFailure = False
     flunkOnFailure = True
 
-    def start(self):
-        config = privateData['acceptance']['config']
-        d = deferToThread(self._blocking_clean_volumes, yaml.safe_load(config))
-        d.addCallback(self.log)
-        d.addErrback(self.failed)
+    def start(self, config):
+        """
+        Clean up old volumes belonging to test-created Flocker clusters.
+        """
+        drivers = self._get_cloud_drivers(config)
+        volumes = self._get_cloud_volumes(drivers)
+        actions = self._filter_test_volumes(self.lag, volumes)
+        self._destroy_cloud_volumes(actions.destroy)
+        return actions
 
     def _get_cloud_drivers(self, config):
         """
@@ -93,7 +148,7 @@ class CleanVolumes(object):
             get_ec2_driver(base_ec2),
         ]
 
-        for extra in config["extra-aws"]:
+        for extra in config.get("extra-aws", []):
             extra_driver_config = base_ec2.copy()
             extra_driver_config.update(extra)
             drivers.append(get_ec2_driver(config))
@@ -143,25 +198,6 @@ class CleanVolumes(object):
             return False
         return self._is_test_cluster(cluster_id)
 
-    def _get_volume_creation_time(self, volume):
-        """
-        Extract the creation time from an AWS or Rackspace volume.
-
-        libcloud doesn't represent volume creation time uniformly across
-        drivers.  Thus this method only works on drivers specifically accounted
-        for.
-        """
-        try:
-            # AWS
-            return volume.extra['create_time']
-        except KeyError:
-            # Rackspace.  Timestamps have no timezone indicated.  Manual
-            # experimentation indicates timestamps are in UTC (which of course
-            # is the only reasonable thing).
-            return parse_date(
-                volume.extra['created_at']
-            ).replace(tzinfo=tzutc())
-
     def _filter_test_volumes(self, maximum_age, volumes):
         """
         From the given list of volumes, find volumes created by tests which are
@@ -178,7 +214,7 @@ class CleanVolumes(object):
         destroy = []
         keep = []
         for volume in volumes:
-            created = self._get_volume_creation_time(volume)
+            created = _get_volume_creation_time(volume)
             if self._is_test_volume(volume) and now - created > maximum_age:
                 destroy.append(volume)
             else:
@@ -194,73 +230,6 @@ class CleanVolumes(object):
                 volume.destroy()
             except:
                 err(None, "Destroying volume.")
-
-    def _blocking_clean_volumes(self, config):
-        """
-        Clean up old volumes belonging to test-created Flocker clusters.
-        """
-        drivers = self._get_cloud_drivers(config)
-        volumes = self._get_cloud_volumes(drivers)
-        actions = self._filter_test_volumes(self.lag, volumes)
-        self._destroy_cloud_volumes(actions.destroy)
-        return {
-            "destroyed": actions.destroy,
-            "kept": actions.keep,
-        }
-
-    def _get_volume_region(self, volume):
-        """
-        Get the name of the region the volume is in.
-        """
-        return (
-            # Rackspace
-            getattr(volume.driver, "region", None) or
-            # AWS
-            getattr(volume.driver, "region_name", None)
-        )
-
-    def _describe_volume(self, volume):
-        """
-        Create a dictionary giving lots of interesting details about a cloud
-        volume.
-        """
-        return {
-            'id': volume.id,
-            'creation_time': _format_time(
-                self._get_volume_creation_time(volume),
-            ),
-            'provider': volume.driver.name,
-            'region': self._get_volume_region(volume),
-            # *Stuffed* with non-JSON-encodable goodies.
-            'extra': repr(volume.extra),
-        }
-
-    def log(self, result):
-        """
-        Log the results of a cleanup run.
-
-        The log will include volumes that were destroyed and volumes that were
-        kept.  If volumes are destroyed, the step is considered to have failed.
-        The test suite should have cleaned those volumes up.  This is an
-        unfortunate time to be reporting the problem but it's better than never
-        reporting it.
-        """
-        for (kind, volumes) in result.items():
-            content = _dumps(
-                sorted(
-                    list(
-                        self._describe_volume(volume) for volume in volumes
-                    ), key=lambda description: description['creation_time'],
-                )
-            )
-            self.addCompleteLog(name=kind, text=content)
-
-        if len(result['destroyed']) > 0:
-            # We fail if we destroyed any volumes because that means that
-            # something is leaking volumes.
-            self.finished(FAILURE)
-        else:
-            self.finished(SUCCESS)
 
 
 def _dumps(obj):
@@ -302,9 +271,48 @@ class VolumeActions(object):
     """
 
 
+def _existing_file_path_option(option_name, option_value):
+    file_path = FilePath(option_value)
+    if not file_path.exists():
+        raise UsageError(
+            u"Problem with --{}. File does not exist: '{}'.".format(
+                option_name, file_path.path
+            )
+        )
+    return file_path
+
+
+def _yaml_configuration_path_option(option_name, option_value):
+    yaml_path = _existing_file_path_option(option_name, option_value)
+    try:
+        configuration = yaml.safe_load(yaml_path.open())
+    except ParserError as e:
+        raise UsageError(
+            u"Problem with --{}. "
+            u"Unable to parse YAML from {}. "
+            u"Error message: {}.".format(
+                option_name, yaml_path.path, unicode(e)
+            )
+        )
+    return configuration
+
+
 class CleanupCloudResourcesOptions(Options):
     """
     """
+    optParameters = [
+        [u"config-file", None, None,
+         u"The config file containing cloud credentials.\n",
+         lambda option_value: _yaml_configuration_path_option(
+             u"config-file", option_value
+         )],
+    ]
+
+    def postOptions(self):
+        """
+        """
+        if self["config-file"] is None:
+            raise UsageError("Missing --config-file option.")
 
 
 def cleanup_cloud_resources_main(reactor, args, base_path, top_level):
@@ -314,9 +322,46 @@ def cleanup_cloud_resources_main(reactor, args, base_path, top_level):
         options.parseOptions(args)
     except UsageError as e:
         sys.stderr.write(
-            "Usage Error: %s: %s\n" % (
-                base_path.basename(), e
-            )
+            u"{}\n"
+            u"Usage Error: {}: {}\n".format(
+                unicode(options), base_path.basename(), e
+            ).encode('utf-8')
         )
         raise SystemExit(1)
-    return CleanVolumes(lag=timedelta(minutes=30)).start()
+    cleaner = CleanVolumes(
+        lag=timedelta(minutes=30)
+    )
+
+    actions = cleaner.start(config=options["config-file"])
+    d = succeed(actions)
+    d.addCallback(print_result)
+    return d
+
+
+def print_result(actions):
+    """
+    If volumes are destroyed, the operation is considered to have failed.
+    The test suite should have cleaned those volumes up.  This is an
+    unfortunate time to be reporting the problem but it's better than never
+    reporting it.
+    """
+    sys.stdout.write(
+        _serialize_volume_actions(actions).encode('utf-8') + b'\n'
+    )
+    if len(actions.destroy) > 0:
+        # We fail if we destroyed any volumes because that means that
+        # something is leaking volumes.
+        raise SystemExit(1)
+
+
+def _serialize_volume_actions(actions):
+    serializable = {}
+    for kind in ('destroy', 'keep'):
+        volumes = getattr(actions, kind)
+        serializable[kind] = sorted(
+            list(
+                _describe_volume(volume) for volume in volumes
+            ), key=lambda description: description['creation_time'],
+        )
+
+    return _dumps(serializable)
