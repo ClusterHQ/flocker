@@ -114,7 +114,7 @@ def _describe_volume(volume):
     }
 
 
-@attributes(["lag"])
+@attributes(["lag", "marker"])
 class CleanVolumes(object):
     """
     Destroy volumes that leaked into the cloud from the acceptance and
@@ -174,7 +174,7 @@ class CleanVolumes(object):
         :return: ``True`` if it does, ``False`` if it does not.
         """
         try:
-            return UUID(cluster_id).node == MARKER
+            return UUID(cluster_id).node == self.marker
         except:
             err(None, "Could not parse cluster_id {!r}".format(cluster_id))
             return False
@@ -303,7 +303,11 @@ class CleanupCloudResourcesOptions(Options):
         [u"volume-lag", None, timedelta(minutes=30),
          u"The oldest in minutes a volume may be "
          u"without being considered for deletion.\n",
-         lambda option_value: timedelta(minutes=int(option_value))]
+         lambda option_value: timedelta(minutes=int(option_value))],
+        [u"marker", None, MARKER,
+         u"The marker which is used "
+         u"as the ``node`` in the acceptance test cluster UUID.",
+         lambda option_value: int(option_value, base=16)]
     ]
 
     def postOptions(self):
@@ -327,7 +331,10 @@ def cleanup_cloud_resources_main(reactor, args, base_path, top_level):
         )
         raise SystemExit(1)
 
-    cleaner = CleanVolumes(lag=options["volume-lag"])
+    cleaner = CleanVolumes(
+        lag=options["volume-lag"],
+        marker=options["marker"],
+    )
 
     actions = cleaner.start(config=options["config-file"])
     d = succeed(actions)
