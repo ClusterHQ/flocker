@@ -56,26 +56,33 @@ class ClusterSizeLimitsTests(TestCase):
         super(ClusterSizeLimitsTests, self).setUp()
         self._cloudformation_file = _get_cloudformation_full_path()
 
-    def _run_cloudformation_with_cluster_size(self, size):
+    def _run_cloudformation_with_cluster_size(self, cluster_size):
         """
         Create CloudFormation template for a cluster of desired size.
 
         :param int: Desired number of cluster nodes in the template.
 
-        :returns: None
+        :raises: CalledProcessError
+        :returns: Result of running
+                  ``python cloudformation.py -s {cluster_size}``.
+        :rtype: _ProcessResult
         """
         run_process_args = [b'/usr/bin/python',
                             self._cloudformation_file.path,
                             b"-s",
-                            str(size)]
-        run_process(run_process_args)
+                            str(cluster_size)]
+        result = run_process(run_process_args)
+        return result
 
     @given(cluster_size=valid_cluster_size)
     def test_valid_cluster_size(self, cluster_size):
         """
         Create CloudFormation template for supported cluster size.
         """
-        self._run_cloudformation_with_cluster_size(cluster_size)
+        result = self._run_cloudformation_with_cluster_size(cluster_size)
+        self.assertEqual(True,
+                         b"node_count=\\\"%s\\\"" % (cluster_size) in
+                         result.output)
 
     @given(cluster_size=invalid_cluster_size)
     def test_invalid_cluster_size(self, cluster_size):
