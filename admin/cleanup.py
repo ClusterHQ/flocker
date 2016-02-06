@@ -23,7 +23,7 @@ from twisted.python.usage import Options, UsageError
 
 # Marker value defined by ``flocker.testtools.cluster_utils.MARKER``.  This
 # should never change and should always identify test-created clusters.
-MARKER = 0xAAAAAAAAAAAA
+from flocker.testtools.cluster_utils import MARKER
 
 
 def get_creation_time(node):
@@ -120,12 +120,6 @@ class CleanVolumes(object):
     Destroy volumes that leaked into the cloud from the acceptance and
     functional test suites.
     """
-    name = 'clean-volumes'
-    description = ['Cleaning', 'volumes']
-    descriptionDone = ['Clean', 'volumes']
-    haltOnFailure = False
-    flunkOnFailure = True
-
     def start(self, config):
         """
         Clean up old volumes belonging to test-created Flocker clusters.
