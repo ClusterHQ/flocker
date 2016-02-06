@@ -106,7 +106,7 @@ Configuration is loaded from the item in the top-level mapping with a key matchi
 The top-level mapping may contain a ``logging`` stanza, which must match the format described in `PEP 0391 <https://www.python.org/dev/peps/pep-0391/>`_.
 
 An example stanza:
- 
+
 .. code-block:: yaml
 
    logging:
@@ -320,6 +320,27 @@ And then run the acceptance tests on those nodes using the following command:
      --branch=master \
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
+
+
+Test Cleanup
+============
+
+``admin/cleanup_cloud_resources`` creates a number of test datasets.
+It will normally cleanup the test datasets and any cloud block devices that have been created.
+However, if there are bugs in the tests or if the process is killed it may leak volumes.
+
+These volumes can be cleaned up using ``admin/cleanup_cloud_resources``.
+The tool uses the credentials in an ``acceptance.yml`` file to destroy cloud block devices that are older than 30 minutes,
+and which belong to an acceptance testing cluster with a special the acceptance test cluster UUID containing a marker.
+The tool will destroy all matching cloud block devices on AWS and Rackspace.
+It will print a JSON encoded report of the block devices that have been destroyed and those that have been kept, to stdout.
+
+Run the command as follows:
+
+.. code-block:: console
+
+    ./admin/cleanup_cloud_resources --config-file=$PWD/acceptance.yml
+
 
 CloudFormation Installer Tests
 ==============================
