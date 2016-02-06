@@ -120,14 +120,15 @@ class CleanVolumes(object):
     Destroy volumes that leaked into the cloud from the acceptance and
     functional test suites.
     """
-    def start(self, config):
+    def start(self, config, dry_run=False):
         """
         Clean up old volumes belonging to test-created Flocker clusters.
         """
         drivers = self._get_cloud_drivers(config)
         volumes = self._get_cloud_volumes(drivers)
         actions = self._filter_test_volumes(self.lag, volumes)
-        self._destroy_cloud_volumes(actions.destroy)
+        if not dry_run:
+            self._destroy_cloud_volumes(actions.destroy)
         return actions
 
     def _get_cloud_drivers(self, config):
@@ -294,6 +295,11 @@ def _yaml_configuration_path_option(option_name, option_value):
 class CleanupCloudResourcesOptions(Options):
     """
     """
+    optFlags = [
+        ["dry-run", None,
+         "Just print the calculated actions. Don't delete anything."]
+    ]
+
     optParameters = [
         [u"config-file", None, None,
          u"The config file containing cloud credentials.\n",
@@ -311,8 +317,7 @@ class CleanupCloudResourcesOptions(Options):
     ]
 
     def postOptions(self):
-        """
-        """
+        self["dry-run"] = bool(self["dry-run"])
         if self["config-file"] is None:
             raise UsageError("Missing --config-file option.")
 
@@ -336,7 +341,10 @@ def cleanup_cloud_resources_main(reactor, args, base_path, top_level):
         marker=options["marker"],
     )
 
-    actions = cleaner.start(config=options["config-file"])
+    actions = cleaner.start(
+        config=options["config-file"],
+        dry_run=options["dry-run"],
+    )
     d = succeed(actions)
     d.addCallback(print_result)
     return d
