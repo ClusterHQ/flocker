@@ -30,7 +30,7 @@ def write_csv(results, filename):
 
 def mean(values):
     if len(values) > 0:
-        return sum(values) / len(values)
+        return float(sum(values)) / len(values)
     return None
 
 
@@ -78,7 +78,7 @@ def container_convergence(results, seconds):
         convergences_within_limit = [
             r for r in convergence_results if r['value'] < seconds
         ]
-        return len(convergences_within_limit) / num_convergences
+        return float(len(convergences_within_limit)) / num_convergences
 
     return None
 
