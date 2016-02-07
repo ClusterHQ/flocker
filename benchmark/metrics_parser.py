@@ -1,4 +1,4 @@
-# Copyright ClusterHQ Inc.  See LICENSE file for details.
+# Copyright 2016 ClusterHQ Inc.  See LICENSE file for details.
 
 import argparse
 from collections import defaultdict
