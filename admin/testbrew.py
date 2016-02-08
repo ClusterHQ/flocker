@@ -18,8 +18,6 @@ import os
 import sys
 import urllib2
 
-from eliot import add_destination
-
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
@@ -35,6 +33,7 @@ from flocker.provision._effect import sequence
 from txeffect import perform
 from flocker import __version__
 
+from flocker.common.script import eliot_to_stdout
 from flocker.common.runner import run
 
 YOSEMITE_VMX_PATH = os.path.expanduser((
@@ -93,15 +92,6 @@ MESSAGE_FORMATS = {
 }
 
 
-def eliot_output(message):
-    """
-    Write pretty versions of eliot log messages to stdout.
-    """
-    message_type = message.get('message_type', message.get('action_type'))
-    sys.stdout.write(MESSAGE_FORMATS.get(message_type, '') % message)
-    sys.stdout.flush()
-
-
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
     try:
@@ -112,7 +102,7 @@ def main(reactor, args, base_path, top_level):
             sys.stderr.write("Error: {error}.\n".format(error=str(e)))
             sys.exit(1)
 
-        add_destination(eliot_output)
+        eliot_to_stdout(MESSAGE_FORMATS, {})
 
         recipe_url = options['recipe_url']
         options['vmpath'] = FilePath(options['vmpath'])
