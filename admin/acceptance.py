@@ -65,6 +65,18 @@ from flocker.common import parse_version, UnparseableVersion
 from flocker.common.runner import run, run_ssh
 
 
+def _validate_version_option(option_name, option_value):
+    try:
+        parse_version(option_value)
+    except UnparseableVersion:
+        raise UsageError(
+            "Error in --{}. '{}' is not a valid format".format(
+                option_name,
+                option_value,
+            )
+        )
+
+
 def extend_environ(**kwargs):
     """
     Return a copy of ``os.environ`` with some additional environment variables
@@ -866,7 +878,11 @@ class CommonOptions(Options):
         ['config-file', None, None,
          'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, None, 'Version of flocker to install'],
+        ['flocker-version', None, None, 'Version of flocker to install',
+         lambda option_value: _validate_version_option(
+             option_name=u'flocker-version',
+             option_value=option_value
+            )],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
         ['number-of-nodes', None,
@@ -963,16 +979,6 @@ class CommonOptions(Options):
             raise UsageError("Provider required.")
         provider = self['provider'].lower()
         provider_config = self['config'].get(provider, {})
-
-        if self.get('flocker-version') is not None:
-            try:
-                parse_version(self['flocker-version'])
-            except UnparseableVersion:
-                raise UsageError(
-                    "Flocker version {!r} is not a valid version".format(
-                        self['flocker-version']
-                    )
-                )
 
         try:
             get_runner = getattr(self, "_runner_" + provider.upper())

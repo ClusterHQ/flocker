@@ -219,16 +219,20 @@ class CommonOptionsTests(TestCase):
         An ``UsageError`` is thrown if an invalid flocker version is passed
         to the ``CommonOptions``.
         """
-        arg_options = (
-            "--distribution ubuntu-14.04 --provider AWS "
-            "--flocker-version invalid-version"
+        invalid_version = "invalid-version"
+        option_name = "flocker-version"
+        arg_options = ("--distribution", "ubuntu-14.04", "--provider", "AWS",
+                       "--{}".format(option_name), invalid_version)
+
+        expected_message = "Error in --{}. '{}' is not a valid format".format(
+            option_name,
+            invalid_version
         )
+
         common_options = CommonOptions(self.mktemp())
         exception = self.assertRaises(
             UsageError,
-            common_options.parseOptions, arg_options.split()
+            common_options.parseOptions, arg_options
         )
 
-        self.assertIn(
-            "Flocker version", exception.args[0]
-        )
+        self.assertIn(expected_message, exception.args[0])
