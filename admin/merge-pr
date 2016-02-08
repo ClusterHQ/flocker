@@ -1,0 +1,18 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Merge a Pull Request when the tests pass.
+"""
+
+import _preamble
+
+import sys
+
+# We don't use the module, we need the sys.path
+# mangling it provides though.
+del _preamble
+
+
+if __name__ == '__main__':
+    from admin.merge_pr import main
+    sys.exit(main(sys.argv[1:]))
