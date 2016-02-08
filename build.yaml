@@ -662,6 +662,14 @@ common_cli:
   cleanup_old_jenkins_osx_yosemite_boxes: &cleanup_old_jenkins_osx_yosemite_boxes |
     admin/ci-tools/cleanup-vagrant-boxes clusterhq/jenkins-osx-yosemite
 
+  cleanup_cloud_resources: &cleanup_cloud_resources |
+    ${venv}/bin/python setup.py --version
+    # Cleanup leaked or stale cloud instances and volumes.
+    ${venv}/bin/python admin/cleanup_cloud_resources \
+    --dry-run \
+    --config-file /tmp/acceptance.yaml \
+    -- 1>cleanup_cloud_resources.stdout 2>cleanup_cloud_resources.stderr
+
   new_vagrantfile_for_osx_yosemite: &new_vagrantfile_for_osx_yosemite |
     # this builds a Vagrantfile which will use the latest jenkins-osx-yosemite
     # vagrant box built overnight.
@@ -1578,6 +1586,18 @@ job_type:
       archive_artifacts: ["docs/_build/linkcheck/output.txt"]
       notify_slack: '#engineering'
 
+    cleanup_cloud_resources:
+      at: '0 8 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *cleanup_cloud_resources ]
+          }
+      timeout: 10
+
+
 #-----------------------------------------------------------------------------#
 # View definitions below this point
 #-----------------------------------------------------------------------------#
@@ -1639,4 +1659,3 @@ views:
   cron:
     description: 'All Nightly Cron jobs'
     regex: '^_[^_](?i)[a-z]*.*'
-
