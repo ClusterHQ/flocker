@@ -319,9 +319,7 @@ common_cli:
     # using the caching-layer, install all the dependencies
     pip install --upgrade pip
     pip install . ${PIP_ADDITIONAL_OPTIONS}
-    # Install Flocker. Use --process-dependency-links so we can temporarily use
-    # testtools fork. See FLOC-3498.
-    pip install --process-dependency-links  ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
+    pip install ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
     # install junix for our coverage report
     pip install python-subunit junitxml ${PIP_ADDITIONAL_OPTIONS}
 

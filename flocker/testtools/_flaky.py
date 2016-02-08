@@ -250,8 +250,7 @@ class _RetryFlaky(testtools.RunTest):
             # what they need to do.
             raise Exception(
                 "Could not reset TestCase. Maybe upgrade your version of "
-                "testtools: pip install --upgrade --process-dependency-links "
-                ".[dev]")
+                "testtools: pip install --upgrade .[dev]")
         self._run_test(case, tmp_result)
         result_type = _get_result_type(tmp_result)
         details = pmap(case.getDetails())
