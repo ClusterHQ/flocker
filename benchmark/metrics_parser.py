@@ -34,9 +34,10 @@ def mean(values):
     return None
 
 
-def cputime_for_process(results, process):
+def cpu_usage_for_process(results, process):
     """
-    Calculate the CPU time for a process running in a particular scenario.
+    Calculate the CPU percentage for a process running in a particular
+    scenario.
 
     By default this will return the `mean` result.
     """
@@ -44,7 +45,7 @@ def cputime_for_process(results, process):
         lambda r: r['metric']['type'] == 'cputime' and r['process'] == process,
         results
     )
-    values = [r['value'] / r['wallclock'] for r in process_results]
+    values = [float(r['value']) / r['wallclock'] for r in process_results]
     return mean(values)
 
 
@@ -76,7 +77,7 @@ def container_convergence(results, seconds):
     num_convergences = len(convergence_results)
     if num_convergences > 0:
         convergences_within_limit = [
-            r for r in convergence_results if r['value'] < seconds
+            r for r in convergence_results if r['value'] <= seconds
         ]
         return float(len(convergences_within_limit)) / num_convergences
 
@@ -103,10 +104,10 @@ def request_latency(results, seconds):
         requests_under_limit = 0
         for metric in unique_metrics:
             for k, v in metric['call_durations'].iteritems():
-                if float(k) < seconds:
+                if float(k) <= seconds:
                     requests_under_limit += v
             total_requests += metric['ok_count'] + metric['err_count']
-        return requests_under_limit / total_requests
+        return float(requests_under_limit) / total_requests
     return None
 
 
@@ -204,11 +205,11 @@ class BenchmarkingResults(object):
                     u'Containers': container,
                     u'Scenario': scenario,
                     u'Control Service CPU':
-                        cputime_for_process(results, 'flocker-control'),
+                        cpu_usage_for_process(results, 'flocker-control'),
                     u'Dataset Agent CPU':
-                        cputime_for_process(results, 'flocker-dataset'),
+                        cpu_usage_for_process(results, 'flocker-dataset'),
                     u'Container Agent CPU':
-                        cputime_for_process(results, 'flocker-contain'),
+                        cpu_usage_for_process(results, 'flocker-contain'),
                     u'Containers Converged Within Limit':
                         container_convergence(results, 60),
                     u'Scenario Requests Within Limit':
