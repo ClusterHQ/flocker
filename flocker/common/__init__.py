@@ -25,7 +25,7 @@ from ._retry import (
     get_default_retry_steps,
     retry_if, decorate_methods, with_retry,
 )
-from version import parse_version, UnparseableVersion
+from .version import parse_version, UnparseableVersion
 
 
 __all__ = [
@@ -37,7 +37,7 @@ __all__ = [
 
     'decorate_methods',
     'get_default_retry_steps', 'retry_if', 'with_retry',
-    'parse_version', 'UnparseableVersion'
+    'parse_version', 'UnparseableVersion',
 
     'RACKSPACE_MINIMUM_VOLUME_SIZE',
     'DEVICEMAPPER_LOOPBACK_SIZE',
