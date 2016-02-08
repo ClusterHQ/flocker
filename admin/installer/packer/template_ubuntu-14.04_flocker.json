@@ -1,31 +1,16 @@
 {
     "variables": {
-        "aws_access_key": "",
-        "aws_secret_key": "",
-        "source_ami": "",
-        "flocker_branch": ""
+        "flocker_branch": "{{env `FLOCKER_BRANCH`}}"
     },
     "builders": [{
         "type": "amazon-ebs",
-        "access_key": "{{user `aws_access_key`}}",
-        "secret_key": "{{user `aws_secret_key`}}",
-        "region": "us-west-1",
-        "source_ami": "{{user `source_ami`}}",
-        "instance_type": "t2.micro",
+        "region": "",
+        "source_ami": "",
+        "instance_type": "m3.medium",
         "ssh_username": "ubuntu",
         "ami_name": "clusterhq_ubuntu-14.04_flocker_{{timestamp}}",
         "ami_groups": ["all"],
-        "ami_regions": [
-            "ap-northeast-1",
-            "ap-southeast-1",
-            "ap-southeast-2",
-            "eu-central-1",
-            "eu-west-1",
-            "sa-east-1",
-            "us-east-1",
-            "us-west-1",
-            "us-west-2"
-        ]
+        "ami_regions": []
     }],
     "provisioners": [
         {

@@ -4,6 +4,9 @@ Functional Testing
 
 The tests for the various cloud block device backends depend on access to credentials supplied from the environment.
 
+These tests must be run from an instance of the cloud provider.
+For example, to run the EBS functional tests, you will need to run the tests from an EC2 instance.
+
 The tests look for the following environment variables:
 
 .. XXX
@@ -30,6 +33,36 @@ or the name of the stanza, if the ``provider`` key is missing.
 If the environment variables are not present, the tests will be skipped.
 The tests that do not correspond to the configured provider will also be skipped.
 
+Setting up the Flocker environment
+==================================
+
+To run the functional tests, you will need to set up a Flocker development environment on your cloud instance.
+
+To install this environment on CentOS, run the following commands:
+
+.. prompt:: bash
+
+   yum install python-devel openssl-devel git libffi-devel python-pip
+   yum groupinstall "Development tools"
+   pip install virtualenvwrapper
+   source /usr/bin/virtualenvwrapper.sh
+   mkvirtualenv flocker
+   git clone https://github.com/ClusterHQ/flocker
+   cd flocker/
+   pip install -e .[dev]
+
+Or for Ubuntu:
+
+.. prompt:: bash
+
+   apt-get install python-dev libssl-dev git libffi-dev python-pip
+   pip install virtualenvwrapper
+   source /usr/local/bin/virtualenvwrapper.sh
+   mkvirtualenv flocker
+   git clone https://github.com/ClusterHQ/flocker
+   cd flocker/
+   pip install -e .[dev]
+
 AWS
 ===
 
@@ -41,7 +74,7 @@ The configuration stanza for the EBS backend looks as follows:
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
 
-To run the functional tests, run the following command:
+Now run the following command to set up the environment and run the tests:
 
 .. prompt:: bash #
 

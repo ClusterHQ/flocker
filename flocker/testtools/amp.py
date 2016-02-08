@@ -7,8 +7,32 @@ Fakes for interacting with AMP.
 
 from twisted.python.failure import Failure
 from twisted.internet.defer import Deferred, succeed
-from twisted.protocols.amp import AMP, InvalidSignature
+from twisted.internet.error import ConnectionLost
+from twisted.protocols.amp import (
+    AMP, InvalidSignature,
+    RemoteAmpError, UnknownRemoteError, parseString,
+)
 from twisted.test.proto_helpers import StringTransport
+
+__all__ = [
+    'StringTransportWithAbort',
+    'FakeAMPClient',
+    'DelayedAMPClient',
+    'LoopbackAMPClient',
+]
+
+
+class StringTransportWithAbort(StringTransport):
+    """
+    A ``StringTransport`` that implements ``abortConnection``.
+    """
+    def __init__(self, *args, **kwargs):
+        self.aborted = False
+        StringTransport.__init__(self, *args, **kwargs)
+
+    def abortConnection(self):
+        self.aborted = True
+        self.connected = False
 
 
 class FakeAMPClient(object):
@@ -126,3 +150,73 @@ def connected_amp_protocol():
     p = AMP()
     p.makeConnection(StringTransport())
     return p
+
+
+class LoopbackAMPClient(object):
+    """
+    Allow sending commands, in-memory, to an AMP command locator.
+    """
+    def __init__(self, command_locator):
+        """
+        :param command_locator: A ``CommandLocator`` instance that
+            will handle commands sent using ``callRemote``.
+        """
+        self._locator = command_locator
+        self.transport = StringTransportWithAbort()
+
+    def callRemote(self, command, **kwargs):
+        """
+        Call the corresponding responder on the configured locator.
+
+        @param commandType: a subclass of L{AMP_MODULE.Command}.
+
+        @param kwargs: Keyword arguments taken by the command, a C{dict}.
+
+        @return: A C{Deferred} that fires with the result of the responder.
+        """
+        # Get a Box for the supplied arguments. E.g.
+        # command = ClusterStatusUpdate
+        # kwargs = {"configuration": Deployment(nodes={Node(...)})}
+        # The Box contains the Deployment object converted to nested dict. E.g.
+        # Box({"configuration": {"$__class__$": "Deployment", ...}})
+        argument_box = command.makeArguments(kwargs, self._locator)
+
+        # Serialize the arguments to prove that we can.  For example, if an
+        # argument would serialize to more than 64kB then we can't actually
+        # serialize it so we want a test attempting this to fail.
+        # Wire format will contain bytes. E.g.
+        # b"\x12\x32configuration..."
+        wire_format = argument_box.serialize()
+
+        # Now decode the bytes back to a Box
+        [decoded_argument_box] = parseString(wire_format)
+
+        # And supply that to the responder which internally reverses
+        # makeArguments -> back to kwargs
+        responder = self._locator.locateResponder(command.commandName)
+        d = responder(decoded_argument_box)
+
+        def serialize_response(response_box):
+            # As above, prove we can serialize the response.
+            wire_format = response_box.serialize()
+            [decoded_response_box] = parseString(wire_format)
+            return decoded_response_box
+
+        d.addCallback(serialize_response)
+        d.addCallback(command.parseResponse, self._locator)
+
+        def massage_error(error):
+            if error.check(RemoteAmpError):
+                rje = error.value
+                errorType = command.reverseErrors.get(
+                    rje.errorCode, UnknownRemoteError)
+                return Failure(errorType(rje.description))
+
+            # In this case the actual AMP implementation closes the connection.
+            # Weakly simulate that here by failing how things fail if the
+            # connection closes and commands are outstanding.  This is sort of
+            # terrible behavior but oh well.  https://tm.tl/7055
+            return Failure(ConnectionLost(str(error)))
+
+        d.addErrback(massage_error)
+        return d

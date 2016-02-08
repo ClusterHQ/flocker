@@ -17,19 +17,8 @@ from testtools.content import Content, text_content
 from testtools.content_type import UTF8_TEXT
 from testtools.twistedsupport import (
     AsynchronousDeferredRunTestForBrokenTwisted, assert_fails_with,
+    CaptureTwistedLogs,
 )
-
-try:
-    from testtools.deferredruntest import CaptureTwistedLogs
-except ImportError:
-    # We are using a fork of testtools, which unfortunately means that we need
-    # to do special things to make sure we're using the latest version. Raise
-    # an error message that will help people figure out what they need to do.
-    raise Exception(
-        'Cannot import CaptureTwistedLogs. Maybe upgrade your version of '
-        'testtools: pip install --upgrade --process-dependency-links .[dev]'
-    )
-
 
 from twisted.python import log
 from twisted.python.filepath import FilePath
@@ -128,8 +117,7 @@ class _AsyncRunner(AsynchronousDeferredRunTestForBrokenTwisted):
     def _get_log_fixture(self):
         """Return a fixture used to capture logs."""
         # XXX: This is a hack, relying on the internal implementation details
-        # of AsynchronousDeferredRunTest as implemented in
-        # https://github.com/testing-cabal/testtools/pull/172.
+        # of AsynchronousDeferredRunTest.
         #
         # We want to use the _SplitEliotLogs fixture, but we want to make sure
         # that it's set up & torn down *outside* the test itself.

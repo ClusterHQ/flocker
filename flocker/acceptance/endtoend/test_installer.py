@@ -129,19 +129,21 @@ def wait_for_stack_status(stack_id, target_status):
     :param unicode target_status: The desired stack status.
     :returns: A ``Deferred`` which fires when the stack has ``target_status``.
     """
-    Message.log(
-        function='wait_for_stack_status',
-        stack_id=stack_id,
-        target_status=target_status,
-    )
-
     def predicate():
         stack_report = get_stack_report(stack_id)
         current_status = stack_report['StackStatus']
+        Message.log(
+            function='wait_for_stack_status',
+            stack_id=stack_id,
+            target_status=target_status,
+            current_status=current_status
+        )
         if current_status == target_status:
             return stack_report
 
-    return loop_until(reactor, predicate, repeat(10, 60))
+    return loop_until(reactor,
+                      predicate,
+                      repeat(10, 120))
 
 
 def create_cloudformation_stack(template_url, access_key_id,
@@ -214,7 +216,7 @@ class DockerComposeTests(AsyncTestCase):
     """
     Tests for AWS CloudFormation installer.
     """
-    run_tests_with = async_runner(timeout=timedelta(minutes=20))
+    run_tests_with = async_runner(timeout=timedelta(minutes=30))
 
     def _stack_from_environment(self):
         """
@@ -252,15 +254,15 @@ class DockerComposeTests(AsyncTestCase):
         secret_access_key = os.environ['SECRET_ACCESS_KEY']
         parameters = [
             {
-                'ParameterKey': 'KeyPair',
+                'ParameterKey': 'EC2KeyPair',
                 'ParameterValue': os.environ['KEY_PAIR']
             },
             {
-                'ParameterKey': 'AccessKeyID',
+                'ParameterKey': 'AmazonAccessKeyID',
                 'ParameterValue': os.environ['ACCESS_KEY_ID']
             },
             {
-                'ParameterKey': 'SecretAccessKey',
+                'ParameterKey': 'AmazonSecretAccessKey',
                 'ParameterValue': os.environ['SECRET_ACCESS_KEY']
             },
             {

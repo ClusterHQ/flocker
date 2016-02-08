@@ -546,7 +546,7 @@ class CreateFilesystem(PClass):
             filesystem_type=self.filesystem
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         try:
             _ensure_no_filesystem(self.device, deployer.block_device_manager)
             deployer.block_device_manager.make_filesystem(self.device,
@@ -688,7 +688,7 @@ class MountBlockDevice(PClass):
         return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id,
                                   block_device_path=self.device_path)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Run the system ``mount`` tool to mount this change's volume's block
         device.  The volume must be attached to this node.
@@ -754,7 +754,7 @@ class UnmountBlockDevice(PClass):
     def eliot_action(self):
         return UNMOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Run the system ``unmount`` tool to unmount this change's volume's block
         device.  The volume must be attached to this node and the corresponding
@@ -801,7 +801,7 @@ class AttachVolume(PClass):
         return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id,
                              block_device_id=self.blockdevice_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
         """
@@ -843,7 +843,7 @@ class DetachVolume(PClass):
         return DETACH_VOLUME(_logger, dataset_id=self.dataset_id,
                              block_device_id=self.blockdevice_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Use the deployer's ``IBlockDeviceAPI`` to detach the volume.
         """
@@ -870,7 +870,7 @@ class DestroyVolume(PClass):
     def eliot_action(self):
         return DESTROY_VOLUME(_logger, block_device_id=self.blockdevice_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
         """
@@ -958,7 +958,7 @@ class CreateBlockDeviceDataset(PClass):
         else:
             return api.create_volume(dataset_id=self.dataset_id, size=size)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Create a block device, attach it to the local host, create an ``ext4``
         filesystem on the device and mount it.
@@ -1827,7 +1827,7 @@ class BlockDeviceDeployer(PClass):
         DISCOVERED_RAW_STATE(raw_state=result).write()
         return result
 
-    def discover_state(self, cluster_state):
+    def discover_state(self, cluster_state, persistent_state):
         """
         Find all datasets that are currently associated with this host and
         return a ``BlockDeviceDeployerLocalState`` containing all the datasets

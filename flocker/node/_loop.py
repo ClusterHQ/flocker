@@ -28,6 +28,8 @@ from eliot import (
 )
 from eliot.twisted import DeferredContext
 
+from pyrsistent import field, PClass
+
 from characteristic import attributes
 
 from machinist import (
@@ -47,6 +49,7 @@ from . import run_state_change, NoOp
 from ..common import gather_deferreds
 from ..control import (
     NodeStateCommand, IConvergenceAgent, AgentAMP, SetNodeEraCommand,
+    IStatePersister, SetBlockDeviceIdForDatasetId,
 )
 from ..control._persistence import to_unserialized_json
 
@@ -465,7 +468,8 @@ class ConvergenceLoop(object):
             log_discovery = LOG_DISCOVERY(self.fsm.logger)
             with log_discovery.context():
                 discover = DeferredContext(maybeDeferred(
-                    self.deployer.discover_state, self.cluster_state))
+                    self.deployer.discover_state, self.cluster_state,
+                    persistent_state=self.configuration.persistent_state))
 
                 def got_local_state(local_state):
                     log_discovery.addSuccessFields(state=local_state)
@@ -509,7 +513,11 @@ class ConvergenceLoop(object):
 
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
-            ran_state_change = run_state_change(action, self.deployer)
+            ran_state_change = run_state_change(
+                action,
+                deployer=self.deployer,
+                state_persister=RemoteStatePersister(client=self.client),
+            )
             DeferredContext(ran_state_change).addErrback(
                 writeFailure, self.fsm.logger)
 
@@ -624,6 +632,24 @@ def build_convergence_loop_fsm(reactor, deployer):
         world=MethodSuffixOutputer(loop))
     loop.fsm = fsm
     return fsm
+
+
+@implementer(IStatePersister)
+class RemoteStatePersister(PClass):
+    """
+    Persistence implementation that uses the agent connection to record state
+    on the control node.
+
+    :ivar AMP client: The client connected to the control node.
+    """
+    client = field(mandatory=True)
+
+    def record_ownership(self, dataset_id, blockdevice_id):
+        return self.client.callRemote(
+            SetBlockDeviceIdForDatasetId,
+            dataset_id=unicode(dataset_id),
+            blockdevice_id=blockdevice_id,
+        )
 
 
 @implementer(IConvergenceAgent)
