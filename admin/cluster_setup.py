@@ -21,7 +21,7 @@ from twisted.python.usage import UsageError
 from .acceptance import (
     CLOUD_PROVIDERS,
     ClusterIdentity,
-    CommonOptions,
+    ProvisionerOptions,
     LibcloudRunner as OldLibcloudRunner,
     capture_journal,
     capture_upstart,
@@ -166,7 +166,7 @@ class LibcloudRunner(OldLibcloudRunner):
         return provisioning
 
 
-class RunOptions(CommonOptions):
+class RunOptions(ProvisionerOptions):
     description = "Set up a Flocker cluster."
 
     optParameters = [

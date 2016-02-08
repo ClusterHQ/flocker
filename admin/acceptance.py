@@ -917,23 +917,48 @@ class LibcloudRunner(object):
 DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04')
 
 
-class CommonOptions(Options):
+class ComputeResourceOptions(Options):
     """
-    Options common to ``run-acceptance-tests`` and ``setup-cluster``.
+    Options required to connect to a compute resource provider
+    """
+    optParameters = [
+        ['provider', None, None,
+         'The compute-resource provider to test against. '
+         'One of {}.'],
+        ['config-file', None, None,
+         'Configuration for compute-resource providers and dataset backends.'],
+    ]
+    
+    def __init__(self, top_level):
+        """
+        :param FilePath top_level: The top-level of the flocker repository.
+        """
+        super(ComputeResourceOptions, self).__init__()
+        self.docs['provider'] = self.docs['provider'].format(
+            self._get_provider_names()
+        )
+        self.top_level = top_level
+    
+    def _get_provider_names(self):
+        """
+        Find the names of all supported "providers" (eg Vagrant, Rackspace).
+
+        :return: A ``list`` of ``str`` giving all such names.
+        """
+        return prefixedMethodNames(self.__class__, "_runner_")
+
+class ProvisionerOptions(ComputeResourceOptions):
+    """
+    Options required to provision nodes with Flocker.
     """
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
          'One of {}.'.format(', '.join(DISTRIBUTIONS))],
-        ['provider', None, None,
-         'The compute-resource provider to test against. '
-         'One of {}.'],
         ['dataset-backend', None, 'zfs',
          'The dataset backend to test against. '
          'One of {}'.format(', '.join(backend.name for backend
                                       in DatasetBackend.iterconstants()))],
-        ['config-file', None, None,
-         'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
         ['flocker-version', None, None, 'Version of flocker to install',
          lambda option_value: _validate_version_option(
@@ -952,20 +977,8 @@ class CommonOptions(Options):
         """
         :param FilePath top_level: The top-level of the flocker repository.
         """
-        Options.__init__(self)
-        self.docs['provider'] = self.docs['provider'].format(
-            self._get_provider_names()
-        )
-        self.top_level = top_level
+        super(ProvisionerOptions, self).__init__(top_level)
         self['variants'] = []
-
-    def _get_provider_names(self):
-        """
-        Find the names of all supported "providers" (eg Vagrant, Rackspace).
-
-        :return: A ``list`` of ``str`` giving all such names.
-        """
-        return prefixedMethodNames(self.__class__, "_runner_")
 
     def opt_variant(self, arg):
         """
@@ -1213,7 +1226,7 @@ class CommonOptions(Options):
         )
 
 
-class RunOptions(CommonOptions):
+class RunOptions(ProvisionerOptions):
     description = "Run the acceptance tests."
 
     optFlags = [
