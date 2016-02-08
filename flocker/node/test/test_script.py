@@ -24,6 +24,7 @@ from twisted.internet.defer import Deferred
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.python.runtime import platform
+from twisted.python.usage import UsageError
 
 from ...common.script import ICommandLineScript
 from ...common import get_all_ips
@@ -395,6 +396,35 @@ class AgentServiceGetAPITests(TestCase):
         self.assertEqual(
             API(cluster_id=self.ca_set.node.cluster_uuid),
             api,
+        )
+
+    def test_required_config(self):
+        """
+        A ``UsageError`` is raised if the loaded configuration for the API
+        factory does not contain a key in the corresponding backend's required
+        configuration keys.
+        """
+        class API(PClass):
+            region = field()
+            api_key = field()
+
+        agent_service = self.agent_service.set(
+            "backends", [
+                BackendDescription(
+                    name=self.agent_service.backend_name,
+                    needs_reactor=False, needs_cluster_id=False,
+                    api_factory=API, deployer_type=DeployerType.p2p,
+                    required_config=set(["region", "api_key", ]),
+                ),
+            ],
+        )
+        agent_service = agent_service.set("api_args", {
+            "region": "abc",
+        })
+        error = self.assertRaises(UsageError, agent_service.get_api)
+        self.assertEqual(
+            error.message,
+            u'Configuration error: Required key api_key is missing.'
         )
 
     def test_default_openstack(self):

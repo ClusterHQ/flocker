@@ -7,3 +7,6 @@ apt-get update -qq -y
 apt-get install -qq -y --force-yes curl
 apt-get purge -qq -y lxc-docker* || true
 curl -sSL https://get.docker.com/ | sh
+
+# Prepull swarm
+docker pull "swarm:${SWARM_VERSION:-latest}"

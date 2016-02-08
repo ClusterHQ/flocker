@@ -135,9 +135,7 @@ class AttachVolumeAndWaitTests(TestCase):
         expected way, ``AttachedUnexpectedDevice`` is raised giving details
         about the expected and received paths.
         """
-        # The way this test uses the wrong_device variable is broken; we should
-        # fix it.
-        # pylint: disable=undefined-loop-variable
+        unexpected_device = []
 
         # The implementation is going to look at the real system to see what
         # block devices exist.  It would be nice to have an abstraction in
@@ -158,6 +156,7 @@ class AttachVolumeAndWaitTests(TestCase):
                 size = _get_device_size(wrong_device.basename())
                 volume = self.volume.set("size", size)
                 blockdevices.remove(wrong_device)
+                unexpected_device.append(wrong_device)
                 break
         else:
             # Ideally we'd have more control over the implementation so we
@@ -194,7 +193,9 @@ class AttachVolumeAndWaitTests(TestCase):
         self.assertEqual(
             AttachedUnexpectedDevice(
                 requested=FilePath(device),
-                discovered=FilePath(b"/dev/").child(wrong_device.basename()),
+                discovered=FilePath(b"/dev/").child(
+                    unexpected_device.pop().basename()
+                ),
             ),
             exception,
         )

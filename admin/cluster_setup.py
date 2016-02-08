@@ -401,11 +401,13 @@ def main(reactor, args, base_path, top_level):
     if options['no-keep']:
         print("not keeping cluster")
     else:
-        save_environment(options['cert-directory'], cluster)
+        save_environment(
+            options['cert-directory'], cluster, options.package_source()
+        )
         reactor.removeSystemEventTrigger(cleanup_trigger_id)
 
 
-def save_environment(directory, cluster):
+def save_environment(directory, cluster, package_source):
     """
     Report environment variables describing the cluster.
     The variables are printed on standard output and also
@@ -413,8 +415,9 @@ def save_environment(directory, cluster):
 
     :param FilePath directory: The variables are saved in this directory.
     :param Cluster cluster: The cluster.
+    :param PackageSource package_source: The source of Flocker omnibus package.
     """
-    environment_variables = get_trial_environment(cluster)
+    environment_variables = get_trial_environment(cluster, package_source)
     environment_strings = list()
     for environment_variable in environment_variables:
         environment_strings.append(

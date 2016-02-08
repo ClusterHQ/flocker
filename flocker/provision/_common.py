@@ -153,3 +153,19 @@ class IProvisioner(Interface):
 
         :return INode: The created node.
         """
+
+    def create_nodes(reactor, names, distribution, metadata={}):
+        """
+        Create nodes with the given names.
+
+        :param reactor: The reactor.
+        :param name: The names of the nodes.
+        :type name: list of str
+        :param str distribution: The name of the distribution to
+            install on the nodes.
+        :param dict metadata: Metadata to associate with the nodes.
+
+        :return: A list of ``Deferred``s each firing with an INode
+            when the corresponding node is created.   The list has
+            the same order as :param:`names`.
+        """

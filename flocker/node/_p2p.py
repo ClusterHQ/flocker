@@ -70,7 +70,7 @@ class CreateDataset(PClass):
             maximum_size=self.dataset.maximum_size,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         volume = deployer.volume_service.get(
             name=_to_volume_name(self.dataset.dataset_id),
             size=VolumeSize(maximum_size=self.dataset.maximum_size)
@@ -94,7 +94,7 @@ class ResizeDataset(object):
             maximum_size=self.dataset.maximum_size,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         volume = deployer.volume_service.get(
             name=_to_volume_name(self.dataset.dataset_id),
             size=VolumeSize(maximum_size=self.dataset.maximum_size)
@@ -124,7 +124,7 @@ class HandoffDataset(object):
             hostname=self.hostname,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
         return service.handoff(
@@ -154,7 +154,7 @@ class PushDataset(object):
             hostname=self.hostname,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
         return service.push(
@@ -184,7 +184,7 @@ class DeleteDataset(PClass):
             dataset_id=self.dataset.dataset_id,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         service = deployer.volume_service
         d = service.enumerate()
 

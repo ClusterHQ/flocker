@@ -40,6 +40,7 @@ from .._deploy import (
 from .._container import (
     StartApplication, StopApplication, SetProxies, _link_environment, OpenPorts
 )
+from ...control.testtools import InMemoryStatePersister
 from ...control._model import (
     AttachedVolume, Dataset, Manifestation, PersistentState,
 )
@@ -209,8 +210,10 @@ class StartApplicationTests(TestCase):
             ports=ports,
             links=frozenset(),
         )
-        start_result = StartApplication(application=application,
-                                        node_state=EMPTY_NODESTATE).run(api)
+        start_result = StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE
+        ).run(api, state_persister=InMemoryStatePersister())
         exists_result = fake_docker.exists(unit_name=application.name)
 
         port_maps = pset(
@@ -239,12 +242,16 @@ class StartApplicationTests(TestCase):
             links=frozenset(),
         )
 
-        result1 = StartApplication(application=application,
-                                   node_state=EMPTY_NODESTATE).run(api)
+        result1 = StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE
+        ).run(api, state_persister=InMemoryStatePersister())
         self.successResultOf(result1)
 
-        result2 = StartApplication(application=application,
-                                   node_state=EMPTY_NODESTATE).run(api)
+        result2 = StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE
+        ).run(api, state_persister=InMemoryStatePersister())
         self.failureResultOf(result2, AlreadyExists)
 
     def test_environment_supplied_to_docker(self):
@@ -266,8 +273,10 @@ class StartApplicationTests(TestCase):
             ports=(),
         )
 
-        StartApplication(application=application,
-                         node_state=EMPTY_NODESTATE).run(deployer)
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE,
+        ).run(deployer, state_persister=InMemoryStatePersister())
 
         expected_environment = Environment(variables=variables.copy())
 
@@ -293,8 +302,10 @@ class StartApplicationTests(TestCase):
             links=frozenset(),
         )
 
-        StartApplication(application=application,
-                         node_state=EMPTY_NODESTATE).run(deployer)
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE,
+        ).run(deployer, state_persister=InMemoryStatePersister())
 
         self.assertEqual(
             None,
@@ -317,8 +328,10 @@ class StartApplicationTests(TestCase):
             links=frozenset([Link(alias="alias", local_port=80,
                                   remote_port=8080)]))
 
-        StartApplication(application=application,
-                         node_state=EMPTY_NODESTATE).run(deployer)
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE,
+        ).run(deployer, state_persister=InMemoryStatePersister())
 
         variables = frozenset({
             'ALIAS_PORT_80_TCP': 'tcp://example.com:8080',
@@ -359,7 +372,8 @@ class StartApplicationTests(TestCase):
         StartApplication(
             application=application,
             node_state=EMPTY_NODESTATE.set(
-                "paths", {DATASET_ID: node_path})).run(deployer)
+                "paths", {DATASET_ID: node_path}),
+        ).run(deployer, state_persister=InMemoryStatePersister())
 
         self.assertEqual(
             pset([DockerVolume(node_path=node_path,
@@ -386,8 +400,10 @@ class StartApplicationTests(TestCase):
             memory_limit=EXPECTED_MEMORY_LIMIT
         )
 
-        StartApplication(application=application,
-                         node_state=EMPTY_NODESTATE).run(deployer)
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE,
+        ).run(deployer, state_persister=InMemoryStatePersister())
 
         self.assertEqual(
             EXPECTED_MEMORY_LIMIT,
@@ -413,8 +429,10 @@ class StartApplicationTests(TestCase):
             cpu_shares=EXPECTED_CPU_SHARES
         )
 
-        StartApplication(application=application,
-                         node_state=EMPTY_NODESTATE).run(deployer)
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE,
+        ).run(deployer, state_persister=InMemoryStatePersister())
 
         self.assertEqual(
             EXPECTED_CPU_SHARES,
@@ -441,8 +459,10 @@ class StartApplicationTests(TestCase):
             restart_policy=policy,
         )
 
-        StartApplication(application=application,
-                         node_state=EMPTY_NODESTATE).run(deployer)
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE,
+        ).run(deployer, state_persister=InMemoryStatePersister())
 
         [unit] = self.successResultOf(fake_docker.list())
         self.assertEqual(
@@ -464,8 +484,10 @@ class StartApplicationTests(TestCase):
             image=DockerImage.from_string(u"postgresql"),
             command_line=command_line)
 
-        StartApplication(application=application,
-                         node_state=EMPTY_NODESTATE).run(deployer)
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE,
+        ).run(deployer, state_persister=InMemoryStatePersister())
 
         self.assertEqual(
             fake_docker._units[application_name].command_line,
@@ -521,10 +543,14 @@ class StopApplicationTests(TestCase):
             links=frozenset(),
         )
 
-        StartApplication(application=application,
-                         node_state=EMPTY_NODESTATE).run(api)
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE
+        ).run(api, state_persister=InMemoryStatePersister())
         existed = fake_docker.exists(application.name)
-        stop_result = StopApplication(application=application).run(api)
+        stop_result = StopApplication(
+            application=application,
+        ).run(api, state_persister=InMemoryStatePersister())
         exists_result = fake_docker.exists(unit_name=application.name)
 
         self.assertEqual(
@@ -547,7 +573,9 @@ class StopApplicationTests(TestCase):
                               tag=u'release-14.0'),
             links=frozenset(),
         )
-        result = StopApplication(application=application).run(api)
+        result = StopApplication(
+            application=application,
+        ).run(api, state_persister=InMemoryStatePersister())
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
@@ -629,7 +657,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                     node_state=NodeState(uuid=api.node_uuid,
                                          hostname=api.hostname),
                     application=app
-                ).run(api)
+                ).run(api, state_persister=InMemoryStatePersister())
         cluster_state = DeploymentState(nodes={current_state})
         d = api.discover_state(cluster_state,
                                persistent_state=PersistentState())
@@ -1881,7 +1909,8 @@ class SetProxiesTests(TestCase):
             network=fake_network)
 
         expected_proxy = Proxy(ip=u'192.0.2.100', port=3306)
-        d = SetProxies(ports=[expected_proxy]).run(api)
+        d = SetProxies(ports=[expected_proxy]).run(
+            api, state_persister=InMemoryStatePersister())
         self.successResultOf(d)
         self.assertEqual(
             [expected_proxy],
@@ -1898,7 +1927,8 @@ class SetProxiesTests(TestCase):
             u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
-        d = SetProxies(ports=[]).run(api)
+        d = SetProxies(ports=[]).run(
+            api, state_persister=InMemoryStatePersister())
         self.successResultOf(d)
         self.assertEqual(
             [],
@@ -1924,7 +1954,8 @@ class SetProxiesTests(TestCase):
             u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
-        d = SetProxies(ports=[required_proxy1, required_proxy2]).run(api)
+        d = SetProxies(ports=[required_proxy1, required_proxy2]).run(
+            api, state_persister=InMemoryStatePersister())
 
         self.successResultOf(d)
         self.assertEqual(
@@ -1946,7 +1977,8 @@ class SetProxiesTests(TestCase):
             u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
-        d = SetProxies(ports=[]).run(api)
+        d = SetProxies(ports=[]).run(
+            api, state_persister=InMemoryStatePersister())
         exception = self.failureResultOf(d, FirstError)
         self.assertIsInstance(
             exception.value.subFailure.value,
@@ -1967,7 +1999,8 @@ class SetProxiesTests(TestCase):
             u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
-        d = SetProxies(ports=[Proxy(ip=u'192.0.2.100', port=3306)]).run(api)
+        d = SetProxies(ports=[Proxy(ip=u'192.0.2.100', port=3306)]).run(
+            api, state_persister=InMemoryStatePersister())
         exception = self.failureResultOf(d, FirstError)
         self.assertIsInstance(
             exception.value.subFailure.value,
@@ -1991,7 +2024,7 @@ class SetProxiesTests(TestCase):
             ports=[Proxy(ip=u'192.0.2.100', port=3306),
                    Proxy(ip=u'192.0.2.101', port=3306),
                    Proxy(ip=u'192.0.2.102', port=3306)]
-        ).run(api)
+        ).run(api, state_persister=InMemoryStatePersister())
 
         self.failureResultOf(d, FirstError)
 
@@ -2013,7 +2046,8 @@ class OpenPortsTests(TestCase):
             network=fake_network)
 
         expected_open_port = OpenPort(port=3306)
-        d = OpenPorts(ports=[expected_open_port]).run(api)
+        d = OpenPorts(ports=[expected_open_port]).run(
+            api, state_persister=InMemoryStatePersister())
         self.successResultOf(d)
         self.assertEqual(
             [expected_open_port],
@@ -2030,7 +2064,8 @@ class OpenPortsTests(TestCase):
             u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
-        d = OpenPorts(ports=[]).run(api)
+        d = OpenPorts(ports=[]).run(
+            api, state_persister=InMemoryStatePersister())
         self.successResultOf(d)
         self.assertEqual(
             [],
@@ -2056,7 +2091,7 @@ class OpenPortsTests(TestCase):
 
         state_change = OpenPorts(
             ports=[required_open_port_1, required_open_port_2])
-        d = state_change.run(api)
+        d = state_change.run(api, state_persister=InMemoryStatePersister())
 
         self.successResultOf(d)
         self.assertEqual(
@@ -2078,7 +2113,8 @@ class OpenPortsTests(TestCase):
             u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
-        d = OpenPorts(ports=[]).run(api)
+        d = OpenPorts(ports=[]).run(
+            api, state_persister=InMemoryStatePersister())
         exception = self.failureResultOf(d, FirstError)
         self.assertIsInstance(
             exception.value.subFailure.value,
@@ -2099,7 +2135,8 @@ class OpenPortsTests(TestCase):
             u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
-        d = OpenPorts(ports=[OpenPort(port=3306)]).run(api)
+        d = OpenPorts(ports=[OpenPort(port=3306)]).run(
+            api, state_persister=InMemoryStatePersister())
         exception = self.failureResultOf(d, FirstError)
         self.assertIsInstance(
             exception.value.subFailure.value,
@@ -2123,7 +2160,7 @@ class OpenPortsTests(TestCase):
             ports=[OpenPort(port=3306),
                    OpenPort(port=3307),
                    OpenPort(port=3308)]
-        ).run(api)
+        ).run(api, state_persister=InMemoryStatePersister())
 
         self.failureResultOf(d, FirstError)
 
