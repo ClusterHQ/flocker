@@ -69,9 +69,12 @@ def _get_volume_creation_time(volume):
     """
     Extract the creation time from an AWS or Rackspace volume.
 
-    libcloud doesn't represent volume creation time uniformly across
+    XXX: libcloud doesn't represent volume creation time uniformly across
     drivers.  Thus this method only works on drivers specifically accounted
-    for.
+    for. Should be extended or refactored for GCE support.
+
+    :param libcloud.compute.base.StorageVolume volume: The volume to query.
+    :returns: The datetime when the ``volume`` was created.
     """
     try:
         # AWS
@@ -87,7 +90,14 @@ def _get_volume_creation_time(volume):
 
 def _get_volume_region(volume):
     """
-    Get the name of the region the volume is in.
+    Extract the region name from an AWS or Rackspace volume.
+
+    XXX: libcloud doesn't represent volume creation time uniformly across
+    drivers.  Thus this method only works on drivers specifically accounted
+    for. Should be extended or refactored for GCE support.
+
+    :param libcloud.compute.base.StorageVolume volume: The volume to query.
+    :returns: The region of the ``volume``
     """
     return (
         # Rackspace
@@ -101,6 +111,9 @@ def _describe_volume(volume):
     """
     Create a dictionary giving lots of interesting details about a cloud
     volume.
+
+    :param libcloud.compute.base.StorageVolume volume: The volume to query.
+    :returns: A JSON serializable dict of ``volume`` information.
     """
     return {
         'id': volume.id,
@@ -162,6 +175,7 @@ class CleanVolumes(object):
         """
         Extract the Flocker-specific cluster identifier from the given volume.
 
+        :param libcloud.compute.base.StorageVolume volume: The volume to query.
         :raise: ``KeyError`` if the given volume is not tagged with a Flocker
             cluster id.
         """
@@ -294,6 +308,7 @@ def _yaml_configuration_path_option(option_name, option_value):
 
 class CleanupCloudResourcesOptions(Options):
     """
+    Command line options for ``cleanup_cloud_resources``.
     """
     optFlags = [
         ["dry-run", None,
@@ -302,7 +317,7 @@ class CleanupCloudResourcesOptions(Options):
 
     optParameters = [
         [u"config-file", None, None,
-         u"The config file containing cloud credentials.\n",
+         u"An acceptance.yml file containing cloud credentials.\n",
          lambda option_value: _yaml_configuration_path_option(
              u"config-file", option_value
          )],

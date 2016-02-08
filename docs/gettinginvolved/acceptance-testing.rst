@@ -325,7 +325,7 @@ And then run the acceptance tests on those nodes using the following command:
 Test Cleanup
 ============
 
-``admin/cleanup_cloud_resources`` creates a number of test datasets.
+``admin/run-acceptance-tests`` creates a number of test datasets.
 It will normally cleanup the test datasets and any cloud block devices that have been created.
 However, if there are bugs in the tests or if the process is killed it may leak volumes.
 
@@ -333,7 +333,7 @@ These volumes can be cleaned up using ``admin/cleanup_cloud_resources``.
 The tool uses the credentials in an ``acceptance.yml`` file to destroy cloud block devices that are older than 30 minutes,
 and which belong to an acceptance testing cluster with a special the acceptance test cluster UUID containing a marker.
 The tool will destroy all matching cloud block devices on AWS and Rackspace.
-It will print a JSON encoded report of the block devices that have been destroyed and those that have been kept, to stdout.
+It will print a JSON encoded report of the block devices that have been destroyed and those that have been kept, to ``stdout``.
 
 Run the command as follows:
 
