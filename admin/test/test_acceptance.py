@@ -9,6 +9,7 @@ from tempfile import mkdtemp
 from uuid import UUID
 
 from twisted.python.filepath import FilePath
+from twisted.python.usage import UsageError
 
 from zope.interface.verify import verifyObject
 
@@ -23,6 +24,7 @@ from flocker.ca import RootCredential
 from flocker.provision import PackageSource
 from flocker.provision._install import ManagedNode
 from flocker.acceptance.testtools import DatasetBackend
+from ..acceptance import CommonOptions
 
 
 class ManagedRunnerTests(TestCase):
@@ -150,7 +152,8 @@ _SYSTEMD_UNIT=docker.service
 MESSAGE=time="2015-10-02T13:33:26.192780138Z" level=info msg="GET /v1.20/containers/json"
 """
 
-class JournaldJSONFormatter(TestCase):
+
+class JournaldJSONFormatterTests(TestCase):
     """
     Tests for ``journald_json_formatter``.
     """
@@ -185,7 +188,7 @@ class JournaldJSONFormatter(TestCase):
                  _HOSTNAME="some-host-1",
                  _PROCESS_NAME="flocker-container-agent.service",
              ),
-         ],
+            ],
             self._convert(JOURNAL_EXPORT),
         )
 
@@ -205,3 +208,31 @@ class JournaldJSONFormatter(TestCase):
             )],
             self._convert(NON_JSON_JOURNAL_EXPORT),
         )
+
+
+class CommonOptionsTests(TestCase):
+    """
+    Tests for ``CommonOptions``.
+    """
+    def test_invalid_version(self):
+        """
+        An ``UsageError`` is thrown if an invalid flocker version is passed
+        to the ``CommonOptions``.
+        """
+        invalid_version = "invalid-version"
+        option_name = "flocker-version"
+        arg_options = ("--distribution", "ubuntu-14.04", "--provider", "AWS",
+                       "--{}".format(option_name), invalid_version)
+
+        expected_message = "Error in --{}. '{}' is not a valid format".format(
+            option_name,
+            invalid_version
+        )
+
+        common_options = CommonOptions(self.mktemp())
+        exception = self.assertRaises(
+            UsageError,
+            common_options.parseOptions, arg_options
+        )
+
+        self.assertIn(expected_message, exception.args[0])

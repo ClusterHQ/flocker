@@ -62,8 +62,20 @@ from flocker.acceptance.testtools import DatasetBackend
 from flocker.testtools.cluster_utils import (
     make_cluster_id, Providers, TestTypes
 )
-
+from flocker.common import parse_version, UnparseableVersion
 from flocker.common.runner import run, run_ssh
+
+
+def _validate_version_option(option_name, option_value):
+    try:
+        parse_version(option_value)
+    except UnparseableVersion:
+        raise UsageError(
+            "Error in --{}. '{}' is not a valid format".format(
+                option_name,
+                option_value,
+            )
+        )
 
 
 def extend_environ(**kwargs):
@@ -923,7 +935,11 @@ class CommonOptions(Options):
         ['config-file', None, None,
          'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, None, 'Version of flocker to install'],
+        ['flocker-version', None, None, 'Version of flocker to install',
+         lambda option_value: _validate_version_option(
+             option_name=u'flocker-version',
+             option_value=option_value
+            )],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
         ['number-of-nodes', None,
