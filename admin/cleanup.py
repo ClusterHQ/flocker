@@ -159,7 +159,7 @@ class CleanVolumes(object):
         for extra in config.get("extra-aws", []):
             extra_driver_config = base_ec2.copy()
             extra_driver_config.update(extra)
-            drivers.append(get_ec2_driver(config))
+            drivers.append(get_ec2_driver(extra_driver_config))
         return drivers
 
     def _get_cloud_volumes(self, drivers):
