@@ -83,6 +83,7 @@ class ClusterSizeLimitsTests(TestCase):
         self.assertEqual(True,
                          b"node_count=\\\"%s\\\"" % (cluster_size) in
                          result.output)
+        self.assertIn(b"node_count=\\\"%s\\\"" % (cluster_size), result.output)
 
     @given(cluster_size=invalid_cluster_size)
     def test_invalid_cluster_size(self, cluster_size):
@@ -94,5 +95,4 @@ class ClusterSizeLimitsTests(TestCase):
             self._run_cloudformation_with_cluster_size(cluster_size)
         except CalledProcessError as e:
             output = e.output
-        self.assertEquals(True,
-                          'InvalidClusterSizeException' in output)
+        self.assertIn('InvalidClusterSizeException', output)

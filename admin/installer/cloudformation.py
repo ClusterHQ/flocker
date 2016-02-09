@@ -211,7 +211,6 @@ flocker_agent_number = 1
 # Gather WaitConditions
 wait_condition_names = []
 
-# for i in range(NUM_NODES):
 for i in range(num_nodes):
     if i == 0:
         node_name = CONTROL_NODE_NAME
