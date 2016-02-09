@@ -295,7 +295,7 @@ def get_jenkins_info(jenkins_session, status):
         jenkins_url = status['target_url']
         project = jenkins_session.get(
             jenkins_url + JENKINS_BUILD_INFO_PATH).json()
-        if project['inQueue']:
+        if project.get('inQueue', False):
             return JenkinsResults.RUNNING, {}
         if len(project['builds']) < 1:
             return JenkinsResults.NOTRUN, {}
@@ -490,7 +490,3 @@ def main(args):
         if not do_merge(pr_url, pr, session):
             return 1
     return 0
-
-
-if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))

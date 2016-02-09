@@ -5,6 +5,7 @@
 import sys
 
 from eliot.testing import validateLogging, assertHasMessage
+from eliot import Message
 
 from twisted.internet import task
 from twisted.internet.defer import succeed
@@ -17,7 +18,7 @@ from twisted.application.service import Service
 
 from ..script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service,
-    EliotObserver, TWISTED_LOG_MESSAGE,
+    EliotObserver, TWISTED_LOG_MESSAGE, eliot_to_stdout,
     )
 from ...testtools import (
     help_problems, FakeSysModule, make_standard_options_test,
@@ -300,3 +301,34 @@ class EliotObserverTests(TestCase):
                    u'last):\nFailure: exceptions.ZeroDivisionError: onoes\n')
         assertHasMessage(self, logger, TWISTED_LOG_MESSAGE,
                          dict(error=True, message=message))
+
+
+class EliotStdoutTests(TestCase):
+    """
+    Tests for ``eliot_to_stdout``.
+    """
+    class StubStdout(object):
+        """
+        Stub stand-in for stdout ``write`` and ``flush`` methods.
+        Holds some bytes in memory and returns them.
+        """
+        flushed_data = b''
+        buffered_data = b''
+
+        def write(self, message):
+            self.buffered_data = self.buffered_data + message
+
+        def flush(self):
+            self.flushed_data = self.buffered_data
+            self.buffered_data = b''
+
+    def test_destination_stdout(self):
+        """
+        Eliot messages are written to stdout.
+        """
+        fake_stdout = self.StubStdout()
+        message_formats = {'flocker:eliot:test': 'Running %(command)s\n'}
+        eliot_to_stdout(message_formats, {}, stdout=fake_stdout)
+        Message.new(
+            message_type='flocker:eliot:test', command="some command").write()
+        self.assertEqual(fake_stdout.flushed_data, "Running some command\n")

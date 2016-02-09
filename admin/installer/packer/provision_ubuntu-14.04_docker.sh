@@ -21,4 +21,4 @@ if test -e /etc/default/ufw; then
 fi
 
 # Prepull swarm
-docker pull "swarm:${SWARM_VERSION}"
+docker pull "swarm:${SWARM_VERSION:-latest}"

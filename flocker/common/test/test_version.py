@@ -15,7 +15,7 @@ except ImportError:
 from pyrsistent import PClass, field
 
 from ..version import (
-    _parse_version, FlockerVersion,
+    parse_version, FlockerVersion,
     get_doc_version, get_installable_version, get_pre_release,
     get_package_key_suffix,
     is_pre_release, is_release, is_weekly_release,
@@ -77,10 +77,10 @@ class InvalidVersionTests(TestCase):
 
     def test_invalid_Version(self):
         """
-        If an invalid vesion is passed to ``_parse_version``,
+        If an invalid vesion is passed to ``parse_version``,
         ``UnparseableVersion`` is raised.
         """
-        self.assertRaises(UnparseableVersion, _parse_version, 'unparseable')
+        self.assertRaises(UnparseableVersion, parse_version, 'unparseable')
 
 
 class VersionCase(PClass):
@@ -124,7 +124,7 @@ def build_version_test(name, version_case):
             The parsed version matches the expected parsed version.
             """
             self.assertEqual(
-                _parse_version(version_case.version),
+                parse_version(version_case.version),
                 version_case.flocker_version,
                 "Version doesn't match expected parsed version.",
             )

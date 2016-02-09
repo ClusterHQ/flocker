@@ -461,6 +461,20 @@ class GCEProvisioner(PClass):
             compute=self.compute
         )
 
+    def create_nodes(self, reactor, names, distribution, metadata={}):
+        """
+        Create nodes with the given names.
+
+        This method is not implemented as it is not used yet.
+        As of this time create_nodes is only used by setup-cluster
+        which does not support GCE.
+        One way to implement this method would be to use a variant of
+        wait_for_operation that uses loop_until instead of poll_until
+        to perform the waiting.
+        """
+        raise NotImplementedError(
+            "GCE does not have create_nodes implemented yet.")
+
 
 def gce_provisioner(
     zone, project, ssh_public_key, gce_credentials=None
