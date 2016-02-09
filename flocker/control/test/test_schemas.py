@@ -102,6 +102,16 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'name': 'postgres',
                 'ports': [{'container': 80, 'external': '1'}]
             },
+            # Environment given with empty name
+            {
+                'node_uuid': a_uuid,
+                'image': 'postgres',
+                'name': 'postgres',
+                'environment': {
+                    'POSTGRES_USER': 'admin',
+                    '': 9.4
+                }
+            },
         ],
         'maximum': [
             # Links given but local port is greater than max (65535)
