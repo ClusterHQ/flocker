@@ -319,9 +319,7 @@ common_cli:
     # using the caching-layer, install all the dependencies
     pip install --upgrade pip
     pip install . ${PIP_ADDITIONAL_OPTIONS}
-    # Install Flocker. Use --process-dependency-links so we can temporarily use
-    # testtools fork. See FLOC-3498.
-    pip install --process-dependency-links  ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
+    pip install ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
     # install junix for our coverage report
     pip install python-subunit junitxml ${PIP_ADDITIONAL_OPTIONS}
 
@@ -376,12 +374,8 @@ common_cli:
   run_sphinx_link_check: &run_sphinx_link_check |
     ${venv}/bin/python setup.py --version
     cd docs
-    # check spelling
-    ${venv}/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
     # check links
     ${venv}/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
-    # build html pages
-    ${venv}/bin/sphinx-build -d _build/doctree -b html . _build/html
 
   # flocker artifacts contains the list of files we want to collect from our
   # _main_multijob. These are used to produce the coverage, test reports.
@@ -1155,6 +1149,7 @@ job_type:
                    *sync_master_docs_to_doc_dev ]
           }
       timeout: 10
+      archive_artifacts: ["docs/_build/spelling/output.txt"]
       directories_to_delete: []
 
 
@@ -1577,12 +1572,10 @@ job_type:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *install_aws_cli, *run_sphinx_link_check,
-                   *get_s3_creds_for_bucket_staging_docs,
-                   *upload_new_docs_html_to_s3_staging_docs,
-                   *sync_master_docs_to_doc_dev ]
+                   *run_sphinx_link_check ]
           }
       timeout: 10
+      archive_artifacts: ["docs/_build/linkcheck/output.txt"]
       notify_slack: '#engineering'
 
 #-----------------------------------------------------------------------------#

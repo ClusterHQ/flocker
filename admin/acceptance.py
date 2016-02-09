@@ -15,7 +15,7 @@ from tempfile import mkdtemp
 from zope.interface import Interface, implementer
 from characteristic import attributes
 from eliot import (
-    add_destination, write_failure, FileDestination
+    write_failure, FileDestination
 )
 from pyrsistent import PClass, field, pvector
 from bitmath import GiB
@@ -25,7 +25,6 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
-from twisted.internet.threads import deferToThreadPool
 from twisted.python.reflect import prefixedMethodNames
 
 from effect import parallel
@@ -40,6 +39,8 @@ from flocker.common import (
     loop_until,
     validate_signature_against_kwargs,
 )
+from flocker.common.script import eliot_to_stdout
+
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
@@ -61,8 +62,20 @@ from flocker.acceptance.testtools import DatasetBackend
 from flocker.testtools.cluster_utils import (
     make_cluster_id, Providers, TestTypes
 )
-
+from flocker.common import parse_version, UnparseableVersion
 from flocker.common.runner import run, run_ssh
+
+
+def _validate_version_option(option_name, option_value):
+    try:
+        parse_version(option_value)
+    except UnparseableVersion:
+        raise UsageError(
+            "Error in --{}. '{}' is not a valid format".format(
+                option_name,
+                option_value,
+            )
+        )
 
 
 def extend_environ(**kwargs):
@@ -645,12 +658,16 @@ class LibcloudRunner(object):
         :return: Deferred that fires with the created node when
             the provisioning is completed.
         """
+        print "re-creating and re-trying node", name
+
         def create_attempt():
-            d = deferToThreadPool(
-                reactor,
-                reactor.getThreadPool(),
-                self._create_node,
-                name,
+            # A list with a single Deferred must be returned as we are
+            # requesting a single node.
+            [d] = self.provisioner.create_nodes(
+                reactor=reactor,
+                names=[name],
+                distribution=self.distribution,
+                metadata=self.metadata,
             )
 
             def provision(node):
@@ -680,6 +697,53 @@ class LibcloudRunner(object):
         d.addErrback(error)
         return d
 
+    def _provision_with_retry(self, reactor, name, result):
+        """
+        Wait for a node to get created and the provision it.
+        Re-create the node and retry the provisioning if either the node
+        creation or provisioning fails.
+
+        This method is used in conjuction with bulk creation of new nodes,
+        so that a failure for any single node can be retried individually
+        (rather than failing all the nodes and starting from scratch).
+
+        :param reactor: The reactor.
+        :param str name: The name of the node.
+        :param Deferred result: Deferred that fires with the node when it's
+            created.
+        :return: Deferred that fires with the node when it's created and
+            provisioned.
+        """
+        def provision(node):
+            print "created node", name
+            print "provisioning..."
+            self.nodes.append(node)
+            d = self._provision_node(reactor, node)
+
+            def provisioning_failed(failure):
+                print "provisioning failed", name
+                # Destroy a node if we failed to provision it.
+                self._destroy_node(node)
+                return failure
+
+            # Make sure to return the node.
+            d.addCallbacks(lambda _: node, errback=provisioning_failed)
+            return d
+
+        result.addCallback(provision)
+
+        # If the initial bulk creation failed for this node for whatever
+        # reason or if its provisioning failed, then beging the process
+        # for this node from the very start.
+        def retry_on_error(failure):
+            print "bulk creation failed", name
+            print "error:", failure
+            write_failure(failure)
+            return self._create_and_provision(reactor, name)
+
+        result.addErrback(retry_on_error)
+        return result
+
     def _create_nodes(self, reactor, names):
         """
         Create and provision a number of nodes with the given names.
@@ -690,10 +754,15 @@ class LibcloudRunner(object):
         :return: List of Deferreds each firing when the corresponding node
             is created and provisioned.
         """
-        reactor.suggestThreadPoolSize(len(names))
-        return [
-            self._create_and_provision(reactor, name) for name in names
-        ]
+        results = self.provisioner.create_nodes(
+            reactor=reactor,
+            names=names,
+            distribution=self.distribution,
+            metadata=self.metadata,
+        )
+        for name, result in zip(names, results):
+            self._provision_with_retry(reactor, name, result)
+        return results
 
     def _make_node_name(self, tag, index):
         """
@@ -866,7 +935,11 @@ class CommonOptions(Options):
         ['config-file', None, None,
          'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, None, 'Version of flocker to install'],
+        ['flocker-version', None, None, 'Version of flocker to install',
+         lambda option_value: _validate_version_option(
+             option_name=u'flocker-version',
+             option_value=option_value
+            )],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
         ['number-of-nodes', None,
@@ -1181,29 +1254,6 @@ ACTION_START_FORMATS = {
 }
 
 
-def eliot_output(message):
-    """
-    Write pretty versions of eliot log messages to stdout.
-    """
-    message_type = message.get('message_type')
-    action_type = message.get('action_type')
-    action_status = message.get('action_status')
-
-    format = ''
-    if message_type is not None:
-        if message_type == 'twisted:log' and message.get('error'):
-            format = '%(message)s'
-        else:
-            format = MESSAGE_FORMATS.get(message_type, '')
-    elif action_type is not None:
-        if action_status == 'started':
-            format = ACTION_START_FORMATS.get('action_type', '')
-        # We don't consider other status, since we
-        # have no meaningful messages to write.
-    sys.stdout.write(format % message)
-    sys.stdout.flush()
-
-
 def capture_upstart(reactor, host, output_file):
     """
     SSH into given machine and capture relevant logs, writing them to
@@ -1374,7 +1424,7 @@ def main(reactor, args, base_path, top_level):
     """
     options = RunOptions(top_level=top_level)
 
-    add_destination(eliot_output)
+    eliot_to_stdout(MESSAGE_FORMATS, ACTION_START_FORMATS)
     try:
         options.parseOptions(args)
     except UsageError as e:
