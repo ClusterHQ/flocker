@@ -22,18 +22,24 @@ def build_simple_test(command_name):
         name=str(command_name + "Tests"),
         schema={"$ref": "/endpoints.json#/definitions/" + command_name},
         schema_store=SCHEMAS,
-        failing_instances=[
-            # Wrong types:
-            [], "", None,
-            # Missing field:
-            {},
-            # Wrong fields:
-            {"Result": "hello"},
-            # Wrong Err types:
-            {"Err": 1}, {"Err": {}}, {"Err": None},
-            # Extra field:
-            {"Err": "", "Extra": ""},
-        ],
+        failing_instances={
+            b'additionalProperties': [
+                # Extra field:
+                {"Err": "", "Extra": ""},
+                # Wrong fields:
+                {"Result": "hello"},
+            ],
+            b'required': [
+                # Missing field:
+                {},
+            ],
+            b'type': [
+                # Wrong types:
+                [], "", None,
+                # Wrong Err types:
+                {"Err": 1}, {"Err": {}}, {"Err": None},
+            ],
+        },
         passing_instances=[
             {"Err": ""},
             {"Err": "Something went wrong!"},
@@ -48,16 +54,22 @@ PluginActivateTests = build_schema_test(
     name=str("PluginActivateTests"),
     schema={"$ref": "/endpoints.json#/definitions/PluginActivate"},
     schema_store=SCHEMAS,
-    failing_instances=[
-        # Wrong types:
-        [], "", None,
-        # Missing field:
-        {},
-        # Wrong fields:
-        {"Result": "hello"},
-        # Extra field:
-        {"Implements": ["VolumeDriver"], "X": "Y"},
-    ],
+    failing_instances={
+        b'additionalProperties': [
+            # Extra field:
+            {"Implements": ["VolumeDriver"], "X": "Y"},
+            # Wrong fields:
+            {"Result": "hello"},
+        ],
+        b'required': [
+            # Missing field:
+            {},
+        ],
+        b'type': [
+            # Wrong types:
+            [], "", None,
+        ],
+    },
     passing_instances=[
         {"Implements": ["VolumeDriver"]},
     ])
@@ -76,16 +88,22 @@ def build_path_result_tests(name):
         name=str(name + "Tests"),
         schema={"$ref": "/endpoints.json#/definitions/" + name},
         schema_store=SCHEMAS,
-        failing_instances=[
-            # Wrong types:
-            [], "", None,
-            # Missing field:
-            {}, {"Mountpoint": "/x"},
-            # Wrong fields:
-            {"Result": "hello"},
-            # Extra field:
-            {"Err": "", "Mountpoint": "/x", "extra": "y"},
-        ],
+        failing_instances={
+            b'additionalProperties': [
+                # Extra field:
+                {"Err": "", "Mountpoint": "/x", "extra": "y"},
+                # Wrong fields:
+                {"Result": "hello"},
+            ],
+            b'required': [
+                # Missing field:
+                {}, {"Mountpoint": "/x"},
+            ],
+            b'type': [
+                # Wrong types:
+                [], "", None,
+            ],
+        },
         passing_instances=[
             {"Err": "Something went wrong."},
             {"Err": "", "Mountpoint": "/x/"},
@@ -99,24 +117,30 @@ GetTests = build_schema_test(
     name=str("GetTests"),
     schema={"$ref": "/endpoints.json#/definitions/Get"},
     schema_store=SCHEMAS,
-    failing_instances=[
-        # Wrong types:
-        [], "", None,
-        # Missing field:
-        {}, {"Volume": "/x"},
-        # Wrong fields:
-        {"Result": "hello"},
-        # Extra field:
-        {"Err": "", "Volume": {"Name": "x",
-                               "Mountpoint": "/y"}, "extra": "y"},
-        # Missing field:
-        {"Err": "", "Volume": {"Mountpoint": "/y"}},
-        {"Err": "", "Volume": {"Name": "/x"}},
-        # Extra field:
-        {"Err": "", "Volume": {"Name": "/x",
-                               "Mountpoint": "y",
-                               "extra": "r"}},
-    ],
+    failing_instances={
+        b'additionalProperties': [
+            # Extra field:
+            {"Err": "", "Volume": {"Name": "x",
+                                   "Mountpoint": "/y"}, "extra": "y"},
+            # Extra field:
+            {"Err": "", "Volume": {"Name": "/x",
+                                   "Mountpoint": "y",
+                                   "extra": "r"}},
+            # Wrong fields:
+            {"Result": "hello"},
+        ],
+        b'required': [
+            # Missing field:
+            {}, {"Volume": "/x"},
+            # Missing field:
+            {"Err": "", "Volume": {"Mountpoint": "/y"}},
+            {"Err": "", "Volume": {"Name": "/x"}},
+        ],
+        b'type': [
+            # Wrong types:
+            [], "", None,
+        ],
+    },
     passing_instances=[
         {"Err": "Something went wrong."},
         {"Err": "", "Volume": {
@@ -129,23 +153,29 @@ ListTests = build_schema_test(
     name=str("GetTests"),
     schema={"$ref": "/endpoints.json#/definitions/List"},
     schema_store=SCHEMAS,
-    failing_instances=[
-        # Wrong types:
-        [], "", None,
-        # Missing field:
-        {}, {"Volumes": []},
-        # Wrong fields:
-        {"Result": "hello"},
-        # Extra field:
-        {"Err": "", "Volumes": [], "extra": "y"},
-        # Missing field:
-        {"Err": "", "Volumes": [{"Mountpoint": "/y"}]},
-        {"Err": "", "Volumes": [{"Name": "/x"}]},
-        # Extra field:
-        {"Err": "", "Volumes": [{"Name": "/x",
-                                 "Mountpoint": "y",
-                                 "extra": "r"}]},
-    ],
+    failing_instances={
+        b'additionalProperties': [
+            # Extra field:
+            {"Err": "", "Volumes": [], "extra": "y"},
+            # Extra field:
+            {"Err": "", "Volumes": [{"Name": "/x",
+                                     "Mountpoint": "y",
+                                     "extra": "r"}]},
+            # Wrong fields:
+            {"Result": "hello"},
+        ],
+        b'required': [
+            # Missing field:
+            {}, {"Volumes": []},
+            # Missing field:
+            {"Err": "", "Volumes": [{"Mountpoint": "/y"}]},
+            {"Err": "", "Volumes": [{"Name": "/x"}]},
+        ],
+        b'type': [
+            # Wrong types:
+            [], "", None,
+        ],
+    },
     passing_instances=[
         {"Err": "Something went wrong."},
         {"Err": "", "Volumes": [
