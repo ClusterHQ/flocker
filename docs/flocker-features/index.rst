@@ -8,7 +8,6 @@ Flocker Features
    :maxdepth: 2
 
    architecture
-   flockerctl
    security
    storage-backends
    storage-profiles
