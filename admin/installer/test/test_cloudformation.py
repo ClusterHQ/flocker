@@ -4,7 +4,6 @@
 Tests for ``flocker.admin.installer.cloudformation``.
 """
 
-from os import walk
 from subprocess import CalledProcessError
 
 from hypothesis import given
@@ -33,13 +32,11 @@ def _get_cloudformation_full_path():
     :returns: Fully qualified pathname of cloudformation.py
     :rtype: twisted.python.filepath.FilePath
     """
-    root_path = b'/'
-    cloudformation_path_suffix = b'flocker/admin/installer'
-    cloudformation_file = b'cloudformation.py'
-    for root, dirs, files in walk(root_path):
-        if root.endswith(cloudformation_path_suffix) \
-           and cloudformation_file in files:
-            return FilePath("/".join((root, cloudformation_file)))
+    test_directory_filepath = FilePath(__file__)
+    installer_directory_filepath = test_directory_filepath.parent().parent()
+    cloudformation_filepath = installer_directory_filepath.childSearchPreauth(
+        u'cloudformation.py')
+    return cloudformation_filepath
 
 
 class ClusterSizeLimitsTests(TestCase):
