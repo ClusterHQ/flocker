@@ -336,9 +336,11 @@ class DatasetAPITests(AsyncTestCase):
         wait_for_dataset = create_dataset(self, cluster, dataset_id=dataset_id)
 
         def check_volumes(dataset):
-            volumes = api.list_volumes()
+            [new_volume] = api.list_volumes()
             # That volume should be the only dataset in the cluster.
-            self.assertEqual([volume], volumes)
+            # Clear `.attached_to` on the new volume, since we expect it to be
+            # attached.
+            self.assertEqual(volume, new_volume.set('attached_to', None))
         wait_for_dataset.addCallback(check_volumes)
         return wait_for_dataset
 
