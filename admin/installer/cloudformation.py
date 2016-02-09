@@ -135,8 +135,6 @@ def _get_cluster_size():
         return size
     return _validate_cluster_size(parsed_args.size)
 
-num_nodes = _get_cluster_size()
-
 # Base JSON template.
 template = Template()
 
@@ -241,7 +239,7 @@ base_user_data = [
     's3_bucket="', Ref(s3bucket), '"\n',
     'stack_name="', Ref("AWS::StackName"), '"\n',
     'volumehub_token="', Ref(volumehub_token), '"\n',
-    'node_count="{}"\n'.format(num_nodes),
+    'node_count="{}"\n'.format(_get_cluster_size()),
     'apt-get update\n',
 ]
 
@@ -252,7 +250,7 @@ flocker_agent_number = 1
 # Gather WaitConditions
 wait_condition_names = []
 
-for i in range(num_nodes):
+for i in range(_get_cluster_size()):
     if i == 0:
         node_name = CONTROL_NODE_NAME
     else:

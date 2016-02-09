@@ -21,10 +21,8 @@ valid_cluster_size = integers(min_value=MIN_CLUSTER_SIZE,
                               max_value=MAX_CLUSTER_SIZE)
 
 # A Hypothesis strategy for generating unsupported cluster size.
-too_small_cluster_size = integers(min_value=0,
-                                  max_value=MIN_CLUSTER_SIZE-1)
-too_big_cluster_size = integers(min_value=MAX_CLUSTER_SIZE+1,
-                                max_value=100)
+too_small_cluster_size = integers(max_value=MIN_CLUSTER_SIZE-1)
+too_big_cluster_size = integers(min_value=MAX_CLUSTER_SIZE+1)
 invalid_cluster_size = one_of(too_small_cluster_size, too_big_cluster_size)
 
 
