@@ -63,20 +63,41 @@ Follow these steps to build the virtual machine images:
 
 1. Install Packer.
 
-   See https://www.packer.io/ for complete instructions.
+   See https://www.packer.io/ for complete installation instructions.
 
-2. Build the Ubuntu-14.04 + Docker base image.
+   The Packer command must be installed at ``/opt/packer/packer``.
+
+2. Build the Ubuntu-14.04 + Docker + Docker Swarm base image.
 
    .. prompt:: bash #
 
-      /opt/packer/packer build \
-          admin/installer/packer/template_ubuntu-14.04_docker.json
+      DOCKER_VERSION=1.10.0 \
+      SWARM_VERSION=1.1.0 \
+      ./admin/publish-installer-images --copy_to_all_regions --template=docker
 
-   Packer will copy the new image to all available AWS regions.
-   The image will have a unique name in each region.
-   Packer will print the region specific AMI image names.
-   The images are built in the ``us-west-1`` region.
-   Make a note of the ``us-west-1`` AMI image name because you'll use it for building the Flocker AMI in the next step.
+   A new AMI image will be built in the ``us-west-1`` region.
+   That image will be copied to all available AWS regions.
+   The region specific AMI image IDs will be uploaded to the ``clusterhq-installer-images`` S3 bucket in an object matching the template name ``docker`` in JSON format.
+   Make a note of the ``us-west-1`` AMI image ID because you'll use it for building the Flocker AMI in the next step.
+
+   .. note::
+
+      XXX: This process should be automated and added to the script.
+      It may be useful to implement this as a standalone command / library that can be used elsewhere in the Flocker infrastructure.
+      E.g. ``admin/latest_cloud_base_image --distribution=ubuntu-14.04 --provider=aws``
+
+      The script above will use a fixed Ubuntu-14.04 base image.
+      But the Ubuntu-14.04 base AMI images are updated frequently and it is a good idea to use a recent image.
+      The IDs of the latest images can be found at:
+
+      * https://cloud-images.ubuntu.com/locator/ec2/
+
+      Look for an image with the following parameters:
+
+      * Instance type: ``hvm:ebs``.
+      * Architecture: ``amd64``.
+      * Version: ``14.04 LTS``.
+      * Zone: ``us-west-1`` (or which ever region you choose to build the images in)
 
 3. Build the Flocker image.
 
@@ -85,17 +106,23 @@ Follow these steps to build the virtual machine images:
 
    .. prompt:: bash #
 
-      /opt/packer/packer build \
-          -var "flocker_branch=master" \
-          -var "source_ami=<name of AMI image from previous step>" \
-          admin/installer/packer/template_ubuntu-14.04_flocker.json
+      FLOCKER_VERSION=1.10.1 \
+      ./admin/publish-installer-images \
+          --copy_to_all_regions \
+          --template=flocker \
+          --source_ami=<name of AMI image from previous step>"
 
-.. note::
+   A new AMI image will be built in the ``us-west-1`` region.
+   That image will be copied to all available AWS regions.
+   The region specific AMI image IDs will be uploaded to the ``clusterhq-installer-images`` S3 bucket in an object matching the template name ``flocker`` in JSON format.
 
-   The Ubuntu-14.04 base AMI images are updated frequently.
-   The names of the latest images can be found at:
+   XXX: Now that I document it, it's going to be easier if the command just prints the JSON AMI map to stdout.
+   We can then add a new option to consume that JSON inline or from a URL.
+   E.g. ``--source_ami_map_url <S3 URL>`` and ``--source_ami_map_body <inline JSON>``
 
-   * https://cloud-images.ubuntu.com/locator/ec2/
+4. Add the new images to the CloudFormation template.
+
+   Copy the ``docker`` and ``flocker`` regional AMI IDs into ``cloudformation.py`` and follow the instructions above to create and publish a new template.
 
 
 How are user-specific inputs (like AWS AccessKeyID) sourced?
