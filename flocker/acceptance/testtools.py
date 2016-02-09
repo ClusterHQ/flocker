@@ -910,11 +910,18 @@ class Cluster(PClass):
 
             async_api = _SyncToThreadedAsyncAPIAdapter.from_api(api)
 
+            def detach_and_destroy_volume(volume):
+                d = async_api.detach_volume(volume.blockdevice_id)
+                d.addBoth(
+                    lambda _: async_api.destroy_volume(volume.blockdevice_id)
+                )
+                return d
+
             cleaning_volumes = api_clean_state(
                 u"volumes",
                 async_api.list_volumes,
                 async_api.list_volumes,
-                lambda item: async_api.destroy_volume(item.blockdevice_id),
+                detach_and_destroy_volume,
             )
             return timeout(
                 reactor, cleaning_volumes, 60,
