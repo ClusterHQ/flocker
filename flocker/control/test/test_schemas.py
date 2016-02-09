@@ -163,7 +163,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
         ],
         'oneOf': [
-            # XXX strange that all these end up here?
+            # None of the schemas under oneOf match, so all errors are oneOf
             # Restart policy given but not a string
             {
                 'node_uuid': a_uuid,
@@ -619,11 +619,11 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = {
         # dataset_id not a valid UUID
         {u"primary": a_uuid, u"dataset_id": bad_uuid_1},
 
-        # non-IPv4-address for primary - XXX invalid dataset_id
+        # non-IPv4-address for primary
         {u"primary": u"10.0.0.257",
          u"metadata": {},
          u"maximum_size": 1024 * 1024 * 1024,
-         u"dataset_id": u"x" * 36},
+         u"dataset_id": a_uuid},
 
         {u"primary": u"example.com",
          u"metadata": {},
@@ -660,7 +660,7 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = {
 }
 
 CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES = [
-    # requires primary
+    {},
     {u"primary": a_uuid},
 ]
 
@@ -668,39 +668,35 @@ CONFIGURATION_DATASETS_UPDATE_FAILING_INSTANCES = {
     'additionalProperties': [
         {u"primary": a_uuid, u'x': 1},
     ],
-    # 'required': [
-    #     # XXX - this passes, seems it should be required
-    #     {}
-    # ],
 }
 
-CONFIGURATION_DATASETS_PASSING_INSTANCES = (
-    CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES + [
-        # metadata is an object with a handful of short string key/values
-        {u"primary": a_uuid,
-         u"metadata":
-             dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
+CONFIGURATION_DATASETS_PASSING_INSTANCES = [
+    {u"primary": a_uuid},
 
-        # dataset_id is a string of 36 characters
-        {u"primary": a_uuid, u"dataset_id": unicode(uuid4())},
+    # metadata is an object with a handful of short string key/values
+    {u"primary": a_uuid,
+     u"metadata":
+         dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
 
-        # deleted is a boolean
-        {u"primary": a_uuid, u"deleted": False},
-        # maximum_size is an integer of at least 64MiB
-        {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
+    # dataset_id is a string of 36 characters
+    {u"primary": a_uuid, u"dataset_id": unicode(uuid4())},
 
-        # maximum_size may be null, which means no size limit
-        {u"primary": a_uuid, u"maximum_size": None},
+    # deleted is a boolean
+    {u"primary": a_uuid, u"deleted": False},
+    # maximum_size is an integer of at least 64MiB
+    {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
 
-        # All of them can be combined.
-        {u"primary": a_uuid,
-         u"metadata":
-             dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
-         u"maximum_size": 1024 * 1024 * 64,
-         u"dataset_id": unicode(uuid4()),
-         u"deleted": True},
-    ]
-)
+    # maximum_size may be null, which means no size limit
+    {u"primary": a_uuid, u"maximum_size": None},
+
+    # All of them can be combined.
+    {u"primary": a_uuid,
+     u"metadata":
+         dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
+     u"maximum_size": 1024 * 1024 * 64,
+     u"dataset_id": unicode(uuid4()),
+     u"deleted": True},
+]
 
 ConfigurationDatasetsSchemaTests = build_schema_test(
     name="ConfigurationDatasetsSchemaTests",
@@ -725,13 +721,12 @@ CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES = (
     CONFIGURATION_DATASETS_FAILING_INSTANCES.copy()
 )
 
-CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES['pattern'] = (
-    CONFIGURATION_DATASETS_FAILING_INSTANCES.get('pattern', []) + [
+CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES['required'] = (
+    CONFIGURATION_DATASETS_FAILING_INSTANCES.get('required', []) + [
         # primary is required for create
-        # XXX actually fails for invalid UUID format for dataset_id
         {u"metadata": {},
          u"maximum_size": 1024 * 1024 * 1024,
-         u"dataset_id": u"x" * 36}
+         u"dataset_id": a_uuid}
     ]
 )
 
