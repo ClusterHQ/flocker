@@ -70,30 +70,6 @@ def _sibling_lines(filename):
         return f.readlines()
 
 
-def _parse_args():
-    """
-    Parse input arguments to the script.
-
-    :returns: an object built from attributes parsed out of the command line
-    :rtype: Namespace
-    """
-    parser = argparse.ArgumentParser(
-        description='Create CloudFormation template'
-                    ' for cluster of desired size '
-                    '(default: {0} nodes).'.format(MIN_CLUSTER_SIZE))
-    parser.add_argument('-s', '--size',
-                        default=MIN_CLUSTER_SIZE,
-                        type=int,
-                        help='an integer corresponding to desired '
-                             'number of nodes in the cluster. '
-                             'Supported sizes: min={0} max={1}'.format(
-                                 MIN_CLUSTER_SIZE,
-                                 MAX_CLUSTER_SIZE))
-    return parser.parse_args()
-
-parsed_args = _parse_args()
-
-
 def _get_cluster_size():
     """
     Gather desired number of nodes in the cluster from input argument.
@@ -101,10 +77,63 @@ def _get_cluster_size():
     :returns: Desired cluster size, with a default of ``MIN_CLUSTER_SIZE``
     :rtype: int
     """
-    size = parsed_args.size
-    if size < MIN_CLUSTER_SIZE or size > MAX_CLUSTER_SIZE:
-        raise InvalidClusterSizeException(size)
-    return size
+    def _parse_args():
+        """
+        Parse input arguments to the script.
+
+        :returns: an object built from attributes parsed out of command line
+        :rtype: Namespace
+        """
+        parser = argparse.ArgumentParser(
+            description='Create CloudFormation template'
+                        ' for cluster of desired size '
+                        '(default: {0} nodes).'.format(MIN_CLUSTER_SIZE))
+
+        def _add_parser_argument(parser, short_form_name, long_form_name,
+                                 default_value, argument_type, help_message):
+            """
+            Add an input argument to given parser.
+
+            :param argparse.ArgumentParser parser: Target parser for argument.
+            :param unicode short_form_name: Short form flag for the argument.
+            :param unicode long_form_name: Long form name of the argument.
+            :param unicode default_value: value produced if the argument is
+                                          absent from the command line.
+            :param type argument_type: type to which argument should be
+                                       converted.
+            :param unicode help_message: description of what the argument does.
+            """
+            parser.add_argument(short_form_name, long_form_name,
+                                default=default_value,
+                                type=argument_type,
+                                help=help_message)
+            return
+        _add_parser_argument(parser, short_form_name=u'-s',
+                             long_form_name=u'--size',
+                             default_value=MIN_CLUSTER_SIZE,
+                             argument_type=int,
+                             help_message=u'integer corresponding to desired'
+                             ' number of nodes in the cluster.'
+                             ' Supported sizes: min={0} max={1}'.format(
+                                 MIN_CLUSTER_SIZE,
+                                 MAX_CLUSTER_SIZE))
+        return parser.parse_args()
+    parsed_args = _parse_args()
+
+    def _validate_cluster_size(size):
+        """
+        Validate that user-input cluster size is supported by Installer.
+
+        :param int size: Desired number of nodes in the cluster.
+        :raises: InvalidClusterSizeException,
+                 if input cluster size is unsupported.
+        :returns: Validated cluster size.
+        :rtype: int
+        """
+        if size < MIN_CLUSTER_SIZE or size > MAX_CLUSTER_SIZE:
+            raise InvalidClusterSizeException(size)
+        return size
+    return _validate_cluster_size(parsed_args.size)
 
 num_nodes = _get_cluster_size()
 
