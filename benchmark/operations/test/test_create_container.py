@@ -14,9 +14,10 @@ from flocker.apiclient import FakeFlockerClient, Node
 from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
+from benchmark._flocker import DEFAULT_TIMEOUT
 from benchmark._interfaces import IOperation, IProbe
 from benchmark.operations.create_container import (
-    CreateContainer, CreateContainerProbe, DEFAULT_TIMEOUT,
+    CreateContainer, CreateContainerProbe
 )
 from benchmark.operations._common import EmptyClusterError
 

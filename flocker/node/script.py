@@ -438,7 +438,7 @@ class BackendDescription(PClass):
     # out.
     needs_cluster_id = field(type=bool, mandatory=True)
     # Config "dataset" keys required to initialize this backend.
-    required_config = field(type=set, mandatory=True)
+    required_config = field(type=set, mandatory=True, initial=set())
     api_factory = field(mandatory=True)
     deployer_type = field(
         mandatory=True,
@@ -458,14 +458,12 @@ _DEFAULT_BACKENDS = [
     BackendDescription(
         name=u"zfs", needs_reactor=True, needs_cluster_id=False,
         api_factory=_zfs_storagepool, deployer_type=DeployerType.p2p,
-        required_config=set(),
     ),
     BackendDescription(
         name=u"loopback", needs_reactor=False, needs_cluster_id=False,
         # XXX compute_instance_id is the wrong type
         api_factory=LoopbackBlockDeviceAPI.from_path,
         deployer_type=DeployerType.block,
-        required_config=set(),
     ),
     BackendDescription(
         name=u"openstack", needs_reactor=False, needs_cluster_id=True,

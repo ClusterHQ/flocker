@@ -327,12 +327,10 @@ class AgentServiceGetAPITests(TestCase):
                 BackendDescription(
                     name=u"foo", needs_reactor=False, needs_cluster_id=False,
                     api_factory=API, deployer_type=DeployerType.p2p,
-                    required_config=set(),
                 ),
                 BackendDescription(
                     name=u"bar", needs_reactor=False, needs_cluster_id=False,
                     api_factory=WrongAPI, deployer_type=DeployerType.block,
-                    required_config=set(),
                 ),
             ],
         ).set(
@@ -364,7 +362,6 @@ class AgentServiceGetAPITests(TestCase):
                     name=self.agent_service.backend_name,
                     needs_reactor=True, needs_cluster_id=False,
                     api_factory=API, deployer_type=DeployerType.p2p,
-                    required_config=set(),
                 ),
             ],
         ).set(
@@ -392,7 +389,6 @@ class AgentServiceGetAPITests(TestCase):
                     name=self.agent_service.backend_name,
                     needs_reactor=False, needs_cluster_id=True,
                     api_factory=API, deployer_type=DeployerType.p2p,
-                    required_config=set(),
                 ),
             ],
         )
@@ -552,7 +548,6 @@ class AgentServiceDeployerTests(TestCase):
                     name=self.agent_service.backend_name,
                     needs_reactor=False, needs_cluster_id=False,
                     api_factory=None, deployer_type=DeployerType.p2p,
-                    required_config=set(),
                 ),
             ],
         ).set(
