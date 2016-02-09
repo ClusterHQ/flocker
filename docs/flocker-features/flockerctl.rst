@@ -12,11 +12,8 @@ The ``flockerctl`` Command
         <p>This page describes one of our experimental projects, developed to less rigorous quality and testing standards than the mainline Flocker distribution. It is not built with production-readiness in mind.</p>
 	</div>
 
-``flockerctl`` is a CLI for controlling the Flocker Control Service.
-It is specific to datasets, and should not be confused with ``flocker-deploy`` (which is deprecated) or ``flocker-ca`` (which can be used as part of the manual initial configuration of a cluster's certificates).
-
-``flockerctl`` has commands for listing nodes, creating volumes, and moving them around.
-It supports supplying metadata such as size, name and :ref:`storage-profiles`.
+``flockerctl`` is a CLI for controlling the Flocker Control Service, with commands for listing nodes, creating volumes, and moving them around.
+``flockerctl`` supports supplying metadata such as size, name and :ref:`storage-profiles`.
 
 Install & Configure
 ===================
