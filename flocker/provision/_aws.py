@@ -4,6 +4,8 @@
 AWS provisioner.
 """
 
+import logging
+
 from itertools import izip_longest, repeat
 from textwrap import dedent
 
@@ -51,6 +53,32 @@ IMAGE_NAMES = {
 
 BOTO_INSTANCE_NOT_FOUND = u'InvalidInstanceID.NotFound'
 INSTANCE_TIMEOUT = 300
+
+
+class EliotLogHandler(logging.Handler):
+    # Whitelist ``"msg": "Params:`` field for logging.
+    _to_log = {"Params"}
+
+    def emit(self, record):
+        fields = vars(record)
+        # Only log certain things.  The log is massively too verbose
+        # otherwise.
+        if fields.get("msg", ":").split(":")[0] in self._to_log:
+            Message.new(
+                message_type=u'flocker:provision:aws:boto_logs',
+                **fields
+            ).write()
+
+
+def _enable_boto_logging():
+    """
+    Make boto log activity using Eliot.
+    """
+    logger = logging.getLogger("boto")
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(EliotLogHandler())
+
+_enable_boto_logging()
 
 
 class FailedToRun(Exception):
