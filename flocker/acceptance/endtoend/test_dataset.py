@@ -263,7 +263,7 @@ class DatasetAPITests(AsyncTestCase):
 
         All attributes, including the maximum size, are preserved.
         """
-        api = get_backend_api(self, cluster.cluster_uuid)
+        api = get_backend_api(cluster.cluster_uuid)
         if not ICloudAPI.providedBy(api):
             raise SkipTest(
                 "Backend doesn't support ICloudAPI; therefore it might support"
@@ -326,7 +326,7 @@ class DatasetAPITests(AsyncTestCase):
         If there is already a backend volume for a dataset when it is created,
         that volume is used for that dataset.
         """
-        api = get_backend_api(self, cluster.cluster_uuid)
+        api = get_backend_api(cluster.cluster_uuid)
 
         # Create a volume for a dataset
         dataset_id = uuid4()
@@ -352,7 +352,7 @@ class DatasetAPITests(AsyncTestCase):
            volumes that claim to belong to a dataset, since the dataset picked
            will be random.
         """
-        api = get_backend_api(self, cluster.cluster_uuid)
+        api = get_backend_api(cluster.cluster_uuid)
 
         # Create the dataset
         wait_for_dataset = create_dataset(self, cluster)
@@ -365,6 +365,7 @@ class DatasetAPITests(AsyncTestCase):
             volume = api.create_volume(dataset.dataset_id,
                                        size=get_default_volume_size())
             created_volume.append(volume)
+            return dataset
 
         wait_for_extra_volume = wait_for_dataset.addCallback(create_extra)
 

@@ -926,7 +926,7 @@ class Cluster(PClass):
         if remove_foreign_containers:
             d.addCallback(cleanup_all_containers)
         d.addCallback(cleanup_datasets)
-        d.addCallback(cleanup_volumes)
+        d.addCallback(lambda _: cleanup_volumes())
         return d.result
 
     def get_file(self, node, path):
@@ -1082,8 +1082,7 @@ def require_cluster(num_nodes, required_backend=None):
                         'This test requires backend type {} but is being run '
                         'on {}.'.format(required_backend.name,
                                         backend_type.name))
-                kwargs['backend'] = get_backend_api(test_case,
-                                                    cluster.cluster_uuid)
+                kwargs['backend'] = get_backend_api(cluster.cluster_uuid)
             return test_method(test_case, *args, **kwargs)
 
         @wraps(test_method)
