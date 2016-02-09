@@ -7,9 +7,6 @@ import itertools
 import json
 
 
-WALL_CLOCK_KEY = u'-- WALL --'
-
-
 def write_csv(results, headers, filename):
     """
     Write a set of results to a CSV file.
@@ -129,10 +126,11 @@ def handle_cputime_metric(common_props, sample):
     """
     cputime_sample = dict(common_props)
 
+    wallclock_key = u'-- WALL --'
     for data in sample['value'].itervalues():
-        wall_time = data[WALL_CLOCK_KEY]
+        wall_time = data[wallclock_key]
         for process, value in data.iteritems():
-            if process != WALL_CLOCK_KEY:
+            if process != wallclock_key:
                 cputime_sample['process'] = process
                 cputime_sample['value'] = value
                 cputime_sample['wallclock'] = wall_time
