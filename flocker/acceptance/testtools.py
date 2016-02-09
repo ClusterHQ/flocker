@@ -18,12 +18,14 @@ import ssl
 
 from docker.tls import TLSConfig
 
+from twisted.internet import defer
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
 from twisted.internet.error import ProcessTerminated
+from twisted.internet.task import deferLater
 
 from eliot import start_action, Message, write_failure
 from eliot.twisted import DeferredContext
@@ -1029,7 +1031,8 @@ def _get_test_cluster(reactor):
     )
 
 
-def require_cluster(num_nodes, required_backend=None):
+def require_cluster(num_nodes, required_backend=None,
+                    require_container_agent=False):
     """
     A decorator which will call the supplied test_method when a cluster with
     the required number of nodes is available.
@@ -1085,6 +1088,20 @@ def require_cluster(num_nodes, required_backend=None):
                         ["nodes"], lambda nodes: nodes[:num_nodes]))
 
             waiting_for_cluster.addCallback(clean)
+
+            def enable_container_agent(cluster):
+                # This should ideally be some sort of fixture/testresources
+                # thing, but the APIs aren't quite right today.
+                def configure_container_agent(node):
+                    return ensure_container_agent_enabled(
+                        node, require_container_agent)
+                d = defer.gatherResults(
+                    map(configure_container_agent, cluster.nodes),
+                    consumeErrors=True)
+                d.addCallback(lambda _: cluster)
+                return d
+
+            waiting_for_cluster.addCallback(enable_container_agent)
             calling_test_method = waiting_for_cluster.addCallback(
                 call_test_method_with_cluster,
                 test_case, args, kwargs
@@ -1092,6 +1109,100 @@ def require_cluster(num_nodes, required_backend=None):
             return calling_test_method
         return wrapper
     return decorator
+
+
+def is_container_agent_running(node):
+    """
+    Check if the container agent is running on the specified node.
+
+    :param Node node: the node to check.
+    :return Deferred[bool]: a Deferred that will fire when
+        with whether the container agent is runnning.
+    """
+    d = node.run_script("service_running", "flocker-container-agent")
+
+    def not_existing(failure):
+        failure.trap(ProcessTerminated)
+        return False
+    d.addCallbacks(lambda result: True, not_existing)
+    return d
+
+
+def set_container_agent_enabled_on_node(node, enabled):
+    """
+    Ensure the container agent is enabled/disabled as specified.
+
+    :param Node node: the node on which to ensure the container
+        agent's state
+    :param bool enabled: True to ensure the container agent
+        is enabled and running, false to ensure the opposite.
+    :return Deferred[None]: a Deferred that will fire when
+        the container agent is in the desired state.
+    """
+    if enabled:
+        d = node.run_script("enable_service", "flocker-container-agent")
+    else:
+        d = node.run_script("disable_service", "flocker-container-agent")
+    # If the agent was disabled We have to reboot to clear the control cache.
+    # If we want to avoid the reboot we could add an API to do this.
+    # XXX: does this need to reboot the control node? the node that
+    # changed?
+    if not enabled:
+        d.addCallback(lambda _: node.reboot())
+        # Wait for reboot to be far enough along that everything
+        # should be shutdown:
+        d.addCallback(lambda _: deferLater(reactor, 20, lambda: None))
+        # Wait until server is back up:
+        d = d.addCallback(lambda _:
+                          verify_socket(node.public_address, 22))
+
+        def dataset_agent_running():
+            # pidof will return the pid if flocker-container-agent is
+            # running else exit with status 1 which triggers the
+            # errback chain.
+            command = [b'pidof', b'-x', b'flocker-dataset-agent']
+            d = node.run_as_root(command)
+
+            def not_existing(failure):
+                failure.trap(ProcessTerminated)
+                return False
+            d.addCallbacks(lambda result: True, not_existing)
+            return d
+        d.addCallback(lambda _: loop_until(reactor, dataset_agent_running))
+    # Hide the value in the callback as it could come from
+    # different places and shouldn't be used.
+    d.addCallback(lambda _: None)
+    return d
+
+
+def ensure_container_agent_enabled(node, to_enable):
+    """
+    Ensure the container agent is enabled/disabled as specified.
+
+    Doesn't make any changes if the agent is already in the
+    desired state.
+
+    :param Node node: the node on which to ensure the container
+        agent's state
+    :param bool to_enable: True to ensure the container agent
+        is enabled and running, false to ensure the opposite.
+    :return Deferred[None]: a Deferred that will fire when
+        the container agent is in the desired state.
+    """
+    # If the agent is enabled but stopped, and the test
+    # requests no container agent, then if the test rebooted
+    # the node it would get a running container agent after
+    # that point. This means that a test that fails in a
+    # particular way could cause incorrect results in later
+    # tests that rely on reboots. This function could change
+    # to check the enabled status as well.
+    d = is_container_agent_running(node)
+
+    def change_if_needed(enabled):
+        if enabled != to_enable:
+            return set_container_agent_enabled_on_node(node, to_enable)
+    d.addCallback(change_if_needed)
+    return d
 
 
 def create_python_container(test_case, cluster, parameters, script,
@@ -1318,7 +1429,6 @@ def query_http_server(host, port, path=b""):
 
 def assert_http_server(test, host, port,
                        path=b"", expected_response=b"hi"):
-
     """
     Assert that a HTTP serving a response with body ``b"hi"`` is running
     at given host and port.

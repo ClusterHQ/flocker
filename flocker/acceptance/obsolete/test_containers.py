@@ -49,14 +49,14 @@ class ContainerAPITests(AsyncTestCase):
         d.addCallback(check_result)
         return d
 
-    @require_cluster(1)
+    @require_cluster(1, require_container_agent=True)
     def test_create_container_with_ports(self, cluster):
         """
         Create a container including port mappings on a single-node cluster.
         """
         return self._create_container(cluster, SCRIPTS.child(b"hellohttp.py"))
 
-    @require_cluster(1)
+    @require_cluster(1, require_container_agent=True)
     def test_create_container_restart_stopped(self, cluster):
         """
         A container is restarted if it is stopped.
@@ -94,7 +94,7 @@ class ContainerAPITests(AsyncTestCase):
 
         return created
 
-    @require_cluster(1)
+    @require_cluster(1, require_container_agent=True)
     def test_create_container_with_environment(self, cluster):
         """
         If environment variables are specified when creating a container,
@@ -124,7 +124,7 @@ class ContainerAPITests(AsyncTestCase):
 
     @flaky(u'FLOC-2488')
     @require_moving_backend
-    @require_cluster(2)
+    @require_cluster(2, require_container_agent=True)
     def test_move_container_with_dataset(self, cluster):
         """
         Create a container with an attached dataset, issue API call
@@ -169,7 +169,7 @@ class ContainerAPITests(AsyncTestCase):
 
         return creating_dataset
 
-    @require_cluster(1)
+    @require_cluster(1, require_container_agent=True)
     def test_create_container_with_dataset(self, cluster):
         """
         Create a container with an attached dataset, write some data,
@@ -229,7 +229,7 @@ class ContainerAPITests(AsyncTestCase):
         )
         return creating_dataset
 
-    @require_cluster(1)
+    @require_cluster(1, require_container_agent=True)
     def test_current(self, cluster):
         """
         The current container endpoint includes a currently running container.
@@ -249,7 +249,7 @@ class ContainerAPITests(AsyncTestCase):
         creating.addCallback(created)
         return creating
 
-    @require_cluster(1)
+    @require_cluster(1, require_container_agent=True)
     def test_non_root_container_can_access_dataset(self, cluster):
         """
         A container running as a user that is not root can write to a
@@ -273,7 +273,7 @@ class ContainerAPITests(AsyncTestCase):
             lambda _: assert_http_server(self, node.public_address, 8080))
         return creating_dataset
 
-    @require_cluster(2)
+    @require_cluster(2, require_container_agent=True)
     def test_linking(self, cluster):
         """
         A link from an origin container to a destination container allows the
@@ -314,7 +314,7 @@ class ContainerAPITests(AsyncTestCase):
         return running
 
     @flaky([u"FLOC-3485"])
-    @require_cluster(2)
+    @require_cluster(2, require_container_agent=True)
     def test_traffic_routed(self, cluster):
         """
         An application can be accessed even from a connection to a node
@@ -342,8 +342,8 @@ class ContainerAPITests(AsyncTestCase):
         return running
 
     # Unfortunately this test is very very slow.
-    @run_test_with(async_runner(timeout=timedelta(minutes=6)))
-    @require_cluster(2)
+    @run_test_with(async_runner(timeout=timedelta(minutes=5)))
+    @require_cluster(2, require_container_agent=True)
     def test_reboot(self, cluster):
         """
         After a reboot the containers are only started once all datasets are
@@ -437,16 +437,3 @@ class ContainerAPITests(AsyncTestCase):
 
         creating_dataset.addCallback(got_initial_result)
         return creating_dataset
-
-    # Unfortunately this test is very very slow.
-    @run_test_with(async_runner(timeout=timedelta(minutes=6)))
-    @require_cluster(2)
-    def test_container_agent_optional(self, cluster):
-        """
-        The container agent is not necessary for the dataset agent to
-        function.
-        """
-        # 1. Disable container agent
-        # 2. Either wait for control service cache to clear (120 seconds) or reboot the node
-        # 3. Create a dataset in config, wait for it to be added to state
-        # 4. Re-enable container agent

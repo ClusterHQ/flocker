@@ -105,7 +105,7 @@ class FlockerDeployTests(AsyncTestCase):
 
     @flaky([u'FLOC-3528'])
     @require_flocker_cli
-    @require_cluster(1)
+    @require_cluster(1, require_container_agent=True)
     def test_deploy(self, cluster):
         """
         Deploying an application to one node and not another puts the

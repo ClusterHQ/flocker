@@ -4,7 +4,7 @@ Stop a service and disable across reboots.
 
 import os
 import sys
-from subprocess import check_call
+from subprocess import check_call, check_output
 
 service = sys.argv[1]
 
@@ -17,4 +17,5 @@ else:
     override = "/etc/init/%s.override" % (service,)
     with file(override, "w") as f:
         f.write("manual\n")
-    check_call(["service", service, "stop"])
+    if 'stop/waiting' not in check_output(["service", service, "status"]):
+        check_call(["service", service, "stop"])
