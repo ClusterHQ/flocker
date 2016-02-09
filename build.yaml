@@ -1596,6 +1596,11 @@ job_type:
                    *cleanup_cloud_resources ]
           }
       timeout: 10
+      archive_artifacts: [
+          "cleanup_cloud_resources.stdout",
+          "cleanup_cloud_resources.stderr"
+      ]
+
 
 
 #-----------------------------------------------------------------------------#
