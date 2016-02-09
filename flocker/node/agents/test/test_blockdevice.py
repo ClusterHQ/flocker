@@ -1282,14 +1282,10 @@ class BlockDeviceCalculatorTests(TestCase):
     """
     Tests for ``BlockDeviceCalculator``.
     """
-    def setUp(self):
-        super(BlockDeviceCalculatorTests, self).setUp()
-
     def teardown_example(self, token):
         """
         Cleanup after running a hypothesis example.
         """
-        self.persistent_state._state = PersistentState()
         umount_all(self.deployer.mountroot)
         detach_destroy_volumes(self.deployer.block_device_api)
 
@@ -1394,6 +1390,11 @@ class BlockDeviceCalculatorTests(TestCase):
             self.fail("Did not converge to next state after %d iterations." %
                       e.iteration_count)
 
+
+class TranistionTests(TestCase):
+    """
+    Tests for ``DATASET_TRANSITIONS``.
+    """
     @given(
         desired_state=sampled_from(
             DesiredDataset.__invariant__.attributes_for_tag.keys()
