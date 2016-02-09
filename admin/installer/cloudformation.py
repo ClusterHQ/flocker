@@ -70,12 +70,12 @@ def _sibling_lines(filename):
         return f.readlines()
 
 
-def _get_cluster_size():
+def _parse_args():
     """
-    Gather desired number of nodes in the cluster from input argument.
+    Parse input arguments to the script.
 
-    :returns: Desired cluster size, with a default of ``MIN_CLUSTER_SIZE``
-    :rtype: int
+    :returns: an object built from attributes parsed out of the command line
+    :rtype: Namespace
     """
     parser = argparse.ArgumentParser(
         description='Create CloudFormation template'
@@ -89,7 +89,19 @@ def _get_cluster_size():
                              'Supported sizes: min={0} max={1}'.format(
                                  MIN_CLUSTER_SIZE,
                                  MAX_CLUSTER_SIZE))
-    size = parser.parse_args().size
+    return parser.parse_args()
+
+parsed_args = _parse_args()
+
+
+def _get_cluster_size():
+    """
+    Gather desired number of nodes in the cluster from input argument.
+
+    :returns: Desired cluster size, with a default of ``MIN_CLUSTER_SIZE``
+    :rtype: int
+    """
+    size = parsed_args.size
     if size < MIN_CLUSTER_SIZE or size > MAX_CLUSTER_SIZE:
         raise InvalidClusterSizeException(size)
     return size
