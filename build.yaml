@@ -663,8 +663,8 @@ common_cli:
     admin/ci-tools/cleanup-vagrant-boxes clusterhq/jenkins-osx-yosemite
 
   cleanup_cloud_resources: &cleanup_cloud_resources |
-    ${venv}/bin/python setup.py --version
     # Cleanup leaked or stale cloud instances and volumes.
+    ${venv}/bin/python setup.py --version
     ${venv}/bin/python admin/cleanup_cloud_resources \
     --config-file /tmp/acceptance.yaml \
     -- 1>cleanup_cloud_resources.stdout 2>cleanup_cloud_resources.stderr
