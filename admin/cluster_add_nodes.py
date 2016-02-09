@@ -17,7 +17,7 @@ from flocker.provision._common import Cluster
 from .acceptance import (
     capture_journal,
     capture_upstart,
-    eliot_logging_acceptance,
+    configure_eliot_logging_for_acceptance,
     get_default_volume_size,
     make_managed_nodes,
     save_backend_configuration,
@@ -100,7 +100,7 @@ def main(reactor, args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the Flocker repository.
     """
-    eliot_logging_acceptance()
+    configure_eliot_logging_for_acceptance()
     options = RunOptions(top_level=top_level)
     try:
         options.parseOptions(args)

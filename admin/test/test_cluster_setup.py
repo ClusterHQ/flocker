@@ -1,5 +1,3 @@
-import mock
-
 from twisted.python.usage import UsageError
 
 from flocker.testtools import TestCase
@@ -8,10 +6,14 @@ from ..acceptance import CommonOptions
 from ..cluster_setup import RunOptions
 
 
+class RunOptionsForTest(RunOptions):
+
+    def postOptions(self):
+        pass
+
 class RunOptionsTest(TestCase):
 
-    @mock.patch.object(CommonOptions, 'postOptions')
-    def test_purpose(self, mock_postOpts):
+    def test_purpose(self):
         """
         RunOptions are parsed correctly when a purpose is provided
         """
@@ -20,6 +22,6 @@ class RunOptionsTest(TestCase):
             "--provider", "aws",
             "--purpose", "test"
         )
-        run_options = RunOptions(self.mktemp())
+        run_options = RunOptionsForTest(self.mktemp())
         run_options.parseOptions(arg_options)
         self.assertEquals(run_options['purpose'], 'test')

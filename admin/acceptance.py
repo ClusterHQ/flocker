@@ -1254,7 +1254,11 @@ ACTION_START_FORMATS = {
 }
 
 
-def eliot_logging_acceptance():
+def configure_eliot_logging_for_acceptance():
+    """
+    Set up eliot logging for use in scripts which are used in
+    acceptance tests
+    """
     eliot_to_stdout(MESSAGE_FORMATS, ACTION_START_FORMATS)
 
 
