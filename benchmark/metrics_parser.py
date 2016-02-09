@@ -1,7 +1,7 @@
 # Copyright 2016 ClusterHQ Inc.  See LICENSE file for details.
 
 import argparse
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import csv
 import itertools
 import json
@@ -152,7 +152,6 @@ def handle_wallclock_metric(common_props, sample):
     return wallclock_sample
 
 
-
 METRIC_HANDLER = {
     'cputime': handle_cputime_metric,
     'wallclock': handle_wallclock_metric,
@@ -167,25 +166,6 @@ class BenchmarkingResults(object):
         self.results = []
         self.convergence_limit = convergence_limit
         self.latency_limit = latency_limit
-        self.headers = [
-            u'Flocker Version',
-            u'Nodes',
-            u'Containers',
-            u'Scenario',
-            u'Control Service CPU',
-            u'Dataset Agent CPU',
-            u'Container Agent CPU',
-        ]
-        self.headers.append(
-            u'Containers converged within {seconds} seconds'.format(
-                seconds=self.convergence_limit
-            )
-        )
-        self.headers.append(
-            u'Scenario requests within {seconds} seconds'.format(
-                seconds=self.latency_limit
-            )
-        )
 
     def add_results(self, results):
         """
@@ -198,11 +178,15 @@ class BenchmarkingResults(object):
         Output a CSV representation of a set of results.
         """
         summary = self._create_summary()
-        for scenario, result in summary.iteritems():
+        for scenario, results in summary.iteritems():
             filename = '{prefix}-{scenario}.csv'.format(
                 prefix=prefix, scenario=scenario
             )
-            write_csv(result, self.headers, filename)
+            headers = []
+            for key in itertools.chain(*results):
+                if key not in headers:
+                    headers.append(key)
+            write_csv(results, headers, filename)
 
     def _versions(self):
         """
@@ -268,22 +252,37 @@ class BenchmarkingResults(object):
                 node, container, version, scenario
             )
             if len(results) > 0:
-                result = {
-                    self.headers[0]: version,
-                    self.headers[1]: node,
-                    self.headers[2]: container,
-                    self.headers[3]: scenario,
-                    self.headers[4]:
-                        cpu_usage_for_process(results, 'flocker-control'),
-                    self.headers[5]:
-                        cpu_usage_for_process(results, 'flocker-dataset'),
-                    self.headers[6]:
-                        cpu_usage_for_process(results, 'flocker-contain'),
-                    self.headers[7]:
-                        container_convergence(results, self.convergence_limit),
-                    self.headers[8]:
-                        request_latency(results, self.latency_limit),
-                }
+                result = OrderedDict()
+                result['Flocker Version'] = version
+                result['Nodes'] = node
+                result['Containers'] = container
+                result['Scenario'] = scenario
+                result['Control Service CPU'] = cpu_usage_for_process(
+                    results, 'flocker-control'
+                )
+                result['Dataset Agent CPU'] = cpu_usage_for_process(
+                    results, 'flocker-dataset'
+                )
+                result['Container Agent CPU'] = cpu_usage_for_process(
+                    results, 'flocker-contain'
+                )
+                convergence_key = (
+                    'Containers converged within {seconds} seconds'.format(
+                        seconds=self.convergence_limit
+                    )
+                )
+                result[convergence_key] = container_convergence(
+                    results, self.convergence_limit
+                )
+
+                request_latency_key = (
+                    'Scenario requests within {seconds} seconds'.format(
+                        seconds=self.latency_limit
+                    )
+                )
+                result[request_latency_key] = request_latency(
+                    results, self.latency_limit
+                )
                 summary[scenario].append(result)
         return summary
 
