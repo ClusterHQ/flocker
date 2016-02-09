@@ -582,7 +582,7 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
     {u"primary": a_uuid, u"maximum_size": u"123"},
 
     # wrong numeric type for maximum size
-    {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64 + 0.5},
+    {u"primary": a_uuid, u"maximum_size": float(1024 * 1024 * 64)},
 
     # too-small (but multiple of 1024) value for maximum size
     {u"primary": a_uuid, u"maximum_size": 1024},
