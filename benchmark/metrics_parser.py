@@ -8,22 +8,14 @@ import json
 
 
 WALL_CLOCK_KEY = u'-- WALL --'
-HEADERS = [
-    u'Flocker Version',
-    u'Nodes',
-    u'Containers',
-    u'Scenario',
-    u'Control Service CPU',
-    u'Dataset Agent CPU',
-    u'Container Agent CPU',
-    u'Containers Converged Within Limit',
-    u'Scenario Requests Within Limit',
-]
 
 
-def write_csv(results, filename):
+def write_csv(results, headers, filename):
+    """
+    Write a set of results to a CSV file.
+    """
     with open(filename, 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=HEADERS)
+        writer = csv.DictWriter(csvfile, fieldnames=headers)
         writer.writeheader()
         writer.writerows(results)
 
@@ -115,8 +107,29 @@ class BenchmarkingResults(object):
     """
     Processes benchmarking results and produces reports.
     """
-    def __init__(self):
+    def __init__(self, convergence_limit, latency_limit):
         self.results = []
+        self.convergence_limit = convergence_limit
+        self.latency_limit = latency_limit
+        self.headers = [
+            u'Flocker Version',
+            u'Nodes',
+            u'Containers',
+            u'Scenario',
+            u'Control Service CPU',
+            u'Dataset Agent CPU',
+            u'Container Agent CPU',
+        ]
+        self.headers.append(
+            u'Containers Converged Within {seconds} seconds'.format(
+                seconds=self.convergence_limit
+            )
+        )
+        self.headers.append(
+            u'Containers Converged Within {seconds} seconds'.format(
+                seconds=self.convergence_limit
+            )
+        )
 
     def add_results(self, results):
         """
@@ -133,7 +146,7 @@ class BenchmarkingResults(object):
             filename = '{prefix}-{scenario}.csv'.format(
                 prefix=prefix, scenario=scenario
             )
-            write_csv(result, filename)
+            write_csv(result, self.headers, filename)
 
     def _versions(self):
         """
@@ -200,20 +213,20 @@ class BenchmarkingResults(object):
             )
             if len(results) > 0:
                 result = {
-                    u'Flocker Version': version,
-                    u'Nodes': node,
-                    u'Containers': container,
-                    u'Scenario': scenario,
-                    u'Control Service CPU':
+                    self.headers[0]: version,
+                    self.headers[1]: node,
+                    self.headers[2]: container,
+                    self.headers[3]: scenario,
+                    self.headers[4]:
                         cpu_usage_for_process(results, 'flocker-control'),
-                    u'Dataset Agent CPU':
+                    self.headers[5]:
                         cpu_usage_for_process(results, 'flocker-dataset'),
-                    u'Container Agent CPU':
+                    self.headers[6]:
                         cpu_usage_for_process(results, 'flocker-contain'),
-                    u'Containers Converged Within Limit':
-                        container_convergence(results, 60),
-                    u'Scenario Requests Within Limit':
-                        request_latency(results, 30),
+                    self.headers[7]:
+                        container_convergence(results, self.convergence_limit),
+                    self.headers[8]:
+                        request_latency(results, self.latency_limit),
                 }
                 summary[scenario].append(result)
         return summary
@@ -259,19 +272,26 @@ def parse_args(args):
 
     parser.add_argument("--output-file-prefix", nargs='?', type=str,
                         dest='prefix', default="results",
-                        help="Prefix to to be used for the output files")
+                        help="Prefix to be used for the output files")
+    parser.add_argument("--convergence-limit, -c", nargs='?', type=int,
+                        dest='convergence_limit', default=60,
+                        help="Container convergence limit in seconds")
+    parser.add_argument("--request-latency-limit, -r", nargs='?', type=int,
+                        dest='latency_limit', default=30,
+                        help="Request latency limit in seconds")
     parsed_args = parser.parse_args(args)
-    return parsed_args.files, parsed_args.prefix
+    return parsed_args
 
 
 def main(args):
-    files, prefix = parse_args(args)
-
-    br = BenchmarkingResults()
-    for f in files:
+    parsed_args = parse_args(args)
+    results = BenchmarkingResults(
+        parsed_args.convergence_limit, parsed_args.latency_limit
+    )
+    for input_file in parsed_args.files:
         try:
-            result = json.load(f)
-            br.add_results(result)
+            result = json.load(input_file)
+            results.add_results(result)
         except ValueError:
-            print "Could not decode JSON from file: ", f.name
-    br.output_csv(prefix)
+            print "Could not decode JSON from file: ", input_file.name
+    results.output_csv(parsed_args.prefix)
