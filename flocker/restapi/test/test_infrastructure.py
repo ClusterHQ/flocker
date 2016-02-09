@@ -586,11 +586,7 @@ class StructuredJSONTests(TestCase):
         """
         If _validate_responses is False, then JSON is not validated.
         """
-        def cleanup(saved=_infrastructure._validate_responses):
-            _infrastructure._validate_responses = saved
-        self.addCleanup(cleanup)
-
-        _infrastructure._validate_responses = False
+        self.patch(_infrastructure, '_validate_responses', False)
 
         request = dummyRequest(
             b"GET", b"/foo/badresponse",
