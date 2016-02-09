@@ -120,6 +120,45 @@ def request_latency(results, limit):
     return None
 
 
+def handle_cputime_metric(common_props, sample):
+    """
+    Create a sample object for a 'cputime' metric sample.
+
+    :param common_props: Common properties shared with all other samples.
+    :param sample: Original sample to extract values from.
+    """
+    cputime_sample = dict(common_props)
+
+    for data in sample['value'].itervalues():
+        wall_time = data[WALL_CLOCK_KEY]
+        for process, value in data.iteritems():
+            if process != WALL_CLOCK_KEY:
+                cputime_sample['process'] = process
+                cputime_sample['value'] = value
+                cputime_sample['wallclock'] = wall_time
+
+    return cputime_sample
+
+
+def handle_wallclock_metric(common_props, sample):
+    """
+    Create a sample object for a 'wallclock' metric sample.
+
+    :param common_props: Common properties shared with all other samples.
+    :param sample: Original sample to extract values from.
+    """
+    wallclock_sample = dict(common_props)
+    wallclock_sample['value'] = sample['value']
+    return wallclock_sample
+
+
+
+METRIC_HANDLER = {
+    'cputime': handle_cputime_metric,
+    'wallclock': handle_wallclock_metric,
+}
+
+
 class BenchmarkingResults(object):
     """
     Processes benchmarking results and produces reports.
@@ -138,13 +177,13 @@ class BenchmarkingResults(object):
             u'Container Agent CPU',
         ]
         self.headers.append(
-            u'Containers Converged Within {seconds} seconds'.format(
+            u'Containers converged within {seconds} seconds'.format(
                 seconds=self.convergence_limit
             )
         )
         self.headers.append(
-            u'Containers Converged Within {seconds} seconds'.format(
-                seconds=self.convergence_limit
+            u'Scenario requests within {seconds} seconds'.format(
+                seconds=self.latency_limit
             )
         )
 
@@ -255,7 +294,7 @@ class BenchmarkingResults(object):
         sample in the results.
         """
         flattened = []
-        common = dict(
+        common_props = dict(
             [(k, results.get(k)) for k in results.iterkeys() if k != 'samples']
         )
 
@@ -263,20 +302,9 @@ class BenchmarkingResults(object):
 
         for sample in results['samples']:
             if sample['success']:
-                if metric_type == 'cputime':
-                    for data in sample['value'].itervalues():
-                        wall_time = data[WALL_CLOCK_KEY]
-                        for process, value in data.iteritems():
-                            if process != WALL_CLOCK_KEY:
-                                doc = dict(common)
-                                doc['process'] = process
-                                doc['value'] = value
-                                doc['wallclock'] = wall_time
-                                flattened.append(doc)
-                elif metric_type == 'wallclock':
-                    doc = dict(common)
-                    doc['value'] = sample['value']
-                    flattened.append(doc)
+                flattened.append(
+                    METRIC_HANDLER[metric_type](common_props, sample)
+                )
         return flattened
 
 
