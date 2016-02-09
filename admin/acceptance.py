@@ -1432,7 +1432,7 @@ def main(reactor, args, base_path, top_level):
     """
     options = RunOptions(top_level=top_level)
 
-    eliot_logging_acceptance()
+    configure_eliot_logging_for_acceptance()
     try:
         options.parseOptions(args)
     except UsageError as e:
