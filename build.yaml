@@ -666,7 +666,6 @@ common_cli:
     ${venv}/bin/python setup.py --version
     # Cleanup leaked or stale cloud instances and volumes.
     ${venv}/bin/python admin/cleanup_cloud_resources \
-    --dry-run \
     --config-file /tmp/acceptance.yaml \
     -- 1>cleanup_cloud_resources.stdout 2>cleanup_cloud_resources.stderr
 
