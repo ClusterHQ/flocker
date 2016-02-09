@@ -18,9 +18,7 @@ The ``flockerctl`` Command
 Install & Configure
 ===================
 
-``flockerctl`` is packaged along with the :ref:`labs-installer`.
-You don't have to use the labs installer in order to use ``flockerctl``, though.
-You can use ``flockerctl`` with Flocker installed via :ref:`any installation mechanism <supported-orchestration-frameworks>`.
+You can use ``flockerctl`` with Flocker installed via :ref:`any installation method <supported-orchestration-frameworks>`.
 
 Install it with:
 
@@ -28,13 +26,15 @@ Install it with:
 
    curl -sSL https://get.flocker.io |sh
 
-If you use the :ref:`labs-installer` to install your cluster ``flockerctl`` will work with the ``cluster.yml`` file that it generates and figure out how to connect to your cluster based on that.
-
-If you have used an alternative method to create your cluster, such as a manual installation or our :ref:`CloudFormation installer <cloudformation>`, you will need to set some environment variables for ``flockerctl`` to pick up:
+If you used our :ref:`CloudFormation installer <cloudformation>` to create your cluster, or an alternative method such as a manual installation, you will need to set some environment variables for ``flockerctl`` to pick up:
 
 * ``FLOCKER_CERTS_PATH`` - typically ``/etc/flocker`` if you're running ``flockerctl`` from a node in the cluster, otherwise, where your certificates are stored.
 * ``FLOCKER_USER`` - the name of a flocker user which has ``.key`` and ``.crt`` file in the certs path. See :ref:`generate-api-standalone-flocker`.
 * ``FLOCKER_CONTROL_SERVICE`` - the address (DNS name or IP address) of the control service. The name you use should match up with the name you specified when creating the cluster certificates.
+
+.. note::
+
+   If you used the :ref:`labs-installer` to install your cluster, ``flockerctl`` will work with the generated ``cluster.yml`` file and can  figure out how to connect to your cluster based on that.
 
 Running the CLI
 ===============
