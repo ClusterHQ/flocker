@@ -227,6 +227,13 @@ For example:
    profile.sort_stats('cumulative').print_stats(10)
 
 
+Validation
+==========
+
+Additional validation of HTTP API responses is performed when running unit tests.
+This validation can be disabled for unit tests by setting the environment variable ``FLOCKER_VALIDATE_API_RESPONSES=no``.
+It can enabled for contexts other than unit tests by setting the environment variable ``FLOCKER_VALIDATE_API_RESPONSES=yes``.
+
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
 .. _`Eliot`: https://eliot.readthedocs.org
 .. _`eliot-tree`: https://github.com/jonathanj/eliottree
