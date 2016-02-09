@@ -231,7 +231,7 @@ def get_backend_api(cluster_id):
         raise SkipTest(
             "Set acceptance testing volume backend using the " +
             "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
-    if backend_name is 'loopback':
+    if backend_name == 'loopback':
         # XXX If we ever want to setup loopback acceptance tests running on the
         # same node as the tests themselves, we will want to adjust this.
         raise SkipTest(
