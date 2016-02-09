@@ -21,6 +21,11 @@ def write_csv(results, headers, filename):
 
 
 def mean(values):
+    """
+    Calculate the mean for a set of values.
+
+    :param values: Values to calculate the mean of.
+    """
     if len(values) > 0:
         return float(sum(values)) / len(values)
     return None
@@ -32,6 +37,9 @@ def cpu_usage_for_process(results, process):
     scenario.
 
     By default this will return the `mean` result.
+
+    :param results: Results to extract values from.
+    :param process: Process name to calculate CPU usage for.
     """
     process_results = itertools.ifilter(
         lambda r: r['metric']['type'] == 'cputime' and r['process'] == process,
@@ -47,6 +55,9 @@ def wallclock_for_operation(results, operation):
     scenario.
 
     By default this will return the `mean` result.
+
+    :param results: Results to extract values from.
+    :param operation: Operation name to calculate wallclock results for.
     """
     operation_results = itertools.ifilter(
         lambda r: r['metric']['type'] == 'wallclock' and
@@ -57,10 +68,13 @@ def wallclock_for_operation(results, operation):
     return mean(values)
 
 
-def container_convergence(results, seconds):
+def container_convergence(results, limit):
     """
     Calculate the percentage of containers that converge within a given
     time period.
+
+    :param results: Results to extract values from.
+    :param limit: Time limit for container convergence in seconds.
     """
     convergence_results = [
         r for r in results if r['metric']['type'] == 'wallclock' and
@@ -69,17 +83,20 @@ def container_convergence(results, seconds):
     num_convergences = len(convergence_results)
     if num_convergences > 0:
         convergences_within_limit = [
-            r for r in convergence_results if r['value'] <= seconds
+            r for r in convergence_results if r['value'] <= limit
         ]
         return float(len(convergences_within_limit)) / num_convergences
 
     return None
 
 
-def request_latency(results, seconds):
+def request_latency(results, limit):
     """
     Calculate the percentage of scenario requests have a latency under the
     specified time limit.
+
+    :param results: Results to extract values from.
+    :param limit: Request latency limit in seconds.
     """
     scenario_results = [
         r['scenario'] for r in results if r['scenario'].get('metrics') and
@@ -95,9 +112,9 @@ def request_latency(results, seconds):
         total_requests = 0
         requests_under_limit = 0
         for metric in unique_metrics:
-            for k, v in metric['call_durations'].iteritems():
-                if float(k) <= seconds:
-                    requests_under_limit += v
+            for duration, num_requests in metric['call_durations'].iteritems():
+                if float(duration) <= limit:
+                    requests_under_limit += num_requests
             total_requests += metric['ok_count'] + metric['err_count']
         return float(requests_under_limit) / total_requests
     return None
@@ -206,7 +223,7 @@ class BenchmarkingResults(object):
         versions = self._versions()
         scenarios = self._scenarios()
         for node, container, version, scenario in itertools.product(
-            node_counts, container_counts, versions, scenarios
+                node_counts, container_counts, versions, scenarios
         ):
             results = self._filter_results(
                 node, container, version, scenario
@@ -231,7 +248,8 @@ class BenchmarkingResults(object):
                 summary[scenario].append(result)
         return summary
 
-    def _flatten(self, results):
+    @staticmethod
+    def _flatten(results):
         """
         Flatten a set of results by creating a separate object for each
         sample in the results.
@@ -246,12 +264,11 @@ class BenchmarkingResults(object):
         for sample in results['samples']:
             if sample['success']:
                 if metric_type == 'cputime':
-                    for ip, data in sample['value'].iteritems():
+                    for data in sample['value'].itervalues():
                         wall_time = data[WALL_CLOCK_KEY]
                         for process, value in data.iteritems():
                             if process != WALL_CLOCK_KEY:
                                 doc = dict(common)
-                                doc['node_ip'] = ip
                                 doc['process'] = process
                                 doc['value'] = value
                                 doc['wallclock'] = wall_time
@@ -264,6 +281,9 @@ class BenchmarkingResults(object):
 
 
 def parse_args(args):
+    """
+    Parse command line arguments.
+    """
     parser = argparse.ArgumentParser(
         description="Produce CSV from benchmarking results"
     )
