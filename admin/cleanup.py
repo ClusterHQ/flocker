@@ -221,7 +221,7 @@ class CleanVolumes(object):
         :param list all_volumes: The libcloud volumes representing all the
             volumes we can see on a particular cloud service.
 
-        :rtype: ``VolumeActions``
+        :rtype: ``CleanupActions``
         """
         now = datetime.now(tz=tzutc())
         destroy = []
@@ -232,7 +232,7 @@ class CleanVolumes(object):
                 destroy.append(volume)
             else:
                 keep.append(volume)
-        return VolumeActions(destroy=destroy, keep=keep)
+        return CleanupActions(destroy=destroy, keep=keep)
 
 
 @attributes(['lag', 'prefixes'])
@@ -293,10 +293,10 @@ class CleanAcceptanceInstances(object):
             else:
                 kept_nodes.append(node)
 
-        return {
-            'destroyed': destroyed_nodes,
-            'kept': kept_nodes,
-        }
+        return CleanupActions(
+            destroy=destroyed_nodes,
+            keep=kept_nodes,
+        )
 
     def log(self, result):
         """
@@ -326,7 +326,7 @@ class _ActionEncoder(json.JSONEncoder):
     JSON encoder that can encode ValueConstant etc.
     """
     def default(self, obj):
-        if isinstance(obj, VolumeActions):
+        if isinstance(obj, CleanupActions):
             return dict(
                 keep=obj.keep,
                 destroy=obj.destroy
@@ -372,12 +372,12 @@ def _get_tag(volume, tag_name):
 
 
 @attributes(["destroy", "keep"])
-class VolumeActions(object):
+class CleanupActions(object):
     """
-    Represent something to be done to some volumes.
+    Represent something to be done to some cloud resources.
 
-    :ivar destroy: Volumes to destroy.
-    :ivar keep: Volumes to keep.
+    :ivar destroy: Resouces to destroy.
+    :ivar keep: Resources to keep.
     """
 
 
@@ -473,17 +473,12 @@ def cleanup_cloud_resources_main(args, base_path, top_level):
         CleanAcceptanceInstances(
             lag=options["instance-lag"],
             prefixes=options["instance_name_prefixes"],
-        ).start(
-            config=options["config-file"],
-            dry_run=options["dry-run"],
-        ),
-        # CleanVolumes(
-        #     lag=options["volume-lag"],
-        #     marker=options["marker"],
-        # ).start(
-        #     config=options["config-file"],
-        #     dry_run=options["dry-run"],
-        # )
+        ).start(config=options["config-file"]),
+
+        CleanVolumes(
+            lag=options["volume-lag"],
+            marker=options["marker"],
+        ).start(config=options["config-file"])
     ]
 
     print_actions(resource_actions)
