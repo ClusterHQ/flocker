@@ -25,7 +25,7 @@ from .acceptance import (
     LibcloudRunner as OldLibcloudRunner,
     capture_journal,
     capture_upstart,
-    eliot_output,
+    configure_eliot_logging_for_acceptance,
     get_default_volume_size,
     get_trial_environment,
     save_backend_configuration,
@@ -347,7 +347,7 @@ def main(reactor, args, base_path, top_level):
     """
     options = RunOptions(top_level=top_level)
 
-    add_destination(eliot_output)
+    configure_eliot_logging_for_acceptance()
     try:
         options.parseOptions(args)
     except UsageError as e:
