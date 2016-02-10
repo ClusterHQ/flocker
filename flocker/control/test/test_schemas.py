@@ -10,6 +10,20 @@ from ...restapi.testtools import build_schema_test
 from ..httpapi import SCHEMAS
 
 
+# The validator that detects a validity problem
+INVALID_NUMERIC_NOT_MULTIPLE_OF = 'multipleOf'
+INVALID_NUMERIC_TOO_HIGH = 'maximum'
+INVALID_NUMERIC_TOO_LOW = 'minimum'
+INVALID_STRING_TOO_LONG = 'maxLength'
+INVALID_STRING_PATTERN = 'pattern'
+INVALID_ARRAY_ITEMS_MAXIMUM = 'maxItems'
+INVALID_ARRAY_ITEMS_NOT_UNIQUE = 'uniqueItems'
+INVALID_OBJECT_PROPERTY_MISSING = 'required'
+INVALID_OBJECT_PROPERTY_UNDEFINED = 'additionalProperties'
+INVALID_OBJECT_PROPERTIES_MAXIMUM = 'maxProperties'
+INVALID_OBJECT_NO_MATCH = 'oneOf'
+INVALID_WRONG_TYPE = 'type'
+
 a_uuid = unicode(uuid4())
 
 # The following two UUIDs are invalid, but are of the correct
@@ -27,18 +41,18 @@ VersionsTests = build_schema_test(
     schema={'$ref': '/v1/endpoints.json#/definitions/versions'},
     schema_store=SCHEMAS,
     failing_instances={
-        'additionalProperties': [
+        INVALID_OBJECT_PROPERTY_UNDEFINED: [
             # Unexpected version.
             {
                 'flocker': '0.3.0-10-dirty',
                 'OtherService': '0.3.0-10-dirty',
             },
         ],
-        'required': [
+        INVALID_OBJECT_PROPERTY_MISSING: [
             # Missing version information
             {},
         ],
-        'type': [
+        INVALID_WRONG_TYPE: [
             # Wrong type for Flocker version
             {'flocker': []},
         ],
@@ -57,19 +71,19 @@ ConfigurationContainersUpdateSchemaTests = build_schema_test(
     },
     schema_store=SCHEMAS,
     failing_instances={
-        'additionalProperties': [
+        INVALID_OBJECT_PROPERTY_UNDEFINED: [
             # Extra properties
             {u'node_uuid': a_uuid, u'image': u'nginx:latest'},
         ],
-        'pattern': [
+        INVALID_STRING_PATTERN: [
             # Node UUID not a uuid
             {u'node_uuid': u'idonotexist'},
         ],
-        'required': [
+        INVALID_OBJECT_PROPERTY_MISSING: [
             # Host missing
             {},
         ],
-        'type': [
+        INVALID_WRONG_TYPE: [
             # node_uuid wrong type
             {u'node_uuid': 1},
         ],
@@ -85,7 +99,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
     schema={'$ref': '/v1/endpoints.json#/definitions/configuration_container'},
     schema_store=SCHEMAS,
     failing_instances={
-        'additionalProperties': [
+        INVALID_OBJECT_PROPERTY_UNDEFINED: [
             # Volume with extra field
             {
                 'node_uuid': a_uuid,
@@ -113,7 +127,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 }
             },
         ],
-        'maximum': [
+        INVALID_NUMERIC_TOO_HIGH: [
             # Links given but local port is greater than max (65535)
             {
                 'node_uuid': a_uuid,
@@ -144,7 +158,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'cpu_shares': 1025
             },
         ],
-        'maxItems': [
+        INVALID_ARRAY_ITEMS_MAXIMUM: [
             # More than one volume (this will eventually work - see FLOC-49)
             {
                 'node_uuid': a_uuid,
@@ -156,7 +170,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                              'mountpoint': '/var/db2'}],
             },
         ],
-        'minimum': [
+        INVALID_NUMERIC_TOO_LOW: [
             # CPU shares given but negative
             {
                 'node_uuid': a_uuid,
@@ -172,7 +186,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'memory_limit': -1024
             },
         ],
-        'oneOf': [
+        INVALID_OBJECT_NO_MATCH: [
             # None of the schemas under oneOf match, so all errors are oneOf
             # Restart policy given but not a string
             {
@@ -218,7 +232,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 }
             },
         ],
-        'pattern': [
+        INVALID_STRING_PATTERN: [
             # node_uuid not UUID format
             {
                 'node_uuid': 'idonotexist',
@@ -270,7 +284,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                              'mountpoint': 'var/db2'}],
             },
         ],
-        'required': [
+        INVALID_OBJECT_PROPERTY_MISSING: [
             # Name missing
             {'node_uuid': a_uuid, 'image': 'clusterhq/redis'},
             # node_uuid missing
@@ -322,7 +336,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'volumes': [{'dataset_id': "x" * 36}],
             },
         ],
-        'type': [
+        INVALID_WRONG_TYPE: [
             # node_uuid wrong type
             {
                 'node_uuid': 1,
@@ -467,7 +481,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'command_line': ['xx', 123]
             }
         ],
-        'uniqueItems': [
+        INVALID_ARRAY_ITEMS_NOT_UNIQUE: [
             # Ports given but not unique
             {
                 'node_uuid': a_uuid,
@@ -596,35 +610,35 @@ ConfigurationContainersSchemaTests = build_schema_test(
 )
 
 CONFIGURATION_DATASETS_FAILING_INSTANCES = {
-    'additionalProperties': [
+    INVALID_OBJECT_PROPERTY_UNDEFINED: [
         # too-long string property name in metadata
         {u"primary": a_uuid, u"metadata": {u"x" * 257: u"10"}},
     ],
-    'maxProperties': [
+    INVALID_OBJECT_PROPERTIES_MAXIMUM: [
         # too many metadata properties
         {u"primary": a_uuid,
          u"metadata":
              dict.fromkeys((unicode(i) for i in range(257)), u"value")},
     ],
-    'maxLength': [
+    INVALID_STRING_TOO_LONG: [
         # too-long string property value in metadata
         {u"primary": a_uuid, u"metadata": {u"foo": u"x" * 257}},
     ],
-    'minimum': [
+    INVALID_NUMERIC_TOO_LOW: [
         # too-small (but multiple of 1024) value for maximum size
         {u"primary": a_uuid, u"maximum_size": 1024},
     ],
-    'multipleOf': [
+    INVALID_NUMERIC_NOT_MULTIPLE_OF: [
         # Value for maximum_size that is not a multiple of 1024 (but is larger
         # than the minimum allowed)
         {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64 + 1023},
     ],
-    'pattern': [
+    INVALID_STRING_PATTERN: [
         # too short string for dataset_id
-        {u"primary": a_uuid, u"dataset_id": u"x" * 35},
+        {u"primary": a_uuid, u"dataset_id": a_uuid[:35]},
 
         # too long string for dataset_id
-        {u"primary": a_uuid, u"dataset_id": u"x" * 37},
+        {u"primary": a_uuid, u"dataset_id": a_uuid + 'a'},
 
         # dataset_id not a valid UUID
         {u"primary": a_uuid, u"dataset_id": bad_uuid_1},
@@ -641,7 +655,7 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = {
          u"dataset_id": a_uuid},
 
     ],
-    'type': [
+    INVALID_WRONG_TYPE: [
         # wrong type for dataset_id
         {u"primary": a_uuid, u"dataset_id": 10},
 
@@ -675,7 +689,7 @@ CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES = [
 ]
 
 CONFIGURATION_DATASETS_UPDATE_FAILING_INSTANCES = {
-    'additionalProperties': [
+    INVALID_OBJECT_PROPERTY_UNDEFINED: [
         {u"primary": a_uuid, u'x': 1},
     ],
 }
@@ -731,8 +745,8 @@ CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES = (
     CONFIGURATION_DATASETS_FAILING_INSTANCES.copy()
 )
 
-CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES['required'] = (
-    CONFIGURATION_DATASETS_FAILING_INSTANCES.get('required', []) + [
+CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES[INVALID_OBJECT_PROPERTY_MISSING] = (
+    CONFIGURATION_DATASETS_FAILING_INSTANCES.get(INVALID_OBJECT_PROPERTY_MISSING, []) + [
         # primary is required for create
         {u"metadata": {},
          u"maximum_size": 1024 * 1024 * 1024,
@@ -754,18 +768,18 @@ StateDatasetsArraySchemaTests = build_schema_test(
     schema={'$ref': '/v1/endpoints.json#/definitions/state_datasets_array'},
     schema_store=SCHEMAS,
     failing_instances={
-        'pattern': [
+        INVALID_STRING_PATTERN: [
             # null primary
             [{u"primary": None,
               u"maximum_size": 1024 * 1024 * 1024,
               u"dataset_id": u"x" * 36}],
         ],
-        'required': [
+        INVALID_OBJECT_PROPERTY_MISSING: [
             # missing dataset_id
             [{u"primary": a_uuid,
               u"path": u"/123"}],
         ],
-        'type': [
+        INVALID_WRONG_TYPE: [
             # not an array
             {}, u"lalala", 123,
 
@@ -813,11 +827,11 @@ ConfigurationDatasetsListTests = build_schema_test(
             '/v1/endpoints.json#/definitions/configuration_datasets_list'},
     schema_store=SCHEMAS,
     failing_instances={
-        'minimum': [
+        INVALID_NUMERIC_TOO_LOW: [
             # Failing dataset type (maximum_size less than minimum allowed)
             [{u"primary": a_uuid, u"maximum_size": 123}],
         ],
-        'type': [
+        INVALID_WRONG_TYPE: [
             # Incorrect type
             {},
             # Wrong item type
@@ -837,12 +851,12 @@ StateContainersArrayTests = build_schema_test(
             '/v1/endpoints.json#/definitions/state_containers_array'},
     schema_store=SCHEMAS,
     failing_instances={
-        'required': [
+        INVALID_OBJECT_PROPERTY_MISSING: [
             # Failing dataset type (missing running)
             [{u"node_uuid": a_uuid, u"name": u"lalala",
               u"image": u"busybox:latest"}]
         ],
-        'type': [
+        INVALID_WRONG_TYPE: [
             # Incorrect type
             {},
             # Wrong item type
@@ -873,17 +887,17 @@ NodesTests = build_schema_test(
     schema={'$ref': '/v1/endpoints.json#/definitions/nodes_array'},
     schema_store=SCHEMAS,
     failing_instances={
-        'additionalProperties': [
+        INVALID_OBJECT_PROPERTY_UNDEFINED: [
             # Extra key
             [{'host': '192.168.1.10', 'uuid': unicode(uuid4()), 'x': 'y'}],
         ],
-        'required': [
+        INVALID_OBJECT_PROPERTY_MISSING: [
             # Missing host
             [{"uuid": unicode(uuid4())}],
             # Missing uuid
             [{'host': '192.168.1.10'}],
         ],
-        'type': [
+        INVALID_WRONG_TYPE: [
             # Wrong type
             {'host': '192.168.1.10', 'uuid': unicode(uuid4())},
             # Wrong uuid type
@@ -905,15 +919,15 @@ NodeTests = build_schema_test(
     schema={'$ref': '/v1/endpoints.json#/definitions/node'},
     schema_store=SCHEMAS,
     failing_instances={
-        'additionalProperties': [
+        INVALID_OBJECT_PROPERTY_UNDEFINED: [
             # Extra key
             {'uuid': unicode(uuid4()), 'x': 'y'},
         ],
-        'required': [
+        INVALID_OBJECT_PROPERTY_MISSING: [
             # Missing uuid
             {},
         ],
-        'type': [
+        INVALID_WRONG_TYPE: [
             # Wrong type
             [], 1, None,
             # Wrong uuid type
@@ -938,12 +952,12 @@ LEASE_NO_EXPIRES = {'dataset_id': unicode(uuid4()),
                     'node_uuid': unicode(uuid4()),
                     'expires': None}
 BAD_LEASES = {
-    'additionalProperties': [
+    INVALID_OBJECT_PROPERTY_UNDEFINED: [
         # Extra key:
         {'dataset_id': unicode(uuid4()), 'node_uuid': unicode(uuid4()),
          'expires': None, 'extra': 'key'},
     ],
-    'required': [
+    INVALID_OBJECT_PROPERTY_MISSING: [
         # Missing dataset_id:
         {'node_uuid': unicode(uuid4()), 'expires': None},
         # Missing node_uuid:
@@ -951,7 +965,7 @@ BAD_LEASES = {
         # Missing expires:
         {'node_uuid': unicode(uuid4()), 'dataset_id': unicode(uuid4())},
     ],
-    'type': [
+    INVALID_WRONG_TYPE: [
         # Wrong types:
         None, [], 1,
         # Wrong type for dataset_id:
@@ -967,7 +981,7 @@ BAD_LEASES = {
 }
 
 BAD_LEASE_LISTS = {
-    'type': [
+    INVALID_WRONG_TYPE: [
         None, {}, 1
     ] + list([bad] for bad in BAD_LEASES)
 }
