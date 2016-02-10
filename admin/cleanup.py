@@ -14,9 +14,9 @@ from characteristic import attributes
 from dateutil.parser import parse as parse_date
 from dateutil.tz import tzutc
 
+from libcloud.compute.base import NodeState, StorageVolume
 from libcloud.compute.providers import get_driver, Provider
 
-from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.log import err
 from twisted.python.usage import Options, UsageError
@@ -146,8 +146,6 @@ class CleanVolumes(object):
         drivers = self._get_cloud_drivers(config)
         volumes = self._get_cloud_volumes(drivers)
         actions = self._filter_test_volumes(self.lag, volumes)
-        if not dry_run:
-            self._destroy_cloud_volumes(actions.destroy)
         return actions
 
     def _get_cloud_drivers(self, config):
@@ -236,22 +234,119 @@ class CleanVolumes(object):
                 keep.append(volume)
         return VolumeActions(destroy=destroy, keep=keep)
 
-    def _destroy_cloud_volumes(self, volumes):
+
+@attributes(['lag', 'prefixes'])
+class CleanAcceptanceInstances(object):
+    """
+    :ivar timedelta lag: The age of instances to destroy.
+    :param prefixes: List of prefixes of instances to destroy.
+    """
+    def start(self, config, dry_run=False):
+        # Get the libcloud drivers corresponding to the acceptance tests.
+        rackspace = get_rackspace_driver(config["rackspace"])
+        ec2 = get_ec2_driver(config["aws"])
+        drivers = [rackspace, ec2]
+
+        # Get the prefixes of the instance names, appending the creator from
+        # the config.
+        creator = config['metadata']['creator']
+        prefixes = tuple(map(lambda prefix: prefix + creator, self.prefixes))
+
+        # Find out the cutoff time to use.
+        now = datetime.now(tzutc())
+        cutoff = now - self.lag
+
+        # Get all the nodes from the cloud providers
+        all_nodes = []
+        for driver in drivers:
+            all_nodes += driver.list_nodes()
+
+        # Filter them for running nodes with the right prefix.
+        test_nodes = [
+            node for node
+            in all_nodes
+            if node.name.startswith(prefixes)
+            # Also, terminated nodes that still show up.  An OpenStack bug
+            # causes these to hang around sometimes.  They're not billed in
+            # this state but they do count towards RAM quotas.  Quoth Rackspace
+            # support:
+            #
+            # > The complete fix for this issue is expected in the next
+            # > Openstack iteration (mid August).  Until then what can be done
+            # > is just to issue another delete against the same instance.  The
+            # > servers are only billed when they are in Active (green) status,
+            # > so the deleted instances are not billed.
+            #
+            # So consider any nodes in that state as potential destruction
+            # targets.
+            and node.state in (NodeState.RUNNING, NodeState.TERMINATED)
+        ]
+
+        # Split the nodes into kept and destroyed nodes;
+        # destroying the ones older than the cut-off.
+        destroyed_nodes = []
+        kept_nodes = []
+        for node in test_nodes:
+            creation_time = get_creation_time(node)
+            if creation_time is not None and creation_time < cutoff:
+                destroyed_nodes.append(node)
+            else:
+                kept_nodes.append(node)
+
+        return {
+            'destroyed': destroyed_nodes,
+            'kept': kept_nodes,
+        }
+
+    def log(self, result):
         """
-        Unconditionally and irrevocably destroy all of the given cloud volumes.
+        Log the nodes kept and destroyed.
         """
-        for volume in volumes:
-            try:
-                volume.destroy()
-            except:
-                err(None, "Destroying volume.")
+        for kind, nodes in result.iteritems():
+            content = _dumps([
+                {
+                    'id': node.id,
+                    'name': node.name,
+                    'provider': node.driver.name,
+                    'creation_time': _format_time(get_creation_time(node)),
+                }
+                for node in nodes
+            ])
+            self.addCompleteLog(name=kind, text=content)
+        if len(result['destroyed']) > 0:
+            # We fail if we destroyed any nodes, because that means that
+            # something is leaking nodes.
+            self.finished(FAILURE)
+        else:
+            self.finished(SUCCESS)
+
+
+class _ActionEncoder(json.JSONEncoder):
+    """
+    JSON encoder that can encode ValueConstant etc.
+    """
+    def default(self, obj):
+        if isinstance(obj, VolumeActions):
+            return dict(
+                keep=obj.keep,
+                destroy=obj.destroy
+            )
+        if isinstance(obj, StorageVolume):
+            return _describe_volume(obj)
+        return json.JSONEncoder.default(self, obj)
 
 
 def _dumps(obj):
     """
     JSON encode an object using some visually pleasing formatting.
     """
-    return json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': '))
+    return json.dumps(
+        obj,
+        sort_keys=True,
+        indent=4,
+        separators=(',', ': '),
+        cls=_ActionEncoder
+    )
 
 
 def _format_time(when):
@@ -360,7 +455,7 @@ class CleanupCloudResourcesOptions(Options):
         )
 
 
-def cleanup_cloud_resources_main(reactor, args, base_path, top_level):
+def cleanup_cloud_resources_main(args, base_path, top_level):
     options = CleanupCloudResourcesOptions()
 
     try:
@@ -374,21 +469,48 @@ def cleanup_cloud_resources_main(reactor, args, base_path, top_level):
         )
         raise SystemExit(1)
 
-    cleaner = CleanVolumes(
-        lag=options["volume-lag"],
-        marker=options["marker"],
-    )
+    resource_actions = [
+        CleanAcceptanceInstances(
+            lag=options["instance-lag"],
+            prefixes=options["instance_name_prefixes"],
+        ).start(
+            config=options["config-file"],
+            dry_run=options["dry-run"],
+        ),
+        # CleanVolumes(
+        #     lag=options["volume-lag"],
+        #     marker=options["marker"],
+        # ).start(
+        #     config=options["config-file"],
+        #     dry_run=options["dry-run"],
+        # )
+    ]
 
-    actions = cleaner.start(
-        config=options["config-file"],
-        dry_run=options["dry-run"],
-    )
-    d = succeed(actions)
-    d.addCallback(print_result)
-    return d
+    print_actions(resource_actions)
+
+    # if not options['dry-run']:
+    #     perform_actions(resource_actions)
+
+    do_exit(resource_actions)
 
 
-def print_result(actions):
+def destroy_resource(resource):
+    try:
+        resource.destroy()
+    except:
+        err(None, "Destroying resource.")
+
+
+def perform_actions(resource_actions):
+    """
+    Unconditionally and irrevocably destroy all of the given cloud volumes.
+    """
+    for action_group in resource_actions:
+        for resource in action_group.destroy:
+            destroy_resource(resource)
+
+
+def print_actions(actions):
     """
     If volumes are destroyed, the operation is considered to have failed.
     The test suite should have cleaned those volumes up.  This is an
@@ -396,22 +518,13 @@ def print_result(actions):
     reporting it.
     """
     sys.stdout.write(
-        _serialize_volume_actions(actions).encode('utf-8') + b'\n'
+        _dumps(actions).encode('utf-8') + b'\n'
     )
-    if len(actions.destroy) > 0:
-        # We fail if we destroyed any volumes because that means that
-        # something is leaking volumes.
-        raise SystemExit(1)
 
 
-def _serialize_volume_actions(actions):
-    serializable = {}
-    for kind in ('destroy', 'keep'):
-        volumes = getattr(actions, kind)
-        serializable[kind] = sorted(
-            list(
-                _describe_volume(volume) for volume in volumes
-            ), key=lambda description: description['creation_time'],
-        )
-
-    return _dumps(serializable)
+def do_exit(actions):
+    for action_group in actions:
+        if len(action_group.destroy) > 0:
+            # We fail if we destroyed anything because that means that
+            # something is not being cleaned up.
+            raise SystemExit(1)
