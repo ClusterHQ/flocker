@@ -14,7 +14,7 @@ from characteristic import attributes
 from dateutil.parser import parse as parse_date
 from dateutil.tz import tzutc
 
-from libcloud.compute.base import NodeState, StorageVolume
+from libcloud.compute.base import NodeState, StorageVolume, Node
 from libcloud.compute.providers import get_driver, Provider
 
 from twisted.python.filepath import FilePath
@@ -26,7 +26,7 @@ from twisted.python.usage import Options, UsageError
 from flocker.testtools.cluster_utils import MARKER
 
 
-DEFAULT_INSTANCE_NAME_PREFIXES = (
+DEFAULT_NODE_NAME_PREFIXES = (
     'acceptance-test-',
     'client-test-'
 )
@@ -221,7 +221,7 @@ class CleanVolumes(object):
         :param list all_volumes: The libcloud volumes representing all the
             volumes we can see on a particular cloud service.
 
-        :rtype: ``CleanupActions``
+        :rtype: ``VolumeActions``
         """
         now = datetime.now(tz=tzutc())
         destroy = []
@@ -232,14 +232,14 @@ class CleanVolumes(object):
                 destroy.append(volume)
             else:
                 keep.append(volume)
-        return CleanupActions(destroy=destroy, keep=keep)
+        return VolumeActions(destroy=destroy, keep=keep)
 
 
 @attributes(['lag', 'prefixes'])
-class CleanAcceptanceInstances(object):
+class CleanAcceptanceNodes(object):
     """
-    :ivar timedelta lag: The age of instances to destroy.
-    :param prefixes: List of prefixes of instances to destroy.
+    :ivar timedelta lag: The age of nodes to destroy.
+    :param prefixes: List of prefixes of nodes to destroy.
     """
     def start(self, config):
         # Get the libcloud drivers corresponding to the acceptance tests.
@@ -247,7 +247,7 @@ class CleanAcceptanceInstances(object):
         ec2 = get_ec2_driver(config["aws"])
         drivers = [rackspace, ec2]
 
-        # Get the prefixes of the instance names, appending the creator from
+        # Get the prefixes of the node names, appending the creator from
         # the config.
         creator = config['metadata']['creator']
         prefixes = tuple(map(lambda prefix: prefix + creator, self.prefixes))
@@ -273,9 +273,9 @@ class CleanAcceptanceInstances(object):
             #
             # > The complete fix for this issue is expected in the next
             # > Openstack iteration (mid August).  Until then what can be done
-            # > is just to issue another delete against the same instance.  The
+            # > is just to issue another delete against the same node.  The
             # > servers are only billed when they are in Active (green) status,
-            # > so the deleted instances are not billed.
+            # > so the deleted nodes are not billed.
             #
             # So consider any nodes in that state as potential destruction
             # targets.
@@ -293,32 +293,19 @@ class CleanAcceptanceInstances(object):
             else:
                 kept_nodes.append(node)
 
-        return CleanupActions(
+        return NodeActions(
             destroy=destroyed_nodes,
             keep=kept_nodes,
         )
 
-    def log(self, result):
-        """
-        Log the nodes kept and destroyed.
-        """
-        for kind, nodes in result.iteritems():
-            content = _dumps([
-                {
-                    'id': node.id,
-                    'name': node.name,
-                    'provider': node.driver.name,
-                    'creation_time': _format_time(get_creation_time(node)),
-                }
-                for node in nodes
-            ])
-            self.addCompleteLog(name=kind, text=content)
-        if len(result['destroyed']) > 0:
-            # We fail if we destroyed any nodes, because that means that
-            # something is leaking nodes.
-            self.finished(FAILURE)
-        else:
-            self.finished(SUCCESS)
+
+def _describe_node(node):
+    return {
+        'id': node.id,
+        'name': node.name,
+        'provider': node.driver.name,
+        'creation_time': _format_time(get_creation_time(node)),
+    }
 
 
 class _ActionEncoder(json.JSONEncoder):
@@ -326,11 +313,20 @@ class _ActionEncoder(json.JSONEncoder):
     JSON encoder that can encode ValueConstant etc.
     """
     def default(self, obj):
-        if isinstance(obj, CleanupActions):
+        if isinstance(obj, NodeActions):
             return dict(
+                category="NodeActions",
                 keep=obj.keep,
                 destroy=obj.destroy
             )
+        if isinstance(obj, VolumeActions):
+            return dict(
+                category="VolumeActions",
+                keep=obj.keep,
+                destroy=obj.destroy
+            )
+        if isinstance(obj, Node):
+            return _describe_node(obj)
         if isinstance(obj, StorageVolume):
             return _describe_volume(obj)
         return json.JSONEncoder.default(self, obj)
@@ -372,11 +368,21 @@ def _get_tag(volume, tag_name):
 
 
 @attributes(["destroy", "keep"])
-class CleanupActions(object):
+class NodeActions(object):
     """
-    Represent something to be done to some cloud resources.
+    Represent something to be done to some cloud nodes.
 
-    :ivar destroy: Resouces to destroy.
+    :ivar destroy: Resources to destroy.
+    :ivar keep: Resources to keep.
+    """
+
+
+@attributes(["destroy", "keep"])
+class VolumeActions(object):
+    """
+    Represent something to be done to some cloud volumes.
+
+    :ivar destroy: Resources to destroy.
     :ivar keep: Resources to keep.
     """
 
@@ -426,8 +432,8 @@ class CleanupCloudResourcesOptions(Options):
          u"The oldest in minutes a volume may be "
          u"without being considered for deletion.\n",
          lambda option_value: timedelta(minutes=int(option_value))],
-        [u"instance-lag", None, timedelta(hours=2),
-         u"The oldest in minutes an instance may be "
+        [u"node-lag", None, timedelta(minutes=120),
+         u"The oldest in minutes a node may be "
          u"without being considered for deletion.\n",
          lambda option_value: timedelta(minutes=int(option_value))],
         [u"marker", None, MARKER,
@@ -436,13 +442,13 @@ class CleanupCloudResourcesOptions(Options):
          lambda option_value: int(option_value, base=16)]
     ]
 
-    def opt_instance_name_prefix(self, instance_name_prefix):
+    def opt_node_name_prefix(self, node_name_prefix):
         """
-        Instances beginning with ``instance_name_prefix`` will be considered
-        for deletion. Defaults to: ``DEFAULT_INSTANCE_NAME_PREFIXES``.
+        Nodes beginning with ``node-name-prefix`` will be considered
+        for deletion. Defaults to: ``DEFAULT_NODE_NAME_PREFIXES``.
         """
-        self.setdefault('instance_name_prefixes', []).append(
-            instance_name_prefix
+        self.setdefault('node-name-prefixes', []).append(
+            node_name_prefix
         )
 
     def postOptions(self):
@@ -450,8 +456,8 @@ class CleanupCloudResourcesOptions(Options):
         if self["config-file"] is None:
             raise UsageError("Missing --config-file option.")
         self.setdefault(
-            'instance_name_prefixes',
-            list(DEFAULT_INSTANCE_NAME_PREFIXES)
+            'node-name-prefixes',
+            list(DEFAULT_NODE_NAME_PREFIXES)
         )
 
 
@@ -470,9 +476,9 @@ def cleanup_cloud_resources_main(args, base_path, top_level):
         raise SystemExit(1)
 
     resource_actions = [
-        CleanAcceptanceInstances(
-            lag=options["instance-lag"],
-            prefixes=options["instance_name_prefixes"],
+        CleanAcceptanceNodes(
+            lag=options["node-lag"],
+            prefixes=options["node-name-prefixes"],
         ).start(config=options["config-file"]),
 
         CleanVolumes(
@@ -483,8 +489,8 @@ def cleanup_cloud_resources_main(args, base_path, top_level):
 
     print_actions(resource_actions)
 
-    # if not options['dry-run']:
-    #     perform_actions(resource_actions)
+    if not options['dry-run']:
+        perform_actions(resource_actions)
 
     do_exit(resource_actions)
 
