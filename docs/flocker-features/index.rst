@@ -9,6 +9,7 @@ Flocker Features
 
    architecture
    flockerctl
+   leases
    security
    storage-backends
    storage-profiles
