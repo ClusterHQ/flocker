@@ -475,24 +475,24 @@ def cleanup_cloud_resources_main(args, base_path, top_level):
         )
         raise SystemExit(1)
 
-    resource_actions = [
-        CleanAcceptanceNodes(
-            lag=options["node-lag"],
-            prefixes=options["node-name-prefixes"],
-        ).start(config=options["config-file"]),
+    node_actions = CleanAcceptanceNodes(
+        lag=options["node-lag"],
+        prefixes=options["node-name-prefixes"],
+    ).start(config=options["config-file"])
 
-        CleanVolumes(
-            lag=options["volume-lag"],
-            marker=options["marker"],
-        ).start(config=options["config-file"])
-    ]
+    volume_actions = CleanVolumes(
+        lag=options["volume-lag"],
+        marker=options["marker"],
+    ).start(config=options["config-file"])
 
-    print_actions(resource_actions)
+    all_actions = [node_actions, volume_actions]
+
+    print_actions(all_actions)
 
     if not options['dry-run']:
-        perform_actions(resource_actions)
+        perform_all_actions(all_actions)
 
-    do_exit(resource_actions)
+    do_exit(all_actions)
 
 
 def destroy_resource(resource):
@@ -502,28 +502,26 @@ def destroy_resource(resource):
         err(None, "Destroying resource.")
 
 
-def perform_actions(resource_actions):
-    """
-    Unconditionally and irrevocably destroy all of the given cloud volumes.
-    """
-    for action_group in resource_actions:
-        for resource in action_group.destroy:
+def perform_all_actions(all_actions):
+    for action_group in all_actions:
+        to_destroy = getattr(action_group, 'destroy', [])
+        for resource in to_destroy:
             destroy_resource(resource)
 
 
 def print_actions(actions):
-    """
-    If volumes are destroyed, the operation is considered to have failed.
-    The test suite should have cleaned those volumes up.  This is an
-    unfortunate time to be reporting the problem but it's better than never
-    reporting it.
-    """
     sys.stdout.write(
         _dumps(actions).encode('utf-8') + b'\n'
     )
 
 
 def do_exit(actions):
+    """
+    If volumes are destroyed, the operation is considered to have failed.
+    The test suite should have cleaned those volumes up.  This is an
+    unfortunate time to be reporting the problem but it's better than never
+    reporting it.
+    """
     for action_group in actions:
         if len(action_group.destroy) > 0:
             # We fail if we destroyed anything because that means that
