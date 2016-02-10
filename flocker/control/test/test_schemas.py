@@ -333,7 +333,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'node_uuid': a_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
-                'volumes': [{'dataset_id': "x" * 36}],
+                'volumes': [{'dataset_id': a_uuid}],
             },
         ],
         INVALID_WRONG_TYPE: [
@@ -463,7 +463,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'node_uuid': a_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
-                'volumes': [{'dataset_id': "x" * 36,
+                'volumes': [{'dataset_id': a_uuid,
                              'mountpoint': 123}],
             },
             # Command line must be array
@@ -591,7 +591,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'node_uuid': a_uuid,
             'image': 'postgres',
             'name': 'postgres',
-            'volumes': [{'dataset_id': unicode(uuid4()),
+            'volumes': [{'dataset_id': a_uuid,
                          'mountpoint': '/var/db'}],
         },
         {
@@ -703,7 +703,7 @@ CONFIGURATION_DATASETS_PASSING_INSTANCES = [
          dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
 
     # dataset_id is a string of 36 characters
-    {u"primary": a_uuid, u"dataset_id": unicode(uuid4())},
+    {u"primary": a_uuid, u"dataset_id": a_uuid},
 
     # deleted is a boolean
     {u"primary": a_uuid, u"deleted": False},
@@ -718,7 +718,7 @@ CONFIGURATION_DATASETS_PASSING_INSTANCES = [
      u"metadata":
          dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
      u"maximum_size": 1024 * 1024 * 64,
-     u"dataset_id": unicode(uuid4()),
+     u"dataset_id": a_uuid,
      u"deleted": True},
 ]
 
@@ -745,14 +745,16 @@ CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES = (
     CONFIGURATION_DATASETS_FAILING_INSTANCES.copy()
 )
 
-CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES[INVALID_OBJECT_PROPERTY_MISSING] = (
-    CONFIGURATION_DATASETS_FAILING_INSTANCES.get(INVALID_OBJECT_PROPERTY_MISSING, []) + [
-        # primary is required for create
-        {u"metadata": {},
-         u"maximum_size": 1024 * 1024 * 1024,
-         u"dataset_id": a_uuid}
-    ]
-)
+CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES[
+    INVALID_OBJECT_PROPERTY_MISSING
+] = CONFIGURATION_DATASETS_FAILING_INSTANCES.get(
+    INVALID_OBJECT_PROPERTY_MISSING, []
+) + [
+    # primary is required for create
+    {u"metadata": {},
+     u"maximum_size": 1024 * 1024 * 1024,
+     u"dataset_id": a_uuid}
+]
 
 ConfigurationDatasetsCreateSchemaTests = build_schema_test(
     name="ConfigurationDatasetsCreateSchemaTests",
@@ -768,12 +770,6 @@ StateDatasetsArraySchemaTests = build_schema_test(
     schema={'$ref': '/v1/endpoints.json#/definitions/state_datasets_array'},
     schema_store=SCHEMAS,
     failing_instances={
-        INVALID_STRING_PATTERN: [
-            # null primary
-            [{u"primary": None,
-              u"maximum_size": 1024 * 1024 * 1024,
-              u"dataset_id": u"x" * 36}],
-        ],
         INVALID_OBJECT_PROPERTY_MISSING: [
             # missing dataset_id
             [{u"primary": a_uuid,
@@ -783,10 +779,15 @@ StateDatasetsArraySchemaTests = build_schema_test(
             # not an array
             {}, u"lalala", 123,
 
+            # null primary
+            [{u"primary": None,
+              u"maximum_size": 1024 * 1024 * 1024,
+              u"dataset_id": a_uuid}],
+
             # null path
             [{u"path": None,
               u"maximum_size": 1024 * 1024 * 1024,
-              u"dataset_id": u"x" * 36}],
+              u"dataset_id": a_uuid}],
 
             # XXX Ideally there'd be a couple more tests here:
             # * primary without path
@@ -795,27 +796,27 @@ StateDatasetsArraySchemaTests = build_schema_test(
 
             # wrong type for path
             [{u"primary": a_uuid,
-              u"dataset_id": u"x" * 36,
+              u"dataset_id": a_uuid,
               u"path": 123}],
         ],
     },
     passing_instances=[
         # missing primary and path
         [{u"maximum_size": 1024 * 1024 * 1024,
-          u"dataset_id": unicode(uuid4())}],
+          u"dataset_id": a_uuid}],
 
         # maximum_size is integer
         [{u"primary": a_uuid,
-          u"dataset_id": unicode(uuid4()),
+          u"dataset_id": a_uuid,
           u"path": u"/123",
           u"maximum_size": 1024 * 1024 * 64}],
 
         # multiple entries:
         [{u"primary": a_uuid,
-          u"dataset_id": unicode(uuid4()),
+          u"dataset_id": a_uuid,
           u"path": u"/123"},
          {u"primary": a_uuid,
-          u"dataset_id": unicode(uuid4()),
+          u"dataset_id": a_uuid,
           u"path": u"/123",
           u"maximum_size": 1024 * 1024 * 64}],
     ]
@@ -940,8 +941,8 @@ NodeTests = build_schema_test(
 )
 
 
-LEASE_WITH_EXPIRATION = {'dataset_id': unicode(uuid4()),
-                         'node_uuid': unicode(uuid4()),
+LEASE_WITH_EXPIRATION = {'dataset_id': a_uuid,
+                         'node_uuid': a_uuid,
                          'expires': 15}
 # Can happen sometimes, means time went backwards or a bug but at least we
 # should report things accurately.
