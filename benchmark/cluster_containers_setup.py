@@ -10,10 +10,12 @@ from twisted.internet.task import LoopingCall
 from twisted.python.filepath import FilePath
 from twisted.python import usage
 
-from eliot import add_destination, start_action, write_failure, Message
+from eliot import start_action, write_failure, Message
 from eliot.twisted import DeferredContext
 
 from flocker.common import gather_deferreds
+from flocker.common.script import eliot_to_stdout
+
 from flocker.control.httpapi import REST_API_PORT
 from flocker.control import DockerImage
 from flocker.apiclient import FlockerClient, MountedDataset
@@ -36,29 +38,6 @@ MESSAGE_FORMATS = {
 }
 ACTION_START_FORMATS = {
 }
-
-
-def eliot_output(message):
-    """
-    Write pretty versions of eliot log messages to stdout.
-    """
-    message_type = message.get('message_type')
-    action_type = message.get('action_type')
-    action_status = message.get('action_status')
-
-    format = ''
-    if message_type is not None:
-        if message_type == 'twisted:log' and message.get('error'):
-            format = '%(message)s'
-        else:
-            format = MESSAGE_FORMATS.get(message_type, '')
-    elif action_type is not None:
-        if action_status == 'started':
-            format = ACTION_START_FORMATS.get('action_type', '')
-        # We don't consider other status, since we
-        # have no meaningful messages to write.
-    sys.stdout.write(format % message)
-    sys.stdout.flush()
 
 
 class ContainerOptions(usage.Options):
@@ -148,7 +127,7 @@ class ContainerOptions(usage.Options):
 def main(reactor, argv, environ):
     # Setup eliot to print better human-readable output to standard
     # output
-    add_destination(eliot_output)
+    eliot_to_stdout(MESSAGE_FORMATS, ACTION_START_FORMATS)
 
     try:
         options = ContainerOptions()

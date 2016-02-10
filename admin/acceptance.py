@@ -15,7 +15,7 @@ from tempfile import mkdtemp
 from zope.interface import Interface, implementer
 from characteristic import attributes
 from eliot import (
-    add_destination, write_failure, FileDestination
+    write_failure, FileDestination
 )
 from pyrsistent import PClass, field, pvector
 from bitmath import GiB
@@ -39,6 +39,8 @@ from flocker.common import (
     loop_until,
     validate_signature_against_kwargs,
 )
+from flocker.common.script import eliot_to_stdout
+
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 from flocker.provision._ssh import (
     run_remotely,
@@ -60,8 +62,20 @@ from flocker.acceptance.testtools import DatasetBackend
 from flocker.testtools.cluster_utils import (
     make_cluster_id, Providers, TestTypes
 )
-
+from flocker.common import parse_version, UnparseableVersion
 from flocker.common.runner import run, run_ssh
+
+
+def _validate_version_option(option_name, option_value):
+    try:
+        parse_version(option_value)
+    except UnparseableVersion:
+        raise UsageError(
+            "Error in --{}. '{}' is not a valid format".format(
+                option_name,
+                option_value,
+            )
+        )
 
 
 def extend_environ(**kwargs):
@@ -921,7 +935,11 @@ class CommonOptions(Options):
         ['config-file', None, None,
          'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, None, 'Version of flocker to install'],
+        ['flocker-version', None, None, 'Version of flocker to install',
+         lambda option_value: _validate_version_option(
+             option_name=u'flocker-version',
+             option_value=option_value
+            )],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
         ['number-of-nodes', None,
@@ -1236,29 +1254,6 @@ ACTION_START_FORMATS = {
 }
 
 
-def eliot_output(message):
-    """
-    Write pretty versions of eliot log messages to stdout.
-    """
-    message_type = message.get('message_type')
-    action_type = message.get('action_type')
-    action_status = message.get('action_status')
-
-    format = ''
-    if message_type is not None:
-        if message_type == 'twisted:log' and message.get('error'):
-            format = '%(message)s'
-        else:
-            format = MESSAGE_FORMATS.get(message_type, '')
-    elif action_type is not None:
-        if action_status == 'started':
-            format = ACTION_START_FORMATS.get('action_type', '')
-        # We don't consider other status, since we
-        # have no meaningful messages to write.
-    sys.stdout.write(format % message)
-    sys.stdout.flush()
-
-
 def capture_upstart(reactor, host, output_file):
     """
     SSH into given machine and capture relevant logs, writing them to
@@ -1429,7 +1424,7 @@ def main(reactor, args, base_path, top_level):
     """
     options = RunOptions(top_level=top_level)
 
-    add_destination(eliot_output)
+    eliot_to_stdout(MESSAGE_FORMATS, ACTION_START_FORMATS)
     try:
         options.parseOptions(args)
     except UsageError as e:

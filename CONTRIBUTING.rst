@@ -62,9 +62,7 @@ Install Flocker's development dependencies in a ``virtualenv`` by running the fo
 .. prompt:: bash $
 
    mkvirtualenv flocker
-   pip install --process-dependency-links --editable .[dev]
-
-.. Need --process-dependency-links while are using a fork of testtools.
+   pip install --editable .[dev]
 
 .. _Docker: https://www.docker.com/
 
