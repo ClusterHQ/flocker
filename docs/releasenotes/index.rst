@@ -19,9 +19,8 @@ v1.10.2
    * The Control Service API enforces that the type of a dataset ``maximum_size`` is an integer, rather then any number.
    * The Control Service API no longer validates its responses at runtime.
 * Blockdevice plugins can now specify the configuration keys they require.
-  This allow better error messages to be generated.
+  This allows better error messages to be generated.
 * Several outdated references in the documentation have been removed.
-* Remove outdated doc references
 
 Previous Releases
 =================
