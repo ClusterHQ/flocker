@@ -12,13 +12,13 @@ If you have completed the steps in our :ref:`short tutorial <short-tutorial>`, y
 
     ssh -i $KEY root@$NODE2 docker rm -f app
     ssh -i $KEY root@$NODE2 docker rm -f redis
-    uft-flocker-volumes list
+    flocker-volumes list
     # Note the dataset id of the volume, then destroy it
-    uft-flocker-volumes destroy --dataset=$DATASET_ID
+    flocker-volumes destroy --dataset=$DATASET_ID
     # Wait for the dataset to disappear from the list
-    uft-flocker-volumes list
+    flocker-volumes list
     # Once it's gone, go ahead and delete the nodes
-    uft-flocker-destroy-nodes
+    flocker-destroy-nodes
     cd ~/clusters
     rm -rf test
 
