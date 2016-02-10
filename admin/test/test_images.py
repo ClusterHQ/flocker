@@ -477,6 +477,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         """
         docker_version = u"1.10.0"
         swarm_version = u"1.0.1"
+        flocker_version = u"1.10.1"
         build_region = u"us-west-1"
         s3 = self.useFixture(S3BucketFixture(test_case=self))
         returncode, stdout, stderr = self.publish_installer_images(
@@ -504,7 +505,9 @@ class PublishInstallerImagesIntegrationTests(TestCase):
                   '--build_region', build_region,
                   '--copy_to_all_regions',
                   '--source_ami', docker_ami_map[build_region]],
-            extra_enviroment={u'FLOCKER_BRANCH': u'master'}
+            extra_enviroment={
+                u'FLOCKER_VERSION': flocker_version
+            }
         )
         # And now we should have a "flocker" AMI map
         flocker_object_content = s3.get_object_content(key=u'flocker')
@@ -547,4 +550,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         )
 
         flocker_image = ec2.Image(flocker_ami_map[build_region])
-        self.assertEqual(None, flocker_image.tags)
+        self.expectThat(
+            flocker_image.tags,
+            Contains({u'Key': 'FLOCKER_VERSION', u'Value': flocker_version}),
+        )
