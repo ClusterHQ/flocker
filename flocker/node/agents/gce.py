@@ -181,7 +181,7 @@ def wait_for_operation(compute, operation, timeout_steps):
     return poll_until(finished_operation_result, timeout_steps)
 
 
-def _get_metadata_path(path):
+def get_metadata_path(path):
     """
     Requests a metadata path from the metadata server available within GCE.
 
