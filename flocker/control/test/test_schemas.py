@@ -749,16 +749,14 @@ CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES = (
     CONFIGURATION_DATASETS_FAILING_INSTANCES.copy()
 )
 
-CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES[
-    INVALID_OBJECT_PROPERTY_MISSING
-] = CONFIGURATION_DATASETS_FAILING_INSTANCES.get(
+CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES.setdefault(
     INVALID_OBJECT_PROPERTY_MISSING, []
-) + [
+).append(
     # primary is required for create
     {u"metadata": {},
      u"maximum_size": 1024 * 1024 * 1024,
      u"dataset_id": valid_uuid}
-]
+)
 
 ConfigurationDatasetsCreateSchemaTests = build_schema_test(
     name="ConfigurationDatasetsCreateSchemaTests",
