@@ -139,7 +139,7 @@ class CleanVolumes(object):
     Destroy volumes that leaked into the cloud from the acceptance and
     functional test suites.
     """
-    def start(self, config, dry_run=False):
+    def start(self, config):
         """
         Clean up old volumes belonging to test-created Flocker clusters.
         """
@@ -241,7 +241,7 @@ class CleanAcceptanceInstances(object):
     :ivar timedelta lag: The age of instances to destroy.
     :param prefixes: List of prefixes of instances to destroy.
     """
-    def start(self, config, dry_run=False):
+    def start(self, config):
         # Get the libcloud drivers corresponding to the acceptance tests.
         rackspace = get_rackspace_driver(config["rackspace"])
         ec2 = get_ec2_driver(config["aws"])
