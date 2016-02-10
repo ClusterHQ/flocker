@@ -475,6 +475,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         Docker images and then Flocker images built on the Docker images.
         The IDs of the generated AMIs are published to S3.
         """
+        docker_version = u"1.10.0"
         swarm_version = u"1.0.1"
         build_region = u"us-west-1"
         s3 = self.useFixture(S3BucketFixture(test_case=self))
@@ -483,7 +484,10 @@ class PublishInstallerImagesIntegrationTests(TestCase):
                   '--template', 'docker',
                   '--copy_to_all_regions',
                   '--build_region', build_region],
-            extra_enviroment={u'SWARM_VERSION': swarm_version}
+            extra_enviroment={
+                u'DOCKER_VERSION': docker_version,
+                u'SWARM_VERSION': swarm_version,
+            }
         )
         # The script should have uploaded AMI map to an object called "docker"
         docker_object_content = s3.get_object_content(key=u'docker')
@@ -533,6 +537,10 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         )
 
         docker_image = ec2.Image(docker_ami_map[build_region])
+        self.expectThat(
+            docker_image.tags,
+            Contains({u'Key': 'DOCKER_VERSION', u'Value': docker_version}),
+        )
         self.expectThat(
             docker_image.tags,
             Contains({u'Key': 'SWARM_VERSION', u'Value': swarm_version}),
