@@ -26,6 +26,12 @@ from twisted.python.usage import Options, UsageError
 from flocker.testtools.cluster_utils import MARKER
 
 
+DEFAULT_INSTANCE_NAME_PREFIXES = (
+    'acceptance-test-',
+    'client-test-'
+)
+
+
 def get_creation_time(node):
     """
     Get the creation time of a libcloud node.
@@ -325,16 +331,33 @@ class CleanupCloudResourcesOptions(Options):
          u"The oldest in minutes a volume may be "
          u"without being considered for deletion.\n",
          lambda option_value: timedelta(minutes=int(option_value))],
+        [u"instance-lag", None, timedelta(hours=2),
+         u"The oldest in minutes an instance may be "
+         u"without being considered for deletion.\n",
+         lambda option_value: timedelta(minutes=int(option_value))],
         [u"marker", None, MARKER,
          u"The marker which is used "
          u"as the ``node`` in the acceptance test cluster UUID.",
          lambda option_value: int(option_value, base=16)]
     ]
 
+    def opt_instance_name_prefix(self, instance_name_prefix):
+        """
+        Instances beginning with ``instance_name_prefix`` will be considered
+        for deletion. Defaults to: ``DEFAULT_INSTANCE_NAME_PREFIXES``.
+        """
+        self.setdefault('instance_name_prefixes', []).append(
+            instance_name_prefix
+        )
+
     def postOptions(self):
         self["dry-run"] = bool(self["dry-run"])
         if self["config-file"] is None:
             raise UsageError("Missing --config-file option.")
+        self.setdefault(
+            'instance_name_prefixes',
+            list(DEFAULT_INSTANCE_NAME_PREFIXES)
+        )
 
 
 def cleanup_cloud_resources_main(reactor, args, base_path, top_level):
