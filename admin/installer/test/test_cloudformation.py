@@ -62,7 +62,8 @@ class ClusterSizeLimitsTests(TestCase):
                   ``python cloudformation.py -s {cluster_size}``.
         :rtype: _ProcessResult
         """
-        run_process_args = [b'/usr/bin/python',
+        run_process_args = [b'/usr/bin/env',
+                            b'python',
                             self._cloudformation_file.path,
                             b"-s",
                             str(cluster_size)]
