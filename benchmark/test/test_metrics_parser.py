@@ -2,7 +2,8 @@
 
 from benchmark.metrics_parser import (
     mean, container_convergence, cpu_usage_for_process,
-    wallclock_for_operation, request_latency
+    wallclock_for_operation, request_latency, handle_cputime_metric,
+    handle_wallclock_metric
 )
 from flocker.testtools import TestCase
 
@@ -280,3 +281,62 @@ class MetricsParserTests(TestCase):
         latency_result = request_latency(results, 1)
         # 20/100 requests took more that 1 second.
         self.assertEqual(latency_result, 0.8)
+
+    def test_handle_cputime_metric_creates_multiple_samples(self):
+        """
+        handle_cputime_metric creates multiple sample objects, each with
+        one value, from a single sample containing many values. It does
+        not create a sample object from the '-- WALL --' key but adds
+        this value to every other sample.
+        """
+        wallclock_key = '-- WALL --'
+        common_props = {
+            'version': '1.10.1',
+            'scenario': 'default'
+        }
+        sample = {
+            'value': {
+                '10.0.0.1': {
+                    'process1': 3,
+                    wallclock_key: 102.123
+                },
+                '10.0.0.2': {
+                    'process1': 2,
+                    'process2': 5,
+                    wallclock_key: 124.462
+                }
+            }
+        }
+
+        expected_samples = [
+            {'process': 'process1', 'value': 3, 'wallclock': 102.123},
+            {'process': 'process1', 'value': 2, 'wallclock': 124.462},
+            {'process': 'process2', 'value': 5, 'wallclock': 124.462},
+        ]
+
+        for s in expected_samples:
+            s.update(common_props)
+
+        samples = handle_cputime_metric(common_props, sample)
+        self.assertEqual(samples, expected_samples)
+
+    def test_handle_wallclock_metrics_creates_sample(self):
+        """
+        handle_wallclock_metric returns a list containing a single
+        sample object with the value from the original sample.
+        """
+        common_props = {
+            'version': '1.10.1',
+            'scenario': 'default'
+        }
+        sample = {
+            'value': 12
+        }
+        expected_samples = [
+            {'value': 12}
+        ]
+        for s in expected_samples:
+            s.update(common_props)
+
+        samples = handle_wallclock_metric(common_props, sample)
+        self.assertEqual(samples, expected_samples)

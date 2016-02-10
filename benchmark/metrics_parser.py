@@ -123,19 +123,23 @@ def handle_cputime_metric(common_props, sample):
 
     :param common_props: Common properties shared with all other samples.
     :param sample: Original sample to extract values from.
+
+    :return list: The created samples.
     """
-    cputime_sample = dict(common_props)
+    cputime_samples = []
 
     wallclock_key = u'-- WALL --'
     for data in sample['value'].itervalues():
         wall_time = data[wallclock_key]
         for process, value in data.iteritems():
             if process != wallclock_key:
+                cputime_sample = dict(common_props)
                 cputime_sample['process'] = process
                 cputime_sample['value'] = value
                 cputime_sample['wallclock'] = wall_time
+                cputime_samples.append(cputime_sample)
 
-    return cputime_sample
+    return cputime_samples
 
 
 def handle_wallclock_metric(common_props, sample):
@@ -144,10 +148,14 @@ def handle_wallclock_metric(common_props, sample):
 
     :param common_props: Common properties shared with all other samples.
     :param sample: Original sample to extract values from.
+
+    :return list: The created samples.
     """
+    wallclock_samples = []
     wallclock_sample = dict(common_props)
     wallclock_sample['value'] = sample['value']
-    return wallclock_sample
+    wallclock_samples.append(wallclock_sample)
+    return wallclock_samples
 
 
 METRIC_HANDLER = {
@@ -299,7 +307,7 @@ class BenchmarkingResults(object):
 
         for sample in results['samples']:
             if sample['success']:
-                flattened.append(
+                flattened.extend(
                     METRIC_HANDLER[metric_type](common_props, sample)
                 )
         return flattened
