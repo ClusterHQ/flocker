@@ -64,7 +64,7 @@ six==1.9.0
 stevedore==1.5.0
 toolz==0.7.4
 treq==0.2.1
-troposphere=1.4.0
+troposphere==1.4.0
 Twisted==15.5.0
 txeffect==0.9
 uritemplate==0.6
