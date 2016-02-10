@@ -277,7 +277,7 @@ _UNCONVERGED_DELAY = 0.1
 class UnconvergedDelay(object):
     def __init__(self,
                  initial_sleep=_UNCONVERGED_DELAY,
-                 max_sleep=240,
+                 max_sleep=400,
                  min_sleep=_UNCONVERGED_DELAY):
         self.delay = initial_sleep
         self.max_sleep = max_sleep
