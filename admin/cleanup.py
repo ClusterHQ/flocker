@@ -26,26 +26,12 @@ from twisted.python.usage import Options, UsageError
 from flocker.testtools.cluster_utils import MARKER
 
 
+# By default only nodes with names beginning with these prefixes will be
+# considered for cleanup.
 DEFAULT_NODE_NAME_PREFIXES = (
     'acceptance-test-',
     'client-test-'
 )
-
-
-def get_creation_time(node):
-    """
-    Get the creation time of a libcloud node.
-
-    Rackspace and EC2 store the information in different metadeta.
-
-    :return: The creation time, if available.
-    :rtype: datetime or None
-    """
-    date_string = node.extra.get("created", node.extra.get("launch_time"))
-    if date_string is None:
-        return None
-    else:
-        return parse_date(date_string)
 
 
 def get_rackspace_driver(rackspace):
@@ -69,6 +55,22 @@ def get_ec2_driver(aws):
         region=aws['region'],
     )
     return ec2
+
+
+def _get_node_creation_time(node):
+    """
+    Get the creation time of a libcloud node.
+
+    Rackspace and EC2 store the information in different metadeta.
+
+    :return: The creation time, if available.
+    :rtype: datetime or None
+    """
+    date_string = node.extra.get("created", node.extra.get("launch_time"))
+    if date_string is None:
+        return None
+    else:
+        return parse_date(date_string)
 
 
 def _get_volume_creation_time(volume):
@@ -111,6 +113,21 @@ def _get_volume_region(volume):
         # AWS
         getattr(volume.driver, "region_name", None)
     )
+
+
+def _describe_node(node):
+    """
+    Create a dictionary of node details.
+
+    :param libcloud.compute.base.Node node: The node to query.
+    :returns: A JSON serializable dict of ``node`` information.
+    """
+    return {
+        'id': node.id,
+        'name': node.name,
+        'provider': node.driver.name,
+        'creation_time': _format_time(_get_node_creation_time(node)),
+    }
 
 
 def _describe_volume(volume):
@@ -287,7 +304,7 @@ class CleanAcceptanceNodes(object):
         destroyed_nodes = []
         kept_nodes = []
         for node in test_nodes:
-            creation_time = get_creation_time(node)
+            creation_time = _get_node_creation_time(node)
             if creation_time is not None and creation_time < cutoff:
                 destroyed_nodes.append(node)
             else:
@@ -299,18 +316,10 @@ class CleanAcceptanceNodes(object):
         )
 
 
-def _describe_node(node):
-    return {
-        'id': node.id,
-        'name': node.name,
-        'provider': node.driver.name,
-        'creation_time': _format_time(get_creation_time(node)),
-    }
-
-
 class _ActionEncoder(json.JSONEncoder):
     """
-    JSON encoder that can encode ValueConstant etc.
+    JSON encoder that can encode ``NodeActions``, ``VolumeActions`` and
+    ``libcloud`` resource types within.
     """
     def default(self, obj):
         if isinstance(obj, NodeActions):
@@ -388,6 +397,12 @@ class VolumeActions(object):
 
 
 def _existing_file_path_option(option_name, option_value):
+    """
+    Validate a command line option containing a FilePath.
+
+    :param unicode option_name: The name of the option being validated.
+    :param unicode option_value: The value being validated.
+    """
     file_path = FilePath(option_value)
     if not file_path.exists():
         raise UsageError(
@@ -399,6 +414,12 @@ def _existing_file_path_option(option_name, option_value):
 
 
 def _yaml_configuration_path_option(option_name, option_value):
+    """
+    Validate a command line option containing a FilePath to a YAML file.
+
+    :param unicode option_name: The name of the option being validated.
+    :param unicode option_value: The value being validated.
+    """
     yaml_path = _existing_file_path_option(option_name, option_value)
     try:
         configuration = yaml.safe_load(yaml_path.open())
@@ -452,6 +473,9 @@ class CleanupCloudResourcesOptions(Options):
         )
 
     def postOptions(self):
+        """
+        Check for some required options and set some defaults.
+        """
         self["dry-run"] = bool(self["dry-run"])
         if self["config-file"] is None:
             raise UsageError("Missing --config-file option.")
@@ -462,6 +486,9 @@ class CleanupCloudResourcesOptions(Options):
 
 
 def cleanup_cloud_resources_main(args, base_path, top_level):
+    """
+    The main entry point for ``cleanup_cloud_resources``.
+    """
     options = CleanupCloudResourcesOptions()
 
     try:
@@ -496,6 +523,12 @@ def cleanup_cloud_resources_main(args, base_path, top_level):
 
 
 def destroy_resource(resource):
+    """
+    Destroy a ``libcloud`` resource.
+    Catch and log failures.
+
+    :param resource: Any libcloud object with a ``destroy`` method.
+    """
     try:
         resource.destroy()
     except:
@@ -503,6 +536,10 @@ def destroy_resource(resource):
 
 
 def perform_all_actions(all_actions):
+    """
+    Loop through all the actions and destroy the resources that need to be
+    destroyed.
+    """
     for action_group in all_actions:
         to_destroy = getattr(action_group, 'destroy', [])
         for resource in to_destroy:
@@ -510,6 +547,9 @@ def perform_all_actions(all_actions):
 
 
 def print_actions(actions):
+    """
+    Serialize all the actions and print to ``stdout``.
+    """
     sys.stdout.write(
         _dumps(actions).encode('utf-8') + b'\n'
     )
@@ -517,13 +557,11 @@ def print_actions(actions):
 
 def do_exit(actions):
     """
-    If volumes are destroyed, the operation is considered to have failed.
-    The test suite should have cleaned those volumes up.  This is an
-    unfortunate time to be reporting the problem but it's better than never
-    reporting it.
+    If resources are destroyed, the operation is considered to have failed.
+    The test suite should have cleaned those resources up.
+    This is an unfortunate time to be reporting the problem but it's better
+    than never reporting it.
     """
     for action_group in actions:
         if len(action_group.destroy) > 0:
-            # We fail if we destroyed anything because that means that
-            # something is not being cleaned up.
             raise SystemExit(1)
