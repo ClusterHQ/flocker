@@ -8,6 +8,11 @@ from ..cluster_setup import RunOptions
 
 class RunOptionsForTest(RunOptions):
 
+    """
+    Patch this so it's not run during the test, which
+    would result in quite a lot of logic related to 
+    connecting to a cloud provider being run.
+    """
     def postOptions(self):
         pass
 
