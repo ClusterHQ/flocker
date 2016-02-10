@@ -1802,7 +1802,7 @@ class BlockDeviceDeployer(PClass):
                         dataset_id=dataset_id,
                         block_device_id=volume.blockdevice_id,
                     ).write()
-            if dataset_id in raw_state.devices:
+            elif dataset_id in raw_state.devices:
                 device_path = raw_state.devices[dataset_id]
                 mount_point = self._mountpath_for_dataset_id(
                     unicode(dataset_id)
