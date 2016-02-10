@@ -16,7 +16,7 @@ v1.10.2
 -------
 
 * Decreased the CPU usage of the Control Service API under load.
-   * The Control Service API enforces that the type of a dataset ``maximum_size`` is an integer, rather then any number.
+   * The Control Service API enforces that a dataset's ``maximum_size`` is an integer, rather then any number.
    * The Control Service API no longer validates its responses at runtime.
 * Blockdevice plugins can now specify the configuration keys they require.
   This allows better error messages to be generated.
