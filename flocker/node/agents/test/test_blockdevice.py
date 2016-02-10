@@ -1332,14 +1332,20 @@ class BlockDeviceCalculatorTests(TestCase):
             one desired state to another if there are no bugs.
         """
         for _ in range(max_iterations):
-            self.run_convergence_step(
-                dataset_map_from_iterable(desired_datasets))
-            note(self.current_datasets())
-            if compare_dataset_states(
-                self.current_datasets(),
-                dataset_map_from_iterable(desired_datasets),
-            ):
-                break
+            try:
+                self.run_convergence_step(
+                    dataset_map_from_iterable(desired_datasets))
+                if compare_dataset_states(
+                    self.current_datasets(),
+                    dataset_map_from_iterable(desired_datasets),
+                ):
+                    break
+            except Exception:
+                # The real loop will just continue if there are errors
+                # so we do too. This will sometimes occur when
+                # `eventualy_consistent` is set, when we try to do
+                # actions that aren't valid in the current state.
+                pass
         else:
             raise DidNotConverge(iteration_count=max_iterations)
 
