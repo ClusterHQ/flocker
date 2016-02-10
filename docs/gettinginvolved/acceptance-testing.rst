@@ -12,7 +12,6 @@ It is called like this:
 
    admin/run-acceptance-tests <options> [<test-cases>]
 
-
 The :program:`admin/run-acceptance-tests` script has several options:
 
 .. program:: admin/run-acceptance-tests
@@ -120,6 +119,10 @@ An example stanza:
       root:
           handlers: ['logfile']
           level: DEBUG
+
+.. note:: 
+
+   For an example of a :file:`config.yml` configuration file, see :ref:`acceptance-testing-configuration` in the Appendix.
 
 .. _acceptance-testing-rackspace-config:
 
