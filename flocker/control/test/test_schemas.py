@@ -24,7 +24,7 @@ INVALID_OBJECT_PROPERTIES_MAXIMUM = 'maxProperties'
 INVALID_OBJECT_NO_MATCH = 'oneOf'
 INVALID_WRONG_TYPE = 'type'
 
-a_uuid = unicode(uuid4())
+valid_uuid = unicode(uuid4())
 
 # The following two UUIDs are invalid, but are of the correct
 # length and loose format for a UUID. They will be caught out
@@ -73,7 +73,7 @@ ConfigurationContainersUpdateSchemaTests = build_schema_test(
     failing_instances={
         INVALID_OBJECT_PROPERTY_UNDEFINED: [
             # Extra properties
-            {u'node_uuid': a_uuid, u'image': u'nginx:latest'},
+            {u'node_uuid': valid_uuid, u'image': u'nginx:latest'},
         ],
         INVALID_STRING_PATTERN: [
             # Node UUID not a uuid
@@ -89,7 +89,7 @@ ConfigurationContainersUpdateSchemaTests = build_schema_test(
         ],
     },
     passing_instances=[
-        {u'node_uuid': a_uuid},
+        {u'node_uuid': valid_uuid},
     ],
 )
 
@@ -102,7 +102,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
         INVALID_OBJECT_PROPERTY_UNDEFINED: [
             # Volume with extra field
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'volumes': [{'dataset_id': "x" * 36,
@@ -111,14 +111,14 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Ports given but invalid key present
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'ports': [{'container': 80, 'external': '1'}]
             },
             # Environment given with empty name
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'environment': {
@@ -130,7 +130,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
         INVALID_NUMERIC_TOO_HIGH: [
             # Links given but local port is greater than max (65535)
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': [{
@@ -141,7 +141,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Links given but remote port is greater than max (65535)
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': [{
@@ -152,7 +152,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # CPU shares given but greater than max
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'cpu_shares': 1025
@@ -161,7 +161,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
         INVALID_ARRAY_ITEMS_MAXIMUM: [
             # More than one volume (this will eventually work - see FLOC-49)
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'volumes': [{'dataset_id': "x" * 36,
@@ -173,14 +173,14 @@ ConfigurationContainersSchemaTests = build_schema_test(
         INVALID_NUMERIC_TOO_LOW: [
             # CPU shares given but negative
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'cpu_shares': -512
             },
             # Memory limit given but negative
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'memory_limit': -1024
@@ -190,21 +190,21 @@ ConfigurationContainersSchemaTests = build_schema_test(
             # None of the schemas under oneOf match, so all errors are oneOf
             # Restart policy given but not a string
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'restart_policy': 1
             },
             # Restart policy string given but not an allowed value
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'restart_policy': {"name": "no restart"}
             },
             # Restart policy is on-failure but max retry count is negative
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'restart_policy': {
@@ -213,7 +213,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Restart policy is on-failure but max retry count is NaN
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'restart_policy': 'on-failure',
@@ -223,7 +223,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Restart policy has max retry count but no name
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'restart_policy': 'on-failure',
@@ -252,10 +252,14 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'name': 'my_container'
             },
             # Name not valid
-            {'node_uuid': a_uuid, 'image': 'clusterhq/redis', 'name': '@*!'},
+            {
+                'node_uuid': valid_uuid,
+                'image': 'clusterhq/redis',
+                'name': '@*!'
+            },
             # Links given but alias has hyphen
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': [{
@@ -266,7 +270,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Links given but alias has underscore
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': [{
@@ -277,23 +281,23 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Path doesn't start with /
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
-                'volumes': [{'dataset_id': a_uuid,
+                'volumes': [{'dataset_id': valid_uuid,
                              'mountpoint': 'var/db2'}],
             },
         ],
         INVALID_OBJECT_PROPERTY_MISSING: [
             # Name missing
-            {'node_uuid': a_uuid, 'image': 'clusterhq/redis'},
+            {'node_uuid': valid_uuid, 'image': 'clusterhq/redis'},
             # node_uuid missing
             {'image': 'clusterhq/redis', 'name': 'my_container'},
             # Image missing
-            {'node_uuid': a_uuid, 'name': 'my_container'},
+            {'node_uuid': valid_uuid, 'name': 'my_container'},
             # Links given but alias missing
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': [{
@@ -303,7 +307,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Links given but local port missing
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': [{
@@ -313,7 +317,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Links given but remote port missing
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': [{
@@ -323,17 +327,17 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Volume missing dataset_id
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'volumes': [{'mountpoint': '/var/db'}],
             },
             # Volume missing mountpoint
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
-                'volumes': [{'dataset_id': a_uuid}],
+                'volumes': [{'dataset_id': valid_uuid}],
             },
         ],
         INVALID_WRONG_TYPE: [
@@ -344,47 +348,47 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'name': 'my_container'
             },
             # Name wrong type
-            {'node_uuid': a_uuid, 'image': 'clusterhq/redis', 'name': 1},
+            {'node_uuid': valid_uuid, 'image': 'clusterhq/redis', 'name': 1},
             # Image wrong type
-            {'node_uuid': a_uuid, 'image': 1, 'name': 'my_container'},
+            {'node_uuid': valid_uuid, 'image': 1, 'name': 'my_container'},
             # Ports given but not a list of mappings
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'ports': 'I am not a list of port maps'
             },
             # Ports given but internal is not valid
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'ports': [{'internal': 'xxx', 'external': 8080}]
             },
             # Ports given but external is not valid
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'ports': [{'internal': 80, 'external': '1'}]
             },
             # Ports given but external is not valid integer
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'ports': [{'internal': 80, 'external': 22.5}]
             },
             # Environment given but not a dict
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'environment': 'x=y'
             },
             # Environment given but at least one entry is not a string
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'environment': {
@@ -394,21 +398,21 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # CPU shares given but not an integer
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'cpu_shares': '512'
             },
             # Memory limit given but not an integer
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'memory_limit': '250MB'
             },
             # Links given but not a list
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': {
@@ -419,7 +423,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Links given but alias is not a string
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': [{
@@ -430,7 +434,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Links given but local port is not an integer
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': [{
@@ -441,7 +445,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Links given but remote port is not an integer
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'nginx:latest',
                 'name': 'webserver',
                 'links': [{
@@ -452,7 +456,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Volume with dataset_id of wrong type
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'volumes': [{'dataset_id': 123,
@@ -460,22 +464,22 @@ ConfigurationContainersSchemaTests = build_schema_test(
             },
             # Volume with mountpoint of wrong type
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
-                'volumes': [{'dataset_id': a_uuid,
+                'volumes': [{'dataset_id': valid_uuid,
                              'mountpoint': 123}],
             },
             # Command line must be array
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'command_line': 'xx'
             },
             # Command line must be array of strings
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'command_line': ['xx', 123]
@@ -484,7 +488,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
         INVALID_ARRAY_ITEMS_NOT_UNIQUE: [
             # Ports given but not unique
             {
-                'node_uuid': a_uuid,
+                'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
                 'ports': [
@@ -496,33 +500,33 @@ ConfigurationContainersSchemaTests = build_schema_test(
     },
     passing_instances=[
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'postgres',
             'name': 'postgres'
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'postgres',
             'name': '/postgres-8.1_server'
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'docker/postgres',
             'name': 'postgres'
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'docker/postgres:latest',
             'name': 'postgres'
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'postgres',
             'name': 'postgres',
             'ports': [{'internal': 80, 'external': 8080}]
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'postgres',
             'name': 'postgres',
             'ports': [
@@ -531,7 +535,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             ]
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'postgres',
             'name': 'postgres',
             'environment': {
@@ -540,25 +544,25 @@ ConfigurationContainersSchemaTests = build_schema_test(
             }
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'docker/postgres:latest',
             'name': 'postgres',
             'restart_policy': {'name': 'never'}
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'docker/postgres:latest',
             'name': 'postgres',
             'restart_policy': {'name': 'always'}
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'docker/postgres:latest',
             'name': 'postgres',
             'restart_policy': {'name': 'on-failure'}
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'docker/postgres:latest',
             'name': 'postgres',
             'restart_policy': {
@@ -566,19 +570,19 @@ ConfigurationContainersSchemaTests = build_schema_test(
             }
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'docker/postgres:latest',
             'name': 'postgres',
             'cpu_shares': 512
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'docker/postgres:latest',
             'name': 'postgres',
             'memory_limit': 262144000
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'nginx:latest',
             'name': 'webserver',
             'links': [{
@@ -588,20 +592,20 @@ ConfigurationContainersSchemaTests = build_schema_test(
             }]
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'postgres',
             'name': 'postgres',
-            'volumes': [{'dataset_id': a_uuid,
+            'volumes': [{'dataset_id': valid_uuid,
                          'mountpoint': '/var/db'}],
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'postgres',
             'name': 'postgres',
             'volumes': [],
         },
         {
-            'node_uuid': a_uuid,
+            'node_uuid': valid_uuid,
             'image': 'postgres',
             'name': 'postgres',
             'command_line': ['ls', '/data'],
@@ -612,113 +616,113 @@ ConfigurationContainersSchemaTests = build_schema_test(
 CONFIGURATION_DATASETS_FAILING_INSTANCES = {
     INVALID_OBJECT_PROPERTY_UNDEFINED: [
         # too-long string property name in metadata
-        {u"primary": a_uuid, u"metadata": {u"x" * 257: u"10"}},
+        {u"primary": valid_uuid, u"metadata": {u"x" * 257: u"10"}},
     ],
     INVALID_OBJECT_PROPERTIES_MAXIMUM: [
         # too many metadata properties
-        {u"primary": a_uuid,
+        {u"primary": valid_uuid,
          u"metadata":
              dict.fromkeys((unicode(i) for i in range(257)), u"value")},
     ],
     INVALID_STRING_TOO_LONG: [
         # too-long string property value in metadata
-        {u"primary": a_uuid, u"metadata": {u"foo": u"x" * 257}},
+        {u"primary": valid_uuid, u"metadata": {u"foo": u"x" * 257}},
     ],
     INVALID_NUMERIC_TOO_LOW: [
         # too-small (but multiple of 1024) value for maximum size
-        {u"primary": a_uuid, u"maximum_size": 1024},
+        {u"primary": valid_uuid, u"maximum_size": 1024},
     ],
     INVALID_NUMERIC_NOT_MULTIPLE_OF: [
         # Value for maximum_size that is not a multiple of 1024 (but is larger
         # than the minimum allowed)
-        {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64 + 1023},
+        {u"primary": valid_uuid, u"maximum_size": 1024 * 1024 * 64 + 1023},
     ],
     INVALID_STRING_PATTERN: [
         # too short string for dataset_id
-        {u"primary": a_uuid, u"dataset_id": a_uuid[:35]},
+        {u"primary": valid_uuid, u"dataset_id": valid_uuid[:35]},
 
         # too long string for dataset_id
-        {u"primary": a_uuid, u"dataset_id": a_uuid + 'a'},
+        {u"primary": valid_uuid, u"dataset_id": valid_uuid + 'a'},
 
         # dataset_id not a valid UUID
-        {u"primary": a_uuid, u"dataset_id": bad_uuid_1},
+        {u"primary": valid_uuid, u"dataset_id": bad_uuid_1},
 
         # non-IPv4-address for primary
         {u"primary": u"10.0.0.257",
          u"metadata": {},
          u"maximum_size": 1024 * 1024 * 1024,
-         u"dataset_id": a_uuid},
+         u"dataset_id": valid_uuid},
 
         {u"primary": u"example.com",
          u"metadata": {},
          u"maximum_size": 1024 * 1024 * 1024,
-         u"dataset_id": a_uuid},
+         u"dataset_id": valid_uuid},
 
     ],
     INVALID_WRONG_TYPE: [
         # wrong type for dataset_id
-        {u"primary": a_uuid, u"dataset_id": 10},
+        {u"primary": valid_uuid, u"dataset_id": 10},
 
         # wrong type for metadata
-        {u"primary": a_uuid, u"metadata": 10},
+        {u"primary": valid_uuid, u"metadata": 10},
 
         # wrong type for value in metadata
-        {u"primary": a_uuid, u"metadata": {u"foo": 10}},
+        {u"primary": valid_uuid, u"metadata": {u"foo": 10}},
 
         # wrong type for maximum size
-        {u"primary": a_uuid, u"maximum_size": u"123"},
+        {u"primary": valid_uuid, u"maximum_size": u"123"},
 
         # wrong numeric type for maximum size
-        {u"primary": a_uuid, u"maximum_size": float(1024 * 1024 * 64)},
+        {u"primary": valid_uuid, u"maximum_size": float(1024 * 1024 * 64)},
 
         # wrong type for primary
         {u"primary": 10,
          u"metadata": {},
          u"maximum_size": 1024 * 1024 * 1024,
-         u"dataset_id": a_uuid},
+         u"dataset_id": valid_uuid},
 
         # wrong type for deleted
-        {u"primary": a_uuid,
+        {u"primary": valid_uuid,
          u"deleted": u"hello"},
     ],
 }
 
 CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES = [
     {},
-    {u"primary": a_uuid},
+    {u"primary": valid_uuid},
 ]
 
 CONFIGURATION_DATASETS_UPDATE_FAILING_INSTANCES = {
     INVALID_OBJECT_PROPERTY_UNDEFINED: [
-        {u"primary": a_uuid, u'x': 1},
+        {u"primary": valid_uuid, u'x': 1},
     ],
 }
 
 CONFIGURATION_DATASETS_PASSING_INSTANCES = [
-    {u"primary": a_uuid},
+    {u"primary": valid_uuid},
 
     # metadata is an object with a handful of short string key/values
-    {u"primary": a_uuid,
+    {u"primary": valid_uuid,
      u"metadata":
          dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
 
     # dataset_id is a string of 36 characters
-    {u"primary": a_uuid, u"dataset_id": a_uuid},
+    {u"primary": valid_uuid, u"dataset_id": valid_uuid},
 
     # deleted is a boolean
-    {u"primary": a_uuid, u"deleted": False},
+    {u"primary": valid_uuid, u"deleted": False},
     # maximum_size is an integer of at least 64MiB
-    {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
+    {u"primary": valid_uuid, u"maximum_size": 1024 * 1024 * 64},
 
     # maximum_size may be null, which means no size limit
-    {u"primary": a_uuid, u"maximum_size": None},
+    {u"primary": valid_uuid, u"maximum_size": None},
 
     # All of them can be combined.
-    {u"primary": a_uuid,
+    {u"primary": valid_uuid,
      u"metadata":
          dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
      u"maximum_size": 1024 * 1024 * 64,
-     u"dataset_id": a_uuid,
+     u"dataset_id": valid_uuid,
      u"deleted": True},
 ]
 
@@ -753,7 +757,7 @@ CONFIGURATION_DATASETS_CREATE_FAILING_INSTANCES[
     # primary is required for create
     {u"metadata": {},
      u"maximum_size": 1024 * 1024 * 1024,
-     u"dataset_id": a_uuid}
+     u"dataset_id": valid_uuid}
 ]
 
 ConfigurationDatasetsCreateSchemaTests = build_schema_test(
@@ -772,7 +776,7 @@ StateDatasetsArraySchemaTests = build_schema_test(
     failing_instances={
         INVALID_OBJECT_PROPERTY_MISSING: [
             # missing dataset_id
-            [{u"primary": a_uuid,
+            [{u"primary": valid_uuid,
               u"path": u"/123"}],
         ],
         INVALID_WRONG_TYPE: [
@@ -782,12 +786,12 @@ StateDatasetsArraySchemaTests = build_schema_test(
             # null primary
             [{u"primary": None,
               u"maximum_size": 1024 * 1024 * 1024,
-              u"dataset_id": a_uuid}],
+              u"dataset_id": valid_uuid}],
 
             # null path
             [{u"path": None,
               u"maximum_size": 1024 * 1024 * 1024,
-              u"dataset_id": a_uuid}],
+              u"dataset_id": valid_uuid}],
 
             # XXX Ideally there'd be a couple more tests here:
             # * primary without path
@@ -795,28 +799,28 @@ StateDatasetsArraySchemaTests = build_schema_test(
             # See FLOC-2170
 
             # wrong type for path
-            [{u"primary": a_uuid,
-              u"dataset_id": a_uuid,
+            [{u"primary": valid_uuid,
+              u"dataset_id": valid_uuid,
               u"path": 123}],
         ],
     },
     passing_instances=[
         # missing primary and path
         [{u"maximum_size": 1024 * 1024 * 1024,
-          u"dataset_id": a_uuid}],
+          u"dataset_id": valid_uuid}],
 
         # maximum_size is integer
-        [{u"primary": a_uuid,
-          u"dataset_id": a_uuid,
+        [{u"primary": valid_uuid,
+          u"dataset_id": valid_uuid,
           u"path": u"/123",
           u"maximum_size": 1024 * 1024 * 64}],
 
         # multiple entries:
-        [{u"primary": a_uuid,
-          u"dataset_id": a_uuid,
+        [{u"primary": valid_uuid,
+          u"dataset_id": valid_uuid,
           u"path": u"/123"},
-         {u"primary": a_uuid,
-          u"dataset_id": a_uuid,
+         {u"primary": valid_uuid,
+          u"dataset_id": valid_uuid,
           u"path": u"/123",
           u"maximum_size": 1024 * 1024 * 64}],
     ]
@@ -830,7 +834,7 @@ ConfigurationDatasetsListTests = build_schema_test(
     failing_instances={
         INVALID_NUMERIC_TOO_LOW: [
             # Failing dataset type (maximum_size less than minimum allowed)
-            [{u"primary": a_uuid, u"maximum_size": 123}],
+            [{u"primary": valid_uuid, u"maximum_size": 123}],
         ],
         INVALID_WRONG_TYPE: [
             # Incorrect type
@@ -841,8 +845,8 @@ ConfigurationDatasetsListTests = build_schema_test(
     },
     passing_instances=[
         [],
-        [{u"primary": a_uuid}],
-        [{u"primary": a_uuid}, {u"primary": unicode(uuid4())}]
+        [{u"primary": valid_uuid}],
+        [{u"primary": valid_uuid}, {u"primary": valid_uuid}]
     ],
 )
 
@@ -854,7 +858,7 @@ StateContainersArrayTests = build_schema_test(
     failing_instances={
         INVALID_OBJECT_PROPERTY_MISSING: [
             # Failing dataset type (missing running)
-            [{u"node_uuid": a_uuid, u"name": u"lalala",
+            [{u"node_uuid": valid_uuid, u"name": u"lalala",
               u"image": u"busybox:latest"}]
         ],
         INVALID_WRONG_TYPE: [
@@ -867,15 +871,15 @@ StateContainersArrayTests = build_schema_test(
     passing_instances=[
         [],
         [{u"name": u"lalala",
-          u"node_uuid": a_uuid,
+          u"node_uuid": valid_uuid,
           u"image": u"busybox:latest", u'running': True}],
         [{
-            u"node_uuid": a_uuid,
+            u"node_uuid": valid_uuid,
             u'image': u'nginx:latest',
             u'name': u'webserver2',
             u'running': True},
          {
-             u"node_uuid": unicode(uuid4()),
+             u"node_uuid": valid_uuid,
              u'image': u'nginx:latest',
              u'name': u'webserver',
              u'running': False}],
@@ -890,28 +894,28 @@ NodesTests = build_schema_test(
     failing_instances={
         INVALID_OBJECT_PROPERTY_UNDEFINED: [
             # Extra key
-            [{'host': '192.168.1.10', 'uuid': unicode(uuid4()), 'x': 'y'}],
+            [{'host': '192.168.1.10', 'uuid': valid_uuid, 'x': 'y'}],
         ],
         INVALID_OBJECT_PROPERTY_MISSING: [
             # Missing host
-            [{"uuid": unicode(uuid4())}],
+            [{"uuid": valid_uuid}],
             # Missing uuid
             [{'host': '192.168.1.10'}],
         ],
         INVALID_WRONG_TYPE: [
             # Wrong type
-            {'host': '192.168.1.10', 'uuid': unicode(uuid4())},
+            {'host': '192.168.1.10', 'uuid': valid_uuid},
             # Wrong uuid type
             [{'host': '192.168.1.10', 'uuid': 123}],
             # Wrong host type
-            [{'host': 192, 'uuid': unicode(uuid4())}],
+            [{'host': 192, 'uuid': valid_uuid}],
         ],
     },
     passing_instances=[
         [],
-        [{'host': '192.168.1.10', 'uuid': unicode(uuid4())}],
-        [{'host': '192.168.1.10', 'uuid': unicode(uuid4())},
-         {'host': '192.168.1.11', 'uuid': unicode(uuid4())}],
+        [{'host': '192.168.1.10', 'uuid': valid_uuid}],
+        [{'host': '192.168.1.10', 'uuid': valid_uuid},
+         {'host': '192.168.1.11', 'uuid': valid_uuid}],
     ],
 )
 
@@ -922,7 +926,7 @@ NodeTests = build_schema_test(
     failing_instances={
         INVALID_OBJECT_PROPERTY_UNDEFINED: [
             # Extra key
-            {'uuid': unicode(uuid4()), 'x': 'y'},
+            {'uuid': valid_uuid, 'x': 'y'},
         ],
         INVALID_OBJECT_PROPERTY_MISSING: [
             # Missing uuid
@@ -936,47 +940,47 @@ NodeTests = build_schema_test(
         ],
     },
     passing_instances=[
-        {'uuid': unicode(uuid4())},
+        {'uuid': valid_uuid},
     ],
 )
 
 
-LEASE_WITH_EXPIRATION = {'dataset_id': a_uuid,
-                         'node_uuid': a_uuid,
+LEASE_WITH_EXPIRATION = {'dataset_id': valid_uuid,
+                         'node_uuid': valid_uuid,
                          'expires': 15}
 # Can happen sometimes, means time went backwards or a bug but at least we
 # should report things accurately.
-LEASE_WITH_NEGATIVE_EXPIRATION = {'dataset_id': unicode(uuid4()),
-                                  'node_uuid': unicode(uuid4()),
+LEASE_WITH_NEGATIVE_EXPIRATION = {'dataset_id': valid_uuid,
+                                  'node_uuid': valid_uuid,
                                   'expires': -0.1}
-LEASE_NO_EXPIRES = {'dataset_id': unicode(uuid4()),
-                    'node_uuid': unicode(uuid4()),
+LEASE_NO_EXPIRES = {'dataset_id': valid_uuid,
+                    'node_uuid': valid_uuid,
                     'expires': None}
 BAD_LEASES = {
     INVALID_OBJECT_PROPERTY_UNDEFINED: [
         # Extra key:
-        {'dataset_id': unicode(uuid4()), 'node_uuid': unicode(uuid4()),
+        {'dataset_id': valid_uuid, 'node_uuid': valid_uuid,
          'expires': None, 'extra': 'key'},
     ],
     INVALID_OBJECT_PROPERTY_MISSING: [
         # Missing dataset_id:
-        {'node_uuid': unicode(uuid4()), 'expires': None},
+        {'node_uuid': valid_uuid, 'expires': None},
         # Missing node_uuid:
-        {'dataset_id': unicode(uuid4()), 'expires': None},
+        {'dataset_id': valid_uuid, 'expires': None},
         # Missing expires:
-        {'node_uuid': unicode(uuid4()), 'dataset_id': unicode(uuid4())},
+        {'node_uuid': valid_uuid, 'dataset_id': valid_uuid},
     ],
     INVALID_WRONG_TYPE: [
         # Wrong types:
         None, [], 1,
         # Wrong type for dataset_id:
-        {'node_uuid': unicode(uuid4()), 'dataset_id': 123,
+        {'node_uuid': valid_uuid, 'dataset_id': 123,
          'expires': None},
         # Wrong type for node_uuid:
-        {'dataset_id': unicode(uuid4()), 'node_uuid': 123,
+        {'dataset_id': valid_uuid, 'node_uuid': 123,
          'expires': None},
         # Wrong type for expires:
-        {'dataset_id': unicode(uuid4()), 'node_uuid': unicode(uuid4()),
+        {'dataset_id': valid_uuid, 'node_uuid': valid_uuid,
          'expires': []},
     ],
 }
