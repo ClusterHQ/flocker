@@ -79,8 +79,13 @@ Configuration File
    FLOC-2090
 
 The configuration file given for the ``--config-file`` parameter contains information about compute-resource providers and dataset configurations.
-The contents and structure of the file are explained here.
-:ref:`An example containing all of the sections<acceptance-testing-configuration>` is also provided.
+
+Here is an example of a configuration file.
+It contains details for many different compute-resource provides and dataset backends.
+This example allows one file to be used as configuration for many different testing scenarios.
+You don't need to include all the sections, just the ones that are relevant to the configuration you want to test:
+
+.. literalinclude:: example-acceptance.yml
 
 The top-level object in the file is a mapping.
 It may optionally contain a ``metadata`` key.
