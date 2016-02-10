@@ -52,9 +52,9 @@ class MetricsParserTests(TestCase):
 
     def test_cpu_usage_for_process_calculates_result(self):
         """
-        cputime_for_process correctly calculates the mean CPU percentage
-        for a process by dividing the cputime by the wallclock time for
-        each sample
+        cputime_for_process correctly calculates the CPU percentage for
+        a process by dividing the total cputime by the total wallclock
+        time across all the samples.
         """
         process_name = 'test-process'
         results = [
@@ -64,7 +64,7 @@ class MetricsParserTests(TestCase):
                 },
                 'process': process_name,
                 'value': 10,
-                'wallclock': 50
+                'wallclock': 60
             },
             {
                 'metric': {
@@ -76,6 +76,8 @@ class MetricsParserTests(TestCase):
             },
         ]
         cputime_result = cpu_usage_for_process(results, process_name)
+        # Total CPU time: 40
+        # Total wallclock time: 160
         self.assertEqual(cputime_result, 0.25)
 
     def test_wallclock_for_operation_no_matching_results(self):

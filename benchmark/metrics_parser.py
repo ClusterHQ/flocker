@@ -33,17 +33,20 @@ def cpu_usage_for_process(results, process):
     Calculate the CPU percentage for a process running in a particular
     scenario.
 
-    By default this will return the `mean` result.
-
     :param results: Results to extract values from.
     :param process: Process name to calculate CPU usage for.
     """
-    process_results = itertools.ifilter(
-        lambda r: r['metric']['type'] == 'cputime' and r['process'] == process,
-        results
-    )
-    values = [float(r['value']) / r['wallclock'] for r in process_results]
-    return mean(values)
+    process_results = [
+        r for r in results if r['metric']['type'] == 'cputime' and
+        r['process'] == process
+    ]
+
+    cpu_values = sum(r['value'] for r in process_results)
+    wallclock_values = sum(r['wallclock'] for r in process_results)
+
+    if wallclock_values > 0:
+        return float(cpu_values) / wallclock_values
+    return None
 
 
 def wallclock_for_operation(results, operation):
@@ -51,10 +54,10 @@ def wallclock_for_operation(results, operation):
     Calculate the wallclock time for a process running in a particular
     scenario.
 
-    By default this will return the `mean` result.
-
     :param results: Results to extract values from.
     :param operation: Operation name to calculate wallclock results for.
+
+    :return: The mean wallclock time observed.
     """
     operation_results = itertools.ifilter(
         lambda r: r['metric']['type'] == 'wallclock' and
