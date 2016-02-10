@@ -5,6 +5,7 @@ from collections import defaultdict, OrderedDict
 import csv
 import itertools
 import json
+import sys
 
 
 def write_csv(results, headers, filename):
@@ -336,6 +337,11 @@ def parse_args(args):
                         dest='latency_limit', default=30,
                         help="Request latency limit in seconds")
     parsed_args = parser.parse_args(args)
+
+    if not parsed_args.files:
+        parser.print_help()
+        sys.exit(1)
+
     return parsed_args
 
 
