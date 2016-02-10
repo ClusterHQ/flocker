@@ -17,7 +17,12 @@ from unittest import skipUnless, skipIf
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import Repo
 
+from hypothesis import given
+from hypothesis.strategies import text, sampled_from
+
 from requests.exceptions import HTTPError
+
+from boto.s3.website import RoutingRules, RoutingRule
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
@@ -27,7 +32,7 @@ from .. import release
 
 from ..release import (
     upload_python_packages, upload_packages, update_repo,
-    publish_docs, Environments,
+    parse_routing_rules, publish_docs, Environments,
     DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
@@ -42,6 +47,8 @@ from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 
 from flocker.testtools import TestCase
+
+from testtools.matchers import AfterPreprocessing, Equals
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
@@ -63,13 +70,123 @@ def hard_linking_possible():
         scratch_directory.remove()
 
 
+def MatchesRoutingRules(rules):
+    """
+    Matches against routing rules.
+
+    :param rules: The routing rules to match against.
+    :type rules: ``list`` of ``RoutingRule``
+    """
+    return AfterPreprocessing(RoutingRules.to_xml,
+                              Equals(RoutingRules(rules).to_xml()))
+
+
+class ParseRoutingRulesTests(TestCase):
+    """
+    Tests for :func:``parse_routing_rules``.
+    """
+
+    def test_empty_config(self):
+        """
+        """
+        rules = parse_routing_rules({}, "hostname")
+        self.assertThat(rules, MatchesRoutingRules([]))
+
+    @given(
+        hostname=text(),
+        replace=sampled_from(["replace_key", "replace_key_prefix"]),
+    )
+    def test_add_hostname(self, hostname, replace):
+        """
+        If a rule doesn't have a hostname
+        - the passed hostname is added.
+        - the replacement is prefixed with the common prefix.
+        """
+        rules = parse_routing_rules({
+            "prefix/": {
+                "key/": {replace: "replacement"},
+            },
+        }, hostname)
+        self.assertThat(rules, MatchesRoutingRules([
+            RoutingRule.when(key_prefix="prefix/key/").then_redirect(
+                hostname=hostname,
+                protocol="https",
+                http_redirect_code=302,
+                **{replace: "prefix/replacement"}
+            ),
+        ]))
+
+    @given(
+        hostname=text(),
+        other_hostname=text(),
+        replace=sampled_from(["replace_key", "replace_key_prefix"]),
+    )
+    def test_given_hostname(self, hostname, replace, other_hostname):
+        """
+        If a rule has a hostname, it is used unchanged and the common prefix is
+        not included in the replacement.
+        """
+        rules = parse_routing_rules({
+            "prefix/": {
+                "key/": {replace: "replacement", "hostname": other_hostname},
+            },
+        }, hostname)
+        self.assertThat(rules, MatchesRoutingRules([
+            RoutingRule.when(key_prefix="prefix/key/").then_redirect(
+                hostname=other_hostname,
+                protocol="https",
+                http_redirect_code=302,
+                **{replace: "replacement"}
+            ),
+        ]))
+
+    @given(
+        hostname=text(),
+    )
+    def test_long_match_first(self, hostname):
+        """
+        When multiple redirects exist under a single prefix, the longest match
+        is listed first.
+        """
+        rules = parse_routing_rules({
+            "long/": {
+                "est/first/": {"replace_key": "there"},
+                "": {"replace_key": "here"},
+            },
+            "": {
+                "long/est/": {"replace_key": "everywhere"},
+            },
+        }, hostname)
+        self.assertThat(rules, MatchesRoutingRules([
+            RoutingRule.when(key_prefix="long/est/first/").then_redirect(
+                hostname=hostname,
+                protocol="https",
+                replace_key="long/there",
+                http_redirect_code=302,
+            ),
+            RoutingRule.when(key_prefix="long/est/").then_redirect(
+                hostname=hostname,
+                protocol="https",
+                replace_key="everywhere",
+                http_redirect_code=302,
+            ),
+            RoutingRule.when(key_prefix="long/").then_redirect(
+                hostname=hostname,
+                protocol="https",
+                replace_key="long/here",
+                http_redirect_code=302,
+            ),
+        ]))
+
+
 class PublishDocsTests(TestCase):
     """
     Tests for :func:``publish_docs``.
     """
 
     def publish_docs(self, aws,
-                     flocker_version, doc_version, environment):
+                     flocker_version, doc_version, environment,
+                     routing_config={}):
         """
         Call :func:``publish_docs``, interacting with a fake AWS.
 
@@ -81,7 +198,8 @@ class PublishDocsTests(TestCase):
         sync_perform(
             ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
             publish_docs(flocker_version, doc_version,
-                         environment=environment))
+                         environment=environment,
+                         routing_config=routing_config))
 
     def test_copies_documentation(self):
         """
@@ -203,6 +321,62 @@ class PublishDocsTests(TestCase):
                 'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
                 'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
             })
+
+    def test_updated_routing_rules(self):
+        """
+        Calling :func:`publish_docs` updates the routing rules for the
+        "clusterhq-staging-docs" bucket.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                'clusterhq-staging-docs': {
+                },
+            })
+        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
+                          environment=Environments.STAGING,
+                          routing_config={
+                              "prefix/": {"key/": {"replace_key": "replace"}},
+                          })
+        self.assertThat(
+            aws.routing_rules['clusterhq-staging-docs'],
+            MatchesRoutingRules([
+                RoutingRule.when(key_prefix="prefix/key/").then_redirect(
+                    replace_key="prefix/replace",
+                    hostname="docs.staging.clusterhq.com",
+                    protocol="https",
+                    http_redirect_code="302",
+                ),
+            ]))
+
+    def test_updated_routing_rules_production(self):
+        """
+        Calling :func:`publish_docs` updates the routing rules for the
+        "clusterhq-docs" bucket.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                'clusterhq-docs': {
+                },
+                'clusterhq-staging-docs': {
+                },
+            })
+        self.publish_docs(aws, '0.3.1', '0.3.1',
+                          environment=Environments.PRODUCTION,
+                          routing_config={
+                              "prefix/": {"key/": {"replace_key": "replace"}},
+                          })
+        self.assertThat(
+            aws.routing_rules['clusterhq-docs'],
+            MatchesRoutingRules([
+                RoutingRule.when(key_prefix="prefix/key/").then_redirect(
+                    replace_key="prefix/replace",
+                    hostname="docs.clusterhq.com",
+                    protocol="https",
+                    http_redirect_code="302",
+                ),
+            ]))
 
     def test_creates_cloudfront_invalidation_new_files(self):
         """

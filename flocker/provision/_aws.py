@@ -4,11 +4,14 @@
 AWS provisioner.
 """
 
-from itertools import repeat
+import logging
+
+from itertools import izip_longest, repeat
 from textwrap import dedent
 
 from pyrsistent import PClass, field
 
+from twisted.internet.defer import DeferredList, fail, maybeDeferred
 from zope.interface import implementer
 
 
@@ -18,13 +21,14 @@ from boto.ec2.blockdevicemapping import (
 )
 from boto.exception import EC2ResponseError
 
-from ..common import poll_until
+from ..common import loop_until, poll_until
 
 from ._common import INode, IProvisioner
 
 from ._install import provision_for_any_user
 
-from eliot import start_action, Message
+from eliot import Message, start_action, write_failure
+from eliot.twisted import DeferredContext
 
 from ._ssh import run_remotely, run_from_args
 
@@ -49,6 +53,32 @@ IMAGE_NAMES = {
 
 BOTO_INSTANCE_NOT_FOUND = u'InvalidInstanceID.NotFound'
 INSTANCE_TIMEOUT = 300
+
+
+class EliotLogHandler(logging.Handler):
+    # Whitelist ``"msg": "Params:`` field for logging.
+    _to_log = {"Params"}
+
+    def emit(self, record):
+        fields = vars(record)
+        # Only log certain things.  The log is massively too verbose
+        # otherwise.
+        if fields.get("msg", ":").split(":")[0] in self._to_log:
+            Message.new(
+                message_type=u'flocker:provision:aws:boto_logs',
+                **fields
+            ).write()
+
+
+def _enable_boto_logging():
+    """
+    Make boto log activity using Eliot.
+    """
+    logger = logging.getLogger("boto")
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(EliotLogHandler())
+
+_enable_boto_logging()
 
 
 class FailedToRun(Exception):
@@ -128,6 +158,51 @@ def _wait_until_running(instance):
         context.add_success_fields(instance_state_reason=instance.state_reason)
     if instance.state != u'running':
         raise FailedToRun(instance.state_reason)
+
+
+def _async_wait_until_running(reactor, instance):
+    """
+    Wait until a instance is running.
+
+    :param reactor: The reactor.
+    :param boto.ec2.instance.Instance instance: The instance to wait for.
+    :return: Deferred that fires when the instance has become running
+        or failed to run (within a predefined period of time).
+    """
+
+    action = start_action(
+        action_type=u"flocker:provision:aws:wait_until_running",
+        instance_id=instance.id,
+    )
+
+    def check_final_state(ignored):
+        if instance.state != u'running':
+            raise FailedToRun(instance.state_reason)
+        action.add_success_fields(
+            instance_state=instance.state,
+            instance_state_reason=instance.state_reason,
+        )
+        return instance
+
+    def finished_booting():
+        d = maybeDeferred(_node_is_booting, instance)
+        d.addCallback(lambda x: not x)
+        return d
+
+    with action.context():
+        # Since we are refreshing the instance's state once in a while
+        # we may miss some transitions.  So, here we are waiting until
+        # the node has transitioned out of the original state and then
+        # check if the new state is the one that we expect.
+        d = loop_until(
+            reactor,
+            finished_booting,
+            repeat(5, INSTANCE_TIMEOUT)
+        )
+        d = DeferredContext(d)
+        d.addCallback(check_final_state)
+        d.addActionFinish()
+        return d.result
 
 
 @implementer(INode)
@@ -266,11 +341,37 @@ class AWSProvisioner(PClass):
         Return either boto.ec2.instance object or None if the instance
         could not be created.
         """
+
         with start_action(
-            action_type=u"flocker:provision:aws:create_node:run_instances",
+            action_type=u"flocker:provision:aws:get_node",
         ) as context:
+            [instance] = self._run_nodes(1, image_id, size, diskmap)
+            context.add_success_fields(instance_id=instance.id)
+
+            poll_until(lambda: self._set_metadata(instance, metadata),
+                       repeat(1, INSTANCE_TIMEOUT))
+            try:
+                _wait_until_running(instance)
+                return instance
+            except FailedToRun:
+                instance.terminate()
+                return None     # the instance is in the wrong state
+
+    def _run_nodes(self, count, image_id, size, diskmap):
+        """
+        Create an AWS instance with the given parameters.
+
+        Return either boto.ec2.instance object or None if the instance
+        could not be created.
+        """
+        with start_action(
+            action_type=u"flocker:provision:aws:create_node:run_nodes",
+            instance_count=count,
+        ):
             reservation = self._connection.run_instances(
                 image_id,
+                min_count=1,
+                max_count=count,
                 key_name=self._keyname,
                 instance_type=size,
                 security_groups=self._security_groups,
@@ -284,18 +385,7 @@ class AWSProvisioner(PClass):
                     sed -i '/Defaults *requiretty/d' /etc/sudoers
                     """),
             )
-
-            instance = reservation.instances[0]
-            context.add_success_fields(instance_id=instance.id)
-
-        poll_until(lambda: self._set_metadata(instance, metadata),
-                   repeat(1, INSTANCE_TIMEOUT))
-        try:
-            _wait_until_running(instance)
-            return instance
-        except FailedToRun:
-            instance.terminate()
-            return None     # the instance is in the wrong state
+            return reservation.instances
 
     def _set_metadata(self, instance, metadata):
         """
@@ -313,6 +403,112 @@ class AWSProvisioner(PClass):
                 u"flocker:provision:aws:set_metadata:retry"
             )
         return False
+
+    def create_nodes(self, reactor, names, distribution, metadata={}):
+        """
+        Create nodes with the given names.
+
+        :param reactor: The reactor.
+        :param name: The names of the nodes.
+        :type name: list of str
+        :param str distribution: The name of the distribution to
+            install on the nodes.
+        :param dict metadata: Metadata to associate with the nodes.
+
+        :return: A list of ``Deferred``s each firing with an INode
+            when the corresponding node is created.   The list has
+            the same order as :param:`names`.
+        """
+        size = self._default_size
+        disk_size = 8
+
+        action = start_action(
+            action_type=u"flocker:provision:aws:create_nodes",
+            instance_count=len(names),
+            distribution=distribution,
+            image_size=size,
+            disk_size=disk_size,
+            metadata=metadata,
+        )
+        with action.context():
+            disk1 = EBSBlockDeviceType()
+            disk1.size = disk_size
+            disk1.delete_on_termination = True
+            diskmap = BlockDeviceMapping()
+            diskmap['/dev/sda1'] = disk1
+
+            images = self._connection.get_all_images(
+                filters={'name': IMAGE_NAMES[distribution]},
+            )
+
+            instances = self._run_nodes(
+                count=len(names),
+                image_id=images[0].id,
+                size=size,
+                diskmap=diskmap
+            )
+
+            def make_node(ignored, name, instance):
+                return AWSNode(
+                    name=name,
+                    _provisioner=self,
+                    _instance=instance,
+                    distribution=distribution,
+                )
+
+            results = []
+            for name, instance in izip_longest(names, instances):
+                if instance is None:
+                    results.append(fail(Exception("Could not run instance")))
+                else:
+                    node_metadata = metadata.copy()
+                    node_metadata['Name'] = name
+                    d = self._async_get_node(reactor, instance, node_metadata)
+                    d = DeferredContext(d)
+                    d.addCallback(make_node, name, instance)
+                    results.append(d.result)
+            action_completion = DeferredContext(DeferredList(results))
+            action_completion.addActionFinish()
+            # Individual results and errors should be consumed by the caller,
+            # so we can leave action_completion alone now.
+            return results
+
+    def _async_get_node(self, reactor, instance, metadata):
+        """
+        Configure the given AWS instance, wait until it's running
+        and create an ``AWSNode`` object for it.
+
+        :param reactor: The reactor.
+        :param boto.ec2.instance.Instance instance: The instance to set up.
+        :param dict metadata: The metadata to set for the instance.
+        :return: Deferred that fires when the instance is ready.
+        """
+        def instance_error(failure):
+            Message.log(
+                message_type="flocker:provision:aws:async_get_node:failed"
+            )
+            instance.terminate()
+            write_failure(failure)
+            return failure
+
+        action = start_action(
+            action_type=u"flocker:provision:aws:async_get_node",
+            name=metadata['Name'],
+            instance_id=instance.id,
+        )
+        with action.context():
+            d = loop_until(
+                reactor,
+                lambda: maybeDeferred(self._set_metadata, instance, metadata),
+                repeat(5, INSTANCE_TIMEOUT),
+            )
+            d = DeferredContext(d)
+            d.addCallback(
+                lambda _: _async_wait_until_running(reactor, instance)
+            )
+            d.addErrback(instance_error)
+            d.addActionFinish()
+            return d.result
 
 
 def aws_provisioner(

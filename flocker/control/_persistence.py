@@ -32,7 +32,7 @@ _CLASS_MARKER = u"$__class__$"
 
 # The latest configuration version. Configuration versions are
 # always integers.
-_CONFIG_VERSION = 3
+_CONFIG_VERSION = 4
 
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
@@ -133,13 +133,31 @@ class ConfigurationMigration(object):
         """
         Migrate a v2 JSON configuration to v3.
 
-        :param bytes config: The v3 JSON data.
+        :param bytes config: The v2 JSON data.
         :return bytes: The v3 JSON data.
         """
         decoded_config = loads(config)
         decoded_config[u"version"] = 3
         decoded_config[u"deployment"][u"leases"] = {
             u"values": [], _CLASS_MARKER: u"PMap",
+        }
+        return dumps(decoded_config)
+
+    @classmethod
+    def upgrade_from_v3(cls, config):
+        """
+        Migrate a v3 JSON configuration to v4.
+
+        :param bytes config: The v3 JSON data.
+        :return bytes: The v4 JSON data.
+        """
+        decoded_config = loads(config)
+        decoded_config[u"version"] = 4
+        decoded_config[u"deployment"][u"persistent_state"] = {
+            _CLASS_MARKER: u"PersistentState",
+            u"blockdevice_ownership": {
+                u"values": [], _CLASS_MARKER: "PMap",
+            },
         }
         return dumps(decoded_config)
 

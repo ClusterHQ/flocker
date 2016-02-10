@@ -41,6 +41,17 @@
                     "flocker.control._model.Application"
                 ]
             },
+            "flocker.control._model.BlockDeviceOwnership": {
+                "category": "map",
+                "fields": {
+                    "key": [
+                        "uuid.UUID"
+                    ],
+                    "value": [
+                        "__builtin__.unicode"
+                    ]
+                }
+            },
             "flocker.control._model.Dataset": {
                 "category": "record",
                 "fields": {
@@ -64,6 +75,9 @@
                     ],
                     "nodes": [
                         "flocker.control._model.NodePSet"
+                    ],
+                    "persistent_state": [
+                        "flocker.control._model.PersistentState"
                     ]
                 }
             },
@@ -149,6 +163,14 @@
                     "flocker.control._model.Node"
                 ]
             },
+            "flocker.control._model.PersistentState": {
+                "category": "record",
+                "fields": {
+                    "blockdevice_ownership": [
+                        "flocker.control._model.BlockDeviceOwnership"
+                    ]
+                }
+            },
             "flocker.control._model.Port": {
                 "category": "record",
                 "fields": {
@@ -188,5 +210,5 @@
         },
         "root": "flocker.control._model.Deployment"
     },
-    "version": "1.2.0+60.g7e31395.dirty"
+    "version": "1.9.0.dev1+1180.ged9e3c5.dirty"
 }
