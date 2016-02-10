@@ -280,7 +280,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'node_uuid': a_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
-                'volumes': [{'dataset_id': "y" * 36,
+                'volumes': [{'dataset_id': a_uuid,
                              'mountpoint': 'var/db2'}],
             },
         ],
