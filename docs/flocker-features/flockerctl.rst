@@ -18,15 +18,13 @@ The ``flockerctl`` Command
 Install & Configure
 ===================
 
-You can use ``flockerctl`` with Flocker installed via :ref:`any installation method <supported-orchestration-frameworks>`.
-
-Install it with:
+Run the following command to install ``flockerctl``:
 
 .. prompt:: bash $
 
    curl -sSL https://get.flocker.io |sh
 
-If you used our :ref:`CloudFormation installer <cloudformation>` to create your cluster, or an alternative method such as a manual installation, you will need to set some environment variables for ``flockerctl`` to pick up:
+You will need to set some environment variables which define the address and credentials that ``flockerctl`` will use to connect to the Flocker control service:
 
 * ``FLOCKER_CERTS_PATH`` - typically ``/etc/flocker`` if you're running ``flockerctl`` from a node in the cluster, otherwise, where your certificates are stored.
 * ``FLOCKER_USER`` - the name of a flocker user which has ``.key`` and ``.crt`` file in the certs path. See :ref:`generate-api-standalone-flocker`.
