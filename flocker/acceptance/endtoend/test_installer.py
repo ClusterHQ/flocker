@@ -271,7 +271,7 @@ class DockerComposeTests(AsyncTestCase):
             },
             {
                 'ParameterKey': 'S3AccessPolicy',
-                'ParameterValue': 'yes'
+                'ParameterValue': 'Yes'
             }
         ]
 
