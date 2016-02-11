@@ -155,14 +155,15 @@ class CPUParser(LineOnlyReceiver):
         self.result[name] = self.result.get(name, 0) + cputime
 
 
-def get_node_cpu_times(reactor, runner, node, process_1_name, processes):
+def get_node_cpu_times(reactor, runner, node, known_name, processes):
     """
     Get the CPU times for processes running on a node.
 
     :param reactor: Twisted Reactor.
     :param runner: A method of running a command on a node.
     :param node: A node to run the command on.
-    :param process_1_name: The name of process 1 on each node.
+    :param known_name: The name of a process which is known to be running on
+        the node.
     :param processes: An iterator of process names to monitor. The process
         names must not contain spaces.
     :return: Deferred firing with a dictionary mapping process names to
@@ -174,11 +175,11 @@ def get_node_cpu_times(reactor, runner, node, process_1_name, processes):
     # process is present by adding an always present process (pid 1) as
     # a monitored process.  Remove it later.
     process_list = list(processes)
-    if process_1_name in processes:
-        delete_process_1_name = False
+    if known_name in processes:
+        delete_known_name = False
     else:
-        process_list.append(process_1_name)
-        delete_process_1_name = True
+        process_list.append(known_name)
+        delete_known_name = True
 
     parser = CPUParser(reactor)
     d = runner.run(
@@ -190,8 +191,8 @@ def get_node_cpu_times(reactor, runner, node, process_1_name, processes):
     def get_parser_result(ignored):
         result = parser.result
         # Remove unwanted value.
-        if delete_process_1_name and process_1_name in result:
-            del result[process_1_name]
+        if delete_known_name and known_name in result:
+            del result[known_name]
         return result
     d.addCallback(get_parser_result)
 
@@ -297,7 +298,8 @@ class CPUTime(object):
         # Retrieve the cluster nodes
         d = control_service.list_nodes().addCallback(nodes.extend)
 
-        # Obtain the init process on each node
+        # Obtain the init process on each node - these are required because
+        # we need to ensure that we name at least one process that exists.
         d.addCallback(
             lambda _ignored: get_cluster_init_process_names(self.runner, nodes)
         ).addCallback(inits.extend)
