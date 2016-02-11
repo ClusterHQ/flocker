@@ -9,13 +9,26 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-Next Release
-============
-
-* The Control Service API enforces that the type of a dataset ``maximum_size`` is an integer, rather then any number.
-
 This Release
 ============
+
+v1.10.2
+-------
+
+* Decreased the CPU usage of the Control Service API under load.
+   * The Control Service API enforces that a dataset's ``maximum_size`` is an integer, rather then any number.
+   * The Control Service API no longer validates its responses at runtime.
+* Block device plugins can now specify the configuration keys they require.
+  This allows better error messages to be generated.
+* Several outdated references in the documentation have been removed.
+
+Previous Releases
+=================
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
 
 v1.10.1
 -------
@@ -25,14 +38,6 @@ v1.10.1
 * The :ref:`Flocker plugin for Docker <plugin>` should support the direct volume listing and inspection functionality added to Docker 1.10.
 * Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
 * Increase limit on maximum Flocker volumes per AWS instance from 11 to 21.
-
-Previous Releases
-=================
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
 
 v1.10.0
 -------
