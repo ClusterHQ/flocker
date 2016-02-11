@@ -15,9 +15,14 @@ from flocker.testtools import TestCase, AsyncTestCase
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IMetric
 from benchmark.metrics.cputime import (
-    WALLCLOCK_LABEL, CPUTime, CPUParser, get_node_cpu_times, compute_change,
-    _pid_1_name,
+    WALLCLOCK_LABEL, CPUTime, CPUParser, get_node_init_process_name,
+    get_node_cpu_times, compute_change, _GET_INIT_PROCESS_NAME_COMMAND,
 )
+
+# Process 1 (usually `init`, `systemd`, or `launchd`) provides a process
+# name that is always present.
+_pid_1_name = subprocess.check_output(_GET_INIT_PROCESS_NAME_COMMAND).strip()
+
 
 # The command used to check cputimes only works on Linux
 on_linux = skipIf(platform.system() != 'Linux', 'Requires Linux')
@@ -98,6 +103,27 @@ class _LocalRunner(object):
         return deferToThread(self._run, command_args, handle_stdout)
 
 
+class GetNodeInitProcessNameTests(AsyncTestCase):
+    """
+    Test ``get_node_init_process_name`` command.
+    """
+
+    def test_get_node_init_process_name(self):
+        """
+        Success results in output of string containing name of process 1.
+        """
+        d = get_node_init_process_name(
+            _LocalRunner(),
+            Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
+        )
+
+        def check(result):
+            self.assertEqual(result, _pid_1_name)
+        d.addCallback(check)
+
+        return d
+
+
 class GetNodeCPUTimeTests(AsyncTestCase):
     """
     Test ``get_node_cpu_times`` command.
@@ -112,6 +138,7 @@ class GetNodeCPUTimeTests(AsyncTestCase):
             Clock(),
             _LocalRunner(),
             Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
+            _pid_1_name,
             [_pid_1_name],
         )
 
@@ -133,6 +160,7 @@ class GetNodeCPUTimeTests(AsyncTestCase):
             Clock(),
             _LocalRunner(),
             Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
+            _pid_1_name,
             ['n0n-exist'],
         )
 
