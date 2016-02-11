@@ -1254,6 +1254,14 @@ ACTION_START_FORMATS = {
 }
 
 
+def configure_eliot_logging_for_acceptance():
+    """
+    Set up eliot logging for use in scripts which are used in
+    acceptance tests
+    """
+    eliot_to_stdout(MESSAGE_FORMATS, ACTION_START_FORMATS)
+
+
 def capture_upstart(reactor, host, output_file):
     """
     SSH into given machine and capture relevant logs, writing them to
@@ -1424,7 +1432,7 @@ def main(reactor, args, base_path, top_level):
     """
     options = RunOptions(top_level=top_level)
 
-    eliot_to_stdout(MESSAGE_FORMATS, ACTION_START_FORMATS)
+    configure_eliot_logging_for_acceptance()
     try:
         options.parseOptions(args)
     except UsageError as e:

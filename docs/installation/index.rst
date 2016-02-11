@@ -29,7 +29,7 @@ The following diagram illustrates the architecture for the Installer:
 * The Installer provisions servers for you, and it writes a ``cluster.yml`` in your cluster directory containing the addresses of the servers.
 * You run the Installer on the ``cluster.yml``.
 * The Installer creates certificates for you, saves them in your cluster directory, installs Flocker and the certificates on servers, and starts Flocker.
-* You can now interact with your Flocker cluster using the ``docker`` CLI on the nodes, or locally by using the ``uft-flocker-deploy`` tool or the ``uft-flocker-volumes`` tool.
+* You can now interact with your Flocker cluster using the ``docker`` CLI on the nodes, or locally by using the ``flocker-volumes`` tool.
 
 The following instructions will take you through installing Flocker with the Installer, and running a tutorial to check everything is working:
 
