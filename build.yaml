@@ -1603,7 +1603,7 @@ job_type:
       archive_artifacts: ["docs/_build/linkcheck/output.txt"]
       notify_slack: '#engineering'
 
-    run_benchmarking_on_AWS_Ubuntu_Trusty_with_EBS:
+    run_benchmarking_on_AWS_Ubuntu_Trusty_with_EBS_2_nodes:
       at: '0 7 * * *'
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
@@ -1616,6 +1616,7 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_PROVIDER=aws',
+                   *setup_benchmarking_cluster,
                    *run_benchmarking,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
@@ -1628,6 +1629,35 @@ job_type:
       timeout: 120
       directories_to_delete: []
       notify_slack: '#flocker-benchmarking'
+
+    run_benchmarking_on_AWS_Ubuntu_Trusty_with_EBS_10_nodes:
+      at: '0 7 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions, *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_PROVIDER=aws',
+                   'export BENCHMARK_NODES=10'
+                   *setup_benchmarking_cluster,
+                   *run_benchmarking,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
+      # Similar to the reasoning for run_acceptance_on_AWS_CentOS_7_with_EBS
+      # but slightly shorter since Ubuntu runs the tests faster.
+      timeout: 120
+      directories_to_delete: []
+      notify_slack: '#flocker-benchmarking'
+
 
     cleanup_cloud_resources:
       at: '0 8 * * *'
