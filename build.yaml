@@ -514,11 +514,12 @@ common_cli:
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_benchmarking: &run_benchmarking |
-    ${venv}/bin/python benchmark/benchmark \
-    --cluster=${BENCHMARK_CLUSTER} \
-    --scenario=${BENCHMARK_SCENARIO} \
-    --operation=${BENCHMARK_OPERATION} \
-    --metric=${BENCHMARK_METRIC}
+    ${venv}/bin/python benchmark/benchmark #\
+    # --cluster=${BENCHMARK_CLUSTER} \
+    # --scenario=${BENCHMARK_SCENARIO} \
+    # --operation=${BENCHMARK_OPERATION} \
+    # --metric=${BENCHMARK_METRIC}
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_client_tests: &run_client_tests |
     # We gather the return code but make sure we come out of these tests with 0
