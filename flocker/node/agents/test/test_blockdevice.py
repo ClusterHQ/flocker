@@ -628,6 +628,7 @@ def assert_discovered_state(
     case,
     deployer,
     expected_discovered_datasets,
+    persistent_state=PersistentState(),
 ):
     """
     Assert that datasets on the state object returned by
@@ -651,7 +652,7 @@ def assert_discovered_state(
     )
     discovering = deployer.discover_state(
         DeploymentState(nodes={previous_state}),
-        persistent_state=PersistentState(),
+        persistent_state=persistent_state,
     )
     local_state = case.successResultOf(discovering)
 
@@ -797,12 +798,18 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         assert_discovered_state(self, self.deployer, [])
 
     def test_unattached_volume(self):
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.NON_MANIFEST,
@@ -819,8 +826,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         an ``ATTACHED`` dataset returned by
         ``BlockDeviceDeployer.discover_state``.
         """
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
@@ -831,6 +839,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         make_filesystem(device_path, block_device=True)
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED,
@@ -865,6 +878,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
 
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.MOUNTED,
@@ -886,8 +904,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         """
         # XXX: Presumably we should detect and repair this case,
         # so that the volume can be unmounted.
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
@@ -909,6 +928,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
 
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED,
@@ -928,8 +952,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         """
         # XXX This discovers volumes as NON_MANIFEST, but we should
         # have a state so we can try to recover.
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
             volume.blockdevice_id, self.api.compute_instance_id(),
@@ -942,6 +967,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
 
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.NON_MANIFEST,
@@ -1001,6 +1031,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         )
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED_ELSEWHERE,
@@ -1022,16 +1057,18 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         live_host = u'live'
         api = FakeCloudAPI(self.api, [live_host])
 
+        live_dataset_id = uuid4()
         volume_attached_to_live = api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=live_dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         api.attach_volume(
             volume_attached_to_live.blockdevice_id,
             attach_to=live_host,
         )
+        dead_dataset_id = uuid4()
         volume_attached_to_dead = api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dead_dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         api.attach_volume(
@@ -1042,6 +1079,12 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
             self, self.deployer.set(
                 block_device_api=ProcessLifetimeCache(api),
                 _underlying_blockdevice_api=api),
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    live_dataset_id: volume_attached_to_live.blockdevice_id,
+                    dead_dataset_id: volume_attached_to_dead.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED_ELSEWHERE,
@@ -1070,8 +1113,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         with unrelated_device.open("w") as unrelated_file:
             unrelated_file.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
 
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         mountpoint = self.deployer.mountroot.child(bytes(volume.dataset_id))
@@ -1090,6 +1134,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
 
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED_NO_FILESYSTEM,
@@ -1106,8 +1155,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         An attached volume with no filesystem ends up in
         ATTACHED_NO_FILESYSTEM state.
         """
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
@@ -1117,6 +1167,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         device_path = self.api.get_device_path(volume.blockdevice_id)
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED_NO_FILESYSTEM,
