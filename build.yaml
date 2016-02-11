@@ -496,6 +496,13 @@ common_cli:
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   setup_benchmarking_cluster: &setup_benchmarking_cluster |
+    # admin/setup-cluster will provision a flocker cluster of several nodes. The
+    # number of nodes provisioned is specified by the environment variable
+    # BENCHMARK_NODES. It will provision the nodes using the flocker packages
+    # which have been built and hosted by the Jenkins slave running the job.
+    # This job is currently using the credentials that are intended for the
+    # acceptance tests.
+    # TODO: Create a YAML file for the benchmarking role credentials.
     ${venv}/bin/python admin/setup-cluster \
     --distribution ${DISTRIBUTION_NAME} \
     --number-of-nodes ${BENCHMARK_NODES} \
@@ -503,7 +510,7 @@ common_cli:
     --dataset-backend ${ACCEPTANCE_TEST_PROVIDER} \
     --branch ${TRIGGERED_BRANCH} --build-server \
     http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4) \
-    --config-file /tmp/benchmarking.yaml \
+    --config-file /tmp/acceptance.yaml \
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_benchmarking: &run_benchmarking |
