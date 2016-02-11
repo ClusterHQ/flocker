@@ -16,13 +16,8 @@ from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IMetric
 from benchmark.metrics.cputime import (
     WALLCLOCK_LABEL, CPUTime, CPUParser, get_node_cpu_times, compute_change,
+    _pid_1_name,
 )
-
-# Process 1 (usually `init`, `systemd`, or `launchd`) provides a process
-# name that is always present.
-_standard_process = subprocess.check_output(
-    ['ps', '-p', '1', '-o', 'comm=']
-).strip()
 
 # The command used to check cputimes only works on Linux
 on_linux = skipIf(platform.system() != 'Linux', 'Requires Linux')
@@ -117,12 +112,12 @@ class GetNodeCPUTimeTests(AsyncTestCase):
             Clock(),
             _LocalRunner(),
             Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
-            [_standard_process],
+            [_pid_1_name],
         )
 
         def check(result):
             self.assertEqual(
-                result.keys(), [_standard_process, WALLCLOCK_LABEL]
+                result.keys(), [_pid_1_name, WALLCLOCK_LABEL]
             )
 
         d.addCallback(check)
@@ -213,7 +208,7 @@ class CPUTimeTests(AsyncTestCase):
                 None,
             ),
             _LocalRunner(),
-            processes=[_standard_process]
+            processes=[_pid_1_name]
         )
         d = metric.measure(lambda: clock.advance(5))
 
@@ -232,8 +227,8 @@ class CPUTimeTests(AsyncTestCase):
             self.assertEqual(
                 result,
                 {
-                    '10.0.0.1': {_standard_process: 0, WALLCLOCK_LABEL: 5},
-                    '10.0.0.2': {_standard_process: 0, WALLCLOCK_LABEL: 5}
+                    '10.0.0.1': {_pid_1_name: 0, WALLCLOCK_LABEL: 5},
+                    '10.0.0.2': {_pid_1_name: 0, WALLCLOCK_LABEL: 5}
                 }
             )
         d.addCallback(check)

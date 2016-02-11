@@ -3,6 +3,8 @@
 CPU time metric for the control service benchmarks.
 """
 
+import subprocess
+
 from zope.interface import implementer
 
 from twisted.protocols.basic import LineOnlyReceiver
@@ -11,6 +13,13 @@ from flocker.common import gather_deferreds
 from flocker.common.runner import run_ssh
 
 from benchmark._interfaces import IMetric
+
+# Process 1 (usually `init`, `systemd`, or `launchd`) provides a process
+# name that is always present.
+_pid_1_name = subprocess.check_output(
+    ['ps', '-p', '1', '-o', 'comm=']
+).strip()
+
 
 _FLOCKER_PROCESSES = {
     u'flocker-control',
@@ -137,19 +146,28 @@ def get_node_cpu_times(reactor, runner, node, processes):
         If an error occurs, returns None (after logging error).
     """
     # If no named processes are running, `ps` will return an error.  To
-    # distinguish this case from real errors, ensure that at least one process
-    # is present by adding `ps` as a monitored process.  Remove it later.
+    # distinguish this case from real errors, ensure that at least one
+    # process is present by adding an always present process (pid 1) as
+    # a monitored process.  Remove it later.
+    process_list = list(processes)
+    if _pid_1_name in processes:
+        delete_pid_1_name = False
+    else:
+        process_list.append(_pid_1_name)
+        delete_pid_1_name = True
+
     parser = CPUParser(reactor)
     d = runner.run(
         node,
-        _GET_CPUTIME_COMMAND + [b','.join(processes) + b',ps'],
+        _GET_CPUTIME_COMMAND + [b','.join(process_list)],
         handle_stdout=parser.lineReceived,
     )
 
     def get_parser_result(ignored):
         result = parser.result
-        # Remove unwanted ps values.
-        del result['ps']
+        # Remove unwanted value.
+        if delete_pid_1_name and _pid_1_name in result:
+            del result[_pid_1_name]
         return result
     d.addCallback(get_parser_result)
 
