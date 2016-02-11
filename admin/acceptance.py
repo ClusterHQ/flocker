@@ -949,54 +949,37 @@ class ComputeResourceOptions(Options):
         
     def postOptions(self):
         super(ComputeResourceOptions, self).postOptions()
+        if self.get('cert-directory') is None:
+            self['cert-directory'] = FilePath(mkdtemp())
+        
         if self['config-file'] is not None:
             config_file = FilePath(self['config-file'])
             self['config'] = yaml.safe_load(config_file.getContent())
         else:
             self['config'] = {}
+        
+        if self.get('provider') is None:
+            raise UsageError("Provider required.")
+        provider = self['provider'].lower()
+        provider_config = self['config'].get(provider, {})
 
-
-class ProvisionerOptions(ComputeResourceOptions):
-    """
-    Options required to provision nodes with Flocker.
-    """
-    optParameters = [
-        ['distribution', None, None,
-         'The target distribution. '
-         'One of {}.'.format(', '.join(DISTRIBUTIONS))],
-        ['dataset-backend', None, 'zfs',
-         'The dataset backend to test against. '
-         'One of {}'.format(', '.join(backend.name for backend
-                                      in DatasetBackend.iterconstants()))],
-        ['branch', None, None, 'Branch to grab packages from'],
-        ['flocker-version', None, None, 'Version of flocker to install',
-         lambda option_value: _validate_version_option(
-             option_name=u'flocker-version',
-             option_value=option_value
-            )],
-        ['build-server', None, 'http://build.clusterhq.com/',
-         'Base URL of build server for package downloads'],
-        ['number-of-nodes', None,
-         int(os.environ.get("FLOCKER_ACCEPTANCE_NUM_NODES", 2)),
-         'Number of nodes to start; default is 2 unless you set the deprecated'
-         ' environment variable which was previous way to do this.', int],
-    ]
-
-    def __init__(self, top_level):
-        """
-        :param FilePath top_level: The top-level of the flocker repository.
-        """
-        super(ProvisionerOptions, self).__init__(top_level)
-        self['variants'] = []
-
-    def opt_variant(self, arg):
-        """
-        Specify a variant of the provisioning to run.
-
-        Supported variants: distro-testing, docker-head, zfs-testing.
-        """
-        self['variants'].append(Variants.lookupByValue(arg))
-
+        try:
+            get_runner = getattr(self, "_runner_" + provider.upper())
+        except AttributeError:
+            raise UsageError(
+                "Provider {!r} not supported. Available providers: {}".format(
+                    provider, ', '.join(
+                        name.lower() for name in self._get_provider_names()
+                    )
+                )
+            )
+        else:
+            self.runner = get_runner(
+                package_source=None, # TODO: package_source shouldn't be none
+                dataset_backend=self.dataset_backend(),
+                provider_config=provider_config,
+            )
+    
     def dataset_backend_configuration(self):
         """
         Get the configuration corresponding to storage driver chosen by the
@@ -1031,74 +1014,8 @@ class ProvisionerOptions(ComputeResourceOptions):
                 )
             )
 
-    def package_source(self):
-        """
-        Getter for the configured package source.
-        """
-        return PackageSource(
-            version=self['flocker-version'],
-            branch=self['branch'],
-            build_server=self['build-server'],
-        )
-
-    def postOptions(self):
-        super(ProvisionerOptions, self).postOptions()
-        if self['distribution'] is None:
-            raise UsageError("Distribution required.")
-
-        if self.get('cert-directory') is None:
-            self['cert-directory'] = FilePath(mkdtemp())
-
-        if self.get('provider') is None:
-            raise UsageError("Provider required.")
-        provider = self['provider'].lower()
-        provider_config = self['config'].get(provider, {})
-
-        try:
-            get_runner = getattr(self, "_runner_" + provider.upper())
-        except AttributeError:
-            raise UsageError(
-                "Provider {!r} not supported. Available providers: {}".format(
-                    provider, ', '.join(
-                        name.lower() for name in self._get_provider_names()
-                    )
-                )
-            )
-        else:
-            self.runner = get_runner(
-                package_source=self.package_source(),
-                dataset_backend=self.dataset_backend(),
-                provider_config=provider_config,
-            )
-
-    def _make_cluster_identity(self, dataset_backend):
-        """
-        Build a cluster identity based on the parameters.
-        """
-        cluster_id = make_cluster_id(
-            TestTypes.ACCEPTANCE,
-            _provider_for_cluster_id(dataset_backend),
-        )
-        return ClusterIdentity(
-            purpose=u'acceptance-testing',
-            prefix=u'acceptance-test',
-            name=b'acceptance-cluster',
-            id=cluster_id,
-        )
-
-    def _provider_config_missing(self, provider):
-        """
-        :param str provider: The name of the missing provider.
-        :raise: ``UsageError`` indicating which provider configuration was
-                missing.
-        """
-        raise UsageError(
-            "Configuration file must include a "
-            "{!r} config stanza.".format(provider)
-        )
-
     def _runner_MANAGED(self, package_source, dataset_backend,
-                        provider_config):
+                            provider_config):
         """
         :param PackageSource package_source: The source of omnibus packages.
         :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
@@ -1228,6 +1145,91 @@ class ProvisionerOptions(ComputeResourceOptions):
         return self._libcloud_runner(
             package_source, dataset_backend, "aws", provider_config
         )
+
+
+class ProvisionerOptions(ComputeResourceOptions):
+    """
+    Options required to provision nodes with Flocker.
+    """
+    optParameters = [
+        ['distribution', None, None,
+         'The target distribution. '
+         'One of {}.'.format(', '.join(DISTRIBUTIONS))],
+        ['dataset-backend', None, 'zfs',
+         'The dataset backend to test against. '
+         'One of {}'.format(', '.join(backend.name for backend
+                                      in DatasetBackend.iterconstants()))],
+        ['branch', None, None, 'Branch to grab packages from'],
+        ['flocker-version', None, None, 'Version of flocker to install',
+         lambda option_value: _validate_version_option(
+             option_name=u'flocker-version',
+             option_value=option_value
+            )],
+        ['build-server', None, 'http://build.clusterhq.com/',
+         'Base URL of build server for package downloads'],
+        ['number-of-nodes', None,
+         int(os.environ.get("FLOCKER_ACCEPTANCE_NUM_NODES", 2)),
+         'Number of nodes to start; default is 2 unless you set the deprecated'
+         ' environment variable which was previous way to do this.', int],
+    ]
+
+    def __init__(self, top_level):
+        """
+        :param FilePath top_level: The top-level of the flocker repository.
+        """
+        super(ProvisionerOptions, self).__init__(top_level)
+        self['variants'] = []
+
+    def opt_variant(self, arg):
+        """
+        Specify a variant of the provisioning to run.
+
+        Supported variants: distro-testing, docker-head, zfs-testing.
+        """
+        self['variants'].append(Variants.lookupByValue(arg))
+
+
+    def package_source(self):
+        """
+        Getter for the configured package source.
+        """
+        return PackageSource(
+            version=self['flocker-version'],
+            branch=self['branch'],
+            build_server=self['build-server'],
+        )
+
+    def postOptions(self):
+        super(ProvisionerOptions, self).postOptions()
+        if self['distribution'] is None:
+            raise UsageError("Distribution required.")
+
+    def _make_cluster_identity(self, dataset_backend):
+        """
+        Build a cluster identity based on the parameters.
+        """
+        cluster_id = make_cluster_id(
+            TestTypes.ACCEPTANCE,
+            _provider_for_cluster_id(dataset_backend),
+        )
+        return ClusterIdentity(
+            purpose=u'acceptance-testing',
+            prefix=u'acceptance-test',
+            name=b'acceptance-cluster',
+            id=cluster_id,
+        )
+
+    def _provider_config_missing(self, provider):
+        """
+        :param str provider: The name of the missing provider.
+        :raise: ``UsageError`` indicating which provider configuration was
+                missing.
+        """
+        raise UsageError(
+            "Configuration file must include a "
+            "{!r} config stanza.".format(provider)
+        )
+
 
 
 class RunOptions(ProvisionerOptions):
