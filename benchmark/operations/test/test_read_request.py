@@ -96,8 +96,8 @@ class ReadRequestTests(TestCase):
         d.addCallback(run_probe)
 
         # Only want to check the primaries of the cluster state
-        def filter(states):
+        def state_to_primary(states):
             return [state.primary for state in states]
-        d.addCallback(filter)
+        d.addCallback(state_to_primary)
 
         self.assertEqual(self.successResultOf(d), [primary])

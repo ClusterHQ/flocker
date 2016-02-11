@@ -219,14 +219,14 @@ class CPUTimeTests(AsyncTestCase):
 
         # Although it is unlikely, it's possible that we could get a CPU
         # time != 0, so filter values out.
-        def filter(node_cpu_times):
+        def remove_process_times(node_cpu_times):
             for process_times in node_cpu_times.values():
                 if process_times:
                     for process in process_times:
                         if process != WALLCLOCK_LABEL:
                             process_times[process] = 0
             return node_cpu_times
-        d.addCallback(filter)
+        d.addCallback(remove_process_times)
 
         def check(result):
             self.assertEqual(

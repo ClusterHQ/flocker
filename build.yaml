@@ -880,9 +880,9 @@ common_cli:
     # Disable exiting on error, so we can run multiple lints
     set +e
     # run flake8 lint tests on Flocker source code
-    flake8 --format=pylint --output flake8.lint.txt flocker
+    flake8 --format=pylint --output flake8.lint.txt benchmark flocker
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    pylint flocker > pylint.lint.txt
+    pylint benchmark flocker > pylint.lint.txt
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
     set -e
 

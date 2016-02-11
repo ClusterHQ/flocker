@@ -141,8 +141,8 @@ class RequestLoadScenario(object):
 
                 d = self.request.make_request()
 
-                def get_time(_ignore):
-                    return self.reactor.seconds() - t0
+                def get_time(_ignore, reactor=self.reactor, t0=t0):
+                    return reactor.seconds() - t0
                 d.addCallback(get_time)
 
                 self.rate_measurer.request_sent()
