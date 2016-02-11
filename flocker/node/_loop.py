@@ -285,7 +285,7 @@ class UnconvergedDelay(object):
 
     def sleep(self):
         s = _Sleep(delay_seconds=self.delay)
-        self.delay *= 2
+        self.delay *= 4
         if self.delay > self.max_sleep:
             self.delay = self.max_sleep
         return s
