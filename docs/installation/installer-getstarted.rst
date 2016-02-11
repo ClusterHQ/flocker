@@ -35,7 +35,7 @@ This guide will show you how to use the Labs Installer to deploy a Flocker clust
 
      .. prompt:: bash $
 
-        uft-flocker-ca --version
+        flocker-ca --version
 
      This should return something like ``1.9.0``, showing you which version of the Flocker Client is installed.
 
@@ -94,8 +94,8 @@ This guide will show you how to use the Labs Installer to deploy a Flocker clust
 
      .. prompt:: bash $
 
-        uft-flocker-sample-files
-        uft-flocker-get-nodes --ubuntu-aws
+        flocker-sample-files
+        flocker-get-nodes --ubuntu-aws
 
      This step should take 30-40 seconds, and then you should see output like this::
 
@@ -111,7 +111,7 @@ This guide will show you how to use the Labs Installer to deploy a Flocker clust
 
    .. prompt:: bash $
 
-      uft-flocker-install cluster.yml && uft-flocker-config cluster.yml && uft-flocker-plugin-install cluster.yml
+      flocker-install cluster.yml && flocker-config cluster.yml && flocker-plugin-install cluster.yml
 
    This step should take about 5 minutes, and will:
 
@@ -126,8 +126,8 @@ This guide will show you how to use the Labs Installer to deploy a Flocker clust
 
    .. prompt:: bash $
 
-      uft-flocker-volumes list-nodes
-      uft-flocker-volumes list
+      flocker-volumes list-nodes
+      flocker-volumes list
 
    You can see that there are no volumes yet.
 

@@ -20,8 +20,9 @@ from .. import (
 )
 from ...control import (
     Application, DockerImage, Deployment, Node,
-    NodeState, DeploymentState,
+    NodeState, DeploymentState, PersistentState,
 )
+from ...control.testtools import InMemoryStatePersister
 
 from .. import sequentially, in_parallel
 
@@ -138,7 +139,8 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
             u'example.com', self.volume_service, node_uuid=self.node_uuid)
         self.assertEqual(
             self.successResultOf(deployer.discover_state(
-                DeploymentState(nodes={self.EMPTY_NODESTATE}))).node_state,
+                DeploymentState(nodes={self.EMPTY_NODESTATE}),
+                persistent_state=PersistentState())).node_state,
             NodeState(hostname=deployer.hostname,
                       uuid=deployer.node_uuid,
                       manifestations={}, paths={}, devices={},
@@ -171,7 +173,9 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
         """
         deployer = self._setup_datasets()
         node_state = self.successResultOf(deployer.discover_state(
-            DeploymentState(nodes={self.EMPTY_NODESTATE}))).node_state
+            DeploymentState(nodes={self.EMPTY_NODESTATE}),
+            persistent_state=PersistentState(),
+        )).node_state
         self.assertEqual(node_state.uuid, deployer.node_uuid)
 
     def test_discover_datasets(self):
@@ -179,7 +183,8 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
         All datasets on the node are added to ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_state(DeploymentState(nodes={self.EMPTY_NODESTATE}))
+        d = api.discover_state(DeploymentState(nodes={self.EMPTY_NODESTATE}),
+                               persistent_state=PersistentState())
 
         self.assertEqual(
             {self.DATASET_ID: Manifestation(
@@ -196,7 +201,8 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
         ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_state(DeploymentState(nodes={self.EMPTY_NODESTATE}))
+        d = api.discover_state(DeploymentState(nodes={self.EMPTY_NODESTATE}),
+                               persistent_state=PersistentState())
 
         self.assertEqual(
             {self.DATASET_ID:
@@ -231,7 +237,8 @@ class P2PManifestationDeployerDiscoveryTests(TestCase):
             self.volume_service,
             node_uuid=self.node_uuid,
         )
-        d = api.discover_state(DeploymentState(nodes={self.EMPTY_NODESTATE}))
+        d = api.discover_state(DeploymentState(nodes={self.EMPTY_NODESTATE}),
+                               persistent_state=PersistentState())
 
         self.assertEqual(
             self.successResultOf(d).node_state.manifestations[
@@ -826,7 +833,8 @@ class CreateDatasetTests(TestCase):
             u'example.com', volume_service)
         volume = APPLICATION_WITH_VOLUME.volume
         create = CreateDataset(dataset=volume.dataset)
-        create.run(deployer)
+        create.run(
+            deployer, state_persister=InMemoryStatePersister())
         self.assertIn(
             volume_service.get(_to_volume_name(volume.dataset.dataset_id)),
             list(self.successResultOf(volume_service.enumerate())))
@@ -845,7 +853,8 @@ class CreateDatasetTests(TestCase):
             u'example.com', volume_service)
         volume = APPLICATION_WITH_VOLUME_SIZE.volume
         create = CreateDataset(dataset=volume.dataset)
-        create.run(deployer)
+        create.run(
+            deployer, state_persister=InMemoryStatePersister())
         enumerated_volumes = list(
             self.successResultOf(volume_service.enumerate())
         )
@@ -864,7 +873,8 @@ class CreateDatasetTests(TestCase):
             u'example.com', create_volume_service(self))
         volume = APPLICATION_WITH_VOLUME.volume
         create = CreateDataset(dataset=volume.dataset)
-        result = self.successResultOf(create.run(deployer))
+        result = self.successResultOf(create.run(
+            deployer, state_persister=InMemoryStatePersister()))
         self.assertEqual(result, deployer.volume_service.get(
             _to_volume_name(volume.dataset.dataset_id)))
 
@@ -893,7 +903,8 @@ class DeleteDatasetTests(TestCase):
         """
         delete = DeleteDataset(
             dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
-        self.successResultOf(delete.run(self.deployer))
+        self.successResultOf(delete.run(
+            self.deployer, state_persister=InMemoryStatePersister()))
 
         self.assertEqual(
             list(self.successResultOf(self.volume_service.enumerate())),
@@ -913,7 +924,8 @@ class DeleteDatasetTests(TestCase):
         self.patch(_p2p, "_logger", logger)
         delete = DeleteDataset(
             dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
-        self.successResultOf(delete.run(self.deployer))
+        self.successResultOf(delete.run(
+            self.deployer, state_persister=InMemoryStatePersister()))
 
 
 class ResizeVolumeTests(AsyncTestCase):
@@ -938,7 +950,8 @@ class ResizeVolumeTests(AsyncTestCase):
             change = ResizeDataset(dataset=dataset)
             deployer = P2PManifestationDeployer(
                 u'example.com', volume_service)
-            return change.run(deployer)
+            return change.run(
+                deployer, state_persister=InMemoryStatePersister())
         d.addCallback(created)
 
         def resized(ignored):
@@ -977,7 +990,8 @@ class HandoffVolumeTests(TestCase):
         handoff = HandoffDataset(
             dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=hostname)
-        handoff.run(deployer)
+        handoff.run(
+            deployer, state_persister=InMemoryStatePersister())
         self.assertEqual(
             result,
             [volume_service.get(_to_volume_name(DATASET.dataset_id)),
@@ -997,7 +1011,8 @@ class HandoffVolumeTests(TestCase):
         handoff = HandoffDataset(
             dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=b"dest.example.com")
-        handoff_result = handoff.run(deployer)
+        handoff_result = handoff.run(
+            deployer, state_persister=InMemoryStatePersister())
         self.assertIs(handoff_result, result)
 
 
@@ -1023,7 +1038,8 @@ class PushVolumeTests(TestCase):
         push = PushDataset(
             dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=hostname)
-        push.run(deployer)
+        push.run(
+            deployer, state_persister=InMemoryStatePersister())
         self.assertEqual(
             result,
             [volume_service.get(_to_volume_name(DATASET.dataset_id)),
@@ -1043,5 +1059,6 @@ class PushVolumeTests(TestCase):
         push = PushDataset(
             dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=b"dest.example.com")
-        push_result = push.run(deployer)
+        push_result = push.run(
+            deployer, state_persister=InMemoryStatePersister())
         self.assertIs(push_result, result)

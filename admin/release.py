@@ -9,6 +9,7 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
 import json
+import yaml
 import os
 import sys
 import tempfile
@@ -18,6 +19,8 @@ from datetime import datetime
 from subprocess import check_call, check_output
 from sys import platform as _platform
 from urllib import quote
+
+from boto.s3.website import RoutingRules, RoutingRule
 
 from effect import (
     Effect, sync_perform, ComposedDispatcher)
@@ -56,7 +59,7 @@ from .aws import (
     UploadToS3,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
-
+    UpdateS3RoutingRules
 )
 
 from .yum import (
@@ -154,8 +157,47 @@ DOCUMENTATION_CONFIGURATIONS = {
 }
 
 
+def parse_routing_rules(routing_config, hostname):
+    """
+    Parse routing rule description.
+
+    The configuration is a dictionary. The top-level keys are common prefixes
+    for the rules in them. Each top-level key maps to a dictionary that maps
+    the rest of a prefix to the redirection target. A redirection target is a
+    dictionary of keyword arguments to ``boto.s3.website.Redirect``. If no
+    hostname is provided in the redirection target, then the passed hostname is
+    used, and the common prefix is prepended to the redirection target.
+
+    :param routing_config: ``dict`` containing the routing configuration.
+    :param bytes hostname: The hostname the bucket is hosted at.
+
+    :return: Parsed routing rules.
+    :rtype: ``boto.s3.website.RoutingRules``
+    """
+    rules = []
+    for prefix, relative_redirects in routing_config.items():
+        for postfix, destination in relative_redirects.items():
+            destination.setdefault('http_redirect_code', '302')
+            destination['protocol'] = 'https'
+            if 'hostname' not in destination.keys():
+                destination['hostname'] = hostname
+                for key in ('replace_key', 'replace_key_prefix'):
+                    if key in destination:
+                        destination[key] = prefix + destination[key]
+            rules.append(RoutingRule.when(
+                key_prefix=prefix+postfix,
+            ).then_redirect(**destination))
+
+    # Sort the rules in reverse order of prefix to match, so that
+    # long-match wins.
+    return RoutingRules(
+        sorted(rules, key=lambda rule: rule.condition.key_prefix,
+               reverse=True)
+    )
+
+
 @do
-def publish_docs(flocker_version, doc_version, environment):
+def publish_docs(flocker_version, doc_version, environment, routing_config):
     """
     Publish the Flocker documentation. The documentation for each version of
     Flocker is uploaded to a development bucket on S3 by the build server and
@@ -169,6 +211,7 @@ def publish_docs(flocker_version, doc_version, environment):
     :param bytes doc_version: The version to publish the documentation as.
     :param Environments environment: The environment to publish the
         documentation to.
+    :param dict routing_config: The loaded routing configuration (see ``parse_routing_rules`` for details).
     :raises NotARelease: Raised if trying to publish to a version that isn't a
         release.
     :raises NotTagged: Raised if publishing to production and the version being
@@ -267,6 +310,11 @@ def publish_docs(flocker_version, doc_version, environment):
                      for key_name in changed_keys
                      for prefix in [stable_prefix, version_prefix]}
 
+    yield Effect(UpdateS3RoutingRules(
+        bucket=configuration.documentation_bucket,
+        routing_rules=parse_routing_rules(routing_config, configuration.cloudfront_cname),
+    ))
+
     # Invalidate all the changed paths in cloudfront.
     yield Effect(
         CreateCloudFrontInvalidation(cname=configuration.cloudfront_cname,
@@ -318,13 +366,16 @@ def publish_docs_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
+    redirects_path = top_level.descendant(['docs', 'redirects.yaml'])
+    routing_config = yaml.safe_load(redirects_path.getContent())
     try:
-        sync_perform(
+       sync_perform(
             dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
             effect=publish_docs(
                 flocker_version=options['flocker-version'],
                 doc_version=options['doc-version'],
                 environment=options.environment,
+                routing_config=routing_config,
                 ))
     except NotARelease:
         sys.stderr.write("%s: Can't publish non-release.\n"
@@ -792,7 +843,11 @@ def initialize_release(version, path, top_level):
     release_path = path.child("flocker-release-{}".format(version))
     sys.stdout.write("Cloning repo in {}...\n".format(release_path.path))
 
-    release_repo = Repo.init(release_path.path)
+    release_repo = Repo.clone(
+        release_path.path,
+        reference=top_level.path,
+        dissociate=True,
+    )
     release_origin = release_repo.create_remote('origin', REMOTE_URL)
     release_origin.fetch()
 
@@ -824,7 +879,7 @@ def initialize_release(version, path, top_level):
         os.environ["LDFLAGS"] = '-L{}/lib" CFLAGS="-I{}/include'.format(
             brew_openssl, brew_openssl)
     check_call(
-        ["pip install --process-dependency-links -e .[dev]"], shell=True,
+        ["pip install -e .[dev]"], shell=True,
         stdout=open(os.devnull, 'w'))
 
     sys.stdout.write("Updating LICENSE file...\n")
