@@ -114,11 +114,11 @@ class SampleTest(TestCase):
         sampled = sample(
             FakeOperation(repeat(False)), FakeMetric(repeat(5)), 1)
 
-        def filter(sample):
+        def replace_reason_with_type(sample):
             if 'reason' in sample:
                 sample['reason'] = type(sample['reason'])
             return sample
-        sampled.addCallback(filter)
+        sampled.addCallback(replace_reason_with_type)
 
         self.assertEqual(
             self.successResultOf(sampled), {'success': False, 'reason': str}
