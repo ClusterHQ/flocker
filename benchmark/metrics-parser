@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Read JSON metrics files from the benchmarking tool and produce a CSV report.
+"""
+import sys
+
+from benchmark.metrics_parser import main
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
