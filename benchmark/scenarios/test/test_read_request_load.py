@@ -14,8 +14,8 @@ from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
-    RequestRateTooLow, RequestRateNotReached,
-    RequestOverload, read_request_load_scenario, RequestScenarioAlreadyStarted,
+    read_request_load_scenario, RequestRateTooLow, RequestOverload,
+    RequestScenarioAlreadyStarted,
 )
 
 DEFAULT_VOLUME_SIZE = 1073741824
