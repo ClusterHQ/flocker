@@ -882,7 +882,7 @@ common_cli:
     # run flake8 lint tests on Flocker source code
     flake8 --format=pylint --output flake8.lint.txt flocker
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    pylint flocker > pylint.lint.txt
+    pylint benchmark flocker > pylint.lint.txt
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
     set -e
 
