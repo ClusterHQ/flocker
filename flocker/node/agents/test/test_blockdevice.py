@@ -77,6 +77,7 @@ from ..blockdevice import (
     CREATE_VOLUME_PROFILE_DROPPED,
     DISCOVERED_RAW_STATE,
     ATTACH_VOLUME,
+    UNREGISTERED_VOLUME_ATTACHED,
 
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
@@ -1179,6 +1180,113 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
                     blockdevice_id=volume.blockdevice_id,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device_path,
+                ),
+            ],
+        )
+
+    def test_unregistered(self):
+        """
+        If a blockdevice associated to a dataset exists, but the dataset
+        isn't registered as owning a blockdevie, the dataset is reported as
+        ``UNREGISTERED``.
+        """
+        dataset_id = uuid4()
+        volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        assert_discovered_state(
+            self, self.deployer,
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.UNREGISTGERED,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
+        )
+
+    def test_registered(self):
+        """
+        If a blockdevice associated to a dataset doesn't exist, but the dataset
+        is registered as owning a blockdevie, the dataset is reported as
+        ``REGISTERED``.
+        """
+        dataset_id = uuid4()
+        assert_discovered_state(
+            self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: u"no-such-volume",
+                }
+            ),
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.REGISTERED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=u"no-such-volume",
+                ),
+            ],
+        )
+
+    def test_registered_other_blockdevice(self):
+        """
+        If a blockdevice associated to a dataset doesn't exist, but the dataset
+        is registered as owning a blockdevie, the dataset is reported as
+        ``REGISTERED``.
+        """
+        dataset_id = uuid4()
+        self.api.create_volume(
+            dataset_id=dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        assert_discovered_state(
+            self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: u"no-such-volume",
+                }
+            ),
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.REGISTERED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=u"no-such-volume",
+                ),
+            ],
+        )
+
+    @capture_logging(assertHasMessage, UNREGISTERED_VOLUME_ATTACHED)
+    def test_registered_other_blockdevice_attached(self, logger):
+        """
+        If a blockdevice associated to a dataset doesn't exist, but the dataset
+        is registered as owning a blockdevie, the dataset is reported as
+        ``REGISTERED``.
+        """
+        self.patch(blockdevice, "_logger", logger)
+
+        dataset_id = uuid4()
+        volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        self.api.attach_volume(
+            volume.blockdevice_id,
+            attach_to=self.this_node,
+        )
+        assert_discovered_state(
+            self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: u"no-such-volume",
+                }
+            ),
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.REGISTERED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=u"no-such-volume",
                 ),
             ],
         )
