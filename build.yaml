@@ -1623,6 +1623,7 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_PROVIDER=aws',
+                   'export BENCHMARK_NODES=2',
                    *setup_benchmarking_cluster,
                    *run_benchmarking,
                    *clean_packages,
@@ -1650,7 +1651,7 @@ job_type:
                    *build_repo_metadata,
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_PROVIDER=aws',
-                   'export BENCHMARK_NODES=10'
+                   'export BENCHMARK_NODES=10',
                    *setup_benchmarking_cluster,
                    *run_benchmarking,
                    *clean_packages,
