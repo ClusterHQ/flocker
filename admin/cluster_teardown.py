@@ -6,9 +6,9 @@ from twisted.internet.defer import DeferredList, inlineCallbacks, succeed
 from twisted.python.usage import UsageError
 
 from .acceptance import (
-    eliot_output,
+    ComputeResourceOptions,
+    configure_eliot_logging_for_acceptance,
     make_managed_nodes,
-    RunOptions
 )
 
 
@@ -19,8 +19,8 @@ def main(reactor, args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the Flocker repository.
     """
-    add_destination(eliot_output)
-    options = RunOptions(top_level=top_level)
+    configure_eliot_logging_for_acceptance()
+    options = ComputeResourceOptions(top_level=top_level)
     try:
         options.parseOptions(args)
     except UsageError as e:
@@ -33,7 +33,7 @@ def main(reactor, args, base_path, top_level):
     # of the configuration.
     existing_nodes = make_managed_nodes(
         options['config']['managed']['addresses'],
-        options['distribution']
+        options['config']['metadata']['distribution']
     )
     node_ips = [node.address for node in existing_nodes]
     options.runner.gather_managed_nodes(reactor, node_ips)
