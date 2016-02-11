@@ -946,6 +946,15 @@ class ComputeResourceOptions(Options):
         :return: A ``list`` of ``str`` giving all such names.
         """
         return prefixedMethodNames(self.__class__, "_runner_")
+        
+    def postOptions(self):
+        super(ComputeResourceOptions, self).postOptions()
+        if self['config-file'] is not None:
+            config_file = FilePath(self['config-file'])
+            self['config'] = yaml.safe_load(config_file.getContent())
+        else:
+            self['config'] = {}
+
 
 class ProvisionerOptions(ComputeResourceOptions):
     """
@@ -1033,14 +1042,9 @@ class ProvisionerOptions(ComputeResourceOptions):
         )
 
     def postOptions(self):
+        super(ProvisionerOptions, self).postOptions()
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
-
-        if self['config-file'] is not None:
-            config_file = FilePath(self['config-file'])
-            self['config'] = yaml.safe_load(config_file.getContent())
-        else:
-            self['config'] = {}
 
         if self.get('cert-directory') is None:
             self['cert-directory'] = FilePath(mkdtemp())
