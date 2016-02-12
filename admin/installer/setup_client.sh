@@ -55,5 +55,8 @@ ${DOCKER_CERT_HOME}/createclient.exp
 # Copy Docker Certificates directory to Ubuntu's home directory.
 cp -r ${DOCKER_CERT_HOME} ${UBUNTU_HOME}
 
+# Cleanup S3 bucket used by CloudFormation so that subsequent stack destroy attempt succeeds.
+s3cmd_wrapper del --recursive --config=/root/.s3cfg s3://${s3_bucket}
+
 # Signal successful stack creation.
 curl ${SUCCESS_SIGNAL_URL} || echo "Failed to report success to ClusterHQ"
