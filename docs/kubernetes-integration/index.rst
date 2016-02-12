@@ -44,8 +44,8 @@ Tutorial
 
     <div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--tutorial">
-		   <span>Tutorial: using Flocker with Kubernetes</span>
-		     <a href="http://kubernetes.io/v1.1/examples/flocker/" target="_blank" class="button">Kubernetes Flocker Docs</a>
+		   <span>Tutorial: Using Flocker volumes, provided by Kubernetes</span>
+		     <a href="http://kubernetes.io/v1.1/examples/flocker/" target="_blank" class="button">Open the Kubernetes Tutorial</a>
 	    </div>
 	</div>
 
