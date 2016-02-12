@@ -193,7 +193,7 @@ def delete_cloudformation_stack(stack_id, aws_config):
     outputs = result['Outputs']
     s3_bucket_name = get_output(outputs, 'S3Bucket')
     aws_output(
-        ['aws', 's3', 'rb', 's3://{}'.format(s3_bucket_name), '--force'],
+        ['s3', 'rb', 's3://{}'.format(s3_bucket_name), '--force'],
         aws_config,
     )
 
