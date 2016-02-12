@@ -18,10 +18,10 @@ from twisted.python.filepath import FilePath
 
 from eliot import Message
 
-from ...common.runner import run_ssh
-from ...common import gather_deferreds, loop_until, retry_failure
-from ...testtools import AsyncTestCase, async_runner, random_name
-from ..testtools import (
+from flocker.common.runner import run_ssh
+from flocker.common import gather_deferreds, loop_until, retry_failure
+from flocker.testtools import AsyncTestCase, async_runner, random_name
+from flocker.acceptance.testtools import (
     connected_cluster, acceptance_yaml_for_test, extract_substructure_for_test
 )
 
