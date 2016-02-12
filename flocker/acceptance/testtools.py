@@ -37,6 +37,9 @@ from ..control import (
 )
 
 from ..common import gather_deferreds, loop_until, timeout, retry_failure
+from ..common.configuration import (
+    extract_substructure, MissingConfigError, Optional
+)
 from ..common.runner import download_file, run_ssh
 
 from ..control.httpapi import REST_API_PORT
@@ -767,7 +770,7 @@ class Cluster(PClass):
 
         d = get_flocker_version()
 
-        # If we fail to get the current version, assume we must reinstall
+        # If we fail to get the current version, assume we must ereinstall
         # flocker. The following line consumes the error, and continues down
         # the callback chain of the deferred.
         d.addErrback(write_failure)
@@ -1335,3 +1338,47 @@ def assert_http_server(test, host, port,
     d = query_http_server(host, port, path)
     d.addCallback(test.assertEqual, expected_response)
     return d
+
+
+def acceptance_yaml_for_test(test_case):
+    """
+    Load configuration from a yaml file specified in an environment variable.
+
+    Raises a SkipTest exception if the environment variable is not specified.
+    """
+    _ENV_VAR = 'ACCEPTANCE_YAML'
+    filename = environ.get(_ENV_VAR)
+    if not filename:
+        test_case.skip(
+            'Must set {} to an acceptance.yaml file ('
+            'http://doc-dev.clusterhq.com/gettinginvolved/appendix.html#acceptance-testing-configuration'  # noqa
+            ') plus additional keys in order to run this test.'.format(
+                _ENV_VAR))
+    with open(filename) as f:
+        config = yaml.safe_load(f)
+    return config
+
+
+def extract_substructure_for_test(test_case, substructure, config):
+    """
+    Extract the keys from the config in substructure, which may be a nested
+    dictionary.
+
+    Raises a ``unittest.SkipTest`` if the substructure is not found in the
+    configuration.
+
+    This can be used to load credentials all at once for testing purposes.
+    """
+    try:
+        return extract_substructure(config, substructure)
+    except MissingConfigError as e:
+        yaml.add_representer(
+            Optional,
+            lambda d, x: d.represent_scalar(u'tag:yaml.org,2002:str', repr(x)))
+        test_case.skip(
+            'Skipping test: could not get configuration: {}\n\n'
+            'In order to run this test, add ensure file at $ACCEPTANCE_YAML '
+            'has structure like:\n\n{}'.format(
+                e.message,
+                yaml.dump(substructure, default_flow_style=False))
+        )

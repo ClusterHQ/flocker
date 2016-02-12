@@ -21,8 +21,9 @@ from eliot import Message
 from ...common.runner import run_ssh
 from ...common import gather_deferreds, loop_until, retry_failure
 from ...testtools import AsyncTestCase, async_runner, random_name
-from ..testtools import connected_cluster
-
+from ..testtools import (
+    connected_cluster, acceptance_yaml_for_test, extract_substructure_for_test
+)
 
 RECREATE_STATEMENT = 'create table test(i int);'
 INSERT_STATEMENT = 'insert into test values(1);'
@@ -33,6 +34,8 @@ CLOUDFORMATION_STACK_NAME = 'testinstallerstack'
 POSTGRESQL_PORT = 5432
 POSTGRESQL_USERNAME = 'flocker'
 POSTGRESQL_PASSWORD = 'flocker'
+
+CLOUDFORMATION_TEMPLATE_URL = "https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json"  # noqa
 
 
 def remote_command(client_ip, command):
@@ -245,29 +248,39 @@ class DockerComposeTests(AsyncTestCase):
         environment variable. AWS credentials and CloudFormation parameter
         values must also be supplied as environment variables.
         """
-        template_url = os.environ.get('CLOUDFORMATION_TEMPLATE_URL')
-        if template_url is None:
-            self.skipTest(
-                'CLOUDFORMATION_TEMPLATE_URL environment variable not found. '
-            )
-        access_key_id = os.environ['ACCESS_KEY_ID']
-        secret_access_key = os.environ['SECRET_ACCESS_KEY']
+        config = extract_substructure_for_test(
+            test_case=self,
+            substructure=dict(
+                aws=dict(
+                    access_key="<AWS access key ID>",
+                    secret_access_token="<AWS secret access key>",
+                    keyname="<AWS SSH key pair name>"
+                ),
+            ),
+            config=acceptance_yaml_for_test(self)
+        )
+        template_url = os.environ.get(
+            'CLOUDFORMATION_TEMPLATE_URL', CLOUDFORMATION_TEMPLATE_URL
+        )
+
+        access_key_id = config["aws"]["access_key"]
+        secret_access_key = config["aws"]["secret_access_token"]
         parameters = [
             {
                 'ParameterKey': 'EC2KeyPair',
-                'ParameterValue': os.environ['KEY_PAIR']
+                'ParameterValue': config["aws"]["keyname"]
             },
             {
                 'ParameterKey': 'AmazonAccessKeyID',
-                'ParameterValue': os.environ['ACCESS_KEY_ID']
+                'ParameterValue': config["aws"]["access_key"]
             },
             {
                 'ParameterKey': 'AmazonSecretAccessKey',
-                'ParameterValue': os.environ['SECRET_ACCESS_KEY']
+                'ParameterValue': config["aws"]["secret_access_token"]
             },
             {
                 'ParameterKey': 'VolumeHubToken',
-                'ParameterValue': os.environ['VOLUMEHUB_TOKEN']
+                'ParameterValue': os.environ.get('VOLUMEHUB_TOKEN', '')
             }
         ]
 
