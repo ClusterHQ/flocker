@@ -110,6 +110,15 @@ def remote_postgres(client_ip, host, command):
 
 
 def aws_output(args, aws_config):
+    """
+    Run the ``aws`` command line tool with the supplied subcommand ``args`` and
+    the supplied ``aws_config`` as environment variables.
+
+    :param list args: The list of ``aws`` arguments (including sub-command).
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
+    :returns: The ``bytes`` output of the ``aws`` command.
+    """
     environment = os.environ.copy()
     environment.update(aws_config)
     return check_output(
@@ -123,6 +132,8 @@ def get_stack_report(stack_id, aws_config):
     Get information about a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
     :returns: A ``dict`` of information about the stack.
     """
     output = aws_output(
@@ -140,6 +151,8 @@ def wait_for_stack_status(stack_id, target_status, aws_config):
 
     :param unicode stack_id: The AWS cloudformation stack ID.
     :param unicode target_status: The desired stack status.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
     :returns: A ``Deferred`` which fires when the stack has ``target_status``.
     """
     def predicate():
@@ -163,7 +176,11 @@ def create_cloudformation_stack(template_url, parameters, aws_config):
     """
     Create a CloudFormation stack.
 
-    :param unicode stack_id: The AWS cloudformation stack ID.
+    :param unicode template_url: Cloudformation template URL on S3.
+    :param dict parameters: The parameters required by the template.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
+
     :returns: A ``Deferred`` which fires when the stack has been created.
     """
     # Request stack creation.
@@ -187,6 +204,8 @@ def delete_cloudformation_stack(stack_id, aws_config):
     Delete a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
     :returns: A ``Deferred`` which fires when the stack has been deleted.
     """
     result = get_stack_report(stack_id, aws_config)
