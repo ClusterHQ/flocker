@@ -102,7 +102,7 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def get_trial_environment(cluster, package_source, options):
+def get_trial_environment(cluster, package_source):
     """
     Return a dictionary of environment variables describing a cluster for
     acceptance testing.
@@ -114,7 +114,6 @@ def get_trial_environment(cluster, package_source, options):
         under test.
     """
     return {
-        'ACCEPTANCE_YAML': options["config-file"],
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
         'FLOCKER_ACCEPTANCE_NUM_AGENT_NODES': str(len(cluster.agent_nodes)),
         'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': cluster.dataset_backend.name,
@@ -137,7 +136,7 @@ def get_trial_environment(cluster, package_source, options):
     }
 
 
-def run_tests(reactor, cluster, trial_args, package_source, options):
+def run_tests(reactor, cluster, trial_args, package_source):
     """
     Run the acceptance tests.
 
@@ -163,7 +162,7 @@ def run_tests(reactor, cluster, trial_args, package_source, options):
         reactor,
         ['trial'] + list(trial_args),
         env=extend_environ(
-            **get_trial_environment(cluster, package_source, options)
+            **get_trial_environment(cluster, package_source)
         )
     ).addCallbacks(
         callback=lambda _: 0,
@@ -1504,9 +1503,7 @@ def main(reactor, args, base_path, top_level):
             reactor=reactor,
             cluster=cluster,
             trial_args=options['trial-args'],
-            package_source=options.package_source(),
-            options=options
-        )
+            package_source=options.package_source())
     finally:
         reached_finally = True
         # We delete the nodes if the user hasn't asked to keep them
@@ -1521,8 +1518,7 @@ def main(reactor, args, base_path, top_level):
                    "set the following environment variables: ")
 
             environment_variables = get_trial_environment(
-                cluster, options.package_source(), options
-            )
+                cluster, options.package_source())
 
             for environment_variable in environment_variables:
                 print "export {name}={value};".format(
