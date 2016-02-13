@@ -276,8 +276,8 @@ class DockerComposeTests(AsyncTestCase):
     def _new_stack(self):
         """
         Create a new CloudFormation stack from a template URL supplied as an
-        environment variable. AWS credentials and CloudFormation parameter
-        values must also be supplied as environment variables.
+        environment variable. AWS credentials and CloudFormation parameters are
+        gathered from an ``acceptance.yml`` style configuration file.
         """
         config = extract_substructure_for_test(
             test_case=self,

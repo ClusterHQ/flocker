@@ -770,7 +770,7 @@ class Cluster(PClass):
 
         d = get_flocker_version()
 
-        # If we fail to get the current version, assume we must ereinstall
+        # If we fail to get the current version, assume we must reinstall
         # flocker. The following line consumes the error, and continues down
         # the callback chain of the deferred.
         d.addErrback(write_failure)

@@ -1622,8 +1622,9 @@ job_type:
       clean_repo: true
       archive_artifacts: *flocker_artifacts
       publish_test_results: true
-      # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
-      timeout: 120
+      # CloudFormation stack creation takes 5-10 minutes and the test itself
+      # may take another 10. Give 30 minutes to be sure.
+      timeout: 30
       directories_to_delete: []
 
 
