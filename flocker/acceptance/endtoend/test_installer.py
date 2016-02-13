@@ -176,13 +176,6 @@ def delete_cloudformation_stack(stack_id):
     :param unicode stack_id: The AWS cloudformation stack ID.
     :returns: A ``Deferred`` which fires when the stack has been deleted.
     """
-    result = get_stack_report(stack_id)
-    outputs = result['Outputs']
-    s3_bucket_name = get_output(outputs, 'S3Bucket')
-    check_output(
-        ['aws', 's3', 'rb', 's3://{}'.format(s3_bucket_name), '--force']
-    )
-
     check_output(
         ['aws', 'cloudformation', 'delete-stack',
          '--stack-name', stack_id]
