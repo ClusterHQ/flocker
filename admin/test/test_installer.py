@@ -311,6 +311,10 @@ class DockerComposeTests(AsyncTestCase):
             {
                 'ParameterKey': 'VolumeHubToken',
                 'ParameterValue': os.environ.get('VOLUMEHUB_TOKEN', '')
+            },
+            {
+                'ParameterKey': 'S3AccessPolicy',
+                'ParameterValue': 'Yes'
             }
         ]
 
