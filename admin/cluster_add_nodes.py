@@ -5,7 +5,7 @@ Provision new nodes and add them to an existing cluster.
 
 import sys
 
-from eliot import FileDestination, add_destination
+from eliot import FileDestination
 
 from twisted.internet.defer import DeferredList, inlineCallbacks
 from twisted.python.usage import UsageError

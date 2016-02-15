@@ -10,7 +10,7 @@ import yaml
 from itertools import repeat
 from pipes import quote as shell_quote
 
-from eliot import FileDestination, add_destination, write_failure
+from eliot import FileDestination, write_failure
 from pyrsistent import pvector
 from txeffect import perform
 

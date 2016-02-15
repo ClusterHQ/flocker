@@ -939,7 +939,7 @@ class CommonOptions(Options):
          lambda option_value: _validate_version_option(
              option_name=u'flocker-version',
              option_value=option_value
-            )],
+             )],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server for package downloads'],
         ['number-of-nodes', None,

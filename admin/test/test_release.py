@@ -4,7 +4,6 @@
 Tests for ``admin.release``.
 """
 
-import json
 import os
 
 from hashlib import sha256
@@ -59,10 +58,10 @@ def hard_linking_possible():
     return False.
     """
     scratch_directory = FilePath(tempfile.mkdtemp())
-    file = scratch_directory.child('src')
-    file.touch()
+    test_file = scratch_directory.child('src')
+    test_file.touch()
     try:
-        os.link(file.path, scratch_directory.child('dst').path)
+        os.link(test_file.path, scratch_directory.child('dst').path)
         return True
     except:
         return False
@@ -214,12 +213,18 @@ class PublishDocsTests(TestCase):
                 'clusterhq-staging-docs': {
                     'index.html': '',
                     'en/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
-                    'release/flocker-0.3.0+444.gf05215b/other.html': 'other-content',
-                    'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
-                    'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
-                    'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
+                    'release/flocker-0.3.0+444.gf05215b/index.html':
+                        'index-content',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html':
+                        'sub-index-content',
+                    'release/flocker-0.3.0+444.gf05215b/other.html':
+                        'other-content',
+                    'release/flocker-0.3.0+392.gd50b558/index.html':
+                        'bad-index',
+                    'release/flocker-0.3.0+392.gd50b558/sub/index.html':
+                        'bad-sub-index',
+                    'release/flocker-0.3.0+392.gd50b558/other.html':
+                        'bad-other',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -229,12 +234,18 @@ class PublishDocsTests(TestCase):
                 # originals
                 'index.html': '',
                 'en/index.html': '',
-                'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
-                'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
-                'release/flocker-0.3.0+444.gf05215b/other.html': 'other-content',
-                'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
-                'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
-                'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
+                'release/flocker-0.3.0+444.gf05215b/index.html':
+                    'index-content',
+                'release/flocker-0.3.0+444.gf05215b/sub/index.html':
+                    'sub-index-content',
+                'release/flocker-0.3.0+444.gf05215b/other.html':
+                    'other-content',
+                'release/flocker-0.3.0+392.gd50b558/index.html':
+                    'bad-index',
+                'release/flocker-0.3.0+392.gd50b558/sub/index.html':
+                    'bad-sub-index',
+                'release/flocker-0.3.0+392.gd50b558/other.html':
+                    'bad-other',
                 # and new copies
                 'en/latest/index.html': 'index-content',
                 'en/latest/sub/index.html': 'sub-index-content',
@@ -261,12 +272,18 @@ class PublishDocsTests(TestCase):
                     'en/latest/index.html': '',
                 },
                 'clusterhq-staging-docs': {
-                    'release/flocker-0.3.1/index.html': 'index-content',
-                    'release/flocker-0.3.1/sub/index.html': 'sub-index-content',
-                    'release/flocker-0.3.1/other.html': 'other-content',
-                    'release/flocker-0.3.0+392.gd50b558/index.html': 'bad-index',
-                    'release/flocker-0.3.0+392.gd50b558/sub/index.html': 'bad-sub-index',
-                    'release/flocker-0.3.0+392.gd50b558/other.html': 'bad-other',
+                    'release/flocker-0.3.1/index.html':
+                        'index-content',
+                    'release/flocker-0.3.1/sub/index.html':
+                        'sub-index-content',
+                    'release/flocker-0.3.1/other.html':
+                        'other-content',
+                    'release/flocker-0.3.0+392.gd50b558/index.html':
+                        'bad-index',
+                    'release/flocker-0.3.0+392.gd50b558/sub/index.html':
+                        'bad-sub-index',
+                    'release/flocker-0.3.0+392.gd50b558/other.html':
+                        'bad-other',
                 }
             })
         self.publish_docs(aws, '0.3.1', '0.3.1',
@@ -303,8 +320,10 @@ class PublishDocsTests(TestCase):
                     'en/0.3.1/index.html': 'old-index-content',
                     'en/0.3.1/sub/index.html': 'old-sub-index-content',
                     'en/0.3.1/other.html': 'other-content',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                    'release/flocker-0.3.0+444.gf05215b/index.html':
+                        'index-content',
+                    'release/flocker-0.3.0+444.gf05215b/sub/index.html':
+                        'sub-index-content',
                 },
             })
         self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
@@ -318,8 +337,10 @@ class PublishDocsTests(TestCase):
                 'en/0.3.1/index.html': 'index-content',
                 'en/0.3.1/sub/index.html': 'sub-index-content',
                 # and the originals
-                'release/flocker-0.3.0+444.gf05215b/index.html': 'index-content',
-                'release/flocker-0.3.0+444.gf05215b/sub/index.html': 'sub-index-content',
+                'release/flocker-0.3.0+444.gf05215b/index.html':
+                    'index-content',
+                'release/flocker-0.3.0+444.gf05215b/sub/index.html':
+                    'sub-index-content',
             })
 
     def test_updated_routing_rules(self):
@@ -1150,13 +1171,13 @@ class UpdateRepoTests(TestCase):
                 'other.xml.gz',
                 ]:
             for key in files_on_s3:
-                if (key.endswith(metadata_file)
-                        and key.startswith(repodata_path)):
+                if (key.endswith(metadata_file) and
+                        key.startswith(repodata_path)):
                     expected_files.add(
                         os.path.join(
                             repodata_path,
-                            sha256(files_on_s3[key]).hexdigest()
-                            + '-' + metadata_file)
+                            sha256(files_on_s3[key]).hexdigest() +
+                            '-' + metadata_file)
                     )
                     break
             else:
@@ -1276,7 +1297,8 @@ class UploadPackagesTests(TestCase):
         self.build_server = 'http://test-build-server.example'
 
     # XXX: FLOC-3540 remove skip once the support for Ubuntu 15.10 is released
-    @skipIf(True, "Skipping until the changes to support Ubuntu 15.10 are released - FLOC-3540")
+    @skipIf(True, "Skipping until the changes to support Ubuntu 15.10 "
+            "are released - FLOC-3540")
     def test_repositories_created(self):
         """
         Calling :func:`upload_packages` creates repositories for supported
@@ -1333,7 +1355,8 @@ class UploadPackagesTests(TestCase):
         self.assertEqual(expected_files, set(files_on_s3))
 
     # XXX: FLOC-3540 remove skip once the support for Ubuntu 15.10 is released
-    @skipIf(True, "Skipping until the changes to support Ubuntu 15.10 are released - FLOC-3540")
+    @skipIf(True, "Skipping until the changes to support Ubuntu 15.10"
+            " are released - FLOC-3540")
     def test_key_suffixes(self):
         """
         The OS part of the keys for created repositories have suffixes (or not)
@@ -1772,8 +1795,8 @@ class CalculateBaseBranchTests(TestCase):
 
         self.assertEqual(
             calculate_base_branch(
-                    version='0.3.0rc2',
-                    path=clone.working_dir).name,
+                version='0.3.0rc2',
+                path=clone.working_dir).name,
             "master")
 
 
