@@ -161,7 +161,7 @@ keyname_param = template.add_parameter(Parameter(
                 "access to the instance",
     Type="AWS::EC2::KeyPair::KeyName",
 ))
-secret_access_key_param = template.add_parameter(Parameter(
+template.add_parameter(Parameter(
     "S3AccessPolicy",
     Description="Required: Is current IAM user allowed to access S3? "
                 "S3 access is required to distribute Flocker and Docker "
