@@ -468,10 +468,7 @@ common_cli:
     # We pass the URL of our Jenkins Slave to the acceptance test nodes
     # through the --build-server parameter below.
     #
-    # XXX Temporarily disable node cleanup so that there's something for the
-    # cleanup_cloud_resources script to do.
     ${venv}/bin/python admin/run-acceptance-tests \
-    --keep \
     --distribution ${DISTRIBUTION_NAME} \
     --provider ${ACCEPTANCE_TEST_PROVIDER} \
     --dataset-backend ${ACCEPTANCE_TEST_PROVIDER} \

@@ -1,6 +1,13 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
 Utilities for cloud resource cleanup.
+
+XXX: This whole file needs refactoring to share helper functions from elsewhere
+in flocker.acceptance, flocker.provisioning and admin.acceptance.
+Additionally, there a bunch of free functions whose only purpose is to hide the
+differences between the libcloud EC2 and OpenStack drivers. It would be better
+to have an interface for the operations we need and cloud specific
+implementations of that interface.
 """
 from datetime import datetime, timedelta
 import json
@@ -62,6 +69,8 @@ def _get_node_creation_time(node):
     Get the creation time of a libcloud node.
 
     Rackspace and EC2 store the information in different metadeta.
+
+    EC2 nodes have a ``launch_time`` while Rackspace nodes have ``created``.
 
     :return: The creation time, if available.
     :rtype: datetime or None
@@ -256,7 +265,7 @@ class CleanVolumes(object):
 class CleanAcceptanceNodes(object):
     """
     :ivar timedelta lag: The age of nodes to destroy.
-    :param prefixes: List of prefixes of nodes to destroy.
+    :ivar list  prefixes: List of prefixes of nodes to destroy.
     """
     def start(self, config):
         # Get the libcloud drivers corresponding to the acceptance tests.
@@ -266,6 +275,8 @@ class CleanAcceptanceNodes(object):
 
         # Get the prefixes of the node names, appending the creator from
         # the config.
+        # XXX: Refactor this to share ``_make_node_name`` in:
+        # https://github.com/ClusterHQ/flocker/blob/43befe2d0d34ed62f6e96748a6416e646d38dcb4/admin/acceptance.py#L767
         creator = config['metadata']['creator']
         prefixes = tuple(map(lambda prefix: prefix + creator, self.prefixes))
 
