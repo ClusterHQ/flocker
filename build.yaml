@@ -1600,6 +1600,33 @@ job_type:
           "cleanup_cloud_resources.stderr"
       ]
 
+    run_admin_test_test_installer:
+      at: '0 8 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      module: admin.test.test_installer
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   *add_shell_functions,
+                   *setup_pip_cache,
+                   *cleanup,
+                   *setup_venv,
+                   *setup_flocker_modules,
+                   *setup_coverage,
+                   *setup_aws_env_vars,
+                   'export ACCEPTANCE_YAML=/tmp/acceptance.yaml',
+                   *run_trial_with_coverage,
+                   *run_coverage,
+                   *convert_results_to_junit ]
+        }
+      clean_repo: true
+      archive_artifacts: *flocker_artifacts
+      publish_test_results: true
+      # CloudFormation stack creation takes 5-10 minutes and the test itself
+      # may take another 10. Give 30 minutes to be sure.
+      timeout: 30
+      directories_to_delete: []
+
 
 
 #-----------------------------------------------------------------------------#

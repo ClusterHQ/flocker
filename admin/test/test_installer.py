@@ -18,11 +18,12 @@ from twisted.python.filepath import FilePath
 
 from eliot import Message
 
-from ...common.runner import run_ssh
-from ...common import gather_deferreds, loop_until, retry_failure
-from ...testtools import AsyncTestCase, async_runner, random_name
-from ..testtools import connected_cluster
-
+from flocker.common.runner import run_ssh
+from flocker.common import gather_deferreds, loop_until, retry_failure
+from flocker.testtools import AsyncTestCase, async_runner, random_name
+from flocker.acceptance.testtools import (
+    connected_cluster, acceptance_yaml_for_test, extract_substructure_for_test
+)
 
 RECREATE_STATEMENT = 'create table test(i int);'
 INSERT_STATEMENT = 'insert into test values(1);'
@@ -33,6 +34,8 @@ CLOUDFORMATION_STACK_NAME = 'testinstallerstack'
 POSTGRESQL_PORT = 5432
 POSTGRESQL_USERNAME = 'flocker'
 POSTGRESQL_PASSWORD = 'flocker'
+
+CLOUDFORMATION_TEMPLATE_URL = "https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json"  # noqa
 
 
 def remote_command(client_ip, command):
@@ -106,31 +109,54 @@ def remote_postgres(client_ip, host, command):
     )
 
 
-def get_stack_report(stack_id):
+def aws_output(args, aws_config):
+    """
+    Run the ``aws`` command line tool with the supplied subcommand ``args`` and
+    the supplied ``aws_config`` as environment variables.
+
+    :param list args: The list of ``aws`` arguments (including sub-command).
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
+    :returns: The ``bytes`` output of the ``aws`` command.
+    """
+    environment = os.environ.copy()
+    environment.update(aws_config)
+    return check_output(
+        ['aws'] + args,
+        env=environment
+    )
+
+
+def get_stack_report(stack_id, aws_config):
     """
     Get information about a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
     :returns: A ``dict`` of information about the stack.
     """
-    output = check_output(
-        ['aws', 'cloudformation', 'describe-stacks',
-         '--stack-name', stack_id]
+    output = aws_output(
+        ['cloudformation', 'describe-stacks',
+         '--stack-name', stack_id],
+        aws_config
     )
     results = json.loads(output)
     return results['Stacks'][0]
 
 
-def wait_for_stack_status(stack_id, target_status):
+def wait_for_stack_status(stack_id, target_status, aws_config):
     """
     Poll the status of a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
     :param unicode target_status: The desired stack status.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
     :returns: A ``Deferred`` which fires when the stack has ``target_status``.
     """
     def predicate():
-        stack_report = get_stack_report(stack_id)
+        stack_report = get_stack_report(stack_id, aws_config)
         current_status = stack_report['StackStatus']
         Message.log(
             function='wait_for_stack_status',
@@ -146,49 +172,57 @@ def wait_for_stack_status(stack_id, target_status):
                       repeat(10, 120))
 
 
-def create_cloudformation_stack(template_url, access_key_id,
-                                secret_access_key, parameters):
+def create_cloudformation_stack(template_url, parameters, aws_config):
     """
     Create a CloudFormation stack.
 
-    :param unicode stack_id: The AWS cloudformation stack ID.
+    :param unicode template_url: Cloudformation template URL on S3.
+    :param dict parameters: The parameters required by the template.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
+
     :returns: A ``Deferred`` which fires when the stack has been created.
     """
     # Request stack creation.
     stack_name = CLOUDFORMATION_STACK_NAME + str(int(time.time()))
-    output = check_output(
-        ['aws', 'cloudformation', 'create-stack',
+    output = aws_output(
+        ['cloudformation', 'create-stack',
          '--disable-rollback',
          '--parameters', json.dumps(parameters),
          '--stack-name', stack_name,
-         '--template-url', template_url]
+         '--template-url', template_url],
+        aws_config
     )
     output = json.loads(output)
     stack_id = output['StackId']
     Message.new(cloudformation_stack_id=stack_id)
-    return wait_for_stack_status(stack_id, 'CREATE_COMPLETE')
+    return wait_for_stack_status(stack_id, 'CREATE_COMPLETE', aws_config)
 
 
-def delete_cloudformation_stack(stack_id):
+def delete_cloudformation_stack(stack_id, aws_config):
     """
     Delete a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
     :returns: A ``Deferred`` which fires when the stack has been deleted.
     """
-    result = get_stack_report(stack_id)
+    result = get_stack_report(stack_id, aws_config)
     outputs = result['Outputs']
     s3_bucket_name = get_output(outputs, 'S3Bucket')
-    check_output(
-        ['aws', 's3', 'rb', 's3://{}'.format(s3_bucket_name), '--force']
+    aws_output(
+        ['s3', 'rb', 's3://{}'.format(s3_bucket_name), '--force'],
+        aws_config,
     )
 
-    check_output(
-        ['aws', 'cloudformation', 'delete-stack',
-         '--stack-name', stack_id]
+    aws_output(
+        ['cloudformation', 'delete-stack',
+         '--stack-name', stack_id],
+        aws_config,
     )
 
-    return wait_for_stack_status(stack_id, 'DELETE_COMPLETE')
+    return wait_for_stack_status(stack_id, 'DELETE_COMPLETE', aws_config)
 
 
 def get_output(outputs, key):
@@ -242,32 +276,41 @@ class DockerComposeTests(AsyncTestCase):
     def _new_stack(self):
         """
         Create a new CloudFormation stack from a template URL supplied as an
-        environment variable. AWS credentials and CloudFormation parameter
-        values must also be supplied as environment variables.
+        environment variable. AWS credentials and CloudFormation parameters are
+        gathered from an ``acceptance.yml`` style configuration file.
         """
-        template_url = os.environ.get('CLOUDFORMATION_TEMPLATE_URL')
-        if template_url is None:
-            self.skipTest(
-                'CLOUDFORMATION_TEMPLATE_URL environment variable not found. '
-            )
-        access_key_id = os.environ['ACCESS_KEY_ID']
-        secret_access_key = os.environ['SECRET_ACCESS_KEY']
+        config = extract_substructure_for_test(
+            test_case=self,
+            substructure=dict(
+                aws=dict(
+                    access_key=u"<AWS access key ID>",
+                    secret_access_token=u"<AWS secret access key>",
+                    keyname=u"<AWS SSH key pair name>",
+                    region=u"<AWS region code>"
+                ),
+            ),
+            config=acceptance_yaml_for_test(self)
+        )
+        template_url = os.environ.get(
+            'CLOUDFORMATION_TEMPLATE_URL', CLOUDFORMATION_TEMPLATE_URL
+        )
+
         parameters = [
             {
                 'ParameterKey': 'EC2KeyPair',
-                'ParameterValue': os.environ['KEY_PAIR']
+                'ParameterValue': config["aws"]["keyname"]
             },
             {
                 'ParameterKey': 'AmazonAccessKeyID',
-                'ParameterValue': os.environ['ACCESS_KEY_ID']
+                'ParameterValue': config["aws"]["access_key"]
             },
             {
                 'ParameterKey': 'AmazonSecretAccessKey',
-                'ParameterValue': os.environ['SECRET_ACCESS_KEY']
+                'ParameterValue': config["aws"]["secret_access_token"]
             },
             {
                 'ParameterKey': 'VolumeHubToken',
-                'ParameterValue': os.environ['VOLUMEHUB_TOKEN']
+                'ParameterValue': os.environ.get('VOLUMEHUB_TOKEN', '')
             },
             {
                 'ParameterKey': 'S3AccessPolicy',
@@ -275,10 +318,13 @@ class DockerComposeTests(AsyncTestCase):
             }
         ]
 
-        d = create_cloudformation_stack(
-            template_url,
-            access_key_id, secret_access_key, parameters
+        aws_config = dict(
+            AWS_ACCESS_KEY_ID=config["aws"]["access_key"],
+            AWS_SECRET_ACCESS_KEY=config["aws"]["secret_access_token"],
+            AWS_DEFAULT_REGION=config["aws"]["region"],
         )
+
+        d = create_cloudformation_stack(template_url, parameters, aws_config)
 
         def set_stack_variables(stack_report):
             outputs = stack_report['Outputs']
@@ -288,7 +334,9 @@ class DockerComposeTests(AsyncTestCase):
                     self, variable_name, get_output(outputs, stack_output_name)
                 )
             if 'KEEP_STACK' not in os.environ:
-                self.addCleanup(delete_cloudformation_stack, stack_id)
+                self.addCleanup(
+                    delete_cloudformation_stack, stack_id, aws_config
+                )
         d.addCallback(set_stack_variables)
         return d
 
