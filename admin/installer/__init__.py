@@ -14,6 +14,6 @@ from ._cloudformation_helper import (
 
 __all__ = [
     "publish_installer_images_main",
-    MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE,
-    InvalidClusterSizeException
+    'MIN_CLUSTER_SIZE', 'MAX_CLUSTER_SIZE',
+    'InvalidClusterSizeException'
 ]

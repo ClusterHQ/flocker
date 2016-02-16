@@ -87,7 +87,7 @@ class Distribution(object):
         """
         :return: A ``Distribution`` representing the current platform.
         """
-        name, version, id = (
+        name, version, _ = (
             platform.linux_distribution(full_distribution_name=False))
         return klass(name=name.lower(), version=version)
 
@@ -663,13 +663,17 @@ IGNORED_WARNINGS = {
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
 
-        # files included by netaddr - we put the whole python we need in the flocker package, and lint complains.
-        # See:
+        # files included by netaddr - we put the whole python we need in the
+        # flocker package, and lint complains. See:
         # https://lintian.debian.org/tags/package-installs-ieee-data.html
-        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/iab.idx",
-        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/iab.txt",
-        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/oui.idx",
-        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/netaddr/eui/oui.txt",
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/"
+        "netaddr/eui/iab.idx",
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/"
+        "netaddr/eui/iab.txt",
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/"
+        "netaddr/eui/oui.idx",
+        "package-installs-ieee-data opt/flocker/lib/python2.7/site-packages/"
+        "netaddr/eui/oui.txt",
         "package-contains-timestamped-gzip",
         "systemd-service-file-outside-lib",
     ),
@@ -753,37 +757,37 @@ class PACKAGE(Values):
 
 class PACKAGE_PYTHON(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Flocker: a container data volume manager for your '
-        + 'Dockerized applications\n'
-        + fill('This is the base package of scripts and libraries.', 79)
+        'Flocker: a container data volume manager for your ' +
+        'Dockerized applications\n' +
+        fill('This is the base package of scripts and libraries.', 79)
     )
 
 
 class PACKAGE_CLI(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Flocker: a container data volume manager for your'
-        + ' Dockerized applications\n'
-        + fill('This meta-package contains links to the Flocker client '
-               'utilities, and has only the dependencies required to run '
-               'those tools', 79)
+        'Flocker: a container data volume manager for your' +
+        ' Dockerized applications\n' +
+        fill('This meta-package contains links to the Flocker client '
+             'utilities, and has only the dependencies required to run '
+             'those tools', 79)
     )
 
 
 class PACKAGE_NODE(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Flocker: a container data volume manager for your'
-        + ' Dockerized applications\n'
-        + fill('This meta-package contains links to the Flocker node '
-               'utilities, and has only the dependencies required to run '
-               'those tools', 79)
+        'Flocker: a container data volume manager for your' +
+        ' Dockerized applications\n' +
+        fill('This meta-package contains links to the Flocker node '
+             'utilities, and has only the dependencies required to run '
+             'those tools', 79)
     )
 
 
 class PACKAGE_DOCKER_PLUGIN(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Flocker volume plugin for Docker\n'
-        + fill('This meta-package contains links to the Flocker Docker plugin',
-               79)
+        'Flocker volume plugin for Docker\n' +
+        fill('This meta-package contains links to the Flocker Docker plugin',
+             79)
     )
 
 
@@ -1089,8 +1093,8 @@ class DockerRun(object):
                 ['--volume', '%s:%s' % (host.path, container.path)])
 
         result = call(
-            ['docker', 'run', '--rm']
-            + volume_options + [self.tag] + self.command)
+            ['docker', 'run', '--rm'] +
+            volume_options + [self.tag] + self.command)
         if result:
             raise SystemExit(result)
 
@@ -1113,6 +1117,7 @@ def available_distributions(flocker_source_path):
         in flocker_source_path.descendant(BUILD_TARGETS_SEGMENTS).children()
         if path.isdir() and path.child(b"Dockerfile").exists()
     )
+
 
 def build_in_docker(destination_path, distribution, top_level, package_uri):
     """

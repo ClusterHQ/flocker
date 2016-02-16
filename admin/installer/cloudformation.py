@@ -34,9 +34,11 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
+# pylint: disable=relative-import
 from _cloudformation_helper import (
     MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE, InvalidClusterSizeException
 )
+# pylint: enable=relative-import
 
 DEFAULT_CLUSTER_SIZE = MIN_CLUSTER_SIZE
 NODE_CONFIGURATION_TIMEOUT = u"900"
