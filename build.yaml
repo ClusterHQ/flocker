@@ -1280,7 +1280,7 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_docker_build_ubuntu_trusty_fpm:
       at: '0 1 * * *'
@@ -1309,7 +1309,7 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     build_vagrant_basebox_for_osx_yosemite:
       at: '0 5 * * *'
@@ -1357,7 +1357,7 @@ job_type:
           }
       timeout: 120
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_client_installation_on_OSX:
       at: '30 7 * * *'
@@ -1399,7 +1399,7 @@ job_type:
       # actually run the tests. Also has to be less than the timeout for the
       # main multijob, see jobs.groovy.j2:545.
       timeout: 50
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_AWS_CentOS_7_with_EBS:
       at: '0 5 * * *'
@@ -1430,7 +1430,7 @@ job_type:
       # as of Dec 2015.
       timeout: 120
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
@@ -1458,7 +1458,7 @@ job_type:
       # but slightly shorter since Ubuntu runs the tests faster.
       timeout: 90
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_GCE_CentOS_7_with_LOOPBACK:
       at: '0 5 * * *'
@@ -1485,7 +1485,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_GCE_Ubuntu_Trusty_with_LOOPBACK:
       at: '0 6 * * *'
@@ -1512,7 +1512,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_Rackspace_CentOS_7_with_Cinder:
       at: '0 5 * * *'
@@ -1541,7 +1541,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
@@ -1570,7 +1570,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_sphinx_link_check:
       at: '0 8 * * *'
@@ -1583,7 +1583,7 @@ job_type:
           }
       timeout: 10
       archive_artifacts: ["docs/_build/linkcheck/output.txt"]
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     cleanup_cloud_resources:
       at: '0 8 * * *'
@@ -1599,6 +1599,33 @@ job_type:
           "cleanup_cloud_resources.stdout",
           "cleanup_cloud_resources.stderr"
       ]
+
+    run_admin_test_test_installer:
+      at: '0 8 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      module: admin.test.test_installer
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   *add_shell_functions,
+                   *setup_pip_cache,
+                   *cleanup,
+                   *setup_venv,
+                   *setup_flocker_modules,
+                   *setup_coverage,
+                   *setup_aws_env_vars,
+                   'export ACCEPTANCE_YAML=/tmp/acceptance.yaml',
+                   *run_trial_with_coverage,
+                   *run_coverage,
+                   *convert_results_to_junit ]
+        }
+      clean_repo: true
+      archive_artifacts: *flocker_artifacts
+      publish_test_results: true
+      # CloudFormation stack creation takes 5-10 minutes and the test itself
+      # may take another 10. Give 30 minutes to be sure.
+      timeout: 30
+      directories_to_delete: []
 
 
 

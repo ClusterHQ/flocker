@@ -141,7 +141,7 @@ template = Template()
 # Keys corresponding to CloudFormation user Inputs.
 access_key_id_param = template.add_parameter(Parameter(
     "AmazonAccessKeyID",
-    Description="Your Amazon AWS access key ID (mandatory)",
+    Description="Required: Your Amazon AWS access key ID",
     Type="String",
     NoEcho=True,
     AllowedPattern="[\w]+",
@@ -150,25 +150,32 @@ access_key_id_param = template.add_parameter(Parameter(
 ))
 secret_access_key_param = template.add_parameter(Parameter(
     "AmazonSecretAccessKey",
-    Description="Your Amazon AWS secret access key (mandatory)",
+    Description="Required: Your Amazon AWS secret access key",
     Type="String",
     NoEcho=True,
     MinLength="1",
 ))
 keyname_param = template.add_parameter(Parameter(
     "EC2KeyPair",
-    Description="Name of an existing EC2 KeyPair to enable SSH "
-                "access to the instance (mandatory)",
+    Description="Required: Name of an existing EC2 KeyPair to enable SSH "
+                "access to the instance",
+    Type="AWS::EC2::KeyPair::KeyName",
+))
+template.add_parameter(Parameter(
+    "S3AccessPolicy",
+    Description="Required: Is current IAM user allowed to access S3? "
+                "S3 access is required to distribute Flocker and Docker "
+                "configuration amongst stack nodes. Reference: "
+                "http://docs.aws.amazon.com/IAM/latest/UserGuide/"
+                "access_permissions.html Stack creation will fail if user "
+                "cannot access S3",
     Type="String",
-    MinLength="1",
-    AllowedPattern="[\x20-\x7E]*",
-    MaxLength="255",
-    ConstraintDescription="can contain only ASCII characters.",
+    AllowedValues=["Yes"],
 ))
 volumehub_token = template.add_parameter(Parameter(
     "VolumeHubToken",
     Description=(
-        "Your Volume Hub token (optional). "
+        "Optional: Your Volume Hub token. "
         "You'll find the token at https://volumehub.clusterhq.com/v1/token."
     ),
     Type="String",
