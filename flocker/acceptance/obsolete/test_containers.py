@@ -12,7 +12,6 @@ from testtools import run_test_with
 
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
-from twisted.internet.error import ProcessTerminated
 
 from ...common import loop_until
 from ...testtools import AsyncTestCase, async_runner, flaky, random_name
