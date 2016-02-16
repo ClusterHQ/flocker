@@ -19,7 +19,7 @@ from ...testtools import AsyncTestCase, async_runner, flaky, random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
-    assert_http_server, query_http_server
+    assert_http_server, query_http_server, is_process_running,
 )
 from ..scripts import SCRIPTS
 
@@ -393,20 +393,9 @@ class ContainerAPITests(AsyncTestCase):
                                     verify_socket(node.public_address, 22))
 
             # Wait until container agent is back up:
-            def container_agent_running():
-                # pidof will return the pid if flocker-container-agent is
-                # running else exit with status 1 which triggers the
-                # errback chain.
-                command = [b'pidof', b'-x', b'flocker-container-agent']
-                d = node.run_as_root(command)
-
-                def not_existing(failure):
-                    failure.trap(ProcessTerminated)
-                    return False
-                d.addCallbacks(lambda result: True, not_existing)
-                return d
             changed.addCallback(
-                lambda _: loop_until(reactor, container_agent_running))
+                lambda _: loop_until(reactor, lambda: is_process_running(
+                    node, b'flocker-container-agent')))
 
             # Start up dataset agent so container agent can proceed:
             def up_again(_):

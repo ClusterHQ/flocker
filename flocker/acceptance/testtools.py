@@ -1155,23 +1155,35 @@ def set_container_agent_enabled_on_node(node, enabled):
         # Wait until server is back up:
         d = d.addCallback(lambda _:
                           verify_socket(node.public_address, 22))
-
-        def dataset_agent_running():
-            # pidof will return the pid if flocker-container-agent is
-            # running else exit with status 1 which triggers the
-            # errback chain.
-            command = [b'pidof', b'-x', b'flocker-dataset-agent']
-            d = node.run_as_root(command)
-
-            def not_existing(failure):
-                failure.trap(ProcessTerminated)
-                return False
-            d.addCallbacks(lambda result: True, not_existing)
-            return d
-        d.addCallback(lambda _: loop_until(reactor, dataset_agent_running))
+        d.addCallback(lambda _: loop_until(
+            reactor, lambda: is_process_running(
+                node, b'flocker-dataset-agent')))
     # Hide the value in the callback as it could come from
     # different places and shouldn't be used.
     d.addCallback(lambda _: None)
+    return d
+
+
+def is_process_running(node, name):
+    """
+    Check if the process `name` is running on `node`.
+
+    :param Node node: the node to check.
+    :param bytes name: the name of the process to look for.
+    :return Deferred[bool]: a deferred that will fire
+        with whether at least one process named `name` is running
+        on `node`.
+    """
+    # pidof will return the pid if the processes is
+    # running else exit with status 1 which triggers the
+    # errback chain.
+    command = [b'pidof', b'-x', name]
+    d = node.run_as_root(command)
+
+    def not_existing(failure):
+        failure.trap(ProcessTerminated)
+        return False
+    d.addCallbacks(lambda result: True, not_existing)
     return d
 
 
