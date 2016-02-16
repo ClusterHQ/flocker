@@ -1197,7 +1197,7 @@ def ensure_container_agent_enabled(node, to_enable):
     :param Node node: the node on which to ensure the container
         agent's state
     :param bool to_enable: True to ensure the container agent
-        is enabled and running, false to ensure the opposite.
+        is enabled and running, False to ensure the opposite.
     :return Deferred[None]: a Deferred that will fire when
         the container agent is in the desired state.
     """
