@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 import subprocess
 
-from hypothesis import assume, given
+from hypothesis import given
 from hypothesis.strategies import (
     booleans,
     dictionaries,
@@ -19,7 +19,7 @@ from hypothesis.strategies import (
     sampled_from,
     text,
     )
-from pyrsistent import pmap
+from pyrsistent import pmap, plist
 
 from flocker.testtools import TestCase
 
@@ -98,13 +98,22 @@ datetimes = integers(max_value=253402300799).map(datetime.fromtimestamp)
 """Strategy for generating `datetime` objects."""
 
 
-commit_statuses = fixed_dictionaries(
-    {'updated_at': datetimes,
-     'state': text(),
-     'context': text(),
-     'target_url': text(),
-     })
-"""Strategy for generating GitHub commit status dicts."""
+def commit_statuses(**kwargs):
+    """
+    Create a strategy for GitHub commit status dicts.
+
+    :param **kwargs: alter the strategy for a particular
+        key of the status dict, e.g. state=just(u'success')
+        will fix the state key of the dict to that string.
+    :return strategy: a strategy.
+    """
+    base = {'updated_at': datetimes,
+            'state': text(),
+            'context': text(average_size=2),
+            'target_url': text(average_size=2),
+            }
+    base.update(**kwargs)
+    return fixed_dictionaries(base)
 
 
 jenkins_results = sampled_from(merge_pr.JenkinsResults.iterconstants())
@@ -118,29 +127,42 @@ class StatusesTests(TestCase):
     https://developer.github.com/v3/repos/statuses/
     """
 
-    @given(commit_statuses)
+    @given(commit_statuses())
     def test_final_status_one(self, status):
+        """
+        Final status of one status is itself.
+        """
         self.assertEqual(status, merge_pr.final_status([status]))
 
-    @given(commit_statuses, commit_statuses)
+    @given(commit_statuses(), commit_statuses())
     def test_final_status_many(self, status1, status2):
+        """
+        Final status of a list is the latest.
+        """
         target = status1
         if status2['updated_at'] > status1['updated_at']:
             target = status2
         self.assertEqual(target, merge_pr.final_status([status2, status1]))
 
-    @given(commit_statuses)
+    @given(commit_statuses(state=text().filter(lambda x: x != u'success')))
     def test_not_success(self, status):
-        assume(status['state'] != u"success")
+        """
+        Always `not_success` for anything except 'success'.
+        """
         self.assertEqual(True, merge_pr.not_success(status))
 
-    @given(commit_statuses)
+    @given(commit_statuses(state=just(u'success')))
     def test_not_success_success(self, status):
-        status['state'] = u"success"
+        """
+        `not_success` False for 'success'.
+        """
         self.assertEqual(False, merge_pr.not_success(status))
 
-    @given(commit_statuses, jenkins_results)
+    @given(commit_statuses(), jenkins_results)
     def test_format_status(self, status, jenkins):
+        """
+        `format_status` produces unicode that mentions the context and url.
+        """
         formatted = merge_pr.format_status((status, jenkins))
         self.assertIsInstance(formatted, unicode)
         self.assertIn(status['context'], formatted)
@@ -155,21 +177,41 @@ jenkins_builds = fixed_dictionaries(dict(
 """Strategy for generating records of individual builds of a Jenkins job."""
 
 
-jenkins_build_result_with_builds = fixed_dictionaries(dict(
-    inQueue=booleans(),
-    builds=lists(jenkins_builds),
-    property=dictionaries(text(), text())))
-"""Strategy for generating Jenkins API information for a job with builds."""
+NO_BUILDS = object()
+"""
+Sentinel to say that `jenkins_build_results` should not include the builds key.
+"""
 
-jenkins_build_result_with_no_builds = fixed_dictionaries(dict(
-    inQueue=booleans()))
-"""Strategy for generating Jenkins API information for a job with no builds."""
 
-jenkins_build_results = one_of(
-    jenkins_build_result_with_builds,
-    jenkins_build_result_with_no_builds,
-    just(pmap()))
-"""Strategy for generating Jenkins API information for a job."""
+def jenkins_build_results(inQueue=None, builds=None):
+    """Create a strategy for generating Jenkins API information for a job.
+
+    :param strategy inQueue: strategy for the inQueue key, or None to use
+        the default.
+    :param strategy builds: strategy for populating the builds key, or None
+        for the default. The special value `NO_BUILDS` will mean that the
+        builds key is not in the resulting dict at all.
+    :return strategy: a strategy.
+    """
+    strats = []
+    if inQueue is None:
+        inQueue = booleans()
+        strats.append(just(pmap()))
+    without_builds = fixed_dictionaries(dict(
+        inQueue=inQueue))
+    if builds is None or builds is NO_BUILDS:
+        strats.append(without_builds)
+    if builds is None:
+        builds = lists(jenkins_builds, average_size=1)
+    if builds is not NO_BUILDS:
+        with_builds = fixed_dictionaries(dict(
+            inQueue=inQueue,
+            builds=builds,
+            property=dictionaries(
+                text(max_size=2), text(max_size=2),
+                average_size=1, max_size=2)))
+        strats.append(with_builds)
+    return one_of(*strats)
 
 
 class JenkinsResultsTests(TestCase):
@@ -177,36 +219,39 @@ class JenkinsResultsTests(TestCase):
     Tests for interpretation of build results from Jenkins.
     """
 
-    @given(jenkins_build_results)
+    @given(jenkins_build_results())
     def test_result_types(self, info):
+        """
+        Result always a tuple (`JenkinsResults`, Maybe[dict])
+        """
         result, params = merge_pr.jenkins_info_from_response(info)
         self.assertIn(result, list(merge_pr.JenkinsResults.iterconstants()))
         if params is not None:
             self.assertIsInstance(params, dict)
 
-    @given(jenkins_build_results)
+    @given(jenkins_build_results(inQueue=just(True)))
     def test_in_queue(self, info):
-        info = dict(info)
-        info['inQueue'] = True
+        """
+        Job with inQueue = True is `RUNNING`.
+        """
         result, params = merge_pr.jenkins_info_from_response(info)
         self.assertEqual(merge_pr.JenkinsResults.RUNNING, result)
         self.assertEqual({}, params)
 
-    @given(jenkins_build_results)
+    @given(jenkins_build_results(inQueue=just(False), builds=NO_BUILDS))
     def test_builds_not_present(self, info):
-        assume(not info.get('inQueue', False))
-        info = dict(info)
-        if 'builds' in info:
-            del info['builds']
+        """
+        Job without a builds list is `UNKNOWN`.
+        """
         result, params = merge_pr.jenkins_info_from_response(info)
         self.assertEqual(merge_pr.JenkinsResults.UNKNOWN, result)
         self.assertEqual({}, params)
 
-    @given(jenkins_build_results)
+    @given(jenkins_build_results(inQueue=just(False), builds=just(plist())))
     def test_no_builds(self, info):
-        assume(not info.get('inQueue', False))
-        info = dict(info)
-        info['builds'] = []
+        """
+        Job with empty builds list is `NOTRUN`.
+        """
         result, params = merge_pr.jenkins_info_from_response(info)
         self.assertEqual(merge_pr.JenkinsResults.NOTRUN, result)
         self.assertEqual({}, params)
