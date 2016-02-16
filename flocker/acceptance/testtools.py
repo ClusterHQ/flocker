@@ -1145,8 +1145,6 @@ def set_container_agent_enabled_on_node(node, enabled):
         d = node.run_script("disable_service", "flocker-container-agent")
     # If the agent was disabled We have to reboot to clear the control cache.
     # If we want to avoid the reboot we could add an API to do this.
-    # XXX: does this need to reboot the control node? the node that
-    # changed?
     if not enabled:
         d.addCallback(lambda _: node.reboot())
         # Wait for reboot to be far enough along that everything
