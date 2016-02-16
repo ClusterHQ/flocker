@@ -2017,20 +2017,6 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
     Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
     changes can be calculated because application state is unknown.
     """
-    def test_unknown_applications(self):
-        """
-        If applications are unknown, no changes are calculated.
-        """
-        # We're ignorant about application state:
-        local_state = NodeState(
-            hostname=self.NODE, uuid=self.NODE_UUID, applications=None)
-
-        # We want to create a dataset:
-        local_config = to_node(self.ONE_DATASET_STATE)
-
-        assert_calculated_changes(self, local_state, local_config, set(),
-                                  in_parallel(changes=[]))
-
     def test_another_node_ignorant(self):
         """
         If a different node is ignorant about its state, it is still possible
@@ -2692,6 +2678,53 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             changes
         )
 
+    def test_unknown_applications(self):
+        """
+        If applications are unknown, block devices can still be created.
+        """
+        uuid = uuid4()
+        dataset_id = unicode(uuid4())
+        dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=int(GiB(1).to_Byte().value)
+        )
+        manifestation = Manifestation(
+            dataset=dataset, primary=True
+        )
+        node = u"192.0.2.1"
+        configuration = Deployment(
+            nodes={
+                Node(
+                    uuid=uuid,
+                    manifestations={dataset_id: manifestation},
+                )
+            }
+        )
+        state = DeploymentState(nodes=[NodeState(
+            uuid=uuid, hostname=node, applications=[], manifestations={},
+            devices={}, paths={})])
+        deployer = create_blockdevicedeployer(
+            self, hostname=node, node_uuid=uuid,
+        )
+        local_state = local_state_from_shared_state(
+            node_state=state.get_node(uuid),
+            nonmanifest_datasets={}
+        )
+        # Override the local_state to applications=None, as if the
+        # container agent is missing.
+        local_state = local_state.set(applications=None)
+        changes = deployer.calculate_changes(configuration, state, local_state)
+        self.assertEqual(
+            in_parallel(
+                changes=[
+                    CreateBlockDeviceDataset(
+                        dataset_id=UUID(dataset_id),
+                        maximum_size=int(GiB(1).bytes)
+                    )
+                ]),
+            changes
+        )
+
     def test_dataset_elsewhere(self):
         """
         If block device is attached elsewhere but is part of the configuration
@@ -3202,7 +3235,7 @@ class BlockDeviceDeployerCalculateChangesTests(
 
     def test_unknown_applications(self):
         """
-        If applications are unknown, no changes are calculated.
+        If applications are unknown, changes are still calculated.
         """
         # We're ignorant about application state:
         node_state = NodeState(
@@ -3219,7 +3252,7 @@ class BlockDeviceDeployerCalculateChangesTests(
             nonmanifest_datasets=[],
             additional_node_states=set(),
             additional_node_config=set(),
-            expected_changes=NOTHING_TO_DO,
+            expected_changes=self.expected_change,
             local_state=self.local_state,
         )
 
