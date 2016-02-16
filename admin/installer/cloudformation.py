@@ -398,9 +398,4 @@ template.add_output(Output(
     Value="export DOCKER_TLS_VERIFY=1",
     Description="Client config: Enable TLS client for Swarm."
 ))
-template.add_output(Output(
-    "S3Bucket",
-    Value=Ref(s3bucket),
-    Description="Name of S3 bucket to hold cluster configuration files."
-))
 print(template.to_json())
