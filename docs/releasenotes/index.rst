@@ -9,8 +9,18 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-This Release
+Next Release
 ============
+
+No significant changes since last release.
+
+Previous Releases
+=================
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
 
 v1.10.2
 -------
@@ -21,14 +31,6 @@ v1.10.2
 * Block device plugins can now specify the configuration keys they require.
   This allows better error messages to be generated.
 * Several outdated references in the documentation have been removed.
-
-Previous Releases
-=================
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
 
 v1.10.1
 -------
