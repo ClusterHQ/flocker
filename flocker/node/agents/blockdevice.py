@@ -1087,9 +1087,9 @@ class IBlockDeviceAPI(Interface):
         dataset_id in order to ease debugging. Some implementations may
         choose not to do so or may not be able to do so.
 
-        The dataset_id must be stored by backend and reported when, but it is
-        not the canonical location of information (which is the control service
-        registry).
+        The dataset_id must be stored by backend and reported by the API, but
+        it is not the canonical location of information (which is the control
+        service registry).
 
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this
             volume.
