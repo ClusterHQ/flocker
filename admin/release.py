@@ -843,11 +843,7 @@ def initialize_release(version, path, top_level):
     release_path = path.child("flocker-release-{}".format(version))
     sys.stdout.write("Cloning repo in {}...\n".format(release_path.path))
 
-    release_repo = Repo.clone(
-        release_path.path,
-        reference=top_level.path,
-        dissociate=True,
-    )
+    release_repo = Repo.init(release_path.path)
     release_origin = release_repo.create_remote('origin', REMOTE_URL)
     release_origin.fetch()
 
