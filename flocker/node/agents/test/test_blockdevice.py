@@ -1187,7 +1187,7 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
     def test_unregistered(self):
         """
         If a blockdevice associated to a dataset exists, but the dataset
-        isn't registered as owning a blockdevie, the dataset is reported as
+        isn't registered as owning a blockdevice, the dataset is reported as
         ``UNREGISTERED``.
         """
         dataset_id = uuid4()
@@ -1210,7 +1210,7 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
     def test_registered(self):
         """
         If a blockdevice associated to a dataset doesn't exist, but the dataset
-        is registered as owning a blockdevie, the dataset is reported as
+        is registered as owning a blockdevice, the dataset is reported as
         ``REGISTERED``.
         """
         dataset_id = uuid4()
@@ -1232,9 +1232,10 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
 
     def test_registered_other_blockdevice(self):
         """
-        If a blockdevice associated to a dataset doesn't exist, but the dataset
-        is registered as owning a blockdevie, the dataset is reported as
-        ``REGISTERED``.
+        If a blockdevice associated to a dataset exists, but the dataset
+        is registered as owning a different blockdevice, the dataset is
+        reported as ``REGISTERED`` and associated to the registered
+        blockdevice.
         """
         dataset_id = uuid4()
         self.api.create_volume(
@@ -1260,9 +1261,10 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
     @capture_logging(assertHasMessage, UNREGISTERED_VOLUME_ATTACHED)
     def test_registered_other_blockdevice_attached(self, logger):
         """
-        If a blockdevice associated to a dataset doesn't exist, but the dataset
-        is registered as owning a blockdevie, the dataset is reported as
-        ``REGISTERED``.
+        If a blockdevice associated to a dataset is attached, but the dataset
+        is registered as owning a different blockdevice, the dataset is
+        reported as ``REGISTERED``, associated to the registered blockdevice,
+        and a message is logged about the extraneously attached blockdevice.
         """
         self.patch(blockdevice, "_logger", logger)
 
@@ -5756,6 +5758,8 @@ class RegisterVolumeTests(TestCase):
     )
     def test_run(self, dataset_id, blockdevice_id):
         """
+        ``RegisterVolume.run`` register a blockdevice mapping in the persistent
+        state.
         """
         state_persister = InMemoryStatePersister()
 
