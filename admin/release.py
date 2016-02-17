@@ -1,4 +1,4 @@
-# -*- test-case-name: admin.test.test_release -*-
+# -*- test-case-name: admin.test.test_release,admin.functional.test_release -*-  # noqa
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """

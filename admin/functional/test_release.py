@@ -4,6 +4,7 @@
 Tests for ``admin.release``.
 """
 
+from git import Repo
 from testtools.matchers import Contains, Equals
 from twisted.python.filepath import FilePath
 from flocker.testtools import TestCase, run_process
@@ -65,12 +66,25 @@ class InitializeReleaseScriptTests(TestCase):
 
     def test_run(self):
         """
-        The script can be run.
+        The script creates a new release version branch in a new working
+        directory and prints some shell commands to ``stdout``.
         """
+        expected_version = "9.9.9"
         script_path = self.make_temporary_directory()
+        repo_path = script_path.sibling(
+            'flocker-release-{}'.format(expected_version)
+        )
         result = run_process(
-            [INITIALIZE_RELEASE_PATH.path, '--flocker-version=0.0.0'],
+            [INITIALIZE_RELEASE_PATH.path,
+             '--flocker-version={}'.format(expected_version)],
             cwd=script_path.path
         )
         self.expectThat(result.status, Equals(0))
-        self.expectThat(script_path.children(), Equals(['foo']))
+        self.expectThat(
+            result.output,
+            Contains('export VERSION={}'.format(expected_version))
+        )
+        self.expectThat(
+            Repo(path=repo_path.path).active_branch.name,
+            Equals('release/flocker-{}'.format(expected_version))
+        )
