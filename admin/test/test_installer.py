@@ -18,7 +18,7 @@ from twisted.python.filepath import FilePath
 
 from eliot import Message
 
-from flocker.common.runner import run_ssh, upload, SCPConnectionError
+from flocker.common.runner import run_ssh, upload, download, SCPConnectionError
 from flocker.common import gather_deferreds, loop_until, retry_failure
 from flocker.testtools import AsyncTestCase, async_runner, random_name
 from flocker.acceptance.testtools import (
@@ -362,18 +362,22 @@ class DockerComposeTests(AsyncTestCase):
         # XXX Perhaps it'd be better to have a cluster cleanup tool available
         # on the client which can also be run by people who are attempting the
         # tutorial.
-        check_output(
-            ['scp', '-o', 'StrictHostKeyChecking no', '-r',
-             'ubuntu@{}:/etc/flocker'.format(self.client_node_ip),
-             local_certs_path.path]
-        )
-        d = connected_cluster(
+        d = download(
             reactor=reactor,
-            control_node=self.control_node_ip.encode('ascii'),
-            certificates_path=local_certs_path,
-            num_agent_nodes=2,
-            hostname_to_public_address={},
-            username='user1',
+            username=b'ubuntu',
+            host=self.client_node_ip,
+            remote_path=FilePath('/etc/flocker'),
+            local_path=local_certs_path
+        )
+        d.addCallback(
+            lambda ignored: connected_cluster(
+                reactor=reactor,
+                control_node=self.control_node_ip.encode('ascii'),
+                certificates_path=local_certs_path,
+                num_agent_nodes=2,
+                hostname_to_public_address={},
+                username='user1',
+            )
         )
         d.addCallback(
             lambda cluster: cluster.clean_nodes(
