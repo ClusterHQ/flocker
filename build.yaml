@@ -475,6 +475,7 @@ common_cli:
     # which are made available through a webserver running on port 80.
     # We pass the URL of our Jenkins Slave to the acceptance test nodes
     # through the --build-server parameter below.
+    #
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} \
     --provider ${ACCEPTANCE_TEST_PROVIDER} \
@@ -888,9 +889,9 @@ common_cli:
     # Disable exiting on error, so we can run multiple lints
     set +e
     # run flake8 lint tests on Flocker source code
-    flake8 --format=pylint --output flake8.lint.txt flocker
+    flake8 --format=pylint --output flake8.lint.txt admin benchmark flocker
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    pylint flocker > pylint.lint.txt
+    pylint admin benchmark flocker > pylint.lint.txt
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
     set -e
 
@@ -986,7 +987,7 @@ job_type:
   run_trial:
     # http://build.clusterhq.com/builders/flocker-centos-7
     run_trial_on_AWS_CentOS_7:
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_modules: *run_trial_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli }
@@ -998,7 +999,7 @@ job_type:
       directories_to_delete: *run_trial_directories_to_delete
 
     run_trial_on_AWS_CentOS_7_as_root:
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_modules: *run_trial_as_root_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
@@ -1012,7 +1013,7 @@ job_type:
     # http://build.clusterhq.com/builders/flocker-admin
     # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
     run_trial_on_AWS_Ubuntu_Trusty:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_modules: *run_trial_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli }
@@ -1024,7 +1025,7 @@ job_type:
       directories_to_delete: *run_trial_directories_to_delete
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_modules: *run_trial_as_root_modules
       with_steps:
         - { type: 'shell', cli: *run_trial_cli_as_root }
@@ -1055,7 +1056,7 @@ job_type:
     # Split out just to do the CentOS version above,
     # for the reasons outlined in that section
     run_trial_on_AWS_Ubuntu_Trusty_flocker.node.functional.test_docker:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       module: flocker.node.functional.test_docker
       with_steps:
         - { type: 'shell', cli: *run_trial_cli }
@@ -1068,7 +1069,7 @@ job_type:
 
   run_trial_for_storage_driver:
     run_trial_for_ebs_storage_driver_on_CentOS_7:
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Small'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_modules: *run_trial_functional_agent_modules
       with_steps:
         - { type: 'shell',
@@ -1087,7 +1088,7 @@ job_type:
       directories_to_delete: *run_trial_directories_to_delete
 
     run_trial_for_ebs_storage_driver_on_Ubuntu_trusty:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_modules: *run_trial_functional_agent_modules
       with_steps:
         - { type: 'shell',
@@ -1170,7 +1171,7 @@ job_type:
   # http://build.clusterhq.com/builders/flocker-docs
   run_sphinx:
     run_sphinx:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
@@ -1275,7 +1276,7 @@ job_type:
 
   run_lint:
     run_lint:
-      on_nodes_with_labels: 'aws-centos-7-T2Small'
+      on_nodes_with_labels: 'aws-centos-7-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
@@ -1301,7 +1302,7 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_docker_build_ubuntu_trusty_fpm:
       at: '0 1 * * *'
@@ -1330,7 +1331,7 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     build_vagrant_basebox_for_osx_yosemite:
       at: '0 5 * * *'
@@ -1378,7 +1379,7 @@ job_type:
           }
       timeout: 120
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_client_installation_on_OSX:
       at: '30 7 * * *'
@@ -1420,7 +1421,7 @@ job_type:
       # actually run the tests. Also has to be less than the timeout for the
       # main multijob, see jobs.groovy.j2:545.
       timeout: 50
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_AWS_CentOS_7_with_EBS:
       at: '0 5 * * *'
@@ -1451,7 +1452,7 @@ job_type:
       # as of Dec 2015.
       timeout: 120
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
@@ -1479,7 +1480,7 @@ job_type:
       # but slightly shorter since Ubuntu runs the tests faster.
       timeout: 90
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_GCE_CentOS_7_with_LOOPBACK:
       at: '0 5 * * *'
@@ -1506,7 +1507,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_GCE_Ubuntu_Trusty_with_LOOPBACK:
       at: '0 6 * * *'
@@ -1533,7 +1534,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_Rackspace_CentOS_7_with_Cinder:
       at: '0 5 * * *'
@@ -1562,7 +1563,7 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_CentOS_7_with_EBS
       timeout: 120
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
@@ -1591,11 +1592,11 @@ job_type:
       # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
       timeout: 90
       directories_to_delete: []
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     run_sphinx_link_check:
       at: '0 8 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
@@ -1604,11 +1605,11 @@ job_type:
           }
       timeout: 10
       archive_artifacts: ["docs/_build/linkcheck/output.txt"]
-      notify_slack: '#engineering'
+      notify_slack: '#nightly-builds'
 
     cleanup_cloud_resources:
       at: '0 8 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Small'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
@@ -1620,6 +1621,33 @@ job_type:
           "cleanup_cloud_resources.stdout",
           "cleanup_cloud_resources.stderr"
       ]
+
+    run_admin_test_test_installer:
+      at: '0 8 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      module: admin.test.test_installer
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang,
+                   *add_shell_functions,
+                   *setup_pip_cache,
+                   *cleanup,
+                   *setup_venv,
+                   *setup_flocker_modules,
+                   *setup_coverage,
+                   *setup_aws_env_vars,
+                   'export ACCEPTANCE_YAML=/tmp/acceptance.yaml',
+                   *run_trial_with_coverage,
+                   *run_coverage,
+                   *convert_results_to_junit ]
+        }
+      clean_repo: true
+      archive_artifacts: *flocker_artifacts
+      publish_test_results: true
+      # CloudFormation stack creation takes 5-10 minutes and the test itself
+      # may take another 10. Give 30 minutes to be sure.
+      timeout: 30
+      directories_to_delete: []
 
 
 

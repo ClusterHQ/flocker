@@ -17,8 +17,8 @@ from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
-    write_request_load_scenario, RequestRateTooLow, RequestRateNotReached,
-    RequestOverload, DatasetCreationTimeout, RequestScenarioAlreadyStarted,
+    write_request_load_scenario, RequestRateTooLow, RequestOverload,
+    DatasetCreationTimeout, RequestScenarioAlreadyStarted,
 )
 
 DEFAULT_VOLUME_SIZE = 1073741824

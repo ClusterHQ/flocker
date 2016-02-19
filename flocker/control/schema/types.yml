@@ -150,6 +150,7 @@ definitions:
     patternProperties:
       "^.+$":
         type: string
+    additionalProperties: false
 
   volume:
     title: "A volume attached to a container"

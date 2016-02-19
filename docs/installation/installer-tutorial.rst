@@ -27,7 +27,7 @@ When you have completed the steps in :ref:`labs-installing-unofficial-flocker-to
       chmod 0600 $KEY
       ssh -i $KEY root@$NODE1 docker run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
       ssh -i $KEY root@$NODE1 docker run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
-      uft-flocker-volumes list
+      flocker-volumes list
 
    This may take up to a minute since Flocker is provisioning and attaching an volume from the storage backend for the Flocker ``demo`` volume.
    At the end you should see the volume created and attached to the first node.
@@ -41,7 +41,7 @@ When you have completed the steps in :ref:`labs-installing-unofficial-flocker-to
       ssh -i $KEY root@$NODE1 docker rm -f redis
       ssh -i $KEY root@$NODE2 docker run -d -v demo:/data --volume-driver=flocker --name=redis redis:latest
       ssh -i $KEY root@$NODE2 docker run -d -e USE_REDIS_HOST=redis --link redis:redis -p 80:80 --name=app binocarlos/moby-counter:latest
-      uft-flocker-volumes list
+      flocker-volumes list
 
    At the end you should see the volume has moved to the second node.
 

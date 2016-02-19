@@ -8,7 +8,6 @@ XXX This script is not automatically checked by buildbot. See
 https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
-import json
 import yaml
 import os
 import sys
@@ -18,7 +17,6 @@ import virtualenv
 from datetime import datetime
 from subprocess import check_call, check_output
 from sys import platform as _platform
-from urllib import quote
 
 from boto.s3.website import RoutingRules, RoutingRule
 
@@ -211,15 +209,16 @@ def publish_docs(flocker_version, doc_version, environment, routing_config):
     :param bytes doc_version: The version to publish the documentation as.
     :param Environments environment: The environment to publish the
         documentation to.
-    :param dict routing_config: The loaded routing configuration (see ``parse_routing_rules`` for details).
+    :param dict routing_config: The loaded routing configuration (see
+        ``parse_routing_rules`` for details).
     :raises NotARelease: Raised if trying to publish to a version that isn't a
         release.
     :raises NotTagged: Raised if publishing to production and the version being
         published version isn't tagged.
     """
-    if not (is_release(doc_version)
-            or is_weekly_release(doc_version)
-            or is_pre_release(doc_version)):
+    if not (is_release(doc_version) or
+            is_weekly_release(doc_version) or
+            is_pre_release(doc_version)):
         raise NotARelease()
 
     if environment == Environments.PRODUCTION:
@@ -312,7 +311,8 @@ def publish_docs(flocker_version, doc_version, environment, routing_config):
 
     yield Effect(UpdateS3RoutingRules(
         bucket=configuration.documentation_bucket,
-        routing_rules=parse_routing_rules(routing_config, configuration.cloudfront_cname),
+        routing_rules=parse_routing_rules(
+            routing_config, configuration.cloudfront_cname),
     ))
 
     # Invalidate all the changed paths in cloudfront.
@@ -369,7 +369,7 @@ def publish_docs_main(args, base_path, top_level):
     redirects_path = top_level.descendant(['docs', 'redirects.yaml'])
     routing_config = yaml.safe_load(redirects_path.getContent())
     try:
-       sync_perform(
+        sync_perform(
             dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
             effect=publish_docs(
                 flocker_version=options['flocker-version'],
@@ -408,9 +408,9 @@ class UploadOptions(Options):
     def parseArgs(self):
         version = self['flocker-version']
 
-        if not (is_release(version)
-                or is_weekly_release(version)
-                or is_pre_release(version)):
+        if not (is_release(version) or
+                is_weekly_release(version) or
+                is_pre_release(version)):
             raise NotARelease()
 
         if get_doc_version(version) != version:
@@ -654,7 +654,7 @@ def upload_python_packages(scratch_directory, target_bucket, top_level,
         'bdist_wheel', '--dist-dir={}'.format(scratch_directory.path)],
         cwd=top_level.path, stdout=output, stderr=error)
 
-    files = set([file.basename() for file in scratch_directory.children()])
+    files = set([f.basename() for f in scratch_directory.children()])
     yield Effect(UploadToS3Recursively(
         source_path=scratch_directory,
         target_bucket=target_bucket,
@@ -743,9 +743,9 @@ def calculate_base_branch(version, path):
     :param bytes path: See :func:`git.Repo.init`.
     :returns: The base branch from which the new release branch was created.
     """
-    if not (is_release(version)
-            or is_weekly_release(version)
-            or is_pre_release(version)):
+    if not (is_release(version) or
+            is_weekly_release(version) or
+            is_pre_release(version)):
         raise NotARelease()
 
     repo = Repo(path=path, search_parent_directories=True)
@@ -963,7 +963,7 @@ class TestRedirectsOptions(Options):
         ["doc-version", None, flocker.__version__,
          "The version which the documentation sites are expected to redirect "
          "to.\n"
-        ],
+         ],
     ]
 
     optFlags = [
@@ -1008,6 +1008,7 @@ def get_expected_redirects(flocker_version):
 
     return expected_redirects
 
+
 def test_redirects_main(args, base_path, top_level):
     """
     Tests redirects to Flocker documentation.
@@ -1050,7 +1051,7 @@ def test_redirects_main(args, base_path, top_level):
             sys.stderr.write(message)
 
     if len(failed_redirects):
-         raise SystemExit(1)
+        raise SystemExit(1)
     else:
         print 'All tested redirects work correctly.'
 

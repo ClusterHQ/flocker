@@ -79,8 +79,13 @@ Configuration File
    FLOC-2090
 
 The configuration file given for the ``--config-file`` parameter contains information about compute-resource providers and dataset configurations.
-The contents and structure of the file are explained here.
-:ref:`An example containing all of the sections<acceptance-testing-configuration>` is also provided.
+
+Here is an example of a configuration file.
+It contains details for many different compute-resource provides and dataset backends.
+This example allows one file to be used as configuration for many different testing scenarios.
+You don't need to include all the sections, just the ones that are relevant to the configuration you want to test:
+
+.. literalinclude:: example-acceptance.yml
 
 The top-level object in the file is a mapping.
 It may optionally contain a ``metadata`` key.
@@ -346,17 +351,17 @@ CloudFormation Installer Tests
 ==============================
 
 There are tests for the Flocker CloudFormation installer.
+These tests will get AWS credentials from an ``acceptance.yml`` file.
+The ``acceptance.yml`` file format is described above.
 
 You can run them as follows:
 
 .. code-block:: console
 
-    CLOUDFORMATION_TEMPLATE_URL=https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json \
-   KEY_PAIR=<aws SSH key pair name> \
-   ACCESS_KEY_ID=<aws access key> \
-   SECRET_ACCESS_KEY=<aws secret access token> \
+   ACCEPTANCE_YAML=<Path to acceptance.yml containing AWS SSH key pair, access key, secret access token> \
+   CLOUDFORMATION_TEMPLATE_URL=<defaults to https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json> \
    VOLUMEHUB_TOKEN=<Volume Hub token or empty string> \
-   trial flocker.acceptance.endtoend.test_installer
+   trial admin.test.test_installer
 
 
 This will create a new CloudFormation stack and perform the tests on it.
@@ -372,4 +377,4 @@ Alternatively, you can perform the tests on an existing stack with the following
    AGENT_NODE2_IP=<IP address of second agent node> \
    CLIENT_NODE_IP=<IP address of client node> \
    CONTROL_NODE_IP=<IP address of control service node> \
-   trial flocker.acceptance.endtoend.test_installer
+   trial admin.test.test_installer

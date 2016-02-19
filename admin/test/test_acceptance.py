@@ -146,10 +146,13 @@ SYSLOG_IDENTIFIER=docker
 _PID=32748
 _COMM=docker
 _EXE=/usr/bin/docker
-_CMDLINE=/usr/bin/docker daemon -H fd:// --tlsverify --tlscacert=/etc/flocker/cluster.crt --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key -H=0.0.0.0:2376
+_CMDLINE=/usr/bin/docker daemon -H fd:// --tlsverify --tlscacert=/etc/flocker/\
+c luster.crt  --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key \
+-H=0.0.0.0:2376
 _SYSTEMD_CGROUP=/system.slice/docker.service
 _SYSTEMD_UNIT=docker.service
-MESSAGE=time="2015-10-02T13:33:26.192780138Z" level=info msg="GET /v1.20/containers/json"
+MESSAGE=time="2015-10-02T13:33:26.192780138Z" level=info msg="GET /v1.20/\
+containers/json"
 """
 
 
@@ -182,13 +185,13 @@ class JournaldJSONFormatterTests(TestCase):
                 some="json",
                 _HOSTNAME="some-host-2",
                 _PROCESS_NAME="flocker-dataset-agent.service",
-            ),
+                ),
              dict(
                  other="values",
                  _HOSTNAME="some-host-1",
                  _PROCESS_NAME="flocker-container-agent.service",
-             ),
-            ],
+                ),
+             ],
             self._convert(JOURNAL_EXPORT),
         )
 

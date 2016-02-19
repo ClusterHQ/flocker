@@ -712,11 +712,11 @@ class BuildPackageTests(TestCase):
         expected_headers = dict(
             Package=expected_name,
             Version=(
-                expected_epoch
-                + b':'
-                + expected_rpm_version.version
-                + '-'
-                + expected_rpm_version.release
+                expected_epoch +
+                b':' +
+                expected_rpm_version.version +
+                '-' +
+                expected_rpm_version.release
             ),
             License=expected_license,
             Vendor=expected_vendor,

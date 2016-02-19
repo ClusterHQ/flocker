@@ -15,14 +15,14 @@ from flocker.testtools import TestCase, AsyncTestCase
 from benchmark.cluster import BenchmarkCluster
 from benchmark._interfaces import IMetric
 from benchmark.metrics.cputime import (
-    WALLCLOCK_LABEL, CPUTime, CPUParser, get_node_cpu_times, compute_change,
+    WALLCLOCK_LABEL, CPUTime, CPUParser, get_node_init_process_name,
+    get_node_cpu_times, compute_change, _GET_INIT_PROCESS_NAME_COMMAND,
 )
 
 # Process 1 (usually `init`, `systemd`, or `launchd`) provides a process
 # name that is always present.
-_standard_process = subprocess.check_output(
-    ['ps', '-p', '1', '-o', 'comm=']
-).strip()
+_pid_1_name = subprocess.check_output(_GET_INIT_PROCESS_NAME_COMMAND).strip()
+
 
 # The command used to check cputimes only works on Linux
 on_linux = skipIf(platform.system() != 'Linux', 'Requires Linux')
@@ -103,6 +103,27 @@ class _LocalRunner(object):
         return deferToThread(self._run, command_args, handle_stdout)
 
 
+class GetNodeInitProcessNameTests(AsyncTestCase):
+    """
+    Test ``get_node_init_process_name`` command.
+    """
+
+    def test_get_node_init_process_name(self):
+        """
+        Success results in output of string containing name of process 1.
+        """
+        d = get_node_init_process_name(
+            _LocalRunner(),
+            Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
+        )
+
+        def check(result):
+            self.assertEqual(result, _pid_1_name)
+        d.addCallback(check)
+
+        return d
+
+
 class GetNodeCPUTimeTests(AsyncTestCase):
     """
     Test ``get_node_cpu_times`` command.
@@ -117,12 +138,13 @@ class GetNodeCPUTimeTests(AsyncTestCase):
             Clock(),
             _LocalRunner(),
             Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
-            [_standard_process],
+            _pid_1_name,
+            [_pid_1_name],
         )
 
         def check(result):
             self.assertEqual(
-                result.keys(), [_standard_process, WALLCLOCK_LABEL]
+                result.keys(), [_pid_1_name, WALLCLOCK_LABEL]
             )
 
         d.addCallback(check)
@@ -138,6 +160,7 @@ class GetNodeCPUTimeTests(AsyncTestCase):
             Clock(),
             _LocalRunner(),
             Node(uuid=uuid4(), public_address=IPAddress('10.0.0.1')),
+            _pid_1_name,
             ['n0n-exist'],
         )
 
@@ -213,27 +236,27 @@ class CPUTimeTests(AsyncTestCase):
                 None,
             ),
             _LocalRunner(),
-            processes=[_standard_process]
+            processes=[_pid_1_name]
         )
         d = metric.measure(lambda: clock.advance(5))
 
         # Although it is unlikely, it's possible that we could get a CPU
         # time != 0, so filter values out.
-        def filter(node_cpu_times):
+        def remove_process_times(node_cpu_times):
             for process_times in node_cpu_times.values():
                 if process_times:
                     for process in process_times:
                         if process != WALLCLOCK_LABEL:
                             process_times[process] = 0
             return node_cpu_times
-        d.addCallback(filter)
+        d.addCallback(remove_process_times)
 
         def check(result):
             self.assertEqual(
                 result,
                 {
-                    '10.0.0.1': {_standard_process: 0, WALLCLOCK_LABEL: 5},
-                    '10.0.0.2': {_standard_process: 0, WALLCLOCK_LABEL: 5}
+                    '10.0.0.1': {_pid_1_name: 0, WALLCLOCK_LABEL: 5},
+                    '10.0.0.2': {_pid_1_name: 0, WALLCLOCK_LABEL: 5}
                 }
             )
         d.addCallback(check)

@@ -594,12 +594,15 @@ def build_schema_test(name, schema, schema_store,
         'passing_instances': passing_instances,
         'failing_instances': failing_instances,
         }
-    for i, inst in enumerate(failing_instances):
-        def test(self, inst=inst):
-            self.assertRaises(ValidationError,
-                              self.validator.validate, inst)
-        test.__name__ = 'test_fails_validation_%d' % (i,)
-        body[test.__name__] = test
+    for error_type in failing_instances:
+        for i, inst in enumerate(failing_instances[error_type]):
+            def test(self, inst=inst, error_type=error_type):
+                e = self.assertRaises(
+                    ValidationError, self.validator.validate, inst
+                )
+                self.assertEqual(e.validator, error_type)
+            test.__name__ = 'test_fails_validation_%s_%d' % (error_type, i)
+            body[test.__name__] = test
 
     for i, inst in enumerate(passing_instances):
         def test(self, inst=inst):

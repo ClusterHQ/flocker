@@ -108,7 +108,7 @@ def perform_create_repository(dispatcher, intent):
     elif package_type == PackageTypes.DEB:
         packages_file = intent.repository_path.child('Packages')
         scan_packages(repository=intent.repository_path.path,
-            packages_file=packages_file.path)
+                      packages_file=packages_file.path)
 
         intent.repository_path.child('Release').setContent(
             "Origin: ClusterHQ\n")
@@ -154,9 +154,9 @@ class FakeYum(object):
         package_type = intent.distribution.package_type()
 
         packages = set([
-            file for file in
+            f for f in
             intent.repository_path.listdir()
-            if file.endswith(package_type.value)])
+            if f.endswith(package_type.value)])
 
         if package_type == PackageTypes.RPM:
             metadata_directory = intent.repository_path.child('repodata')
