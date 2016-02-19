@@ -237,7 +237,8 @@ class SetNodeEraCommand(Command):
     with wrong era).
     """
     arguments = [('era', Unicode()),
-                 ('node_uuid', Unicode())]
+                 ('node_uuid', Unicode()),
+                 ('eliot_context', _EliotActionArgument())]
     response = []
 
 
@@ -277,6 +278,7 @@ class SetBlockDeviceIdForDatasetId(Command):
     arguments = [
         ('dataset_id', Unicode()),
         ('blockdevice_id', Unicode()),
+        ('eliot_context', _EliotActionArgument()),
     ]
     reponse = []
     errors = {DatasetAlreadyOwned: 'ALREADY_OWNED'}
@@ -367,30 +369,32 @@ class ControlServiceLocator(CommandLocator):
             return {}
 
     @SetNodeEraCommand.responder
-    def set_node_era(self, era, node_uuid):
-        # Further work will be done in FLOC-3380
-        self.control_amp_service.cluster_state.apply_changes_from_source(
-            self._source, [UpdateNodeStateEra(era=UUID(era),
-                                              uuid=UUID(node_uuid))])
-        # We don't bother sending an update to other nodes because this
-        # command will immediately be followed by a ``NodeStateCommand``
-        # with more interesting information.
-        return {}
+    def set_node_era(self, era, node_uuid, eliot_context):
+        with eliot_context:
+            # Further work will be done in FLOC-3380
+            self.control_amp_service.cluster_state.apply_changes_from_source(
+                self._source, [UpdateNodeStateEra(era=UUID(era),
+                                                  uuid=UUID(node_uuid))])
+            # We don't bother sending an update to other nodes because this
+            # command will immediately be followed by a ``NodeStateCommand``
+            # with more interesting information.
+            return {}
 
     @SetBlockDeviceIdForDatasetId.responder
-    def set_blockdevice_id(self, dataset_id, blockdevice_id):
-        deployment = self.control_amp_service.configuration_service.get()
-        self.control_amp_service.configuration_service.save(
-            deployment.transform(
-                ["persistent_state", "blockdevice_ownership"],
-                partial(
-                    BlockDeviceOwnership.record_ownership,
-                    dataset_id=UUID(dataset_id),
-                    blockdevice_id=blockdevice_id,
-                ),
+    def set_blockdevice_id(self, dataset_id, blockdevice_id, eliot_context):
+        with eliot_context:
+            deployment = self.control_amp_service.configuration_service.get()
+            self.control_amp_service.configuration_service.save(
+                deployment.transform(
+                    ["persistent_state", "blockdevice_ownership"],
+                    partial(
+                        BlockDeviceOwnership.record_ownership,
+                        dataset_id=UUID(dataset_id),
+                        blockdevice_id=blockdevice_id,
+                    ),
+                )
             )
-        )
-        return {}
+            return {}
 
 
 def timeout_for_protocol(reactor, protocol):
