@@ -595,8 +595,10 @@ def gce_provisioner(
     compute = discovery.build('compute', 'v1', credentials=credentials)
 
     return GCEProvisioner(
-        zone=unicode(zone),
-        project=unicode(project),
+        instance_builder=GCEInstanceBuilder(
+            zone=unicode(zone),
+            project=unicode(project),
+            compute=compute,
+        ),
         ssh_public_key=key,
-        compute=compute,
     )
