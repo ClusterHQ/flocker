@@ -537,6 +537,8 @@ def aws_provisioner(
         aws_secret_access_key=secret_access_token,
         security_token=session_token,
     )
+    if conn is None:
+        raise ValueError("Invalid region: {}".format(region))
     return AWSProvisioner(
         _connection=conn,
         _keyname=keyname,

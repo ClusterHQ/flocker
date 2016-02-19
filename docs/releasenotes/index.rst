@@ -12,7 +12,8 @@ You can learn more about where we might be going with future releases by:
 Next Release
 ============
 
-No significant changes since last release.
+* The container agent is now optional and can be safely disabled if you don't expect to be using Flocker's deprecated container API or ``flocker-deploy``.
+  The :ref:`Flocker plugin for Docker<plugin>` allows you to use Flocker from Docker without using Flocker's container API.
 
 Previous Releases
 =================
