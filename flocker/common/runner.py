@@ -42,6 +42,47 @@ RUN_ERROR_MESSAGE = MessageType(
     description=u"A line of command stderr.",
 )
 
+SCP_ACTION = ActionType(
+    action_type="flocker.common.runner:scp",
+    startFields=[
+        Field.for_types(u"username", [bytes], u"SSH username."),
+        Field.for_types(u"host", [bytes], u"SSH hostname."),
+        Field(
+            u"remote_path",
+            lambda f: f.path,
+            u"Remote path."
+        ),
+        Field(
+            u"local_path",
+            lambda f: f.path,
+            u"Local path."
+        ),
+        Field.for_types(u"port", [int], u"SSH port."),
+        Field(
+            u"identity_file",
+            lambda f: f.path,
+            u"SSH identity file."
+        ),
+        Field.for_types(u"recursive", [bool], u"Copy recursively."),
+    ],
+    successFields=[],
+    description="An SCP operation.",
+)
+SCP_OUTPUT_MESSAGE = MessageType(
+    message_type="flocker.common.runner:scp:stdout",
+    fields=[
+        Field.for_types(u"line", [bytes], u"The output."),
+    ],
+    description=u"A line of command output.",
+)
+SCP_ERROR_MESSAGE = MessageType(
+    message_type="flocker.common.runner:scp:stderr",
+    fields=[
+        Field.for_types(u"line", [bytes], u"The error."),
+    ],
+    description=u"A line of command stderr.",
+)
+
 
 class RemoteFileNotFound(Exception):
     """
@@ -208,6 +249,69 @@ def run_ssh(reactor, username, host, command, **kwargs):
         **kwargs
     )
 
+DOWNLOAD = object()
+UPLOAD = object()
+
+
+def scp(reactor, username, host, remote_path, local_path,
+        port=22, identity_file=None, recursive=False, direction=DOWNLOAD):
+    remote_host_path = username + b'@' + host + b':' + remote_path.path
+    scp_command = [
+        b"scp",
+        b"-P", bytes(port),
+    ] + SSH_OPTIONS
+
+    if identity_file is not None:
+        scp_command += [
+            b"-i", identity_file.path
+        ]
+    if recursive:
+        scp_command += [
+            b"-r"
+        ]
+    if direction is DOWNLOAD:
+        scp_command += [
+            remote_host_path,
+            local_path.path,
+        ]
+    else:
+        scp_command += [
+            local_path.path,
+            remote_host_path,
+        ]
+
+    action = SCP_ACTION(
+        username=username,
+        host=host,
+        remote_path=remote_path,
+        local_path=local_path,
+        port=port,
+        identity_file=identity_file,
+        recursive=recursive
+    )
+
+    def handle_stdout(line):
+        SCP_OUTPUT_MESSAGE(
+            line=line,
+        ).write(action=action)
+
+    def handle_stderr(line):
+        SCP_ERROR_MESSAGE(
+            line=line,
+        ).write(action=action)
+
+    with action.context():
+        context = DeferredContext(
+            run(
+                reactor,
+                scp_command,
+                handle_stdout=handle_stdout,
+                handle_stderr=handle_stderr,
+            )
+        )
+
+        return context.addActionFinish()
+
 
 def download_file(reactor, username, host, remote_path, local_path,
                   port=22, identity_file=None, recursive=False):
@@ -288,23 +392,19 @@ def upload(reactor, username, host, local_path, remote_path,
 
     :return Deferred: Deferred that fires when the process is ended.
     """
-    remote_path = username + b'@' + host + b':' + remote_path.path
-    scp_command = [
-        b"scp",
-    ] + SSH_OPTIONS + [
-        b"-P", bytes(port)
-    ]
-    if identity_file is not None:
-        scp_command += [
-            b"-i", identity_file.path
-        ]
     if local_path.isdir():
-        scp_command += [b"-r"]
-    scp_command += [
-        local_path.path,
-        remote_path,
-    ]
+        recursive = True
+    else:
+        recursive = False
 
-    scp_result = run(reactor, scp_command)
-
-    return scp_result
+    return scp(
+        reactor=reactor,
+        username=username,
+        host=host,
+        local_path=local_path,
+        remote_path=remote_path,
+        port=port,
+        identity_file=identity_file,
+        direction=UPLOAD,
+        recursive=recursive,
+    )

@@ -3,8 +3,9 @@
 """
 Tests for ``flocker.common.runner``.
 """
-from twisted.internet import reactor
 from testtools.matchers import FileContains, DirContains
+
+from twisted.internet import reactor
 
 from flocker.testtools.ssh import (
     create_ssh_server
