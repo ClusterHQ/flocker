@@ -52,7 +52,7 @@ class GCEComputeTestObjects(Fixture):
     :ivar zone: The GCE zone to create resources within.
     """
 
-    def _get_instance_builder(self)
+    def _get_instance_builder(self):
         """
         Returns an instance builder that can be used to create GCE instances.
         """
@@ -146,6 +146,7 @@ class GCEBlockDeviceAPITests(TestCase):
         An attempt to attach a ``BlockDeviceVolume`` already attached to
         another host raises ``AlreadyAttachedVolume``.
         """
+        api = gceblockdeviceapi_for_test(self)
         gce_fixture = self.useFixture(GCEComputeTestObjects(
             compute=api._compute,
             project=get_machine_project(),
@@ -153,4 +154,5 @@ class GCEBlockDeviceAPITests(TestCase):
         ))
 
         instance_name = u"functional-test-" + unicode(uuid4())
-        instance = gce_fixture.create_instance()
+        instance = gce_fixture.create_instance(instance_name)
+        print instance

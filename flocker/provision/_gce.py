@@ -151,7 +151,8 @@ GCE_DISTRIBUTION_TO_IMAGE_MAP = {
     )
 }
 
-def get_latest_gce_image_for_distribution(distribution):
+
+def get_latest_gce_image_for_distribution(distribution, compute):
     """
     Returns a link to the latest GCE image for a given distribution.
 
@@ -163,7 +164,7 @@ def get_latest_gce_image_for_distribution(distribution):
         latest image for the specified distribution.
     """
     return GCE_DISTRIBUTION_TO_IMAGE_MAP[distribution].get_active_image(
-        self.compute)["selfLink"]
+        compute)["selfLink"]
 
 
 class _LoginCredentials(PClass):
@@ -187,8 +188,8 @@ class _LoginCredentials(PClass):
 def _create_gce_instance_config(instance_name,
                                 project,
                                 zone,
+                                image,
                                 machine_type=u"n1-standard-1",
-                                image=None,
                                 disk_size=_GCE_MINIMUM_DISK_SIZE_GIB,
                                 description=u"",
                                 tags=frozenset(),
@@ -205,7 +206,6 @@ def _create_gce_instance_config(instance_name,
     :param unicode machine_type: The name of the machine type, e.g.
         'n1-standard-1'.
     :param unicode image: The name of the image to base the disk off of.
-        Defaults to the latest centos-7 image.
     :param login_credentials: An iterable of :class:`_LoginCredentials` to be
         installed on the image.
     :param int disk_size: The size of the disk to create, in GiB.
@@ -219,8 +219,6 @@ def _create_gce_instance_config(instance_name,
     :return: A dictionary that can be consumed by the `googleapiclient` to
         insert an instance.
     """
-    if image is None:
-        image = get_latest_gce_image_for_distribution('centos-7')
     gce_slave_instance_config = {
         u"name": unicode(instance_name),
         u"machineType": (
@@ -325,7 +323,7 @@ class GCEInstance(PClass):
 
     def destroy(self):
         """
-        Destroy the instance.
+        Destroy the instance. Blocks until the operation is completed.
         """
         with start_action(
             action_type=u"flocker:provision:gce:destroy",
@@ -336,7 +334,7 @@ class GCEInstance(PClass):
                 zone=self.zone,
                 instance=self.name
             ).execute()
-            wait_for_operation(self.compute, operation, timeout_steps=[1]*60)
+            wait_for_operation(self.compute, operation, timeout_steps=[3]*60)
 
 
 @implementer(INode)
@@ -435,20 +433,26 @@ class GCEInstanceBuilder(PClass):
     project = field(type=unicode)
     compute = field()
 
-    def create_instance(self, instance_name **kwargs):
+    def create_instance(self, instance_name, image=None, **kwargs):
         """
         Create a GCE instance.
 
         :param unicode instance: The name of the instance to create.
+        :param unicode image: The link to the GCE image to use for the base
+            disk. Defaults to the latest CentOS 7 image if unspecified.
         :param **kwargs: Other keyword arguments for the creation of the
             instance see documentation of ``_create_gce_instance_config``
             for keyword argument values.
         :returns GCEInstance: The instance that was started.
         """
+        if image is None:
+            image = get_latest_gce_image_for_distribution('centos-7',
+                                                          self.compute)
         config = _create_gce_instance_config(
             instance_name=instance_name,
             project=self.project,
             zone=self.zone,
+            image=image,
             **kwargs
         )
         operation = self.compute.instances().insert(
@@ -505,7 +509,8 @@ class GCEProvisioner(PClass):
         instance = self.instance_builder.create_instance(
             instance_name=instance_name,
             machine_type=_GCE_INSTANCE_TYPE,
-            image=get_latest_gce_image_for_distribution(distribution),
+            image=get_latest_gce_image_for_distribution(
+                distribution, self.instance_builder.compute),
             # The acceptance tests expect to be able to ssh in as root, but on
             # CentOS that is by default turned off, so we must also enable
             # sshing in as a different user to enable root ssh.
