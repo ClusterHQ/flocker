@@ -1,4 +1,4 @@
-# -*- test-case-name: admin.test.test_release -*-
+# -*- test-case-name: admin.test.test_release,admin.functional.test_release -*-  # noqa
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
@@ -841,11 +841,7 @@ def initialize_release(version, path, top_level):
     release_path = path.child("flocker-release-{}".format(version))
     sys.stdout.write("Cloning repo in {}...\n".format(release_path.path))
 
-    release_repo = Repo.clone(
-        release_path.path,
-        reference=top_level.path,
-        dissociate=True,
-    )
+    release_repo = Repo.init(release_path.path)
     release_origin = release_repo.create_remote('origin', REMOTE_URL)
     release_origin.fetch()
 
@@ -860,25 +856,28 @@ def initialize_release(version, path, top_level):
     release_repo.active_branch.checkout(b="release/flocker-{}".format(version))
 
     sys.stdout.write("Creating virtual environment...\n")
+    virtualenv_path = release_path.child("flocker-{}".format(version))
     virtualenv.create_environment(
-        release_path.child("flocker-{}".format(version)).path,
+        virtualenv_path.path,
         site_packages=False
     )
 
-    sys.stdout.write("Activating virtual environment...\n")
-    virtualenv_file = release_path.child("flocker-{}".format(version))
-    virtualenv_file = virtualenv_file.child("bin").child("activate_this.py")
-    execfile(virtualenv_file.path, dict(__file__=virtualenv_file.path))
-
     sys.stdout.write("Installing dependencies...\n")
-    os.chdir(release_path.path)
+    environment = {
+        "PATH": os.environ["PATH"]
+    }
     if _platform == "darwin":
         brew_openssl = check_output(["brew", "--prefix", "openssl"])
-        os.environ["LDFLAGS"] = '-L{}/lib" CFLAGS="-I{}/include'.format(
+        environment["LDFLAGS"] = '-L{}/lib" CFLAGS="-I{}/include'.format(
             brew_openssl, brew_openssl)
     check_call(
-        ["pip install -e .[dev]"], shell=True,
-        stdout=open(os.devnull, 'w'))
+        [virtualenv_path.descendant(["bin", "python"]).path,
+         virtualenv_path.descendant(["bin", "pip"]).path,
+         "install", "-e", ".[dev]"],
+        stdout=open(os.devnull, 'w'),
+        env=environment,
+        cwd=release_path.path,
+    )
 
     sys.stdout.write("Updating LICENSE file...\n")
     update_license_file(list(), top_level)
