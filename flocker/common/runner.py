@@ -209,7 +209,8 @@ def run_ssh(reactor, username, host, command, **kwargs):
     )
 
 
-def download_file(reactor, username, host, remote_path, local_path):
+def download_file(reactor, username, host, remote_path, local_path,
+                  port=22, identity_file=None, recursive=False):
     """
     Run the local ``scp`` command to download a single file from a remote host
     and kill it if the reactor stops.
@@ -226,7 +227,18 @@ def download_file(reactor, username, host, remote_path, local_path):
     remote_path = username + b'@' + host + b':' + remote_path.path
     scp_command = [
         b"scp",
-    ] + SSH_OPTIONS + [
+        b"-P", bytes(port),
+    ] + SSH_OPTIONS
+
+    if identity_file is not None:
+        scp_command += [
+            b"-i", identity_file.path
+        ]
+    if recursive:
+        scp_command += [
+            b"-r"
+        ]
+    scp_command += [
         remote_path,
         local_path.path
     ]
@@ -262,7 +274,8 @@ def download_file(reactor, username, host, remote_path, local_path):
     return scp_result
 
 
-def upload(reactor, username, host, local_path, remote_path):
+def upload(reactor, username, host, local_path, remote_path,
+           port=22, identity_file=None):
     """
     Run the local ``scp`` command to upload a file or directory to a remote
     host and kill it if the reactor stops.
@@ -273,20 +286,25 @@ def upload(reactor, username, host, local_path, remote_path):
     :param FilePath local_path: The path of the file on the local host.
     :param FilePath remote_path: The path of the file on the remote host.
 
-    :return Deferred: Deferred that fires when the process is ended.  If the
-        file isn't found on the remote server, it fires with ``FileNotFound``.
+    :return Deferred: Deferred that fires when the process is ended.
     """
     remote_path = username + b'@' + host + b':' + remote_path.path
     scp_command = [
         b"scp",
     ] + SSH_OPTIONS + [
+        b"-P", bytes(port)
+    ]
+    if identity_file is not None:
+        scp_command += [
+            b"-i", identity_file.path
+        ]
+    if local_path.isdir():
+        scp_command += [b"-r"]
+    scp_command += [
         local_path.path,
         remote_path,
     ]
 
-    scp_result = run(
-        reactor,
-        scp_command,
-    )
+    scp_result = run(reactor, scp_command)
 
     return scp_result
