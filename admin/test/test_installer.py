@@ -18,7 +18,7 @@ from twisted.python.filepath import FilePath
 
 from eliot import Message
 
-from flocker.common.runner import run_ssh, upload
+from flocker.common.runner import run_ssh, upload, SCPConnectionError
 from flocker.common import gather_deferreds, loop_until, retry_failure
 from flocker.testtools import AsyncTestCase, async_runner, random_name
 from flocker.acceptance.testtools import (
@@ -479,14 +479,21 @@ class DockerComposeTests(AsyncTestCase):
         )
 
         # Publish the compose files to the client.
-        d = upload(
+        def upload_docker_compose_files():
+            return upload(
+                reactor=reactor,
+                username=client_username,
+                host=self.client_node_ip,
+                local_path=FilePath(__file__).parent().descendant(
+                    ['installer', 'postgres']
+                ),
+                remote_path=remote_compose_directory,
+            )
+        d = retry_failure(
             reactor=reactor,
-            username=client_username,
-            host=self.client_node_ip,
-            local_path=FilePath(__file__).parent().descendant(
-                ['installer', 'postgres']
-            ),
-            remote_path=remote_compose_directory,
+            function=upload_docker_compose_files,
+            expected=(SCPConnectionError,),
+            steps=repeat(1, 5)
         )
 
         # This isn't in the tutorial, but docker-compose doesn't retry failed

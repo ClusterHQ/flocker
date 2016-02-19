@@ -60,7 +60,7 @@ SCP_ACTION = ActionType(
         Field.for_types(u"port", [int], u"SSH port."),
         Field(
             u"identity_file",
-            lambda f: f.path,
+            lambda f: f and f.path,
             u"SSH identity file."
         ),
     ],
