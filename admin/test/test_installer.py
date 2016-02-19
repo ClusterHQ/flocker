@@ -18,7 +18,7 @@ from twisted.python.filepath import FilePath
 
 from eliot import Message
 
-from flocker.common.runner import run_ssh
+from flocker.common.runner import run_ssh, upload
 from flocker.common import gather_deferreds, loop_until, retry_failure
 from flocker.testtools import AsyncTestCase, async_runner, random_name
 from flocker.acceptance.testtools import (
@@ -488,7 +488,14 @@ class DockerComposeTests(AsyncTestCase):
         self.compose_node2 = (
             remote_compose_directory + "/docker-compose-node2.yml"
         )
-
+        d = upload(
+            reactor=reactor,
+            username=u"ubuntu",
+            host=self.client_node_ip,
+            local_path=FilePath(__file__).parent().descendant(
+                ['installer', 'postgres']),
+            remote_path=remote_compose_directory,
+        )
         # This isn't in the tutorial, but docker-compose doesn't retry failed
         # pulls and pulls fail all the time.
         def pull_postgres():

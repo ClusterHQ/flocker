@@ -260,3 +260,33 @@ def download_file(reactor, username, host, remote_path, local_path):
 
     scp_result.addErrback(scp_failed)
     return scp_result
+
+
+def upload(reactor, username, host, local_path, remote_path):
+    """
+    Run the local ``scp`` command to upload a file or directory to a remote
+    host and kill it if the reactor stops.
+
+    :param reactor: Reactor to use.
+    :param username: The username to use when logging into the remote server.
+    :param host: The hostname or IP address of the remote server.
+    :param FilePath local_path: The path of the file on the local host.
+    :param FilePath remote_path: The path of the file on the remote host.
+
+    :return Deferred: Deferred that fires when the process is ended.  If the
+        file isn't found on the remote server, it fires with ``FileNotFound``.
+    """
+    remote_path = username + b'@' + host + b':' + remote_path.path
+    scp_command = [
+        b"scp",
+    ] + SSH_OPTIONS + [
+        local_path.path,
+        remote_path,
+    ]
+
+    scp_result = run(
+        reactor,
+        scp_command,
+    )
+
+    return scp_result
