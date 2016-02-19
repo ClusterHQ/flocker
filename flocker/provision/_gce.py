@@ -334,6 +334,7 @@ class GCEInstance(PClass):
                 zone=self.zone,
                 instance=self.name
             ).execute()
+            # Has been observed to take up to ~4 minutes.
             wait_for_operation(self.compute, operation, timeout_steps=[5]*60)
 
 
@@ -441,8 +442,8 @@ class GCEInstanceBuilder(PClass):
         :param unicode image: The link to the GCE image to use for the base
             disk. Defaults to the latest CentOS 7 image if unspecified.
         :param **kwargs: Other keyword arguments for the creation of the
-            instance see documentation of ``_create_gce_instance_config``
-            for keyword argument values.
+            instance. See documentation of ``_create_gce_instance_config`` for
+            keyword argument values.
         :returns GCEInstance: The instance that was started.
         """
         if image is None:

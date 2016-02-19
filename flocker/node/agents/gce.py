@@ -206,7 +206,7 @@ def get_machine_zone():
 
     It does this by querying the metadata server.
 
-    :returns unicode: The zone where the curring instance is running.
+    :returns unicode: The zone where the current instance is running.
     """
     # Transform "projects/<project-number>/zones/us-central1-f" to
     # "us-central1-f".
@@ -220,7 +220,7 @@ def get_machine_project():
 
     It does this by querying the metadata server.
 
-    :returns unicode: The project under which the curring instance is running.
+    :returns unicode: The project under which the current instance is running.
     """
     return _get_metadata_path('project/project-id')
 
