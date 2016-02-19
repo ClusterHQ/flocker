@@ -371,8 +371,6 @@ def download(reactor, username, host, remote_path, local_path,
         direction=DOWNLOAD,
     )
 
-download_file = download
-
 
 def upload(reactor, username, host, local_path, remote_path,
            port=22, identity_file=None):

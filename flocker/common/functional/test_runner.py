@@ -10,7 +10,7 @@ from twisted.internet import reactor
 from flocker.testtools.ssh import (
     create_ssh_server
 )
-from flocker.common.runner import download_file, upload
+from flocker.common.runner import download, upload
 from flocker.testtools import AsyncTestCase, random_name
 
 
@@ -56,8 +56,8 @@ class UploadTests(AsyncTestCase):
         download_directory = self.make_temporary_directory()
         download_path = download_directory.child('download')
 
-        def download(ignored):
-            return download_file(
+        d.addCallback(
+            lambda ignored: download(
                 reactor=reactor,
                 username=username,
                 host=host,
@@ -66,7 +66,7 @@ class UploadTests(AsyncTestCase):
                 port=self.ssh_server.port,
                 identity_file=self.ssh_server.key_path,
             )
-        d.addCallback(download)
+        )
 
         def check(ignored):
             self.assertThat(download_path.path, matcher)

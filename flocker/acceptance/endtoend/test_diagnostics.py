@@ -10,7 +10,7 @@ import tarfile
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
 
-from ...common.runner import run_ssh, download_file
+from ...common.runner import run_ssh, download
 from ...testtools import AsyncTestCase
 from ..testtools import require_cluster
 
@@ -47,12 +47,12 @@ class DiagnosticsTests(AsyncTestCase):
 
         def download_archive(remote_archive_path):
             local_archive_path = FilePath(self.mktemp())
-            return download_file(
-                reactor,
-                'root',
-                node_address,
-                remote_archive_path,
-                local_archive_path,
+            return download(
+                reactor=reactor,
+                username=u'root',
+                host=node_address,
+                remote_path=remote_archive_path,
+                local_path=local_archive_path,
             ).addCallback(lambda ignored: local_archive_path)
         downloading = creating.addCallback(download_archive)
 
