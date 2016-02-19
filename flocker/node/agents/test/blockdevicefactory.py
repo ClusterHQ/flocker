@@ -217,8 +217,8 @@ def _aws(cluster_id, config):
 def _gce(cluster_id, config):
     """
     Create an IBlockDeviceAPI provider configured to use the GCE
-    persisten device region where the server that is running this code
-    is running. This function assumes it's running on a GCE node.
+    persistent device region where the server that is running this
+    code is running. This function assumes it's running on a GCE node.
 
     :param cluster_id: The flocker cluster id.
     :param config: Any additional configuration (possibly provider-specific)
@@ -229,6 +229,7 @@ def _gce(cluster_id, config):
     full_zone = get_metadata_path("instance/zone")
     zone = full_zone.split("/")[-1]
     return GCEBlockDeviceAPI(cluster_id=cluster_id, project=project, zone=zone)
+
 
 # Map provider labels to IBlockDeviceAPI factory.
 _BLOCKDEVICE_TYPES = {
