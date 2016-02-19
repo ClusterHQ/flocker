@@ -63,7 +63,6 @@ SCP_ACTION = ActionType(
             lambda f: f.path,
             u"SSH identity file."
         ),
-        Field.for_types(u"recursive", [bool], u"Copy recursively."),
     ],
     successFields=[],
     description="An SCP operation.",
@@ -253,21 +252,31 @@ DOWNLOAD = object()
 UPLOAD = object()
 
 
+class SCPError(Exception):
+    """
+    An expected SCP error.
+    """
+
+
+class SCPConnectionError(SCPError):
+    """
+    An SCP connection error.
+    """
+
+
 def scp(reactor, username, host, remote_path, local_path,
-        port=22, identity_file=None, recursive=False, direction=DOWNLOAD):
+        port=22, identity_file=None, direction=DOWNLOAD):
     remote_host_path = username + b'@' + host + b':' + remote_path.path
     scp_command = [
         b"scp",
+        # XXX Seems to me that -r can be used in all cases.
+        b"-r",
         b"-P", bytes(port),
     ] + SSH_OPTIONS
 
     if identity_file is not None:
         scp_command += [
             b"-i", identity_file.path
-        ]
-    if recursive:
-        scp_command += [
-            b"-r"
         ]
     if direction is DOWNLOAD:
         scp_command += [
@@ -287,8 +296,11 @@ def scp(reactor, username, host, remote_path, local_path,
         local_path=local_path,
         port=port,
         identity_file=identity_file,
-        recursive=recursive
     )
+
+    # A place to hold failure state between parsing stderr and needing to fire
+    # a Deferred.
+    failed_reason = []
 
     def handle_stdout(line):
         SCP_OUTPUT_MESSAGE(
@@ -296,9 +308,27 @@ def scp(reactor, username, host, remote_path, local_path,
         ).write(action=action)
 
     def handle_stderr(line):
+        """
+        Notice scp's particular way of describing the file-not-found condition
+        and turn it into a more easily recognized form.
+        """
+        if b"No such file or directory" in line:
+            failed_reason.append(RemoteFileNotFound(remote_path))
+        if b"lost connection" in line:
+            failed_reason.append(SCPConnectionError())
         SCP_ERROR_MESSAGE(
             line=line,
         ).write(action=action)
+
+    def scp_failed(reason):
+        """
+        Check for a known error with the scp attempt and turn the normal
+        failure into a more meaningful one.
+        """
+        reason.trap(ProcessTerminated)
+        if failed_reason:
+            return Failure(failed_reason[-1])
+        return reason
 
     with action.context():
         context = DeferredContext(
@@ -310,11 +340,13 @@ def scp(reactor, username, host, remote_path, local_path,
             )
         )
 
+        context.addErrback(scp_failed)
+
         return context.addActionFinish()
 
 
-def download_file(reactor, username, host, remote_path, local_path,
-                  port=22, identity_file=None, recursive=False):
+def download(reactor, username, host, remote_path, local_path,
+             port=22, identity_file=None):
     """
     Run the local ``scp`` command to download a single file from a remote host
     and kill it if the reactor stops.
@@ -328,54 +360,18 @@ def download_file(reactor, username, host, remote_path, local_path,
     :return Deferred: Deferred that fires when the process is ended.  If the
         file isn't found on the remote server, it fires with ``FileNotFound``.
     """
-    remote_path = username + b'@' + host + b':' + remote_path.path
-    scp_command = [
-        b"scp",
-        b"-P", bytes(port),
-    ] + SSH_OPTIONS
-
-    if identity_file is not None:
-        scp_command += [
-            b"-i", identity_file.path
-        ]
-    if recursive:
-        scp_command += [
-            b"-r"
-        ]
-    scp_command += [
-        remote_path,
-        local_path.path
-    ]
-
-    # A place to hold failure state between parsing stderr and needing to fire
-    # a Deferred.
-    failed_reason = []
-
-    def check_for_missing(line):
-        """
-        Notice scp's particular way of describing the file-not-found condition
-        and turn it into a more easily recognized form.
-        """
-        if b"No such file or directory" in line:
-            failed_reason.append(RemoteFileNotFound(remote_path))
-
-    scp_result = run(
-        reactor,
-        scp_command,
-        handle_stderr=check_for_missing,
+    return scp(
+        reactor=reactor,
+        username=username,
+        host=host,
+        local_path=local_path,
+        remote_path=remote_path,
+        port=port,
+        identity_file=identity_file,
+        direction=DOWNLOAD,
     )
 
-    def scp_failed(reason):
-        """
-        Check for a known error with the scp attempt and turn the normal
-        failure into a more meaningful one.
-        """
-        reason.trap(ProcessTerminated)
-        if failed_reason:
-            return Failure(failed_reason[0])
-
-    scp_result.addErrback(scp_failed)
-    return scp_result
+download_file = download
 
 
 def upload(reactor, username, host, local_path, remote_path,
@@ -392,11 +388,6 @@ def upload(reactor, username, host, local_path, remote_path,
 
     :return Deferred: Deferred that fires when the process is ended.
     """
-    if local_path.isdir():
-        recursive = True
-    else:
-        recursive = False
-
     return scp(
         reactor=reactor,
         username=username,
@@ -406,5 +397,4 @@ def upload(reactor, username, host, local_path, remote_path,
         port=port,
         identity_file=identity_file,
         direction=UPLOAD,
-        recursive=recursive,
     )

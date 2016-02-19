@@ -65,12 +65,11 @@ class UploadTests(AsyncTestCase):
                 local_path=download_path,
                 port=self.ssh_server.port,
                 identity_file=self.ssh_server.key_path,
-                recursive=True,
             )
         d.addCallback(download)
 
         def check(ignored):
             self.assertThat(download_path.path, matcher)
-        d.addBoth(check)
+        d.addCallback(check)
 
         return d
