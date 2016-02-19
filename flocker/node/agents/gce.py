@@ -251,7 +251,9 @@ def _extract_attached_to(disk):
     # multiple machines, update comment above.
     #
     # A. Unconfirmed: but from the docs, the users's field will return
-    # multiple entries, we are unsure how they are ordered.
+    # multiple entries, we are unsure how they are ordered.  See where
+    # RW disk gets placed in the array, also maybe return THIS
+    # instance if the disk is attached to this instance and others.
     users = disk.get('users', [])
     if not users:
         return None
@@ -447,9 +449,11 @@ class GCEBlockDeviceAPI(object):
             timeout=VOLUME_INSERT_TIMEOUT,
         )
 
-        # TODO(mewert): Test creating a volume in cluster A in this project
-        # with the same UUID as a volume in cluster B in the same project.
-        # make that the logs and errors make this error obvious to the user
+        # TODO(mewert): Test creating a volume in cluster A in this
+        # project with the same UUID (users can specify their
+        # dataset's uuid) as a volume in cluster B in the same project.
+        # make that the logs and errors make this error obvious to the
+        # user (see test_multiple_cluster)
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
             size=int(GiB(sizeGiB).to_Byte()),
@@ -469,11 +473,6 @@ class GCEBlockDeviceAPI(object):
         )
         try:
             # TODO(mewert): Verify error conditions.
-            # TODO(mewert): Test what happens when disk is attached RW to a
-            #               different instance, raise the correct error.
-            #
-            # BCox: seems like this is already done:
-            # RESOURCE_IN_USE_BY_ANOTHER_RESOURCE"
             result = self._do_blocking_operation(
                 self._compute.instances().attachDisk,
                 instance=attach_to,
@@ -517,18 +516,11 @@ class GCEBlockDeviceAPI(object):
             instance.
         """
         try:
-            # TODO(mewert) verify error conditions.
             disk = self._compute.disks().get(project=self._project,
                                              zone=self._zone,
                                              disk=blockdevice_id).execute()
         except HttpError as e:
             if e.resp.status == 404:
-                # TODO(mewert) Verify with the rest API this is the only way to
-                # get a 404.
-                #
-                # BCox: inputting the wrong project or zone gives a
-                # 400, i'm not sure what else we could screw up to
-                # squeeze out a 404
                 raise UnknownVolume(blockdevice_id)
             else:
                 raise e
@@ -565,14 +557,11 @@ class GCEBlockDeviceAPI(object):
             #
             # BCox: If you try to destroy a volume that is still
             # attached you get an HttpError with status == 400
-            import pdb; pdb.set_trace()
             self._do_blocking_operation(
                 self._compute.disks().delete,
                 disk=blockdevice_id,
                 timeout=VOLUME_DELETE_TIMEOUT,
             )
-            import pdb; pdb.set_trace()
-
         except HttpError as e:
             if e.resp.status == 404:
                 raise UnknownVolume(blockdevice_id)
