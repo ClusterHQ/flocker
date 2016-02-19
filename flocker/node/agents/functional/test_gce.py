@@ -27,7 +27,9 @@ from uuid import uuid4
 from fixtures import Fixture
 from characteristic import attributes
 
-from ..gce import wait_for_operation, get_machine_zone, get_machine_project
+from ..blockdevice import AlreadyAttachedVolume
+
+from ..gce import get_machine_zone, get_machine_project
 from ....provision._gce import GCEInstanceBuilder
 
 from ..test.test_blockdevice import (
@@ -40,6 +42,7 @@ from ..test.blockdevicefactory import (
 )
 
 from ....testtools import TestCase
+
 
 @attributes(['compute', 'project', 'zone'])
 class GCEComputeTestObjects(Fixture):
@@ -154,5 +157,21 @@ class GCEBlockDeviceAPITests(TestCase):
         ))
 
         instance_name = u"functional-test-" + unicode(uuid4())
-        instance = gce_fixture.create_instance(instance_name)
-        print instance
+        other_instance = gce_fixture.create_instance(instance_name)
+
+        new_volume = api.create_volume(
+            dataset_id=uuid4(),
+            size=get_minimum_allocatable_size()
+        )
+
+        attached_volume = api.attach_volume(
+            new_volume.blockdevice_id,
+            attach_to=other_instance.name,
+        )
+
+        self.assertRaises(
+            AlreadyAttachedVolume,
+            api.attach_volume,
+            blockdevice_id=attached_volume.blockdevice_id,
+            attach_to=api.compute_instance_id(),
+        )

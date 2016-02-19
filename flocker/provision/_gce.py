@@ -334,7 +334,7 @@ class GCEInstance(PClass):
                 zone=self.zone,
                 instance=self.name
             ).execute()
-            wait_for_operation(self.compute, operation, timeout_steps=[3]*60)
+            wait_for_operation(self.compute, operation, timeout_steps=[5]*60)
 
 
 @implementer(INode)
