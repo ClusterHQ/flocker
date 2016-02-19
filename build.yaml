@@ -1149,25 +1149,6 @@ job_type:
       timeout: 90
       directories_to_delete: *run_trial_directories_to_delete
 
-    run_trial_for_gce_storage_driver_on_Ubuntu_trusty:
-      on_nodes_with_labels: 'gce-ubuntu-trusty-n1-standard-2'
-      with_modules: *run_trial_functional_agent_modules
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_coverage, *setup_gce_env_vars,
-                   'export FLOCKER_FUNCTIONAL_TEST=TRUE',
-                   *run_trial_for_storage_drivers_with_coverage, *run_coverage,
-                   *convert_results_to_junit ]
-          }
-      archive_artifacts: *flocker_artifacts
-      publish_test_results: true
-      coverage_report: true
-      clean_repo: true
-      timeout: 45
-      directories_to_delete: *run_trial_directories_to_delete
-
   # http://build.clusterhq.com/builders/flocker-docs
   run_sphinx:
     run_sphinx:
@@ -1422,6 +1403,46 @@ job_type:
       # main multijob, see jobs.groovy.j2:545.
       timeout: 50
       notify_slack: '#nightly-builds'
+
+    run_trial_for_gce_storage_driver_on_Ubuntu_trusty:
+      at: '0 5 * * *'
+      on_nodes_with_labels: 'gce-ubuntu14'
+      with_modules: *run_trial_functional_agent_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_gce_env_vars,
+                   'export FLOCKER_FUNCTIONAL_TEST=TRUE',
+                   *run_trial_for_storage_drivers_with_coverage, *run_coverage,
+                   *convert_results_to_junit ]
+          }
+      archive_artifacts: *flocker_artifacts
+      publish_test_results: true
+      coverage_report: true
+      clean_repo: true
+      timeout: 45
+      directories_to_delete: *run_trial_directories_to_delete
+
+    run_trial_for_gce_storage_driver_on_CentOS_7:
+      at: '0 5 * * *'
+      on_nodes_with_labels: 'gce-centos7'
+      with_modules: *run_trial_functional_agent_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,  *setup_pip_cache,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_gce_env_vars,
+                   'export FLOCKER_FUNCTIONAL_TEST=TRUE',
+                   *run_trial_for_storage_drivers_with_coverage, *run_coverage,
+                   *convert_results_to_junit ]
+          }
+      archive_artifacts: *flocker_artifacts
+      publish_test_results: true
+      coverage_report: true
+      clean_repo: true
+      timeout: 45
+      directories_to_delete: *run_trial_directories_to_delete
 
     run_acceptance_on_AWS_CentOS_7_with_EBS:
       at: '0 5 * * *'
