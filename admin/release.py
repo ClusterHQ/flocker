@@ -865,7 +865,9 @@ def initialize_release(version, path, top_level):
     )
 
     sys.stdout.write("Installing dependencies...\n")
-    environment = {}
+    environment = {
+        "PATH": os.environ["PATH"]
+    }
     if _platform == "darwin":
         brew_openssl = check_output(["brew", "--prefix", "openssl"])
         environment["LDFLAGS"] = '-L{}/lib" CFLAGS="-I{}/include'.format(
