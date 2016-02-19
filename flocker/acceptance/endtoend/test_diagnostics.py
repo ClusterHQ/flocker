@@ -20,7 +20,7 @@ class DiagnosticsTests(AsyncTestCase):
     Tests for ``flocker-diagnostics``.
     """
     # This only requires the container agent to check
-    # that it's log is collected. We still care about
+    # that its log is collected. We still care about
     # that working, so we run it. We should stop
     # running it for this test when we get closer
     # to never running it in production.
