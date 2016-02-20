@@ -40,7 +40,7 @@ from ._effect import sequence
 from ._ssh import sudo_from_args, run_remotely
 
 # Defaults for some of the instance construction parameters.
-_GCE_DISK_SIZE_GIB = 10
+_GCE_MINIMUM_DISK_SIZE_GIB = 10
 _GCE_INSTANCE_TYPE = u"n1-standard-1"
 _GCE_ACCEPTANCE_USERNAME = u"flocker-acceptance"
 
@@ -140,7 +140,7 @@ class _DistributionImageParams(PClass):
 
 
 # Parameters to find the active image for a given distribution.
-_GCE_DISTRIBUTION_TO_IMAGE_MAP = {
+GCE_DISTRIBUTION_TO_IMAGE_MAP = {
     "centos-7": _DistributionImageParams(
         project=u"centos-cloud",
         image_name_prefix=u"centos-7",
@@ -150,6 +150,21 @@ _GCE_DISTRIBUTION_TO_IMAGE_MAP = {
         image_name_prefix=u"ubuntu-1404",
     )
 }
+
+
+def get_latest_gce_image_for_distribution(distribution, compute):
+    """
+    Returns a link to the latest GCE image for a given distribution.
+
+    :param unicode distribution: The distribution to get the latest image for.
+
+    :returns: A link to the latest image for the given distribution.
+
+    :raises: KeyError if this implementation does not support finding the
+        latest image for the specified distribution.
+    """
+    return GCE_DISTRIBUTION_TO_IMAGE_MAP[distribution].get_active_image(
+        compute)["selfLink"]
 
 
 class _LoginCredentials(PClass):
@@ -170,9 +185,16 @@ class _LoginCredentials(PClass):
     public_key = field(type=unicode)
 
 
-def _create_gce_instance_config(instance_name, project, zone, machine_type,
-                                image, login_credentials, disk_size,
-                                description, tags, delete_disk_on_terminate,
+def _create_gce_instance_config(instance_name,
+                                project,
+                                zone,
+                                image,
+                                machine_type=u"n1-standard-1",
+                                disk_size=_GCE_MINIMUM_DISK_SIZE_GIB,
+                                description=u"",
+                                tags=frozenset(),
+                                delete_disk_on_terminate=True,
+                                login_credentials=frozenset(),
                                 startup_script=None):
     """
     Create a configuration blob to configure a GCE instance.
@@ -233,15 +255,7 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
             }
         ],
         u"metadata": {
-            u"items": [
-                {
-                    u"key": u"sshKeys",
-                    u"value": u"\n".join(list(
-                        u"{}:{}".format(x.username, x.public_key)
-                        for x in login_credentials
-                    ))
-                }
-            ]
+            u"items": []
         },
         u"description": description,
         u"serviceAccounts": [
@@ -262,6 +276,17 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
         }
     }
 
+    if login_credentials:
+        gce_slave_instance_config[u"metadata"][u"items"].append(
+            {
+                u"key": u"sshKeys",
+                u"value": u"\n".join(list(
+                    u"{}:{}".format(x.username, x.public_key)
+                    for x in login_credentials
+                ))
+            }
+        )
+
     if startup_script:
         gce_slave_instance_config[u"metadata"][u"items"].append(
             {
@@ -272,31 +297,71 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
     return gce_slave_instance_config
 
 
-@implementer(INode)
-class GCENode(PClass):
+class GCEInstance(PClass):
     """
-    ``INode`` implementation for GCE.
+    Simple GCE instance object that represents an instance as a cloud resource.
+
+    This does not contain any information about the distribution running on the
+    instance or credentials that can be used to connect to the node.
 
     :ivar unicode address: The public IP address of the instance.
     :ivar unicode private_address: The network internal IP address of the
         instance.
-    :ivar bytes distribution: The OS distribution of the instance.
     :ivar unicode project: The project the instance a member of.
     :ivar unicode zone: The zone the instance is in.
     :ivar unicode name: The GCE name of the instance used to identify the
         instance.
-    :ivar bytes username: The preferred username to access the instance as.
     :ivar compute: A Google Compute Engine Service that can be used to make
         calls to the GCE API.
     """
     address = field(type=bytes)
     private_address = field(type=bytes)
-    distribution = field(type=bytes)
     project = field(type=unicode)
     zone = field(type=unicode)
     name = field(type=unicode)
-    username = field(type=bytes)
     compute = field()
+
+    def destroy(self):
+        """
+        Destroy the instance. Blocks until the operation is completed.
+        """
+        with start_action(
+            action_type=u"flocker:provision:gce:destroy",
+            instance_id=self.name,
+        ):
+            operation = self.compute.instances().delete(
+                project=self.project,
+                zone=self.zone,
+                instance=self.name
+            ).execute()
+            # Has been observed to take up to ~4 minutes.
+            wait_for_operation(self.compute, operation, timeout_steps=[5]*60)
+
+
+@implementer(INode)
+class GCENode(PClass):
+    """
+    ``INode`` implementation for GCE.
+
+    :ivar GCEInstance instance: The instance running this node.
+    :ivar bytes distribution: The OS distribution of the instance.
+    :ivar bytes username: The preferred username to access the instance as.
+    """
+    instance = field(type=GCEInstance)
+    distribution = field(type=bytes)
+    username = field(type=bytes)
+
+    @property
+    def address(self):
+        return self.instance.address
+
+    @property
+    def private_address(self):
+        return self.instance.private_address
+
+    @property
+    def name(self):
+        return self.instance.name
 
     def get_default_username(self):
         return self.username
@@ -334,16 +399,7 @@ class GCENode(PClass):
         return sequence(commands)
 
     def destroy(self):
-        with start_action(
-            action_type=u"flocker:provision:gce:destroy",
-            instance_id=self.name,
-        ):
-            operation = self.compute.instances().delete(
-                project=self.project,
-                zone=self.zone,
-                instance=self.name
-            ).execute()
-            wait_for_operation(self.compute, operation, timeout_steps=[1]*60)
+        return self.instance.destroy()
 
     def reboot(self):
         """
@@ -364,71 +420,42 @@ class GCENode(PClass):
             "experimentally been determined to not be needed.")
 
 
-@implementer(IProvisioner)
-class GCEProvisioner(PClass):
+class GCEInstanceBuilder(PClass):
     """
-    A provisioner that can create instances on GCE.
+    An object that can bring up GCE instances.
 
     :ivar unicode zone: The zone in which instances will be provisioned.
     :ivar unicode project: The project under which instances will be
         provisioned.
-    :ivar Key ssh_public_key: The public ssh key that will transferred to the
-        instance for access.
     :ivar compute: A Google Compute Engine Service that can be used to make
         calls to the GCE API.
     """
-
     zone = field(type=unicode)
     project = field(type=unicode)
-    ssh_public_key = field(type=Key)
     compute = field()
 
-    def get_ssh_key(self):
-        return self.ssh_public_key
+    def create_instance(self, instance_name, image=None, **kwargs):
+        """
+        Create a GCE instance.
 
-    def create_node(self, name, distribution, metadata={}):
-        instance_name = _clean_to_gce_name(name)
-        ssh_key = unicode(self.ssh_public_key.toString('OPENSSH'))
-        username = _GCE_ACCEPTANCE_USERNAME
+        :param unicode instance: The name of the instance to create.
+        :param unicode image: The link to the GCE image to use for the base
+            disk. Defaults to the latest CentOS 7 image if unspecified.
+        :param **kwargs: Other keyword arguments for the creation of the
+            instance. See documentation of ``_create_gce_instance_config`` for
+            keyword argument values.
+        :returns GCEInstance: The instance that was started.
+        """
+        if image is None:
+            image = get_latest_gce_image_for_distribution('centos-7',
+                                                          self.compute)
         config = _create_gce_instance_config(
             instance_name=instance_name,
             project=self.project,
             zone=self.zone,
-            machine_type=_GCE_INSTANCE_TYPE,
-            image=(
-                _GCE_DISTRIBUTION_TO_IMAGE_MAP[distribution].get_active_image(
-                    self.compute)["selfLink"]
-            ),
-            # The acceptance tests expect to be able to ssh in as root, but on
-            # CentOS that is by default turned off, so we must also enable
-            # sshing in as a different user to enable root ssh.
-            login_credentials=[
-                _LoginCredentials(
-                    username=username,
-                    public_key=ssh_key
-                ),
-                _LoginCredentials(
-                    username=u"root",
-                    public_key=ssh_key
-                ),
-            ],
-            disk_size=_GCE_DISK_SIZE_GIB,
-            description=json.dumps({
-                u"description-format": u"v1",
-                u"created-by-python": u"flocker.provision._gce.GCEProvisioner",
-                u"name": name,
-                u"metadata": metadata
-            }),
-            tags=set([u"flocker-gce-provisioner",
-                      u"json-description",
-                      _GCE_FIREWALL_TAG]),
-            delete_disk_on_terminate=True,
-            startup_script=dedent("""\
-                #!/bin/sh
-                sed -i '/Defaults *requiretty/d' /etc/sudoers
-                """),
+            image=image,
+            **kwargs
         )
-
         operation = self.compute.instances().insert(
             project=self.project,
             zone=self.zone,
@@ -448,17 +475,77 @@ class GCEProvisioner(PClass):
         instance_resource = self.compute.instances().get(
             project=self.project, zone=self.zone, instance=instance_name
         ).execute()
-
         network_interface = instance_resource["networkInterfaces"][0]
-        return GCENode(
+
+        return GCEInstance(
             address=bytes(network_interface["accessConfigs"][0]["natIP"]),
             private_address=bytes(network_interface["networkIP"]),
-            distribution=bytes(distribution),
             project=self.project,
             zone=self.zone,
             name=instance_name,
-            username=bytes(username),
-            compute=self.compute
+            compute=self.compute,
+        )
+
+
+@implementer(IProvisioner)
+class GCEProvisioner(PClass):
+    """
+    A provisioner that can create instances on GCE.
+
+    :ivar GCEInstanceBuilder instance_builder: The object used to actually
+        bring up GCE instances.
+    :ivar Key ssh_public_key: The public ssh key that will transferred to the
+        instance for access.
+    """
+    instance_builder = field(type=GCEInstanceBuilder)
+    ssh_public_key = field(type=Key)
+
+    def get_ssh_key(self):
+        return self.ssh_public_key
+
+    def create_node(self, name, distribution, metadata={}):
+        instance_name = _clean_to_gce_name(name)
+        ssh_key = unicode(self.ssh_public_key.toString('OPENSSH'))
+        username = _GCE_ACCEPTANCE_USERNAME
+        instance = self.instance_builder.create_instance(
+            instance_name=instance_name,
+            machine_type=_GCE_INSTANCE_TYPE,
+            image=get_latest_gce_image_for_distribution(
+                distribution, self.instance_builder.compute),
+            # The acceptance tests expect to be able to ssh in as root, but on
+            # CentOS that is by default turned off, so we must also enable
+            # sshing in as a different user to enable root ssh.
+            login_credentials=[
+                _LoginCredentials(
+                    username=username,
+                    public_key=ssh_key
+                ),
+                _LoginCredentials(
+                    username=u"root",
+                    public_key=ssh_key
+                ),
+            ],
+            disk_size=_GCE_MINIMUM_DISK_SIZE_GIB,
+            description=json.dumps({
+                u"description-format": u"v1",
+                u"created-by-python": u"flocker.provision._gce.GCEProvisioner",
+                u"name": name,
+                u"metadata": metadata
+            }),
+            tags=set([u"flocker-gce-provisioner",
+                      u"json-description",
+                      _GCE_FIREWALL_TAG]),
+            delete_disk_on_terminate=True,
+            startup_script=dedent("""\
+                #!/bin/sh
+                sed -i '/Defaults *requiretty/d' /etc/sudoers
+                """),
+        )
+
+        return GCENode(
+            instance=instance,
+            distribution=bytes(distribution),
+            username=bytes(username)
         )
 
     def create_nodes(self, reactor, names, distribution, metadata={}):
@@ -508,8 +595,10 @@ def gce_provisioner(
     compute = discovery.build('compute', 'v1', credentials=credentials)
 
     return GCEProvisioner(
-        zone=unicode(zone),
-        project=unicode(project),
+        instance_builder=GCEInstanceBuilder(
+            zone=unicode(zone),
+            project=unicode(project),
+            compute=compute,
+        ),
         ssh_public_key=key,
-        compute=compute,
     )

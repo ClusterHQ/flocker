@@ -200,6 +200,31 @@ def _get_metadata_path(path):
     return r.text
 
 
+def get_machine_zone():
+    """
+    Returns the zone that the GCE instance running this code is running within.
+
+    It does this by querying the metadata server.
+
+    :returns unicode: The zone where the current instance is running.
+    """
+    # Transform "projects/<project-number>/zones/us-central1-f" to
+    # "us-central1-f".
+    return _get_metadata_path('instance/zone').split('/')[-1]
+
+
+def get_machine_project():
+    """
+    Returns the project that the GCE instance running this code is running
+    within.
+
+    It does this by querying the metadata server.
+
+    :returns unicode: The project under which the current instance is running.
+    """
+    return _get_metadata_path('project/project-id')
+
+
 # The prefix added to dataset_ids to turn them into blockdevice_ids.
 _PREFIX = 'flocker-v1-'
 
