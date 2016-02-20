@@ -497,7 +497,8 @@ class DockerComposeTests(AsyncTestCase):
             reactor=reactor,
             function=upload_docker_compose_files,
             expected=(SCPConnectionError,),
-            steps=repeat(1, 5)
+            # Wait 60s for the client SSH server to accept connections.
+            steps=repeat(1, 60)
         )
 
         # This isn't in the tutorial, but docker-compose doesn't retry failed
