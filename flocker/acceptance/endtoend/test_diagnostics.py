@@ -49,8 +49,8 @@ class DiagnosticsTests(AsyncTestCase):
             local_archive_path = FilePath(self.mktemp())
             return download(
                 reactor=reactor,
-                username=u'root',
-                host=node_address,
+                username=b'root',
+                host=node_address.encode('ascii'),
                 remote_path=remote_archive_path,
                 local_path=local_archive_path,
             ).addCallback(lambda ignored: local_archive_path)

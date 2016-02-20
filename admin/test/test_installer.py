@@ -365,7 +365,7 @@ class DockerComposeTests(AsyncTestCase):
         d = download(
             reactor=reactor,
             username=b'ubuntu',
-            host=self.client_node_ip,
+            host=self.client_node_ip.encode('ascii'),
             remote_path=FilePath('/etc/flocker'),
             local_path=local_certs_path
         )
@@ -376,7 +376,7 @@ class DockerComposeTests(AsyncTestCase):
                 certificates_path=local_certs_path,
                 num_agent_nodes=2,
                 hostname_to_public_address={},
-                username='user1',
+                username=b'user1',
             )
         )
         d.addCallback(
@@ -472,7 +472,7 @@ class DockerComposeTests(AsyncTestCase):
         template creates a PostgreSQL server on one node. The second template
         moves the PostgreSQL server to the second node.
         """
-        client_username = u"ubuntu"
+        client_username = b"ubuntu"
         client_home = FilePath('/home').child(client_username)
         remote_compose_directory = client_home.child(random_name(self))
         self.compose_node1 = (
@@ -487,7 +487,7 @@ class DockerComposeTests(AsyncTestCase):
             return upload(
                 reactor=reactor,
                 username=client_username,
-                host=self.client_node_ip,
+                host=self.client_node_ip.encode('ascii'),
                 local_path=FilePath(__file__).parent().descendant(
                     ['installer', 'postgres']
                 ),

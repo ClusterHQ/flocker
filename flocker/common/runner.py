@@ -42,6 +42,7 @@ RUN_ERROR_MESSAGE = MessageType(
     description=u"A line of command stderr.",
 )
 
+# Logging for the scp, upload, and download functions
 SCP_ACTION = ActionType(
     action_type="flocker.common.runner:scp",
     startFields=[
@@ -248,28 +249,40 @@ def run_ssh(reactor, username, host, command, **kwargs):
         **kwargs
     )
 
+
 DOWNLOAD = object()
 UPLOAD = object()
 
 
 class SCPError(Exception):
     """
-    An expected SCP error.
+    An expected ``scp`` error.
     """
 
 
 class SCPConnectionError(SCPError):
     """
-    An SCP connection error.
+    An ``scp`` connection error.
     """
 
 
 def scp(reactor, username, host, remote_path, local_path,
         port=22, identity_file=None, direction=DOWNLOAD):
+    """
+    :param reactor: A ``twisted.internet.reactor``.
+    :param bytes username: The SSH username.
+    :param bytes host: The SSH host.
+    :param FilePath remote_path: The path to the remote file.
+    :param FilePath local_path: The path to the local file.
+    :param int port: The SSH TCP port.
+    :param FilePath identity_file: The path to an SSH private key.
+    :param direction: One of ``DOWNLOAD`` or ``UPLOAD``.
+    :returns: A ``Deferred`` that fires when the process is ended.
+    """
     remote_host_path = username + b'@' + host + b':' + remote_path.path
     scp_command = [
         b"scp",
-        # XXX Seems to me that -r can be used in all cases.
+        # XXX Seems safe to use -r for both files and directories.
         b"-r",
         b"-P", bytes(port),
     ] + SSH_OPTIONS
@@ -348,17 +361,10 @@ def scp(reactor, username, host, remote_path, local_path,
 def download(reactor, username, host, remote_path, local_path,
              port=22, identity_file=None):
     """
-    Run the local ``scp`` command to download a single file from a remote host
-    and kill it if the reactor stops.
+    Run the local ``scp`` command to download a file or directory from a remote
+    host and kill it if the reactor stops.
 
-    :param reactor: Reactor to use.
-    :param username: The username to use when logging into the remote server.
-    :param host: The hostname or IP address of the remote server.
-    :param FilePath remote_path: The path of the file on the remote host.
-    :param FilePath local_path: The path of the file on the local host.
-
-    :return Deferred: Deferred that fires when the process is ended.  If the
-        file isn't found on the remote server, it fires with ``FileNotFound``.
+    See ``scp`` for parameter and return type documentation.
     """
     return scp(
         reactor=reactor,
@@ -378,13 +384,7 @@ def upload(reactor, username, host, local_path, remote_path,
     Run the local ``scp`` command to upload a file or directory to a remote
     host and kill it if the reactor stops.
 
-    :param reactor: Reactor to use.
-    :param username: The username to use when logging into the remote server.
-    :param host: The hostname or IP address of the remote server.
-    :param FilePath local_path: The path of the file on the local host.
-    :param FilePath remote_path: The path of the file on the remote host.
-
-    :return Deferred: Deferred that fires when the process is ended.
+    See ``scp`` for parameter and return type documentation.
     """
     return scp(
         reactor=reactor,

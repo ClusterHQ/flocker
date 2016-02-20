@@ -922,7 +922,7 @@ class Cluster(PClass):
         d = download(
             reactor=reactor,
             username=b"root",
-            host=node.public_address,
+            host=node.public_address.encode('ascii'),
             remote_path=path,
             local_path=destination,
         )

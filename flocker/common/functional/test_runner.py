@@ -15,7 +15,13 @@ from flocker.testtools import AsyncTestCase, random_name
 
 
 class UploadTests(AsyncTestCase):
+    """
+    Tests for ``flocker.common.runner.upload``.
+    """
     def test_upload_file(self):
+        """
+        A single file can be uploaded.
+        """
         expected_content = random_name(self)
         local_path = self.make_temporary_file()
         local_path.setContent(expected_content)
@@ -25,6 +31,9 @@ class UploadTests(AsyncTestCase):
         )
 
     def test_upload_directory(self):
+        """
+        A directory can be uploaded recursively.
+        """
         local_path = self.make_temporary_directory()
         local_path.child('child1').open('w')
         return self.assert_upload(
@@ -33,6 +42,15 @@ class UploadTests(AsyncTestCase):
         )
 
     def assert_upload(self, local_path, matcher):
+        """
+        Assert that the ``local_path`` can be uploaded to and then downloaded
+        from a remote SSH server and that the contents are preserved.
+
+        :param FilePath local_path: The local file or directory to upload.
+        :param matcher: A ``testtools`` matcher which will be compared to the
+            downloaded ``FilePath.path``.
+        :returns: A ``Deferred`` that fires when the assertion is complete.
+        """
         self.ssh_server = create_ssh_server(
             base_path=self.make_temporary_directory()
         )
