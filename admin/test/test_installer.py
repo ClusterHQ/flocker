@@ -320,15 +320,15 @@ class DockerComposeTests(AsyncTestCase):
 
         def set_stack_variables(stack_report):
             outputs = stack_report['Outputs']
-            stack_id = stack_report['StackId']
+            # stack_id = stack_report['StackId']
             for variable_name, stack_output_name in STACK_VARIABLES.items():
                 setattr(
                     self, variable_name, get_output(outputs, stack_output_name)
                 )
-            if 'KEEP_STACK' not in os.environ:
-                self.addCleanup(
-                    delete_cloudformation_stack, stack_id, aws_config
-                )
+            # if 'KEEP_STACK' not in os.environ:
+            #     self.addCleanup(
+            #         delete_cloudformation_stack, stack_id, aws_config
+            #     )
         d.addCallback(set_stack_variables)
         return d
 
@@ -346,8 +346,8 @@ class DockerComposeTests(AsyncTestCase):
 
         def stack_ready(ignored):
             self.docker_host = 'tcp://' + self.control_node_ip + ':2376'
-            self.addCleanup(self._cleanup_flocker)
-            self.addCleanup(self._cleanup_compose)
+            # self.addCleanup(self._cleanup_flocker)
+            # self.addCleanup(self._cleanup_compose)
         d.addCallback(stack_ready)
 
         return d
