@@ -351,7 +351,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
     :param bytes base_url: URL of repository, or ``None`` if we're not using
         development branch.
 
-    :return: a sequence of commands to run on the distribution
+    return: a sequence of commands to run on the distribution
     """
     flocker_version = package_source.version
     if not flocker_version:
@@ -1542,6 +1542,109 @@ def install_flocker(nodes, package_source):
     )
 
 
+def configure_ceph(cluster):
+    from functools import partial
+    from subprocess import check_output
+    from twisted.python.filepath import FilePath
+    from twisted.internet import reactor
+    from flocker.common.runner import run_ssh
+    from socket import gethostbyaddr
+    run_locally = lambda *args, **kwargs: Effect(Func(
+        partial(check_output, *args, **kwargs)
+    ))
+    ceph_deploy = lambda args: run_locally(
+        ["ceph-deploy", "--username", "root"] + args
+    )
+
+    def internal_hostname(node):
+        # ec2-52-18-223-144
+        return "ip-%s" % (node.private_address.replace(".", "-"),)
+
+    get_hostname = lambda node: gethostbyaddr(node.address)[0]
+    OSD_PATH = "/var/local/osd"
+
+    return sequence([
+        parallel([
+            run_remotely(
+                username='root',
+                address=node.address,
+                commands=sequence([
+                    # XXX: Support ubuntu/fedora
+                    # yum_install([
+                    #     "https://download.ceph.com/rpm-infernalis/el7/noarch/ceph-release-1-1.el7.noarch.rpm",  # noqa
+                    #     "epel-release",
+                    # ]),
+                    # yum_install(["ceph"]),
+                    run_from_args(['systemctl', 'enable', 'chronyd']),
+                    run_from_args(['systemctl', 'restart', 'chronyd']),
+                    run_from_args([
+                        "/opt/flocker/bin/pip",
+                        "install",
+                        "https://github.com/ClusterHQ/ceph-flocker-driver/"
+                        "archive/master.zip"
+                    ]),
+                    # XXX Populate ssh_known_hosts
+                    Effect(Func(partial(
+                        run_ssh, reactor, "root", get_hostname(node), ["true"],
+                    ))),
+                ])
+            )
+            for node in cluster.all_nodes
+        ]),
+        # XXX This needs hostname not IP
+        ceph_deploy(
+            ["install"]
+            + [get_hostname(node) for node in cluster.all_nodes]
+        ),
+        ceph_deploy([
+            "new", "{}:{}".format(
+                internal_hostname(cluster.control_node),
+                cluster.control_node.private_address,
+            ),
+        ]),
+        Effect(Func(
+            lambda path=FilePath("ceph.conf"):
+            path.setContent(
+                path.getContent() + dedent("""\
+                    osd_pool_default_size = 3
+                    osd_pool_default_min_size = 2
+                    """)
+            )
+        )),
+        # XXX Can't use `mon create-initial` since that only uses short-name.
+        # ceph_deploy(["mon", "create-initial"]),
+        ceph_deploy([
+            "mon", "create", "{}:{}".format(
+                internal_hostname(cluster.control_node),
+                get_hostname(cluster.control_node),
+            ),
+        ]),
+        ceph_deploy(["gatherkeys", get_hostname(cluster.control_node)]),
+        parallel([
+            run_remotely(
+                username='root',
+                address=node.address,
+                # XXX: Support ubuntu/fedora
+                commands=sequence([
+                    run_from_args(['mkdir', OSD_PATH]),
+                    ceph_deploy([
+                        "osd", "prepare",
+                        "{}:{}".format(get_hostname(node), OSD_PATH),
+                    ]),
+                    ceph_deploy([
+                        "osd", "activate",
+                        "{}:{}".format(get_hostname(node), OSD_PATH),
+                    ]),
+                ])
+            )
+            for node in cluster.agent_nodes
+        ]),
+        ceph_deploy(
+            ["admin"] + [get_hostname(node) for node in cluster.all_nodes]
+        ),
+    ])
+
+
 def configure_cluster(
     cluster, dataset_backend_configuration, provider, logging_config=None
 ):
@@ -1560,6 +1663,7 @@ def configure_cluster(
         following the structure of PEP 391.
     """
     return sequence([
+        configure_ceph(cluster),
         configure_control_node(
             cluster,
             provider,

@@ -546,7 +546,7 @@ def configured_cluster_for_nodes(
     cluster = Cluster(
         all_nodes=pvector(nodes),
         control_node=nodes[0],
-        agent_nodes=nodes,
+        agent_nodes=pvector(nodes),
         dataset_backend=dataset_backend,
         default_volume_size=default_volume_size,
         certificates=certificates,

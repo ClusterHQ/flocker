@@ -1,7 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 from characteristic import attributes, Attribute
-from pyrsistent import PClass, field
+from pyrsistent import PClass, field, PVector
 from zope.interface import (
     Attribute as InterfaceAttribute, Interface)
 
@@ -76,9 +76,9 @@ class Cluster(PClass):
     :ivar FilePath dataset_backend_config_file: FilePath with the backend
         configuration.
     """
-    all_nodes = field(mandatory=True)
+    all_nodes = field(PVector, mandatory=True)
     control_node = field(mandatory=True)
-    agent_nodes = field(mandatory=True)
+    agent_nodes = field(PVector, mandatory=True)
     dataset_backend = field(type=BackendDescription, mandatory=True)
     default_volume_size = field(type=int, mandatory=True)
     certificates = field(type=Certificates, mandatory=True)
