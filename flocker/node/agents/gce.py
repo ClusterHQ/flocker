@@ -558,3 +558,16 @@ class GCEBlockDeviceAPI(object):
             else:
                 raise e
         return None
+
+
+class GCEAtomicOperations(PClass):
+    """
+    Class that encompasses all operations that can be done atomically on GCE.
+
+    This separation is done for testing purposes. Putting the atomic operations
+    behind an interface gives us a point of injection to force races that
+    cannot be forced from the higher layer.
+
+    :ivar _compute: The GCE compute object to use to interact with the GCE API.
+    """
+    _compute = field(mandatory=True)
