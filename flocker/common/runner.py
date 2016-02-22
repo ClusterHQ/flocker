@@ -209,7 +209,7 @@ def run(reactor, command, handle_stdout=None, handle_stderr=None, **kwargs):
 
 SSH_OPTIONS = [
     b"-C",  # compress traffic
-    b"-vv",  # debug
+    b"-q",  # suppress warnings
     # We're ok with unknown hosts.
     b"-o", b"StrictHostKeyChecking=no",
     # The tests hang if ControlMaster is set, since OpenSSH won't
