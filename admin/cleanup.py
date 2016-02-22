@@ -22,6 +22,7 @@ from dateutil.parser import parse as parse_date
 from dateutil.tz import tzutc
 
 from libcloud.compute.base import NodeState, StorageVolume, Node
+from libcloud.compute.types import StorageVolumeState
 from libcloud.compute.providers import get_driver, Provider
 
 from twisted.python.filepath import FilePath
@@ -254,7 +255,11 @@ class CleanVolumes(object):
         keep = []
         for volume in volumes:
             created = _get_volume_creation_time(volume)
-            if self._is_test_volume(volume) and now - created > maximum_age:
+            if (
+                volume.state is StorageVolumeState.AVAILABLE and
+                self._is_test_volume(volume) and
+                now - created > maximum_age
+            ):
                 destroy.append(volume)
             else:
                 keep.append(volume)

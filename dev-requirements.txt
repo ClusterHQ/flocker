@@ -1,5 +1,5 @@
 alabaster==0.7.6
-apache-libcloud==0.17.0
+apache-libcloud==0.20.1
 astroid==1.4.4
 awscli==1.9.17
 backports.ssl-match-hostname==3.4.0.2
