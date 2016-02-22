@@ -279,9 +279,17 @@ def create_gce_block_device_api(cluster_id, project, zone):
         :class:`BlockDeviceAPI`.
     :param zone: The zone to create and modify blockdevices within.
     """
-    return GCEBlockDeviceAPI(unicode(cluster_id),
-                             unicode(project),
-                             unicode(zone))
+    # TODO(mewert): Also enable credentials via service account private
+    # keys.
+    credentials = AppAssertionCredentials(
+        "https://www.googleapis.com/auth/cloud-platform")
+    compute = discovery.build('compute', 'v1', credentials=credentials)
+    return GCEBlockDeviceAPI(
+        _compute=compute,
+        _cluster_id=unicode(cluster_id),
+        _project=unicode(project),
+        _zone=unicode(zone)
+    )
 
 
 @implementer(IBlockDeviceAPI)
@@ -334,26 +342,19 @@ class GCEBlockDeviceAPI(object):
         - We could add filtering by cluster by filtering on description.
         - The path of the device (or at least the path to a symlink to a path
             of the volume) is a pure function of blockdevice_id.
+
+    :ivar _compute: The GCE compute API object.
+    :ivar unicode _project: The project where this block device driver will
+        operate.
+    :ivar unicode _zone: The zone where this block device driver will operate.
+    :ivar unicode _cluster_id: The cluster id of the cluster this driver
+        operates under.
     """
     # TODO(mewert): Logging throughout.
-
-    def __init__(self, cluster_id, project, zone):
-        """
-        Initialize the GCEBlockDeviceAPI.
-
-        :param unicode project: The project where all GCE operations will take
-            place.
-        :param unicode zone: The zone where all GCE operations will take place.
-        """
-        # TODO(mewert): Also enable credentials via service account private
-        # keys.
-        credentials = AppAssertionCredentials(
-            "https://www.googleapis.com/auth/cloud-platform")
-        self._compute = discovery.build(
-            'compute', 'v1', credentials=credentials)
-        self._project = project
-        self._zone = zone
-        self._cluster_id = cluster_id
+    _compute = field(mandatory=True)
+    _project = field(type=unicode, mandatory=True)
+    _zone = field(type=unicode, mandatory=True)
+    _cluster_id = field(type=unicode, mandatory=True)
 
     def _disk_resource_description(self):
         """
@@ -558,16 +559,3 @@ class GCEBlockDeviceAPI(object):
             else:
                 raise e
         return None
-
-
-class GCEAtomicOperations(PClass):
-    """
-    Class that encompasses all operations that can be done atomically on GCE.
-
-    This separation is done for testing purposes. Putting the atomic operations
-    behind an interface gives us a point of injection to force races that
-    cannot be forced from the higher layer.
-
-    :ivar _compute: The GCE compute object to use to interact with the GCE API.
-    """
-    _compute = field(mandatory=True)
