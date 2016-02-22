@@ -1615,6 +1615,8 @@ job_type:
                    *setup_flocker_modules,
                    *setup_coverage,
                    *setup_aws_env_vars,
+                   *check_version,
+                   *setup_authentication,
                    'export ACCEPTANCE_YAML=/tmp/acceptance.yaml',
                    *run_trial_with_coverage,
                    *run_coverage,
