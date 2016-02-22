@@ -28,7 +28,7 @@ from twisted.python.constants import Names, NamedConstant
 
 from ..cinder import cinder_from_configuration
 from ..ebs import EBSBlockDeviceAPI, ec2_client
-from ..gce import GCEBlockDeviceAPI
+from ..gce import create_gce_block_device_api
 from ..test.test_blockdevice import detach_destroy_volumes
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
 from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
@@ -225,7 +225,7 @@ def _gce(cluster_id, config):
         necessary to authenticate a Persistent Disk session.
     :return: A GCEBlockDeviceAPI instance.
     """
-    return GCEBlockDeviceAPI(cluster_id=cluster_id, **config)
+    return create_gce_block_device_api(cluster_id=cluster_id, **config)
 
 # Map provider labels to IBlockDeviceAPI factory.
 _BLOCKDEVICE_TYPES = {

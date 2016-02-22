@@ -270,6 +270,20 @@ def _extract_attached_to(disk):
     return unicode(users[0].split('/')[-1])
 
 
+def create_gce_block_device_api(cluster_id, project, zone):
+    """
+    Factory for :class:`GCEBlockDeviceAPI` instances.
+
+    :param cluster_id: The cluster id for this cluster.
+    :param project: The project to use for this
+        :class:`BlockDeviceAPI`.
+    :param zone: The zone to create and modify blockdevices within.
+    """
+    return GCEBlockDeviceAPI(unicode(cluster_id),
+                             unicode(project),
+                             unicode(zone))
+
+
 @implementer(IBlockDeviceAPI)
 class GCEBlockDeviceAPI(object):
     """
