@@ -64,7 +64,7 @@ six==1.9.0
 stevedore==1.5.0
 toolz==0.7.4
 treq==0.2.1
-Twisted==15.5.0
+Twisted==16.0.0rc1
 txeffect==0.9
 uritemplate==0.6
 websocket-client==0.32.0

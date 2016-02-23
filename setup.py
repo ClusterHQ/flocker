@@ -98,6 +98,12 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
 
     dependency_links = [
+        # Use prerelease twisted (ceph driver depends on the cryptography port
+        #     of twisted.conch)
+        # "git+https" weirdness is due to setuptools expecting:
+        #     vcs+proto://host/path@revision#egg=project-version
+        # See https://setuptools.readthedocs.org/en/latest/setuptools.html
+        "https://twistedmatrix.com/Releases/pre/16.0.0pre1/Twisted-16.0.0pre1.tar.bz2",  # noqa
     ],
 
     # Some "trove classifiers" which are relevant.

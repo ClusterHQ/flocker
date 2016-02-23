@@ -1542,56 +1542,6 @@ def install_flocker(nodes, package_source):
     )
 
 
-def configure_ceph(cluster):
-    from functools import partial
-    from twisted.python.filepath import FilePath
-
-    return sequence([
-        parallel([
-            run_remotely(
-                username='root',
-                address=node.address,
-                commands=sequence([
-                    # XXX: Support ubuntu/fedora
-                    # yum_install([
-                    #     "https://download.ceph.com/rpm-infernalis/el7/noarch/ceph-release-1-1.el7.noarch.rpm",  # noqa
-                    #     "epel-release",
-                    # ]),
-                    # yum_install(["ceph"]),
-                    run_from_args(['systemctl', 'enable', 'chronyd']),
-                    run_from_args(['systemctl', 'restart', 'chronyd']),
-                    run_from_args([
-                        "/opt/flocker/bin/pip",
-                        "install",
-                        "https://github.com/ClusterHQ/ceph-flocker-driver"
-                        "/archive/ceph-deploy.zip#egg-info=ceph_flocker_driver"
-                    ]),
-                    # XXX Populate ssh_known_hosts
-                    Effect(Func(partial(
-                        configure_ssh, node.address, 22,
-                    ))),
-                ])
-            )
-            for node in cluster.all_nodes
-        ]),
-        run_remotely(
-            username='root',
-            address=cluster.control_node.address,
-            commands=sequence([
-                put(
-                    FilePath(__file__).sibling('install-ceph.py').getContent(),
-                    "/root/install-ceph.py",
-                ),
-                run_from_args(
-                    ["/opt/flocker/bin/python", "/root/install-ceph.py"]
-                    + [cluster.control_node.private_address]
-                    + [node.private_address for node in cluster.agent_nodes]
-                )
-            ])
-        ),
-    ])
-
-
 def configure_cluster(
     cluster, dataset_backend_configuration, provider, logging_config=None
 ):
@@ -1609,6 +1559,7 @@ def configure_cluster(
     :param dict logging_config: A Python logging configuration dictionary,
         following the structure of PEP 391.
     """
+    from ceph_flocker_driver.provision import configure_ceph
     return sequence([
         configure_ceph(cluster),
         configure_control_node(
