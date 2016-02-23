@@ -336,6 +336,10 @@ linkcheck_ignore = [
     r'https://docs.docker.com/\S*',
 ]
 
+rst_epilog = """
+.. |flocker-version| replace:: {}
+""".format(version)
+
 
 def setup(app):
     # This allows us to ignore spelling in any particular file

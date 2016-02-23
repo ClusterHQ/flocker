@@ -57,7 +57,15 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
                         <h3 class="step-stages__subheading">Create a Flocker cluster</h3>
                         <p>
             <br />
-                        <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json" class="button" target="_blank" align="middle">Start CloudFormation Configuration Process</a>
+
+                        <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.|flocker-version|.json" class="button" target="_blank" align="middle">Start CloudFormation Configuration Process</a>
+
+
+`Start CloudFormation Configuration Process <https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.|flocker-version|.json>`_
+
+The Flocker version is |flocker-version|
+
+.. raw:: html
             <br />
                         This button will open CloudFormation in a new window.</p>
                 </div>
