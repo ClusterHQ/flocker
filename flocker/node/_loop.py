@@ -527,10 +527,8 @@ class ConvergenceLoop(object):
                 # in case there were any incremental back offs while
                 # waiting to converge.
                 self._unconverged_sleep.reset_delay()
-                # We've converged, we can sleep for NoOp's sleep duration.
                 # We add some jitter so not all agents wake up at exactly
                 # the same time, to reduce load on system:
-                self._unconverged_sleep.reset_delay()
                 sleep_duration = _Sleep.with_jitter(
                     action.sleep.total_seconds())
             else:
