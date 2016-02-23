@@ -272,6 +272,7 @@ class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
 # converged so want to do another iteration again soon:
 
 _UNCONVERGED_DELAY = 0.1
+_UNCONVERGED_BACKOFF_FACTOR = 4
 
 
 class _UnconvergedDelay(object):
@@ -311,7 +312,7 @@ class _UnconvergedDelay(object):
             following an exponential backoff curve.
         """
         s = _Sleep(delay_seconds=self.delay)
-        self.delay *= 4
+        self.delay *= _UNCONVERGED_BACKOFF_FACTOR
         if self.delay > self.max_sleep:
             self.delay = self.max_sleep
         return s

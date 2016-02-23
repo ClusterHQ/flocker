@@ -34,7 +34,7 @@ from .._loop import (
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     LOG_SEND_TO_CONTROL_SERVICE,
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS, LOG_DISCOVERY,
-    _UNCONVERGED_DELAY, _Sleep,
+    _UNCONVERGED_DELAY, _UNCONVERGED_BACKOFF_FACTOR, _Sleep,
     RemoteStatePersister,
     )
 from ..testtools import (
@@ -56,7 +56,6 @@ from .. import NoOp
 
 
 NO_OP = NoOp(sleep=timedelta(seconds=300))
-
 
 
 class StubFSM(object):
@@ -540,7 +539,7 @@ class ConvergenceLoopFSMTests(TestCase):
 
         # Wait for all three iterations to occur.
         reactor.advance(_UNCONVERGED_DELAY)
-        reactor.advance(_UNCONVERGED_DELAY*2)
+        reactor.advance(_UNCONVERGED_DELAY * _UNCONVERGED_BACKOFF_FACTOR)
 
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
