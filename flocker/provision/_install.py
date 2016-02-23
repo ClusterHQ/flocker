@@ -1544,24 +1544,7 @@ def install_flocker(nodes, package_source):
 
 def configure_ceph(cluster):
     from functools import partial
-    from subprocess import check_output
     from twisted.python.filepath import FilePath
-    from twisted.internet import reactor
-    from flocker.common.runner import run_ssh
-    from socket import gethostbyaddr
-    run_locally = lambda *args, **kwargs: Effect(Func(
-        partial(check_output, *args, **kwargs)
-    ))
-    ceph_deploy = lambda args: run_locally(
-        ["ceph-deploy", "--username", "root"] + args
-    )
-
-    def internal_hostname(node):
-        # ec2-52-18-223-144
-        return "ip-%s" % (node.private_address.replace(".", "-"),)
-
-    get_hostname = lambda node: gethostbyaddr(node.address)[0]
-    OSD_PATH = "/var/local/osd"
 
     return sequence([
         parallel([
@@ -1580,67 +1563,31 @@ def configure_ceph(cluster):
                     run_from_args([
                         "/opt/flocker/bin/pip",
                         "install",
-                        "https://github.com/ClusterHQ/ceph-flocker-driver/"
-                        "archive/master.zip"
+                        "https://github.com/ClusterHQ/ceph-flocker-driver"
+                        "/archive/ceph-deploy.zip#egg-info=ceph_flocker_driver"
                     ]),
                     # XXX Populate ssh_known_hosts
                     Effect(Func(partial(
-                        run_ssh, reactor, "root", get_hostname(node), ["true"],
+                        configure_ssh, node.address, 22,
                     ))),
                 ])
             )
             for node in cluster.all_nodes
         ]),
-        # XXX This needs hostname not IP
-        ceph_deploy(
-            ["install"]
-            + [get_hostname(node) for node in cluster.all_nodes]
-        ),
-        ceph_deploy([
-            "new", "{}:{}".format(
-                internal_hostname(cluster.control_node),
-                cluster.control_node.private_address,
-            ),
-        ]),
-        Effect(Func(
-            lambda path=FilePath("ceph.conf"):
-            path.setContent(
-                path.getContent() + dedent("""\
-                    osd_pool_default_size = 3
-                    osd_pool_default_min_size = 2
-                    """)
-            )
-        )),
-        # XXX Can't use `mon create-initial` since that only uses short-name.
-        # ceph_deploy(["mon", "create-initial"]),
-        ceph_deploy([
-            "mon", "create", "{}:{}".format(
-                internal_hostname(cluster.control_node),
-                get_hostname(cluster.control_node),
-            ),
-        ]),
-        ceph_deploy(["gatherkeys", get_hostname(cluster.control_node)]),
-        parallel([
-            run_remotely(
-                username='root',
-                address=node.address,
-                # XXX: Support ubuntu/fedora
-                commands=sequence([
-                    run_from_args(['mkdir', OSD_PATH]),
-                    ceph_deploy([
-                        "osd", "prepare",
-                        "{}:{}".format(get_hostname(node), OSD_PATH),
-                    ]),
-                    ceph_deploy([
-                        "osd", "activate",
-                        "{}:{}".format(get_hostname(node), OSD_PATH),
-                    ]),
-                ])
-            )
-            for node in cluster.agent_nodes
-        ]),
-        ceph_deploy(
-            ["admin"] + [get_hostname(node) for node in cluster.all_nodes]
+        run_remotely(
+            username='root',
+            address=cluster.control_node.address,
+            commands=sequence([
+                put(
+                    FilePath(__file__).sibling('install-ceph.py').getContent(),
+                    "/root/install-ceph.py",
+                ),
+                run_from_args(
+                    ["/opt/flocker/bin/python", "/root/install-ceph.py"]
+                    + [cluster.control_node.private_address]
+                    + [node.private_address for node in cluster.agent_nodes]
+                )
+            ])
         ),
     ])
 
