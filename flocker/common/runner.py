@@ -267,18 +267,25 @@ class SCPConnectionError(SCPError):
 
 
 def scp(reactor, username, host, remote_path, local_path,
-        port=22, identity_file=None, direction=DOWNLOAD):
+        direction, port=22, identity_file=None):
     """
     :param reactor: A ``twisted.internet.reactor``.
     :param bytes username: The SSH username.
     :param bytes host: The SSH host.
     :param FilePath remote_path: The path to the remote file.
     :param FilePath local_path: The path to the local file.
+    :param direction: One of ``DOWNLOAD`` or ``UPLOAD``.
     :param int port: The SSH TCP port.
     :param FilePath identity_file: The path to an SSH private key.
-    :param direction: One of ``DOWNLOAD`` or ``UPLOAD``.
     :returns: A ``Deferred`` that fires when the process is ended.
     """
+    if direction not in (DOWNLOAD, UPLOAD):
+        raise ValueError(
+            "Invalid direction argument {!r}. "
+            "Must be one of ``runner.DOWNLOAD`` "
+            "or ``runner.UPLOAD``.".format(direction)
+        )
+
     remote_host_path = username + b'@' + host + b':' + remote_path.path
     scp_command = [
         b"scp",
