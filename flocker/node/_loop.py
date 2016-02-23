@@ -274,16 +274,42 @@ class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
 _UNCONVERGED_DELAY = 0.1
 
 
-class UnconvergedDelay(object):
+class _UnconvergedDelay(object):
+    """
+    Keep track of the next sleep duration while unconverged.
+
+    When looping for convergence, we want to have exponential backoff
+    in many situations. Instances of this class allow for the next sleep
+    duration to be calculated.
+
+    Call `sleep` to get a `_Sleep` instance for the next duration to sleep.
+    This will also update the state to return a longer sleep next time.
+
+    Calling `reset_delay` will mean that the next call to `sleep` will return
+    `min_sleep`.
+    """
     def __init__(self,
-                 initial_sleep=_UNCONVERGED_DELAY,
                  max_sleep=10,
                  min_sleep=_UNCONVERGED_DELAY):
-        self.delay = initial_sleep
+        """
+        Create an instance of `_UnconvergedDelay`.
+
+        :param float max_sleep: the maximum duration for a `_Sleep` that
+            `sleep` should return.
+        :param float min_sleep: the duration for the `_Sleep` that will
+             be returned from the first call to `sleep`, and calls
+             immediately following a call to `reset_delay`.
+        """
         self.max_sleep = max_sleep
         self.min_sleep = min_sleep
 
     def sleep(self):
+        """
+        Get the duration that should be slept for this iteration.
+
+        :return _Sleep: an instance of `_Sleep` with a duration
+            following an exponential backoff curve.
+        """
         s = _Sleep(delay_seconds=self.delay)
         self.delay *= 4
         if self.delay > self.max_sleep:
@@ -291,6 +317,10 @@ class UnconvergedDelay(object):
         return s
 
     def reset_delay(self):
+        """
+        Reset the backoff algorithm so that the next call to `sleep`
+        will return `min_sleep`.
+        """
         self.delay = self.min_sleep
 
 
@@ -407,7 +437,7 @@ class ConvergenceLoop(object):
         self._last_discovered_local_state = None
         self._last_acknowledged_state = None
         self._sleep_timeout = None
-        self._unconverged_sleep = UnconvergedDelay()
+        self._unconverged_sleep = _UnconvergedDelay()
 
     def output_STORE_INFO(self, context):
         old_client = self.client
