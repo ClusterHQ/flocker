@@ -176,7 +176,6 @@ def wait_for_operation(compute, operation, timeout_steps):
         latest_operation = poller.poll(compute)
         if latest_operation['status'] == 'DONE':
             return latest_operation
-        return None
 
     return poll_until(finished_operation_result, timeout_steps)
 
@@ -265,9 +264,8 @@ def _extract_attached_to(disk):
     # TODO(mewert): determine how this works with a disk being attached to
     # multiple machines, update comment above.
     users = disk.get('users', [])
-    if not users:
-        return None
-    return unicode(users[0].split('/')[-1])
+    if users:
+        return unicode(users[0].split('/')[-1])
 
 
 def create_gce_block_device_api(cluster_id, project, zone):
@@ -285,10 +283,12 @@ def create_gce_block_device_api(cluster_id, project, zone):
         "https://www.googleapis.com/auth/cloud-platform")
     compute = discovery.build('compute', 'v1', credentials=credentials)
     return GCEBlockDeviceAPI(
-        _compute=compute,
+        _atomic_operations=GCEAtomicOperations(
+            _compute=compute,
+            _project=unicode(project),
+            _zone=unicode(zone)
+        ),
         _cluster_id=unicode(cluster_id),
-        _project=unicode(project),
-        _zone=unicode(zone)
     )
 
 
@@ -343,7 +343,8 @@ class GCEBlockDeviceAPI(object):
         - The path of the device (or at least the path to a symlink to a path
             of the volume) is a pure function of blockdevice_id.
 
-    :ivar _compute: The GCE compute API object.
+    :ivar _atomic_operations: A provider of :class:`IGCEAtomicOperations` to
+        use to perform cluster operations.
     :ivar unicode _project: The project where this block device driver will
         operate.
     :ivar unicode _zone: The zone where this block device driver will operate.
@@ -351,9 +352,7 @@ class GCEBlockDeviceAPI(object):
         operates under.
     """
     # TODO(mewert): Logging throughout.
-    _compute = field(mandatory=True)
-    _project = field(type=unicode, mandatory=True)
-    _zone = field(type=unicode, mandatory=True)
+    _atomic_operations = field(mandatory=True)
     _cluster_id = field(type=unicode, mandatory=True)
 
     def _disk_resource_description(self):
@@ -364,6 +363,230 @@ class GCEBlockDeviceAPI(object):
         :returns unicode: The value for the description.
         """
         return u"flocker-v1-cluster-id: " + unicode(self._cluster_id)
+
+    def allocation_unit(self):
+        """
+        Can only allocate PDs in GiB units.
+
+        Documentation claims `GB` but experimentally this was determined to
+        actually be `GiB`.
+        """
+        return int(GiB(1).to_Byte().value)
+
+    def list_volumes(self):
+        # TODO(mewert) Walk the pages (at this layer, reading multiple pages
+        # isn't atomic).
+        result = self._atomic_operations.list_disks()
+        return list(
+            BlockDeviceVolume(
+                blockdevice_id=unicode(disk['name']),
+                size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+                attached_to=_extract_attached_to(disk),
+                dataset_id=_blockdevice_id_to_dataset_id(disk['name'])
+            )
+            for disk in result['items']
+            if (disk['name'].startswith(_PREFIX) and
+                disk['description'] == self._disk_resource_description())
+        )
+
+    def compute_instance_id(self):
+        """
+        GCE does operations based on the `name` of resources, and also
+        assigns the name to the hostname
+        """
+        # TODO(mewert): Consider getting this from the metadata server instead.
+        #               Technically people can change their hostname.
+        return unicode(gethostname())
+
+    def create_volume(self, dataset_id, size):
+        blockdevice_id = _dataset_id_to_blockdevice_id(dataset_id)
+
+        self._atomic_operations.create_disk(
+            name=blockdevice_id,
+            size=Byte(size),
+            description=self._disk_resource_description(),
+        )
+
+        # TODO(mewert): Test creating a volume in cluster A in this project
+        # with the same UUID as a volume in cluster B in the same project.
+        # make that the logs and errors make this error obvious to the user
+        return BlockDeviceVolume(
+            blockdevice_id=blockdevice_id,
+            size=int(GiB(sizeGiB).to_Byte()),
+            attached_to=None,
+            dataset_id=dataset_id,
+        )
+
+    def attach_volume(self, blockdevice_id, attach_to):
+        try:
+            # TODO(mewert): Verify timeout and error conditions.
+            # TODO(mewert): Test what happens when disk is attached RW to a
+            #               different instance, raise the correct error.
+            result = self._atomic_operations.attach_disk(
+                disk_name=blockdevice_id,
+                instance_name=attach_to
+            )
+        except HttpError as e:
+            if e.resp.status == 400:
+                # TODO(mewert): verify with the rest API that this is the only
+                # way to get a 400.
+                raise UnknownVolume(blockdevice_id)
+            else:
+                raise e
+        errors = result.get('error', {}).get('errors', [])
+        for e in errors:
+            if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
+                raise AlreadyAttachedVolume(blockdevice_id)
+
+        disk = self._atomic_operations.get_disk_details(blockdevice_id)
+        return BlockDeviceVolume(
+            blockdevice_id=blockdevice_id,
+            size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+            attached_to=attach_to,
+            dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
+        )
+
+    def _get_attached_to(self, blockdevice_id):
+        """
+        Determines the instance a blockdevice is attached to.
+
+        :param unicode blockdevice_id: The blockdevice_id of the blockdevice to
+            query.
+
+        :returns unicode: The name of the instance.
+
+        :raises UnknownVolume: If there is no volume with the given id in the
+            cluster.
+        :raises UnattachedVolume: If the volume is not attached to any
+            instance.
+        """
+        try:
+            # TODO(mewert) verify timeouts and error conditions.
+            disk = self._atomic_operations.get_disk_details(blockdevice_id)
+        except HttpError as e:
+            if e.resp.status == 404:
+                # TODO(mewert) Verify with the rest API this is the only way to
+                # get a 404.
+                raise UnknownVolume(blockdevice_id)
+            else:
+                raise e
+        attached_to = _extract_attached_to(disk)
+        if not attached_to:
+            raise UnattachedVolume(blockdevice_id)
+        return attached_to
+
+    def detach_volume(self, blockdevice_id):
+        attached_to = self._get_attached_to(blockdevice_id)
+        self._atomic_operations.detach_disk(
+                instance_name=attached_to,
+                disk_name=blockdevice_id
+        )
+
+    def get_device_path(self, blockdevice_id):
+        # TODO(mewert): Verify that we need this extra API call.
+        self._get_attached_to(blockdevice_id)
+
+        # TODO(mewert): Verify we can get away returning a symlink here, or
+        # just walk the symlink.
+        return FilePath(u"/dev/disk/by-id/google-" + blockdevice_id)
+
+    def destroy_volume(self, blockdevice_id):
+        try:
+            # TODO(mewert) verify timeouts and error conditions.
+            self._atomic_operations.destroy_disk(blockdevice_id)
+        except HttpError as e:
+            if e.resp.status == 404:
+                raise UnknownVolume(blockdevice_id)
+            else:
+                raise e
+
+
+class IGCEAtomicOperations(Interface):
+    """
+    Interface describing the atomic operations that GCE supports.
+    """
+
+     def create_disk(name, size, description):
+         """
+         Create a new GCE PD. Block until the disk is created.
+
+         :param unicode name: The name of the new disk.
+         :param size: A ``bitmath`` class that has a to_GiB method.
+         :param unicode description: The description of the disk.
+
+        :returns: A GCE operation resource dict describing the create
+            operation.
+         """
+
+    def attach_disk(disk_name, instance_name)
+        """
+        Attach an existing disk to an existing instance.
+
+        :param unicode disk_name: The name of the GCE disk to attach.
+        :param unicode instance_name: The name of the GCE instance to attach
+            the disk to.
+
+        :returns: A GCE operation resource dict describing the attach
+            operation.
+        """
+
+    def detach_disk(instance_name, disk_name):
+        """
+        Detach a disk from an instance. 
+
+        :param unicode disk_name: The disk that is to be detached.
+        :param unicode instance_name: The instance that this disk is to
+            detached from.
+
+        :returns: A GCE operation resource dict describing the detach
+            operation.
+        """
+
+    def destroy_disk(disk_name):
+        """
+        Destroy a GCE disk. 
+
+        :param unicode disk_name: The disk that is to be destroyed.
+
+        :returns: A GCE operation resource dict describing the destroy
+            operation.
+        """
+
+    def list_disks(self, pageToken=None):
+        """
+        List GCE disks.
+
+        :returns: A GCE API list of disk resources. See:
+            https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/compute_v1.disks.html#list # noqa
+            for the structure.
+        """
+
+    def get_disk_details(self, disk_name):
+        """
+        Get disk details for a specific GCE disk.
+
+        :param unicode disk_name: The unique identifier for the disk that you
+            want to get the details of.
+
+        :returns: A GCE API disk resources. See:
+            https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/compute_v1.disks.html#get # noqa
+            for the structure.
+        """
+
+
+class GCEAtomicOperations(PClass):
+    """
+    Class that encompasses all operations that can be done atomically on GCE.
+
+    This separation is done for testing purposes. Putting the atomic operations
+    behind an interface gives us a point of code injection to force races that
+    cannot be forced from the higher layer of :class:`IBlockDeviceAPI` tests.
+
+    :ivar _compute: The GCE compute object to use to interact with the GCE API.
+    """
+    _compute = field(mandatory=True)
+    project = field(type=unicode, mandatory=True)
+    zone = field(type=unicode, mandatory=True)
 
     def _do_blocking_operation(self, function, **kwargs):
         """
@@ -392,7 +615,7 @@ class GCEBlockDeviceAPI(object):
         # operation to specify its own timeout. Also pass a reactor in so you
         # can test the timeout error paths in unit tests. Also document what
         # happens on timeout.
-        args = dict(project=self._project, zone=self._zone)
+        args = dict(project=self.project, zone=self.zone)
         args.update(kwargs)
         operation = function(**args).execute()
         # TODO(bcox) Perform a decent test of typical latencies for
@@ -401,161 +624,51 @@ class GCEBlockDeviceAPI(object):
         # following arbitrary timeout.
         return wait_for_operation(self._compute, operation, [1]*35)
 
-    def allocation_unit(self):
-        """
-        Can only allocate PDs in GiB units.
-
-        Documentation claims `GB` but experimentally this was determined to
-        actually be `GiB`.
-        """
-        return int(GiB(1).to_Byte().value)
-
-    def list_volumes(self):
-        # TODO(mewert) Walk the pages.
-        result = self._compute.disks().list(project=self._project,
-                                            zone=self._zone).execute()
-        return list(
-            BlockDeviceVolume(
-                blockdevice_id=unicode(disk['name']),
-                size=int(GiB(int(disk['sizeGb'])).to_Byte()),
-                attached_to=_extract_attached_to(disk),
-                dataset_id=_blockdevice_id_to_dataset_id(disk['name'])
-            )
-            for disk in result['items']
-            if (disk['name'].startswith(_PREFIX) and
-                disk['description'] == self._disk_resource_description())
-        )
-
-    def compute_instance_id(self):
-        """
-        GCE does operations based on the `name` of resources, and also
-        assigns the name to the hostname
-        """
-        # TODO(mewert): Consider getting this from the metadata server instead.
-        #               Technically people can change their hostname.
-        return unicode(gethostname())
-
-    def create_volume(self, dataset_id, size):
-        blockdevice_id = _dataset_id_to_blockdevice_id(dataset_id)
-        sizeGiB = int(Byte(size).to_GiB())
+     def create_disk(self, name, size, description):
+        sizeGiB = int(size.to_GiB())
         config = dict(
-            name=blockdevice_id,
+            name=name,
             sizeGb=sizeGiB,
-            description=self._disk_resource_description(),
+            description=description,
         )
         # TODO(mewert): Verify timeout and error conditions.
-        self._do_blocking_operation(
+        return self._do_blocking_operation(
             self._compute.disks().insert, body=config)
 
-        # TODO(mewert): Test creating a volume in cluster A in this project
-        # with the same UUID as a volume in cluster B in the same project.
-        # make that the logs and errors make this error obvious to the user
-        return BlockDeviceVolume(
-            blockdevice_id=blockdevice_id,
-            size=int(GiB(sizeGiB).to_Byte()),
-            attached_to=None,
-            dataset_id=dataset_id,
-        )
-
-    def attach_volume(self, blockdevice_id, attach_to):
+    def attach_disk(self, disk_name, instance_name)
         config = dict(
-            deviceName=blockdevice_id,
+            deviceName=disk_name,
             autoDelete=False,
             boot=False,
             source=(
                 "https://www.googleapis.com/compute/v1/projects/%s/zones/%s/"
-                "disks/%s" % (self._project, self._zone, blockdevice_id)
+                "disks/%s" % (self._project, self._zone, disk_name)
             )
         )
-        try:
-            # TODO(mewert): Verify timeout and error conditions.
-            # TODO(mewert): Test what happens when disk is attached RW to a
-            #               different instance, raise the correct error.
-            result = self._do_blocking_operation(
-                self._compute.instances().attachDisk,
-                instance=attach_to,
-                body=config
-            )
-        except HttpError as e:
-            if e.resp.status == 400:
-                # TODO(mewert): verify with the rest API that this is the only
-                # way to get a 400.
-                raise UnknownVolume(blockdevice_id)
-            else:
-                raise e
-        errors = result.get('error', {}).get('errors', [])
-        for e in errors:
-            if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
-                raise AlreadyAttachedVolume(blockdevice_id)
-        disk = self._compute.disks().get(project=self._project,
+        return self._do_blocking_operation(
+            self._compute.instances().attachDisk,
+            instance=instance_name,
+            body=config
+        )
+
+    def detach_disk(self, instance_name, disk_name):
+        return self._do_blocking_operation(
+            self._compute.instances().detachDisk, instance=instance_name,
+            deviceName=disk_name
+        )
+
+    def destroy_disk(self, disk_name):
+        return self._do_blocking_operation(
+            self._compute.disks().delete,
+            disk=disk_name
+        )
+
+    def list_disks(self):
+        return self._compute.disks().list(project=self._project,
+                                          zone=self._zone).execute()
+
+    def get_disk_details(self, disk_name):
+        return self._compute.disks().get(project=self._project,
                                          zone=self._zone,
-                                         disk=blockdevice_id).execute()
-        return BlockDeviceVolume(
-            blockdevice_id=blockdevice_id,
-            size=int(GiB(int(disk['sizeGb'])).to_Byte()),
-            attached_to=attach_to,
-            dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
-        )
+                                         disk=disk_name).execute()
 
-    def _get_attached_to(self, blockdevice_id):
-        """
-        Determines the instance a blockdevice is attached to.
-
-        :param unicode blockdevice_id: The blockdevice_id of the blockdevice to
-            query.
-
-        :returns unicode: The name of the instance.
-
-        :raises UnknownVolume: If there is no volume with the given id in the
-            cluster.
-        :raises UnattachedVolume: If the volume is not attached to any
-            instance.
-        """
-        try:
-            # TODO(mewert) verify timeouts and error conditions.
-            disk = self._compute.disks().get(project=self._project,
-                                             zone=self._zone,
-                                             disk=blockdevice_id).execute()
-        except HttpError as e:
-            if e.resp.status == 404:
-                # TODO(mewert) Verify with the rest API this is the only way to
-                # get a 404.
-                raise UnknownVolume(blockdevice_id)
-            else:
-                raise e
-        attached_to = _extract_attached_to(disk)
-        if not attached_to:
-            raise UnattachedVolume(blockdevice_id)
-        return attached_to
-
-    def detach_volume(self, blockdevice_id):
-        attached_to = self._get_attached_to(blockdevice_id)
-        # TODO(mewert): Test this race (something else detaches right at this
-        # point). Might involve putting all GCE interactions behind a zope
-        # interface and then using a proxy implementation to inject code.
-        self._do_blocking_operation(
-            self._compute.instances().detachDisk, instance=attached_to,
-            deviceName=blockdevice_id)
-        return None
-
-    def get_device_path(self, blockdevice_id):
-        # TODO(mewert): Verify that we need this extra API call.
-        self._get_attached_to(blockdevice_id)
-
-        # TODO(mewert): Verify we can get away returning a symlink here, or
-        # just walk the symlink.
-        return FilePath(u"/dev/disk/by-id/google-" + blockdevice_id)
-
-    def destroy_volume(self, blockdevice_id):
-        try:
-            # TODO(mewert) verify timeouts and error conditions.
-            self._do_blocking_operation(
-                self._compute.disks().delete,
-                disk=blockdevice_id
-            )
-        except HttpError as e:
-            if e.resp.status == 404:
-                raise UnknownVolume(blockdevice_id)
-            else:
-                raise e
-        return None
