@@ -181,7 +181,7 @@ def wait_for_operation(compute, operation, timeout_steps):
     return poll_until(finished_operation_result, timeout_steps)
 
 
-def _get_metadata_path(path):
+def get_metadata_path(path):
     """
     Requests a metadata path from the metadata server available within GCE.
 
@@ -210,7 +210,7 @@ def get_machine_zone():
     """
     # Transform "projects/<project-number>/zones/us-central1-f" to
     # "us-central1-f".
-    return _get_metadata_path('instance/zone').split('/')[-1]
+    return get_metadata_path('instance/zone').split('/')[-1]
 
 
 def get_machine_project():
@@ -222,7 +222,7 @@ def get_machine_project():
 
     :returns unicode: The project under which the current instance is running.
     """
-    return _get_metadata_path('project/project-id')
+    return get_metadata_path('project/project-id')
 
 
 # The prefix added to dataset_ids to turn them into blockdevice_ids.
