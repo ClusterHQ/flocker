@@ -412,7 +412,7 @@ class GCEBlockDeviceAPI(object):
         # make that the logs and errors make this error obvious to the user
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
-            size=int(GiB(sizeGiB).to_Byte()),
+            size=int(size),
             attached_to=None,
             dataset_id=dataset_id,
         )
@@ -478,8 +478,8 @@ class GCEBlockDeviceAPI(object):
     def detach_volume(self, blockdevice_id):
         attached_to = self._get_attached_to(blockdevice_id)
         self._atomic_operations.detach_disk(
-                instance_name=attached_to,
-                disk_name=blockdevice_id
+            instance_name=attached_to,
+            disk_name=blockdevice_id
         )
 
     def get_device_path(self, blockdevice_id):
@@ -509,65 +509,65 @@ class IGCEAtomicOperations(Interface):
     def create_disk(name, size, description):
         """
         Create a new GCE PD. Block until the disk is created.
- 
+
         :param unicode name: The name of the new disk.
         :param size: A ``bitmath`` class that has a to_GiB method.
         :param unicode description: The description of the disk.
- 
+
         :returns: A GCE operation resource dict describing the create
             operation.
         """
- 
+
     def attach_disk(disk_name, instance_name):
         """
         Attach an existing disk to an existing instance.
- 
+
         :param unicode disk_name: The name of the GCE disk to attach.
         :param unicode instance_name: The name of the GCE instance to attach
             the disk to.
- 
+
         :returns: A GCE operation resource dict describing the attach
             operation.
         """
- 
+
     def detach_disk(instance_name, disk_name):
         """
-        Detach a disk from an instance. 
- 
+        Detach a disk from an instance.
+
         :param unicode disk_name: The disk that is to be detached.
         :param unicode instance_name: The instance that this disk is to
             detached from.
- 
+
         :returns: A GCE operation resource dict describing the detach
             operation.
         """
- 
+
     def destroy_disk(disk_name):
         """
-        Destroy a GCE disk. 
- 
+        Destroy a GCE disk.
+
         :param unicode disk_name: The disk that is to be destroyed.
- 
+
         :returns: A GCE operation resource dict describing the destroy
             operation.
         """
- 
+
     def list_disks():
         """
         List GCE disks.
- 
+
         :returns: A GCE API list of disk resources. See:
             https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/compute_v1.disks.html#list # noqa
             for the structure.
         """
- 
+
     def get_disk_details(disk_name):
         """
         Get disk details for a specific GCE disk.
- 
+
         :param unicode disk_name: The unique identifier for the disk that you
             want to get the details of.
- 
+
         :returns: A GCE API disk resources. See:
             https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/compute_v1.disks.html#get # noqa
             for the structure.
@@ -672,4 +672,3 @@ class GCEAtomicOperations(PClass):
         return self._compute.disks().get(project=self._project,
                                          zone=self._zone,
                                          disk=disk_name).execute()
-
