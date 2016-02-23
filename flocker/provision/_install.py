@@ -1205,7 +1205,9 @@ def task_install_zfs(distribution, variants=set()):
 
     elif is_centos(distribution):
         commands += [
-            yum_install([ZFS_REPO[distribution]]),
+            # Use `localinstall` so that reinstalling doesn't error out.
+            run_from_args(["yum", "localinstall", "-y",
+                           ZFS_REPO[distribution]]),
         ]
         if distribution == 'centos-7':
             commands.append(yum_install(["epel-release"]))
