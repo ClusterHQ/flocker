@@ -26,7 +26,6 @@ from twisted.internet.ssl import Certificate
 from twisted.internet import reactor  # pylint: disable=unused-import
 from twisted.internet.defer import succeed
 from twisted.python.constants import Names, NamedConstant
-from twisted.python.reflect import namedAny
 
 from ..volume.filesystems import zfs
 from ..volume.service import (
@@ -504,12 +503,10 @@ def get_backend(backend_name, backends=_DEFAULT_BACKENDS):
     :raise ValueError: If ``backend_name`` doesn't match any known backend.
     :return: The matching ``BackendDescription``.
     """
-    for backend in backends:
-        if backend.name == backend_name:
-            return backend
+    from flocker.common.plugin import get_plugin, PluginNotFound
     try:
-        return namedAny(backend_name + ".FLOCKER_BACKEND")
-    except (AttributeError, ValueError):
+        return get_plugin(backend_name, backends, "FLOCKER_BACKEND")
+    except PluginNotFound:
         raise ValueError(
             "'{!s}' is neither a built-in backend nor a 3rd party "
             "module.".format(backend_name),
