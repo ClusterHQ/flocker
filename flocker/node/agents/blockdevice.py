@@ -67,8 +67,14 @@ class DatasetStates(Names):
     # Doesn't exist yet.
     NON_EXISTENT = NamedConstant()
     # Existing volume not recorded as owning a dataset
-    UNREGISTGERED = NamedConstant()
+    UNREGISTERED = NamedConstant()
     # Ownership recorded but not reported as a volume
+    # This can happen
+    # - after a volume has been deleted (since the dataset registrations are
+    #   never cleaned up.
+    # - Some backends (AWS in particular) are only eventually consistent, so
+    #   list_volumes might not report the volume even after it has already
+    #   been created.
     REGISTERED = NamedConstant()
     # Exists, but attached elsewhere to a live host:
     ATTACHED_ELSEWHERE = NamedConstant()
@@ -116,7 +122,7 @@ class DiscoveredDataset(PClass):
             DatasetStates.ATTACHED_ELSEWHERE: {'maximum_size'},
             DatasetStates.ATTACHED_TO_DEAD_NODE: {'maximum_size'},
             DatasetStates.NON_MANIFEST: {'maximum_size'},
-            DatasetStates.UNREGISTGERED: {'maximum_size'},
+            DatasetStates.UNREGISTERED: {'maximum_size'},
             DatasetStates.REGISTERED: set(),
             DatasetStates.ATTACHED_NO_FILESYSTEM: {
                 'device_path', 'maximum_size'},
@@ -1551,8 +1557,12 @@ DATASET_TRANSITIONS = TransitionTable.create({
         # notice that it has detached until FLOC-3834 makes that info part
         # of cluster state. So we need to poll... but not too often:
         Discovered.ATTACHED_ELSEWHERE: Poll,
+        # Some backends (AWS in particular) are only eventually consistent, so
+        # list_volumes might not report the volume even after it has already
+        # been created. We poll waiting for the backend to start reporting the
+        # created volume.
         Discovered.REGISTERED: Poll,
-        Discovered.UNREGISTGERED: RegisterVolume,
+        Discovered.UNREGISTERED: RegisterVolume,
         Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
         Discovered.NON_MANIFEST: AttachVolume,
         Discovered.ATTACHED: MountBlockDevice,
@@ -1564,8 +1574,12 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
         # Other node will detach:
         Discovered.ATTACHED_ELSEWHERE: DoNothing,
+        # Some backends (AWS in particular) are only eventually consistent, so
+        # list_volumes might not report the volume even after it has already
+        # been created. We poll waiting for the backend to start reporting the
+        # created volume.
         Discovered.REGISTERED: Poll,
-        Discovered.UNREGISTGERED: RegisterVolume,
+        Discovered.UNREGISTERED: RegisterVolume,
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
@@ -1578,7 +1592,7 @@ DATASET_TRANSITIONS = TransitionTable.create({
         # Can't pick node that will do destruction yet.
         Discovered.NON_MANIFEST: DestroyVolume,
         Discovered.REGISTERED: DoNothing,
-        Discovered.UNREGISTGERED: RegisterVolume,
+        Discovered.UNREGISTERED: RegisterVolume,
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
@@ -1790,7 +1804,7 @@ class BlockDeviceDeployer(PClass):
                 dataset_id)
             if owning_blockdevice_id is None:
                 datasets[dataset_id] = DiscoveredDataset(
-                    state=DatasetStates.UNREGISTGERED,
+                    state=DatasetStates.UNREGISTERED,
                     dataset_id=dataset_id,
                     maximum_size=volume.size,
                     blockdevice_id=volume.blockdevice_id,

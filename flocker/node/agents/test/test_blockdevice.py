@@ -1199,7 +1199,7 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
             self, self.deployer,
             expected_discovered_datasets=[
                 DiscoveredDataset(
-                    state=DatasetStates.UNREGISTGERED,
+                    state=DatasetStates.UNREGISTERED,
                     dataset_id=volume.dataset_id,
                     blockdevice_id=volume.blockdevice_id,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
