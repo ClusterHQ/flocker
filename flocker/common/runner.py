@@ -365,41 +365,23 @@ def scp(reactor, username, host, remote_path, local_path,
         return context.addActionFinish()
 
 
-def download(reactor, username, host, remote_path, local_path,
-             port=22, identity_file=None):
+def download(**kwargs):
     """
     Run the local ``scp`` command to download a file or directory from a remote
     host and kill it if the reactor stops.
 
     See ``scp`` for parameter and return type documentation.
     """
-    return scp(
-        reactor=reactor,
-        username=username,
-        host=host,
-        local_path=local_path,
-        remote_path=remote_path,
-        port=port,
-        identity_file=identity_file,
-        direction=DOWNLOAD,
-    )
+    kwargs["direction"] = DOWNLOAD
+    return scp(**kwargs)
 
 
-def upload(reactor, username, host, local_path, remote_path,
-           port=22, identity_file=None):
+def upload(**kwargs):
     """
     Run the local ``scp`` command to upload a file or directory to a remote
     host and kill it if the reactor stops.
 
     See ``scp`` for parameter and return type documentation.
     """
-    return scp(
-        reactor=reactor,
-        username=username,
-        host=host,
-        local_path=local_path,
-        remote_path=remote_path,
-        port=port,
-        identity_file=identity_file,
-        direction=UPLOAD,
-    )
+    kwargs["direction"] = UPLOAD
+    return scp(**kwargs)
