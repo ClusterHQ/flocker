@@ -5,6 +5,7 @@ Tests for ``flocker.node._loop``.
 """
 
 from itertools import repeat
+import math
 from uuid import uuid4
 from datetime import timedelta
 
@@ -12,6 +13,8 @@ from eliot.testing import (
     validate_logging, assertHasAction, assertHasMessage, capture_logging,
 )
 from machinist import LOG_FSM_TRANSITION
+from hypothesis import assume, given
+from hypothesis.strategies import floats
 
 from pyrsistent import pset
 
@@ -35,7 +38,7 @@ from .._loop import (
     LOG_SEND_TO_CONTROL_SERVICE,
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS, LOG_DISCOVERY,
     _UNCONVERGED_DELAY, _UNCONVERGED_BACKOFF_FACTOR, _Sleep,
-    RemoteStatePersister,
+    RemoteStatePersister, _UnconvergedDelay,
     )
 from ..testtools import (
     ControllableDeployer, ControllableAction, to_node, NodeLocalState,
@@ -1363,3 +1366,52 @@ class RemoteStatePersisterTests(
     """
     Tests for ``RemoteStatePersister``.
     """
+
+
+class UncovergedDelayTests(TestCase):
+    """
+    Tests for ``_UnconvergedDelay``.
+    """
+
+    @given(floats())
+    def test_first_is_min_sleep(self, duration):
+        """
+        The first call to `sleep` uses `min_sleep` duration.
+        """
+        assume(not math.isnan(duration))
+        delay = _UnconvergedDelay(min_sleep=duration)
+        sleep = delay.sleep()
+        self.assertEqual(duration, sleep.delay_seconds)
+
+    def test_second_uses_backoff(self):
+        """
+        The second call to `sleep` adjusts by `_UNCONVERGED_BACKOFF_FACTOR`.
+        """
+        min_sleep = 0.1
+        delay = _UnconvergedDelay(min_sleep=min_sleep)
+        delay.sleep()
+        sleep = delay.sleep()
+        self.assertEqual(
+            min_sleep * _UNCONVERGED_BACKOFF_FACTOR, sleep.delay_seconds)
+
+    def test_limits_at_max_sleep(self):
+        """
+        The backoff doesn't exceed `max_sleep`.
+        """
+        min_sleep = 0.1
+        max_sleep = 0.2
+        delay = _UnconvergedDelay(min_sleep=min_sleep, max_sleep=max_sleep)
+        delay.sleep()
+        sleep = delay.sleep()
+        self.assertEqual(max_sleep, sleep.delay_seconds)
+
+    def test_reset_resets(self):
+        """
+        `reset_delay` means the next `sleep` returns `min_sleep` duration.
+        """
+        min_sleep = 0.1
+        delay = _UnconvergedDelay(min_sleep=min_sleep)
+        delay.sleep()
+        delay.reset_delay()
+        sleep = delay.sleep()
+        self.assertEqual(min_sleep, sleep.delay_seconds)

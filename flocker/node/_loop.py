@@ -303,6 +303,7 @@ class _UnconvergedDelay(object):
         """
         self.max_sleep = max_sleep
         self.min_sleep = min_sleep
+        self._delay = self.min_sleep
 
     def sleep(self):
         """
@@ -311,10 +312,10 @@ class _UnconvergedDelay(object):
         :return _Sleep: an instance of `_Sleep` with a duration
             following an exponential backoff curve.
         """
-        s = _Sleep(delay_seconds=self.delay)
-        self.delay *= _UNCONVERGED_BACKOFF_FACTOR
-        if self.delay > self.max_sleep:
-            self.delay = self.max_sleep
+        s = _Sleep(delay_seconds=self._delay)
+        self._delay *= _UNCONVERGED_BACKOFF_FACTOR
+        if self._delay > self.max_sleep:
+            self._delay = self.max_sleep
         return s
 
     def reset_delay(self):
@@ -322,7 +323,7 @@ class _UnconvergedDelay(object):
         Reset the backoff algorithm so that the next call to `sleep`
         will return `min_sleep`.
         """
-        self.delay = self.min_sleep
+        self._delay = self.min_sleep
 
 
 class ConvergenceLoopStates(Names):
