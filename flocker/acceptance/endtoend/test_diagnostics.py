@@ -19,7 +19,12 @@ class DiagnosticsTests(AsyncTestCase):
     """
     Tests for ``flocker-diagnostics``.
     """
-    @require_cluster(1)
+    # This only requires the container agent to check
+    # that its log is collected. We still care about
+    # that working, so we run it. We should stop
+    # running it for this test when we get closer
+    # to never running it in production.
+    @require_cluster(1, require_container_agent=True)
     def test_export(self, cluster):
         """
         ``flocker-diagnostics`` creates an archive of all Flocker service logs

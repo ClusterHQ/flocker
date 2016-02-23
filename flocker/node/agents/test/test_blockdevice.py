@@ -1814,7 +1814,7 @@ class ScenarioMixin(object):
         devices={
             DATASET_ID: FilePath(b"/dev/sda"),
         },
-        applications=[],
+        applications=None,
     )
 
     MOUNT_ROOT = FilePath('/flocker')
@@ -2017,20 +2017,6 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
     Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
     changes can be calculated because application state is unknown.
     """
-    def test_unknown_applications(self):
-        """
-        If applications are unknown, no changes are calculated.
-        """
-        # We're ignorant about application state:
-        local_state = NodeState(
-            hostname=self.NODE, uuid=self.NODE_UUID, applications=None)
-
-        # We want to create a dataset:
-        local_config = to_node(self.ONE_DATASET_STATE)
-
-        assert_calculated_changes(self, local_state, local_config, set(),
-                                  in_parallel(changes=[]))
-
     def test_another_node_ignorant(self):
         """
         If a different node is ignorant about its state, it is still possible
@@ -2153,15 +2139,17 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
         api.attach_volume(volume.blockdevice_id, self.NODE)
 
+        other_node_uuid = uuid4()
         deployer = BlockDeviceDeployer(
             # This deployer is responsible for *other_node*, not node.
             hostname=other_node,
-            node_uuid=uuid4(),
+            node_uuid=other_node_uuid,
             block_device_api=api,
         )
 
         local_state = local_state_from_shared_state(
-            node_state=node_state,
+            node_state=cluster_state.get_node(
+                other_node_uuid, hostname=other_node),
             nonmanifest_datasets={},
         )
         changes = deployer.calculate_changes(
@@ -2169,7 +2157,10 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
         self.assertEqual(
             in_parallel(changes=[]),
-            changes
+            changes,
+            "Wrong changes for node {} when "
+            "dataset {} attached to node {}".format(
+                other_node_uuid, self.DATASET_ID, self.NODE_UUID)
         )
 
     def test_no_delete_if_in_use(self):
@@ -2671,7 +2662,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             }
         )
         state = DeploymentState(nodes=[NodeState(
-            uuid=uuid, hostname=node, applications=[], manifestations={},
+            uuid=uuid, hostname=node, applications=None, manifestations={},
             devices={}, paths={})])
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
@@ -2679,6 +2670,50 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         local_state = local_state_from_shared_state(
             node_state=state.get_node(uuid),
             nonmanifest_datasets={},
+        )
+        changes = deployer.calculate_changes(configuration, state, local_state)
+        self.assertEqual(
+            in_parallel(
+                changes=[
+                    CreateBlockDeviceDataset(
+                        dataset_id=UUID(dataset_id),
+                        maximum_size=int(GiB(1).bytes)
+                    )
+                ]),
+            changes
+        )
+
+    def test_unknown_applications(self):
+        """
+        If applications are unknown, block devices can still be created.
+        """
+        uuid = uuid4()
+        dataset_id = unicode(uuid4())
+        dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=int(GiB(1).to_Byte().value)
+        )
+        manifestation = Manifestation(
+            dataset=dataset, primary=True
+        )
+        node = u"192.0.2.1"
+        configuration = Deployment(
+            nodes={
+                Node(
+                    uuid=uuid,
+                    manifestations={dataset_id: manifestation},
+                )
+            }
+        )
+        state = DeploymentState(nodes=[NodeState(
+            uuid=uuid, hostname=node, applications=None, manifestations={},
+            devices={}, paths={})])
+        deployer = create_blockdevicedeployer(
+            self, hostname=node, node_uuid=uuid,
+        )
+        local_state = local_state_from_shared_state(
+            node_state=state.get_node(uuid),
+            nonmanifest_datasets={}
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(
@@ -2718,7 +2753,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             }
         )
         node_state = NodeState(
-            uuid=uuid, hostname=node, applications=[], manifestations={},
+            uuid=uuid, hostname=node, applications=None, manifestations={},
             devices={}, paths={})
         state = DeploymentState(nodes={node_state})
         deployer = create_blockdevicedeployer(
@@ -2860,7 +2895,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         node_state = NodeState(
             uuid=node_id,
             hostname=node_address,
-            applications=[],
+            applications=None,
             manifestations={},
             devices={},
             paths={},
@@ -2910,7 +2945,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         node_state = NodeState(
             uuid=node_id,
             hostname=node_address,
-            applications=[],
+            applications=None,
             manifestations={},
             devices={},
             paths={},
@@ -2976,7 +3011,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # some attached volumes.
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
-            applications={},
+            applications=None,
             manifestations={},
             devices={self.DATASET_ID: FilePath(b"/dev/xda")},
             paths={},
@@ -3006,7 +3041,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # some attached volumes.
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
-            applications={},
+            applications=None,
             manifestations={},
             devices={self.DATASET_ID: FilePath(b"/dev/xda")},
             paths={},
@@ -3046,7 +3081,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # Local node has no manifestations:
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
-            applications={},
+            applications=None,
             manifestations={},
             devices={},
             paths={},
@@ -3083,7 +3118,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # Local node has no manifestations:
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
-            applications={},
+            applications=None,
             manifestations={},
             devices={},
             paths={},
@@ -3179,7 +3214,7 @@ class BlockDeviceDeployerCalculateChangesTests(
         node_state = NodeState(
             hostname=ScenarioMixin.NODE,
             uuid=ScenarioMixin.NODE_UUID,
-            applications=[],
+            applications=None,
         )
         node_config = to_node(node_state)
 
@@ -3202,7 +3237,7 @@ class BlockDeviceDeployerCalculateChangesTests(
 
     def test_unknown_applications(self):
         """
-        If applications are unknown, no changes are calculated.
+        If applications are unknown, changes are still calculated.
         """
         # We're ignorant about application state:
         node_state = NodeState(
@@ -3219,7 +3254,7 @@ class BlockDeviceDeployerCalculateChangesTests(
             nonmanifest_datasets=[],
             additional_node_states=set(),
             additional_node_config=set(),
-            expected_changes=NOTHING_TO_DO,
+            expected_changes=self.expected_change,
             local_state=self.local_state,
         )
 
@@ -3232,7 +3267,7 @@ class BlockDeviceDeployerCalculateChangesTests(
         node_state = NodeState(
             hostname=ScenarioMixin.NODE,
             uuid=ScenarioMixin.NODE_UUID,
-            applications=[],
+            applications=None,
         )
         node_config = to_node(node_state)
 

@@ -98,11 +98,11 @@ Preparing For a Release
    .. prompt:: bash $
 
       admin/initialize-release --flocker-version=1.6.2
-      
+
    Execute the commands output by the `initialize-release` script:
-   
+
    .. prompt:: bash $
-   
+
       export VERSION=1.6.2;
       cd /home/developer/flocker-release-1.6.2;
       source flocker-1.6.2/bin/activate;
@@ -226,8 +226,8 @@ Release
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
-   .. note:: 
-   
+   .. note::
+
       Although there would not have been any changes since the branch was built during the :ref:`preparing-for-a-release` process, we need to build on the tag as the packages that were built before pushing the tag won't have the right version.
 
    Wait for the build to complete successfully.
@@ -263,16 +263,6 @@ Release
 
    If an error occurs for any tests, create a JIRA issue and raise it with the team.
    In any case, continue with the release.
-
-#. Check that the documentation is set up correctly:
-
-   The following command outputs error messages if the documentation does not redirect correctly.
-   It outputs a success message if the documentation does redirect correctly.
-   It can take some time for `CloudFront`_ invalidations to propagate, so retry this command for up to one hour if the documentation does not redirect correctly.
-
-   .. prompt:: bash (flocker-1.6.2)$
-
-      admin/test-redirects --production
 
 #. Remove the release virtual environment:
 
