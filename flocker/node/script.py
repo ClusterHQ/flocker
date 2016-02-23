@@ -14,7 +14,7 @@ import yaml
 
 from jsonschema import FormatChecker, Draft4Validator
 
-from pyrsistent import PClass, field, PMap, pmap, pvector
+from pyrsistent import PClass, field, PMap, pmap, pvector, pset_field
 
 from eliot import ActionType, fields
 
@@ -438,7 +438,7 @@ class BackendDescription(PClass):
     # out.
     needs_cluster_id = field(type=bool, mandatory=True)
     # Config "dataset" keys required to initialize this backend.
-    required_config = field(type=set, mandatory=True, initial=set())
+    required_config = pset_field(str)
     api_factory = field(mandatory=True)
     deployer_type = field(
         mandatory=True,
