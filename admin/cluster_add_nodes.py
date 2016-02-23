@@ -201,5 +201,7 @@ def main(reactor, args, base_path, top_level):
     )
 
     save_managed_config(options['cert-directory'], options['config'], cluster)
-    save_environment(options['cert-directory'], cluster)
+    save_environment(
+        options['cert-directory'], cluster, options.package_source()
+    )
     reactor.removeSystemEventTrigger(cleanup_id)
