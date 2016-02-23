@@ -178,7 +178,8 @@ class {class_name} < Formula
     ENV["LDFLAGS"] = "-L#{{opt_prefix}}/openssl/lib"
     ENV["CFLAGS"] = "-I#{{opt_prefix}}/openssl/include"
 
-    ENV.prepend_create_path "PYTHONPATH", "#{{libexec}}/vendor/lib/python2.7/site-packages"
+    ENV.prepend_create_path "PYTHONPATH", "#{{libexec}}/vendor/lib/python2.7/\
+site-packages"
     %w[{dependencies}].each do |r|
       resource(r).stage do
         system "python", *Language::Python.setup_install_args(libexec/"vendor")
@@ -197,11 +198,11 @@ class {class_name} < Formula
   end
 end
 """.format(
-            sdist_url=sdist_url,
-            sha1=sha1,
-            class_name=class_name,
-            resources=format_resource_stanzas(resources),
-            dependencies=u' '.join(dependencies))
+        sdist_url=sdist_url,
+        sha1=sha1,
+        class_name=class_name,
+        resources=format_resource_stanzas(resources),
+        dependencies=u' '.join(dependencies))
 
 
 class HomebrewOptions(Options):
@@ -255,5 +256,6 @@ def main(args, base_path, top_level):
 
 
 if __name__ == "__main__":
+    # pylint: disable=relative-import
     from _preamble import TOPLEVEL, BASEPATH
     main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)

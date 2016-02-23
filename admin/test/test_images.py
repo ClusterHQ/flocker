@@ -15,11 +15,6 @@ from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
     extract_from_urllib3,
 )
 
-# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
-# exception when we try an API call on an idled persistent connection.
-# See https://github.com/boto/boto3/issues/220
-extract_from_urllib3()
-
 from effect import Effect, sync_perform
 from effect.testing import perform_sequence
 
@@ -46,6 +41,11 @@ from ..installer._images import (
     AWS_REGIONS, publish_installer_images_effects, RealPerformers,
     PublishInstallerImagesOptions, PACKER_PATH
 )
+
+# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
+# exception when we try an API call on an idled persistent connection.
+# See https://github.com/boto/boto3/issues/220
+extract_from_urllib3()
 
 try:
     boto3.session.Session().client('s3').list_buckets()
@@ -475,7 +475,9 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         Docker images and then Flocker images built on the Docker images.
         The IDs of the generated AMIs are published to S3.
         """
+        docker_version = u"1.10.0"
         swarm_version = u"1.0.1"
+        flocker_version = u"1.10.1"
         build_region = u"us-west-1"
         s3 = self.useFixture(S3BucketFixture(test_case=self))
         returncode, stdout, stderr = self.publish_installer_images(
@@ -483,7 +485,10 @@ class PublishInstallerImagesIntegrationTests(TestCase):
                   '--template', 'docker',
                   '--copy_to_all_regions',
                   '--build_region', build_region],
-            extra_enviroment={u'SWARM_VERSION': swarm_version}
+            extra_enviroment={
+                u'DOCKER_VERSION': docker_version,
+                u'SWARM_VERSION': swarm_version,
+            }
         )
         # The script should have uploaded AMI map to an object called "docker"
         docker_object_content = s3.get_object_content(key=u'docker')
@@ -500,7 +505,9 @@ class PublishInstallerImagesIntegrationTests(TestCase):
                   '--build_region', build_region,
                   '--copy_to_all_regions',
                   '--source_ami', docker_ami_map[build_region]],
-            extra_enviroment={u'FLOCKER_BRANCH': u'master'}
+            extra_enviroment={
+                u'FLOCKER_VERSION': flocker_version
+            }
         )
         # And now we should have a "flocker" AMI map
         flocker_object_content = s3.get_object_content(key=u'flocker')
@@ -535,8 +542,15 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         docker_image = ec2.Image(docker_ami_map[build_region])
         self.expectThat(
             docker_image.tags,
+            Contains({u'Key': 'DOCKER_VERSION', u'Value': docker_version}),
+        )
+        self.expectThat(
+            docker_image.tags,
             Contains({u'Key': 'SWARM_VERSION', u'Value': swarm_version}),
         )
 
         flocker_image = ec2.Image(flocker_ami_map[build_region])
-        self.assertEqual(None, flocker_image.tags)
+        self.expectThat(
+            flocker_image.tags,
+            Contains({u'Key': 'FLOCKER_VERSION', u'Value': flocker_version}),
+        )

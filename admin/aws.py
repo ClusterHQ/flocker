@@ -310,14 +310,14 @@ def perform_upload_s3_key_recursively(dispatcher, intent):
     """
     See :class:`UploadToS3Recursively`.
     """
-    for file in intent.files:
-        path = intent.source_path.preauthChild(file)
+    for child in intent.files:
+        path = intent.source_path.preauthChild(child)
         if path.isfile():
             yield Effect(
                 UploadToS3(
                     source_path=intent.source_path,
                     target_bucket=intent.target_bucket,
-                    target_key="%s/%s" % (intent.target_key, file),
+                    target_key="%s/%s" % (intent.target_key, child),
                     file=path,
                     ))
 

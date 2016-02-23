@@ -17,9 +17,29 @@ Next Release
   Now, even if multiple volumes are created, only a single volume will be used.
   This was particularly likely to occur on AWS.
 
-
 This Release
 ============
+
+* The container agent is now optional and can be safely disabled if you don't expect to be using Flocker's deprecated container API or ``flocker-deploy``.
+  The :ref:`Flocker plugin for Docker<plugin>` allows you to use Flocker from Docker without using Flocker's container API.
+
+Previous Releases
+=================
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
+
+v1.10.2
+-------
+
+* Decreased the CPU usage of the Control Service API under load.
+   * The Control Service API enforces that a dataset's ``maximum_size`` is an integer, rather then any number.
+   * The Control Service API no longer validates its responses at runtime.
+* Block device plugins can now specify the configuration keys they require.
+  This allows better error messages to be generated.
+* Several outdated references in the documentation have been removed.
 
 v1.10.1
 -------
@@ -29,14 +49,6 @@ v1.10.1
 * The :ref:`Flocker plugin for Docker <plugin>` should support the direct volume listing and inspection functionality added to Docker 1.10.
 * Fixed a regression that caused block device agents to poll backend APIs like EBS too frequently in some circumstances.
 * Increase limit on maximum Flocker volumes per AWS instance from 11 to 21.
-
-Previous Releases
-=================
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
 
 v1.10.0
 -------
