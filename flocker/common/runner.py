@@ -42,6 +42,47 @@ RUN_ERROR_MESSAGE = MessageType(
     description=u"A line of command stderr.",
 )
 
+# Logging for the scp, upload, and download functions
+SCP_ACTION = ActionType(
+    action_type="flocker.common.runner:scp",
+    startFields=[
+        Field.for_types(u"username", [bytes], u"SSH username."),
+        Field.for_types(u"host", [bytes], u"SSH hostname."),
+        Field(
+            u"remote_path",
+            lambda f: f.path,
+            u"Remote path."
+        ),
+        Field(
+            u"local_path",
+            lambda f: f.path,
+            u"Local path."
+        ),
+        Field.for_types(u"port", [int], u"SSH port."),
+        Field(
+            u"identity_file",
+            lambda f: f and f.path,
+            u"SSH identity file."
+        ),
+    ],
+    successFields=[],
+    description="An SCP operation.",
+)
+SCP_OUTPUT_MESSAGE = MessageType(
+    message_type="flocker.common.runner:scp:stdout",
+    fields=[
+        Field.for_types(u"line", [bytes], u"The output."),
+    ],
+    description=u"A line of command output.",
+)
+SCP_ERROR_MESSAGE = MessageType(
+    message_type="flocker.common.runner:scp:stderr",
+    fields=[
+        Field.for_types(u"line", [bytes], u"The error."),
+    ],
+    description=u"A line of command stderr.",
+)
+
 
 class RemoteFileNotFound(Exception):
     """
@@ -209,45 +250,95 @@ def run_ssh(reactor, username, host, command, **kwargs):
     )
 
 
-def download_file(reactor, username, host, remote_path, local_path):
-    """
-    Run the local ``scp`` command to download a single file from a remote host
-    and kill it if the reactor stops.
+DOWNLOAD = object()
+UPLOAD = object()
 
-    :param reactor: Reactor to use.
-    :param username: The username to use when logging into the remote server.
-    :param host: The hostname or IP address of the remote server.
-    :param FilePath remote_path: The path of the file on the remote host.
-    :param FilePath local_path: The path of the file on the local host.
 
-    :return Deferred: Deferred that fires when the process is ended.  If the
-        file isn't found on the remote server, it fires with ``FileNotFound``.
+class SCPError(Exception):
     """
-    remote_path = username + b'@' + host + b':' + remote_path.path
+    An expected ``scp`` error.
+    """
+
+
+class SCPConnectionError(SCPError):
+    """
+    An ``scp`` connection error.
+    """
+
+
+def scp(reactor, username, host, remote_path, local_path,
+        direction, port=22, identity_file=None):
+    """
+    :param reactor: A ``twisted.internet.reactor``.
+    :param bytes username: The SSH username.
+    :param bytes host: The SSH host.
+    :param FilePath remote_path: The path to the remote file.
+    :param FilePath local_path: The path to the local file.
+    :param direction: One of ``DOWNLOAD`` or ``UPLOAD``.
+    :param int port: The SSH TCP port.
+    :param FilePath identity_file: The path to an SSH private key.
+    :returns: A ``Deferred`` that fires when the process is ended.
+    """
+    if direction not in (DOWNLOAD, UPLOAD):
+        raise ValueError(
+            "Invalid direction argument {!r}. "
+            "Must be one of ``runner.DOWNLOAD`` "
+            "or ``runner.UPLOAD``.".format(direction)
+        )
+
+    remote_host_path = username + b'@' + host + b':' + remote_path.path
     scp_command = [
         b"scp",
-    ] + SSH_OPTIONS + [
-        remote_path,
-        local_path.path
-    ]
+        # XXX Seems safe to use -r for both files and directories.
+        b"-r",
+        b"-P", bytes(port),
+    ] + SSH_OPTIONS
+
+    if identity_file is not None:
+        scp_command += [
+            b"-i", identity_file.path
+        ]
+    if direction is DOWNLOAD:
+        scp_command += [
+            remote_host_path,
+            local_path.path,
+        ]
+    else:
+        scp_command += [
+            local_path.path,
+            remote_host_path,
+        ]
+
+    action = SCP_ACTION(
+        username=username,
+        host=host,
+        remote_path=remote_path,
+        local_path=local_path,
+        port=port,
+        identity_file=identity_file,
+    )
 
     # A place to hold failure state between parsing stderr and needing to fire
     # a Deferred.
     failed_reason = []
 
-    def check_for_missing(line):
+    def handle_stdout(line):
+        SCP_OUTPUT_MESSAGE(
+            line=line,
+        ).write(action=action)
+
+    def handle_stderr(line):
         """
         Notice scp's particular way of describing the file-not-found condition
         and turn it into a more easily recognized form.
         """
         if b"No such file or directory" in line:
             failed_reason.append(RemoteFileNotFound(remote_path))
-
-    scp_result = run(
-        reactor,
-        scp_command,
-        handle_stderr=check_for_missing,
-    )
+        if b"lost connection" in line:
+            failed_reason.append(SCPConnectionError())
+        SCP_ERROR_MESSAGE(
+            line=line,
+        ).write(action=action)
 
     def scp_failed(reason):
         """
@@ -256,7 +347,41 @@ def download_file(reactor, username, host, remote_path, local_path):
         """
         reason.trap(ProcessTerminated)
         if failed_reason:
-            return Failure(failed_reason[0])
+            return Failure(failed_reason[-1])
+        return reason
 
-    scp_result.addErrback(scp_failed)
-    return scp_result
+    with action.context():
+        context = DeferredContext(
+            run(
+                reactor,
+                scp_command,
+                handle_stdout=handle_stdout,
+                handle_stderr=handle_stderr,
+            )
+        )
+
+        context.addErrback(scp_failed)
+
+        return context.addActionFinish()
+
+
+def download(**kwargs):
+    """
+    Run the local ``scp`` command to download a file or directory from a remote
+    host and kill it if the reactor stops.
+
+    See ``scp`` for parameter and return type documentation.
+    """
+    kwargs["direction"] = DOWNLOAD
+    return scp(**kwargs)
+
+
+def upload(**kwargs):
+    """
+    Run the local ``scp`` command to upload a file or directory to a remote
+    host and kill it if the reactor stops.
+
+    See ``scp`` for parameter and return type documentation.
+    """
+    kwargs["direction"] = UPLOAD
+    return scp(**kwargs)

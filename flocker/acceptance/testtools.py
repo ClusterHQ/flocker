@@ -42,7 +42,7 @@ from ..common import gather_deferreds, loop_until, timeout, retry_failure
 from ..common.configuration import (
     extract_substructure, MissingConfigError, Optional
 )
-from ..common.runner import download_file, run_ssh
+from ..common.runner import download, run_ssh
 
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
@@ -919,8 +919,12 @@ class Cluster(PClass):
         fd, name = mkstemp()
         close(fd)
         destination = FilePath(name)
-        d = download_file(
-            reactor, b"root", node.public_address, path, destination
+        d = download(
+            reactor=reactor,
+            username=b"root",
+            host=node.public_address.encode('ascii'),
+            remote_path=path,
+            local_path=destination,
         )
         d.addCallback(lambda ignored: destination)
         return d
