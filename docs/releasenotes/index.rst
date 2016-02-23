@@ -9,6 +9,15 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+Next Release
+============
+
+* Fixed a race condition where multiple volumes for a given dataset could be created and used.
+  This could lead to the appearance of data loss, as different volumes get used.
+  Now, even if multiple volumes are created, only a single volume will be used.
+  This was particularly likely to occur on AWS.
+
+
 This Release
 ============
 
