@@ -17,7 +17,9 @@ from zope.interface.verify import verifyClass
 from ....testtools import TestCase
 
 from ..gce import (
+    GCEAtomicOperations,
     GlobalOperationPoller,
+    IGCEAtomicOperations,
     MalformedOperation,
     OperationPoller,
     ZoneOperationPoller,
@@ -273,3 +275,15 @@ class CreatePollerTests(TestCase):
                 )
             )
         )
+
+
+class GCEAtomicOperationsTests(TestCase):
+    """
+    Tests for :class:`GCEAtomicOperations`
+    """
+
+    def test_interface(self):
+        """
+        :class:`GCEAtomicOperations` implements :class:`IGCEAtomicOperations`.
+        """
+        verifyClass(IGCEAtomicOperations, GCEAtomicOperations)
