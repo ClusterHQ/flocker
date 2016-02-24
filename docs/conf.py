@@ -13,11 +13,8 @@
 
 from twisted.python.filepath import FilePath
 
-import atexit
 import sys
 import os
-import json
-from tempfile import mkdtemp
 
 sys.path.insert(0, FilePath(__file__).parent().parent().path)
 
@@ -343,17 +340,3 @@ linkcheck_ignore = [
 def setup(app):
     # This allows us to ignore spelling in any particular file
     app.add_config_value('is_spelling_check', 'spelling' in sys.argv, True)
-
-
-version_file = FilePath(mkdtemp()).child('version.json')
-atexit.register(version_file.parent().remove)
-with version_file.open('w') as fp:
-    json.dump(
-        obj=dict(
-            version=version,
-            release=release,
-        ),
-        fp=fp
-    )
-
-html_extra_path = [version_file.path]
