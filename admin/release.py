@@ -51,8 +51,8 @@ from .aws import (
     ListS3Keys,
     DeleteS3Keys,
     CopyS3Keys,
-    DownloadS3Key,
     DownloadS3KeyRecursively,
+    ReadS3Key,
     UploadToS3,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
@@ -242,20 +242,12 @@ def publish_docs(flocker_version, doc_version, environment, routing_config):
     else:
         stable_prefix = "en/latest/"
 
-    version_number_file = FilePath('/tmp/bucket').temporarySibling()
-    version_number_file.requireCreate(False)
-    try:
-        yield Effect(
-            DownloadS3Key(
-                source_bucket=configuration.dev_bucket,
-                source_key=dev_prefix + u"version.html",
-                target_path=version_number_file,
-            )
+    found_version_number = yield Effect(
+        ReadS3Key(
+            source_bucket=configuration.dev_bucket,
+            source_key=dev_prefix + u"version.html",
         )
-        found_version_number = version_number_file.getContent()
-    finally:
-        if version_number_file.exists():
-            version_number_file.remove()
+    )
 
     if found_version_number != doc_version:
         raise UnexpectedDocumentationVersion(

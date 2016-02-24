@@ -7,9 +7,11 @@ Effectful interface to boto.
 import os
 from characteristic import attributes, Attribute
 from effect import Effect, sync_performer, TypeDispatcher
-from effect.do import do
+from effect.do import do, do_return
 
 import boto
+
+from twisted.python.filepath import FilePath
 
 
 @attributes([
@@ -286,6 +288,45 @@ def perform_download_s3_key(dispatcher, intent):
 
 
 @attributes([
+    "source_bucket",
+    "source_key",
+])
+class ReadS3Key(object):
+    """
+    Read a file from S3.
+
+    :ivar bytes source_bucket: Name of bucket to read key from.
+    :ivar bytes source_key: Name of key to read.
+    """
+
+
+@sync_performer
+@do
+def perform_read_s3_key(dispatcher, intent):
+    """
+    See :class:`ReadS3Key`.
+    """
+    target_file = FilePath(
+        u'/tmp/{}.perform_read_s3_key'.format(
+            __file__.replace(u"/", "!"),
+        )
+    ).temporarySibling()
+    target_file.requireCreate(False)
+    try:
+        yield Effect(
+            DownloadS3Key(
+                source_bucket=intent.source_bucket,
+                source_key=intent.source_key,
+                target_path=target_file,
+            )
+        )
+        yield do_return(target_file.getContent())
+    finally:
+        if target_file.exists():
+            target_file.remove()
+
+
+@attributes([
     "source_path",
     "target_bucket",
     "target_key",
@@ -487,6 +528,7 @@ class FakeAWS(object):
             # Share implementation with real implementation
             DownloadS3KeyRecursively: perform_download_s3_key_recursively,
             UploadToS3Recursively: perform_upload_s3_key_recursively,
+            ReadS3Key: perform_read_s3_key,
 
             # Fake implementation
             UpdateS3RoutingRules: self._perform_update_s3_routing_rules,
