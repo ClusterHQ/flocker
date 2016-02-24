@@ -62,7 +62,7 @@ class StartApplication(PClass):
             name=self.application.name,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         application = self.application
 
         volumes = []
@@ -154,7 +154,7 @@ class StopApplication(PClass):
             name=self.application.name,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         application = self.application
         unit_name = application.name
         return deployer.docker_client.remove(unit_name)
@@ -176,7 +176,7 @@ class SetProxies(PClass):
             addresses=list(port.serialize() for port in self.ports),
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         results = []
         # XXX: The proxy manipulation operations are blocking. Convert to a
         # non-blocking API. See https://clusterhq.atlassian.net/browse/FLOC-320
@@ -209,7 +209,7 @@ class OpenPorts(PClass):
             ports=list(port.port for port in self.ports),
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         results = []
         # XXX: The proxy manipulation operations are blocking. Convert to a
         # non-blocking API. See https://clusterhq.atlassian.net/browse/FLOC-320

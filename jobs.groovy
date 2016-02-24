@@ -1,4 +1,4 @@
-// vim: ai ts=2 sts=2 et sw=2 ft=groovy fdm=indent et foldlevel=0
+// vim: ai ts=2 sts=2 et sw=2 ft=groovy et
 /* jobs.groovy
 
   This Groovy file contains the jenkins job DSL plugin code to build all the
@@ -122,7 +122,12 @@ GLOBAL_CONFIG = jsonSlurper.parseText(
 // --------------------------------------------------------------------------
 
 def updateGitHubStatus(status, description, branch, dashProject,
-                       dashBranchName, jobName) {
+                       dashBranchName, jobName, buildNumber=true) {
+    if (buildNumber) {
+      buildURL = "\${BUILD_URL}"
+    } else {
+      buildURL = "\$JENKINS_URL/job/${dashProject}/job/${dashBranchName}/job/${jobName}/"
+    }
     return """#!/bin/bash
 # Jenkins jobs are usually run using 'set -x' however we use 'set +x' here
 # to avoid leaking credentials into the build logs.
@@ -131,7 +136,7 @@ set +x
 """ + new File('/etc/slave_config/github_status.sh').text + """
 # Send a request to Github to update the commit with the build status
 REMOTE_GIT_COMMIT=`git rev-list --max-count=1 upstream/${branch}`
-BUILD_URL="\$JENKINS_URL/job/${dashProject}/job/${dashBranchName}/job/${jobName}/"
+BUILD_URL="${buildURL}"
 PAYLOAD="{\\"state\\": \\"${status}\\", \\"target_url\\": \\"\$BUILD_URL\\", \\"description\\": \\"${description}\\", \\"context\\": \\"jenkins-${jobName}\\" }"
 curl \\
   -H "Content-Type: application/json" \\
@@ -389,6 +394,12 @@ def build_publishers(v, branchName, dashProject, dashBranchName, job_name) {
                 failNoReports(true)
             }
         }
+        if (v.publish_lint) {
+          violations {
+            sourcePathPattern('**/*.py')
+            pylint(1, null, null, '*.lint')
+          }
+        }
         if (job_name) {
             /* Update the commit status on GitHub with the build result We use the
                flexible-publish plugin combined with the the any-buildstep plugin to
@@ -609,6 +620,11 @@ def define_job(dashProject, dashBranchName, branchName, job_type, job_name,
         wrappers build_wrappers(job_values)
         triggers build_triggers(job_type, job_values.at, branchName)
         scm build_scm(git_url, branchName, isReleaseBuild)
+        steps {
+          shell(updateGitHubStatus(
+                'pending', 'Build started',
+                branchName, dashProject, dashBranchName, job_name))
+        }
         steps build_steps(job_values)
         publishers build_publishers(job_values, branchName, dashProject, dashBranchName, job_name)
         if (job_values.notify_slack && is_master(branchName)) {
@@ -698,7 +714,7 @@ def build_multijob(dashProject, dashBranchName, branchName, isReleaseBuild) {
         steps {
             /* Set the commit status on GitHub to pending for each subtask we will run */
             list_jobs(dashProject, dashBranchName).findAll { it.type in PULL_REQUEST_JOB_TYPES }.each {
-                shell(updateGitHubStatus('pending', 'Build started', branchName, dashProject, dashBranchName, it.name))
+                shell(updateGitHubStatus('pending', 'Build triggered', branchName, dashProject, dashBranchName, it.name, false))
             }
             /* make sure we are starting with a clean workspace  */
             shell('rm -rf *')

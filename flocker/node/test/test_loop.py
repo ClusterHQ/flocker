@@ -5,6 +5,7 @@ Tests for ``flocker.node._loop``.
 """
 
 from itertools import repeat
+import math
 from uuid import uuid4
 from datetime import timedelta
 
@@ -12,6 +13,8 @@ from eliot.testing import (
     validate_logging, assertHasAction, assertHasMessage, capture_logging,
 )
 from machinist import LOG_FSM_TRANSITION
+from hypothesis import assume, given
+from hypothesis.strategies import floats
 
 from pyrsistent import pset
 
@@ -34,7 +37,8 @@ from .._loop import (
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     LOG_SEND_TO_CONTROL_SERVICE,
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS, LOG_DISCOVERY,
-    _UNCONVERGED_DELAY, _Sleep,
+    _UNCONVERGED_DELAY, _UNCONVERGED_BACKOFF_FACTOR, _Sleep,
+    RemoteStatePersister, _UnconvergedDelay,
     )
 from ..testtools import (
     ControllableDeployer, ControllableAction, to_node, NodeLocalState,
@@ -44,7 +48,13 @@ from ...control import (
     Application, DockerImage, PersistentState,
 )
 from ...control._protocol import NodeStateCommand, AgentAMP, SetNodeEraCommand
-from ...control.test.test_protocol import iconvergence_agent_tests_factory
+from ...control.testtools import (
+    make_istatepersister_tests,
+    make_loopback_control_client,
+)
+from ...control.test.test_protocol import (
+    iconvergence_agent_tests_factory,
+)
 from .. import NoOp
 
 
@@ -391,7 +401,7 @@ class ConvergenceLoopFSMTests(TestCase):
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY)
 
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
@@ -430,7 +440,7 @@ class ConvergenceLoopFSMTests(TestCase):
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY)
 
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
@@ -466,7 +476,7 @@ class ConvergenceLoopFSMTests(TestCase):
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY)
 
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
@@ -531,8 +541,8 @@ class ConvergenceLoopFSMTests(TestCase):
             client=client, configuration=configuration, state=state))
 
         # Wait for all three iterations to occur.
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY)
+        reactor.advance(_UNCONVERGED_DELAY * _UNCONVERGED_BACKOFF_FACTOR)
 
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
@@ -736,7 +746,7 @@ class ConvergenceLoopFSMTests(TestCase):
 
         # Action finally finishes, and we can move on to next iteration,
         # but only after sleeping.
-        self.reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        self.reactor.advance(_UNCONVERGED_DELAY)
         num_calculations_after_sleep = len(self.deployer.calculate_inputs)
         self.assertEqual(
             dict(pre=num_calculations_pre_sleep,
@@ -902,7 +912,7 @@ class ConvergenceLoopFSMTests(TestCase):
 
         # Wait for the delay in the convergence loop to pass.  This won't do
         # anything, since we are also waiting for state to be acknowledged.
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY)
 
         # Only one status update was sent.
         self.assertListEqual(
@@ -933,7 +943,7 @@ class ConvergenceLoopFSMTests(TestCase):
         self.patch(loop, "logger", logger)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY)
         # Calculating actions happened, result was run and caused error...
         # but we started on loop again and are thus in discovery state,
         # which we can tell because all faked local states have been
@@ -969,7 +979,7 @@ class ConvergenceLoopFSMTests(TestCase):
 
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY)
 
         # If the loop kept running then the good state following the error
         # state should have been sent via the AMP client on a subsequent
@@ -1037,7 +1047,7 @@ class ConvergenceLoopFSMTests(TestCase):
         # which happens with second set of client, desired configuration
         # and cluster state:
         action.result.callback(None)
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY)
 
         self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls, client2.calls),
@@ -1074,7 +1084,7 @@ class ConvergenceLoopFSMTests(TestCase):
         loop.receive(ConvergenceLoopInputs.STOP)
         # Action finally finishes:
         action.result.callback(None)
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY)
 
         # work is scheduled:
         expected = (
@@ -1136,7 +1146,7 @@ class ConvergenceLoopFSMTests(TestCase):
         # which happens with second set of client, desired configuration
         # and cluster state:
         action.result.callback(None)
-        reactor.advance(_UNCONVERGED_DELAY.delay_seconds)
+        reactor.advance(_UNCONVERGED_DELAY)
         self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls, client2.calls),
             ([(local_state, configuration, state),
@@ -1330,3 +1340,78 @@ class AgentLoopServiceInterfaceTests(
     """
     ``IConvergenceAgent`` tests for ``AgentLoopService``.
     """
+
+
+def make_remotestatepersister(test_case):
+    """
+    Create a ``RemoteStatePersister`` for use in tests.
+
+    :return: ``tuple`` of ``IStatePersiter`` and 0-argument callable returning
+    a ``PersistentState``.
+    """
+    clock = Clock()
+    control_amp_service, client = make_loopback_control_client(
+        test_case,
+        reactor=clock,
+    )
+    persistence_service = control_amp_service.configuration_service
+    return RemoteStatePersister(client=client), (
+        lambda: persistence_service.get().persistent_state
+    )
+
+
+class RemoteStatePersisterTests(
+    make_istatepersister_tests(make_remotestatepersister)
+):
+    """
+    Tests for ``RemoteStatePersister``.
+    """
+
+
+class UncovergedDelayTests(TestCase):
+    """
+    Tests for ``_UnconvergedDelay``.
+    """
+
+    @given(floats())
+    def test_first_is_min_sleep(self, duration):
+        """
+        The first call to `sleep` uses `min_sleep` duration.
+        """
+        assume(not math.isnan(duration))
+        delay = _UnconvergedDelay(min_sleep=duration)
+        sleep = delay.sleep()
+        self.assertEqual(duration, sleep.delay_seconds)
+
+    def test_second_uses_backoff(self):
+        """
+        The second call to `sleep` adjusts by `_UNCONVERGED_BACKOFF_FACTOR`.
+        """
+        min_sleep = 0.1
+        delay = _UnconvergedDelay(min_sleep=min_sleep)
+        delay.sleep()
+        sleep = delay.sleep()
+        self.assertEqual(
+            min_sleep * _UNCONVERGED_BACKOFF_FACTOR, sleep.delay_seconds)
+
+    def test_limits_at_max_sleep(self):
+        """
+        The backoff doesn't exceed `max_sleep`.
+        """
+        min_sleep = 0.1
+        max_sleep = 0.2
+        delay = _UnconvergedDelay(min_sleep=min_sleep, max_sleep=max_sleep)
+        delay.sleep()
+        sleep = delay.sleep()
+        self.assertEqual(max_sleep, sleep.delay_seconds)
+
+    def test_reset_resets(self):
+        """
+        `reset_delay` means the next `sleep` returns `min_sleep` duration.
+        """
+        min_sleep = 0.1
+        delay = _UnconvergedDelay(min_sleep=min_sleep)
+        delay.sleep()
+        delay.reset_delay()
+        sleep = delay.sleep()
+        self.assertEqual(min_sleep, sleep.delay_seconds)

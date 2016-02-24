@@ -150,6 +150,7 @@ definitions:
     patternProperties:
       "^.+$":
         type: string
+    additionalProperties: false
 
   volume:
     title: "A volume attached to a container"
@@ -245,7 +246,7 @@ definitions:
       The upper limit on how much data the dataset will be allowed to
       store, as an integer number of bytes.
     type:
-      - "number"
+      - integer
       - "null"
     # 64 MiB.  Sort of an arbitrary limit but inspired by the lower bound
     # on what this can be set to for the ZFS backend.  Could probably be

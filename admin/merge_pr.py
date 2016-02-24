@@ -164,9 +164,9 @@ def format_status(status):
     :return unicode: a string formatting of the pair
          for display to the user.
     """
-    GitHub, jenkins = status
-    return "{}: {} ({})".format(
-        GitHub['context'], jenkins.value, GitHub['target_url'])
+    github, jenkins = status
+    return u"{}: {} ({})".format(
+        github['context'], jenkins.value, github['target_url'])
 
 
 def infinite_sleeps(sleep_for):
@@ -236,6 +236,12 @@ class JenkinsResults(Values):
     PASSED = ValueConstant('success')
     FAILED = ValueConstant('failed')
     NOTRUN = ValueConstant('notrun')
+    # Sometimes Jenkins replies with not much info,
+    # e.g. no 'builds' in the result just after a
+    # build finished. We use this status if that
+    # happens so we can ignore the build for that
+    # cycle
+    UNKNOWN = ValueConstant('unknown')
 
 
 def jenkins_result_from_api(result):
@@ -279,6 +285,26 @@ def properties_to_params(props):
     return None
 
 
+def jenkins_info_from_response(project):
+    """
+    Get the Jenkins job information from the Jenkins API response.
+
+    :param dict project: the API response as a dict.
+    :return (JenkinsResults, dict): The first element will
+        be a JenkinsResults value corresponding to the status
+        of the job. The second element will be
+        the parameters to start a new Jenkins build if needed.
+    """
+    if project.get('inQueue', False):
+        return JenkinsResults.RUNNING, {}
+    if 'builds' not in project:
+        return JenkinsResults.UNKNOWN, {}
+    if len(project['builds']) < 1:
+        return JenkinsResults.NOTRUN, {}
+    result = jenkins_result_from_api(project['builds'][0]['result'])
+    return result, properties_to_params(project['property'])
+
+
 def get_jenkins_info(jenkins_session, status):
     """
     Get the Jenkins job info for a GitHub status, if any.
@@ -289,18 +315,13 @@ def get_jenkins_info(jenkins_session, status):
     :return (JenkinsResults, dict): The first element will
         be a JenkinsResults value if the information can
         be found, None if not. The second element will be
-        the paramters to start a new Jenkins build if needed.
+        the parameters to start a new Jenkins build if needed.
     """
     if status['context'].startswith('jenkins-'):
         jenkins_url = status['target_url']
         project = jenkins_session.get(
             jenkins_url + JENKINS_BUILD_INFO_PATH).json()
-        if project['inQueue']:
-            return JenkinsResults.RUNNING, {}
-        if len(project['builds']) < 1:
-            return JenkinsResults.NOTRUN, {}
-        result = jenkins_result_from_api(project['builds'][0]['result'])
-        return result, properties_to_params(project['property'])
+        return jenkins_info_from_response(project)
     return None, None
 
 
@@ -490,7 +511,3 @@ def main(args):
         if not do_merge(pr_url, pr, session):
             return 1
     return 0
-
-
-if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))

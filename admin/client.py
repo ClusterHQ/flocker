@@ -95,17 +95,17 @@ class ScriptBuilder(TypeDispatcher):
         return self._script
 
 
-def make_script_file(dir, effects):
+def make_script_file(directory, effects):
     """
     Create a shell script file from a sequence of effects.
 
-    :param bytes dir: The directory in which to create the script.
+    :param bytes directory: The directory in which to create the script.
     :param Effect effects: An effect which contains the commands,
         typically a Sequence containing multiple commands.
     :return: The base filename of the script.
     """
     builder = ScriptBuilder(effects)
-    fd, filename = tempfile.mkstemp(dir=dir, text=True)
+    fd, filename = tempfile.mkstemp(dir=directory, text=True)
     os.write(fd, builder.script())
     os.close(fd)
     os.chmod(filename, 0555)
@@ -201,8 +201,8 @@ class RunOptions(Options):
         ['distribution', None, None,
          'The target distribution. '
          'One of {}.  With --pip, one of {}'.format(
-            ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS),
-            ', '.join(PIP_DISTRIBUTIONS))],
+             ', '.join(PACKAGED_CLIENT_DISTRIBUTIONS),
+             ', '.join(PIP_DISTRIBUTIONS))],
         ['branch', None, None, 'Branch to grab packages from'],
         ['flocker-version', None, None, 'Flocker version to install'],
         ['build-server', None, 'http://build.clusterhq.com/',

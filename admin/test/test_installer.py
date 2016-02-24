@@ -18,11 +18,12 @@ from twisted.python.filepath import FilePath
 
 from eliot import Message
 
-from ...common.runner import run_ssh
-from ...common import gather_deferreds, loop_until, retry_failure
-from ...testtools import AsyncTestCase, async_runner, random_name
-from ..testtools import connected_cluster
-
+from flocker.common.runner import run_ssh, upload, download, SCPConnectionError
+from flocker.common import gather_deferreds, loop_until, retry_failure
+from flocker.testtools import AsyncTestCase, async_runner, random_name
+from flocker.acceptance.testtools import (
+    connected_cluster, acceptance_yaml_for_test, extract_substructure_for_test
+)
 
 RECREATE_STATEMENT = 'create table test(i int);'
 INSERT_STATEMENT = 'insert into test values(1);'
@@ -33,6 +34,8 @@ CLOUDFORMATION_STACK_NAME = 'testinstallerstack'
 POSTGRESQL_PORT = 5432
 POSTGRESQL_USERNAME = 'flocker'
 POSTGRESQL_PASSWORD = 'flocker'
+
+CLOUDFORMATION_TEMPLATE_URL = "https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json"  # noqa
 
 
 def remote_command(client_ip, command):
@@ -106,31 +109,54 @@ def remote_postgres(client_ip, host, command):
     )
 
 
-def get_stack_report(stack_id):
+def aws_output(args, aws_config):
+    """
+    Run the ``aws`` command line tool with the supplied subcommand ``args`` and
+    the supplied ``aws_config`` as environment variables.
+
+    :param list args: The list of ``aws`` arguments (including sub-command).
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
+    :returns: The ``bytes`` output of the ``aws`` command.
+    """
+    environment = os.environ.copy()
+    environment.update(aws_config)
+    return check_output(
+        ['aws'] + args,
+        env=environment
+    )
+
+
+def get_stack_report(stack_id, aws_config):
     """
     Get information about a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
     :returns: A ``dict`` of information about the stack.
     """
-    output = check_output(
-        ['aws', 'cloudformation', 'describe-stacks',
-         '--stack-name', stack_id]
+    output = aws_output(
+        ['cloudformation', 'describe-stacks',
+         '--stack-name', stack_id],
+        aws_config
     )
     results = json.loads(output)
     return results['Stacks'][0]
 
 
-def wait_for_stack_status(stack_id, target_status):
+def wait_for_stack_status(stack_id, target_status, aws_config):
     """
     Poll the status of a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
     :param unicode target_status: The desired stack status.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
     :returns: A ``Deferred`` which fires when the stack has ``target_status``.
     """
     def predicate():
-        stack_report = get_stack_report(stack_id)
+        stack_report = get_stack_report(stack_id, aws_config)
         current_status = stack_report['StackStatus']
         Message.log(
             function='wait_for_stack_status',
@@ -146,49 +172,49 @@ def wait_for_stack_status(stack_id, target_status):
                       repeat(10, 120))
 
 
-def create_cloudformation_stack(template_url, access_key_id,
-                                secret_access_key, parameters):
+def create_cloudformation_stack(template_url, parameters, aws_config):
     """
     Create a CloudFormation stack.
 
-    :param unicode stack_id: The AWS cloudformation stack ID.
+    :param unicode template_url: Cloudformation template URL on S3.
+    :param dict parameters: The parameters required by the template.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
+
     :returns: A ``Deferred`` which fires when the stack has been created.
     """
     # Request stack creation.
     stack_name = CLOUDFORMATION_STACK_NAME + str(int(time.time()))
-    output = check_output(
-        ['aws', 'cloudformation', 'create-stack',
+    output = aws_output(
+        ['cloudformation', 'create-stack',
          '--disable-rollback',
          '--parameters', json.dumps(parameters),
          '--stack-name', stack_name,
-         '--template-url', template_url]
+         '--template-url', template_url],
+        aws_config
     )
     output = json.loads(output)
     stack_id = output['StackId']
     Message.new(cloudformation_stack_id=stack_id)
-    return wait_for_stack_status(stack_id, 'CREATE_COMPLETE')
+    return wait_for_stack_status(stack_id, 'CREATE_COMPLETE', aws_config)
 
 
-def delete_cloudformation_stack(stack_id):
+def delete_cloudformation_stack(stack_id, aws_config):
     """
     Delete a CloudFormation stack.
 
     :param unicode stack_id: The AWS cloudformation stack ID.
+    :param dict aws_config: environment variables to be merged with the current
+        process environment before running the ``aws`` sub-command.
     :returns: A ``Deferred`` which fires when the stack has been deleted.
     """
-    result = get_stack_report(stack_id)
-    outputs = result['Outputs']
-    s3_bucket_name = get_output(outputs, 'S3Bucket')
-    check_output(
-        ['aws', 's3', 'rb', 's3://{}'.format(s3_bucket_name), '--force']
+    aws_output(
+        ['cloudformation', 'delete-stack',
+         '--stack-name', stack_id],
+        aws_config,
     )
 
-    check_output(
-        ['aws', 'cloudformation', 'delete-stack',
-         '--stack-name', stack_id]
-    )
-
-    return wait_for_stack_status(stack_id, 'DELETE_COMPLETE')
+    return wait_for_stack_status(stack_id, 'DELETE_COMPLETE', aws_config)
 
 
 def get_output(outputs, key):
@@ -242,39 +268,55 @@ class DockerComposeTests(AsyncTestCase):
     def _new_stack(self):
         """
         Create a new CloudFormation stack from a template URL supplied as an
-        environment variable. AWS credentials and CloudFormation parameter
-        values must also be supplied as environment variables.
+        environment variable. AWS credentials and CloudFormation parameters are
+        gathered from an ``acceptance.yml`` style configuration file.
         """
-        template_url = os.environ.get('CLOUDFORMATION_TEMPLATE_URL')
-        if template_url is None:
-            self.skipTest(
-                'CLOUDFORMATION_TEMPLATE_URL environment variable not found. '
-            )
-        access_key_id = os.environ['ACCESS_KEY_ID']
-        secret_access_key = os.environ['SECRET_ACCESS_KEY']
+        config = extract_substructure_for_test(
+            test_case=self,
+            substructure=dict(
+                aws=dict(
+                    access_key=u"<AWS access key ID>",
+                    secret_access_token=u"<AWS secret access key>",
+                    keyname=u"<AWS SSH key pair name>",
+                    region=u"<AWS region code>"
+                ),
+            ),
+            config=acceptance_yaml_for_test(self)
+        )
+        template_url = os.environ.get(
+            'CLOUDFORMATION_TEMPLATE_URL', CLOUDFORMATION_TEMPLATE_URL
+        )
+
         parameters = [
             {
                 'ParameterKey': 'EC2KeyPair',
-                'ParameterValue': os.environ['KEY_PAIR']
+                'ParameterValue': config["aws"]["keyname"]
             },
             {
                 'ParameterKey': 'AmazonAccessKeyID',
-                'ParameterValue': os.environ['ACCESS_KEY_ID']
+                'ParameterValue': config["aws"]["access_key"]
             },
             {
                 'ParameterKey': 'AmazonSecretAccessKey',
-                'ParameterValue': os.environ['SECRET_ACCESS_KEY']
+                'ParameterValue': config["aws"]["secret_access_token"]
             },
             {
                 'ParameterKey': 'VolumeHubToken',
-                'ParameterValue': os.environ['VOLUMEHUB_TOKEN']
+                'ParameterValue': os.environ.get('VOLUMEHUB_TOKEN', '')
+            },
+            {
+                'ParameterKey': 'S3AccessPolicy',
+                'ParameterValue': 'Yes'
             }
         ]
 
-        d = create_cloudformation_stack(
-            template_url,
-            access_key_id, secret_access_key, parameters
+        aws_config = dict(
+            AWS_ACCESS_KEY_ID=config["aws"]["access_key"],
+            AWS_SECRET_ACCESS_KEY=config["aws"]["secret_access_token"],
+            AWS_DEFAULT_REGION=config["aws"]["region"],
         )
+
+        d = create_cloudformation_stack(template_url, parameters, aws_config)
 
         def set_stack_variables(stack_report):
             outputs = stack_report['Outputs']
@@ -284,7 +326,9 @@ class DockerComposeTests(AsyncTestCase):
                     self, variable_name, get_output(outputs, stack_output_name)
                 )
             if 'KEEP_STACK' not in os.environ:
-                self.addCleanup(delete_cloudformation_stack, stack_id)
+                self.addCleanup(
+                    delete_cloudformation_stack, stack_id, aws_config
+                )
         d.addCallback(set_stack_variables)
         return d
 
@@ -318,18 +362,22 @@ class DockerComposeTests(AsyncTestCase):
         # XXX Perhaps it'd be better to have a cluster cleanup tool available
         # on the client which can also be run by people who are attempting the
         # tutorial.
-        check_output(
-            ['scp', '-o', 'StrictHostKeyChecking no', '-r',
-             'ubuntu@{}:/etc/flocker'.format(self.client_node_ip),
-             local_certs_path.path]
-        )
-        d = connected_cluster(
+        d = download(
             reactor=reactor,
-            control_node=self.control_node_ip.encode('ascii'),
-            certificates_path=local_certs_path,
-            num_agent_nodes=2,
-            hostname_to_public_address={},
-            username='user1',
+            username=b'ubuntu',
+            host=self.client_node_ip.encode('ascii'),
+            remote_path=FilePath('/etc/flocker'),
+            local_path=local_certs_path
+        )
+        d.addCallback(
+            lambda ignored: connected_cluster(
+                reactor=reactor,
+                control_node=self.control_node_ip.encode('ascii'),
+                certificates_path=local_certs_path,
+                num_agent_nodes=2,
+                hostname_to_public_address={},
+                username=b'user1',
+            )
         )
         d.addCallback(
             lambda cluster: cluster.clean_nodes(
@@ -348,13 +396,13 @@ class DockerComposeTests(AsyncTestCase):
         d_node1_compose = remote_docker_compose(
             self.client_node_ip,
             self.docker_host,
-            self.compose_node1, 'stop'
+            self.compose_node1.path, 'stop'
         )
         d_node1_compose.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                self.compose_node1, 'rm', '-f'
+                self.compose_node1.path, 'rm', '-f'
             ).addErrback(
                 # This sometimes fails with exit code 255
                 # and a message ValueError: No JSON object could be decoded
@@ -364,14 +412,14 @@ class DockerComposeTests(AsyncTestCase):
         d_node2_compose = remote_docker_compose(
             self.client_node_ip,
             self.docker_host,
-            self.compose_node2,
+            self.compose_node2.path,
             'stop',
         )
         d_node2_compose.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                self.compose_node2,
+                self.compose_node2.path,
                 'rm', '-f'
             ).addErrback(
                 # This sometimes fails with exit code 255
@@ -424,25 +472,33 @@ class DockerComposeTests(AsyncTestCase):
         template creates a PostgreSQL server on one node. The second template
         moves the PostgreSQL server to the second node.
         """
-        remote_compose_directory = random_name(self)
-        # Publish the compose files to the client.
-        command = [
-            'scp', '-o', 'StrictHostKeyChecking no', '-r',
-            FilePath(__file__).parent().descendant(
-                ['installer', 'postgres']
-            ).path,
-            'ubuntu@{}:{}'.format(
-                self.client_node_ip,
-                remote_compose_directory
-            )
-        ]
-        check_output(command)
-
+        client_username = b"ubuntu"
+        client_home = FilePath('/home').child(client_username)
+        remote_compose_directory = client_home.child(random_name(self))
         self.compose_node1 = (
-            remote_compose_directory + "/docker-compose-node1.yml"
+            remote_compose_directory.child("docker-compose-node1.yml")
         )
         self.compose_node2 = (
-            remote_compose_directory + "/docker-compose-node2.yml"
+            remote_compose_directory.child("docker-compose-node2.yml")
+        )
+
+        # Publish the compose files to the client.
+        def upload_docker_compose_files():
+            return upload(
+                reactor=reactor,
+                username=client_username,
+                host=self.client_node_ip.encode('ascii'),
+                local_path=FilePath(__file__).parent().descendant(
+                    ['installer', 'postgres']
+                ),
+                remote_path=remote_compose_directory,
+            )
+        d = retry_failure(
+            reactor=reactor,
+            function=upload_docker_compose_files,
+            expected=(SCPConnectionError,),
+            # Wait 60s for the client SSH server to accept connections.
+            steps=repeat(1, 60)
         )
 
         # This isn't in the tutorial, but docker-compose doesn't retry failed
@@ -453,11 +509,13 @@ class DockerComposeTests(AsyncTestCase):
                 self.docker_host,
                 'pull', 'postgres:latest'
             )
-        d = retry_failure(
-            reactor=reactor,
-            function=pull_postgres,
-            expected=(ProcessTerminated,),
-            steps=repeat(1, 5)
+        d.addCallback(
+            lambda ignored: retry_failure(
+                reactor=reactor,
+                function=pull_postgres,
+                expected=(ProcessTerminated,),
+                steps=repeat(1, 5)
+            )
         )
         # Create the PostgreSQL server on node1. A Flocker dataset will be
         # created and attached by way of the Flocker Docker plugin.
@@ -465,7 +523,7 @@ class DockerComposeTests(AsyncTestCase):
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                self.compose_node1, 'up', '-d'
+                self.compose_node1.path, 'up', '-d'
             )
         )
         # Docker-compose blocks until the container is running but the the
@@ -485,7 +543,7 @@ class DockerComposeTests(AsyncTestCase):
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                self.compose_node1,
+                self.compose_node1.path,
                 'stop'
             )
         )
@@ -494,14 +552,14 @@ class DockerComposeTests(AsyncTestCase):
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip, self.docker_host,
-                self.compose_node1, 'rm', '--force'
+                self.compose_node1.path, 'rm', '--force'
             )
         )
         # Start the container on the other node.
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip, self.docker_host,
-                self.compose_node2, 'up', '-d'
+                self.compose_node2.path, 'up', '-d'
             )
         )
         # The database server won't be immediately ready to receive

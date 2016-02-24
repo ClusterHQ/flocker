@@ -18,12 +18,14 @@ import ssl
 
 from docker.tls import TLSConfig
 
+from twisted.internet import defer
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
 from twisted.internet.error import ProcessTerminated
+from twisted.internet.task import deferLater
 
 from eliot import start_action, Message, write_failure
 from eliot.twisted import DeferredContext
@@ -36,8 +38,11 @@ from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
 
-from ..common import gather_deferreds, loop_until, timeout
-from ..common.runner import download_file, run_ssh
+from ..common import gather_deferreds, loop_until, timeout, retry_failure
+from ..common.configuration import (
+    extract_substructure, MissingConfigError, Optional
+)
+from ..common.runner import download, run_ssh
 
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
@@ -45,6 +50,7 @@ from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.script import get_backend, get_api
 from ..node import dockerpy_client
+from ..provision import reinstall_flocker_from_package_source
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
 
@@ -87,6 +93,12 @@ DOCKER_PORT = 2376
 # polling for a condition, it's better to time out quickly and retry instead of
 # possibly getting stuck in this case.
 SOCKET_TIMEOUT_FOR_POLLING = 2.0
+
+
+class FailureToUpgrade(Exception):
+    """
+    Exception raised to indicate a failure to install a new version of Flocker.
+    """
 
 
 def get_docker_client(cluster, address):
@@ -476,14 +488,32 @@ class Cluster(PClass):
 
     :ivar treq: A ``treq`` client, eventually to be completely replaced by
         ``FlockerClient`` usage.
+    :ivar reactor: A reactor to use to execute operations.
     :ivar client: A ``FlockerClient``.
+    :ivar raw_distribution: Either a string with the distribution being run on
+        the cluster or None if it is unknown.
     """
     control_node = field(mandatory=True, type=ControlService)
     nodes = field(mandatory=True, type=_NodeList)
     treq = field(mandatory=True)
+    reactor = field(mandatory=True)
     client = field(type=FlockerClient, mandatory=True)
     certificates_path = field(FilePath, mandatory=True)
     cluster_uuid = field(mandatory=True, type=UUID)
+    raw_distribution = field(mandatory=True, type=(bytes, type(None)))
+
+    @property
+    def distribution(self):
+        """
+        :returns: The name of the distribution installed on the cluster.
+        :raises SkipTest: If the distribution was not set in environment
+            variables.
+        """
+        if self.raw_distribution is None:
+            raise SkipTest(
+                'Set FLOCKER_ACCEPTANCE_DISTRIBUTION with the distribution '
+                'that is installed on the nodes of the cluster.')
+        return self.raw_distribution
 
     @property
     def base_url(self):
@@ -528,9 +558,9 @@ class Cluster(PClass):
         :param Dataset expected_dataset: The configured dataset that
             we're waiting for in state.
 
-        :returns: A ``Deferred`` which fires with ``expected_datasets``
-            when the cluster state matches the configuration for the given
-            dataset.
+        :returns: A ``Deferred`` which fires with the ``DatasetState`` of the
+            cluster when the cluster state matches the configuration for the
+            given dataset.
         """
         expected_dataset_state = DatasetState(
             dataset_id=expected_dataset.dataset_id,
@@ -547,13 +577,17 @@ class Cluster(PClass):
             def got_results(results):
                 # State has unpredictable path, so we don't bother
                 # checking for its contents:
-                actual_dataset_states = [d.set(path=None) for d in results]
-                return expected_dataset_state in actual_dataset_states
+                actual_dataset_states = list(
+                    d for d in results
+                    if d.set('path', None) == expected_dataset_state)
+                if actual_dataset_states:
+                    return actual_dataset_states[0]
+                else:
+                    return None
             request.addCallback(got_results)
             return request
 
         waiting = loop_until(reactor, created)
-        waiting.addCallback(lambda ignored: expected_dataset)
         return waiting
 
     @log_method
@@ -703,6 +737,73 @@ class Cluster(PClass):
         return request
 
     @log_method
+    def install_flocker_version(self, package_source,
+                                destroy_persisted_state=False):
+        """
+        Change the version of flocker installed on all of the nodes to the
+        version indicated by `package_source`.
+
+        :param PackageSource package_source: The :class:`PackageSource` to
+            install flocker from on all of the nodes.
+        :param bool destroy_persisted_state: Whether to destroy the control
+            node's state file when upgrading or not.
+        """
+        control_node_address = self.control_node.public_address
+        all_cluster_nodes = set(list(x.public_address for x in self.nodes) +
+                                [control_node_address])
+        distribution = self.distribution
+
+        def get_flocker_version():
+            # Retry getting the flocker version for 10 times, with a 10 second
+            # timeout on each. Flocker might not be running yet on the control
+            # node when this is called.
+            d = retry_failure(
+                self.reactor,
+                lambda: timeout(
+                    self.reactor,
+                    self.client.version(),
+                    10
+                ),
+                [1]*10
+            )
+            d.addCallback(
+                lambda v: v.get('flocker', u'').encode('ascii') or None)
+            return d
+
+        d = get_flocker_version()
+
+        # If we fail to get the current version, assume we must reinstall
+        # flocker. The following line consumes the error, and continues down
+        # the callback chain of the deferred.
+        d.addErrback(write_failure)
+
+        def reinstall_if_needed(current_version):
+            if (not current_version or
+                    current_version != package_source.version):
+                # If we did not get the version, or if the version does not
+                # match the target version, then we must re-install flocker.
+                return reinstall_flocker_from_package_source(
+                    reactor, all_cluster_nodes, control_node_address,
+                    package_source, distribution,
+                    destroy_persisted_state=destroy_persisted_state)
+            return current_version
+        d.addCallback(reinstall_if_needed)
+
+        d.addCallback(lambda _: get_flocker_version())
+
+        def verify_version(current_version):
+            if package_source.version:
+                if current_version != package_source.version:
+                    raise FailureToUpgrade(
+                        "Failed to set version of flocker to %s, it is still "
+                        "%s." % (package_source.version, current_version)
+                    )
+            return current_version
+        d.addCallback(verify_version)
+
+        return d
+
+    @log_method
     def clean_nodes(self, remove_foreign_containers=True):
         """
         Clean containers and datasets via the API.
@@ -818,8 +919,12 @@ class Cluster(PClass):
         fd, name = mkstemp()
         close(fd)
         destination = FilePath(name)
-        d = download_file(
-            reactor, b"root", node.public_address, path, destination
+        d = download(
+            reactor=reactor,
+            username=b"root",
+            host=node.public_address.encode('ascii'),
+            remote_path=path,
+            local_path=destination,
         )
         d.addCallback(lambda ignored: destination)
         return d
@@ -842,10 +947,12 @@ def connected_cluster(
         nodes=[],
         treq=treq_with_authentication(
             reactor, cluster_cert, user_cert, user_key),
+        reactor=reactor,
         client=FlockerClient(reactor, control_node, REST_API_PORT,
                              cluster_cert, user_cert, user_key),
         certificates_path=certificates_path,
         cluster_uuid=user_credential.cluster_uuid,
+        raw_distribution=environ.get('FLOCKER_ACCEPTANCE_DISTRIBUTION'),
     )
 
     # Wait until nodes are up and running:
@@ -928,7 +1035,8 @@ def _get_test_cluster(reactor):
     )
 
 
-def require_cluster(num_nodes, required_backend=None):
+def require_cluster(num_nodes, required_backend=None,
+                    require_container_agent=False):
     """
     A decorator which will call the supplied test_method when a cluster with
     the required number of nodes is available.
@@ -984,6 +1092,20 @@ def require_cluster(num_nodes, required_backend=None):
                         ["nodes"], lambda nodes: nodes[:num_nodes]))
 
             waiting_for_cluster.addCallback(clean)
+
+            def enable_container_agent(cluster):
+                # This should ideally be some sort of fixture/testresources
+                # thing, but the APIs aren't quite right today.
+                def configure_container_agent(node):
+                    return ensure_container_agent_enabled(
+                        node, require_container_agent)
+                d = defer.gatherResults(
+                    map(configure_container_agent, cluster.nodes),
+                    consumeErrors=True)
+                d.addCallback(lambda _: cluster)
+                return d
+
+            waiting_for_cluster.addCallback(enable_container_agent)
             calling_test_method = waiting_for_cluster.addCallback(
                 call_test_method_with_cluster,
                 test_case, args, kwargs
@@ -991,6 +1113,110 @@ def require_cluster(num_nodes, required_backend=None):
             return calling_test_method
         return wrapper
     return decorator
+
+
+def is_container_agent_running(node):
+    """
+    Check if the container agent is running on the specified node.
+
+    :param Node node: the node to check.
+    :return Deferred[bool]: a Deferred that will fire when
+        with whether the container agent is runnning.
+    """
+    d = node.run_script("service_running", "flocker-container-agent")
+
+    def not_existing(failure):
+        failure.trap(ProcessTerminated)
+        return False
+    d.addCallbacks(lambda result: True, not_existing)
+    return d
+
+
+def set_container_agent_enabled_on_node(node, enabled):
+    """
+    Ensure the container agent is enabled/disabled as specified.
+
+    :param Node node: the node on which to ensure the container
+        agent's state
+    :param bool enabled: True to ensure the container agent
+        is enabled and running, false to ensure the opposite.
+    :return Deferred[None]: a Deferred that will fire when
+        the container agent is in the desired state.
+    """
+    if enabled:
+        d = node.run_script("enable_service", "flocker-container-agent")
+    else:
+        d = node.run_script("disable_service", "flocker-container-agent")
+    # If the agent was disabled We have to reboot to clear the control cache.
+    # If we want to avoid the reboot we could add an API to do this.
+    if not enabled:
+        d.addCallback(lambda _: node.reboot())
+        # Wait for reboot to be far enough along that everything
+        # should be shutdown:
+        d.addCallback(lambda _: deferLater(reactor, 20, lambda: None))
+        # Wait until server is back up:
+        d = d.addCallback(lambda _:
+                          verify_socket(node.public_address, 22))
+        d.addCallback(lambda _: loop_until(
+            reactor, lambda: is_process_running(
+                node, b'flocker-dataset-agent')))
+    # Hide the value in the callback as it could come from
+    # different places and shouldn't be used.
+    d.addCallback(lambda _: None)
+    return d
+
+
+def is_process_running(node, name):
+    """
+    Check if the process `name` is running on `node`.
+
+    :param Node node: the node to check.
+    :param bytes name: the name of the process to look for.
+    :return Deferred[bool]: a deferred that will fire
+        with whether at least one process named `name` is running
+        on `node`.
+    """
+    # pidof will return the pid if the processes is
+    # running else exit with status 1 which triggers the
+    # errback chain.
+    command = [b'pidof', b'-x', name]
+    d = node.run_as_root(command)
+
+    def not_existing(failure):
+        failure.trap(ProcessTerminated)
+        return False
+    d.addCallbacks(lambda result: True, not_existing)
+    return d
+
+
+def ensure_container_agent_enabled(node, to_enable):
+    """
+    Ensure the container agent is enabled/disabled as specified.
+
+    Doesn't make any changes if the agent is already in the
+    desired state.
+
+    :param Node node: the node on which to ensure the container
+        agent's state
+    :param bool to_enable: True to ensure the container agent
+        is enabled and running, False to ensure the opposite.
+    :return Deferred[None]: a Deferred that will fire when
+        the container agent is in the desired state.
+    """
+    # If the agent is enabled but stopped, and the test
+    # requests no container agent, then if the test rebooted
+    # the node it would get a running container agent after
+    # that point. This means that a test that fails in a
+    # particular way could cause incorrect results in later
+    # tests that rely on reboots. This function could change
+    # to check the enabled status as well.
+    d = is_container_agent_running(node)
+
+    def change_if_needed(enabled):
+        if enabled != to_enable:
+            return set_container_agent_enabled_on_node(node, to_enable)
+    d.addCallback(change_if_needed)
+    return d
 
 
 def create_python_container(test_case, cluster, parameters, script,
@@ -1217,7 +1443,6 @@ def query_http_server(host, port, path=b""):
 
 def assert_http_server(test, host, port,
                        path=b"", expected_response=b"hi"):
-
     """
     Assert that a HTTP serving a response with body ``b"hi"`` is running
     at given host and port.
@@ -1237,3 +1462,47 @@ def assert_http_server(test, host, port,
     d = query_http_server(host, port, path)
     d.addCallback(test.assertEqual, expected_response)
     return d
+
+
+def acceptance_yaml_for_test(test_case):
+    """
+    Load configuration from a yaml file specified in an environment variable.
+
+    Raises a SkipTest exception if the environment variable is not specified.
+    """
+    _ENV_VAR = 'ACCEPTANCE_YAML'
+    filename = environ.get(_ENV_VAR)
+    if not filename:
+        test_case.skip(
+            'Must set {} to an acceptance.yaml file ('
+            'http://doc-dev.clusterhq.com/gettinginvolved/appendix.html#acceptance-testing-configuration'  # noqa
+            ') plus additional keys in order to run this test.'.format(
+                _ENV_VAR))
+    with open(filename) as f:
+        config = yaml.safe_load(f)
+    return config
+
+
+def extract_substructure_for_test(test_case, substructure, config):
+    """
+    Extract the keys from the config in substructure, which may be a nested
+    dictionary.
+
+    Raises a ``unittest.SkipTest`` if the substructure is not found in the
+    configuration.
+
+    This can be used to load credentials all at once for testing purposes.
+    """
+    try:
+        return extract_substructure(config, substructure)
+    except MissingConfigError as e:
+        yaml.add_representer(
+            Optional,
+            lambda d, x: d.represent_scalar(u'tag:yaml.org,2002:str', repr(x)))
+        test_case.skip(
+            'Skipping test: could not get configuration: {}\n\n'
+            'In order to run this test, add ensure file at $ACCEPTANCE_YAML '
+            'has structure like:\n\n{}'.format(
+                e.message,
+                yaml.dump(substructure, default_flow_style=False))
+        )

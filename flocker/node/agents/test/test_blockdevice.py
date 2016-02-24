@@ -116,7 +116,8 @@ from ....control import (
     NonManifestDatasets, Application, AttachedVolume, DockerImage,
     PersistentState,
 )
-from ....control._model import Leases
+from ....control import Leases
+from ....control.testtools import InMemoryStatePersister
 
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
@@ -1272,6 +1273,7 @@ class BlockDeviceCalculatorTests(TestCase):
     def setUp(self):
         super(BlockDeviceCalculatorTests, self).setUp()
         self.deployer = create_blockdevicedeployer(self)
+        self.persistent_state = InMemoryStatePersister()
 
     def teardown_example(self, token):
         """
@@ -1291,7 +1293,7 @@ class BlockDeviceCalculatorTests(TestCase):
                     hostname=self.deployer.hostname,
                 ),
             }),
-            persistent_state=PersistentState(),
+            persistent_state=self.persistent_state.get_state(),
         )).datasets
 
     def run_convergence_step(self, desired_datasets):
@@ -1307,7 +1309,9 @@ class BlockDeviceCalculatorTests(TestCase):
             desired_datasets=desired_datasets,
         )
         note("Running changes: {changes}".format(changes=changes))
-        self.successResultOf(run_state_change(changes, self.deployer))
+        self.successResultOf(run_state_change(
+            changes, deployer=self.deployer,
+            state_persister=self.persistent_state))
 
     def run_to_convergence(self, desired_datasets, max_iterations=20):
         """
@@ -1810,7 +1814,7 @@ class ScenarioMixin(object):
         devices={
             DATASET_ID: FilePath(b"/dev/sda"),
         },
-        applications=[],
+        applications=None,
     )
 
     MOUNT_ROOT = FilePath('/flocker')
@@ -2013,20 +2017,6 @@ class BlockDeviceDeployerIgnorantCalculateChangesTests(
     Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
     changes can be calculated because application state is unknown.
     """
-    def test_unknown_applications(self):
-        """
-        If applications are unknown, no changes are calculated.
-        """
-        # We're ignorant about application state:
-        local_state = NodeState(
-            hostname=self.NODE, uuid=self.NODE_UUID, applications=None)
-
-        # We want to create a dataset:
-        local_config = to_node(self.ONE_DATASET_STATE)
-
-        assert_calculated_changes(self, local_state, local_config, set(),
-                                  in_parallel(changes=[]))
-
     def test_another_node_ignorant(self):
         """
         If a different node is ignorant about its state, it is still possible
@@ -2149,15 +2139,17 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
         api.attach_volume(volume.blockdevice_id, self.NODE)
 
+        other_node_uuid = uuid4()
         deployer = BlockDeviceDeployer(
             # This deployer is responsible for *other_node*, not node.
             hostname=other_node,
-            node_uuid=uuid4(),
+            node_uuid=other_node_uuid,
             block_device_api=api,
         )
 
         local_state = local_state_from_shared_state(
-            node_state=node_state,
+            node_state=cluster_state.get_node(
+                other_node_uuid, hostname=other_node),
             nonmanifest_datasets={},
         )
         changes = deployer.calculate_changes(
@@ -2165,7 +2157,10 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
         self.assertEqual(
             in_parallel(changes=[]),
-            changes
+            changes,
+            "Wrong changes for node {} when "
+            "dataset {} attached to node {}".format(
+                other_node_uuid, self.DATASET_ID, self.NODE_UUID)
         )
 
     def test_no_delete_if_in_use(self):
@@ -2667,7 +2662,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             }
         )
         state = DeploymentState(nodes=[NodeState(
-            uuid=uuid, hostname=node, applications=[], manifestations={},
+            uuid=uuid, hostname=node, applications=None, manifestations={},
             devices={}, paths={})])
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
@@ -2675,6 +2670,50 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         local_state = local_state_from_shared_state(
             node_state=state.get_node(uuid),
             nonmanifest_datasets={},
+        )
+        changes = deployer.calculate_changes(configuration, state, local_state)
+        self.assertEqual(
+            in_parallel(
+                changes=[
+                    CreateBlockDeviceDataset(
+                        dataset_id=UUID(dataset_id),
+                        maximum_size=int(GiB(1).bytes)
+                    )
+                ]),
+            changes
+        )
+
+    def test_unknown_applications(self):
+        """
+        If applications are unknown, block devices can still be created.
+        """
+        uuid = uuid4()
+        dataset_id = unicode(uuid4())
+        dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=int(GiB(1).to_Byte().value)
+        )
+        manifestation = Manifestation(
+            dataset=dataset, primary=True
+        )
+        node = u"192.0.2.1"
+        configuration = Deployment(
+            nodes={
+                Node(
+                    uuid=uuid,
+                    manifestations={dataset_id: manifestation},
+                )
+            }
+        )
+        state = DeploymentState(nodes=[NodeState(
+            uuid=uuid, hostname=node, applications=None, manifestations={},
+            devices={}, paths={})])
+        deployer = create_blockdevicedeployer(
+            self, hostname=node, node_uuid=uuid,
+        )
+        local_state = local_state_from_shared_state(
+            node_state=state.get_node(uuid),
+            nonmanifest_datasets={}
         )
         changes = deployer.calculate_changes(configuration, state, local_state)
         self.assertEqual(
@@ -2714,7 +2753,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             }
         )
         node_state = NodeState(
-            uuid=uuid, hostname=node, applications=[], manifestations={},
+            uuid=uuid, hostname=node, applications=None, manifestations={},
             devices={}, paths={})
         state = DeploymentState(nodes={node_state})
         deployer = create_blockdevicedeployer(
@@ -2856,7 +2895,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         node_state = NodeState(
             uuid=node_id,
             hostname=node_address,
-            applications=[],
+            applications=None,
             manifestations={},
             devices={},
             paths={},
@@ -2906,7 +2945,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         node_state = NodeState(
             uuid=node_id,
             hostname=node_address,
-            applications=[],
+            applications=None,
             manifestations={},
             devices={},
             paths={},
@@ -2972,7 +3011,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # some attached volumes.
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
-            applications={},
+            applications=None,
             manifestations={},
             devices={self.DATASET_ID: FilePath(b"/dev/xda")},
             paths={},
@@ -3002,7 +3041,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # some attached volumes.
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
-            applications={},
+            applications=None,
             manifestations={},
             devices={self.DATASET_ID: FilePath(b"/dev/xda")},
             paths={},
@@ -3042,7 +3081,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # Local node has no manifestations:
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
-            applications={},
+            applications=None,
             manifestations={},
             devices={},
             paths={},
@@ -3079,7 +3118,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # Local node has no manifestations:
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
-            applications={},
+            applications=None,
             manifestations={},
             devices={},
             paths={},
@@ -3175,7 +3214,7 @@ class BlockDeviceDeployerCalculateChangesTests(
         node_state = NodeState(
             hostname=ScenarioMixin.NODE,
             uuid=ScenarioMixin.NODE_UUID,
-            applications=[],
+            applications=None,
         )
         node_config = to_node(node_state)
 
@@ -3198,7 +3237,7 @@ class BlockDeviceDeployerCalculateChangesTests(
 
     def test_unknown_applications(self):
         """
-        If applications are unknown, no changes are calculated.
+        If applications are unknown, changes are still calculated.
         """
         # We're ignorant about application state:
         node_state = NodeState(
@@ -3215,7 +3254,7 @@ class BlockDeviceDeployerCalculateChangesTests(
             nonmanifest_datasets=[],
             additional_node_states=set(),
             additional_node_config=set(),
-            expected_changes=NOTHING_TO_DO,
+            expected_changes=self.expected_change,
             local_state=self.local_state,
         )
 
@@ -3228,7 +3267,7 @@ class BlockDeviceDeployerCalculateChangesTests(
         node_state = NodeState(
             hostname=ScenarioMixin.NODE,
             uuid=ScenarioMixin.NODE_UUID,
-            applications=[],
+            applications=None,
         )
         node_config = to_node(node_state)
 
@@ -4567,6 +4606,7 @@ class _MountScenario(PClass):
                 filesystem=self.filesystem_type
             ),
             self.deployer,
+            InMemoryStatePersister(),
         )
 
 
@@ -4592,7 +4632,8 @@ class MountBlockDeviceTests(
         self.successResultOf(scenario.create())
 
         change = scenario.state_change()
-        return scenario, run_state_change(change, scenario.deployer)
+        return scenario, run_state_change(change, scenario.deployer,
+                                          InMemoryStatePersister())
 
     def _run_success_test(self, mountpoint):
         scenario, mount_result = self._run_test(mountpoint)
@@ -4618,7 +4659,7 @@ class MountBlockDeviceTests(
     def _mount(self, scenario, mountpoint):
         self.successResultOf(run_state_change(
             scenario.state_change().set(mountpoint=mountpoint),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
 
     def test_run(self):
         """
@@ -4721,7 +4762,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
 
     def test_lost_found_deleted_remount(self):
         """
@@ -4733,7 +4774,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
         self.assertEqual(mountpoint.children(), [])
 
     def test_lost_found_not_deleted_if_other_files_exist(self):
@@ -4748,7 +4789,7 @@ class MountBlockDeviceTests(
         check_call([b"umount", mountpoint.path])
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
         self.assertItemsEqual(mountpoint.children(),
                               [mountpoint.child(b"file"),
                                mountpoint.child(b"lost+found")])
@@ -4766,7 +4807,7 @@ class MountBlockDeviceTests(
         mountpoint.restat()
         self.successResultOf(run_state_change(
             scenario.state_change(),
-            scenario.deployer))
+            scenario.deployer, InMemoryStatePersister()))
         self.assertEqual(mountpoint.getPermissions().shorthand(),
                          'rwx------')
 
@@ -4828,7 +4869,8 @@ class UnmountBlockDeviceTests(
 
         change = UnmountBlockDevice(dataset_id=dataset_id,
                                     blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
         self.assertNotIn(
             device,
             list(
@@ -4880,7 +4922,8 @@ class DetachVolumeTests(
 
         change = DetachVolume(dataset_id=dataset_id,
                               blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
 
         [listed_volume] = api.list_volumes()
         self.assertIs(None, listed_volume.attached_to)
@@ -4922,7 +4965,8 @@ class DestroyVolumeTests(
         )
 
         change = DestroyVolume(blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
 
         self.assertEqual([], api.list_volumes())
 
@@ -4985,7 +5029,7 @@ class CreateBlockDeviceDatasetImplementationMixin(object):
             metadata=metadata
         )
 
-        run_state_change(change, self.deployer)
+        run_state_change(change, self.deployer, InMemoryStatePersister())
 
         [volume] = self.api.list_volumes()
         return volume
@@ -5066,7 +5110,8 @@ class CreateBlockDeviceDatasetImplementationTests(
             maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
-        changing = run_state_change(change, self.deployer)
+        changing = run_state_change(change, self.deployer,
+                                    InMemoryStatePersister())
 
         failure = self.failureResultOf(changing, DatasetExists)
         self.assertEqual(
@@ -5211,7 +5256,8 @@ class AttachVolumeTests(
         change = AttachVolume(dataset_id=dataset_id,
                               blockdevice_id=volume.blockdevice_id)
         self.patch(blockdevice, "_logger", logger)
-        self.successResultOf(run_state_change(change, deployer))
+        self.successResultOf(run_state_change(change, deployer,
+                                              InMemoryStatePersister()))
 
         expected_volume = volume.set(
             attached_to=api.compute_instance_id()
@@ -5231,7 +5277,8 @@ class AttachVolumeTests(
         change = AttachVolume(dataset_id=dataset_id,
                               blockdevice_id=bad_blockdevice_id)
         failure = self.failureResultOf(
-            run_state_change(change, deployer), UnknownVolume
+            run_state_change(change, deployer, InMemoryStatePersister()),
+            UnknownVolume
         )
         self.assertEqual(
             bad_blockdevice_id, failure.value.blockdevice_id

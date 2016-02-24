@@ -94,6 +94,7 @@ class RequestLoadScenario(object):
         self._maintained = Deferred()
         self.rate_measurer = RateMeasurer(sample_size)
         self.max_outstanding = 10 * request_rate
+        self.tolerated_errors = 5 * request_rate
         # Send requests per second
         self.loop = LoopingCall.withCount(self._request_and_measure)
         self.loop.clock = self.reactor
@@ -140,8 +141,8 @@ class RequestLoadScenario(object):
 
                 d = self.request.make_request()
 
-                def get_time(_ignore):
-                    return self.reactor.seconds() - t0
+                def get_time(_ignore, reactor=self.reactor, t0=t0):
+                    return reactor.seconds() - t0
                 d.addCallback(get_time)
 
                 self.rate_measurer.request_sent()
@@ -173,6 +174,9 @@ class RequestLoadScenario(object):
         """
         rate = self.rate_measurer.rate()
         if rate < self.rate_tolerated:
+            self._fail(RequestRateTooLow(rate))
+
+        elif self.rate_measurer.num_of_erros() >= self.tolerated_errors:
             self._fail(RequestRateTooLow(rate))
 
         elif self.rate_measurer.outstanding() > self.max_outstanding:

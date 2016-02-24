@@ -79,8 +79,13 @@ Configuration File
    FLOC-2090
 
 The configuration file given for the ``--config-file`` parameter contains information about compute-resource providers and dataset configurations.
-The contents and structure of the file are explained here.
-:ref:`An example containing all of the sections<acceptance-testing-configuration>` is also provided.
+
+Here is an example of a configuration file.
+It contains details for many different compute-resource provides and dataset backends.
+This example allows one file to be used as configuration for many different testing scenarios.
+You don't need to include all the sections, just the ones that are relevant to the configuration you want to test:
+
+.. literalinclude:: example-acceptance.yml
 
 The top-level object in the file is a mapping.
 It may optionally contain a ``metadata`` key.
@@ -106,7 +111,7 @@ Configuration is loaded from the item in the top-level mapping with a key matchi
 The top-level mapping may contain a ``logging`` stanza, which must match the format described in `PEP 0391 <https://www.python.org/dev/peps/pep-0391/>`_.
 
 An example stanza:
- 
+
 .. code-block:: yaml
 
    logging:
@@ -321,21 +326,42 @@ And then run the acceptance tests on those nodes using the following command:
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
+
+Test Cleanup
+============
+
+``admin/run-acceptance-tests`` creates a number of test datasets.
+It will normally cleanup the test datasets and any cloud block devices that have been created.
+However, if there are bugs in the tests or if the process is killed it may leak volumes.
+
+These volumes can be cleaned up using ``admin/cleanup_cloud_resources``.
+The tool uses the credentials in an ``acceptance.yml`` file to destroy cloud block devices that are older than 30 minutes,
+and which belong to an acceptance testing cluster with a special the acceptance test cluster UUID containing a marker.
+The tool will destroy all matching cloud block devices on AWS and Rackspace.
+It will print a JSON encoded report of the block devices that have been destroyed and those that have been kept, to ``stdout``.
+
+Run the command as follows:
+
+.. code-block:: console
+
+    ./admin/cleanup_cloud_resources --config-file=$PWD/acceptance.yml
+
+
 CloudFormation Installer Tests
 ==============================
 
 There are tests for the Flocker CloudFormation installer.
+These tests will get AWS credentials from an ``acceptance.yml`` file.
+The ``acceptance.yml`` file format is described above.
 
 You can run them as follows:
 
 .. code-block:: console
 
-    CLOUDFORMATION_TEMPLATE_URL=https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json \
-   KEY_PAIR=<aws SSH key pair name> \
-   ACCESS_KEY_ID=<aws access key> \
-   SECRET_ACCESS_KEY=<aws secret access token> \
+   ACCEPTANCE_YAML=<Path to acceptance.yml containing AWS SSH key pair, access key, secret access token> \
+   CLOUDFORMATION_TEMPLATE_URL=<defaults to https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json> \
    VOLUMEHUB_TOKEN=<Volume Hub token or empty string> \
-   trial flocker.acceptance.endtoend.test_installer
+   trial admin.test.test_installer
 
 
 This will create a new CloudFormation stack and perform the tests on it.
@@ -351,4 +377,4 @@ Alternatively, you can perform the tests on an existing stack with the following
    AGENT_NODE2_IP=<IP address of second agent node> \
    CLIENT_NODE_IP=<IP address of client node> \
    CONTROL_NODE_IP=<IP address of control service node> \
-   trial flocker.acceptance.endtoend.test_installer
+   trial admin.test.test_installer

@@ -24,6 +24,13 @@ to all Google Cloud services in the same project.``
 """
 
 from uuid import uuid4
+from fixtures import Fixture
+from characteristic import attributes
+
+from ..blockdevice import AlreadyAttachedVolume
+
+from ..gce import get_machine_zone, get_machine_project
+from ....provision._gce import GCEInstanceBuilder
 
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests
@@ -35,6 +42,44 @@ from ..test.blockdevicefactory import (
 )
 
 from ....testtools import TestCase
+
+
+@attributes(['compute', 'project', 'zone'])
+class GCEComputeTestObjects(Fixture):
+    """
+    Fixture for creating GCE resources that will be cleaned up at the end of
+    the test.
+
+    :ivar compute: The GCE compute interface object.
+    :ivar project: The GCE project to create resources within.
+    :ivar zone: The GCE zone to create resources within.
+    """
+
+    def _get_instance_builder(self):
+        """
+        Returns an instance builder that can be used to create GCE instances.
+        """
+        return GCEInstanceBuilder(
+            compute=self.compute,
+            project=self.project,
+            zone=self.zone
+        )
+
+    def create_instance(self, instance_name):
+        """
+        Creates a GCE instance that will be destroyed at the end of the test.
+        Blocks until the creation has concluded.
+
+        :param unicode instance_name: The name of the new instance.
+
+        :returns GCEInstance: The instance to use in the tests.
+        """
+        instance = self._get_instance_builder().create_instance(
+            instance_name,
+            machine_type=u"f1-micro"
+        )
+        self.addCleanup(lambda: instance.destroy())
+        return instance
 
 
 def gceblockdeviceapi_for_test(test_case):
@@ -62,7 +107,10 @@ class GCEBlockDeviceAPIInterfaceTests(
         # https://clusterhq.atlassian.net/browse/FLOC-1839
         # Rather than add racy code that checks for if a volume is attached
         # before attempting the attach, just skip this test for this driver.
-        # TODO(mewert): replace with a good test.
+        #
+        # See ``GCEBlockDeviceAPITests.test_attach_elsewhere_attached_volume``
+        # for a GCE specific implementation of this test that is not based on
+        # the hack.
         pass
 
 
@@ -95,3 +143,35 @@ class GCEBlockDeviceAPITests(TestCase):
         self.assertEqual([cluster_2_dataset_id],
                          list(x.dataset_id
                               for x in gce_block_device_api_2.list_volumes()))
+
+    def test_attach_elsewhere_attached_volume(self):
+        """
+        An attempt to attach a ``BlockDeviceVolume`` already attached to
+        another host raises ``AlreadyAttachedVolume``.
+        """
+        api = gceblockdeviceapi_for_test(self)
+        gce_fixture = self.useFixture(GCEComputeTestObjects(
+            compute=api._compute,
+            project=get_machine_project(),
+            zone=get_machine_zone()
+        ))
+
+        instance_name = u"functional-test-" + unicode(uuid4())
+        other_instance = gce_fixture.create_instance(instance_name)
+
+        new_volume = api.create_volume(
+            dataset_id=uuid4(),
+            size=get_minimum_allocatable_size()
+        )
+
+        attached_volume = api.attach_volume(
+            new_volume.blockdevice_id,
+            attach_to=other_instance.name,
+        )
+
+        self.assertRaises(
+            AlreadyAttachedVolume,
+            api.attach_volume,
+            blockdevice_id=attached_volume.blockdevice_id,
+            attach_to=api.compute_instance_id(),
+        )

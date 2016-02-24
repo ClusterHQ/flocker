@@ -1,4 +1,4 @@
-# -*- test-case-name: admin.test.test_release -*-
+# -*- test-case-name: admin.test.test_release,admin.functional.test_release -*-  # noqa
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
@@ -8,7 +8,7 @@ XXX This script is not automatically checked by buildbot. See
 https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
-import json
+import yaml
 import os
 import sys
 import tempfile
@@ -17,7 +17,8 @@ import virtualenv
 from datetime import datetime
 from subprocess import check_call, check_output
 from sys import platform as _platform
-from urllib import quote
+
+from boto.s3.website import RoutingRules, RoutingRule
 
 from effect import (
     Effect, sync_perform, ComposedDispatcher)
@@ -26,8 +27,6 @@ from effect.do import do
 from characteristic import attributes
 from git import GitCommandError, Repo
 from pytz import UTC
-
-import requests
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
@@ -56,7 +55,7 @@ from .aws import (
     UploadToS3,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
-
+    UpdateS3RoutingRules
 )
 
 from .yum import (
@@ -154,8 +153,47 @@ DOCUMENTATION_CONFIGURATIONS = {
 }
 
 
+def parse_routing_rules(routing_config, hostname):
+    """
+    Parse routing rule description.
+
+    The configuration is a dictionary. The top-level keys are common prefixes
+    for the rules in them. Each top-level key maps to a dictionary that maps
+    the rest of a prefix to the redirection target. A redirection target is a
+    dictionary of keyword arguments to ``boto.s3.website.Redirect``. If no
+    hostname is provided in the redirection target, then the passed hostname is
+    used, and the common prefix is prepended to the redirection target.
+
+    :param routing_config: ``dict`` containing the routing configuration.
+    :param bytes hostname: The hostname the bucket is hosted at.
+
+    :return: Parsed routing rules.
+    :rtype: ``boto.s3.website.RoutingRules``
+    """
+    rules = []
+    for prefix, relative_redirects in routing_config.items():
+        for postfix, destination in relative_redirects.items():
+            destination.setdefault('http_redirect_code', '302')
+            destination['protocol'] = 'https'
+            if 'hostname' not in destination.keys():
+                destination['hostname'] = hostname
+                for key in ('replace_key', 'replace_key_prefix'):
+                    if key in destination:
+                        destination[key] = prefix + destination[key]
+            rules.append(RoutingRule.when(
+                key_prefix=prefix+postfix,
+            ).then_redirect(**destination))
+
+    # Sort the rules in reverse order of prefix to match, so that
+    # long-match wins.
+    return RoutingRules(
+        sorted(rules, key=lambda rule: rule.condition.key_prefix,
+               reverse=True)
+    )
+
+
 @do
-def publish_docs(flocker_version, doc_version, environment):
+def publish_docs(flocker_version, doc_version, environment, routing_config):
     """
     Publish the Flocker documentation. The documentation for each version of
     Flocker is uploaded to a development bucket on S3 by the build server and
@@ -169,14 +207,16 @@ def publish_docs(flocker_version, doc_version, environment):
     :param bytes doc_version: The version to publish the documentation as.
     :param Environments environment: The environment to publish the
         documentation to.
+    :param dict routing_config: The loaded routing configuration (see
+        ``parse_routing_rules`` for details).
     :raises NotARelease: Raised if trying to publish to a version that isn't a
         release.
     :raises NotTagged: Raised if publishing to production and the version being
         published version isn't tagged.
     """
-    if not (is_release(doc_version)
-            or is_weekly_release(doc_version)
-            or is_pre_release(doc_version)):
+    if not (is_release(doc_version) or
+            is_weekly_release(doc_version) or
+            is_pre_release(doc_version)):
         raise NotARelease()
 
     if environment == Environments.PRODUCTION:
@@ -267,6 +307,12 @@ def publish_docs(flocker_version, doc_version, environment):
                      for key_name in changed_keys
                      for prefix in [stable_prefix, version_prefix]}
 
+    yield Effect(UpdateS3RoutingRules(
+        bucket=configuration.documentation_bucket,
+        routing_rules=parse_routing_rules(
+            routing_config, configuration.cloudfront_cname),
+    ))
+
     # Invalidate all the changed paths in cloudfront.
     yield Effect(
         CreateCloudFrontInvalidation(cname=configuration.cloudfront_cname,
@@ -318,6 +364,8 @@ def publish_docs_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
+    redirects_path = top_level.descendant(['docs', 'redirects.yaml'])
+    routing_config = yaml.safe_load(redirects_path.getContent())
     try:
         sync_perform(
             dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
@@ -325,6 +373,7 @@ def publish_docs_main(args, base_path, top_level):
                 flocker_version=options['flocker-version'],
                 doc_version=options['doc-version'],
                 environment=options.environment,
+                routing_config=routing_config,
                 ))
     except NotARelease:
         sys.stderr.write("%s: Can't publish non-release.\n"
@@ -357,9 +406,9 @@ class UploadOptions(Options):
     def parseArgs(self):
         version = self['flocker-version']
 
-        if not (is_release(version)
-                or is_weekly_release(version)
-                or is_pre_release(version)):
+        if not (is_release(version) or
+                is_weekly_release(version) or
+                is_pre_release(version)):
             raise NotARelease()
 
         if get_doc_version(version) != version:
@@ -603,7 +652,7 @@ def upload_python_packages(scratch_directory, target_bucket, top_level,
         'bdist_wheel', '--dist-dir={}'.format(scratch_directory.path)],
         cwd=top_level.path, stdout=output, stderr=error)
 
-    files = set([file.basename() for file in scratch_directory.children()])
+    files = set([f.basename() for f in scratch_directory.children()])
     yield Effect(UploadToS3Recursively(
         source_path=scratch_directory,
         target_bucket=target_bucket,
@@ -692,9 +741,9 @@ def calculate_base_branch(version, path):
     :param bytes path: See :func:`git.Repo.init`.
     :returns: The base branch from which the new release branch was created.
     """
-    if not (is_release(version)
-            or is_weekly_release(version)
-            or is_pre_release(version)):
+    if not (is_release(version) or
+            is_weekly_release(version) or
+            is_pre_release(version)):
         raise NotARelease()
 
     repo = Repo(path=path, search_parent_directories=True)
@@ -807,25 +856,28 @@ def initialize_release(version, path, top_level):
     release_repo.active_branch.checkout(b="release/flocker-{}".format(version))
 
     sys.stdout.write("Creating virtual environment...\n")
+    virtualenv_path = release_path.child("flocker-{}".format(version))
     virtualenv.create_environment(
-        release_path.child("flocker-{}".format(version)).path,
+        virtualenv_path.path,
         site_packages=False
     )
 
-    sys.stdout.write("Activating virtual environment...\n")
-    virtualenv_file = release_path.child("flocker-{}".format(version))
-    virtualenv_file = virtualenv_file.child("bin").child("activate_this.py")
-    execfile(virtualenv_file.path, dict(__file__=virtualenv_file.path))
-
     sys.stdout.write("Installing dependencies...\n")
-    os.chdir(release_path.path)
+    environment = {
+        "PATH": os.environ["PATH"]
+    }
     if _platform == "darwin":
         brew_openssl = check_output(["brew", "--prefix", "openssl"])
-        os.environ["LDFLAGS"] = '-L{}/lib" CFLAGS="-I{}/include'.format(
+        environment["LDFLAGS"] = '-L{}/lib" CFLAGS="-I{}/include'.format(
             brew_openssl, brew_openssl)
     check_call(
-        ["pip install --process-dependency-links -e .[dev]"], shell=True,
-        stdout=open(os.devnull, 'w'))
+        [virtualenv_path.descendant(["bin", "python"]).path,
+         virtualenv_path.descendant(["bin", "pip"]).path,
+         "install", "-e", ".[dev]"],
+        stdout=open(os.devnull, 'w'),
+        env=environment,
+        cwd=release_path.path,
+    )
 
     sys.stdout.write("Updating LICENSE file...\n")
     update_license_file(list(), top_level)
@@ -898,106 +950,6 @@ def create_release_branch_main(args, base_path, top_level):
         sys.stderr.write("%s: The release branch already exists.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
-
-
-class TestRedirectsOptions(Options):
-    """
-    Arguments for ``test-redirects`` script.
-    """
-    optParameters = [
-        ["doc-version", None, flocker.__version__,
-         "The version which the documentation sites are expected to redirect "
-         "to.\n"
-        ],
-    ]
-
-    optFlags = [
-        ["production", None, "Check the production documentation site."],
-    ]
-
-    environment = Environments.STAGING
-
-    def parseArgs(self):
-        if self['production']:
-            self.environment = Environments.PRODUCTION
-
-
-def get_expected_redirects(flocker_version):
-    """
-    Get the expected redirects for a given version of Flocker, if that version
-    has been published successfully. Documentation versions (e.g. 0.3.0.post2)
-    are published to their release version counterparts (e.g. 0.3.0).
-
-    :param bytes flocker_version: The version of Flocker for which to get
-        expected redirects.
-
-    :return: Dictionary mapping paths to the path to which they are expected to
-        redirect.
-    """
-    published_version = get_doc_version(flocker_version)
-
-    if is_release(published_version):
-        expected_redirects = {
-            '/': '/en/' + published_version + '/',
-            '/en/': '/en/' + published_version + '/',
-            '/en/latest': '/en/' + published_version + '/',
-            '/en/latest/faq/index.html':
-                '/en/' + published_version + '/faq/index.html',
-        }
-    else:
-        expected_redirects = {
-            '/en/devel': '/en/' + published_version + '/',
-            '/en/devel/faq/index.html':
-                '/en/' + published_version + '/faq/index.html',
-        }
-
-    return expected_redirects
-
-def test_redirects_main(args, base_path, top_level):
-    """
-    Tests redirects to Flocker documentation.
-
-    :param list args: The arguments passed to the script.
-    :param FilePath base_path: The executable being run.
-    :param FilePath top_level: The top-level of the flocker repository.
-    """
-    options = TestRedirectsOptions()
-
-    try:
-        options.parseOptions(args)
-    except UsageError as e:
-        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
-        raise SystemExit(1)
-
-    expected_redirects = get_expected_redirects(
-        flocker_version=options['doc-version'])
-    document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
-    base_url = 'https://' + document_configuration.cloudfront_cname
-
-    failed_redirects = []
-
-    for path in expected_redirects:
-        original_url = base_url + path
-        expected_url = base_url + expected_redirects[path]
-        final_url = requests.get(original_url).url
-
-        if expected_url != final_url:
-            failed_redirects.append(original_url)
-
-            message = (
-                "'{original_url}' expected to redirect to '{expected_url}', "
-                "instead redirects to '{final_url}'.\n").format(
-                    original_url=original_url,
-                    expected_url=expected_url,
-                    final_url=final_url,
-            )
-
-            sys.stderr.write(message)
-
-    if len(failed_redirects):
-         raise SystemExit(1)
-    else:
-        print 'All tested redirects work correctly.'
 
 
 def update_license_file(args, top_level, year=datetime.now(UTC).year):
