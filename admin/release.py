@@ -51,6 +51,7 @@ from .aws import (
     ListS3Keys,
     DeleteS3Keys,
     CopyS3Keys,
+    DownloadS3Key,
     DownloadS3KeyRecursively,
     UploadToS3,
     UploadToS3Recursively,
@@ -88,6 +89,14 @@ class NotARelease(Exception):
 class DocumentationRelease(Exception):
     """
     Raised if trying to upload packages for a documentation release.
+    """
+
+
+@attributes(['documentation_version', 'expected_version'])
+class UnexpectedDocumentationVersion(Exception):
+    """
+    Raised if the source documentation is found to have a different version
+    than is being published.
     """
 
 
@@ -233,6 +242,26 @@ def publish_docs(flocker_version, doc_version, environment, routing_config):
     else:
         stable_prefix = "en/latest/"
 
+    version_number_file = FilePath('/tmp/bucket').temporarySibling()
+    version_number_file.requireCreate(False)
+    try:
+        yield Effect(
+            DownloadS3Key(
+                source_bucket=configuration.dev_bucket,
+                source_key=dev_prefix + u"version.html",
+                target_path=version_number_file,
+            )
+        )
+        found_version_number = version_number_file.getContent()
+    finally:
+        if version_number_file.exists():
+            version_number_file.remove()
+
+    if found_version_number != doc_version:
+        raise UnexpectedDocumentationVersion(
+            documentation_version=found_version_number,
+            expected_version=doc_version
+        )
     # Get the list of keys in the new documentation.
     new_version_keys = yield Effect(
         ListS3Keys(bucket=configuration.dev_bucket,

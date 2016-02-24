@@ -37,7 +37,7 @@ from ..release import (
     CreateReleaseBranchOptions, BranchExists, TagExists,
     UploadOptions, create_pip_index, upload_pip_index,
     publish_homebrew_recipe, PushFailed,
-    update_license_file,
+    update_license_file, UnexpectedDocumentationVersion
 )
 
 from ..packaging import Distribution
@@ -253,6 +253,37 @@ class PublishDocsTests(TestCase):
                 'en/0.3.1/sub/index.html': 'sub-index-content',
                 'en/0.3.1/other.html': 'other-content',
             })
+
+    def test_documentation_version_mismatch(self):
+        """
+        If the version number in the ``version.html`` file in the source
+        directory does not match the destination version number,
+        ``UnexpectedDocumentationVersion`` is raised with the mismatched
+        version numbers.
+        """
+        unexpected_version = u"1.1.0"
+        expected_version = u"1.1.1"
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                'clusterhq-staging-docs': {
+                    'release/flocker-{}/version.html'.format(expected_version):
+                        unexpected_version,
+                },
+            })
+        exception = self.assertRaises(
+            UnexpectedDocumentationVersion,
+            self.publish_docs,
+            aws=aws,
+            flocker_version='1.1.1',
+            doc_version='1.1.1',
+            environment=Environments.STAGING
+        )
+        self.assertEqual(
+            (unexpected_version, expected_version),
+            (exception.documentation_version,
+             exception.expected_version)
+        )
 
     def test_copies_documentation_production(self):
         """
