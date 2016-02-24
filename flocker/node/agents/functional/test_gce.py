@@ -281,10 +281,13 @@ class GCEBlockDeviceAPITests(TestCase):
 
         compute_instance_id = api.compute_instance_id()
 
-        self.assertThat(lambda: api.attach_volume(
+        self.assertThat(
+            lambda: api.attach_volume(
                 blockdevice_id=volume.blockdevice_id,
                 attach_to=compute_instance_id,
-            ), Raises(MatchesException(AlreadyAttachedVolume)))
+            ),
+            Raises(MatchesException(AlreadyAttachedVolume))
+        )
 
         # Paths of blockdevices on GCE should have their dataset_id in them.
         self.assertThat(
@@ -292,13 +295,15 @@ class GCEBlockDeviceAPITests(TestCase):
             Contains(unicode(dataset_id))
         )
 
-        self.assertThat(lambda: api.detach_volume(
+        self.assertThat(
+            lambda: api.detach_volume(
                 blockdevice_id=volume.blockdevice_id,
             ),
             Raises(MatchesException(UnattachedVolume))
         )
 
-        self.assertThat(lambda: api.destroy_volume(
+        self.assertThat(
+            lambda: api.destroy_volume(
                 blockdevice_id=volume.blockdevice_id,
             ),
             Raises(MatchesException(UnknownVolume))
