@@ -26,10 +26,25 @@ to all Google Cloud services in the same project.``
 from uuid import uuid4
 from fixtures import Fixture
 from characteristic import attributes
+from twisted.python.components import proxyForInterface
+from testtools.matchers import (
+    AllMatch,
+    AnyMatch,
+    Contains,
+    Equals,
+    MatchesException,
+    MatchesStructure,
+    Not,
+    Raises,
+)
 
-from ..blockdevice import AlreadyAttachedVolume
+from ..blockdevice import (
+    AlreadyAttachedVolume, UnknownVolume, UnattachedVolume
+)
 
-from ..gce import get_machine_zone, get_machine_project
+from ..gce import (
+    get_machine_zone, get_machine_project, IGCEAtomicOperations
+)
 from ....provision._gce import GCEInstanceBuilder
 
 from ..test.test_blockdevice import (
@@ -114,6 +129,56 @@ class GCEBlockDeviceAPIInterfaceTests(
         pass
 
 
+class _RepeatProxy(object):
+    """
+    Implementation of a proxy for an interface that calls each method of the
+    underlying interface twice in a row, and returns the value from the first
+    call.
+    """
+
+    def __init__(self, _provider):
+        """
+        Construct a repeat proxy that calls each underlying method twice on the
+        underlying provider.
+
+        :param _provider: The underlying implementation to forward all calls
+            to.
+        """
+        self._provider = _provider
+
+    def __getattr__(self, name):
+        """
+        Implementation of all methods that calls the underlying method twice,
+        returning the result from the second call of the method.
+
+        :param name: The name of the method to execute.
+        """
+        method = getattr(self._provider, name)
+
+        def duplicate_proxy(*args, **kwargs):
+            method(*args, **kwargs)
+            return method(*args, **kwargs)
+
+        return duplicate_proxy
+
+
+def repeat_call_proxy_for(interface, provider):
+    """
+    Constructs an implementation of interface that calls the corresponding
+    method on implementation twice for every call to a method.
+
+    :interface param: The zope interface that the proxy should implement.
+    :provider param: The underlying provider to proxy all method calls to.
+    """
+    # proxyForInterface used so that only the methods of the interface are
+    # exposed. The naive implementation of _RepeatProxy forwards all methods
+    # rather than just the methods that are part of the interface.
+    return proxyForInterface(
+        interface,
+        originalAttribute='_original'
+    )(_RepeatProxy(_provider=provider))
+
+
 class GCEBlockDeviceAPITests(TestCase):
     """
     Tests for :class:`GCEBlockDeviceAPI`.
@@ -151,7 +216,7 @@ class GCEBlockDeviceAPITests(TestCase):
         """
         api = gceblockdeviceapi_for_test(self)
         gce_fixture = self.useFixture(GCEComputeTestObjects(
-            compute=api._compute,
+            compute=api._atomic_operations._compute,
             project=get_machine_project(),
             zone=get_machine_zone()
         ))
@@ -174,4 +239,72 @@ class GCEBlockDeviceAPITests(TestCase):
             api.attach_volume,
             blockdevice_id=attached_volume.blockdevice_id,
             attach_to=api.compute_instance_id(),
+        )
+
+    def test_duplicated_calls(self):
+        """
+        Verify that if every call to the :class:`GCEAtomicOperation` s is
+        duplicated that we handle the errors correctly.
+
+        This should force some specific scheduling situations that resemble
+        race conditions with another agent trying to converge to the same
+        state, or a condition where the dataset agent as rebooted after a crash
+        that happened in the middle of an :class:`IBlockDeviceAPI` call.
+
+        In these situations we should verify that the second call to many of
+        the underlying atomic methods would result in the correct underlying
+        :class:`VolumeException`.
+        """
+        actual_api = gceblockdeviceapi_for_test(self)
+        atomic_operations = actual_api._atomic_operations
+        api = actual_api.set(
+            '_atomic_operations',
+            repeat_call_proxy_for(IGCEAtomicOperations, atomic_operations)
+        )
+
+        dataset_id = uuid4()
+
+        # There is no :class:`VolumeException` for creating an already created
+        # volume. Thus, GCE just returns success in that case.
+        api.create_volume(
+            dataset_id=dataset_id,
+            size=get_minimum_allocatable_size()
+        )
+
+        volumes = api.list_volumes()
+
+        self.assertThat(
+            volumes,
+            AnyMatch(MatchesStructure(dataset_id=Equals(dataset_id)))
+        )
+        volume = next(v for v in volumes if v.dataset_id == dataset_id)
+
+        compute_instance_id = api.compute_instance_id()
+
+        self.assertThat(lambda: api.attach_volume(
+                blockdevice_id=volume.blockdevice_id,
+                attach_to=compute_instance_id,
+            ), Raises(MatchesException(AlreadyAttachedVolume)))
+
+        # Paths of blockdevices on GCE should have their dataset_id in them.
+        self.assertThat(
+            api.get_device_path(volume.blockdevice_id).path,
+            Contains(unicode(dataset_id))
+        )
+
+        self.assertThat(lambda: api.detach_volume(
+                blockdevice_id=volume.blockdevice_id,
+            ),
+            Raises(MatchesException(UnattachedVolume))
+        )
+
+        self.assertThat(lambda: api.destroy_volume(
+                blockdevice_id=volume.blockdevice_id,
+            ),
+            Raises(MatchesException(UnknownVolume))
+        )
+
+        self.assertThat(
+            api.list_volumes(),
+            AllMatch(Not(MatchesStructure(dataset_id=Equals(dataset_id))))
         )

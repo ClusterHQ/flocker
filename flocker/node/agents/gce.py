@@ -293,7 +293,7 @@ def create_gce_block_device_api(cluster_id, project, zone):
 
 
 @implementer(IBlockDeviceAPI)
-class GCEBlockDeviceAPI(object):
+class GCEBlockDeviceAPI(PClass):
     """
     A GCE Persistent Disk (PD) implementation of ``IBlockDeviceAPI`` which
     creates block devices in a GCE project.
@@ -345,9 +345,6 @@ class GCEBlockDeviceAPI(object):
 
     :ivar _atomic_operations: A provider of :class:`IGCEAtomicOperations` to
         use to perform cluster operations.
-    :ivar unicode _project: The project where this block device driver will
-        operate.
-    :ivar unicode _zone: The zone where this block device driver will operate.
     :ivar unicode _cluster_id: The cluster id of the cluster this driver
         operates under.
     """
@@ -401,20 +398,40 @@ class GCEBlockDeviceAPI(object):
     def create_volume(self, dataset_id, size):
         blockdevice_id = _dataset_id_to_blockdevice_id(dataset_id)
 
-        self._atomic_operations.create_disk(
-            name=blockdevice_id,
-            size=Byte(size),
-            description=self._disk_resource_description(),
-        )
+        try:
+            self._atomic_operations.create_disk(
+                name=blockdevice_id,
+                size=Byte(size),
+                description=self._disk_resource_description(),
+            )
+        except HttpError as e:
+            if e.resp.status == 409:
+                # This indicates that the disk resource already exists.  The
+                # IBlockDeviceAPI interface does not provide an Exception to
+                # raise in this scenario. Instead, just log a message.
+                # TODO(mewert): Log angrily that this happened.
+                pass
+            else:
+                raise
+        else:
+            return BlockDeviceVolume(
+                blockdevice_id=blockdevice_id,
+                size=int(size),
+                attached_to=None,
+                dataset_id=dataset_id,
+            )
 
-        # TODO(mewert): Test creating a volume in cluster A in this project
-        # with the same UUID as a volume in cluster B in the same project.
-        # make that the logs and errors make this error obvious to the user
+        # TODO(mewert): Log the specifics of what is happening.
+
+        # If there was a permissible error in creating the disk, then we need
+        # to get the current status of the disk from the cloud in order to
+        # return a BlockDeviceVolume.
+        disk = self._atomic_operations.get_disk_details(blockdevice_id)
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
-            size=int(size),
-            attached_to=None,
-            dataset_id=dataset_id,
+            size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+            attached_to=_extract_attached_to(disk),
+            dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
         )
 
     def attach_volume(self, blockdevice_id, attach_to):
@@ -477,10 +494,27 @@ class GCEBlockDeviceAPI(object):
 
     def detach_volume(self, blockdevice_id):
         attached_to = self._get_attached_to(blockdevice_id)
-        self._atomic_operations.detach_disk(
+        resulting_operation = self._atomic_operations.detach_disk(
             instance_name=attached_to,
             disk_name=blockdevice_id
         )
+        errors = resulting_operation.get('error', {}).get('errors', [])
+        error_condition_might_be_detached_volume = False
+
+        # Inspect the errors to see if the error might be that the volume was
+        # already detached.
+        for e in errors:
+            if e.get('code') == 'INVALID_FIELD_VALUE':
+                error_condition_might_be_detached_volume = True
+
+        if error_condition_might_be_detached_volume:
+            # Raise an UnattachedVolume error if it is no longer attached.
+            self._get_attached_to(blockdevice_id)
+
+        if errors:
+            # TODO(mewert): logging.
+            raise ValueError('Unknown failure for GCE detach operation: %s' %
+                             errors)
 
     def get_device_path(self, blockdevice_id):
         # TODO(mewert): Verify that we need this extra API call.
@@ -584,10 +618,13 @@ class GCEAtomicOperations(PClass):
     cannot be forced from the higher layer of :class:`IBlockDeviceAPI` tests.
 
     :ivar _compute: The GCE compute object to use to interact with the GCE API.
+    :ivar unicode _project: The project where this block device driver will
+        operate.
+    :ivar unicode _zone: The zone where this block device driver will operate.
     """
     _compute = field(mandatory=True)
-    project = field(type=unicode, mandatory=True)
-    zone = field(type=unicode, mandatory=True)
+    _project = field(type=unicode, mandatory=True)
+    _zone = field(type=unicode, mandatory=True)
 
     def _do_blocking_operation(self, function, **kwargs):
         """
@@ -616,14 +653,14 @@ class GCEAtomicOperations(PClass):
         # operation to specify its own timeout. Also pass a reactor in so you
         # can test the timeout error paths in unit tests. Also document what
         # happens on timeout.
-        args = dict(project=self.project, zone=self.zone)
+        args = dict(project=self._project, zone=self._zone)
         args.update(kwargs)
         operation = function(**args).execute()
         # TODO(bcox) Perform a decent test of typical latencies for
         # operations within GCE and use that information to determine
         # an appropriate timeout. Until that is done, use the
         # following arbitrary timeout.
-        return wait_for_operation(self._compute, operation, [1]*35)
+        return wait_for_operation(self._compute, operation, [1]*65)
 
     def create_disk(self, name, size, description):
         sizeGiB = int(size.to_GiB())
