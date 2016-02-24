@@ -392,7 +392,7 @@ class GCENode(PClass):
                     address=self.address,
                     commands=enable_root_ssh,
                 ),
-                30
+                120
             ))
 
         commands.append(provision_for_any_user(self, package_source, variants))
