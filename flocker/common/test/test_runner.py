@@ -11,11 +11,11 @@ from twisted.python.failure import Failure
 from twisted.internet.error import ProcessDone, ProcessTerminated
 
 from flocker.testtools import (
-    MemoryCoreReactor, FakeProcessReactor, TestCase,
+    MemoryCoreReactor, FakeProcessReactor, TestCase, random_name,
 )
 
 from ..runner import (
-    RemoteFileNotFound, run, CommandProtocol, RUN_OUTPUT_MESSAGE,
+    RemoteFileNotFound, run, CommandProtocol, RUN_OUTPUT_MESSAGE, scp
 )
 
 
@@ -211,3 +211,24 @@ class RunTests(TestCase):
 
         reactor.fireSystemEvent('shutdown')
         process.processProtocol.processEnded(Failure(ProcessDone(0)))
+
+
+class SCPTests(TestCase):
+    """
+    Tests for ``scp``.
+    """
+    def test_invalid_direction(self):
+        """
+        The ``direction`` argument must be one of ``DOWNLOAD`` or ``UPLOAD``.
+        """
+        invalid_direction = random_name(self)
+        exception = self.assertRaises(
+            ValueError,
+            scp,
+            reactor=object(),
+            username=u"Joe",
+            host=u"example.com",
+            remote_path=self.make_temporary_path(),
+            local_path=self.make_temporary_path(),
+            direction=invalid_direction)
+        self.assertIn(invalid_direction, unicode(exception))

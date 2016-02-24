@@ -18,7 +18,7 @@ from twisted.python.filepath import FilePath
 
 from eliot import Message
 
-from flocker.common.runner import run_ssh
+from flocker.common.runner import run_ssh, upload, download, SCPConnectionError
 from flocker.common import gather_deferreds, loop_until, retry_failure
 from flocker.testtools import AsyncTestCase, async_runner, random_name
 from flocker.acceptance.testtools import (
@@ -362,18 +362,22 @@ class DockerComposeTests(AsyncTestCase):
         # XXX Perhaps it'd be better to have a cluster cleanup tool available
         # on the client which can also be run by people who are attempting the
         # tutorial.
-        check_output(
-            ['scp', '-o', 'StrictHostKeyChecking no', '-r',
-             'ubuntu@{}:/etc/flocker'.format(self.client_node_ip),
-             local_certs_path.path]
-        )
-        d = connected_cluster(
+        d = download(
             reactor=reactor,
-            control_node=self.control_node_ip.encode('ascii'),
-            certificates_path=local_certs_path,
-            num_agent_nodes=2,
-            hostname_to_public_address={},
-            username='user1',
+            username=b'ubuntu',
+            host=self.client_node_ip.encode('ascii'),
+            remote_path=FilePath('/etc/flocker'),
+            local_path=local_certs_path
+        )
+        d.addCallback(
+            lambda ignored: connected_cluster(
+                reactor=reactor,
+                control_node=self.control_node_ip.encode('ascii'),
+                certificates_path=local_certs_path,
+                num_agent_nodes=2,
+                hostname_to_public_address={},
+                username=b'user1',
+            )
         )
         d.addCallback(
             lambda cluster: cluster.clean_nodes(
@@ -392,13 +396,13 @@ class DockerComposeTests(AsyncTestCase):
         d_node1_compose = remote_docker_compose(
             self.client_node_ip,
             self.docker_host,
-            self.compose_node1, 'stop'
+            self.compose_node1.path, 'stop'
         )
         d_node1_compose.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                self.compose_node1, 'rm', '-f'
+                self.compose_node1.path, 'rm', '-f'
             ).addErrback(
                 # This sometimes fails with exit code 255
                 # and a message ValueError: No JSON object could be decoded
@@ -408,14 +412,14 @@ class DockerComposeTests(AsyncTestCase):
         d_node2_compose = remote_docker_compose(
             self.client_node_ip,
             self.docker_host,
-            self.compose_node2,
+            self.compose_node2.path,
             'stop',
         )
         d_node2_compose.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                self.compose_node2,
+                self.compose_node2.path,
                 'rm', '-f'
             ).addErrback(
                 # This sometimes fails with exit code 255
@@ -468,25 +472,33 @@ class DockerComposeTests(AsyncTestCase):
         template creates a PostgreSQL server on one node. The second template
         moves the PostgreSQL server to the second node.
         """
-        remote_compose_directory = random_name(self)
-        # Publish the compose files to the client.
-        command = [
-            'scp', '-o', 'StrictHostKeyChecking no', '-r',
-            FilePath(__file__).parent().descendant(
-                ['installer', 'postgres']
-            ).path,
-            'ubuntu@{}:{}'.format(
-                self.client_node_ip,
-                remote_compose_directory
-            )
-        ]
-        check_output(command)
-
+        client_username = b"ubuntu"
+        client_home = FilePath('/home').child(client_username)
+        remote_compose_directory = client_home.child(random_name(self))
         self.compose_node1 = (
-            remote_compose_directory + "/docker-compose-node1.yml"
+            remote_compose_directory.child("docker-compose-node1.yml")
         )
         self.compose_node2 = (
-            remote_compose_directory + "/docker-compose-node2.yml"
+            remote_compose_directory.child("docker-compose-node2.yml")
+        )
+
+        # Publish the compose files to the client.
+        def upload_docker_compose_files():
+            return upload(
+                reactor=reactor,
+                username=client_username,
+                host=self.client_node_ip.encode('ascii'),
+                local_path=FilePath(__file__).parent().descendant(
+                    ['installer', 'postgres']
+                ),
+                remote_path=remote_compose_directory,
+            )
+        d = retry_failure(
+            reactor=reactor,
+            function=upload_docker_compose_files,
+            expected=(SCPConnectionError,),
+            # Wait 60s for the client SSH server to accept connections.
+            steps=repeat(1, 60)
         )
 
         # This isn't in the tutorial, but docker-compose doesn't retry failed
@@ -497,11 +509,13 @@ class DockerComposeTests(AsyncTestCase):
                 self.docker_host,
                 'pull', 'postgres:latest'
             )
-        d = retry_failure(
-            reactor=reactor,
-            function=pull_postgres,
-            expected=(ProcessTerminated,),
-            steps=repeat(1, 5)
+        d.addCallback(
+            lambda ignored: retry_failure(
+                reactor=reactor,
+                function=pull_postgres,
+                expected=(ProcessTerminated,),
+                steps=repeat(1, 5)
+            )
         )
         # Create the PostgreSQL server on node1. A Flocker dataset will be
         # created and attached by way of the Flocker Docker plugin.
@@ -509,7 +523,7 @@ class DockerComposeTests(AsyncTestCase):
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                self.compose_node1, 'up', '-d'
+                self.compose_node1.path, 'up', '-d'
             )
         )
         # Docker-compose blocks until the container is running but the the
@@ -529,7 +543,7 @@ class DockerComposeTests(AsyncTestCase):
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
-                self.compose_node1,
+                self.compose_node1.path,
                 'stop'
             )
         )
@@ -538,14 +552,14 @@ class DockerComposeTests(AsyncTestCase):
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip, self.docker_host,
-                self.compose_node1, 'rm', '--force'
+                self.compose_node1.path, 'rm', '--force'
             )
         )
         # Start the container on the other node.
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip, self.docker_host,
-                self.compose_node2, 'up', '-d'
+                self.compose_node2.path, 'up', '-d'
             )
         )
         # The database server won't be immediately ready to receive
