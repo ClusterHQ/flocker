@@ -283,6 +283,8 @@ def perform_download_s3_key(dispatcher, intent):
 
     bucket = s3.get_bucket(intent.source_bucket)
     key = bucket.get_key(intent.source_key)
+    if key is None:
+        raise KeyError(intent.source_key)
     with intent.target_path.open('w') as target_file:
         key.get_contents_to_file(target_file)
 
