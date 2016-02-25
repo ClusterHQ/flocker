@@ -36,7 +36,7 @@ from io import BytesIO
 from itertools import count
 from twisted.internet.defer import maybeDeferred
 from uuid import UUID
-from functools import partial
+from functools import partial, wraps
 
 from eliot import (
     Logger, ActionType, Action, Field, MessageType,
@@ -190,6 +190,20 @@ class _EliotActionArgument(Unicode):
 
     def toString(self, inObject):
         return inObject.serialize_task_id()
+
+
+def with_eliot_context(f):
+    """
+    Decorate an AMP responder that takes an `eliot_context` to run the
+    responder in that context.
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        eliot_context = kwargs.pop("eliot_context")
+        with eliot_context.context():
+            d = DeferredContext(maybeDeferred(f, *args, **kwargs))
+            return d.addActionFinish()
+    return wrapper
 
 
 class VersionCommand(Command):
@@ -361,40 +375,40 @@ class ControlServiceLocator(CommandLocator):
         return {"major": 1}
 
     @NodeStateCommand.responder
-    def node_changed(self, eliot_context, state_changes):
-        with eliot_context:
-            self.control_amp_service.node_changed(
-                self._source, state_changes,
-            )
-            return {}
+    @with_eliot_context
+    def node_changed(self, state_changes):
+        self.control_amp_service.node_changed(
+            self._source, state_changes,
+        )
+        return {}
 
     @SetNodeEraCommand.responder
-    def set_node_era(self, era, node_uuid, eliot_context):
-        with eliot_context:
-            # Further work will be done in FLOC-3380
-            self.control_amp_service.cluster_state.apply_changes_from_source(
-                self._source, [UpdateNodeStateEra(era=UUID(era),
-                                                  uuid=UUID(node_uuid))])
-            # We don't bother sending an update to other nodes because this
-            # command will immediately be followed by a ``NodeStateCommand``
-            # with more interesting information.
-            return {}
+    @with_eliot_context
+    def set_node_era(self, era, node_uuid):
+        # Further work will be done in FLOC-3380
+        self.control_amp_service.cluster_state.apply_changes_from_source(
+            self._source, [UpdateNodeStateEra(era=UUID(era),
+                                              uuid=UUID(node_uuid))])
+        # We don't bother sending an update to other nodes because this
+        # command will immediately be followed by a ``NodeStateCommand``
+        # with more interesting information.
+        return {}
 
     @SetBlockDeviceIdForDatasetId.responder
-    def set_blockdevice_id(self, dataset_id, blockdevice_id, eliot_context):
-        with eliot_context:
-            deployment = self.control_amp_service.configuration_service.get()
-            self.control_amp_service.configuration_service.save(
-                deployment.transform(
-                    ["persistent_state", "blockdevice_ownership"],
-                    partial(
-                        BlockDeviceOwnership.record_ownership,
-                        dataset_id=UUID(dataset_id),
-                        blockdevice_id=blockdevice_id,
-                    ),
-                )
+    @with_eliot_context
+    def set_blockdevice_id(self, dataset_id, blockdevice_id):
+        deployment = self.control_amp_service.configuration_service.get()
+        self.control_amp_service.configuration_service.save(
+            deployment.transform(
+                ["persistent_state", "blockdevice_ownership"],
+                partial(
+                    BlockDeviceOwnership.record_ownership,
+                    dataset_id=UUID(dataset_id),
+                    blockdevice_id=blockdevice_id,
+                ),
             )
-            return {}
+        )
+        return {}
 
 
 def timeout_for_protocol(reactor, protocol):
@@ -795,10 +809,10 @@ class _AgentLocator(CommandLocator):
         return self.agent.logger
 
     @ClusterStatusCommand.responder
-    def cluster_updated(self, eliot_context, configuration, state):
-        with eliot_context:
-            self.agent.cluster_updated(configuration, state)
-            return {}
+    @with_eliot_context
+    def cluster_updated(self, configuration, state):
+        self.agent.cluster_updated(configuration, state)
+        return {}
 
 
 class AgentAMP(AMP):
