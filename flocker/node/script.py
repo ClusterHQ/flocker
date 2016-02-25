@@ -50,7 +50,7 @@ from .agents.loopback import (
 )
 from .agents.cinder import cinder_from_configuration
 from .agents.ebs import aws_from_configuration
-from .agents.ebs import gce_from_configuration
+from .agents.gce import gce_from_configuration
 from ..ca import ControlServicePolicy, NodeCredential
 from ..common._era import get_era
 
