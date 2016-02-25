@@ -50,6 +50,7 @@ from .agents.loopback import (
 )
 from .agents.cinder import cinder_from_configuration
 from .agents.ebs import aws_from_configuration
+from .agents.ebs import gce_from_configuration
 from ..ca import ControlServicePolicy, NodeCredential
 from ..common._era import get_era
 
@@ -478,6 +479,12 @@ _DEFAULT_BACKENDS = [
         required_config=set(
             ["region", "zone", "access_key_id", "secret_access_key", ]
         ),
+    ),
+    BackendDescription(
+        name=u"gce", needs_reactor=False, needs_cluster_id=True,
+        api_factory=gce_from_configuration,
+        deployer_type=DeployerType.block,
+        required_config=set([]),
     ),
 ]
 

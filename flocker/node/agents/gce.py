@@ -270,6 +270,25 @@ def _extract_attached_to(disk):
     return unicode(users[0].split('/')[-1])
 
 
+def gce_from_configuration(cluster_id):
+    """
+    Construct a GCEBlockDeviceAPI from a configuration. Presently, just assumes
+    the code is running in the same project / zone as the operations that need
+    to be performed. This is compatible with the current flocker APIs.
+
+    Additionally, this assumes that it is running on a GCE instance that has
+    service account permissions to modify itself.
+    """
+    project = get_metadata_path("project/project-id")
+    full_zone = get_metadata_path("instance/zone")
+    zone = full_zone.split("/")[-1]
+    return GCEBlockDeviceAPI(
+        cluster_id=cluster_id,
+        project=project,
+        zone=zone
+    )
+
+
 @implementer(IBlockDeviceAPI)
 class GCEBlockDeviceAPI(object):
     """
