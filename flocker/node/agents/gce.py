@@ -453,7 +453,7 @@ class GCEBlockDeviceAPI(object):
         will return the original instance name. Thus, we use that as the
         source of the hostname.
         """
-        fqdn = _get_metadata_path("instance/hostname")
+        fqdn = get_metadata_path("instance/hostname")
         return unicode(fqdn.split(".")[0])
 
     def create_volume(self, dataset_id, size):
