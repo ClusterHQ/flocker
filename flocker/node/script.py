@@ -438,7 +438,7 @@ class BackendDescription(PClass):
     # out.
     needs_cluster_id = field(type=bool, mandatory=True)
     # Config "dataset" keys required to initialize this backend.
-    required_config = pset_field(str)
+    required_config = pset_field(unicode)
     api_factory = field(mandatory=True)
     deployer_type = field(
         mandatory=True,
@@ -469,15 +469,15 @@ _DEFAULT_BACKENDS = [
         name=u"openstack", needs_reactor=False, needs_cluster_id=True,
         api_factory=cinder_from_configuration,
         deployer_type=DeployerType.block,
-        required_config=set(["region", ]),
+        required_config={u"region"},
     ),
     BackendDescription(
         name=u"aws", needs_reactor=False, needs_cluster_id=True,
         api_factory=aws_from_configuration,
         deployer_type=DeployerType.block,
-        required_config=set(
-            ["region", "zone", "access_key_id", "secret_access_key", ]
-        ),
+        required_config={
+            u"region", u"zone", u"access_key_id", u"secret_access_key",
+        },
     ),
 ]
 
