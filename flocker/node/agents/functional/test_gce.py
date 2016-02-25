@@ -175,3 +175,21 @@ class GCEBlockDeviceAPITests(TestCase):
             blockdevice_id=attached_volume.blockdevice_id,
             attach_to=api.compute_instance_id(),
         )
+
+    # def test_list_volumes_walks_pages(self):
+    #     api = gceblockdeviceapi_for_test(self)
+    #     dataset_id1 = uuid4()
+    #     dataset_id2 = uuid4(),
+    #     new_volume_1 = api.create_volume(
+    #         dataset_id=dataset_id1,
+    #         size=get_minimum_allocatable_size()
+    #     )
+    #     new_volume_2 = api.create_volume(
+    #         dataset_id=dataset_id2,
+    #         size=get_minimum_allocatable_size()
+    #     )
+    #     # patch list volumes with a version that counts
+
+    #     volumes = api.list_volumes(pagesize=1)
+    #     target_volumes = [v for v in volumes
+    #                       if v.dataset_id in (dataset_id1, dataset_id2)]

@@ -42,7 +42,7 @@ VOLUME_DEFAULT_TIMEOUT = 120
 VOLUME_LIST_TIMEOUT = 10
 VOLUME_DELETE_TIMEOUT = 20
 VOLUME_INSERT_TIMEOUT = 20
-VOLUME_ATTACH_TIMEOUT = 60
+VOLUME_ATTACH_TIMEOUT = 90
 VOLUME_DETATCH_TIMEOUT = 120
 
 
@@ -355,6 +355,7 @@ class GCEBlockDeviceAPI(object):
         self._project = project
         self._zone = zone
         self._cluster_id = cluster_id
+        self._page_size = None
 
     def _disk_resource_description(self):
         """
@@ -417,6 +418,9 @@ class GCEBlockDeviceAPI(object):
         require you to page through the result set, retrieving one
         page of results for each query.  You are done paging when the
         returned ``pageToken`` is ``None``.
+
+        :param max_results: The max number of results to request for
+            each query to gce.
         """
         volumes = []
         page_token = None
@@ -424,7 +428,7 @@ class GCEBlockDeviceAPI(object):
             response = self._compute.disks().list(
                 project=self._project,
                 zone=self._zone,
-                maxResults=500,
+                maxResults=self._page_size,
                 pageToken=page_token,
             ).execute()
 
