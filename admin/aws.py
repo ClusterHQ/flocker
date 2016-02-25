@@ -407,6 +407,7 @@ boto_dispatcher = TypeDispatcher({
     CopyS3Keys: perform_copy_s3_keys,
     DownloadS3KeyRecursively: perform_download_s3_key_recursively,
     DownloadS3Key: perform_download_s3_key,
+    ReadS3Key: perform_read_s3_key,
     UploadToS3Recursively: perform_upload_s3_key_recursively,
     UploadToS3: perform_upload_s3_key,
     CreateCloudFrontInvalidation: perform_create_cloudfront_invalidation,
