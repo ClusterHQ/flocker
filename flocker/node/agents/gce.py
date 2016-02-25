@@ -546,9 +546,7 @@ class GCEBlockDeviceAPI(object):
         # TODO(mewert): Verify that we need this extra API call.
         self._get_attached_to(blockdevice_id)
 
-        # TODO(mewert): Verify we can get away returning a symlink here, or
-        # just walk the symlink.
-        return FilePath(u"/dev/disk/by-id/google-" + blockdevice_id)
+        return FilePath(u"/dev/disk/by-id/google-" + blockdevice_id).realpath()
 
     def destroy_volume(self, blockdevice_id):
         try:
