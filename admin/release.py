@@ -99,6 +99,8 @@ class UnexpectedDocumentationVersion(Exception):
     Raised if the source documentation is found to have a different version
     than is being published.
     """
+    def __str__(self):
+        return self.__repr__()
 
 
 class Environments(Names):
