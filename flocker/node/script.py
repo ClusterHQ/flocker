@@ -426,8 +426,9 @@ class BackendDescription(PClass):
     :ivar api_factory: An object which can be called with some simple
         configuration data and which returns the API object implementing this
         storage backend.
-    :ivar required_config: A ``set`` of the dataset configuration keys
+    :ivar required_config: A set of the dataset configuration keys
         required to initialize this backend.
+    :type required_config: ``PSet`` of ``unicode``
     :ivar deployer_type: A constant from ``DeployerType`` indicating which kind
         of ``IDeployer`` the API object returned by ``api_factory`` is usable
         with.

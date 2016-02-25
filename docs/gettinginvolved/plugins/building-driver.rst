@@ -131,6 +131,7 @@ Here's what the module could look like:
 
 The ``required_config`` set in a ``BackendDescription`` is an optional set of configuration keys that must be present in your backend's ``agent.yml`` for your driver to successfully initialize.
 If you specify ``required_config``, the dataset agent will validate that all of these keys are present in the user's ``dataset`` configuration when starting.
+The specified keys must be a set of :py:obj:`unicode` objects.
 
 The ``cluster_id`` parameter is a Python :py:obj:`uuid.UUID` instance uniquely identifying the cluster.
 This is useful if you want to build a system that supports multiple Flocker clusters talking to a shared storage backend.
