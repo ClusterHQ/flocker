@@ -10,6 +10,7 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 
 import yaml
 import os
+import re
 import sys
 import tempfile
 import virtualenv
@@ -162,6 +163,14 @@ DOCUMENTATION_CONFIGURATIONS = {
 }
 
 
+def strip_html_tags(html):
+    """
+    :param unicode html: The HTML content.
+    :returns: ``html`` with all HTML tags removed.
+    """
+    return re.sub(r"</?[^>]+>", "", html)
+
+
 def parse_routing_rules(routing_config, hostname):
     """
     Parse routing rule description.
@@ -242,13 +251,13 @@ def publish_docs(flocker_version, doc_version, environment, routing_config):
     else:
         stable_prefix = "en/latest/"
 
-    found_version_number = yield Effect(
+    found_version_html = yield Effect(
         ReadS3Key(
             source_bucket=configuration.dev_bucket,
             source_key=dev_prefix + u"version.html",
         )
     )
-
+    found_version_number = strip_html_tags(found_version_html).strip()
     if found_version_number != doc_version:
         raise UnexpectedDocumentationVersion(
             documentation_version=found_version_number,
