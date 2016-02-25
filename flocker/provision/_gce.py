@@ -463,7 +463,7 @@ class GCEInstanceBuilder(PClass):
         ).execute()
 
         operation_result = wait_for_operation(
-            self.compute, operation, timeout_steps=[1]*60)
+            self.compute, operation, timeout_steps=[5]*60)
 
         if not operation_result:
             raise ValueError(
