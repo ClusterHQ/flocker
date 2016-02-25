@@ -1137,6 +1137,9 @@ class ICloudAPI(Interface):
         This is only used by acceptance tests, so has no direct functional
         tests.
 
+        This is done on a best effort basis. Error conditions are not tested
+        for or even necessarily raised if they occur.
+
         :param unicode node_id: The compute node ID to startup.
         """
 

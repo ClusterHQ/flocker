@@ -25,8 +25,8 @@ from uuid import UUID
 from zope.interface import implementer, Interface
 
 from .blockdevice import (
-    IBlockDeviceAPI, BlockDeviceVolume, AlreadyAttachedVolume, UnknownVolume,
-    UnattachedVolume
+    IBlockDeviceAPI, ICloudAPI, BlockDeviceVolume, AlreadyAttachedVolume,
+    UnknownVolume, UnattachedVolume
 )
 from ...common import poll_until
 
@@ -271,6 +271,7 @@ def _extract_attached_to(disk):
 
 
 @implementer(IBlockDeviceAPI)
+@implementer(ICloudAPI)
 class GCEBlockDeviceAPI(object):
     """
     A GCE Persistent Disk (PD) implementation of ``IBlockDeviceAPI`` which
@@ -340,6 +341,8 @@ class GCEBlockDeviceAPI(object):
         self._project = project
         self._zone = zone
         self._cluster_id = cluster_id
+        # None signifies to use the default page size.
+        self._page_size = None
 
     def _disk_resource_description(self):
         """
@@ -544,3 +547,40 @@ class GCEBlockDeviceAPI(object):
             else:
                 raise e
         return None
+
+    def list_live_nodes(self):
+        page_token = None
+        done = False
+        nodes = []
+        while not done:
+            result = self._compute.instances().list(
+                project=self._project,
+                zone=self._zone,
+                maxResults=self._page_size,
+                pageToken=page_token
+            )
+            page_token = result.get('nextPageToken')
+            nodes.extend(result.get('items', []))
+            done = not page_token
+        return set(node.get("name") for node in nodes
+                   if node.get("status") == "RUNNING")
+
+    def start_node(self, node_id):
+        self._do_blocking_operation(
+            self._compute.instances().start,
+            instance=node_id
+        )
+
+    def stop_node(self, node_id):
+        """
+        Stops a node. This shuts the node down, but leaves the boot disk
+        available so that it can be started again using ``start_node``.
+
+        Note this is only used in the functional tests of start_node.
+
+        :param unicode node_id: The compute_instance_id of the node to stop.
+        """
+        self._do_blocking_operation(
+            self._compute.instances().stop,
+            instance=node_id
+        )

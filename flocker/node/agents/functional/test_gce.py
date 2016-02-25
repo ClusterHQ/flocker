@@ -41,6 +41,8 @@ from ..test.blockdevicefactory import (
     get_minimum_allocatable_size, get_device_allocation_unit
 )
 
+from testtools.matchers import MatchesAll, Contains, Not
+
 from ....testtools import TestCase
 
 
@@ -143,6 +145,64 @@ class GCEBlockDeviceAPITests(TestCase):
         self.assertEqual([cluster_2_dataset_id],
                          list(x.dataset_id
                               for x in gce_block_device_api_2.list_volumes()))
+
+    def test_list_live_nodes_pagination_and_removal(self):
+        """
+        list_live_nodes should be able to walk pages to get all live nodes and
+        should not have nodes after they are destroyed.
+        """
+        api = gceblockdeviceapi_for_test(self)
+
+        # Set page size to 1 to force pagination after we spin up a second
+        # node.
+        api._page_size = 1
+
+        gce_fixture = self.useFixture(GCEComputeTestObjects(
+            compute=api._compute,
+            project=get_machine_project(),
+            zone=get_machine_zone()
+        ))
+
+        other_instance_name = u"functional-test-" + unicode(uuid4())
+        other_instance = gce_fixture.create_instance(instance_name)
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Contains(other_instance_name),
+                Contains(api.compute_instance_id())
+            )
+        )
+
+        api.stop_node(other_instance_name)
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Not(Contains(other_instance_name)),
+                Contains(api.compute_instance_id())
+            )
+        )
+
+        api.start_node(other_instance_name)
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Contains(other_instance_name),
+                Contains(api.compute_instance_id())
+            )
+        )
+
+        other_instance.destroy()
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Not(Contains(other_instance_name)),
+                Contains(api.compute_instance_id())
+            )
+        )
 
     def test_attach_elsewhere_attached_volume(self):
         """
