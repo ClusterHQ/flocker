@@ -353,7 +353,7 @@ class GCEBlockDeviceAPI(object):
         """
         return u"flocker-v1-cluster-id: " + unicode(self._cluster_id)
 
-    def _do_blocking_operation(self, function, **kwargs):
+    def _do_blocking_operation(self, function, max_wait=35, **kwargs):
         """
         Perform a GCE operation, blocking until the operation completes.
 
@@ -370,6 +370,8 @@ class GCEBlockDeviceAPI(object):
         :param function: Callable that takes keyword arguments project and
             zone, and returns an executable that results in a GCE operation
             resource dict as described above.
+        :param int max_wait: The maximum amount of time to wait in seconds for
+            the operation to complete.
         :param kwargs: Additional keyword arguments to pass to function.
 
         :returns dict: A dict representing the concluded GCE operation
@@ -387,7 +389,7 @@ class GCEBlockDeviceAPI(object):
         # operations within GCE and use that information to determine
         # an appropriate timeout. Until that is done, use the
         # following arbitrary timeout.
-        return wait_for_operation(self._compute, operation, [1]*35)
+        return wait_for_operation(self._compute, operation, [1]*max_wait)
 
     def allocation_unit(self):
         """
@@ -558,7 +560,7 @@ class GCEBlockDeviceAPI(object):
                 zone=self._zone,
                 maxResults=self._page_size,
                 pageToken=page_token
-            )
+            ).execute()
             page_token = result.get('nextPageToken')
             nodes.extend(result.get('items', []))
             done = not page_token
@@ -568,6 +570,7 @@ class GCEBlockDeviceAPI(object):
     def start_node(self, node_id):
         self._do_blocking_operation(
             self._compute.instances().start,
+            max_wait=5*60,
             instance=node_id
         )
 
@@ -582,5 +585,6 @@ class GCEBlockDeviceAPI(object):
         """
         self._do_blocking_operation(
             self._compute.instances().stop,
+            max_wait=5*60,
             instance=node_id
         )

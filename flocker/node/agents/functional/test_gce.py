@@ -26,6 +26,7 @@ to all Google Cloud services in the same project.``
 from uuid import uuid4
 from fixtures import Fixture
 from characteristic import attributes
+from googleapiclient.errors import HttpError
 
 from ..blockdevice import AlreadyAttachedVolume
 
@@ -33,7 +34,7 @@ from ..gce import get_machine_zone, get_machine_project
 from ....provision._gce import GCEInstanceBuilder
 
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests
+    make_iblockdeviceapi_tests, make_icloudapi_tests
 )
 
 from ..test.blockdevicefactory import (
@@ -80,7 +81,18 @@ class GCEComputeTestObjects(Fixture):
             instance_name,
             machine_type=u"f1-micro"
         )
-        self.addCleanup(lambda: instance.destroy())
+
+        def destroy_best_effort(inst):
+            try:
+                inst.destroy()
+            except HttpError as e:
+                if e.resp.status == 404:
+                    # The test must have already destroyed the instance.
+                    pass
+                else:
+                    raise e
+
+        self.addCleanup(destroy_best_effort(instance))
         return instance
 
 
@@ -114,6 +126,17 @@ class GCEBlockDeviceAPIInterfaceTests(
         # for a GCE specific implementation of this test that is not based on
         # the hack.
         pass
+
+
+class GCECloudAPIInterfaceTests(
+        make_icloudapi_tests(
+            blockdevice_api_factory=gceblockdeviceapi_for_test,
+        )
+):
+    """
+    :class:`ICloudAPI` Interface adherence Tests for
+    :class:`GCEBlockDeviceAPI`.
+    """
 
 
 class GCEBlockDeviceAPITests(TestCase):
@@ -164,7 +187,7 @@ class GCEBlockDeviceAPITests(TestCase):
         ))
 
         other_instance_name = u"functional-test-" + unicode(uuid4())
-        other_instance = gce_fixture.create_instance(instance_name)
+        other_instance = gce_fixture.create_instance(other_instance_name)
 
         self.assertThat(
             api.list_live_nodes(),
