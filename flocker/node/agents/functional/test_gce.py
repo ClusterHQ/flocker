@@ -92,7 +92,7 @@ class GCEComputeTestObjects(Fixture):
                 else:
                     raise e
 
-        self.addCleanup(destroy_best_effort(instance))
+        self.addCleanup(lambda: destroy_best_effort(instance))
         return instance
 
 
