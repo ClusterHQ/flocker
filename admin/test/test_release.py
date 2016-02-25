@@ -8,6 +8,7 @@ import os
 
 from hashlib import sha256
 from gzip import GzipFile
+from random import randrange
 from StringIO import StringIO
 import tempfile
 from textwrap import dedent
@@ -26,6 +27,8 @@ from boto.s3.website import RoutingRules, RoutingRule
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.python.usage import UsageError
+
+from pyrsistent import freeze, thaw, PClass, field
 
 from .. import release
 
@@ -177,6 +180,56 @@ class ParseRoutingRulesTests(TestCase):
         ]))
 
 
+def random_version(weekly_release=False, commit_count=False):
+    version = list(unicode(randrange(10)) for i in range(3))
+    if weekly_release:
+        version += [u'dev{}'.format(randrange(10))]
+    if commit_count:
+        version[-1] += u"+{}".format(randrange(1000))
+        version += [u"g" + hex(randrange(10 ** 12))[2:]]
+
+    return '.'.join(version)
+
+
+class DocBranch(PClass):
+    name = field()
+    version = field()
+
+    @classmethod
+    def from_version(cls, version):
+        return cls(
+            name="release/flocker-{}".format(version),
+            version=version
+        )
+
+    @classmethod
+    def from_branch(cls, name):
+        return cls(
+            name=name,
+            version=random_version(weekly_release=True, commit_count=True)
+        )
+
+
+def example_keys(branches):
+    keys = {
+        'index.html': '',
+        'en/index.html': '',
+    }
+    for branch in branches:
+        prefix = branch.name
+        keys.update({
+            prefix + '/index.html':
+                'index-content',
+            prefix + '/sub/index.html':
+                'sub-index-content',
+            prefix + '/other.html':
+                'other-content',
+            prefix + '/version.html':
+                '    <p>{}</p>    '.format(branch.version),
+        })
+    return freeze(keys)
+
+
 class PublishDocsTests(TestCase):
     """
     Tests for :func:``publish_docs``.
@@ -198,61 +251,6 @@ class PublishDocsTests(TestCase):
             publish_docs(flocker_version, doc_version,
                          environment=environment,
                          routing_config=routing_config))
-
-    def test_copies_documentation(self):
-        """
-        Calling :func:`publish_docs` copies documentation from
-        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
-        ``s3://clusterhq-staging-docs/en/<doc_version>/`` and
-        ``s3://clusterhq-staging-docs/en/latest/``.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html':
-                        'index-content',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html':
-                        'sub-index-content',
-                    'release/flocker-0.3.0+444.gf05215b/other.html':
-                        'other-content',
-                    'release/flocker-0.3.0+392.gd50b558/index.html':
-                        'bad-index',
-                    'release/flocker-0.3.0+392.gd50b558/sub/index.html':
-                        'bad-sub-index',
-                    'release/flocker-0.3.0+392.gd50b558/other.html':
-                        'bad-other',
-                },
-            })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.s3_buckets['clusterhq-staging-docs'], {
-                # originals
-                'index.html': '',
-                'en/index.html': '',
-                'release/flocker-0.3.0+444.gf05215b/index.html':
-                    'index-content',
-                'release/flocker-0.3.0+444.gf05215b/sub/index.html':
-                    'sub-index-content',
-                'release/flocker-0.3.0+444.gf05215b/other.html':
-                    'other-content',
-                'release/flocker-0.3.0+392.gd50b558/index.html':
-                    'bad-index',
-                'release/flocker-0.3.0+392.gd50b558/sub/index.html':
-                    'bad-sub-index',
-                'release/flocker-0.3.0+392.gd50b558/other.html':
-                    'bad-other',
-                # and new copies
-                'en/latest/index.html': 'index-content',
-                'en/latest/sub/index.html': 'sub-index-content',
-                'en/latest/other.html': 'other-content',
-                'en/0.3.1/index.html': 'index-content',
-                'en/0.3.1/sub/index.html': 'sub-index-content',
-                'en/0.3.1/other.html': 'other-content',
-            })
 
     def test_documentation_version_mismatch(self):
         """
@@ -285,50 +283,133 @@ class PublishDocsTests(TestCase):
              exception.expected_version)
         )
 
-    def test_copies_documentation_production(self):
+    def assert_copies_documentation(self,
+                                    version_to_publish,
+                                    environment,
+                                    expected_extra_prefix):
+
+        source_keys = example_keys(
+            [
+                DocBranch.from_version(
+                    version=version_to_publish
+                ),
+                # Some other content that should not be copied or used.
+                DocBranch.from_branch(
+                    name='some-branch-FLOC1234'
+                )
+            ]
+        )
+
+        target_keys = example_keys([])
+
+        source_bucket_name = DOCUMENTATION_CONFIGURATIONS[
+            environment
+        ].dev_bucket
+        initial_source_bucket = thaw(source_keys)
+
+        target_bucket_name = DOCUMENTATION_CONFIGURATIONS[
+            environment
+        ].documentation_bucket
+
+        expected_additional_keys = freeze({}).update(
+            # In addition to the original keys we now have updated
+            # latest and version numbered prefixes
+            example_keys([
+                DocBranch(
+                    name=expected_extra_prefix,
+                    version=version_to_publish
+                ),
+                DocBranch(
+                    name=u"en/{}".format(version_to_publish),
+                    version=version_to_publish
+                )
+            ])
+        )
+
+        if target_bucket_name == source_bucket_name:
+            initial_target_bucket = initial_source_bucket
+            # If we're publishing to the source bucket we expect the source
+            # keys to still be there.
+            expected_target_bucket = source_keys.update(
+                expected_additional_keys
+            )
+        else:
+            initial_target_bucket = thaw(target_keys)
+            expected_target_bucket = target_keys.update(
+                expected_additional_keys
+            )
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                source_bucket_name: initial_source_bucket,
+                target_bucket_name: initial_target_bucket,
+            }
+        )
+
+        self.publish_docs(
+            aws=aws,
+            flocker_version=version_to_publish,
+            doc_version=version_to_publish,
+            environment=environment
+        )
+
+        self.assertEqual(
+            thaw(expected_target_bucket),
+            aws.s3_buckets[target_bucket_name]
+        )
+
+    def test_copies_documentation_staging_marketing(self):
+        """
+        Calling :func:`publish_docs` copies documentation from
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
+        ``s3://clusterhq-staging-docs/en/<doc_version>/`` and
+        ``s3://clusterhq-staging-docs/en/latest/`` for marketing releases.
+        """
+        self.assert_copies_documentation(
+            version_to_publish=random_version(weekly_release=False),
+            environment=Environments.STAGING,
+            expected_extra_prefix=u"en/latest"
+        )
+
+    def test_copies_documentation_staging_weekly(self):
+        """
+        Calling :func:`publish_docs` copies documentation from
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
+        ``s3://clusterhq-staging-docs/en/<doc_version>/`` and
+        ``s3://clusterhq-staging-docs/en/devel/`` for weekly releases.
+        """
+        self.assert_copies_documentation(
+            version_to_publish=random_version(weekly_release=True),
+            environment=Environments.STAGING,
+            expected_extra_prefix=u"en/devel"
+        )
+
+    def test_copies_documentation_production_marketing(self):
         """
         Calling :func:`publish_docs` in production copies documentation from
         ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
         ``s3://clusterhq-docs/en/<doc_version>/`` and
-        ``s3://clusterhq-docs/en/latest/``.
+        ``s3://clusterhq-docs/en/latest/`` for marketing releases.
         """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/latest/index.html': '',
-                },
-                'clusterhq-staging-docs': {
-                    'release/flocker-0.3.1/index.html':
-                        'index-content',
-                    'release/flocker-0.3.1/sub/index.html':
-                        'sub-index-content',
-                    'release/flocker-0.3.1/other.html':
-                        'other-content',
-                    'release/flocker-0.3.0+392.gd50b558/index.html':
-                        'bad-index',
-                    'release/flocker-0.3.0+392.gd50b558/sub/index.html':
-                        'bad-sub-index',
-                    'release/flocker-0.3.0+392.gd50b558/other.html':
-                        'bad-other',
-                }
-            })
-        self.publish_docs(aws, '0.3.1', '0.3.1',
-                          environment=Environments.PRODUCTION)
-        self.assertEqual(
-            aws.s3_buckets['clusterhq-docs'], {
-                'index.html': '',
-                'en/index.html': '',
-                'en/latest/index.html': 'index-content',
-                'en/latest/sub/index.html': 'sub-index-content',
-                'en/latest/other.html': 'other-content',
-                'en/0.3.1/index.html': 'index-content',
-                'en/0.3.1/sub/index.html': 'sub-index-content',
-                'en/0.3.1/other.html': 'other-content',
-            })
+        self.assert_copies_documentation(
+            version_to_publish=random_version(weekly_release=False),
+            environment=Environments.PRODUCTION,
+            expected_extra_prefix=u"en/latest"
+        )
+
+    def test_copies_documentation_production_weekly(self):
+        """
+        Calling :func:`publish_docs` in production copies documentation from
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
+        ``s3://clusterhq-docs/en/<doc_version>/`` and
+        ``s3://clusterhq-docs/en/devel/`` for weekly releases.
+        """
+        self.assert_copies_documentation(
+            version_to_publish=random_version(weekly_release=True),
+            environment=Environments.PRODUCTION,
+            expected_extra_prefix=u"en/devel"
+        )
 
     def test_deletes_removed_documentation(self):
         """
