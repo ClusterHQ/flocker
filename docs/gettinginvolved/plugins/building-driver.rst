@@ -126,7 +126,7 @@ Here's what the module could look like:
         name=u"mystorage_flocker_plugin",
         needs_reactor=False, needs_cluster_id=True,
         api_factory=api_factory,
-        required_config=set("username", "password",),
+        required_config={u"username", u"password"},
         deployer_type=DeployerType.block)
 
 The ``required_config`` set in a ``BackendDescription`` is an optional set of configuration keys that must be present in your backend's ``agent.yml`` for your driver to successfully initialize.
