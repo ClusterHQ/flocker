@@ -353,7 +353,7 @@ class GCEBlockDeviceAPI(object):
         """
         return u"flocker-v1-cluster-id: " + unicode(self._cluster_id)
 
-    def _do_blocking_operation(self, function, max_wait=35, **kwargs):
+    def _do_blocking_operation(self, function, max_wait=60, **kwargs):
         """
         Perform a GCE operation, blocking until the operation completes.
 
