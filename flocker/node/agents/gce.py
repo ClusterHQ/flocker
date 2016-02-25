@@ -424,7 +424,8 @@ class GCEBlockDeviceAPI(object):
         """
         volumes = []
         page_token = None
-        while True:
+        done = False
+        while not done:
             response = self._compute.disks().list(
                 project=self._project,
                 zone=self._zone,
@@ -444,9 +445,9 @@ class GCEBlockDeviceAPI(object):
                     disk['description'] ==
                     self._disk_resource_description())
             )
+
             page_token = response.get('nextPageToken')
-            if not page_token:
-                break
+            done = not page_token
         return volumes
 
     def compute_instance_id(self):

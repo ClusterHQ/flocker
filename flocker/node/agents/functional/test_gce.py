@@ -26,21 +26,18 @@ to all Google Cloud services in the same project.``
 from uuid import uuid4
 from fixtures import Fixture
 from characteristic import attributes
+from testtools.matchers import MatchesAll, Contains, Not
 
 from ..blockdevice import AlreadyAttachedVolume
-
 from ..gce import get_machine_zone, get_machine_project
 from ....provision._gce import GCEInstanceBuilder
-
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests
 )
-
 from ..test.blockdevicefactory import (
     ProviderType, get_blockdeviceapi_with_cleanup,
     get_minimum_allocatable_size, get_device_allocation_unit
 )
-
 from ....testtools import TestCase
 
 
@@ -176,20 +173,30 @@ class GCEBlockDeviceAPITests(TestCase):
             attach_to=api.compute_instance_id(),
         )
 
-    # def test_list_volumes_walks_pages(self):
-    #     api = gceblockdeviceapi_for_test(self)
-    #     dataset_id1 = uuid4()
-    #     dataset_id2 = uuid4(),
-    #     new_volume_1 = api.create_volume(
-    #         dataset_id=dataset_id1,
-    #         size=get_minimum_allocatable_size()
-    #     )
-    #     new_volume_2 = api.create_volume(
-    #         dataset_id=dataset_id2,
-    #         size=get_minimum_allocatable_size()
-    #     )
-    #     # patch list volumes with a version that counts
+    def test_list_volumes_walks_pages(self):
+        api = gceblockdeviceapi_for_test(self)
+        api._page_size = 1
 
-    #     volumes = api.list_volumes(pagesize=1)
-    #     target_volumes = [v for v in volumes
-    #                       if v.dataset_id in (dataset_id1, dataset_id2)]
+        volume_1 = api.create_volume(
+            dataset_id=uuid4(),
+            size=get_minimum_allocatable_size()
+        )
+        volume_2 = api.create_volume(
+            dataset_id=uuid4(),
+            size=get_minimum_allocatable_size()
+        )
+
+        blockdevice_ids = [v.blockdevice_id for v in api.list_volumes()]
+        self.assertThat(
+            blockdevice_ids,
+            MatchesAll(Contains(volume_1.blockdevice_id),
+                       Contains(volume_2.blockdevice_id))
+        )
+
+        api.destroy_volume(volume_2.blockdevice_id)
+        blockdevice_ids = [v.blockdevice_id for v in api.list_volumes()]
+        self.assertThat(
+            blockdevice_ids,
+            MatchesAll(Contains(volume_1.blockdevice_id),
+                       Not(Contains(volume_2.blockdevice_id)))
+        )
