@@ -24,23 +24,21 @@ to all Google Cloud services in the same project.``
 """
 
 from uuid import uuid4
+from bitmath import GiB
+
 from fixtures import Fixture
 from characteristic import attributes
 
-from ..blockdevice import AlreadyAttachedVolume
-
-from ..gce import get_machine_zone, get_machine_project
+from ..blockdevice import AlreadyAttachedVolume, MandatoryProfiles
+from ..gce import get_machine_zone, get_machine_project, GCEDiskTypes
 from ....provision._gce import GCEInstanceBuilder
-
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests
+    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
 )
-
 from ..test.blockdevicefactory import (
     ProviderType, get_blockdeviceapi_with_cleanup,
     get_minimum_allocatable_size, get_device_allocation_unit
 )
-
 from ....testtools import TestCase
 
 
@@ -113,6 +111,39 @@ class GCEBlockDeviceAPIInterfaceTests(
         # the hack.
         pass
 
+    def test_create_volume_gold_profile(self):
+        """
+        fixme
+        """
+        self._assert_create_volume_with_correct_profile(
+            MandatoryProfiles.GOLD, GCEDiskTypes.SSD)
+
+    def test_create_volume_silver_profile(self):
+        """
+        fixme
+        """
+        self._assert_create_volume_with_correct_profile(
+            MandatoryProfiles.GOLD, GCEDiskTypes.SSD)
+
+    def test_create_volume_bronze_profile(self):
+        """
+        fixme
+        """
+        self._assert_create_volume_with_correct_profile(
+            MandatoryProfiles.GOLD, GCEDiskTypes.STANDARD)
+
+    def _assert_create_volume_with_correct_profile(self,
+                                                   profile,
+                                                   expected_disk_type):
+        volume1 = self.api.create_volume_with_profile(
+            dataset_id=uuid4(),
+            size=get_minimum_allocatable_size(),
+            profile_name=profile.value)
+        disk = self.api._get_gce_volume(volume1.blockdevice_id)
+        actual_disk_type = disk['type']
+        actual_disk_type = actual_disk_type.split('/')[-1]
+        self.assertEqual(expected_disk_type.value, actual_disk_type)
+
 
 class GCEBlockDeviceAPITests(TestCase):
     """
@@ -175,3 +206,15 @@ class GCEBlockDeviceAPITests(TestCase):
             blockdevice_id=attached_volume.blockdevice_id,
             attach_to=api.compute_instance_id(),
         )
+
+
+class EBSProfiledBlockDeviceAPIInterfaceTests(
+        make_iprofiledblockdeviceapi_tests(
+            profiled_blockdevice_api_factory=gceblockdeviceapi_for_test,
+            dataset_size=GiB(10).to_Byte().value
+        )
+):
+    """
+    Interface adherence tests for ``IProfiledBlockDeviceAPI``.
+    """
+    pass
