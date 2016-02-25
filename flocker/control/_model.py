@@ -704,9 +704,10 @@ class Deployment(PClass):
 
         :return Deployment: Updated with new ``Node``.
         """
-        return Deployment(leases=self.leases, nodes=frozenset(
-            list(n for n in self.nodes if not same_node(n, node)) +
-            [node]))
+        return self.set(
+            'nodes',
+            [n for n in self.nodes if not same_node(n, node)] + [node]
+        )
 
     def move_application(self, application, target_node):
         """
