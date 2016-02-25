@@ -46,6 +46,10 @@ VOLUME_ATTACH_TIMEOUT = 90
 VOLUME_DETATCH_TIMEOUT = 120
 
 
+class GCEVolumeException(Exception):
+    pass
+
+
 class OperationPoller(Interface):
     """
     Interface for GCE operation resource polling. GCE operation resources
@@ -264,25 +268,21 @@ def _dataset_id_to_blockdevice_id(dataset_id):
 
 def _extract_attached_to(disk):
     """
-    Given a GCE disk resource, determines the unicode name of the machine that
-    it is attached to.
+    Given a GCE disk resource, determines the unicode name of the
+    machine that it is attached to. If the disk is attached READ_ONLY
+    to multiple machines, we simply return the first instance (flocker
+    doesn't support volumes attached to multiple machines).
 
     :param dict disk: A GCE disk resource as returned from the API.
 
     :returns: The `unicode` name of the instance the disk is attached to or
         `None` if it is not attached to anything.
     """
-    # TODO(mewert): determine how this works with a disk being attached to
-    # multiple machines, update comment above.
-    #
-    # A. Unconfirmed: but from the docs, the users's field will return
-    # multiple entries, we are unsure how they are ordered.  See where
-    # RW disk gets placed in the array, also maybe return THIS
-    # instance if the disk is attached to this instance and others.
     users = disk.get('users', [])
     if not users:
         return None
     return unicode(users[0].split('/')[-1])
+
 
 
 @implementer(IBlockDeviceAPI)
@@ -469,10 +469,6 @@ class GCEBlockDeviceAPI(object):
             sizeGb=sizeGiB,
             description=self._disk_resource_description(),
         )
-        # TODO(mewert): Verify error conditions.
-        # BCox: when creating a profile volume, we'll need to catch
-        # exceptions of an invalid configuration and fall back to
-        # creating a default volume instead (ala ebs).
         self._do_blocking_operation(
             self._compute.disks().insert,
             body=config,
@@ -502,7 +498,6 @@ class GCEBlockDeviceAPI(object):
             )
         )
         try:
-            # TODO(mewert): Verify error conditions.
             result = self._do_blocking_operation(
                 self._compute.instances().attachDisk,
                 instance=attach_to,
@@ -512,8 +507,6 @@ class GCEBlockDeviceAPI(object):
 
         except HttpError as e:
             if e.resp.status == 400:
-                # TODO(mewert): verify with the rest API that this is the only
-                # way to get a 400.
                 raise UnknownVolume(blockdevice_id)
             else:
                 raise e
@@ -561,9 +554,6 @@ class GCEBlockDeviceAPI(object):
 
     def detach_volume(self, blockdevice_id):
         attached_to = self._get_attached_to(blockdevice_id)
-        # TODO(mewert): Test this race (something else detaches right at this
-        # point). Might involve putting all GCE interactions behind a zope
-        # interface and then using a proxy implementation to inject code.
         self._do_blocking_operation(
             self._compute.instances().detachDisk,
             instance=attached_to,
@@ -572,21 +562,11 @@ class GCEBlockDeviceAPI(object):
         return None
 
     def get_device_path(self, blockdevice_id):
-        # TODO(mewert): Verify that we need this extra API call.
         self._get_attached_to(blockdevice_id)
-
-        # TODO(mewert): Verify we can get away returning a symlink here, or
-        # just walk the symlink.
-        #
-        # BCox: mkfs and mount happily take device symlinks
         return FilePath(u"/dev/disk/by-id/google-" + blockdevice_id)
 
     def destroy_volume(self, blockdevice_id):
         try:
-            # TODO(mewert) verify error conditions.
-            #
-            # BCox: If you try to destroy a volume that is still
-            # attached you get an HttpError with status == 400
             self._do_blocking_operation(
                 self._compute.disks().delete,
                 disk=blockdevice_id,
@@ -595,6 +575,11 @@ class GCEBlockDeviceAPI(object):
         except HttpError as e:
             if e.resp.status == 404:
                 raise UnknownVolume(blockdevice_id)
+            elif e.resp.status == 400:
+                raise GCEVolumeException(
+                    "Cannot destroy volume {}. It is attached to an "
+                    "instance.".format(blockdevice_id)
+                )
             else:
                 raise e
         return None
