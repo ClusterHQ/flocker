@@ -584,11 +584,3 @@ class FakeAWS(object):
             CreateCloudFrontInvalidation:
                 self._perform_create_cloudfront_invalidation,
         })
-
-
-def fake_aws(routing_rules, s3_buckets):
-    initial_state = FakeAWSState(
-        routing_rules=routing_rules,
-        s3_buckets=freeze(s3_buckets),
-    )
-    return FakeAWS(state=initial_state)

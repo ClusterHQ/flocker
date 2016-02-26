@@ -12,7 +12,7 @@ from random import randrange
 from StringIO import StringIO
 import tempfile
 from textwrap import dedent
-from unittest import skipUnless, skipIf, expectedFailure
+from unittest import skipUnless, skipIf
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import Repo
@@ -35,7 +35,7 @@ from .. import release
 from ..release import (
     upload_python_packages, upload_packages, update_repo,
     parse_routing_rules, publish_docs, Environments,
-    DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
+    DocumentationRelease, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     UploadOptions, create_pip_index, upload_pip_index,
@@ -44,7 +44,7 @@ from ..release import (
 )
 
 from ..packaging import Distribution
-from ..aws import FakeAWS, CreateCloudFrontInvalidation, FakeAWSState, fake_aws
+from ..aws import FakeAWS, CreateCloudFrontInvalidation, FakeAWSState
 from ..yum import FakeYum, yum_dispatcher
 
 from flocker.testtools import TestCase
@@ -178,62 +178,6 @@ class ParseRoutingRulesTests(TestCase):
                 http_redirect_code=302,
             ),
         ]))
-
-
-def random_version(weekly_release=False, commit_count=False):
-    version = list(unicode(randrange(10)) for i in range(3))
-    if weekly_release:
-        version += [u'dev{}'.format(randrange(10))]
-    if commit_count:
-        version[-1] += u"+{}".format(randrange(1000))
-        version += [u"g" + hex(randrange(10 ** 12))[2:]]
-
-    return u'.'.join(version)
-
-
-class DocBranch(PClass):
-    name = field(type=unicode)
-    version = field(type=unicode)
-
-    @classmethod
-    def from_version(cls, version):
-        return cls(
-            name=u"release/flocker-{}".format(version),
-            version=version
-        )
-
-    @classmethod
-    def from_branch(cls, name):
-        return cls(
-            name=name,
-            version=random_version(weekly_release=True, commit_count=True)
-        )
-
-
-def example_keys(branches):
-    keys = {
-        u'index.html': u'',
-        u'en/index.html': u'',
-    }
-    for branch in branches:
-        prefix = branch.name
-        keys.update({
-            prefix + u'/index.html':
-                u'index-content',
-            prefix + u'/sub/index.html':
-                u'sub-index-content',
-            prefix + u'/other.html':
-                u'other-content',
-            prefix + u'/version.html':
-                u'    <p>{}</p>    '.format(branch.version),
-        })
-    return freeze(keys)
-
-
-def example_keys_for_versions(versions):
-    return example_keys(
-        branches=[DocBranch.from_version(v) for v in versions]
-    )
 
 
 STATE_EMPTY = FakeAWSState(
@@ -398,7 +342,7 @@ class PublishDocsTests(TestCase):
         ``UnexpectedDocumentationVersion`` is raised with the mismatched
         version numbers.
         """
-        unexpected_version = random_version()
+        unexpected_version = u"0.0.0"
         expected_version = WEEKLY_RELEASE_VERSION
 
         aws = FakeAWS(
@@ -479,8 +423,8 @@ class PublishDocsTests(TestCase):
             lambda b: b.update({
                 u"en/{}/version.html".format(
                     MARKETING_RELEASE_VERSION
-                ): random_version(),
-                u"en/latest/version.html": random_version(),
+                ): u"0.0.0",
+                u"en/latest/version.html": u"0.0.0",
             })
         )
         aws = FakeAWS(state=initial_state)
