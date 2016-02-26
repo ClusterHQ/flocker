@@ -197,6 +197,10 @@ def get_metadata_path(path):
     r = requests.get(_METADATA_SERVER + path,
                      headers=_METADATA_HEADERS,
                      timeout=timeout_sec)
+    if r.status_code != 200:
+        raise ValueError("Did not get success result from metadata server for "
+                         "path {}, instead got {}.".format(path,
+                                                           r.status_code))
     return r.text
 
 
