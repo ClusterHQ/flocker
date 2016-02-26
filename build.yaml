@@ -513,6 +513,17 @@ common_cli:
     --config-file /tmp/acceptance.yaml \
     --purpose benchmarking-jenkins \
     --certs-directory ${PWD}/benchmarking-certs
+    source ${PWD}/benchmarking-certs/environment.env
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+
+  setup_benchmarking_containers: &setup_benchmarking_containers |
+    # Deploy a number of containers onto the previously created cluster.
+    ${venv}/bin/python benchmark/setup-cluster-containers \
+    --image clusterhq/mongodb \
+    --mountpoint /data/db \
+    --apps-per-node ${BENCHMARK_CONTAINERS} \
+    --control-node ${FLOCKER_ACCEPTANCE_CONTROL_NODE} \
+    --cert-directory ${FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH}
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_benchmarking: &run_benchmarking |
@@ -1627,7 +1638,9 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_PROVIDER=aws',
                    'export BENCHMARK_NODES=2',
+                   'export BENCHMARK_CONTAINERS=10',
                    *setup_benchmarking_cluster,
+                   *setup_benchmarking_containers,
                    *run_benchmarking,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
@@ -1655,7 +1668,9 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_PROVIDER=aws',
                    'export BENCHMARK_NODES=10',
+                   'export BENCHMARK_CONTAINERS=10',
                    *setup_benchmarking_cluster,
+                   *setup_benchmarking_containers,
                    *run_benchmarking,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
