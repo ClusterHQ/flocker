@@ -562,10 +562,10 @@ class GCEBlockDeviceAPI(object):
                 pageToken=page_token
             ).execute()
             page_token = result.get('nextPageToken')
-            nodes.extend(result.get('items', []))
+            nodes.extend(result['items'])
             done = not page_token
-        return set(node.get("name") for node in nodes
-                   if node.get("status") == "RUNNING")
+        return set(node["name"] for node in nodes
+                   if node["status"] == "RUNNING")
 
     def start_node(self, node_id):
         self._do_blocking_operation(
@@ -574,7 +574,7 @@ class GCEBlockDeviceAPI(object):
             instance=node_id
         )
 
-    def stop_node(self, node_id):
+    def _stop_node(self, node_id):
         """
         Stops a node. This shuts the node down, but leaves the boot disk
         available so that it can be started again using ``start_node``.

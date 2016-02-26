@@ -90,7 +90,7 @@ class GCEComputeTestObjects(Fixture):
                     # The test must have already destroyed the instance.
                     pass
                 else:
-                    raise e
+                    raise
 
         self.addCleanup(lambda: destroy_best_effort(instance))
         return instance
@@ -172,7 +172,18 @@ class GCEBlockDeviceAPITests(TestCase):
     def test_list_live_nodes_pagination_and_removal(self):
         """
         list_live_nodes should be able to walk pages to get all live nodes and
-        should not have nodes after they are destroyed.
+        should not have nodes after they are destroyed or stopped.
+
+        Also, _stop_node and start_node should be able to take a node off-line
+        and bring it back online.
+
+        Sorry for testing two things in this test.
+
+        Unfortunately, to verify pagination is working there must be two nodes
+        running. Also, to test start_node and _stop_node, there must be a
+        second instance started up. Since starting and stopping a node is time
+        consuming, I decided to combine these into the same test. My apologies
+        to future maintainers if this makes debugging failures less pleasant.
         """
         api = gceblockdeviceapi_for_test(self)
 
@@ -197,7 +208,7 @@ class GCEBlockDeviceAPITests(TestCase):
             )
         )
 
-        api.stop_node(other_instance_name)
+        api._stop_node(other_instance_name)
 
         self.assertThat(
             api.list_live_nodes(),
