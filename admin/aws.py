@@ -548,13 +548,18 @@ class FakeAWS(object):
         """
         See :class:`UploadToS3`.
         """
-        bucket = self.s3_buckets[intent.target_bucket]
+
         with intent.file.open() as source_file:
             content = source_file.read()
+        # XXX: Need to think about this.
+        # The fake currently only allows unicode content.
         content_type = intent.content_type
         if content_type is not None:
             content = ContentTypeUnicode(content, content_type)
-        bucket[intent.target_key] = content
+        self.state = self.state.transform(
+            ['s3_buckets', intent.target_bucket, intent.target_key],
+            content
+        )
 
     def get_dispatcher(self):
         """

@@ -1185,15 +1185,18 @@ class UploadPythonPackagesTests(TestCase):
 
     def setUp(self):
         super(UploadPythonPackagesTests, self).setUp()
-        self.target_bucket = 'test-target-bucket'
+        self.target_bucket = u'test-target-bucket'
         self.scratch_directory = FilePath(self.mktemp())
         self.top_level = FilePath(self.mktemp())
         self.top_level.makedirs()
         self.aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            })
+            state=FakeAWSState(
+                routing_rules=freeze({}),
+                s3_buckets=freeze({
+                    self.target_bucket: {},
+                })
+            )
+        )
 
     def upload_python_packages(self):
         """
@@ -1237,7 +1240,7 @@ class UploadPythonPackagesTests(TestCase):
 
         self.upload_python_packages()
 
-        aws_keys = self.aws.s3_buckets[self.target_bucket].keys()
+        aws_keys = self.aws.state.s3_buckets[self.target_bucket].keys()
         self.assertEqual(
             sorted(aws_keys),
             ['python/Flocker-0.3.0-py2-none-any.whl',
