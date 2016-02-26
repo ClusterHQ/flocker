@@ -30,7 +30,7 @@ from twisted.internet.defer import succeed
 from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service)
-from flocker.common.plugin import PluginNotFound
+from ..common.plugin import PluginLoader
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .exceptions import StorageInitializationError
@@ -44,7 +44,7 @@ from .agents.blockdevice import (
 from ..ca import ControlServicePolicy, NodeCredential
 from ..common._era import get_era
 
-from .backends import DeployerType, get_backend
+from .backends import DeployerType, backend_loader
 
 __all__ = [
     "flocker_dataset_agent_main",
@@ -416,6 +416,11 @@ class AgentService(PClass):
     :ivar get_external_ip: Typically ``_get_external_ip``, but
         overrideable for tests.
     """
+    backends = field(
+        PluginLoader,
+        mandatory=True,
+        initial=backend_loader,
+    )
     deployers = field(factory=pmap, initial=_DEFAULT_DEPLOYERS, mandatory=True)
     reactor = field(initial=reactor, mandatory=True)
 
@@ -477,13 +482,7 @@ class AgentService(PClass):
         :raise ValueError: If ``backend_name`` doesn't match any known backend.
         :return: The matching ``BackendDescription``.
         """
-        try:
-            return get_backend(self.backend_name)
-        except PluginNotFound:
-            raise ValueError(
-                "'{!s}' is neither a built-in backend nor a 3rd party "
-                "module.".format(self.backend_name),
-            )
+        return self.backends.get_plugin(self.backend_name)
 
     # Needs tests: FLOC-1964.
     def get_tls_context(self):

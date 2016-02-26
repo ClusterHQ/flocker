@@ -4,7 +4,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 
 
-from ..common.plugin import get_plugin
+from ..common.plugin import PluginLoader
 
 from ..volume.filesystems import zfs
 from ..volume.service import (
@@ -134,17 +134,8 @@ _DEFAULT_BACKENDS = [
     ),
 ]
 
-
-def get_backend(backend_name, backends=_DEFAULT_BACKENDS):
-    """
-    Find the backend in ``backends`` that matches the one named by
-    ``backend_name``. If not found then attempt is made to load it as
-    plugin.
-
-    :param backend_name: The name of the backend.
-    :param backends: Collection of `BackendDescription`` instances.
-
-    :raise ValueError: If ``backend_name`` doesn't match any known backend.
-    :return: The matching ``BackendDescription``.
-    """
-    return get_plugin(backend_name, backends, "FLOCKER_BACKEND")
+backend_loader = PluginLoader(
+    builtin_plugins=_DEFAULT_BACKENDS,
+    module_attribute="FLOCKER_BACKEND",
+    plugin_type=BackendDescription,
+)
