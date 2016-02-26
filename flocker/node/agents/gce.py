@@ -45,9 +45,9 @@ class GCEDiskTypes(Values):
 
 
 class GCEStorageProfiles(Values):
-    GOLD = GCEDiskTypes.SSD.value
-    SILVER = GCEDiskTypes.SSD.value
-    BRONZE = GCEDiskTypes.STANDARD.value
+    GOLD = ValueConstant(GCEDiskTypes.SSD.value)
+    SILVER = ValueConstant(GCEDiskTypes.SSD.value)
+    BRONZE = ValueConstant(GCEDiskTypes.STANDARD.value)
 
 
 class OperationPoller(Interface):
@@ -445,8 +445,7 @@ class GCEBlockDeviceAPI(object):
         blockdevice_id = _dataset_id_to_blockdevice_id(dataset_id)
         sizeGiB = int(Byte(size).to_GiB())
         profile_type = MandatoryProfiles.lookupByValue(profile_name).name
-        gce_disk_type =  GCEStorageProfiles.lookupByName(
-            profile_type).value
+        gce_disk_type = GCEStorageProfiles.lookupByName(profile_type).value
         config = dict(
             name=blockdevice_id,
             sizeGb=sizeGiB,
@@ -502,7 +501,7 @@ class GCEBlockDeviceAPI(object):
         for e in errors:
             if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
                 raise AlreadyAttachedVolume(blockdevice_id)
-        disk = self._get_gce_volume(disk=blockdevice_id)
+        disk = self._get_gce_volume(blockdevice_id)
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
             size=int(GiB(int(disk['sizeGb'])).to_Byte()),
@@ -526,7 +525,7 @@ class GCEBlockDeviceAPI(object):
         """
         try:
             # TODO(mewert) verify timeouts and error conditions.
-            disk = self._get_gce_volume(disk=blockdevice_id)
+            disk = self._get_gce_volume(blockdevice_id)
         except HttpError as e:
             if e.resp.status == 404:
                 # TODO(mewert) Verify with the rest API this is the only way to

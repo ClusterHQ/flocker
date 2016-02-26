@@ -112,34 +112,35 @@ class GCEBlockDeviceAPIInterfaceTests(
         pass
 
     def test_create_volume_gold_profile(self):
-        """
-        fixme
-        """
         self._assert_create_volume_with_correct_profile(
             MandatoryProfiles.GOLD, GCEDiskTypes.SSD)
 
     def test_create_volume_silver_profile(self):
-        """
-        fixme
-        """
         self._assert_create_volume_with_correct_profile(
-            MandatoryProfiles.GOLD, GCEDiskTypes.SSD)
+            MandatoryProfiles.SILVER, GCEDiskTypes.SSD)
 
     def test_create_volume_bronze_profile(self):
-        """
-        fixme
-        """
         self._assert_create_volume_with_correct_profile(
-            MandatoryProfiles.GOLD, GCEDiskTypes.STANDARD)
+            MandatoryProfiles.BRONZE, GCEDiskTypes.STANDARD)
 
     def _assert_create_volume_with_correct_profile(self,
                                                    profile,
                                                    expected_disk_type):
-        volume1 = self.api.create_volume_with_profile(
+        """
+        Ensure that creating a volume with the requested attributes
+        actually creates the correct type of volume
+
+        :param MandatoryProfile profile: Name of the storage profile to
+            use when creating the volume.
+        :param GCEDiskType expected_disk_type: The type of disk that
+            we expect to be created.
+        """
+        new_volume = self.api.create_volume_with_profile(
             dataset_id=uuid4(),
             size=get_minimum_allocatable_size(),
-            profile_name=profile.value)
-        disk = self.api._get_gce_volume(volume1.blockdevice_id)
+            profile_name=profile.value
+        )
+        disk = self.api._get_gce_volume(new_volume.blockdevice_id)
         actual_disk_type = disk['type']
         actual_disk_type = actual_disk_type.split('/')[-1]
         self.assertEqual(expected_disk_type.value, actual_disk_type)
@@ -206,15 +207,3 @@ class GCEBlockDeviceAPITests(TestCase):
             blockdevice_id=attached_volume.blockdevice_id,
             attach_to=api.compute_instance_id(),
         )
-
-
-class EBSProfiledBlockDeviceAPIInterfaceTests(
-        make_iprofiledblockdeviceapi_tests(
-            profiled_blockdevice_api_factory=gceblockdeviceapi_for_test,
-            dataset_size=GiB(10).to_Byte().value
-        )
-):
-    """
-    Interface adherence tests for ``IProfiledBlockDeviceAPI``.
-    """
-    pass
