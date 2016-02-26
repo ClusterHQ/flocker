@@ -1450,14 +1450,16 @@ class UploadPipIndexTests(TestCase):
         """
         An index file is uploaded to S3.
         """
-        bucket = 'clusterhq-archive'
+        bucket = u'clusterhq-archive'
         aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                bucket: {
-                    'python/Flocker-0.3.1-py2-none-any.whl': '',
-                },
-            })
+            state=FakeAWSState(
+                s3_buckets=freeze({
+                    bucket: {
+                        u'python/Flocker-0.3.1-py2-none-any.whl': u'',
+                    },
+                })
+            )
+        )
 
         scratch_directory = FilePath(self.mktemp())
         scratch_directory.makedirs()
@@ -1469,11 +1471,11 @@ class UploadPipIndexTests(TestCase):
                 target_bucket=bucket))
 
         self.assertEqual(
-            aws.s3_buckets[bucket]['python/index.html'],
+            aws.state.s3_buckets[bucket][u'python/index.html'],
             (
-                '<html>\nThis is an index for pip\n<div>'
-                '<a href="Flocker-0.3.1-py2-none-any.whl">'
-                'Flocker-0.3.1-py2-none-any.whl</a><br />\n</div></html>'
+                u'<html>\nThis is an index for pip\n<div>'
+                u'<a href="Flocker-0.3.1-py2-none-any.whl">'
+                u'Flocker-0.3.1-py2-none-any.whl</a><br />\n</div></html>'
             ))
 
 
