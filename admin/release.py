@@ -154,14 +154,14 @@ class DocumentationConfiguration(object):
 DOCUMENTATION_CONFIGURATIONS = {
     Environments.PRODUCTION:
         DocumentationConfiguration(
-            documentation_bucket="clusterhq-docs",
-            cloudfront_cname="docs.clusterhq.com",
-            dev_bucket="clusterhq-staging-docs"),
+            documentation_bucket=u"clusterhq-docs",
+            cloudfront_cname=u"docs.clusterhq.com",
+            dev_bucket=u"clusterhq-staging-docs"),
     Environments.STAGING:
         DocumentationConfiguration(
-            documentation_bucket="clusterhq-staging-docs",
-            cloudfront_cname="docs.staging.clusterhq.com",
-            dev_bucket="clusterhq-staging-docs"),
+            documentation_bucket=u"clusterhq-staging-docs",
+            cloudfront_cname=u"docs.staging.clusterhq.com",
+            dev_bucket=u"clusterhq-staging-docs"),
 }
 
 
@@ -244,14 +244,14 @@ def publish_docs(flocker_version, doc_version, environment, routing_config):
             raise NotTagged()
     configuration = DOCUMENTATION_CONFIGURATIONS[environment]
 
-    dev_prefix = 'release/flocker-%s/' % (flocker_version,)
-    version_prefix = 'en/%s/' % (get_doc_version(doc_version),)
+    dev_prefix = u'release/flocker-{}/'.format(flocker_version)
+    version_prefix = u'en/{}/'.format(get_doc_version(doc_version))
 
     is_dev = not is_release(doc_version)
     if is_dev:
-        stable_prefix = "en/devel/"
+        stable_prefix = u"en/devel/"
     else:
-        stable_prefix = "en/latest/"
+        stable_prefix = u"en/latest/"
 
     found_version_html = yield Effect(
         ReadS3Key(
@@ -319,6 +319,7 @@ def publish_docs(flocker_version, doc_version, environment, routing_config):
             UpdateS3ErrorPage(bucket=configuration.documentation_bucket,
                               target_prefix=version_prefix))
 
+    # XXX: We also need to calculate and invalidate the changed "latest" keys.
     # The changed keys are the new keys, the keys that were deleted from this
     # version, and the keys for the previous version.
     changed_keys = (new_version_keys | existing_version_keys)
@@ -326,9 +327,9 @@ def publish_docs(flocker_version, doc_version, environment, routing_config):
     # S3 serves /index.html when given /, so any changed /index.html means
     # that / changed as well.
     # Note that we check for '/index.html' but remove 'index.html'
-    changed_keys |= {key_name[:-len('index.html')]
+    changed_keys |= {key_name[:-len(u'index.html')]
                      for key_name in changed_keys
-                     if key_name.endswith('/index.html')}
+                     if key_name.endswith(u'/index.html')}
 
     # Always update the root.
     changed_keys |= {''}
@@ -338,7 +339,6 @@ def publish_docs(flocker_version, doc_version, environment, routing_config):
     changed_paths = {prefix + key_name
                      for key_name in changed_keys
                      for prefix in [stable_prefix, version_prefix]}
-
     yield Effect(UpdateS3RoutingRules(
         bucket=configuration.documentation_bucket,
         routing_rules=parse_routing_rules(

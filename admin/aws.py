@@ -10,7 +10,7 @@ from effect import Effect, sync_performer, TypeDispatcher
 from effect.do import do, do_return
 
 import boto
-
+from pyrsistent import PClass, pmap_field, PMap, field, discard, freeze
 from twisted.python.filepath import FilePath
 
 
@@ -57,7 +57,7 @@ class UpdateS3ErrorPage(object):
     def error_key(self):
         """
         """
-        return '{}error_pages/404.html'.format(self.target_prefix)
+        return u'{}error_pages/404.html'.format(self.target_prefix)
 
 
 @sync_performer
@@ -424,11 +424,31 @@ class ContentTypeUnicode(unicode):
         return self
 
 
-@attributes([
-    Attribute('routing_rules'),
-    Attribute('s3_buckets'),
-    Attribute('error_key', default_factory=dict)
-])
+class FakeAWSState(PClass):
+    """
+    The immutable state of ``FakeAWS``
+
+    :ivar routing_rules: Dictionary of routing rules for S3 buckets. They are
+        represented as dictonaries mapping key prefixes to replacements. Other
+        types of rules and attributes are supported or represented.
+    :ivar s3_buckets: Dictionary of fake S3 buckets. Each bucket is represented
+        as a dictonary mapping keys to contents. Other attributes are ignored.
+    :ivar cloudfront_invalidations: List of
+        :class:`CreateCloudFrontInvalidation` that have been requested.
+    """
+    routing_rules = pmap_field(
+        key_type=unicode,
+        value_type=boto.s3.website.RoutingRules
+    )
+    s3_buckets = pmap_field(
+        key_type=unicode,
+        value_type=PMap
+    )
+    error_key = pmap_field(key_type=unicode, value_type=unicode)
+    cloudfront_invalidations = field(initial=freeze([]))
+
+
+@attributes(['state'])
 class FakeAWS(object):
     """
     Enough of a fake implementation of AWS to test
@@ -443,14 +463,17 @@ class FakeAWS(object):
         :class:`CreateCloudFrontInvalidation` that have been requested.
     """
     def __init__(self):
-        self.cloudfront_invalidations = []
+        self.initial_state = self.state
 
     @sync_performer
     def _perform_update_s3_routing_rules(self, dispatcher, intent):
         """
         See :class:`UpdateS3RoutingRule`.
         """
-        self.routing_rules[intent.bucket] = intent.routing_rules
+        self.state = self.state.transform(
+            ['routing_rules', intent.bucket],
+            intent.routing_rules
+        )
 
     @sync_performer
     def _perform_update_s3_error_page(self, dispatcher, intent):
@@ -458,8 +481,11 @@ class FakeAWS(object):
         See :class:`UpdateS3ErrorPage`.
         """
         new_error_key = intent.error_key
-        old_error_key = self.error_key.get(intent.bucket)
-        self.error_key[intent.bucket] = new_error_key
+        old_error_key = self.state.error_key.get(intent.bucket)
+        self.state = self.state.transform(
+            [u'error_key', intent.bucket],
+            new_error_key
+        )
         if old_error_key == new_error_key:
             return None
         return old_error_key
@@ -469,34 +495,42 @@ class FakeAWS(object):
         """
         See :class:`CreateCloudFrontInvalidation`.
         """
-        self.cloudfront_invalidations.append(intent)
+        self.state = self.state.transform(
+            ['cloudfront_invalidations'],
+            lambda l: l.append(intent)
+        )
 
     @sync_performer
     def _perform_delete_s3_keys(self, dispatcher, intent):
         """
         See :class:`DeleteS3Keys`.
         """
-        bucket = self.s3_buckets[intent.bucket]
         for key in intent.keys:
-            del bucket[intent.prefix + key]
+            self.state = self.state.transform(
+                ['s3_buckets', intent.bucket, intent.prefix + key],
+                discard,
+            )
 
     @sync_performer
     def _perform_copy_s3_keys(self, dispatcher, intent):
         """
         See :class:`CopyS3Keys`.
         """
-        source_bucket = self.s3_buckets[intent.source_bucket]
-        destination_bucket = self.s3_buckets[intent.destination_bucket]
+        source_bucket = self.state.s3_buckets[intent.source_bucket]
         for key in intent.keys:
-            destination_bucket[intent.destination_prefix + key] = (
-                source_bucket[intent.source_prefix + key])
+            self.state = self.state.transform(
+                ['s3_buckets',
+                 intent.destination_bucket,
+                 intent.destination_prefix + key],
+                source_bucket[intent.source_prefix + key]
+            )
 
     @sync_performer
     def _perform_list_s3_keys(self, dispatcher, intent):
         """
         See :class:`ListS3Keys`.
         """
-        bucket = self.s3_buckets[intent.bucket]
+        bucket = self.state.s3_buckets[intent.bucket]
         return {key[len(intent.prefix):]
                 for key in bucket
                 if key.startswith(intent.prefix)}
@@ -506,7 +540,7 @@ class FakeAWS(object):
         """
         See :class:`DownloadS3Key`.
         """
-        bucket = self.s3_buckets[intent.source_bucket]
+        bucket = self.state.s3_buckets[intent.source_bucket]
         intent.target_path.setContent(bucket[intent.source_key])
 
     @sync_performer
@@ -544,3 +578,11 @@ class FakeAWS(object):
             CreateCloudFrontInvalidation:
                 self._perform_create_cloudfront_invalidation,
         })
+
+
+def fake_aws(routing_rules, s3_buckets):
+    initial_state = FakeAWSState(
+        routing_rules=routing_rules,
+        s3_buckets=freeze(s3_buckets),
+    )
+    return FakeAWS(state=initial_state)
