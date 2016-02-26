@@ -29,7 +29,7 @@ from characteristic import attributes
 from testtools.matchers import MatchesAll, Contains, Not
 
 from ..blockdevice import AlreadyAttachedVolume
-from ..gce import get_machine_zone, get_machine_project
+from ..gce import get_machine_zone, get_machine_project, GCEVolumeException
 from ....provision._gce import GCEInstanceBuilder
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests
@@ -140,6 +140,25 @@ class GCEBlockDeviceAPITests(TestCase):
         self.assertEqual([cluster_2_dataset_id],
                          list(x.dataset_id
                               for x in gce_block_device_api_2.list_volumes()))
+
+    def test_create_duplicate_dataset_ids(self):
+        """
+        Two :class:`GCEBlockDeviceAPI` instances can be run with different
+        cluster_ids. Volumes in one cluster do not show up in listing from the
+        other.
+        """
+        gce_block_device_api_1 = gceblockdeviceapi_for_test(self)
+        gce_block_device_api_2 = gceblockdeviceapi_for_test(self)
+
+        shared_dataset_id = uuid4()
+
+        gce_block_device_api_1.create_volume(shared_dataset_id,
+                                             get_minimum_allocatable_size())
+        self.assertRaises(
+            GCEVolumeException,
+            gce_block_device_api_2.create_volume,
+            shared_dataset_id,
+            get_minimum_allocatable_size())
 
     def test_attach_elsewhere_attached_volume(self):
         """

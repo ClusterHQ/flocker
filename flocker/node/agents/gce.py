@@ -49,6 +49,9 @@ VOLUME_DETATCH_TIMEOUT = 120
 class GCEVolumeException(Exception):
     pass
 
+class GCEVolumeException(Exception):
+    pass
+
 
 class OperationPoller(Interface):
     """
@@ -469,23 +472,27 @@ class GCEBlockDeviceAPI(object):
             sizeGb=sizeGiB,
             description=self._disk_resource_description(),
         )
-        self._do_blocking_operation(
-            self._compute.disks().insert,
-            body=config,
-            timeout=VOLUME_INSERT_TIMEOUT,
-        )
+        try:
+            self._do_blocking_operation(
+                self._compute.disks().insert,
+                body=config,
+                timeout=VOLUME_INSERT_TIMEOUT,
+            )
+        except HttpError as e:
+            if e.resp.status == 409:
+                msg = ("A dataset named {} already exists in this GCE "
+                       "project.".format(dataset_id))
+                raise GCEVolumeException(msg)
+            else:
+                raise
 
-        # TODO(mewert): Test creating a volume in cluster A in this
-        # project with the same UUID (users can specify their
-        # dataset's uuid) as a volume in cluster B in the same project.
-        # make that the logs and errors make this error obvious to the
-        # user (see test_multiple_cluster)
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
             size=int(GiB(sizeGiB).to_Byte()),
             attached_to=None,
             dataset_id=dataset_id,
         )
+
 
     def attach_volume(self, blockdevice_id, attach_to):
         config = dict(
@@ -509,7 +516,7 @@ class GCEBlockDeviceAPI(object):
             if e.resp.status == 400:
                 raise UnknownVolume(blockdevice_id)
             else:
-                raise e
+                raise
         errors = result.get('error', {}).get('errors', [])
         for e in errors:
             if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
@@ -546,7 +553,7 @@ class GCEBlockDeviceAPI(object):
             if e.resp.status == 404:
                 raise UnknownVolume(blockdevice_id)
             else:
-                raise e
+                raise
         attached_to = _extract_attached_to(disk)
         if not attached_to:
             raise UnattachedVolume(blockdevice_id)
@@ -581,5 +588,5 @@ class GCEBlockDeviceAPI(object):
                     "instance.".format(blockdevice_id)
                 )
             else:
-                raise e
+                raise
         return None
