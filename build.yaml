@@ -511,7 +511,8 @@ common_cli:
     --branch ${TRIGGERED_BRANCH} --build-server \
     http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4) \
     --config-file /tmp/acceptance.yaml \
-    --purpose benchmarking-jenkins
+    --purpose benchmarking-jenkins \
+    --certs-directory ${PWD}/benchmarking-certs
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_benchmarking: &run_benchmarking |
