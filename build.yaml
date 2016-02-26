@@ -521,7 +521,7 @@ common_cli:
     http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4) \
     --config-file /tmp/acceptance.yaml \
     --purpose benchmarking-jenkins \
-    --certs-directory ${PWD}/benchmarking-certs
+    --cert-directory ${PWD}/benchmarking-certs
     source ${PWD}/benchmarking-certs/environment.env
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
