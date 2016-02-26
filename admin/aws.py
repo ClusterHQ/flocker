@@ -10,6 +10,7 @@ from effect import Effect, sync_performer, TypeDispatcher
 from effect.do import do, do_return
 
 import boto
+from boto.s3.website import RoutingRules
 from pyrsistent import PClass, pmap_field, PMap, field, discard, freeze
 from twisted.python.filepath import FilePath
 
@@ -438,7 +439,7 @@ class FakeAWSState(PClass):
     """
     routing_rules = pmap_field(
         key_type=unicode,
-        value_type=boto.s3.website.RoutingRules
+        value_type=RoutingRules
     )
     s3_buckets = pmap_field(
         key_type=unicode,
