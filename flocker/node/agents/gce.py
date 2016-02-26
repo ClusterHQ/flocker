@@ -15,6 +15,7 @@ driver:
 import requests
 
 from bitmath import GiB, Byte
+from eliot import Message, start_action
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from oauth2client.gce import AppAssertionCredentials
@@ -172,13 +173,19 @@ def wait_for_operation(compute, operation, timeout_steps):
     """
     poller = _create_poller(operation)
 
-    def finished_operation_result():
-        latest_operation = poller.poll(compute)
-        if latest_operation['status'] == 'DONE':
-            return latest_operation
-        return None
+    with start_action(
+            action_type=u"flocker:node:agents:gce:wait_for_operation",
+            operation=operation
+    ) as action:
+        def finished_operation_result():
+            latest_operation = poller.poll(compute)
+            if latest_operation['status'] == 'DONE':
+                return latest_operation
+            return None
 
-    return poll_until(finished_operation_result, timeout_steps)
+        final_operation = poll_until(finished_operation_result, timeout_steps)
+        action.add_success_fields(final_operation=final_operation)
+        return final_operation
 
 
 def get_metadata_path(path):
@@ -194,10 +201,15 @@ def get_metadata_path(path):
     :returns unicode: The resulting value from the metadata server.
     """
     timeout_sec = 3
-    r = requests.get(_METADATA_SERVER + path,
-                     headers=_METADATA_HEADERS,
-                     timeout=timeout_sec)
-    return r.text
+    with start_action(
+            action_type=u"flocker:node:agents:gce:get_metadata_path",
+            path=path
+    ) as action:
+        r = requests.get(_METADATA_SERVER + path,
+                         headers=_METADATA_HEADERS,
+                         timeout=timeout_sec).text
+        action.add_success_fields(response=r)
+        return r
 
 
 def get_machine_zone():
@@ -321,7 +333,6 @@ class GCEBlockDeviceAPI(object):
         - The path of the device (or at least the path to a symlink to a path
             of the volume) is a pure function of blockdevice_id.
     """
-    # TODO(mewert): Logging throughout.
 
     def __init__(self, cluster_id, project, zone):
         """
@@ -397,19 +408,34 @@ class GCEBlockDeviceAPI(object):
 
     def list_volumes(self):
         # TODO(mewert) Walk the pages.
-        result = self._compute.disks().list(project=self._project,
-                                            zone=self._zone).execute()
-        return list(
-            BlockDeviceVolume(
-                blockdevice_id=unicode(disk['name']),
-                size=int(GiB(int(disk['sizeGb'])).to_Byte()),
-                attached_to=_extract_attached_to(disk),
-                dataset_id=_blockdevice_id_to_dataset_id(disk['name'])
+        with start_action(
+            action_type=u"flocker:node:agents:gce:list_volumes",
+        ) as action:
+            result = self._compute.disks().list(project=self._project,
+                                                zone=self._zone).execute()
+
+            def disk_in_cluster(disk):
+                return (
+                    disk['name'].startswith(_PREFIX) and
+                    disk['description'] == self._disk_resource_description()
+                )
+
+            Message.log(
+                ignored_volumes=list(disk for disk in result['items']
+                                     if not disk_in_cluster(disk))
             )
-            for disk in result['items']
-            if (disk['name'].startswith(_PREFIX) and
-                disk['description'] == self._disk_resource_description())
-        )
+            cluster_volumes = list(
+                BlockDeviceVolume(
+                    blockdevice_id=unicode(disk['name']),
+                    size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+                    attached_to=_extract_attached_to(disk),
+                    dataset_id=_blockdevice_id_to_dataset_id(disk['name'])
+                )
+                for disk in result['items']
+                if disk_in_cluster(disk)
+            )
+            action.add_success_fields(cluster_volumes=cluster_volumes)
+            return cluster_volumes
 
     def compute_instance_id(self):
         """
@@ -496,22 +522,29 @@ class GCEBlockDeviceAPI(object):
         :raises UnattachedVolume: If the volume is not attached to any
             instance.
         """
-        try:
-            # TODO(mewert) verify timeouts and error conditions.
-            disk = self._compute.disks().get(project=self._project,
-                                             zone=self._zone,
-                                             disk=blockdevice_id).execute()
-        except HttpError as e:
-            if e.resp.status == 404:
-                # TODO(mewert) Verify with the rest API this is the only way to
-                # get a 404.
-                raise UnknownVolume(blockdevice_id)
-            else:
-                raise e
-        attached_to = _extract_attached_to(disk)
-        if not attached_to:
-            raise UnattachedVolume(blockdevice_id)
-        return attached_to
+        with start_action(
+                action_type=u"flocker:node:agents:gce:get_attached_to",
+                blockdevice_id=blockdevice_id
+        ) as action:
+            try:
+                # TODO(mewert) verify timeouts and error conditions.
+                disk = self._compute.disks().get(
+                    project=self._project,
+                    zone=self._zone,
+                    disk=blockdevice_id
+                ).execute()
+            except HttpError as e:
+                if e.resp.status == 404:
+                    # TODO(mewert) Verify with the rest API this is the only
+                    # way to get a 404.
+                    raise UnknownVolume(blockdevice_id)
+                else:
+                    raise e
+            attached_to = _extract_attached_to(disk)
+            if not attached_to:
+                raise UnattachedVolume(blockdevice_id)
+            action.add_success_fields(attached_to=attached_to)
+            return attached_to
 
     def detach_volume(self, blockdevice_id):
         attached_to = self._get_attached_to(blockdevice_id)
