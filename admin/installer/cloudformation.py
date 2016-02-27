@@ -72,7 +72,6 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
         with open(path, 'r') as f:
             return f.readlines()
 
-
     def _get_cluster_size():
         """
         Gather desired number of nodes in the cluster from input argument.
@@ -84,7 +83,8 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
             """
             Parse input arguments to the script.
 
-            :returns: an object built from attributes parsed out of command line
+            :returns: an object built from attributes parsed out of command
+                line
             :rtype: Namespace
             """
             parser = argparse.ArgumentParser(
@@ -93,18 +93,22 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
                             '(default: {0} nodes).'.format(MIN_CLUSTER_SIZE))
 
             def _add_parser_argument(parser, short_form_name, long_form_name,
-                                     default_value, argument_type, help_message):
+                                     default_value, argument_type,
+                                     help_message):
                 """
                 Add an input argument to given parser.
 
-                :param argparse.ArgumentParser parser: Target parser for argument.
-                :param unicode short_form_name: Short form flag for the argument.
+                :param argparse.ArgumentParser parser: Target parser for
+                    argument.
+                :param unicode short_form_name: Short form flag for the
+                    argument.
                 :param unicode long_form_name: Long form name of the argument.
                 :param unicode default_value: value produced if the argument is
                                               absent from the command line.
                 :param type argument_type: type to which argument should be
                                            converted.
-                :param unicode help_message: description of what the argument does.
+                :param unicode help_message: description of what the argument
+                    does.
                 """
                 parser.add_argument(short_form_name, long_form_name,
                                     default=default_value,
@@ -115,11 +119,14 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
                                  long_form_name=u'--size',
                                  default_value=MIN_CLUSTER_SIZE,
                                  argument_type=int,
-                                 help_message=u'integer corresponding to desired'
-                                 ' number of nodes in the cluster.'
-                                 ' Supported sizes: min={0} max={1}'.format(
-                                     MIN_CLUSTER_SIZE,
-                                     MAX_CLUSTER_SIZE))
+                                 help_message=(
+                                     u'integer corresponding to desired'
+                                     u' number of nodes in the cluster.'
+                                     u' Supported sizes:'
+                                     u' min={0} max={1}'.format(
+                                         MIN_CLUSTER_SIZE,
+                                         MAX_CLUSTER_SIZE)
+                                 ))
             return parser.parse_args()
         parsed_args = _parse_args()
 
@@ -179,7 +186,8 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
         "VolumeHubToken",
         Description=(
             "Optional: Your Volume Hub token. "
-            "You'll find the token at https://volumehub.clusterhq.com/v1/token."
+            "You'll find the token at "
+            "https://volumehub.clusterhq.com/v1/token."
         ),
         Type="String",
         Default="",
@@ -212,8 +220,6 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
         }
     )
 
-    instances = []
-
     # Select a random AvailabilityZone within given AWS Region.
     zone = Select(0, GetAZs(""))
 
@@ -227,7 +233,9 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
     instance_sg = template.add_resource(
         ec2.SecurityGroup(
             "InstanceSecurityGroup",
-            GroupDescription="Enable ingress access on all protocols and ports.",
+            GroupDescription=(
+                "Enable ingress access on all protocols and ports."
+            ),
             SecurityGroupIngress=[
                 ec2.SecurityGroupRule(
                     IpProtocol=protocol,
@@ -336,7 +344,9 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
             template.add_output([
                 Output(
                     "AgentNode{}IP".format(i),
-                    Description="Public IP of Agent Node for Flocker and Swarm.",
+                    Description=(
+                        "Public IP of Agent Node for Flocker and Swarm."
+                    ),
                     Value=GetAtt(ec2_instance, "PublicIp"),
                 )
             ])
