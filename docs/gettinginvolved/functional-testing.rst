@@ -84,6 +84,30 @@ Now run the following command to set up the environment and run the tests:
    FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE=<aws region> \
    trial --testmodule flocker/node/agents/ebs.py
 
+GCE
+===
+
+The configuration stanza for the GCE backend is currently empty. Instead of
+putting the credentials here, the GCE functional tests assume that they are
+running on an instance that has been started with service account permissions
+to have API access to the Google Cloud services in the same project.
+
+Note that due to common code in the functional tests you still must have the
+following configuration stanza despite it being empty.
+
+.. code:: yaml
+
+   gce: {}
+
+Now run the following command to set up the environment and run the tests:
+
+.. prompt:: bash #
+
+   FLOCKER_FUNCTIONAL_TEST=TRUE \
+   FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$HOME/acceptance.yml \
+   FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=gce \
+   trial flocker.node.agents.functional.test_gce
+
 Rackspace
 =========
 
