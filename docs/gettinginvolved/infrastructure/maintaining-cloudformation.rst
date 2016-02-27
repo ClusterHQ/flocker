@@ -34,7 +34,7 @@ Generate CloudFormation JSON template:
 
 .. prompt:: bash #
 
-   python ./admin/installer/cloudformation.py > /tmp/flocker-cluster.cloudformation.json
+   admin/create-cloudformation-template > /tmp/flocker-cluster.cloudformation.json
 
 Publish template to `InstallerS3Bucket`_ .
 
