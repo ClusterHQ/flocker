@@ -34,13 +34,10 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
-# pylint: disable=relative-import
-from _cloudformation_helper import (
-    MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE, InvalidClusterSizeException
-)
-# pylint: enable=relative-import
-
+MIN_CLUSTER_SIZE = 3
+MAX_CLUSTER_SIZE = 10
 DEFAULT_CLUSTER_SIZE = MIN_CLUSTER_SIZE
+
 NODE_CONFIGURATION_TIMEOUT = u"900"
 AGENT_NODE_NAME_TEMPLATE = u"AgentNode{index}"
 EC2_INSTANCE_NAME_TEMPLATE = u"{stack_name}_{node_type}"
@@ -62,89 +59,88 @@ CLIENT_SETUP = 'setup_client.sh'
 SIGNAL_CONFIG_COMPLETION = 'signal_config_completion.sh'
 
 
+def _validate_cluster_size(size):
+    """
+    Validate that user-input cluster size is supported by Installer.
+
+    :param int size: Desired number of nodes in the cluster.
+    :raises: InvalidClusterSizeException,
+             if input cluster size is unsupported.
+    :returns: Validated cluster size.
+    :rtype: int
+    """
+    try:
+        size = int(size)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            u"Must be an integer. Found {!r}".format(
+                size
+            )
+        )
+
+    if size < MIN_CLUSTER_SIZE or size > MAX_CLUSTER_SIZE:
+        raise argparse.ArgumentTypeError(
+            u"Must be between {} and {}. Found {}.".format(
+                MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE, size
+            )
+        )
+    return size
+
+
+def create_cloudformation_template_options():
+    """
+    :returns: A command line option parser for
+        `admin/create-cloudformation-template`.
+    """
+    parser = argparse.ArgumentParser(
+        description=(
+            u'Create a CloudFormation template '
+            u'for a Flocker cluster used in the '
+            u'Docker, Swarm, Compose installation instructions.'
+        )
+    )
+
+    parser.add_argument(
+        u'-s', u'--size',
+        default=MIN_CLUSTER_SIZE,
+        type=_validate_cluster_size,
+        help=(
+            u'An integer corresponding to desired '
+            u'number of nodes in the cluster. '
+            u'Supported sizes: min={0}, max={1}'
+        ).format(
+            MIN_CLUSTER_SIZE,
+            MAX_CLUSTER_SIZE
+        )
+    )
+    return parser
+
+
 def create_cloudformation_template_main(argv, basepath, toplevel):
-    def _sibling_lines(filename):
-        """
-        Read file content into an output string.
-        """
-        dirname = os.path.dirname(__file__)
-        path = os.path.join(dirname, filename)
-        with open(path, 'r') as f:
-            return f.readlines()
+    """
+    The entry point for `admin/create-cloudformation-template`.
+    """
+    parser = create_cloudformation_template_options()
+    options = parser.parse_args(argv)
 
-    def _get_cluster_size():
-        """
-        Gather desired number of nodes in the cluster from input argument.
+    print_flocker_docker_template(options)
 
-        :returns: Desired cluster size, with a default of ``MIN_CLUSTER_SIZE``
-        :rtype: int
-        """
-        def _parse_args():
-            """
-            Parse input arguments to the script.
 
-            :returns: an object built from attributes parsed out of command
-                line
-            :rtype: Namespace
-            """
-            parser = argparse.ArgumentParser(
-                description='Create CloudFormation template'
-                            ' for cluster of desired size '
-                            '(default: {0} nodes).'.format(MIN_CLUSTER_SIZE))
+def _sibling_lines(filename):
+    """
+    Read file content into an output string.
+    """
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, filename)
+    with open(path, 'r') as f:
+        return f.readlines()
 
-            def _add_parser_argument(parser, short_form_name, long_form_name,
-                                     default_value, argument_type,
-                                     help_message):
-                """
-                Add an input argument to given parser.
 
-                :param argparse.ArgumentParser parser: Target parser for
-                    argument.
-                :param unicode short_form_name: Short form flag for the
-                    argument.
-                :param unicode long_form_name: Long form name of the argument.
-                :param unicode default_value: value produced if the argument is
-                                              absent from the command line.
-                :param type argument_type: type to which argument should be
-                                           converted.
-                :param unicode help_message: description of what the argument
-                    does.
-                """
-                parser.add_argument(short_form_name, long_form_name,
-                                    default=default_value,
-                                    type=argument_type,
-                                    help=help_message)
-                return
-            _add_parser_argument(parser, short_form_name=u'-s',
-                                 long_form_name=u'--size',
-                                 default_value=MIN_CLUSTER_SIZE,
-                                 argument_type=int,
-                                 help_message=(
-                                     u'integer corresponding to desired'
-                                     u' number of nodes in the cluster.'
-                                     u' Supported sizes:'
-                                     u' min={0} max={1}'.format(
-                                         MIN_CLUSTER_SIZE,
-                                         MAX_CLUSTER_SIZE)
-                                 ))
-            return parser.parse_args()
-        parsed_args = _parse_args()
-
-        def _validate_cluster_size(size):
-            """
-            Validate that user-input cluster size is supported by Installer.
-
-            :param int size: Desired number of nodes in the cluster.
-            :raises: InvalidClusterSizeException,
-                     if input cluster size is unsupported.
-            :returns: Validated cluster size.
-            :rtype: int
-            """
-            if size < MIN_CLUSTER_SIZE or size > MAX_CLUSTER_SIZE:
-                raise InvalidClusterSizeException(size)
-            return size
-        return _validate_cluster_size(parsed_args.size)
-
+def print_flocker_docker_template(options):
+    """
+    Print a CloudFormation template for a Flocker + Docker + Docker Swarm
+    cluster.
+    """
     # Base JSON template.
     template = Template()
 
@@ -257,7 +253,7 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
         's3_bucket="', Ref(s3bucket), '"\n',
         'stack_name="', Ref("AWS::StackName"), '"\n',
         'volumehub_token="', Ref(volumehub_token), '"\n',
-        'node_count="{}"\n'.format(_get_cluster_size()),
+        'node_count="{}"\n'.format(options.size),
         'apt-get update\n',
     ]
 
@@ -268,7 +264,7 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
     # Gather WaitConditions
     wait_condition_names = []
 
-    for i in range(_get_cluster_size()):
+    for i in range(options.size):
         if i == 0:
             node_name = CONTROL_NODE_NAME
         else:
