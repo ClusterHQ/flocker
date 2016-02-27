@@ -15,14 +15,14 @@ You will launch four EC2 instances in your AWS account, as illustrated below:
 
 .. raw:: html
 
-        <div style="width:80%; margin-left:auto; margin-right:auto; margin-bottom:2em;">
+	<div style="width:80%; margin-left:auto; margin-right:auto; margin-bottom:2em;">
 
 .. figure:: ../images/cloudformation.png
     :alt: A diagram illustrating a cluster of four AWS EC2 instances running Flocker with Docker Swarm.
 
 .. raw:: html
 
-        </div>
+	</div>
 
 Follow the steps below to create your cluster.
 Once it's up and running we'll guide you through a tutorial to deploy a sample app.
@@ -31,56 +31,48 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 
 .. raw:: html
 
-        <div class="step-stages step-stages--3up">
-                <div class="step-stages__excerpt">
-                        <h2 class="step-stages__heading">1</h2>
-                        <h3 class="step-stages__subheading">Create an AWS Key Pair</h3>
-                        <p>The AWS Key Pair allows you to login to your AWS cluster securely.</p>
-                </div>
-                <div class="step-stages__step first">
-                        <img src="../_images/01-keys-menu.png" alt="AWS key pairs section in console"/>
+	<div class="step-stages step-stages--3up">
+		<div class="step-stages__excerpt">
+			<h2 class="step-stages__heading">1</h2>
+			<h3 class="step-stages__subheading">Create an AWS Key Pair</h3>
+			<p>The AWS Key Pair allows you to login to your AWS cluster securely.</p>
+		</div>
+		<div class="step-stages__step first">
+			<img src="../_images/01-keys-menu.png" alt="AWS key pairs section in console"/>
             <span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#KeyPairs:sort=keyName" target="_blank">Log in to the AWS console</a> and select your region. This should be the same region where you will create your cluster.</span>
-                </div>
-                <div class="step-stages__step">
-                        <img src="../_images/02-create-key.png" alt="Creating a new AWS key pair"/>
+		</div>
+		<div class="step-stages__step">
+			<img src="../_images/02-create-key.png" alt="Creating a new AWS key pair"/>
             <span>Click "Create Key Pair". Give your key pair a meaningful name, like <strong>flocker-test</strong>. You'll need this later, so <strong>make a note of it</strong>.</span>
-                </div>
-                <div class="step-stages__step">
-                        <img src="../_images/03-pem-downloaded.png" alt="A downloaded pem file"/>
+		</div>
+		<div class="step-stages__step">
+			<img src="../_images/03-pem-downloaded.png" alt="A downloaded pem file"/>
             <span>The private key (.pem file) will be downloaded onto your computer.</span>
-                </div>
-        </div>
+		</div>
+	</div>
 
-        <div class="step-stages step-stages--3up">
-                <div class="step-stages__excerpt">
-                        <h2 class="step-stages__heading">2</h2>
-                        <h3 class="step-stages__subheading">Create a Flocker cluster</h3>
-                        <p>
+	<div class="step-stages step-stages--3up">
+		<div class="step-stages__excerpt">
+			<h2 class="step-stages__heading">2</h2>
+			<h3 class="step-stages__subheading">Create a Flocker cluster</h3>
+			<p>
             <br />
-
-                        <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.|flocker-version|.json" class="button" target="_blank" align="middle">Start CloudFormation Configuration Process</a>
-
-
-`Start CloudFormation Configuration Process <https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.|flocker-version|.json>`_
-
-The Flocker version is |flocker-version|
-
-.. raw:: html
+			<a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https:%2F%2Fs3.amazonaws.com%2Finstaller.downloads.clusterhq.com%2Fflocker-cluster.cloudformation.json" class="button" target="_blank" align="middle">Start CloudFormation Configuration Process</a>
             <br />
-                        This button will open CloudFormation in a new window.</p>
-                </div>
+			This button will open CloudFormation in a new window.</p>
+		</div>
 
-                <div class="step-stages__step first">
+		<div class="step-stages__step first">
 
             <img src="../_images/10-cloudformation-firstpage.png" alt="Initial CloudFormation page" />
-                        <span>Click "Next" to proceed past the first page.</span>
+			<span>Click "Next" to proceed past the first page.</span>
 
 
-                </div>
-                <div class="step-stages__step">
+		</div>
+		<div class="step-stages__step">
 
-                        <img src="../_images/11-cloudformation-stackname.png" alt="Specifying the stack name"/>
-                        <span>
+			<img src="../_images/11-cloudformation-stackname.png" alt="Specifying the stack name"/>
+			<span>
             <ul>
                 <li>
                     Enter a <code>Stack name</code>. This can be any descriptive name.
@@ -97,10 +89,10 @@ The Flocker version is |flocker-version|
 
             </div>
 
-                </div>
-                <div class="step-stages__step">
+		</div>
+		<div class="step-stages__step">
 
-                    <img src="../_images/12-cloudformation-settings.png" alt="Optionally fill in Volume Hub settings"/>
+		    <img src="../_images/12-cloudformation-settings.png" alt="Optionally fill in Volume Hub settings"/>
             <span>
             <ul>
             <li>
@@ -123,10 +115,10 @@ The Flocker version is |flocker-version|
              </ul>
              </span>
 
-                </div>
+		</div>
         <div style="clear:both;"></div>
-                <div class="step-stages__step first" style="margin-left:auto; margin-right:auto; float:none; display:block;">
-                        <img src="../_images/13-cloudformation-create.png" alt="Click create"/>
+		<div class="step-stages__step first" style="margin-left:auto; margin-right:auto; float:none; display:block;">
+			<img src="../_images/13-cloudformation-create.png" alt="Click create"/>
             <span>
                 <ul>
                     <li>
@@ -142,32 +134,32 @@ The Flocker version is |flocker-version|
             </span>
         </div>
 
-        </div>
+	</div>
 
-        <div class="step-stages step-stages--3up">
-                <div class="step-stages__excerpt">
-                        <h2 class="step-stages__heading">Wait for the cluster to boot</h2>
-                        <p>It will take 5-10 minutes for the cluster servers to boot and to configure the Flocker and Docker Swarm services on each server.</p>
-                </div>
-                <div class="step-stages__step first">
-                        <img src="../_images/21-refresh.png" alt="Refresh button on CloudFormation console"/>
-                        <span>The stack may not appear immediately. Click the "Refresh" button until the new stack appears.</span>
-                </div>
-                <div class="step-stages__step">
-                        <img src="../_images/22-create-in-progress.png" alt="Stack create in progress message"/>
-                        <span>Once the stack appears its status will be "CREATE_IN_PROGRESS".</span>
-                </div>
-                <div class="step-stages__step">
-                        <img src="../_images/23-create-complete.png" alt="Stack create create complete message"/>
-                        <span>After 5-10 minutes the cluster will be ready for use and its status will be "CREATE_COMPLETE".</span>
-                        <span>The cluster is now ready.</span>
-                </div>
-        </div>
+	<div class="step-stages step-stages--3up">
+		<div class="step-stages__excerpt">
+			<h2 class="step-stages__heading">Wait for the cluster to boot</h2>
+			<p>It will take 5-10 minutes for the cluster servers to boot and to configure the Flocker and Docker Swarm services on each server.</p>
+		</div>
+		<div class="step-stages__step first">
+			<img src="../_images/21-refresh.png" alt="Refresh button on CloudFormation console"/>
+			<span>The stack may not appear immediately. Click the "Refresh" button until the new stack appears.</span>
+		</div>
+		<div class="step-stages__step">
+			<img src="../_images/22-create-in-progress.png" alt="Stack create in progress message"/>
+			<span>Once the stack appears its status will be "CREATE_IN_PROGRESS".</span>
+		</div>
+		<div class="step-stages__step">
+			<img src="../_images/23-create-complete.png" alt="Stack create create complete message"/>
+			<span>After 5-10 minutes the cluster will be ready for use and its status will be "CREATE_COMPLETE".</span>
+			<span>The cluster is now ready.</span>
+		</div>
+	</div>
 
-        <div class="step-stages step-stages--3up">
-                <div class="step-stages__excerpt">
-                        <h2 class="step-stages__heading">3</h2>
-                        <h3 class="step-stages__subheading">Verify your installation</h3>
+	<div class="step-stages step-stages--3up">
+		<div class="step-stages__excerpt">
+			<h2 class="step-stages__heading">3</h2>
+			<h3 class="step-stages__subheading">Verify your installation</h3>
             <div style="text-align:left;">
                 <p>Click on the "Outputs" tab for your stack. The values displayed on this tab will be used for verifying your installation and also any tutorials you go through.</p>
                 <img src="../_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation" style="margin: 2em 0;"/>
@@ -202,15 +194,15 @@ The Flocker version is |flocker-version|
                 <p>It should look like this:</p>
                 <img src="../_images/32-volume-hub-verification.png" alt="Cluster appears in Volume Hub" />
             </div>
-                </div>
-        </div>
+		</div>
+	</div>
 
-        <div class="step-stages step-stages--3up">
-                <div class="step-stages__excerpt">
-                        <h2 class="step-stages__heading">That's it!</h2>
-                        <p>Your cluster is now ready. Now try a tutorial.</p>
-                        <a href="tutorial-swarm-compose.html" class="button">Deploy an app on your Swarm/Flocker cluster</a>
-                </div>
+	<div class="step-stages step-stages--3up">
+		<div class="step-stages__excerpt">
+			<h2 class="step-stages__heading">That's it!</h2>
+			<p>Your cluster is now ready. Now try a tutorial.</p>
+			<a href="tutorial-swarm-compose.html" class="button">Deploy an app on your Swarm/Flocker cluster</a>
+		</div>
     </div>
 
 .. raw:: html
