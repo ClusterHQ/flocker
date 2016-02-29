@@ -414,7 +414,7 @@ class AgentServiceGetAPITests(TestCase):
                     name=self.agent_service.backend_name,
                     needs_reactor=False, needs_cluster_id=False,
                     api_factory=API, deployer_type=DeployerType.p2p,
-                    required_config=set(["region", "api_key", ]),
+                    required_config={u"region", u"api_key"},
                 ),
             ],
         )
