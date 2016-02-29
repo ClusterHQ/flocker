@@ -1,3 +1,9 @@
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
+"""
+Dataset backend descriptions.
+"""
+
 from pyrsistent import PClass, field, pset_field
 
 from twisted.python.filepath import FilePath

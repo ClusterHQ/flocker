@@ -1,3 +1,9 @@
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
+"""
+Tools for loading third-party plugins.
+"""
+
 from characteristic import attributes
 from pyrsistent import PClass, field, PVector, pvector
 from twisted.python.reflect import namedAny
