@@ -23,17 +23,14 @@ class PluginNotFound(Exception):
         )
 
 
-@attributes(["plugin_name"])
-class InvalidPlugin(Exception):
+class InvalidPlugin(Exception, object):
     """
     A module with the given plugin name was found, but doesn't
     provide a valid flocker plugin.
-
-    :attr str plugin_name: Name of the plugin looked for.
     """
 
 
-@attributes(["module_attribute"])
+@attributes(["plugin_name", "module_attribute"])
 class MissingPluginAttribute(InvalidPlugin):
     """
     The named module doesn't have the attribute expected of plugins.
@@ -45,14 +42,12 @@ class MissingPluginAttribute(InvalidPlugin):
             "`{plugin_name!s}.{module_attribute!s}` is not defined."
             .format(
                 plugin_name=self.plugin_name,
-                actual_type=self.actual_type,
-                plugin_type=self.plugin_type,
                 module_attribute=self.module_attribute,
             )
         )
 
 
-@attributes(["plugin_type", "actual_type", "module_attribute"])
+@attributes(["plugin_name", "plugin_type", "actual_type", "module_attribute"])
 class InvalidPluginType(InvalidPlugin):
     """
     A plugin with the given name was not found.
