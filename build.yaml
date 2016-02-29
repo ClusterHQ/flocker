@@ -536,7 +536,7 @@ common_cli:
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_benchmarking: &run_benchmarking |
-    ${venv}/bin/python benchmark/benchmark #\
+    benchmark/benchmark #\
     # --cluster=${BENCHMARK_CLUSTER} \
     # --scenario=${BENCHMARK_SCENARIO} \
     # --operation=${BENCHMARK_OPERATION} \
