@@ -23,8 +23,8 @@ from zope.interface import implementer, Interface
 from twisted.python.filepath import FilePath
 
 from .blockdevice import (
-    IBlockDeviceAPI, BlockDeviceVolume, AlreadyAttachedVolume, UnknownVolume,
-    UnattachedVolume
+    IBlockDeviceAPI, ICloudAPI, BlockDeviceVolume, AlreadyAttachedVolume,
+    UnknownVolume, UnattachedVolume
 )
 from ...common import poll_until
 
@@ -295,6 +295,7 @@ def _extract_attached_to(disk):
 
 
 @implementer(IBlockDeviceAPI)
+@implementer(ICloudAPI)
 class GCEBlockDeviceAPI(object):
     """
     A GCE Persistent Disk (PD) implementation of ``IBlockDeviceAPI`` which
@@ -364,6 +365,7 @@ class GCEBlockDeviceAPI(object):
         self._project = project
         self._zone = zone
         self._cluster_id = cluster_id
+        # None signifies to use the default page size.
         self._page_size = None
 
     def _disk_resource_description(self):
@@ -375,7 +377,7 @@ class GCEBlockDeviceAPI(object):
         """
         return u"flocker-v1-cluster-id: " + unicode(self._cluster_id)
 
-    def _do_blocking_operation(self, function, **kwargs):
+    def _do_blocking_operation(self, function, timeout_sec=60, **kwargs):
         """
         Perform a GCE operation, blocking until the operation completes.
 
@@ -399,6 +401,8 @@ class GCEBlockDeviceAPI(object):
         :param function: Callable that takes keyword arguments project and
             zone, and returns an executable that results in a GCE operation
             resource dict as described above.
+        :param int timeout_sec: The maximum amount of time to wait in seconds
+            for the operation to complete.
         :param kwargs: Additional keyword arguments to pass to function.
 
         :returns dict: A dict representing the concluded GCE operation
@@ -597,3 +601,42 @@ class GCEBlockDeviceAPI(object):
             else:
                 raise
         return None
+
+    def list_live_nodes(self):
+        page_token = None
+        done = False
+        nodes = []
+        while not done:
+            result = self._compute.instances().list(
+                project=self._project,
+                zone=self._zone,
+                maxResults=self._page_size,
+                pageToken=page_token
+            ).execute()
+            page_token = result.get('nextPageToken')
+            nodes.extend(result['items'])
+            done = not page_token
+        return set(node["name"] for node in nodes
+                   if node["status"] == "RUNNING")
+
+    def start_node(self, node_id):
+        self._do_blocking_operation(
+            self._compute.instances().start,
+            timeout_sec=5*60,
+            instance=node_id
+        )
+
+    def _stop_node(self, node_id):
+        """
+        Stops a node. This shuts the node down, but leaves the boot disk
+        available so that it can be started again using ``start_node``.
+
+        Note this is only used in the functional tests of start_node.
+
+        :param unicode node_id: The compute_instance_id of the node to stop.
+        """
+        self._do_blocking_operation(
+            self._compute.instances().stop,
+            timeout_sec=5*60,
+            instance=node_id
+        )

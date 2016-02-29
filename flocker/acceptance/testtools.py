@@ -50,6 +50,7 @@ from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.script import get_backend, get_api
 from ..node import dockerpy_client
+from ..node.agents.blockdevice import _SyncToThreadedAsyncAPIAdapter
 from ..provision import reinstall_flocker_from_package_source
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
@@ -210,7 +211,7 @@ def get_dataset_backend(test_case):
     return DatasetBackend.lookupByName(backend)
 
 
-def get_backend_api(test_case, cluster_id):
+def get_backend_api(cluster_id):
     """
     Get an appropriate BackendAPI for the specified dataset backend.
 
@@ -218,8 +219,6 @@ def get_backend_api(test_case, cluster_id):
     APIs in tests. For many dataset backends this does not make sense, but it
     provides a convenient means to interact with cloud backends such as EBS or
     cinder.
-
-    :param test_case: The test case that is being run.
 
     :param cluster_id: The unique cluster_id, used for backend APIs that
         require this in order to be constructed.
@@ -237,6 +236,11 @@ def get_backend_api(test_case, cluster_id):
         raise SkipTest(
             "Set acceptance testing volume backend using the " +
             "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
+    if backend_name == 'loopback':
+        # XXX If we ever want to setup loopback acceptance tests running on the
+        # same node as the tests themselves, we will want to adjust this.
+        raise SkipTest(
+            "The loopback backend API can't be used remotely.")
     backend_config_filepath = FilePath(backend_config_filename)
     full_backend_config = yaml.safe_load(
         backend_config_filepath.getContent())
@@ -902,11 +906,39 @@ class Cluster(PClass):
                     Exception("Timed out cleaning up leases"),
                 )
 
+        def cleanup_volumes():
+            try:
+                api = get_backend_api(self.cluster_uuid)
+            except SkipTest:
+                # Can't clean up volumes if we don't have a backend api.
+                return
+
+            async_api = _SyncToThreadedAsyncAPIAdapter.from_api(api)
+
+            def detach_and_destroy_volume(volume):
+                d = async_api.detach_volume(volume.blockdevice_id)
+                d.addBoth(
+                    lambda _: async_api.destroy_volume(volume.blockdevice_id)
+                )
+                return d
+
+            cleaning_volumes = api_clean_state(
+                u"volumes",
+                async_api.list_volumes,
+                async_api.list_volumes,
+                detach_and_destroy_volume,
+            )
+            return timeout(
+                reactor, cleaning_volumes, 60,
+                Exception("Timed out cleaning up volumes"),
+            )
+
         d = DeferredContext(cleanup_leases())
         d.addCallback(cleanup_flocker_containers)
         if remove_foreign_containers:
             d.addCallback(cleanup_all_containers)
         d.addCallback(cleanup_datasets)
+        d.addCallback(lambda _: cleanup_volumes())
         return d.result
 
     def get_file(self, node, path):
@@ -1067,8 +1099,7 @@ def require_cluster(num_nodes, required_backend=None,
                         'This test requires backend type {} but is being run '
                         'on {}.'.format(required_backend.name,
                                         backend_type.name))
-                kwargs['backend'] = get_backend_api(test_case,
-                                                    cluster.cluster_uuid)
+                kwargs['backend'] = get_backend_api(cluster.cluster_uuid)
             return test_method(test_case, *args, **kwargs)
 
         @wraps(test_method)
