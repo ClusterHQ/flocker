@@ -17,6 +17,9 @@ from ..plugin import (
 
 
 class DummyDescription(PClass):
+    """
+    Dummy plugin type."
+    """
     name = field(unicode, mandatory=True)
 
 
@@ -52,6 +55,9 @@ DUMMY_LOADER = PluginLoader(
 
 
 class PluginLoaderTests(TestCase):
+    """
+    Tests for ``PluginLoader``.
+    """
 
     def test_builtin_backend(self):
         """
