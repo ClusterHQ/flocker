@@ -536,7 +536,7 @@ common_cli:
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_benchmarking: &run_benchmarking |
-    benchmark/benchmark #\
+    benchmark/benchmark --config=benchmark/benchmark.yml \
     # --cluster=${BENCHMARK_CLUSTER} \
     # --scenario=${BENCHMARK_SCENARIO} \
     # --operation=${BENCHMARK_OPERATION} \
