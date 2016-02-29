@@ -47,9 +47,10 @@ VOLUME_DETATCH_TIMEOUT = 120
 
 
 class GCEVolumeException(Exception):
-    pass
-
-class GCEVolumeException(Exception):
+    """
+    Exception that'll be raised when we perform a volume operation
+    that's illegal in GCE.
+    """
     pass
 
 
@@ -183,6 +184,8 @@ def wait_for_operation(compute, operation, timeout_steps, sleep=None):
         This can be either a zone or a global operation.
     :param timeout_steps: Iterable of times in seconds to wait until timing out
         the operation.
+    :param sleep: a callable taking a number of seconds to sleep while
+        polling. Defaults to `time.sleep`
 
     :returns dict: A dict representing the concluded GCE operation
         resource or `None` if the operation times out.
@@ -195,7 +198,7 @@ def wait_for_operation(compute, operation, timeout_steps, sleep=None):
             return latest_operation
         return None
 
-    return poll_until(finished_operation_result, timeout_steps)
+    return poll_until(finished_operation_result, timeout_steps, sleep)
 
 
 def get_metadata_path(path):
@@ -284,6 +287,9 @@ def _extract_attached_to(disk):
     users = disk.get('users', [])
     if not users:
         return None
+    if len(users) > 1:
+        raise GCEVolumeException(
+            "Volume is attached to more than one instance:{}".format(disk))
     return unicode(users[0].split('/')[-1])
 
 
@@ -580,12 +586,13 @@ class GCEBlockDeviceAPI(object):
                 timeout=VOLUME_DELETE_TIMEOUT,
             )
         except HttpError as e:
+            import pdb; pdb.set_trace()
+
             if e.resp.status == 404:
                 raise UnknownVolume(blockdevice_id)
             elif e.resp.status == 400:
                 raise GCEVolumeException(
-                    "Cannot destroy volume {}. It is attached to an "
-                    "instance.".format(blockdevice_id)
+                    "Cannot destroy volume {}: {}".format(blockdevice_id, str(e))
                 )
             else:
                 raise
