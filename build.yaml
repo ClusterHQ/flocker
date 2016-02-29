@@ -543,6 +543,11 @@ common_cli:
     # --metric=${BENCHMARK_METRIC}
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
+  teardown_benchmarking_cluster: &teardown_benchmarking_cluster |
+    # Terminate instances that were used for benchmarking
+    ${venv}/bin/python admin/cleanup_cloud_resources \
+    --node-name-prefix=benchmarking-jenkins
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   run_client_tests: &run_client_tests |
     # We gather the return code but make sure we come out of these tests with 0
