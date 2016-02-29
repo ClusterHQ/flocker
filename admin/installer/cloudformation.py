@@ -1,3 +1,5 @@
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
 """
 Troposphere script to generate an AWS CloudFormation JSON template.
 
