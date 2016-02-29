@@ -1691,6 +1691,7 @@ job_type:
                    *setup_benchmarking_cluster,
                    *setup_benchmarking_containers,
                    *run_benchmarking,
+                   *teardown_benchmarking_cluster,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
@@ -1721,6 +1722,7 @@ job_type:
                    *setup_benchmarking_cluster,
                    *setup_benchmarking_containers,
                    *run_benchmarking,
+                   *teardown_benchmarking_cluster,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
           }
