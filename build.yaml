@@ -546,6 +546,7 @@ common_cli:
   teardown_benchmarking_cluster: &teardown_benchmarking_cluster |
     # Terminate instances that were used for benchmarking
     ${venv}/bin/python admin/cleanup_cloud_resources \
+    --config-file=/tmp/acceptance.yaml \
     --node-name-prefix=benchmarking-jenkins
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
