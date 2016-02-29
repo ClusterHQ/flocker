@@ -201,24 +201,28 @@ def flocker_docker_template(cluster_size):
     # Please update the version fields above when new AMIs are generated.
     template.add_mapping(
         'RegionMap', {
-            'us-east-1':      {"FlockerAMI": "ami-d81b3eb2",
-                               "ClientAMI": "ami-c61e3bac"},
-            'us-west-1':      {"FlockerAMI": "ami-2e10644e",
-                               "ClientAMI": "ami-aa1064ca"},
-            'us-west-2':      {"FlockerAMI": "ami-51879d30",
-                               "ClientAMI": "ami-8dbaa0ec"},
-            'eu-west-1':      {"FlockerAMI": "ami-6358f310",
-                               "ClientAMI": "ami-ef5bf09c"},
-            'eu-central-1':   {"FlockerAMI": "ami-32574e5e",
-                               "ClientAMI": "ami-6c544d00"},
-            'sa-east-1':      {"FlockerAMI": "ami-e4b73688",
-                               "ClientAMI": "ami-fdb43591"},
-            'ap-northeast-1': {"FlockerAMI": "ami-e71e2289",
-                               "ClientAMI": "ami-1a211d74"},
-            'ap-southeast-1': {"FlockerAMI": "ami-1bc10d78",
-                               "ClientAMI": "ami-cbc20ea8"},
-            'ap-southeast-2': {"FlockerAMI": "ami-c00b2ea3",
-                               "ClientAMI": "ami-c20b2ea1"},
+            'client': {
+                "us-east-1": "ami-a884afc2",
+                "ap-northeast-1": "ami-53ccc83d",
+                "eu-west-1": "ami-948636e7",
+                "ap-southeast-1": "ami-d6fe30b5",
+                "ap-southeast-2": "ami-40220523",
+                "us-west-2": "ami-446a8b24",
+                "us-west-1": "ami-e59deb85",
+                "eu-central-1": "ami-9b0a11f7",
+                "sa-east-1": "ami-28e06344"
+            },
+            'node': {
+                "us-east-1": "ami-7c99b216",
+                "ap-northeast-1": "ami-7ecdc910",
+                "eu-west-1": "ami-b18737c2",
+                "ap-southeast-1": "ami-92e02ef1",
+                "ap-southeast-2": "ami-9f2007fc",
+                "us-west-2": "ami-166b8a76",
+                "us-west-1": "ami-789aec18",
+                "eu-central-1": "ami-210b104d",
+                "sa-east-1": "ami-efe16283"
+            }
         }
     )
 
@@ -279,7 +283,7 @@ def flocker_docker_template(cluster_size):
         # Create an EC2 instance for the {Agent, Control} Node.
         ec2_instance = ec2.Instance(
             node_name,
-            ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "FlockerAMI"),
+            ImageId=FindInMap("RegionMap", "node", Ref("AWS::Region")),
             InstanceType="m3.large",
             KeyName=Ref(keyname_param),
             SecurityGroups=[Ref(instance_sg)],
@@ -362,7 +366,7 @@ def flocker_docker_template(cluster_size):
     # Client Node creation.
     client_instance = ec2.Instance(
         CLIENT_NODE_NAME,
-        ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "ClientAMI"),
+        ImageId=FindInMap("RegionMap", "client", Ref("AWS::Region")),
         InstanceType="m3.medium",
         KeyName=Ref(keyname_param),
         SecurityGroups=[Ref(instance_sg)],
