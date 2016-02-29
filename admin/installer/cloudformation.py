@@ -103,7 +103,7 @@ def create_cloudformation_template_options():
     )
 
     parser.add_argument(
-        u'-s', u'--size',
+        u'--cluster-size',
         default=MIN_CLUSTER_SIZE,
         type=_validate_cluster_size,
         help=(
@@ -125,7 +125,9 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
     parser = create_cloudformation_template_options()
     options = parser.parse_args(argv)
 
-    print_flocker_docker_template(options)
+    print flocker_docker_template(
+        cluster_size=options.cluster_size
+    )
 
 
 def _sibling_lines(filename):
@@ -138,10 +140,12 @@ def _sibling_lines(filename):
         return f.readlines()
 
 
-def print_flocker_docker_template(options):
+def flocker_docker_template(cluster_size):
     """
-    Print a CloudFormation template for a Flocker + Docker + Docker Swarm
-    cluster.
+    :param int cluster_size: The number of nodes to create in the Flocker
+        cluster (including control service node)
+    :returns: a CloudFormation template for a Flocker + Docker + Docker Swarm
+        cluster.
     """
     # Base JSON template.
     template = Template()
@@ -255,7 +259,7 @@ def print_flocker_docker_template(options):
         's3_bucket="', Ref(s3bucket), '"\n',
         'stack_name="', Ref("AWS::StackName"), '"\n',
         'volumehub_token="', Ref(volumehub_token), '"\n',
-        'node_count="{}"\n'.format(options.size),
+        'node_count="{}"\n'.format(cluster_size),
         'apt-get update\n',
     ]
 
@@ -266,7 +270,7 @@ def print_flocker_docker_template(options):
     # Gather WaitConditions
     wait_condition_names = []
 
-    for i in range(options.size):
+    for i in range(cluster_size):
         if i == 0:
             node_name = CONTROL_NODE_NAME
         else:
@@ -409,4 +413,4 @@ def print_flocker_docker_template(options):
         Value="export DOCKER_TLS_VERIFY=1",
         Description="Client config: Enable TLS client for Swarm."
     ))
-    print(template.to_json())
+    return template.to_json()
