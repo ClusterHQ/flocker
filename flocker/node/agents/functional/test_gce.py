@@ -165,7 +165,6 @@ class GCEBlockDeviceAPITests(TestCase):
                          list(x.dataset_id
                               for x in gce_block_device_api_2.list_volumes()))
 
-
     def test_create_duplicate_dataset_ids(self):
         """
         Two :class:`GCEBlockDeviceAPI` instances can be run with different

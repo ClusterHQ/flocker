@@ -293,7 +293,6 @@ def _extract_attached_to(disk):
     return unicode(users[0].split('/')[-1])
 
 
-
 @implementer(IBlockDeviceAPI)
 @implementer(ICloudAPI)
 class GCEBlockDeviceAPI(object):
@@ -503,7 +502,6 @@ class GCEBlockDeviceAPI(object):
             dataset_id=dataset_id,
         )
 
-
     def attach_volume(self, blockdevice_id, attach_to):
         config = dict(
             deviceName=blockdevice_id,
@@ -590,13 +588,13 @@ class GCEBlockDeviceAPI(object):
                 timeout=VOLUME_DELETE_TIMEOUT,
             )
         except HttpError as e:
-            import pdb; pdb.set_trace()
-
             if e.resp.status == 404:
                 raise UnknownVolume(blockdevice_id)
             elif e.resp.status == 400:
                 raise GCEVolumeException(
-                    "Cannot destroy volume {}: {}".format(blockdevice_id, str(e))
+                    "Cannot destroy volume {}: {}".format(
+                        blockdevice_id, str(e)
+                    )
                 )
             else:
                 raise
