@@ -23,17 +23,44 @@ class PluginNotFound(Exception):
         )
 
 
-@attributes(["plugin_name", "plugin_type", "actual_type", "module_attribute"])
+@attributes(["plugin_name"])
 class InvalidPlugin(Exception):
     """
-    A plugin with the given name was not found.
+    A module with the given plugin name was found, but doesn't
+    provide a valid flocker plugin.
 
     :attr str plugin_name: Name of the plugin looked for.
+    """
+
+
+@attributes(["module_attribute"])
+class MissingPluginAttribute(InvalidPlugin):
+    """
+    The named module doesn't have the attribute expected of plugins.
     """
     def __str__(self):
         return (
             "The 3rd party plugin '{plugin_name!s}' does not "
-            "correspond to the expected interface.\n"
+            "correspond to the expected interface. "
+            "`{plugin_name!s}.{module_attribute!s}` is not defined."
+            .format(
+                plugin_name=self.plugin_name,
+                actual_type=self.actual_type,
+                plugin_type=self.plugin_type,
+                module_attribute=self.module_attribute,
+            )
+        )
+
+
+@attributes(["plugin_type", "actual_type", "module_attribute"])
+class InvalidPluginType(InvalidPlugin):
+    """
+    A plugin with the given name was not found.
+    """
+    def __str__(self):
+        return (
+            "The 3rd party plugin '{plugin_name!s}' does not "
+            "correspond to the expected interface. "
             "`{plugin_name!s}.{module_attribute!s}` is of "
             "type `{actual_type.__name__}`, not `{plugin_type.__name__}`."
             .format(
@@ -46,6 +73,12 @@ class InvalidPlugin(Exception):
 
 
 class PluginLoader(PClass):
+    """
+    :ivar PVector builtin_plugins: The plugins shipped with flocker.
+    :ivar str module_attribute: The module attribute that third-party plugins
+        should declare.
+    :ivar type plugin_type: The type describing a plugin.
+    """
     builtin_plugins = field(PVector, mandatory=True, factory=pvector)
     module_attribute = field(str, mandatory=True)
     plugin_type = field(type, mandatory=True)
@@ -70,24 +103,34 @@ class PluginLoader(PClass):
         ``backend_name``. If not found then attempt is made to load it as
         plugin.
 
-        :param backend_name: The name of the backend.
+        :param plugin_name: The name of the backend.
         :param backends: Collection of `BackendDescription`` instances.
 
-        :raise PluginNotFound: If ``backend_name`` doesn't match any
-            known backend.
-        :return: The matching ``BackendDescription``.
+        :raise PluginNotFound: If ``plugin_name`` doesn't match any
+            known plugin.
+        :raise InvalidPlugin: If ``plugin_name`` names a module that
+            doesn't satisfy the plugin interface.
+        :return: The matching ``plugin_type`` instance.
         """
         for builtin in self.builtin_plugins:
             if builtin.name == plugin_name:
                 return builtin
 
         try:
-            plugin = getattr(namedAny(plugin_name), self.module_attribute)
+            plugin_module = namedAny(plugin_name)
         except (AttributeError, ValueError):
             raise PluginNotFound(plugin_name=plugin_name)
 
+        try:
+            plugin = getattr(plugin_module, self.module_attribute)
+        except AttributeError:
+            raise MissingPluginAttribute(
+                plugin_name=plugin_name,
+                module_attribute=self.module_attribute,
+            )
+
         if not isinstance(plugin, self.plugin_type):
-            raise InvalidPlugin(
+            raise InvalidPluginType(
                 plugin_name=plugin_name,
                 plugin_type=self.plugin_type,
                 actual_type=type(plugin),
