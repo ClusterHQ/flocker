@@ -482,7 +482,7 @@ class AgentService(PClass):
         :raise ValueError: If ``backend_name`` doesn't match any known backend.
         :return: The matching ``BackendDescription``.
         """
-        return self.backends.get_plugin(self.backend_name)
+        return self.backends.get(self.backend_name)
 
     # Needs tests: FLOC-1964.
     def get_tls_context(self):

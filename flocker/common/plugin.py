@@ -97,7 +97,7 @@ class PluginLoader(PClass):
 
         return (True, "")
 
-    def get_plugin(self, plugin_name):
+    def get(self, plugin_name):
         """
         Find the backend in ``backends`` that matches the one named by
         ``backend_name``. If not found then attempt is made to load it as
