@@ -34,6 +34,7 @@ from ..gce import get_machine_zone, get_machine_project, GCEDiskTypes
 from ....provision._gce import GCEInstanceBuilder
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
+    detach_destroy_volumes,
 )
 from ..test.blockdevicefactory import (
     ProviderType, get_blockdeviceapi_with_cleanup,
@@ -111,39 +112,35 @@ class GCEBlockDeviceAPIInterfaceTests(
         # the hack.
         pass
 
-    def test_create_volume_gold_profile(self):
-        self._assert_create_volume_with_correct_profile(
-            MandatoryProfiles.GOLD, GCEDiskTypes.SSD)
 
-    def test_create_volume_silver_profile(self):
-        self._assert_create_volume_with_correct_profile(
-            MandatoryProfiles.SILVER, GCEDiskTypes.SSD)
+class GCEProfiledBlockDeviceApiTests(
+        make_iprofiledblockdeviceapi_tests(
+            profiled_blockdevice_api_factory=gceblockdeviceapi_for_test,
+            dataset_size=get_minimum_allocatable_size())):
 
-    def test_create_volume_bronze_profile(self):
-        self._assert_create_volume_with_correct_profile(
-            MandatoryProfiles.BRONZE, GCEDiskTypes.STANDARD)
-
-    def _assert_create_volume_with_correct_profile(self,
-                                                   profile,
-                                                   expected_disk_type):
+    def test_profile_respected(self):
         """
-        Ensure that creating a volume with the requested attributes
-        actually creates the correct type of volume
-
-        :param MandatoryProfile profile: Name of the storage profile to
-            use when creating the volume.
-        :param GCEDiskType expected_disk_type: The type of disk that
-            we expect to be created.
+        Override base class which verifies that errors are not raised when
+        constructing mandatory profiles but also add a check that we
+        have created the correct volume type for each profile.
         """
-        new_volume = self.api.create_volume_with_profile(
-            dataset_id=uuid4(),
-            size=get_minimum_allocatable_size(),
-            profile_name=profile.value
-        )
-        disk = self.api._get_gce_volume(new_volume.blockdevice_id)
-        actual_disk_type = disk['type']
-        actual_disk_type = actual_disk_type.split('/')[-1]
-        self.assertEqual(expected_disk_type.value, actual_disk_type)
+        for profile in (c.value for c in MandatoryProfiles.iterconstants()):
+            dataset_id = uuid4()
+            self.addCleanup(detach_destroy_volumes, self.api)
+            new_volume = self.api.create_volume_with_profile(
+                dataset_id=dataset_id,
+                size=self.dataset_size,
+                profile_name=profile
+            )
+            if profile in (MandatoryProfiles.GOLD, MandatoryProfiles.SILVER):
+                expected_disk_type = GCEDiskTypes.SSD
+            else:
+                GCEDiskTypes.STANDARD
+
+            disk = self.api._get_gce_volume(new_volume.blockdevice_id)
+            actual_disk_type = disk['type']
+            actual_disk_type = actual_disk_type.split('/')[-1]
+            self.assertEqual(expected_disk_type.value, actual_disk_type)
 
 
 class GCEBlockDeviceAPITests(TestCase):
