@@ -11,7 +11,7 @@ from textwrap import dedent
 
 from pyrsistent import PClass, field
 
-from twisted.internet.defer import DeferredList, fail, maybeDeferred, succeed
+from twisted.internet.defer import DeferredList, fail, maybeDeferred
 from zope.interface import implementer
 
 
@@ -298,64 +298,9 @@ class AWSProvisioner(PClass):
         return None
 
     def create_node(self, name, distribution, metadata={}):
-        size = self._default_size
-        disk_size = 8
-
-        with start_action(
-            action_type=u"flocker:provision:aws:create_node",
-            name=name,
-            distribution=distribution,
-            image_size=size,
-            disk_size=disk_size,
-            metadata=metadata,
-        ):
-
-            metadata = metadata.copy()
-            metadata['Name'] = name
-
-            disk1 = EBSBlockDeviceType()
-            disk1.size = disk_size
-            disk1.delete_on_termination = True
-            diskmap = BlockDeviceMapping()
-            diskmap['/dev/sda1'] = disk1
-
-            images = self._connection.get_all_images(
-                filters={'name': IMAGE_NAMES[distribution]},
-            )
-            # Retry several times, no sleep between retries is needed.
-            instance = poll_until(
-                lambda: self._get_node(images[0].id, size, diskmap, metadata),
-                repeat(0, 10),
-                lambda x: None)
-            return succeed(AWSNode(
-                name=name,
-                _provisioner=self,
-                _instance=instance,
-                distribution=distribution,
-            ))
-
-    def _get_node(self, image_id, size, diskmap, metadata):
-        """
-        Create an AWS instance with the given parameters.
-
-        Return either boto.ec2.instance object or None if the instance
-        could not be created.
-        """
-
-        with start_action(
-            action_type=u"flocker:provision:aws:get_node",
-        ) as context:
-            [instance] = self._run_nodes(1, image_id, size, diskmap)
-            context.add_success_fields(instance_id=instance.id)
-
-            poll_until(lambda: self._set_metadata(instance, metadata),
-                       repeat(1, INSTANCE_TIMEOUT))
-            try:
-                _wait_until_running(instance)
-                return instance
-            except FailedToRun:
-                instance.terminate()
-                return None     # the instance is in the wrong state
+        from twisted.internet import reactor
+        [d] = self.create_nodes(reactor, [name], distribution, metadata)
+        return d
 
     def _run_nodes(self, count, image_id, size, diskmap):
         """
@@ -463,7 +408,7 @@ class AWSProvisioner(PClass):
                 else:
                     node_metadata = metadata.copy()
                     node_metadata['Name'] = name
-                    d = self._async_get_node(reactor, instance, node_metadata)
+                    d = self._get_node(reactor, instance, node_metadata)
                     d = DeferredContext(d)
                     d.addCallback(make_node, name, instance)
                     results.append(d.result)
@@ -473,7 +418,7 @@ class AWSProvisioner(PClass):
             # so we can leave action_completion alone now.
             return results
 
-    def _async_get_node(self, reactor, instance, metadata):
+    def _get_node(self, reactor, instance, metadata):
         """
         Configure the given AWS instance, wait until it's running
         and create an ``AWSNode`` object for it.
