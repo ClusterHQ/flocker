@@ -23,7 +23,6 @@ from bitmath import GiB
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
-from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.python.reflect import prefixedMethodNames
 
@@ -603,29 +602,6 @@ class LibcloudRunner(object):
         # operation fails in a way such that it isn't clear if the instance has
         # been created or not.
         self.random_tag = b32encode(os.urandom(8)).lower().strip("\n=")
-
-    def _create_node(self, name):
-        """
-        Create a cloud node with the given name.
-
-        Additional properties of the node are defined in the instance.
-        :param str name: The name.
-        :return: Node instance.
-        """
-        try:
-            print "Creating node {}".format(name)
-            node = self.provisioner.create_node(
-                name=name,
-                distribution=self.distribution,
-                metadata=self.metadata,
-            )
-            self.nodes.append(node)
-            return node
-        except BaseException:
-            print "Error creating node %s" % (name,)
-            print "It may have leaked into the cloud."
-            write_failure(Failure())
-            raise
 
     def _provision_node(self, reactor, node):
         """
