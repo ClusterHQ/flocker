@@ -414,19 +414,25 @@ class GCEBlockDeviceAPI(object):
     def list_volumes(self):
         # TODO(mewert) Walk the pages.
         with start_action(
-            action_type=u"flocker:node:agents:gce:list_volumes",
+                action_type=u"flocker:node:agents:gce:list_volumes",
         ) as action:
             result = self._compute.disks().list(project=self._project,
                                                 zone=self._zone).execute()
 
+            # 'description' will not even be in the dictionary if no
+            # description was specified.
             def disk_in_cluster(disk):
                 return (
                     disk['name'].startswith(_PREFIX) and
-                    disk['description'] == self._disk_resource_description()
+                    (disk.get('description') ==
+                     self._disk_resource_description())
                 )
 
             Message.log(
-                ignored_volumes=list(disk for disk in result['items']
+                message_type=u'flocker:node:agents:gce:list_volumes:ignored',
+                ignored_volumes=list({'name': disk['name'],
+                                      'description': disk.get('description')}
+                                     for disk in result['items']
                                      if not disk_in_cluster(disk))
             )
             cluster_volumes = list(
@@ -439,7 +445,15 @@ class GCEBlockDeviceAPI(object):
                 for disk in result['items']
                 if disk_in_cluster(disk)
             )
-            action.add_success_fields(cluster_volumes=cluster_volumes)
+            action.add_success_fields(
+                cluster_volumes=list(
+                    {
+                        'blockdevice_id': v.blockdevice_id,
+                        'size': v.size,
+                        'attached_to': v.attached_to,
+                        'dataset_id': unicode(v.dataset_id),
+                    } for v in cluster_volumes)
+            )
             return cluster_volumes
 
     def compute_instance_id(self):
@@ -474,44 +488,58 @@ class GCEBlockDeviceAPI(object):
         )
 
     def attach_volume(self, blockdevice_id, attach_to):
-        config = dict(
-            deviceName=blockdevice_id,
-            autoDelete=False,
-            boot=False,
-            source=(
-                "https://www.googleapis.com/compute/v1/projects/%s/zones/%s/"
-                "disks/%s" % (self._project, self._zone, blockdevice_id)
+        with start_action(
+                action_type=u"flocker:node:agents:gce:attach_volume",
+                blockdevice_id=blockdevice_id,
+                attach_to=attach_to,
+        ) as action:
+            config = dict(
+                deviceName=blockdevice_id,
+                autoDelete=False,
+                boot=False,
+                source=(
+                    "https://www.googleapis.com/compute/v1/projects/%s/zones/"
+                    "%s/disks/%s" % (self._project, self._zone, blockdevice_id)
+                )
             )
-        )
-        try:
-            # TODO(mewert): Verify timeout and error conditions.
-            # TODO(mewert): Test what happens when disk is attached RW to a
-            #               different instance, raise the correct error.
-            result = self._do_blocking_operation(
-                self._compute.instances().attachDisk,
-                instance=attach_to,
-                body=config
+            try:
+                # TODO(mewert): Verify timeout and error conditions.
+                # TODO(mewert): Test what happens when disk is attached RW to a
+                #               different instance, raise the correct error.
+                result = self._do_blocking_operation(
+                    self._compute.instances().attachDisk,
+                    instance=attach_to,
+                    body=config
+                )
+            except HttpError as e:
+                if e.resp.status == 400:
+                    # TODO(mewert): verify with the rest API that this is the
+                    # only way to get a 400.
+                    raise UnknownVolume(blockdevice_id)
+                else:
+                    raise e
+            errors = result.get('error', {}).get('errors', [])
+            for e in errors:
+                if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
+                    raise AlreadyAttachedVolume(blockdevice_id)
+            disk = self._compute.disks().get(project=self._project,
+                                             zone=self._zone,
+                                             disk=blockdevice_id).execute()
+            result = BlockDeviceVolume(
+                blockdevice_id=blockdevice_id,
+                size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+                attached_to=attach_to,
+                dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
             )
-        except HttpError as e:
-            if e.resp.status == 400:
-                # TODO(mewert): verify with the rest API that this is the only
-                # way to get a 400.
-                raise UnknownVolume(blockdevice_id)
-            else:
-                raise e
-        errors = result.get('error', {}).get('errors', [])
-        for e in errors:
-            if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
-                raise AlreadyAttachedVolume(blockdevice_id)
-        disk = self._compute.disks().get(project=self._project,
-                                         zone=self._zone,
-                                         disk=blockdevice_id).execute()
-        return BlockDeviceVolume(
-            blockdevice_id=blockdevice_id,
-            size=int(GiB(int(disk['sizeGb'])).to_Byte()),
-            attached_to=attach_to,
-            dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
-        )
+            action.add_success_fields(
+                final_volume={
+                    'blockdevice_id': result.blockdevice_id,
+                    'size': result.size,
+                    'attached_to': result.attached_to,
+                    'dataset_id': unicode(result.dataset_id),
+                }
+            )
+            return result
 
     def _get_attached_to(self, blockdevice_id):
         """
@@ -552,14 +580,19 @@ class GCEBlockDeviceAPI(object):
             return attached_to
 
     def detach_volume(self, blockdevice_id):
-        attached_to = self._get_attached_to(blockdevice_id)
-        # TODO(mewert): Test this race (something else detaches right at this
-        # point). Might involve putting all GCE interactions behind a zope
-        # interface and then using a proxy implementation to inject code.
-        self._do_blocking_operation(
-            self._compute.instances().detachDisk, instance=attached_to,
-            deviceName=blockdevice_id)
-        return None
+        with start_action(
+                action_type=u"flocker:node:agents:gce:detach_volume",
+                blockdevice_id=blockdevice_id,
+        ):
+            attached_to = self._get_attached_to(blockdevice_id)
+            # TODO(mewert): Test this race (something else detaches right at
+            # this point). Might involve putting all GCE interactions behind a
+            # zope interface and then using a proxy implementation to inject
+            # code.
+            self._do_blocking_operation(
+                self._compute.instances().detachDisk, instance=attached_to,
+                deviceName=blockdevice_id)
+            return None
 
     def get_device_path(self, blockdevice_id):
         # TODO(mewert): Verify that we need this extra API call.
