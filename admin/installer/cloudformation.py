@@ -29,6 +29,7 @@ https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new
 
 import argparse
 import os
+import json
 
 from troposphere import FindInMap, GetAtt, Base64, Join, Tags
 from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
@@ -115,6 +116,23 @@ def create_cloudformation_template_options():
             MAX_CLUSTER_SIZE
         )
     )
+
+    parser.add_argument(
+        u'--client-ami-map-body',
+        type=json.loads,
+        help=u'A JSON map of AWS region to AMI ID for client.',
+        dest='client_ami_map',
+        required=True,
+    )
+
+    parser.add_argument(
+        u'--node-ami-map-body',
+        type=json.loads,
+        help=u'A JSON map of AWS region to AMI ID for nodes.',
+        dest='node_ami_map',
+        required=True,
+    )
+
     return parser
 
 
@@ -126,7 +144,9 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
     options = parser.parse_args(argv)
 
     print flocker_docker_template(
-        cluster_size=options.cluster_size
+        cluster_size=options.cluster_size,
+        client_ami_map=options.client_ami_map,
+        node_ami_map=options.node_ami_map,
     )
 
 
@@ -140,10 +160,14 @@ def _sibling_lines(filename):
         return f.readlines()
 
 
-def flocker_docker_template(cluster_size):
+def flocker_docker_template(cluster_size, client_ami_map, node_ami_map):
     """
     :param int cluster_size: The number of nodes to create in the Flocker
-        cluster (including control service node)
+        cluster (including control service node).
+    :param dict client_ami_map: A map between AWS region name and AWS AMI ID
+        for the client.
+    :param dict node_ami_map: A map between AWS region name and AWS AMI ID
+        for the node.
     :returns: a CloudFormation template for a Flocker + Docker + Docker Swarm
         cluster.
     """
@@ -201,24 +225,8 @@ def flocker_docker_template(cluster_size):
     # Please update the version fields above when new AMIs are generated.
     template.add_mapping(
         'RegionMap', {
-            'us-east-1':      {"FlockerAMI": "ami-d81b3eb2",
-                               "ClientAMI": "ami-c61e3bac"},
-            'us-west-1':      {"FlockerAMI": "ami-2e10644e",
-                               "ClientAMI": "ami-aa1064ca"},
-            'us-west-2':      {"FlockerAMI": "ami-51879d30",
-                               "ClientAMI": "ami-8dbaa0ec"},
-            'eu-west-1':      {"FlockerAMI": "ami-6358f310",
-                               "ClientAMI": "ami-ef5bf09c"},
-            'eu-central-1':   {"FlockerAMI": "ami-32574e5e",
-                               "ClientAMI": "ami-6c544d00"},
-            'sa-east-1':      {"FlockerAMI": "ami-e4b73688",
-                               "ClientAMI": "ami-fdb43591"},
-            'ap-northeast-1': {"FlockerAMI": "ami-e71e2289",
-                               "ClientAMI": "ami-1a211d74"},
-            'ap-southeast-1': {"FlockerAMI": "ami-1bc10d78",
-                               "ClientAMI": "ami-cbc20ea8"},
-            'ap-southeast-2': {"FlockerAMI": "ami-c00b2ea3",
-                               "ClientAMI": "ami-c20b2ea1"},
+            'client': client_ami_map,
+            'node': node_ami_map,
         }
     )
 
@@ -279,7 +287,7 @@ def flocker_docker_template(cluster_size):
         # Create an EC2 instance for the {Agent, Control} Node.
         ec2_instance = ec2.Instance(
             node_name,
-            ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "FlockerAMI"),
+            ImageId=FindInMap("RegionMap", "node", Ref("AWS::Region")),
             InstanceType="m3.large",
             KeyName=Ref(keyname_param),
             SecurityGroups=[Ref(instance_sg)],
@@ -362,7 +370,7 @@ def flocker_docker_template(cluster_size):
     # Client Node creation.
     client_instance = ec2.Instance(
         CLIENT_NODE_NAME,
-        ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "ClientAMI"),
+        ImageId=FindInMap("RegionMap", "client", Ref("AWS::Region")),
         InstanceType="m3.medium",
         KeyName=Ref(keyname_param),
         SecurityGroups=[Ref(instance_sg)],
