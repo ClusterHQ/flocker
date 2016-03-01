@@ -31,7 +31,7 @@ from characteristic import attributes
 from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
-    dictionaries, tuples
+    dictionaries, tuples, booleans,
 )
 
 from testtools.deferredruntest import SynchronousDeferredRunTest
@@ -62,6 +62,7 @@ from ..blockdevice import (
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice,
+    RegisterVolume,
 
     DATASET_TRANSITIONS, IDatasetStateChangeFactory,
     ICalculator, NOTHING_TO_DO,
@@ -76,6 +77,7 @@ from ..blockdevice import (
     CREATE_VOLUME_PROFILE_DROPPED,
     DISCOVERED_RAW_STATE,
     ATTACH_VOLUME,
+    UNREGISTERED_VOLUME_ATTACHED,
 
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
@@ -97,6 +99,7 @@ from ..loopback import (
     _losetup_list_parse,
     _losetup_list, _blockdevicevolume_from_dataset_id,
     _backing_file_name,
+    EventuallyConsistentBlockDeviceAPI,
 )
 from ....common.algebraic import tagged_union_strategy
 
@@ -304,7 +307,8 @@ def mount(device, mountpoint):
 
 
 def create_blockdevicedeployer(
-        test_case, hostname=u"192.0.2.1", node_uuid=uuid4()
+    test_case, hostname=u"192.0.2.1", node_uuid=uuid4(),
+    eventually_consistent=False,
 ):
     """
     Create a new ``BlockDeviceDeployer``.
@@ -312,10 +316,14 @@ def create_blockdevicedeployer(
     :param unicode hostname: The hostname to assign the deployer.
     :param UUID node_uuid: The unique identifier of the node to assign the
         deployer.
+    :param bool eventually_consistent: The ``IBlockDeviceAPI``
+        should only be eventually consistent.
 
     :return: The newly created ``BlockDeviceDeployer``.
     """
     api = loopbackblockdeviceapi_for_test(test_case)
+    if eventually_consistent:
+        api = EventuallyConsistentBlockDeviceAPI(api)
     async_api = _SyncToThreadedAsyncAPIAdapter(
         _sync=api, _reactor=NonReactor(), _threadpool=NonThreadPool(),
     )
@@ -621,6 +629,7 @@ def assert_discovered_state(
     case,
     deployer,
     expected_discovered_datasets,
+    persistent_state=PersistentState(),
 ):
     """
     Assert that datasets on the state object returned by
@@ -644,7 +653,7 @@ def assert_discovered_state(
     )
     discovering = deployer.discover_state(
         DeploymentState(nodes={previous_state}),
-        persistent_state=PersistentState(),
+        persistent_state=persistent_state,
     )
     local_state = case.successResultOf(discovering)
 
@@ -790,12 +799,18 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         assert_discovered_state(self, self.deployer, [])
 
     def test_unattached_volume(self):
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.NON_MANIFEST,
@@ -812,8 +827,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         an ``ATTACHED`` dataset returned by
         ``BlockDeviceDeployer.discover_state``.
         """
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
@@ -824,6 +840,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         make_filesystem(device_path, block_device=True)
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED,
@@ -858,6 +879,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
 
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.MOUNTED,
@@ -879,8 +905,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         """
         # XXX: Presumably we should detect and repair this case,
         # so that the volume can be unmounted.
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
@@ -902,6 +929,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
 
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED,
@@ -921,8 +953,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         """
         # XXX This discovers volumes as NON_MANIFEST, but we should
         # have a state so we can try to recover.
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
             volume.blockdevice_id, self.api.compute_instance_id(),
@@ -935,6 +968,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
 
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.NON_MANIFEST,
@@ -994,6 +1032,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         )
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED_ELSEWHERE,
@@ -1015,16 +1058,18 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         live_host = u'live'
         api = FakeCloudAPI(self.api, [live_host])
 
+        live_dataset_id = uuid4()
         volume_attached_to_live = api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=live_dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         api.attach_volume(
             volume_attached_to_live.blockdevice_id,
             attach_to=live_host,
         )
+        dead_dataset_id = uuid4()
         volume_attached_to_dead = api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dead_dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
         api.attach_volume(
@@ -1035,6 +1080,12 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
             self, self.deployer.set(
                 block_device_api=ProcessLifetimeCache(api),
                 _underlying_blockdevice_api=api),
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    live_dataset_id: volume_attached_to_live.blockdevice_id,
+                    dead_dataset_id: volume_attached_to_dead.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED_ELSEWHERE,
@@ -1063,8 +1114,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         with unrelated_device.open("w") as unrelated_file:
             unrelated_file.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
 
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         mountpoint = self.deployer.mountroot.child(bytes(volume.dataset_id))
@@ -1083,6 +1135,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
 
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED_NO_FILESYSTEM,
@@ -1099,8 +1156,9 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         An attached volume with no filesystem ends up in
         ATTACHED_NO_FILESYSTEM state.
         """
+        dataset_id = uuid4()
         volume = self.api.create_volume(
-            dataset_id=uuid4(),
+            dataset_id=dataset_id,
             size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
         self.api.attach_volume(
@@ -1110,6 +1168,11 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
         device_path = self.api.get_device_path(volume.blockdevice_id)
         assert_discovered_state(
             self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: volume.blockdevice_id,
+                }
+            ),
             expected_discovered_datasets=[
                 DiscoveredDataset(
                     state=DatasetStates.ATTACHED_NO_FILESYSTEM,
@@ -1117,6 +1180,115 @@ class BlockDeviceDeployerDiscoverStateTests(TestCase):
                     blockdevice_id=volume.blockdevice_id,
                     maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
                     device_path=device_path,
+                ),
+            ],
+        )
+
+    def test_unregistered(self):
+        """
+        If a blockdevice associated to a dataset exists, but the dataset
+        isn't registered as owning a blockdevice, the dataset is reported as
+        ``UNREGISTERED``.
+        """
+        dataset_id = uuid4()
+        volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        assert_discovered_state(
+            self, self.deployer,
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.UNREGISTERED,
+                    dataset_id=volume.dataset_id,
+                    blockdevice_id=volume.blockdevice_id,
+                    maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+                ),
+            ],
+        )
+
+    def test_registered(self):
+        """
+        If a blockdevice associated to a dataset doesn't exist, but the dataset
+        is registered as owning a blockdevice, the dataset is reported as
+        ``REGISTERED``.
+        """
+        dataset_id = uuid4()
+        assert_discovered_state(
+            self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: u"no-such-volume",
+                }
+            ),
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.REGISTERED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=u"no-such-volume",
+                ),
+            ],
+        )
+
+    def test_registered_other_blockdevice(self):
+        """
+        If a blockdevice associated to a dataset exists, but the dataset
+        is registered as owning a different blockdevice, the dataset is
+        reported as ``REGISTERED`` and associated to the registered
+        blockdevice.
+        """
+        dataset_id = uuid4()
+        self.api.create_volume(
+            dataset_id=dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        assert_discovered_state(
+            self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: u"no-such-volume",
+                }
+            ),
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.REGISTERED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=u"no-such-volume",
+                ),
+            ],
+        )
+
+    @capture_logging(assertHasMessage, UNREGISTERED_VOLUME_ATTACHED)
+    def test_registered_other_blockdevice_attached(self, logger):
+        """
+        If a blockdevice associated to a dataset is attached, but the dataset
+        is registered as owning a different blockdevice, the dataset is
+        reported as ``REGISTERED``, associated to the registered blockdevice,
+        and a message is logged about the extraneously attached blockdevice.
+        """
+        self.patch(blockdevice, "_logger", logger)
+
+        dataset_id = uuid4()
+        volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        )
+        self.api.attach_volume(
+            volume.blockdevice_id,
+            attach_to=self.this_node,
+        )
+        assert_discovered_state(
+            self, self.deployer,
+            persistent_state=PersistentState(
+                blockdevice_ownership={
+                    dataset_id: u"no-such-volume",
+                }
+            ),
+            expected_discovered_datasets=[
+                DiscoveredDataset(
+                    state=DatasetStates.REGISTERED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=u"no-such-volume",
                 ),
             ],
         )
@@ -1222,6 +1394,11 @@ def compare_dataset_state(discovered_dataset, desired_dataset):
         )
     if desired_dataset is None:
         return discovered_dataset.state == DatasetStates.NON_MANIFEST
+    # Since we never clean up blockdevice ownership, once a mapping is
+    # created, that dataset will always be reported.
+    if (desired_dataset.state == DatasetStates.DELETED
+            and discovered_dataset.state == DatasetStates.REGISTERED):
+        return True
     if discovered_dataset.state != desired_dataset.state:
         return False
     if discovered_dataset.state == DatasetStates.MOUNTED:
@@ -1270,11 +1447,6 @@ class BlockDeviceCalculatorTests(TestCase):
     """
     Tests for ``BlockDeviceCalculator``.
     """
-    def setUp(self):
-        super(BlockDeviceCalculatorTests, self).setUp()
-        self.deployer = create_blockdevicedeployer(self)
-        self.persistent_state = InMemoryStatePersister()
-
     def teardown_example(self, token):
         """
         Cleanup after running a hypothesis example.
@@ -1325,26 +1497,38 @@ class BlockDeviceCalculatorTests(TestCase):
             one desired state to another if there are no bugs.
         """
         for _ in range(max_iterations):
-            self.run_convergence_step(
-                dataset_map_from_iterable(desired_datasets))
-            note(self.current_datasets())
-            if compare_dataset_states(
-                self.current_datasets(),
-                dataset_map_from_iterable(desired_datasets),
-            ):
-                break
+            try:
+                self.run_convergence_step(
+                    dataset_map_from_iterable(desired_datasets))
+                if compare_dataset_states(
+                    self.current_datasets(),
+                    dataset_map_from_iterable(desired_datasets),
+                ):
+                    break
+            except Exception as e:
+                # The real loop will just continue if there are errors
+                # so we do too. This will sometimes occur when
+                # `eventualy_consistent` is set, when we try to do
+                # actions that aren't valid in the current state.
+                note("Error converging: {e.__class__}: {e}".format(e=e))
         else:
             raise DidNotConverge(iteration_count=max_iterations)
 
     @given(
-        two_dataset_states=TWO_DESIRED_DATASET_STRATEGY
+        two_dataset_states=TWO_DESIRED_DATASET_STRATEGY,
+        eventually_consistent=booleans(),
     )
-    def test_simple_transitions(self, two_dataset_states):
+    def test_simple_transitions(self, two_dataset_states,
+                                eventually_consistent):
         """
         Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
         dataset.
         """
+        self.deployer = create_blockdevicedeployer(
+            self, eventually_consistent=eventually_consistent)
+        self.persistent_state = InMemoryStatePersister()
+
         initial_dataset, next_dataset = two_dataset_states
 
         dataset_id = initial_dataset.dataset_id
@@ -1377,11 +1561,15 @@ class BlockDeviceCalculatorTests(TestCase):
             self.fail("Did not converge to next state after %d iterations." %
                       e.iteration_count)
 
+
+class TranistionTests(TestCase):
+    """
+    Tests for ``DATASET_TRANSITIONS``.
+    """
     @given(
-        desired_state=sampled_from([
-            DatasetStates.MOUNTED, DatasetStates.NON_MANIFEST,
-            DatasetStates.DELETED,
-        ]),
+        desired_state=sampled_from(
+            DesiredDataset.__invariant__.attributes_for_tag.keys()
+        ),
         discovered_state=sampled_from(
             DiscoveredDataset.__invariant__.attributes_for_tag.keys() +
             [DatasetStates.NON_EXISTENT]
@@ -5591,6 +5779,39 @@ class BlockDeviceVolumeTests(TestCase):
                     volume.size, volume.attached_to
                 ),
             ))
+        )
+
+
+class RegisterVolumeTests(TestCase):
+    """
+    Tests for ``RegisterVolume``.
+    """
+
+    @given(
+        dataset_id=uuids(),
+        blockdevice_id=text(),
+    )
+    def test_run(self, dataset_id, blockdevice_id):
+        """
+        ``RegisterVolume.run`` register a blockdevice mapping in the persistent
+        state.
+        """
+        state_persister = InMemoryStatePersister()
+
+        api = UnusableAPI()
+        deployer = BlockDeviceDeployer(
+            hostname=u"192.0.2.1",
+            node_uuid=uuid4(),
+            block_device_api=api,
+        )
+        RegisterVolume(
+            dataset_id=dataset_id,
+            blockdevice_id=blockdevice_id,
+        ).run(deployer, state_persister)
+
+        self.assertEqual(
+            state_persister.get_state().blockdevice_ownership,
+            {dataset_id: blockdevice_id},
         )
 
 

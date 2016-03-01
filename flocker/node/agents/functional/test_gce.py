@@ -22,19 +22,19 @@ account.  When creating your GCE instance be sure to check ``Allow API access
 to all Google Cloud services in the same project.``
 
 """
-
 from uuid import uuid4
-from bitmath import GiB
 
 from fixtures import Fixture
 from characteristic import attributes
+from googleapiclient.errors import HttpError
+from testtools.matchers import MatchesAll, Contains, Not
 
 from ..blockdevice import AlreadyAttachedVolume, MandatoryProfiles
 from ..gce import get_machine_zone, get_machine_project, GCEDiskTypes
 from ....provision._gce import GCEInstanceBuilder
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
-    detach_destroy_volumes,
+    detach_destroy_volumes, make_icloudapi_tests
 )
 from ..test.blockdevicefactory import (
     ProviderType, get_blockdeviceapi_with_cleanup,
@@ -77,7 +77,18 @@ class GCEComputeTestObjects(Fixture):
             instance_name,
             machine_type=u"f1-micro"
         )
-        self.addCleanup(lambda: instance.destroy())
+
+        def destroy_best_effort(inst):
+            try:
+                inst.destroy()
+            except HttpError as e:
+                if e.resp.status == 404:
+                    # The test must have already destroyed the instance.
+                    pass
+                else:
+                    raise
+
+        self.addCleanup(lambda: destroy_best_effort(instance))
         return instance
 
 
@@ -143,6 +154,17 @@ class GCEProfiledBlockDeviceApiTests(
             self.assertEqual(expected_disk_type.value, actual_disk_type)
 
 
+class GCECloudAPIInterfaceTests(
+        make_icloudapi_tests(
+            blockdevice_api_factory=gceblockdeviceapi_for_test,
+        )
+):
+    """
+    :class:`ICloudAPI` Interface adherence Tests for
+    :class:`GCEBlockDeviceAPI`.
+    """
+
+
 class GCEBlockDeviceAPITests(TestCase):
     """
     Tests for :class:`GCEBlockDeviceAPI`.
@@ -172,6 +194,75 @@ class GCEBlockDeviceAPITests(TestCase):
         self.assertEqual([cluster_2_dataset_id],
                          list(x.dataset_id
                               for x in gce_block_device_api_2.list_volumes()))
+
+    def test_list_live_nodes_pagination_and_removal(self):
+        """
+        list_live_nodes should be able to walk pages to get all live nodes and
+        should not have nodes after they are destroyed or stopped.
+
+        Also, _stop_node and start_node should be able to take a node off-line
+        and bring it back online.
+
+        Sorry for testing two things in this test.
+
+        Unfortunately, to verify pagination is working there must be two nodes
+        running. Also, to test start_node and _stop_node, there must be a
+        second instance started up. Since starting and stopping a node is time
+        consuming, I decided to combine these into the same test. My apologies
+        to future maintainers if this makes debugging failures less pleasant.
+        """
+        api = gceblockdeviceapi_for_test(self)
+
+        # Set page size to 1 to force pagination after we spin up a second
+        # node.
+        api._page_size = 1
+
+        gce_fixture = self.useFixture(GCEComputeTestObjects(
+            compute=api._compute,
+            project=get_machine_project(),
+            zone=get_machine_zone()
+        ))
+
+        other_instance_name = u"functional-test-" + unicode(uuid4())
+        other_instance = gce_fixture.create_instance(other_instance_name)
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Contains(other_instance_name),
+                Contains(api.compute_instance_id())
+            )
+        )
+
+        api._stop_node(other_instance_name)
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Not(Contains(other_instance_name)),
+                Contains(api.compute_instance_id())
+            )
+        )
+
+        api.start_node(other_instance_name)
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Contains(other_instance_name),
+                Contains(api.compute_instance_id())
+            )
+        )
+
+        other_instance.destroy()
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Not(Contains(other_instance_name)),
+                Contains(api.compute_instance_id())
+            )
+        )
 
     def test_attach_elsewhere_attached_volume(self):
         """

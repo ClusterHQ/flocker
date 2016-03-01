@@ -14,7 +14,7 @@ import yaml
 
 from jsonschema import FormatChecker, Draft4Validator
 
-from pyrsistent import PClass, field, PMap, pmap, pvector
+from pyrsistent import PClass, field, PMap, pmap, pvector, pset_field
 
 from eliot import ActionType, fields
 
@@ -426,8 +426,9 @@ class BackendDescription(PClass):
     :ivar api_factory: An object which can be called with some simple
         configuration data and which returns the API object implementing this
         storage backend.
-    :ivar required_config: A ``set`` of the dataset configuration keys
+    :ivar required_config: A set of the dataset configuration keys
         required to initialize this backend.
+    :type required_config: ``PSet`` of ``unicode``
     :ivar deployer_type: A constant from ``DeployerType`` indicating which kind
         of ``IDeployer`` the API object returned by ``api_factory`` is usable
         with.
@@ -438,7 +439,7 @@ class BackendDescription(PClass):
     # out.
     needs_cluster_id = field(type=bool, mandatory=True)
     # Config "dataset" keys required to initialize this backend.
-    required_config = field(type=set, mandatory=True, initial=set())
+    required_config = pset_field(unicode)
     api_factory = field(mandatory=True)
     deployer_type = field(
         mandatory=True,
@@ -469,15 +470,15 @@ _DEFAULT_BACKENDS = [
         name=u"openstack", needs_reactor=False, needs_cluster_id=True,
         api_factory=cinder_from_configuration,
         deployer_type=DeployerType.block,
-        required_config=set(["region", ]),
+        required_config={u"region"},
     ),
     BackendDescription(
         name=u"aws", needs_reactor=False, needs_cluster_id=True,
         api_factory=aws_from_configuration,
         deployer_type=DeployerType.block,
-        required_config=set(
-            ["region", "zone", "access_key_id", "secret_access_key", ]
-        ),
+        required_config={
+            u"region", u"zone", u"access_key_id", u"secret_access_key",
+        },
     ),
 ]
 
