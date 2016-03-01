@@ -23,7 +23,7 @@ class PluginNotFound(Exception):
         )
 
 
-class InvalidPlugin(Exception, object):
+class InvalidPlugin(Exception):
     """
     A module with the given plugin name was found, but doesn't
     provide a valid flocker plugin.
