@@ -5,23 +5,21 @@ Helpers for using libcloud.
 """
 import socket
 
-from time import sleep
 from zope.interface import implementer
 
 from characteristic import attributes, Attribute
 
-from twisted.internet.defer import DeferredList, maybeDeferred, succeed
-from twisted.python.reflect import fullyQualifiedName
+from twisted.internet.defer import DeferredList, maybeDeferred
 from twisted.conch.ssh.keys import Key
 
-from eliot import Message, start_action, write_failure, write_traceback
+from eliot import Message, start_action, write_failure
 from eliot.twisted import DeferredContext
 
 from flocker.provision._ssh import run_remotely, run_from_args
 
 from ._common import INode, IProvisioner
 
-from ..common import loop_until, poll_until
+from ..common import loop_until
 from ..common._retry import function_serializer
 
 from libcloud.compute.types import NodeState
@@ -208,141 +206,9 @@ class LibcloudProvisioner(object):
 
         :return libcloud.compute.base.Node: The created node.
         """
-        size = self._default_size
-
-        image_name = self._image_names[distribution]
-
-        create_node_arguments = self._create_node_arguments()
-
-        node, addresses = self._create_with_retry(
-            name=name,
-            image=get_image(self._driver, image_name),
-            size=get_size(self._driver, size),
-            ex_keyname=self._keyname,
-            ex_metadata=metadata,
-            **create_node_arguments
-        )
-
-        public_address = addresses[0]
-        if isinstance(public_address, unicode):
-            public_address = public_address.encode("ascii")
-
-        if self._use_private_addresses:
-            private_address = node.private_ips[0]
-        else:
-            private_address = None
-
-        if isinstance(private_address, unicode):
-            private_address = private_address.encode("ascii")
-
-        return succeed(LibcloudNode(
-            provisioner=self,
-            node=node, address=public_address,
-            private_address=private_address,
-            distribution=distribution))
-
-    def _create_with_retry(self, **kwargs):
-        """
-        Create a compute instance.  Clean up failed attempts and retry if
-        necessary.
-        """
-        return poll_until(lambda: self._get_node(**kwargs), iter([15] * 10))
-
-    def _get_node(self, name, **kwargs):
-        """
-        Create a compute instance.
-
-        :return: If the node is created successfully, a two-tuple of the
-            libcloud node object and the instance's public IP address.  If an
-            error occurs creating the node, ``None``.
-        """
-        try:
-            node = self._driver.create_node(name=name, **kwargs)
-        except:
-            # We don't know if we just created a node or not.  Look for it and
-            # destroy it if we did.  Hopefully we don't encounter too many more
-            # errors on the way.
-            self._cleanup_node_named(name)
-            raise
-
-        # libcloud has wait_until_running but it doesn't understand the error
-        # state that Rackspace instances often go in to.  It will keep waiting
-        # for the instance to get to the running state even after it has gone
-        # to the error state.  Eventually it will time out, but only after
-        # waiting for much longer than necessary.
-        #
-        # So do a loop ourselves.
-        try:
-            poll_until(
-                lambda: self._node_in_state(node, self.TERMINAL_STATES),
-                # Overall retry sleep time (not quite the same as timeout since
-                # it doesn't count time spent in the predicate) is just copied
-                # from the default libcloud timeout for wait_until_running.
-                # Maybe some other value would be better.
-                steps=iter([15] * (600 / 15)),
-            )
-
-            if self._node_in_state(node, {NodeState.RUNNING}):
-                # Success!  Now ask libcloud to dig out the details for us.
-                # Use a low timeout because we just saw that we're running
-                # already.
-                #
-                # XXX We want retry on random network errors here.  We don't
-                # want it on the timeout case, though, since that probably
-                # means something went crazy wrong.  Maybe?  Perhaps it only
-                # adds about 10 seconds to the overall time spent before we
-                # fail, though, which isn't that bad.
-                return _retry_exception(
-                    lambda: self._driver.wait_until_running([node], timeout=1)
-                )[0]
-            else:
-                # Destroy it and indicate failure to the caller by returning
-                # None
-                _retry_exception(node.destroy)
-                return None
-        except:
-            # If we're going to raise some exception instead of returning the
-            # node, destroy the node so it doesn't leak.  No one else is going
-            # to take any responsibility for cleaning it up.
-            _retry_exception(node.destroy)
-            raise
-
-    def _node_in_state(self, target_node, target_states):
-        """
-        Determine whether a compute instance is in one of the given states.
-
-        :param target_node: A libcloud node object representing the compute
-            instance to examine.
-        :param set target_states: The states to compare the compute instance's
-            actual state against.
-
-        :return: ``True`` if the compute instance is currently in one of
-            ``target_states``, ``False`` otherwise.
-        """
-        nodes = _retry_exception(self._driver.list_nodes)
-        for node in nodes:
-            if node.uuid == target_node.uuid:
-                return node.state in target_states
-        return False
-
-    def _cleanup_node_named(self, name):
-        """
-        Destroy a node with the given name, if there is one.  Otherwise, do
-        nothing.
-        """
-        nodes = _retry_exception(self._driver.list_nodes)
-        for node in nodes:
-            if node.name == name:
-                Message.new(
-                    message_type=(
-                        u"flocker:provision:libcloud:cleanup_node_named"
-                    ),
-                    name=name,
-                    id=node.id,
-                    state=node.state,
-                ).write()
-                _retry_exception(node.destroy)
-                return
+        from twisted.internet import reactor
+        [d] = self.create_nodes(reactor, [name], distribution, metadata)
+        return d
 
     def create_nodes(self, reactor, names, distribution, metadata={}):
         """
@@ -373,7 +239,7 @@ class LibcloudProvisioner(object):
                 node_name=name,
             )
             write_failure(failure)
-            d = self._async_cleanup_node_named(reactor, name)
+            d = self._cleanup_node_named(reactor, name)
             d.addCallback(lambda _: failure)
             return d
 
@@ -441,12 +307,12 @@ class LibcloudProvisioner(object):
             # so we can leave action_completion alone now.
             return results
 
-    def _async_cleanup_node_named(self, reactor, name):
+    def _cleanup_node_named(self, reactor, name):
         """
         Destroy a node with the given name, if there is one.  Otherwise, do
         nothing.
         """
-        d = _retry_exception_async(reactor, self._driver.list_nodes)
+        d = _retry_exception(reactor, self._driver.list_nodes)
         d = DeferredContext(d)
 
         def destroy_if_found(nodes):
@@ -460,12 +326,12 @@ class LibcloudProvisioner(object):
                         id=node.id,
                         state=node.state,
                     ).write()
-                    return _retry_exception_async(reactor, node.destroy)
+                    return _retry_exception(reactor, node.destroy)
 
         d.addCallback(destroy_if_found)
         return d.result
 
-    def _async_refresh_node(self, reactor, target_node):
+    def _refresh_node(self, reactor, target_node):
         """
         Determine the latest state of the node.
 
@@ -476,7 +342,7 @@ class LibcloudProvisioner(object):
             has the updated information about the node if the node is found,
             ``None`` otherwise (e.g. if the node has been destroyed).
         """
-        d = _retry_exception_async(reactor, self._driver.list_nodes)
+        d = _retry_exception(reactor, self._driver.list_nodes)
 
         def got_nodes(nodes):
             for node in nodes:
@@ -497,7 +363,7 @@ class LibcloudProvisioner(object):
         d.addCallback(got_nodes)
         return d
 
-    def _async_node_in_state(self, reactor, target_node, target_states):
+    def _node_in_state(self, reactor, target_node, target_states):
         """
         Determine whether a compute instance is in one of the given states.
 
@@ -509,7 +375,7 @@ class LibcloudProvisioner(object):
         :return: Deferred that fires with ``True`` if the compute instance is
             currently in one of ``target_states``, ``False`` otherwise.
         """
-        d = self._async_refresh_node(reactor, target_node)
+        d = self._refresh_node(reactor, target_node)
 
         def check_state(node):
             if node is not None:
@@ -554,7 +420,7 @@ class LibcloudProvisioner(object):
             steps = iter([15] * (600 / 15))
             d = loop_until(
                 reactor,
-                lambda: self._async_node_in_state(
+                lambda: self._node_in_state(
                     reactor,
                     node,
                     self.TERMINAL_STATES
@@ -564,7 +430,7 @@ class LibcloudProvisioner(object):
             d = DeferredContext(d)
 
             def got_ip_addresses():
-                d = self._async_refresh_node(reactor, node)
+                d = self._refresh_node(reactor, node)
                 d = DeferredContext(d)
 
                 def is_running(updated_node):
@@ -601,7 +467,7 @@ class LibcloudProvisioner(object):
             )
 
             def failed_to_run(failure):
-                d = _retry_exception_async(reactor, node.destroy)
+                d = _retry_exception(reactor, node.destroy)
                 d.addCallback(lambda _: failure)
                 return d
 
@@ -609,38 +475,7 @@ class LibcloudProvisioner(object):
             return d.addActionFinish()
 
 
-def _retry_exception(f, steps=(0.1,) * 10, sleep=sleep):
-    """
-    Retry a function if it raises an exception.
-
-    :return: Whatever the function returns.
-    """
-    steps = iter(steps)
-
-    while True:
-        try:
-            Message.new(
-                message_type=(
-                    u"flocker:provision:libcloud:retry_exception:trying"
-                ),
-                function=fullyQualifiedName(f),
-            ).write()
-            return f()
-        except:
-            # Try to get the next sleep time from the steps iterator.  Do it
-            # without raising an exception (StopIteration) to preserve the
-            # current exception context.
-            for step in steps:
-                write_traceback()
-                sleep(step)
-                break
-            else:
-                # Didn't hit the break, so didn't iterate at all, so we're out
-                # of retry steps.  Fail now.
-                raise
-
-
-def _retry_exception_async(reactor, f, steps=(0.1,) * 10):
+def _retry_exception(reactor, f, steps=(0.1,) * 10):
     """
     Retry a function if it raises an exception.
 
