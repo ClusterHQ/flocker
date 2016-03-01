@@ -29,6 +29,7 @@ https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new
 
 import argparse
 import os
+import json
 
 from troposphere import FindInMap, GetAtt, Base64, Join, Tags
 from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
@@ -115,6 +116,23 @@ def create_cloudformation_template_options():
             MAX_CLUSTER_SIZE
         )
     )
+
+    parser.add_argument(
+        u'--client-ami-map-body',
+        type=json.loads,
+        help=u'A JSON map of AWS region to AMI ID for client.',
+        dest='client_ami_map',
+        required=True,
+    )
+
+    parser.add_argument(
+        u'--node-ami-map-body',
+        type=json.loads,
+        help=u'A JSON map of AWS region to AMI ID for nodes.',
+        dest='node_ami_map',
+        required=True,
+    )
+
     return parser
 
 
@@ -126,7 +144,9 @@ def create_cloudformation_template_main(argv, basepath, toplevel):
     options = parser.parse_args(argv)
 
     print flocker_docker_template(
-        cluster_size=options.cluster_size
+        cluster_size=options.cluster_size,
+        client_ami_map=options.client_ami_map,
+        node_ami_map=options.node_ami_map,
     )
 
 
@@ -140,10 +160,14 @@ def _sibling_lines(filename):
         return f.readlines()
 
 
-def flocker_docker_template(cluster_size):
+def flocker_docker_template(cluster_size, client_ami_map, node_ami_map):
     """
     :param int cluster_size: The number of nodes to create in the Flocker
-        cluster (including control service node)
+        cluster (including control service node).
+    :param dict client_ami_map: A map between AWS region name and AWS AMI ID
+        for the client.
+    :param dict node_ami_map: A map between AWS region name and AWS AMI ID
+        for the node.
     :returns: a CloudFormation template for a Flocker + Docker + Docker Swarm
         cluster.
     """
@@ -201,28 +225,8 @@ def flocker_docker_template(cluster_size):
     # Please update the version fields above when new AMIs are generated.
     template.add_mapping(
         'RegionMap', {
-            'client': {
-                "us-east-1": "ami-a884afc2",
-                "ap-northeast-1": "ami-53ccc83d",
-                "eu-west-1": "ami-948636e7",
-                "ap-southeast-1": "ami-d6fe30b5",
-                "ap-southeast-2": "ami-40220523",
-                "us-west-2": "ami-446a8b24",
-                "us-west-1": "ami-e59deb85",
-                "eu-central-1": "ami-9b0a11f7",
-                "sa-east-1": "ami-28e06344"
-            },
-            'node': {
-                "us-east-1": "ami-7c99b216",
-                "ap-northeast-1": "ami-7ecdc910",
-                "eu-west-1": "ami-b18737c2",
-                "ap-southeast-1": "ami-92e02ef1",
-                "ap-southeast-2": "ami-9f2007fc",
-                "us-west-2": "ami-166b8a76",
-                "us-west-1": "ami-789aec18",
-                "eu-central-1": "ami-210b104d",
-                "sa-east-1": "ami-efe16283"
-            }
+            'client': client_ami_map,
+            'node': node_ami_map,
         }
     )
 
