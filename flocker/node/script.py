@@ -404,6 +404,7 @@ def get_api(backend, api_args, reactor, cluster_id):
 
 class AgentService(PClass):
     """
+    :cvar PluginLoader backends: Plugin loader to get dataset backend from.
     :ivar deployers: Factories to create ``IDeployer`` providers given an API
         object and some extra keyword arguments.  Keyed on a value from
         ``DeployerType``.
