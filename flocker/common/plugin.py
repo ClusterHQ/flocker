@@ -94,9 +94,9 @@ class PluginLoader(PClass):
 
     def get(self, plugin_name):
         """
-        Find the backend in ``backends`` that matches the one named by
-        ``backend_name``. If not found then attempt is made to load it as
-        plugin.
+        Find the plugin in ``builtin_plugins`` that matches the one named by
+        ``plugin_name``. If not found then an attempt is made to load it as
+        module describing a plugin.
 
         :param plugin_name: The name of the backend.
         :param backends: Collection of `BackendDescription`` instances.
