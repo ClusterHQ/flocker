@@ -11,7 +11,7 @@ from textwrap import dedent
 
 from pyrsistent import PClass, field
 
-from twisted.internet.defer import DeferredList, fail, maybeDeferred
+from twisted.internet.defer import DeferredList, fail, maybeDeferred, succeed
 from zope.interface import implementer
 
 
@@ -327,12 +327,12 @@ class AWSProvisioner(PClass):
                 lambda: self._get_node(images[0].id, size, diskmap, metadata),
                 repeat(0, 10),
                 lambda x: None)
-            return AWSNode(
+            return succeed(AWSNode(
                 name=name,
                 _provisioner=self,
                 _instance=instance,
                 distribution=distribution,
-            )
+            ))
 
     def _get_node(self, image_id, size, diskmap, metadata):
         """

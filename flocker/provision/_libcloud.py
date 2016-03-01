@@ -10,7 +10,7 @@ from zope.interface import implementer
 
 from characteristic import attributes, Attribute
 
-from twisted.internet.defer import DeferredList, maybeDeferred
+from twisted.internet.defer import DeferredList, maybeDeferred, succeed
 from twisted.python.reflect import fullyQualifiedName
 from twisted.conch.ssh.keys import Key
 
@@ -235,11 +235,11 @@ class LibcloudProvisioner(object):
         if isinstance(private_address, unicode):
             private_address = private_address.encode("ascii")
 
-        return LibcloudNode(
+        return succeed(LibcloudNode(
             provisioner=self,
             node=node, address=public_address,
             private_address=private_address,
-            distribution=distribution)
+            distribution=distribution))
 
     def _create_with_retry(self, **kwargs):
         """

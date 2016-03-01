@@ -818,7 +818,7 @@ class LibcloudRunner(object):
             name = self._make_node_name(self.random_tag, index)
             try:
                 print "Creating node %d: %s" % (index, name)
-                node = self.provisioner.create_node(
+                node = yield self.provisioner.create_node(
                     name=name,
                     distribution=self.distribution,
                     metadata=self.metadata,

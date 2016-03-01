@@ -151,7 +151,8 @@ class IProvisioner(Interface):
             install on the node.
         :param dict metadata: Metadata to associate with the node.
 
-        :return INode: The created node.
+        :return: The created node.
+        :rtype: A ``Deferred`` that fires with an ``INode``.
         """
 
     def create_nodes(reactor, names, distribution, metadata={}):

@@ -31,6 +31,8 @@ from oauth2client.client import (
     GoogleCredentials, SignedJwtAssertionCredentials
 )
 
+from twisted.internet.defer import succeed
+
 from ..node.agents.gce import wait_for_operation
 from ..common import retry_effect_with_timeout
 
@@ -542,11 +544,11 @@ class GCEProvisioner(PClass):
                 """),
         )
 
-        return GCENode(
+        return succeed(GCENode(
             instance=instance,
             distribution=bytes(distribution),
             username=bytes(username)
-        )
+        ))
 
     def create_nodes(self, reactor, names, distribution, metadata={}):
         """
