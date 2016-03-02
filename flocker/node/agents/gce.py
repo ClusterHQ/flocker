@@ -11,6 +11,7 @@ driver:
 - Python API: https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/ # noqa
 - Python Oauth: https://developers.google.com/identity/protocols/OAuth2ServiceAccount#authorizingrequests # noqa
 """
+from uuid import UUID
 
 import requests
 
@@ -21,12 +22,14 @@ from oauth2client.gce import AppAssertionCredentials
 from pyrsistent import PClass, field
 from socket import gethostname
 from twisted.python.filepath import FilePath
-from uuid import UUID
+from twisted.python.constants import (
+    Values, ValueConstant
+)
 from zope.interface import implementer, Interface
 
 from .blockdevice import (
-    IBlockDeviceAPI, ICloudAPI, BlockDeviceVolume, AlreadyAttachedVolume,
-    UnknownVolume, UnattachedVolume
+    IBlockDeviceAPI, IProfiledBlockDeviceAPI, ICloudAPI, BlockDeviceVolume,
+    AlreadyAttachedVolume, UnknownVolume, UnattachedVolume, MandatoryProfiles
 )
 from ...common import poll_until
 
@@ -34,6 +37,17 @@ from ...common import poll_until
 # about the instance the code is being run on.
 _METADATA_SERVER = u'http://169.254.169.254/computeMetadata/v1/'
 _METADATA_HEADERS = {u'Metadata-Flavor': u'Google'}
+
+
+class GCEDiskTypes(Values):
+    SSD = ValueConstant(u"pd-ssd")
+    STANDARD = ValueConstant(u"pd-standard")
+
+
+class GCEStorageProfiles(Values):
+    GOLD = ValueConstant(GCEDiskTypes.SSD.value)
+    SILVER = ValueConstant(GCEDiskTypes.SSD.value)
+    BRONZE = ValueConstant(GCEDiskTypes.STANDARD.value)
 
 
 class OperationPoller(Interface):
@@ -271,6 +285,7 @@ def _extract_attached_to(disk):
 
 
 @implementer(IBlockDeviceAPI)
+@implementer(IProfiledBlockDeviceAPI)
 @implementer(ICloudAPI)
 class GCEBlockDeviceAPI(object):
     """
@@ -416,6 +431,12 @@ class GCEBlockDeviceAPI(object):
                 disk['description'] == self._disk_resource_description())
         )
 
+    def _get_gce_volume(self, blockdevice_id):
+        volume = self._compute.disks().get(project=self._project,
+                                           zone=self._zone,
+                                           disk=blockdevice_id).execute()
+        return volume
+
     def compute_instance_id(self):
         """
         GCE does operations based on the `name` of resources, and also
@@ -425,13 +446,17 @@ class GCEBlockDeviceAPI(object):
         #               Technically people can change their hostname.
         return unicode(gethostname())
 
-    def create_volume(self, dataset_id, size):
+    def create_volume_with_profile(self, dataset_id, size, profile_name):
         blockdevice_id = _dataset_id_to_blockdevice_id(dataset_id)
         sizeGiB = int(Byte(size).to_GiB())
+        profile_type = MandatoryProfiles.lookupByValue(profile_name).name
+        gce_disk_type = GCEStorageProfiles.lookupByName(profile_type).value
         config = dict(
             name=blockdevice_id,
             sizeGb=sizeGiB,
             description=self._disk_resource_description(),
+            type="projects/{project}/zones/{zone}/diskTypes/{type}".format(
+                project=self._project, zone=self._zone, type=gce_disk_type)
         )
         # TODO(mewert): Verify timeout and error conditions.
         self._do_blocking_operation(
@@ -446,6 +471,10 @@ class GCEBlockDeviceAPI(object):
             attached_to=None,
             dataset_id=dataset_id,
         )
+
+    def create_volume(self, dataset_id, size):
+        return self.create_volume_with_profile(
+            dataset_id, size, MandatoryProfiles.DEFAULT.value)
 
     def attach_volume(self, blockdevice_id, attach_to):
         config = dict(
@@ -477,9 +506,7 @@ class GCEBlockDeviceAPI(object):
         for e in errors:
             if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
                 raise AlreadyAttachedVolume(blockdevice_id)
-        disk = self._compute.disks().get(project=self._project,
-                                         zone=self._zone,
-                                         disk=blockdevice_id).execute()
+        disk = self._get_gce_volume(blockdevice_id)
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
             size=int(GiB(int(disk['sizeGb'])).to_Byte()),
@@ -503,9 +530,7 @@ class GCEBlockDeviceAPI(object):
         """
         try:
             # TODO(mewert) verify timeouts and error conditions.
-            disk = self._compute.disks().get(project=self._project,
-                                             zone=self._zone,
-                                             disk=blockdevice_id).execute()
+            disk = self._get_gce_volume(blockdevice_id)
         except HttpError as e:
             if e.resp.status == 404:
                 # TODO(mewert) Verify with the rest API this is the only way to
