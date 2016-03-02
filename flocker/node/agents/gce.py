@@ -17,7 +17,9 @@ import requests
 from bitmath import GiB, Byte
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
-from oauth2client.gce import AppAssertionCredentials
+from oauth2client.client import (
+    GoogleCredentials, SignedJwtAssertionCredentials
+)
 from pyrsistent import PClass, field
 from socket import gethostname
 from twisted.python.filepath import FilePath
@@ -270,6 +272,22 @@ def _extract_attached_to(disk):
     return unicode(users[0].split('/')[-1])
 
 
+def gce_credentials_from_config(gce_credentials_config=None):
+    if gce_credentials_config is not None:
+        credentials = SignedJwtAssertionCredentials(
+            gce_credentials_config['client_email'],
+            gce_credentials_config['private_key'],
+            scope=[
+                u"https://www.googleapis.com/auth/compute",
+            ]
+        )
+    else:
+        credentials = GoogleCredentials.get_application_default()
+        # credentials = AppAssertionCredentials(
+        #     "https://www.googleapis.com/auth/cloud-platform")
+    return credentials
+
+
 @implementer(IBlockDeviceAPI)
 @implementer(ICloudAPI)
 class GCEBlockDeviceAPI(object):
@@ -324,20 +342,23 @@ class GCEBlockDeviceAPI(object):
     """
     # TODO(mewert): Logging throughout.
 
-    def __init__(self, cluster_id, project, zone):
+    def __init__(self, cluster_id, project, zone, gce_credentials_config=None):
         """
         Initialize the GCEBlockDeviceAPI.
 
         :param unicode project: The project where all GCE operations will take
             place.
         :param unicode zone: The zone where all GCE operations will take place.
+        :param dict gce_credentials: Optional GCE credentials for a
+            service account that has permissions to carry out GCE
+            volume actions (create, delete, detatch, etc.). If this is
+            omitted the user must enable the default service account
+            on all cluster nodes.
         """
-        # TODO(mewert): Also enable credentials via service account private
-        # keys.
-        credentials = AppAssertionCredentials(
-            "https://www.googleapis.com/auth/cloud-platform")
+        credentials = gce_credentials_from_config(gce_credentials_config)
         self._compute = discovery.build(
-            'compute', 'v1', credentials=credentials)
+            'compute', 'v1', credentials=credentials
+        )
         self._project = project
         self._zone = zone
         self._cluster_id = cluster_id
@@ -588,3 +609,21 @@ class GCEBlockDeviceAPI(object):
             timeout_sec=5*60,
             instance=node_id
         )
+
+def gce_from_configuration(cluster_id, project, zone, gce_credentials=None):
+    """
+    Build a ``GCEBlockDeviceAPI`` instance using data from configuration
+
+    :param UUID cluster_id: The unique identifier of the cluster with which to
+        associate the resulting object.  It will only manipulate volumes
+        belonging to this cluster.
+    :param str project: The GCE project for the cluster
+    :param str zone: The GCE zone the cluster will be located in
+    :param dict gce_credentials: Optional GCE credentials for a service
+        account that has permissions to carry out GCE volume actions
+        (create, delete, detatch, etc.). If this is omitted the user
+        must enable the default service account on all cluster nodes.
+
+    :return: A ``GCEBlockDeviceAPI`` instance.
+    """
+    return GCEBlockDeviceAPI(cluster_id, project, zone, gce_credentials)
