@@ -68,6 +68,10 @@ Installing on RHEL 7
 
       yum list installed clusterhq-release || yum install -y https://clusterhq-archive.s3.amazonaws.com/centos/clusterhq-release$(rpm -E %dist).centos.noarch.rpm
 
+      sed -i 's/$releasever/7/g' /etc/yum.repos.d/clusterhq.repo
+      sed -i 's/enabled=0/enabled=1/g' /etc/yum.repos.d/clusterhq.repo
+      yum install -y clusterhq-flocker-node
+
 #. **Install the** ``clusterhq-flocker-docker-plugin`` **package:**
 
    At this point you can choose to install the Flocker plugin for Docker.
