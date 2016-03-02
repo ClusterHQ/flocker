@@ -34,7 +34,10 @@ Generate CloudFormation JSON template:
 
 .. prompt:: bash #
 
-   admin/create-cloudformation-template > /tmp/flocker-cluster.cloudformation.json
+   admin/create-cloudformation-template \
+       --client-ami-map-body="$(< $PWD/docker.json)" \
+       --node-ami-map-body="$(< $PWD/flocker.json)" \
+       > /tmp/flocker-cluster.cloudformation.json
 
 Publish template to `InstallerS3Bucket`_ .
 
