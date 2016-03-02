@@ -174,8 +174,8 @@ def wait_for_operation(compute, operation, timeout_steps):
     poller = _create_poller(operation)
 
     with start_action(
-            action_type=u"flocker:node:agents:gce:wait_for_operation",
-            operation=operation
+        action_type=u"flocker:node:agents:gce:wait_for_operation",
+        operation=operation
     ) as action:
         def finished_operation_result():
             latest_operation = poller.poll(compute)
@@ -202,8 +202,8 @@ def get_metadata_path(path):
     """
     timeout_sec = 3
     with start_action(
-            action_type=u"flocker:node:agents:gce:get_metadata_path",
-            path=path
+        action_type=u"flocker:node:agents:gce:get_metadata_path",
+        path=path
     ) as action:
         r = requests.get(_METADATA_SERVER + path,
                          headers=_METADATA_HEADERS,
@@ -414,7 +414,7 @@ class GCEBlockDeviceAPI(object):
     def list_volumes(self):
         # TODO(mewert) Walk the pages.
         with start_action(
-                action_type=u"flocker:node:agents:gce:list_volumes",
+            action_type=u"flocker:node:agents:gce:list_volumes",
         ) as action:
             result = self._compute.disks().list(project=self._project,
                                                 zone=self._zone).execute()
@@ -489,9 +489,9 @@ class GCEBlockDeviceAPI(object):
 
     def attach_volume(self, blockdevice_id, attach_to):
         with start_action(
-                action_type=u"flocker:node:agents:gce:attach_volume",
-                blockdevice_id=blockdevice_id,
-                attach_to=attach_to,
+            action_type=u"flocker:node:agents:gce:attach_volume",
+            blockdevice_id=blockdevice_id,
+            attach_to=attach_to,
         ) as action:
             config = dict(
                 deviceName=blockdevice_id,
@@ -556,8 +556,8 @@ class GCEBlockDeviceAPI(object):
             instance.
         """
         with start_action(
-                action_type=u"flocker:node:agents:gce:get_attached_to",
-                blockdevice_id=blockdevice_id
+            action_type=u"flocker:node:agents:gce:get_attached_to",
+            blockdevice_id=blockdevice_id
         ) as action:
             try:
                 # TODO(mewert) verify timeouts and error conditions.
@@ -581,8 +581,8 @@ class GCEBlockDeviceAPI(object):
 
     def detach_volume(self, blockdevice_id):
         with start_action(
-                action_type=u"flocker:node:agents:gce:detach_volume",
-                blockdevice_id=blockdevice_id,
+            action_type=u"flocker:node:agents:gce:detach_volume",
+            blockdevice_id=blockdevice_id,
         ):
             attached_to = self._get_attached_to(blockdevice_id)
             # TODO(mewert): Test this race (something else detaches right at
