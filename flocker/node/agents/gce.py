@@ -19,12 +19,15 @@ from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from oauth2client.gce import AppAssertionCredentials
 from pyrsistent import PClass, field
-from zope.interface import implementer, Interface
 from twisted.python.filepath import FilePath
+from twisted.python.constants import (
+    Values, ValueConstant
+)
+from zope.interface import implementer, Interface
 
 from .blockdevice import (
-    IBlockDeviceAPI, ICloudAPI, BlockDeviceVolume, AlreadyAttachedVolume,
-    UnknownVolume, UnattachedVolume
+    IBlockDeviceAPI, IProfiledBlockDeviceAPI, ICloudAPI, BlockDeviceVolume,
+    AlreadyAttachedVolume, UnknownVolume, UnattachedVolume, MandatoryProfiles
 )
 from ...common import poll_until
 
@@ -52,6 +55,17 @@ class GCEVolumeException(Exception):
     that's illegal in GCE.
     """
     pass
+
+
+class GCEDiskTypes(Values):
+    SSD = ValueConstant(u"pd-ssd")
+    STANDARD = ValueConstant(u"pd-standard")
+
+
+class GCEStorageProfiles(Values):
+    GOLD = ValueConstant(GCEDiskTypes.SSD.value)
+    SILVER = ValueConstant(GCEDiskTypes.SSD.value)
+    BRONZE = ValueConstant(GCEDiskTypes.STANDARD.value)
 
 
 class OperationPoller(Interface):
@@ -294,6 +308,7 @@ def _extract_attached_to(disk):
 
 
 @implementer(IBlockDeviceAPI)
+@implementer(IProfiledBlockDeviceAPI)
 @implementer(ICloudAPI)
 class GCEBlockDeviceAPI(object):
     """
@@ -462,6 +477,12 @@ class GCEBlockDeviceAPI(object):
             done = not page_token
         return volumes
 
+    def _get_gce_volume(self, blockdevice_id):
+        volume = self._compute.disks().get(project=self._project,
+                                           zone=self._zone,
+                                           disk=blockdevice_id).execute()
+        return volume
+
     def compute_instance_id(self):
         """
         GCE does operations based on the `name` of resources, and also
@@ -473,13 +494,17 @@ class GCEBlockDeviceAPI(object):
         fqdn = get_metadata_path("instance/hostname")
         return unicode(fqdn.split(".")[0])
 
-    def create_volume(self, dataset_id, size):
+    def create_volume_with_profile(self, dataset_id, size, profile_name):
         blockdevice_id = _dataset_id_to_blockdevice_id(dataset_id)
         sizeGiB = int(Byte(size).to_GiB())
+        profile_type = MandatoryProfiles.lookupByValue(profile_name).name
+        gce_disk_type = GCEStorageProfiles.lookupByName(profile_type).value
         config = dict(
             name=blockdevice_id,
             sizeGb=sizeGiB,
             description=self._disk_resource_description(),
+            type="projects/{project}/zones/{zone}/diskTypes/{type}".format(
+                project=self._project, zone=self._zone, type=gce_disk_type)
         )
         try:
             self._do_blocking_operation(
@@ -501,6 +526,10 @@ class GCEBlockDeviceAPI(object):
             attached_to=None,
             dataset_id=dataset_id,
         )
+
+    def create_volume(self, dataset_id, size):
+        return self.create_volume_with_profile(
+            dataset_id, size, MandatoryProfiles.DEFAULT.value)
 
     def attach_volume(self, blockdevice_id, attach_to):
         config = dict(
@@ -529,9 +558,7 @@ class GCEBlockDeviceAPI(object):
         for e in errors:
             if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
                 raise AlreadyAttachedVolume(blockdevice_id)
-        disk = self._compute.disks().get(project=self._project,
-                                         zone=self._zone,
-                                         disk=blockdevice_id).execute()
+        disk = self._get_gce_volume(blockdevice_id)
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
             size=int(GiB(int(disk['sizeGb'])).to_Byte()),
@@ -554,9 +581,7 @@ class GCEBlockDeviceAPI(object):
             instance.
         """
         try:
-            disk = self._compute.disks().get(project=self._project,
-                                             zone=self._zone,
-                                             disk=blockdevice_id).execute()
+            disk = self._get_gce_volume(blockdevice_id)
         except HttpError as e:
             if e.resp.status == 404:
                 raise UnknownVolume(blockdevice_id)
