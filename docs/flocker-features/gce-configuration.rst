@@ -62,7 +62,7 @@ properties:
 
    This requires that you create a separate `OAuth Service Account
    <https://developers.google.com/identity/protocols/OAuth2ServiceAccount>`_.
-   When you create a service account in the gce console you are prompted to
+   When you create a service account in the GCE console you are prompted to
    download a JSON blob with your credentials. This option should have
    precisely the content of that JSON blob. For convenience, since JSON is
    valid YAML, you can just copy the contents of the file directly into your
