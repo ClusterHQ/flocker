@@ -35,8 +35,8 @@ Generate CloudFormation JSON template:
 .. prompt:: bash #
 
    admin/create-cloudformation-template \
-       --client-ami-map-body="$(< $PWD/docker.json)" \
-       --node-ami-map-body="$(< $PWD/flocker.json)" \
+       --client-ami-map-body="$(</tmp/ami_map_docker.json)" \
+       --node-ami-map-body="$(</tmp/ami_map_flocker.json)" \
        > /tmp/flocker-cluster.cloudformation.json
 
 
