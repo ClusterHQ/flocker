@@ -241,6 +241,47 @@ Release
    Enter your access key and secret token when prompted.
    The other configurable values may be left as their defaults.
 
+#. Update the CloudFormation installer template.
+
+   The following commands will generate new AWS AMI images with this version of Flocker pre-installed.
+   The new AMI images will be used in the CloudFormation template used in the :ref:`docker-integration` installation instructions.
+
+   .. prompt:: bash (flocker-1.6.2)$
+
+      ./admin/ami-search-ubuntu > /tmp/ami_map_ubuntu.json
+
+   .. prompt:: bash (flocker-1.6.2)$
+
+      DOCKER_VERSION=1.10.0 \
+      SWARM_VERSION=1.1.0 \
+      ./admin/publish-installer-images \
+          --copy_to_all_regions \
+          --template=docker \
+          --source_ami_map="$(</tmp/ami_map_ubuntu.json)" > /tmp/ami_map_docker.json
+
+   .. prompt:: bash (flocker-1.6.2)$
+
+      FLOCKER_VERSION=${VERSION} \
+      ./admin/publish-installer-images \
+          --copy_to_all_regions \
+          --template=flocker \
+          --source_ami_map="$(</tmp/ami_map_docker.json)" > /tmp/ami_map_flocker.json
+
+   .. prompt:: bash (flocker-1.6.2)$
+
+      admin/create-cloudformation-template \
+           --client-ami-map-body="$(< /tmp/ami_map_docker.json)" \
+           --node-ami-map-body="$(< /tmp/ami_map_flocker.json)" \
+           > /tmp/flocker-cluster.cloudformation.json
+
+
+   .. prompt:: bash (flocker-1.6.2)$
+
+      aws s3 cp --acl public-read \
+          /tmp/flocker-cluster.cloudformation.json \
+          s3://installer.downloads.clusterhq.com/
+
+
 #. Publish artifacts and documentation:
 
    .. prompt:: bash (flocker-1.6.2)$
