@@ -148,7 +148,7 @@ class GCEProfiledBlockDeviceApiTests(
             if profile in (MandatoryProfiles.GOLD, MandatoryProfiles.SILVER):
                 expected_disk_type = GCEDiskTypes.SSD
             else:
-                GCEDiskTypes.STANDARD
+                expected_disk_type = GCEDiskTypes.STANDARD
 
             disk = self.api._get_gce_volume(new_volume.blockdevice_id)
             actual_disk_type = disk['type']
