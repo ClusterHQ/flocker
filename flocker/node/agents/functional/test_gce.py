@@ -26,7 +26,7 @@ from uuid import uuid4
 
 from fixtures import Fixture
 from characteristic import attributes
-from testtools.matchers import MatchesAll, Contains, Not
+from testtools.matchers import MatchesAll, Contains, Not, Equals
 from googleapiclient.errors import HttpError
 
 from ..blockdevice import AlreadyAttachedVolume, MandatoryProfiles
@@ -145,7 +145,8 @@ class GCEProfiledBlockDeviceApiTests(
                 size=self.dataset_size,
                 profile_name=profile
             )
-            if profile in (MandatoryProfiles.GOLD, MandatoryProfiles.SILVER):
+            if profile in (MandatoryProfiles.GOLD.value,
+                           MandatoryProfiles.SILVER.value):
                 expected_disk_type = GCEDiskTypes.SSD
             else:
                 expected_disk_type = GCEDiskTypes.STANDARD
@@ -153,7 +154,10 @@ class GCEProfiledBlockDeviceApiTests(
             disk = self.api._get_gce_volume(new_volume.blockdevice_id)
             actual_disk_type = disk['type']
             actual_disk_type = actual_disk_type.split('/')[-1]
-            self.assertEqual(expected_disk_type.value, actual_disk_type)
+            self.assertThat(
+                actual_disk_type, Equals(expected_disk_type.value),
+                'Incorrect disk type for profile {}'.format(profile)
+            )
 
 
 class GCECloudAPIInterfaceTests(
