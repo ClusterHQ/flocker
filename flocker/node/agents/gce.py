@@ -15,7 +15,7 @@ driver:
 import requests
 
 from bitmath import GiB, Byte
-from eliot import Message, start_action
+from eliot import Message, start_action, write_traceback
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from oauth2client.gce import AppAssertionCredentials
@@ -207,9 +207,9 @@ def get_metadata_path(path):
     ) as action:
         r = requests.get(_METADATA_SERVER + path,
                          headers=_METADATA_HEADERS,
-                         timeout=timeout_sec).text
-        action.add_success_fields(response=r)
-        return r
+                         timeout=timeout_sec)
+        action.add_success_fields(response=r.text)
+        return r.text
 
 
 def get_machine_zone():
@@ -422,28 +422,44 @@ class GCEBlockDeviceAPI(object):
             # 'description' will not even be in the dictionary if no
             # description was specified.
             def disk_in_cluster(disk):
-                return (
-                    disk['name'].startswith(_PREFIX) and
-                    (disk.get('description') ==
-                     self._disk_resource_description())
-                )
+                if disk['name'].startswith(_PREFIX):
+                    if 'description' in disk:
+                        return (disk['description'] ==
+                                self._disk_resource_description())
+                    else:
+                        Message.log(
+                            message_type=u'flocker:node:agents:gce:'
+                                         u'list_volumes:suspicious_disk',
+                            log_level=u'ERROR',
+                            message=u'Disk missing description, yet name '
+                                    u'appears as if it came from the flocker '
+                                    u'GCE dataset backend.',
+                            disk=disk
+                        )
+                        return False
+                return False
+
+            ignored_volumes = []
+            cluster_volumes = []
+            for disk in result['items']:
+                if disk_in_cluster(disk):
+                    cluster_volumes.append(
+                        BlockDeviceVolume(
+                            blockdevice_id=unicode(disk['name']),
+                            size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+                            attached_to=_extract_attached_to(disk),
+                            dataset_id=_blockdevice_id_to_dataset_id(
+                                disk['name'])
+                        )
+                    )
+                else:
+                    ignored_volumes.append(
+                        {'name': disk['name'],
+                         'description': disk.get('description')})
 
             Message.log(
                 message_type=u'flocker:node:agents:gce:list_volumes:ignored',
-                ignored_volumes=list({'name': disk['name'],
-                                      'description': disk.get('description')}
-                                     for disk in result['items']
-                                     if not disk_in_cluster(disk))
-            )
-            cluster_volumes = list(
-                BlockDeviceVolume(
-                    blockdevice_id=unicode(disk['name']),
-                    size=int(GiB(int(disk['sizeGb'])).to_Byte()),
-                    attached_to=_extract_attached_to(disk),
-                    dataset_id=_blockdevice_id_to_dataset_id(disk['name'])
-                )
-                for disk in result['items']
-                if disk_in_cluster(disk)
+                ignored_volumes=ignored_volumes
             )
             action.add_success_fields(
                 cluster_volumes=list(
@@ -515,9 +531,10 @@ class GCEBlockDeviceAPI(object):
                 if e.resp.status == 400:
                     # TODO(mewert): verify with the rest API that this is the
                     # only way to get a 400.
+                    write_traceback()
                     raise UnknownVolume(blockdevice_id)
                 else:
-                    raise e
+                    raise
             errors = result.get('error', {}).get('errors', [])
             for e in errors:
                 if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
@@ -572,7 +589,7 @@ class GCEBlockDeviceAPI(object):
                     # way to get a 404.
                     raise UnknownVolume(blockdevice_id)
                 else:
-                    raise e
+                    raise
             attached_to = _extract_attached_to(disk)
             if not attached_to:
                 raise UnattachedVolume(blockdevice_id)
@@ -613,7 +630,7 @@ class GCEBlockDeviceAPI(object):
             if e.resp.status == 404:
                 raise UnknownVolume(blockdevice_id)
             else:
-                raise e
+                raise
         return None
 
     def list_live_nodes(self):
