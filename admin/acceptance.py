@@ -816,7 +816,7 @@ class LibcloudRunner(object):
         print "Assigning random tag:", self.random_tag
         names = [self._make_node_name(self.random_tag, index)
                  for index in range(self.num_nodes)]
-        self.nodes = yield gather_deferreds(
+        yield gather_deferreds(
             self._create_and_provision_nodes(reactor, names)
         )
 
