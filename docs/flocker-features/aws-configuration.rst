@@ -29,7 +29,7 @@ In addition to the mandatory properties shown, there are some optional propertie
    An AWS session token.
    This allows cross-account access.
    It is mainly useful for testing since session tokens only last for a short time.
-   See http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html for more information on when session tokens are required.
+   For more information on when session tokens are required, see the AWS instructions for `Temporary Security Credentials  <http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html>`_.
 
 .. option:: validate_region
 

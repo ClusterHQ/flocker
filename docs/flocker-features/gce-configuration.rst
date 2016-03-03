@@ -17,10 +17,8 @@ The configuration item to use GCE should look like:
 
 By default, credentials in GCE are obtained by using the compute engine service
 account.
-This assumes that when the GCE instance was booted, it was given
-sufficient `scope
-<https://cloud.google.com/compute/docs/authentication#using>`_ to perform GCE
-operations.
+This assumes that when the GCE instance was booted, it was given sufficient scope to perform GCE operations.
+For more information, see the Google Cloud Platform instructions for `setting the scope of service account access for instances <https://cloud.google.com/compute/docs/authentication#using>`_.
 
 The required scope is ``https://www.googleapis.com/auth/compute``.
 In the GCE console this corresponds to the ``Allow API access to all Google Cloud services in the same project`` checkbox when you start an instance.
