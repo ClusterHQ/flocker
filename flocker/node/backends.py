@@ -90,6 +90,17 @@ class BackendDescription(PClass):
     :ivar deployer_type: A constant from ``DeployerType`` indicating which kind
         of ``IDeployer`` the API object returned by ``api_factory`` is usable
         with.
+
+    The following fields are experimental, and subject to change
+    without notice.
+
+    :ivar acceptance_provision_node: Function that will provision a
+        node for use with this backend. This should install any
+        software required by the backend (including the backend
+        itself). This will be called after installing flocker on the
+        nodes.
+    :type acceptance_provision_node: Callable that takes a
+        ``flocker.provision.INode``.
     """
     name = field(type=unicode, mandatory=True)
     needs_reactor = field(type=bool, mandatory=True)
@@ -106,6 +117,21 @@ class BackendDescription(PClass):
         ),
     )
 
+    acceptance_provision_node = field(
+        mandatory=True,
+        initial=(lambda node: None),
+    )
+
+
+def _provision_zfs(node):
+    """
+    Provision ZFS for use as a Flocker backend.
+    """
+    # We have this stub here, to prevent an import loop.
+    from flocker.provision._install import configure_zfs
+    return configure_zfs(node)
+
+
 # These structures should be created dynamically to handle plug-ins
 _DEFAULT_BACKENDS = [
     # P2PManifestationDeployer doesn't currently know anything about
@@ -117,6 +143,7 @@ _DEFAULT_BACKENDS = [
     BackendDescription(
         name=u"zfs", needs_reactor=True, needs_cluster_id=False,
         api_factory=_zfs_storagepool, deployer_type=DeployerType.p2p,
+        acceptance_provision_node=_provision_zfs,
     ),
     BackendDescription(
         name=u"loopback", needs_reactor=False, needs_cluster_id=False,

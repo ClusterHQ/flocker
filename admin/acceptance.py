@@ -53,7 +53,6 @@ from flocker.provision._install import (
     install_flocker,
     configure_cluster,
     configure_node,
-    configure_zfs,
 )
 from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
@@ -641,9 +640,10 @@ class LibcloudRunner(object):
         """
         commands = node.provision(package_source=self.package_source,
                                   variants=self.variants)
-        if self.dataset_backend == backends.ZFS:
-            zfs_commands = configure_zfs(node, variants=self.variants)
-            commands = commands.on(success=lambda _: zfs_commands)
+        commands = commands.on(
+            success=lambda _:
+            self.dataset_backend.acceptance_configure_node(node),
+        )
 
         d = remove_known_host(reactor, node.address)
         d.addCallback(lambda _: perform(make_dispatcher(reactor), commands))
@@ -860,16 +860,14 @@ class LibcloudRunner(object):
             del node
 
         commands = parallel([
-            node.provision(package_source=self.package_source,
-                           variants=self.variants)
-            for node in self.nodes
+            node.provision(
+                package_source=self.package_source,
+                variants=self.variants
+            ).on(
+                success=lambda _, node=node:
+                    self.dataset_backend.acceptance_provision_node(node)
+            ) for node in self.nodes
         ])
-        if self.dataset_backend == backends.ZFS:
-            zfs_commands = parallel([
-                configure_zfs(node, variants=self.variants)
-                for node in self.nodes
-            ])
-            commands = commands.on(success=lambda _: zfs_commands)
 
         yield perform(make_dispatcher(reactor), commands)
 
