@@ -48,7 +48,8 @@ from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
 from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
-from ..node.script import get_backend, get_api
+from ..node.backends import backend_loader
+from ..node.script import get_api
 from ..node import dockerpy_client
 from ..node.agents.blockdevice import _SyncToThreadedAsyncAPIAdapter
 from ..provision import reinstall_flocker_from_package_source
@@ -247,7 +248,7 @@ def get_backend_api(cluster_id):
     backend_config = full_backend_config.get(backend_name)
     if 'backend' in backend_config:
         backend_config.pop('backend')
-    backend = get_backend(backend_name)
+    backend = backend_loader.get(backend_name)
     return get_api(backend, pmap(backend_config), reactor, cluster_id)
 
 
