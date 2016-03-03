@@ -22,28 +22,24 @@ account.  When creating your GCE instance be sure to check ``Allow API access
 to all Google Cloud services in the same project.``
 
 """
-
 from uuid import uuid4
+
 from fixtures import Fixture
 from characteristic import attributes
 from googleapiclient.errors import HttpError
+from testtools.matchers import MatchesAll, Contains, Not
 
-from ..blockdevice import AlreadyAttachedVolume
-
-from ..gce import get_machine_zone, get_machine_project
+from ..blockdevice import AlreadyAttachedVolume, MandatoryProfiles
+from ..gce import get_machine_zone, get_machine_project, GCEDiskTypes
 from ....provision._gce import GCEInstanceBuilder
-
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests, make_icloudapi_tests
+    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
+    detach_destroy_volumes, make_icloudapi_tests
 )
-
 from ..test.blockdevicefactory import (
     ProviderType, get_blockdeviceapi_with_cleanup,
     get_minimum_allocatable_size, get_device_allocation_unit
 )
-
-from testtools.matchers import MatchesAll, Contains, Not
-
 from ....testtools import TestCase
 
 
@@ -126,6 +122,36 @@ class GCEBlockDeviceAPIInterfaceTests(
         # for a GCE specific implementation of this test that is not based on
         # the hack.
         pass
+
+
+class GCEProfiledBlockDeviceApiTests(
+        make_iprofiledblockdeviceapi_tests(
+            profiled_blockdevice_api_factory=gceblockdeviceapi_for_test,
+            dataset_size=get_minimum_allocatable_size())):
+
+    def test_profile_respected(self):
+        """
+        Override base class which verifies that errors are not raised when
+        constructing mandatory profiles but also add a check that we
+        have created the correct volume type for each profile.
+        """
+        for profile in (c.value for c in MandatoryProfiles.iterconstants()):
+            dataset_id = uuid4()
+            self.addCleanup(detach_destroy_volumes, self.api)
+            new_volume = self.api.create_volume_with_profile(
+                dataset_id=dataset_id,
+                size=self.dataset_size,
+                profile_name=profile
+            )
+            if profile in (MandatoryProfiles.GOLD, MandatoryProfiles.SILVER):
+                expected_disk_type = GCEDiskTypes.SSD
+            else:
+                GCEDiskTypes.STANDARD
+
+            disk = self.api._get_gce_volume(new_volume.blockdevice_id)
+            actual_disk_type = disk['type']
+            actual_disk_type = actual_disk_type.split('/')[-1]
+            self.assertEqual(expected_disk_type.value, actual_disk_type)
 
 
 class GCECloudAPIInterfaceTests(

@@ -1,0 +1,19 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Create a CloudFormation template for Flocker installation on AWS.
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+if __name__ == '__main__':
+    from admin.installer import create_cloudformation_template_main
+    raise SystemExit(
+          create_cloudformation_template_main(
+                argv=sys.argv[1:],
+                basepath=BASEPATH,
+                toplevel=TOPLEVEL
+          )
+    )
