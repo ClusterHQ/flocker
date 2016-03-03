@@ -9,6 +9,7 @@ from twisted.python.constants import Values, ValueConstant
 from twisted.python.filepath import FilePath
 
 from flocker.common.version import make_rpm_version
+from ..node import BackendDescription
 
 from ._ca import Certificates
 
@@ -65,7 +66,7 @@ class Cluster(PClass):
         tests against.
     :ivar list agent_nodes: The list of INode nodes running flocker
         agent in the cluster.
-    :ivar DatasetBackend dataset_backend: The volume backend the nodes are
+    :ivar BackendDescription dataset_backend: The volume backend the nodes are
         configured with.
     :ivar int default_volume_size: The default volume size (in bytes) supported
         by the ``dataset_backend``.
@@ -78,7 +79,7 @@ class Cluster(PClass):
     all_nodes = field(mandatory=True)
     control_node = field(mandatory=True)
     agent_nodes = field(mandatory=True)
-    dataset_backend = field(mandatory=True)
+    dataset_backend = field(type=BackendDescription, mandatory=True)
     default_volume_size = field(type=int, mandatory=True)
     certificates = field(type=Certificates, mandatory=True)
     dataset_backend_config_file = field(mandatory=True, type=FilePath)

@@ -230,7 +230,8 @@ class RunOptions(CommonOptions):
         the ``--number-of-nodes`` command line option.
 
         :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param BackendDescription dataset_backend: The description of the
+            dataset backend the nodes are configured with.
         :param provider: The name of the cloud provider of nodes for the tests.
         :param provider_config: The ``managed`` section of the acceptance
 
