@@ -685,7 +685,8 @@ class GCEBlockDeviceAPI(object):
             instance=node_id
         )
 
-def gce_from_configuration(cluster_id, project, zone, gce_credentials=None):
+def gce_from_configuration(cluster_id, project=None, zone=None,
+                           gce_credentials=None):
     """
     Build a ``GCEBlockDeviceAPI`` instance using data from configuration
 
@@ -701,4 +702,8 @@ def gce_from_configuration(cluster_id, project, zone, gce_credentials=None):
 
     :return: A ``GCEBlockDeviceAPI`` instance.
     """
+    if project is None:
+        project = get_machine_project()
+    if zone is None:
+        zone = get_machine_zone()
     return GCEBlockDeviceAPI(cluster_id, project, zone, gce_credentials)

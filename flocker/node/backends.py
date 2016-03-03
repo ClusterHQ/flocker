@@ -139,12 +139,6 @@ _DEFAULT_BACKENDS = [
             u"region", u"zone", u"access_key_id", u"secret_access_key",
         },
     ),
-    BackendDescription(
-        name=u"gce", needs_reactor=False, needs_cluster_id=True,
-        api_factory=gce_from_configuration,
-        deployer_type=DeployerType.block,
-        required_config={},
-    ),
 ]
 
 backend_loader = PluginLoader(
