@@ -16,7 +16,8 @@ from ._deploy import (
 from ._container import ApplicationNodeDeployer
 from ._p2p import P2PManifestationDeployer
 
-from .script import BackendDescription, DeployerType
+from .backends import BackendDescription
+from .script import DeployerType
 
 from ._docker import dockerpy_client
 
