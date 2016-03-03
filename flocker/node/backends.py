@@ -106,12 +106,15 @@ class BackendDescription(PClass):
         ),
     )
 
+    default_acceptance_provider = field(mandatory=True, initial=None)
     acceptance_configure_node = field(mandatory=True, initial=None)
 
 
 def _configure_zfs(node):
     from flocker.provision._install import configure_zfs
     return configure_zfs(node)
+
+from ..testtools.cluster_utils import Providers
 
 
 # These structures should be created dynamically to handle plug-ins
@@ -146,6 +149,7 @@ _DEFAULT_BACKENDS = [
         required_config={
             u"region", u"zone", u"access_key_id", u"secret_access_key",
         },
+        default_acceptance_provider=Providers.AWS,
     ),
 ]
 
