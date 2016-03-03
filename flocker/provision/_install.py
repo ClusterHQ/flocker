@@ -1563,7 +1563,7 @@ def configure_cluster(
     """
     from ceph_flocker_driver.provision import configure_ceph
     return sequence([
-        configure_ceph(cluster),
+        #configure_ceph(cluster),
         configure_control_node(
             cluster,
             provider,

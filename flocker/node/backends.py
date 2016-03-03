@@ -106,6 +106,14 @@ class BackendDescription(PClass):
         ),
     )
 
+    acceptance_configure_node = field(mandatory=True, initial=None)
+
+
+def _configure_zfs(node):
+    from flocker.provision._install import configure_zfs
+    return configure_zfs(node)
+
+
 # These structures should be created dynamically to handle plug-ins
 _DEFAULT_BACKENDS = [
     # P2PManifestationDeployer doesn't currently know anything about
@@ -117,6 +125,7 @@ _DEFAULT_BACKENDS = [
     BackendDescription(
         name=u"zfs", needs_reactor=True, needs_cluster_id=False,
         api_factory=_zfs_storagepool, deployer_type=DeployerType.p2p,
+        acceptance_configure_node=_configure_zfs,
     ),
     BackendDescription(
         name=u"loopback", needs_reactor=False, needs_cluster_id=False,

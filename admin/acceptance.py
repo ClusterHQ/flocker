@@ -52,7 +52,6 @@ from flocker.provision._install import (
     install_flocker,
     configure_cluster,
     configure_node,
-    configure_zfs,
 )
 from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
@@ -617,9 +616,11 @@ class LibcloudRunner(object):
         """
         commands = node.provision(package_source=self.package_source,
                                   variants=self.variants)
-        if self.dataset_backend == backends.ZFS:
-            zfs_commands = configure_zfs(node, variants=self.variants)
-            commands = commands.on(success=lambda _: zfs_commands)
+        if self.dataset_backend.acceptance_configure_node is not None:
+            commands = commands.on(
+                success=lambda _:
+                self.dataset_backend.acceptance_configure_node(),
+            )
 
         d = remove_known_host(reactor, node.address)
         d.addCallback(lambda _: perform(make_dispatcher(reactor), commands))
