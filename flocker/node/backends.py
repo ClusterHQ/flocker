@@ -145,3 +145,9 @@ backend_loader = PluginLoader(
     module_attribute="FLOCKER_BACKEND",
     plugin_type=BackendDescription,
 )
+
+# Backend constants for acceptance test usage.
+AWS = backend_loader.get('aws')
+OPENSTACK = backend_loader.get('openstack')
+LOOPBACK = backend_loader.get('loopback')
+ZFS = backend_loader.get('zfs')
