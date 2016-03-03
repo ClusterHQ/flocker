@@ -26,11 +26,13 @@ from uuid import uuid4
 
 from fixtures import Fixture
 from characteristic import attributes
-from googleapiclient.errors import HttpError
 from testtools.matchers import MatchesAll, Contains, Not
+from googleapiclient.errors import HttpError
 
 from ..blockdevice import AlreadyAttachedVolume, MandatoryProfiles
-from ..gce import get_machine_zone, get_machine_project, GCEDiskTypes
+from ..gce import (
+    get_machine_zone, get_machine_project, GCEDiskTypes, GCEVolumeException
+)
 from ....provision._gce import GCEInstanceBuilder
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
@@ -195,6 +197,26 @@ class GCEBlockDeviceAPITests(TestCase):
                          list(x.dataset_id
                               for x in gce_block_device_api_2.list_volumes()))
 
+    def test_create_duplicate_dataset_ids(self):
+        """
+        Two :class:`GCEBlockDeviceAPI` instances can be run with different
+        cluster_ids. Since users can specify the names of their
+        dataset, Make sure that creating a 2 volumes with the same
+        dataset_id raises GCEVolumeException.
+        """
+        gce_block_device_api_1 = gceblockdeviceapi_for_test(self)
+        gce_block_device_api_2 = gceblockdeviceapi_for_test(self)
+
+        shared_dataset_id = uuid4()
+
+        gce_block_device_api_1.create_volume(shared_dataset_id,
+                                             get_minimum_allocatable_size())
+        self.assertRaises(
+            GCEVolumeException,
+            gce_block_device_api_2.create_volume,
+            shared_dataset_id,
+            get_minimum_allocatable_size())
+
     def test_list_live_nodes_pagination_and_removal(self):
         """
         list_live_nodes should be able to walk pages to get all live nodes and
@@ -294,4 +316,36 @@ class GCEBlockDeviceAPITests(TestCase):
             api.attach_volume,
             blockdevice_id=attached_volume.blockdevice_id,
             attach_to=api.compute_instance_id(),
+        )
+
+    def test_list_volumes_walks_pages(self):
+        """
+        Ensure that we can walk multiple pages returned from listing GCE
+        volumes.
+        """
+        api = gceblockdeviceapi_for_test(self)
+        self.patch(api, '_page_size', 1)
+
+        volume_1 = api.create_volume(
+            dataset_id=uuid4(),
+            size=get_minimum_allocatable_size()
+        )
+        volume_2 = api.create_volume(
+            dataset_id=uuid4(),
+            size=get_minimum_allocatable_size()
+        )
+
+        blockdevice_ids = [v.blockdevice_id for v in api.list_volumes()]
+        self.assertThat(
+            blockdevice_ids,
+            MatchesAll(Contains(volume_1.blockdevice_id),
+                       Contains(volume_2.blockdevice_id))
+        )
+
+        api.destroy_volume(volume_2.blockdevice_id)
+        blockdevice_ids = [v.blockdevice_id for v in api.list_volumes()]
+        self.assertThat(
+            blockdevice_ids,
+            MatchesAll(Contains(volume_1.blockdevice_id),
+                       Not(Contains(volume_2.blockdevice_id)))
         )
