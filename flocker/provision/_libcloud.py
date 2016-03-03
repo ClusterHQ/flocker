@@ -195,21 +195,6 @@ class LibcloudProvisioner(object):
             # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html
             return None
 
-    def create_node(self, name, distribution, metadata={}):
-        """
-        Create a node.  If at first this does not succeed, try, try again.
-
-        :param str name: The name of the node.
-        :param str distribution: The name of the distribution to install on the
-            node.
-        :param dict metadata: Metadata to associate with the node.
-
-        :return libcloud.compute.base.Node: The created node.
-        """
-        from twisted.internet import reactor
-        [d] = self.create_nodes(reactor, [name], distribution, metadata)
-        return d
-
     def create_nodes(self, reactor, names, distribution, metadata={}):
         """
         Create nodes with the given names.

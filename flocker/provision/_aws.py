@@ -297,11 +297,6 @@ class AWSProvisioner(PClass):
         # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html
         return None
 
-    def create_node(self, name, distribution, metadata={}):
-        from twisted.internet import reactor
-        [d] = self.create_nodes(reactor, [name], distribution, metadata)
-        return d
-
     def _run_nodes(self, count, image_id, size, diskmap):
         """
         Create an AWS instance with the given parameters.

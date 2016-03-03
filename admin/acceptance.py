@@ -814,37 +814,9 @@ class LibcloudRunner(object):
         :return Cluster: The cluster to connect to for acceptance tests.
         """
         print "Assigning random tag:", self.random_tag
-        for index in range(self.num_nodes):
-            name = self._make_node_name(self.random_tag, index)
-            try:
-                print "Creating node %d: %s" % (index, name)
-                node = yield self.provisioner.create_node(
-                    name=name,
-                    distribution=self.distribution,
-                    metadata=self.metadata,
-                )
-            except:
-                print "Error creating node %d: %s" % (index, name)
-                print "It may have leaked into the cloud."
-                raise
-
-            yield remove_known_host(reactor, node.address)
-            self.nodes.append(node)
-            del node
-
-        commands = parallel([
-            node.provision(package_source=self.package_source,
-                           variants=self.variants)
-            for node in self.nodes
-        ])
-        if self.dataset_backend == DatasetBackend.zfs:
-            zfs_commands = parallel([
-                configure_zfs(node, variants=self.variants)
-                for node in self.nodes
-            ])
-            commands = commands.on(success=lambda _: zfs_commands)
-
-        yield perform(make_dispatcher(reactor), commands)
+        names = [self._make_node_name(self.random_tag, index)
+                 for index in range(self.num_nodes)]
+        self.nodes = yield gather_deferreds(self._create_nodes(reactor, names))
 
         cluster = yield configured_cluster_for_nodes(
             reactor,

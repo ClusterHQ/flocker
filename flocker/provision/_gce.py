@@ -505,7 +505,7 @@ class GCEProvisioner(PClass):
     def get_ssh_key(self):
         return self.ssh_public_key
 
-    def create_node(self, name, distribution, metadata={}):
+    def _create_node(self, name, distribution, metadata={}):
         instance_name = _clean_to_gce_name(name)
         ssh_key = unicode(self.ssh_public_key.toString('OPENSSH'))
         username = _GCE_ACCEPTANCE_USERNAME
@@ -555,7 +555,7 @@ class GCEProvisioner(PClass):
         Create nodes with the given names.
         """
         return [
-            self.create_node(name, distribution, metadata)
+            self._create_node(name, distribution, metadata)
             for name in names
         ]
 
