@@ -622,7 +622,7 @@ class LibcloudRunner(object):
         d.addCallback(lambda _: perform(make_dispatcher(reactor), commands))
         return d
 
-    def _create_and_provision(self, reactor, name, retries=10):
+    def _create_and_provision_node(self, reactor, name, retries=10):
         """
         Create a node and make it ready for Flocker installation
         by provisioning it with required software and configuration.
@@ -715,12 +715,12 @@ class LibcloudRunner(object):
             print "bulk creation failed", name
             print "error:", failure
             write_failure(failure)
-            return self._create_and_provision(reactor, name)
+            return self._create_and_provision_node(reactor, name)
 
         result.addErrback(retry_on_error)
         return result
 
-    def _create_nodes(self, reactor, names):
+    def _create_and_provision_nodes(self, reactor, names):
         """
         Create and provision a number of nodes with the given names.
 
@@ -796,7 +796,7 @@ class LibcloudRunner(object):
         names = []
         for index in range(starting_index, starting_index + count):
             names.append(self._make_node_name(tag, index))
-        results = self._create_nodes(reactor, names)
+        results = self._create_and_provision_nodes(reactor, names)
 
         def add_node(node, index):
             return self._add_node_to_cluster(reactor, cluster, node, index)
@@ -816,7 +816,9 @@ class LibcloudRunner(object):
         print "Assigning random tag:", self.random_tag
         names = [self._make_node_name(self.random_tag, index)
                  for index in range(self.num_nodes)]
-        self.nodes = yield gather_deferreds(self._create_nodes(reactor, names))
+        self.nodes = yield gather_deferreds(
+            self._create_and_provision_nodes(reactor, names)
+        )
 
         cluster = yield configured_cluster_for_nodes(
             reactor,
