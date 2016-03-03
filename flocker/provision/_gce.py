@@ -31,6 +31,8 @@ from oauth2client.client import (
     GoogleCredentials, SignedJwtAssertionCredentials
 )
 
+from twisted.internet.defer import succeed
+
 from ..node.agents.gce import wait_for_operation
 from ..common import retry_effect_with_timeout
 
@@ -503,7 +505,7 @@ class GCEProvisioner(PClass):
     def get_ssh_key(self):
         return self.ssh_public_key
 
-    def create_node(self, name, distribution, metadata={}):
+    def _create_node(self, name, distribution, metadata={}):
         instance_name = _clean_to_gce_name(name)
         ssh_key = unicode(self.ssh_public_key.toString('OPENSSH'))
         username = _GCE_ACCEPTANCE_USERNAME
@@ -542,25 +544,20 @@ class GCEProvisioner(PClass):
                 """),
         )
 
-        return GCENode(
+        return succeed(GCENode(
             instance=instance,
             distribution=bytes(distribution),
             username=bytes(username)
-        )
+        ))
 
     def create_nodes(self, reactor, names, distribution, metadata={}):
         """
         Create nodes with the given names.
-
-        This method is not implemented as it is not used yet.
-        As of this time create_nodes is only used by setup-cluster
-        which does not support GCE.
-        One way to implement this method would be to use a variant of
-        wait_for_operation that uses loop_until instead of poll_until
-        to perform the waiting.
         """
-        raise NotImplementedError(
-            "GCE does not have create_nodes implemented yet.")
+        return [
+            self._create_node(name, distribution, metadata)
+            for name in names
+        ]
 
 
 def gce_provisioner(

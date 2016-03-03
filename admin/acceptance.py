@@ -23,7 +23,6 @@ from bitmath import GiB
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
-from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.python.reflect import prefixedMethodNames
 
@@ -604,29 +603,6 @@ class LibcloudRunner(object):
         # been created or not.
         self.random_tag = b32encode(os.urandom(8)).lower().strip("\n=")
 
-    def _create_node(self, name):
-        """
-        Create a cloud node with the given name.
-
-        Additional properties of the node are defined in the instance.
-        :param str name: The name.
-        :return: Node instance.
-        """
-        try:
-            print "Creating node {}".format(name)
-            node = self.provisioner.create_node(
-                name=name,
-                distribution=self.distribution,
-                metadata=self.metadata,
-            )
-            self.nodes.append(node)
-            return node
-        except BaseException:
-            print "Error creating node %s" % (name,)
-            print "It may have leaked into the cloud."
-            write_failure(Failure())
-            raise
-
     def _provision_node(self, reactor, node):
         """
         Make the given node ready for Flocker installation by provisioning
@@ -646,7 +622,7 @@ class LibcloudRunner(object):
         d.addCallback(lambda _: perform(make_dispatcher(reactor), commands))
         return d
 
-    def _create_and_provision(self, reactor, name, retries=10):
+    def _create_and_provision_node(self, reactor, name, retries=10):
         """
         Create a node and make it ready for Flocker installation
         by provisioning it with required software and configuration.
@@ -739,12 +715,12 @@ class LibcloudRunner(object):
             print "bulk creation failed", name
             print "error:", failure
             write_failure(failure)
-            return self._create_and_provision(reactor, name)
+            return self._create_and_provision_node(reactor, name)
 
         result.addErrback(retry_on_error)
         return result
 
-    def _create_nodes(self, reactor, names):
+    def _create_and_provision_nodes(self, reactor, names):
         """
         Create and provision a number of nodes with the given names.
 
@@ -820,7 +796,7 @@ class LibcloudRunner(object):
         names = []
         for index in range(starting_index, starting_index + count):
             names.append(self._make_node_name(tag, index))
-        results = self._create_nodes(reactor, names)
+        results = self._create_and_provision_nodes(reactor, names)
 
         def add_node(node, index):
             return self._add_node_to_cluster(reactor, cluster, node, index)
@@ -838,37 +814,11 @@ class LibcloudRunner(object):
         :return Cluster: The cluster to connect to for acceptance tests.
         """
         print "Assigning random tag:", self.random_tag
-        for index in range(self.num_nodes):
-            name = self._make_node_name(self.random_tag, index)
-            try:
-                print "Creating node %d: %s" % (index, name)
-                node = self.provisioner.create_node(
-                    name=name,
-                    distribution=self.distribution,
-                    metadata=self.metadata,
-                )
-            except:
-                print "Error creating node %d: %s" % (index, name)
-                print "It may have leaked into the cloud."
-                raise
-
-            yield remove_known_host(reactor, node.address)
-            self.nodes.append(node)
-            del node
-
-        commands = parallel([
-            node.provision(package_source=self.package_source,
-                           variants=self.variants)
-            for node in self.nodes
-        ])
-        if self.dataset_backend == DatasetBackend.zfs:
-            zfs_commands = parallel([
-                configure_zfs(node, variants=self.variants)
-                for node in self.nodes
-            ])
-            commands = commands.on(success=lambda _: zfs_commands)
-
-        yield perform(make_dispatcher(reactor), commands)
+        names = [self._make_node_name(self.random_tag, index)
+                 for index in range(self.num_nodes)]
+        yield gather_deferreds(
+            self._create_and_provision_nodes(reactor, names)
+        )
 
         cluster = yield configured_cluster_for_nodes(
             reactor,
