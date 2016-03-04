@@ -781,7 +781,7 @@ class GCEBlockDeviceAPI(object):
         )
 
 def gce_from_configuration(cluster_id, project=None, zone=None,
-                           gce_credentials=None):
+                           credentials=None):
     """
     Build a ``GCEBlockDeviceAPI`` instance using data from configuration
 
@@ -790,7 +790,7 @@ def gce_from_configuration(cluster_id, project=None, zone=None,
         belonging to this cluster.
     :param str project: The GCE project for the cluster
     :param str zone: The GCE zone the cluster will be located in
-    :param dict gce_credentials: Optional GCE credentials for a service
+    :param dict credentials: Optional GCE credentials for a service
         account that has permissions to carry out GCE volume actions
         (create, delete, detatch, etc.). If this is omitted the user
         must enable the default service account on all cluster nodes.
@@ -801,4 +801,4 @@ def gce_from_configuration(cluster_id, project=None, zone=None,
         project = get_machine_project()
     if zone is None:
         zone = get_machine_zone()
-    return GCEBlockDeviceAPI(cluster_id, project, zone, gce_credentials)
+    return GCEBlockDeviceAPI(cluster_id, project, zone, credentials)
