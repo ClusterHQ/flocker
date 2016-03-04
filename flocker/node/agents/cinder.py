@@ -852,6 +852,19 @@ def get_keystone_session(**config):
         )
 
 
+def get_cinder_client(session, region, version=1):
+    """
+    Create a Cinder (volume) client from a Keystone session.
+
+    :param keystoneclient.Session session: Authenticated Keystone session.
+    :param str region: Openstack region.
+    :param int version: The Cinder API version. 1 or 2.
+    :return: A cinderclient.Client
+    """
+    return CinderClient(
+        session=session, region_name=region, version=version
+    )
+
 def get_cinder_v1_client(session, region):
     """
     Create a Cinder (volume) client from a Keystone session.
@@ -860,9 +873,7 @@ def get_cinder_v1_client(session, region):
     :param str region: Openstack region.
     :return: A cinderclient.Client
     """
-    return CinderClient(
-        session=session, region_name=region, version=1
-    )
+    return get_cinder_client(session, region, version=1)
 
 
 def get_nova_v2_client(session, region):
