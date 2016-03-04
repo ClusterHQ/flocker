@@ -93,6 +93,9 @@ class DatasetAPITests(AsyncTestCase):
         unsupported={DatasetBackend.loopback},
         reason="Does not maintain compute_instance_id across restarting "
                "flocker (and didn't as of most recent release).")
+    @skip_backend(
+        unsupported={DatasetBackend.gce},
+        reason="GCE was not available during the most recent release.")
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
@@ -353,6 +356,12 @@ class DatasetAPITests(AsyncTestCase):
         wait_for_dataset.addCallback(check_volumes)
         return wait_for_dataset
 
+    @skip_backend(
+        unsupported={DatasetBackend.gce},
+        reason="The GCE backend does not let you create two volumes with the "
+               "same dataset id. When this test is run with GCE the test "
+               "fails to create the extra volume, and we do not test the "
+               "functionality this test was designed to test.")
     @require_cluster(2)
     def test_extra_volume(self, cluster):
         """
