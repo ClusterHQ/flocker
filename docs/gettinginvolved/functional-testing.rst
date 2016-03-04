@@ -134,7 +134,49 @@ To run the functional tests, run the following command:
 OpenStack
 =========
 
-The configuration stanza for an private OpenStack deployment is the same as Rackspace above, but ``auth_plugin`` should be included, which refers to an authentication plugin provided by ``python-keystoneclient``.
+The configuration stanza for a private OpenStack deployment is similar to Rackspace (above), with a few notable differences:
+
+* ``auth_plugin`` should be included, which refers to an authentication plugin provided by ``python-keystoneclient``, and
+* ``provider: "openstack"`` should be included, if the top level key is not ``openstack``.
 
 If required, you may need to add additional fields.
 For more information, see :ref:`openstack-dataset-backend`.
+
+Devstack
+--------
+
+It is assumed that you have a working ``Devstack`` environment.
+Refer to document "Setting up a devstack instance" on Google Drive.
+
+To run the Cinder functional tests on ``devstack``:
+
+* boot a supported guest operating system in ``devstack``,
+* log into the guest and clone your branch of the Flocker source code and
+* install the Flocker dependencies in a ``virtualenv``.
+* Create ``$HOME/acceptance.yml`` containing:
+
+.. code:: yaml
+
+   # It is important to use ``devstack-openstack`` as the top-level name
+   # because this limits the size of the Cinder volumes created in the tests to
+   # 1 GiB.
+   devstack-openstack:
+     auth_plugin: password
+     username: "<devstack username e.g. admin>"
+     password: "<devstack password>"
+     tenant_name: "<devstack project name e.g. demo>"
+     region_name: "<devstack region e.g. RegionOne>"
+     auth_url: "<devstack keystone server endpoint e.g. http://192.0.2.100:5000/v2.0>"
+     # This is important, so that the tests know to load the OpenStack Cinder
+     # driver despite not using ``openstack`` as the top-level name.
+     provider: "openstack"
+
+* Run trial as ``root``:
+
+.. prompt:: bash #
+
+   FLOCKER_FUNCTIONAL_TEST=TRUE \
+   FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$HOME/acceptance.yml \
+   FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=devstack-openstack \
+   FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=<devstack region e.g. RegionOne> \
+   trial --testmodule flocker/node/agents/cinder.py
