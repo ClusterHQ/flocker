@@ -15,6 +15,7 @@ from uuid import UUID
 
 import requests
 from bitmath import GiB, Byte
+from eliot import Message, start_action, write_traceback
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from oauth2client.client import (
@@ -208,13 +209,23 @@ def wait_for_operation(compute, operation, timeout_steps, sleep=None):
     """
     poller = _create_poller(operation)
 
-    def finished_operation_result():
-        latest_operation = poller.poll(compute)
-        if latest_operation['status'] == 'DONE':
-            return latest_operation
-        return None
+    with start_action(
+        action_type=u"flocker:node:agents:gce:wait_for_operation",
+        operation=operation
+    ) as action:
+        def finished_operation_result():
+            latest_operation = poller.poll(compute)
+            if latest_operation['status'] == 'DONE':
+                return latest_operation
+            return None
 
-    return poll_until(finished_operation_result, timeout_steps, sleep)
+        final_operation = poll_until(
+            finished_operation_result,
+            timeout_steps,
+            sleep
+        )
+        action.add_success_fields(final_operation=final_operation)
+        return final_operation
 
 
 def get_metadata_path(path):
@@ -229,15 +240,20 @@ def get_metadata_path(path):
 
     :returns unicode: The resulting value from the metadata server.
     """
-    timeout_sec = 3
-    r = requests.get(_METADATA_SERVER + path,
-                     headers=_METADATA_HEADERS,
-                     timeout=timeout_sec)
-    if r.status_code != 200:
-        raise ValueError("Did not get success result from metadata server for "
-                         "path {}, instead got {}.".format(path,
-                                                           r.status_code))
-    return r.text
+    with start_action(
+        action_type=u"flocker:node:agents:gce:get_metadata_path",
+        path=path
+    ) as action:
+        timeout_sec = 3
+        r = requests.get(_METADATA_SERVER + path,
+                         headers=_METADATA_HEADERS,
+                         timeout=timeout_sec)
+        if r.status_code != 200:
+            raise ValueError("Did not get success result from metadata server "
+                             "for path {}, instead got {}.".format(
+                                 path, r.status_code))
+        action.add_success_fields(response=r.text)
+        return r.text
 
 
 def get_machine_zone():
@@ -382,7 +398,6 @@ class GCEBlockDeviceAPI(object):
         - The path of the device (or at least the path to a symlink to a path
             of the volume) is a pure function of blockdevice_id.
     """
-    # TODO(mewert): Logging throughout.
 
     def __init__(self, cluster_id, project, zone, gce_credentials_config=None):
         """
@@ -416,7 +431,11 @@ class GCEBlockDeviceAPI(object):
         """
         return u"flocker-v1-cluster-id: " + unicode(self._cluster_id)
 
-    def _do_blocking_operation(self, function, timeout_sec=60, **kwargs):
+    def _do_blocking_operation(self,
+                               function,
+                               timeout_sec=VOLUME_DEFAULT_TIMEOUT,
+                               sleep=None,
+                               **kwargs):
         """
         Perform a GCE operation, blocking until the operation completes.
 
@@ -442,18 +461,18 @@ class GCEBlockDeviceAPI(object):
             resource dict as described above.
         :param int timeout_sec: The maximum amount of time to wait in seconds
             for the operation to complete.
+        :param sleep: A callable that has the same signature and function as
+            ``time.sleep``. Only intended to be used in tests.
         :param kwargs: Additional keyword arguments to pass to function.
 
         :returns dict: A dict representing the concluded GCE operation
             resource.
         """
-        timeout = kwargs.pop('timeout', VOLUME_DEFAULT_TIMEOUT)
-        sleep = kwargs.pop('sleep', None)
         args = dict(project=self._project, zone=self._zone)
         args.update(kwargs)
         operation = function(**args).execute()
         return wait_for_operation(
-            self._compute, operation, [1]*timeout, sleep)
+            self._compute, operation, [1]*timeout_sec, sleep)
 
     def allocation_unit(self):
         """
@@ -470,37 +489,80 @@ class GCEBlockDeviceAPI(object):
         require you to page through the result set, retrieving one
         page of results for each query.  You are done paging when the
         returned ``pageToken`` is ``None``.
-
-        :param max_results: The max number of results to request for
-            each query to gce.
         """
-        volumes = []
-        page_token = None
-        done = False
-        while not done:
-            response = self._compute.disks().list(
-                project=self._project,
-                zone=self._zone,
-                maxResults=self._page_size,
-                pageToken=page_token,
-            ).execute()
+        with start_action(
+            action_type=u"flocker:node:agents:gce:list_volumes",
+        ) as action:
+            disks = []
+            page_token = None
+            done = False
+            while not done:
+                response = self._compute.disks().list(
+                    project=self._project,
+                    zone=self._zone,
+                    maxResults=self._page_size,
+                    pageToken=page_token,
+                ).execute()
 
-            volumes.extend(
-                BlockDeviceVolume(
-                    blockdevice_id=unicode(disk['name']),
-                    size=int(GiB(int(disk['sizeGb'])).to_Byte()),
-                    attached_to=_extract_attached_to(disk),
-                    dataset_id=_blockdevice_id_to_dataset_id(disk['name'])
+                disks.extend(
+                    response.get('items', [])
                 )
-                for disk in response.get('items', [])
-                if (disk['name'].startswith(_PREFIX) and
-                    disk['description'] ==
-                    self._disk_resource_description())
-            )
 
-            page_token = response.get('nextPageToken')
-            done = not page_token
-        return volumes
+                page_token = response.get('nextPageToken')
+                done = not page_token
+
+            # 'description' will not even be in the dictionary if no
+            # description was specified.
+            def disk_in_cluster(disk):
+                if disk['name'].startswith(_PREFIX):
+                    if 'description' in disk:
+                        return (disk['description'] ==
+                                self._disk_resource_description())
+                    else:
+                        Message.log(
+                            message_type=u'flocker:node:agents:gce:'
+                                         u'list_volumes:suspicious_disk',
+                            log_level=u'ERROR',
+                            message=u'Disk missing description, yet name '
+                                    u'appears as if it came from the flocker '
+                                    u'GCE dataset backend.',
+                            disk=disk
+                        )
+                        return False
+                return False
+
+            ignored_volumes = []
+            cluster_volumes = []
+            for disk in disks:
+                if disk_in_cluster(disk):
+                    cluster_volumes.append(
+                        BlockDeviceVolume(
+                            blockdevice_id=unicode(disk['name']),
+                            size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+                            attached_to=_extract_attached_to(disk),
+                            dataset_id=_blockdevice_id_to_dataset_id(
+                                disk['name'])
+                        )
+                    )
+                else:
+                    ignored_volumes.append(
+                        {'name': disk['name'],
+                         'description': disk.get('description')})
+
+            Message.log(
+                message_type=u'flocker:node:agents:gce:list_volumes:ignored',
+                ignored_volumes=ignored_volumes
+            )
+            action.add_success_fields(
+                cluster_volumes=list(
+                    {
+                        'blockdevice_id': v.blockdevice_id,
+                        'size': v.size,
+                        'attached_to': v.attached_to,
+                        'dataset_id': unicode(v.dataset_id),
+                    } for v in cluster_volumes)
+            )
+            return cluster_volumes
 
     def _get_gce_volume(self, blockdevice_id):
         volume = self._compute.disks().get(project=self._project,
@@ -535,7 +597,7 @@ class GCEBlockDeviceAPI(object):
             self._do_blocking_operation(
                 self._compute.disks().insert,
                 body=config,
-                timeout=VOLUME_INSERT_TIMEOUT,
+                timeout_sec=VOLUME_INSERT_TIMEOUT,
             )
         except HttpError as e:
             if e.resp.status == 409:
@@ -557,39 +619,54 @@ class GCEBlockDeviceAPI(object):
             dataset_id, size, MandatoryProfiles.DEFAULT.value)
 
     def attach_volume(self, blockdevice_id, attach_to):
-        config = dict(
-            deviceName=blockdevice_id,
-            autoDelete=False,
-            boot=False,
-            source=(
-                "https://www.googleapis.com/compute/v1/projects/%s/zones/%s/"
-                "disks/%s" % (self._project, self._zone, blockdevice_id)
-            )
-        )
-        try:
-            result = self._do_blocking_operation(
-                self._compute.instances().attachDisk,
-                instance=attach_to,
-                body=config,
-                timeout=VOLUME_ATTACH_TIMEOUT,
-            )
-
-        except HttpError as e:
-            if e.resp.status == 400:
-                raise UnknownVolume(blockdevice_id)
-            else:
-                raise
-        errors = result.get('error', {}).get('errors', [])
-        for e in errors:
-            if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
-                raise AlreadyAttachedVolume(blockdevice_id)
-        disk = self._get_gce_volume(blockdevice_id)
-        return BlockDeviceVolume(
+        with start_action(
+            action_type=u"flocker:node:agents:gce:attach_volume",
             blockdevice_id=blockdevice_id,
-            size=int(GiB(int(disk['sizeGb'])).to_Byte()),
-            attached_to=attach_to,
-            dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
-        )
+            attach_to=attach_to,
+        ) as action:
+            config = dict(
+                deviceName=blockdevice_id,
+                autoDelete=False,
+                boot=False,
+                source=(
+                    "https://www.googleapis.com/compute/v1/projects/%s/zones/"
+                    "%s/disks/%s" % (self._project, self._zone, blockdevice_id)
+                )
+            )
+            try:
+                result = self._do_blocking_operation(
+                    self._compute.instances().attachDisk,
+                    instance=attach_to,
+                    body=config,
+                    timeout_sec=VOLUME_ATTACH_TIMEOUT,
+                )
+
+            except HttpError as e:
+                if e.resp.status == 400:
+                    write_traceback()
+                    raise UnknownVolume(blockdevice_id)
+                else:
+                    raise
+            errors = result.get('error', {}).get('errors', [])
+            for e in errors:
+                if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
+                    raise AlreadyAttachedVolume(blockdevice_id)
+            disk = self._get_gce_volume(blockdevice_id)
+            result = BlockDeviceVolume(
+                blockdevice_id=blockdevice_id,
+                size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+                attached_to=attach_to,
+                dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
+            )
+            action.add_success_fields(
+                final_volume={
+                    'blockdevice_id': result.blockdevice_id,
+                    'size': result.size,
+                    'attached_to': result.attached_to,
+                    'dataset_id': unicode(result.dataset_id),
+                }
+            )
+            return result
 
     def _get_attached_to(self, blockdevice_id):
         """
@@ -605,26 +682,40 @@ class GCEBlockDeviceAPI(object):
         :raises UnattachedVolume: If the volume is not attached to any
             instance.
         """
-        try:
-            disk = self._get_gce_volume(blockdevice_id)
-        except HttpError as e:
-            if e.resp.status == 404:
-                raise UnknownVolume(blockdevice_id)
-            else:
-                raise
-        attached_to = _extract_attached_to(disk)
-        if not attached_to:
-            raise UnattachedVolume(blockdevice_id)
-        return attached_to
+        with start_action(
+            action_type=u"flocker:node:agents:gce:get_attached_to",
+            blockdevice_id=blockdevice_id
+        ) as action:
+            try:
+                disk = self._get_gce_volume(blockdevice_id)
+            except HttpError as e:
+                if e.resp.status == 404:
+                    raise UnknownVolume(blockdevice_id)
+                else:
+                    raise
+            attached_to = _extract_attached_to(disk)
+            if not attached_to:
+                raise UnattachedVolume(blockdevice_id)
+            action.add_success_fields(attached_to=attached_to)
+            return attached_to
 
     def detach_volume(self, blockdevice_id):
-        attached_to = self._get_attached_to(blockdevice_id)
-        self._do_blocking_operation(
-            self._compute.instances().detachDisk,
-            instance=attached_to,
-            deviceName=blockdevice_id,
-            timeout=VOLUME_DETATCH_TIMEOUT)
-        return None
+        with start_action(
+            action_type=u"flocker:node:agents:gce:detach_volume",
+            blockdevice_id=blockdevice_id,
+        ):
+            attached_to = self._get_attached_to(blockdevice_id)
+            # TODO(mewert): Test this race (something else detaches right at
+            # this point). Might involve putting all GCE interactions behind a
+            # zope interface and then using a proxy implementation to inject
+            # code.
+            self._do_blocking_operation(
+                self._compute.instances().detachDisk,
+                instance=attached_to,
+                deviceName=blockdevice_id,
+                timeout_sec=VOLUME_DETATCH_TIMEOUT
+            )
+            return None
 
     def get_device_path(self, blockdevice_id):
         self._get_attached_to(blockdevice_id)
@@ -635,7 +726,7 @@ class GCEBlockDeviceAPI(object):
             self._do_blocking_operation(
                 self._compute.disks().delete,
                 disk=blockdevice_id,
-                timeout=VOLUME_DELETE_TIMEOUT,
+                timeout_sec=VOLUME_DELETE_TIMEOUT,
             )
         except HttpError as e:
             if e.resp.status == 404:
