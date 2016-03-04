@@ -7,6 +7,8 @@ basic assumptions/understandings of how Cinder works in the real world.
 
 from unittest import SkipTest
 
+from bitmath import Byte
+
 from ..cinder import (
     get_keystone_session, get_cinder_v1_client, wait_for_volume_state
 )
@@ -15,6 +17,7 @@ from ..test.blockdevicefactory import (
     ProviderType,
     get_openstack_region_for_test,
     get_blockdevice_config,
+    get_minimum_allocatable_size,
 )
 from ....testtools import TestCase, random_name
 
@@ -56,7 +59,7 @@ class VolumesCreateTests(TestCase):
         expected_metadata = {random_name(self): "bar"}
 
         new_volume = self.cinder_volumes.create(
-            size=100,
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value),
             metadata=expected_metadata
         )
         CINDER_VOLUME(id=new_volume.id).write()
@@ -94,7 +97,9 @@ class VolumesSetMetadataTests(TestCase):
         """
         expected_metadata = {random_name(self): u"bar"}
 
-        new_volume = self.cinder_volumes.create(size=100)
+        new_volume = self.cinder_volumes.create(
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value),
+        )
         CINDER_VOLUME(id=new_volume.id).write()
         self.addCleanup(self.cinder_volumes.delete, new_volume)
 
