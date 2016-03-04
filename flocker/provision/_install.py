@@ -1179,7 +1179,7 @@ def task_create_flocker_pool_file():
     ])
 
 
-def task_install_zfs(distribution, variants=set()):
+def task_install_zfs(distribution):
     """
     Install ZFS on a node.
 
@@ -1210,12 +1210,6 @@ def task_install_zfs(distribution, variants=set()):
         if distribution == 'centos-7':
             commands.append(yum_install(["epel-release"]))
 
-        if Variants.ZFS_TESTING in variants:
-            commands += [
-                yum_install(['yum-utils']),
-                run_from_args([
-                    'yum-config-manager', '--enable', 'zfs-testing'])
-            ]
         commands.append(yum_install(["zfs"]))
     else:
         raise DistributionNotSupported(distribution)
@@ -1223,12 +1217,11 @@ def task_install_zfs(distribution, variants=set()):
     return sequence(commands)
 
 
-def configure_zfs(node, variants):
+def configure_zfs(node):
     """
     Configure ZFS for use as a Flocker backend.
 
     :param INode node: The node to configure ZFS on.
-    :param set variants: The set of variant configurations to use when
 
     :return Effect:
     """
@@ -1244,9 +1237,7 @@ def configure_zfs(node, variants):
             username='root',
             address=node.address,
             commands=sequence([
-                task_install_zfs(
-                    distribution=node.distribution,
-                    variants=variants),
+                task_install_zfs(distribution=node.distribution),
                 task_create_flocker_pool_file(),
             ]),
         ),
