@@ -142,15 +142,15 @@ The configuration stanza for a private OpenStack deployment is similar to Racksp
 If required, you may need to add additional fields.
 For more information, see :ref:`openstack-dataset-backend`.
 
-Devstack
+DevStack
 --------
 
-It is assumed that you have a working ``Devstack`` environment.
-Refer to document "Setting up a devstack instance" on Google Drive.
+It is assumed that you have a working DevStack environment.
+Refer to document "Setting up a DevStack instance" on Google Drive.
 
-To run the Cinder functional tests on ``devstack``:
+To run the Cinder functional tests on DevStack:
 
-* boot a supported guest operating system in ``devstack``,
+* boot a supported guest operating system in DevStack,
 * log into the guest and clone your branch of the Flocker source code and
 * install the Flocker dependencies in a ``virtualenv``.
 * Create ``$HOME/acceptance.yml`` containing:
@@ -162,11 +162,11 @@ To run the Cinder functional tests on ``devstack``:
    # 1 GiB.
    devstack-openstack:
      auth_plugin: password
-     username: "<devstack username e.g. admin>"
-     password: "<devstack password>"
-     tenant_name: "<devstack project name e.g. demo>"
-     region_name: "<devstack region e.g. RegionOne>"
-     auth_url: "<devstack keystone server endpoint e.g. http://192.0.2.100:5000/v2.0>"
+     username: "<DevStack username e.g. admin>"
+     password: "<DevStack password>"
+     tenant_name: "<DevStack project name e.g. demo>"
+     region_name: "<DevStack region e.g. RegionOne>"
+     auth_url: "<DevStack keystone server endpoint e.g. http://192.0.2.100:5000/v2.0>"
      # This is important, so that the tests know to load the OpenStack Cinder
      # driver despite not using ``openstack`` as the top-level name.
      provider: "openstack"
