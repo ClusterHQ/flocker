@@ -4,7 +4,7 @@
 Provisioning for acceptance tests.
 """
 
-from ._common import PackageSource, Variants, INode, IProvisioner
+from ._common import PackageSource, Variants, INode, IProvisioner, Cluster
 from ._install import (
     provision, configure_cluster, reinstall_flocker_from_package_source
 )
@@ -21,7 +21,7 @@ CLOUD_PROVIDERS = {
 
 __all__ = [
     'PackageSource', 'Variants',
-    'INode', 'IProvisioner',
+    'INode', 'IProvisioner', 'Cluster',
     'provision',
     'CLOUD_PROVIDERS',
     'configure_cluster',

@@ -101,6 +101,12 @@ class BackendDescription(PClass):
         nodes.
     :type acceptance_provision_node: Callable that takes a
         ``flocker.provision.INode``.
+    :ivar acceptance_configure_cluster: Function that will configure
+        a cluster for use with this backend. This should configure
+        and start any servcies required by the backend. This will be
+        called before configuring the flocker cluster.
+    :type acceptance_configure_cluster: Callable that takes a
+        ``flocker.provision.Cluster``.
     """
     name = field(type=unicode, mandatory=True)
     needs_reactor = field(type=bool, mandatory=True)
@@ -120,6 +126,10 @@ class BackendDescription(PClass):
     acceptance_provision_node = field(
         mandatory=True,
         initial=(lambda node: None),
+    )
+    acceptance_configure_cluster = field(
+        mandatory=True,
+        initial=(lambda cluster: None),
     )
 
 

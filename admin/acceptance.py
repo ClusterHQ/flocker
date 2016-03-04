@@ -27,7 +27,7 @@ from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.python.reflect import prefixedMethodNames
 
-from effect import parallel
+from effect import parallel, Func, Effect
 from txeffect import perform
 
 from uuid import UUID
@@ -41,7 +41,7 @@ from flocker.common import (
 )
 from flocker.common.script import eliot_to_stdout
 
-from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
+from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS, Cluster
 from flocker.provision._ssh import (
     run_remotely,
     ensure_agent_has_ssh_key,
@@ -56,7 +56,6 @@ from flocker.provision._install import (
 )
 from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
-from flocker.provision._common import Cluster
 from flocker.testtools.cluster_utils import (
     make_cluster_id, Providers, TestTypes
 )
@@ -553,11 +552,15 @@ def configured_cluster_for_nodes(
         dataset_backend_config_file=dataset_backend_config_file
     )
 
-    configuring = perform(
-        make_dispatcher(reactor),
-        configure_cluster(
+    commands = Effect(Func(
+        lambda: dataset_backend.acceptance_configure_cluster(cluster)
+    )).on(
+        success=lambda _: configure_cluster(
             cluster, dataset_backend_configuration, provider, logging_config
-        )
+        ),
+    )
+    configuring = perform(
+        make_dispatcher(reactor), commands,
     )
     configuring.addCallback(lambda ignored: cluster)
     return configuring
