@@ -15,9 +15,9 @@ from eliot import Message
 from pyrsistent import PClass, field
 
 from keystoneclient.openstack.common.apiclient.exceptions import (
-    NotFound as CinderNotFound,
     HttpError as KeystoneHttpError,
 )
+
 from keystoneclient.auth import get_plugin_class
 from keystoneclient.session import Session
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
@@ -28,6 +28,7 @@ from novaclient.exceptions import NotFound as NovaNotFound
 from novaclient.exceptions import ClientException as NovaClientException
 
 from twisted.python.filepath import FilePath
+from twisted.python.components import proxyForInterface
 
 from zope.interface import implementer, Interface
 
@@ -43,6 +44,10 @@ from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
     OPENSTACK_ACTION, CINDER_CREATE
 )
+
+# Default to Cinder API V1 for backwards compatibility with Rackspace.
+# This can be overridden in the driver configuration file.
+DEFAULT_CINDER_API_VERSION = 1
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
 # a volume.
@@ -141,12 +146,13 @@ class ICinderVolumeManager(Interface):
     # of 10 ** 9 bytes).  Real world observations indicate size is actually in
     # GiB (multiples of 2 ** 30).  So this method is documented as accepting
     # GiB values.  https://bugs.launchpad.net/openstack-api-site/+bug/1456631
-    def create(size, metadata=None):
+    def create(size, metadata=None, display_name=None):
         """
         Creates a volume.
 
         :param size: Size of volume in GiB
         :param metadata: Optional metadata to set on volume creation
+        :param display_name: Optional name of the volume
         :rtype: :class:`Volume`
         """
 
@@ -541,7 +547,7 @@ class CinderBlockDeviceAPI(object):
     def detach_volume(self, blockdevice_id):
         try:
             cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
-        except CinderNotFound:
+        except CinderClientNotFound:
             raise UnknownVolume(blockdevice_id)
         server_id = _blockdevicevolume_from_cinder_volume(
             cinder_volume).attached_to
@@ -576,7 +582,7 @@ class CinderBlockDeviceAPI(object):
         """
         try:
             self.cinder_volume_manager.delete(blockdevice_id)
-        except CinderNotFound:
+        except CinderClientNotFound:
             raise UnknownVolume(blockdevice_id)
         start_time = self._time.time()
         # Wait until the volume is not there or until the operation
@@ -584,7 +590,7 @@ class CinderBlockDeviceAPI(object):
         while(self._time.time() - start_time < self._timeout):
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
-            except CinderNotFound:
+            except CinderClientNotFound:
                 return
             self._time.sleep(1.0)
         # If the volume is not deleted, raise an exception
@@ -678,7 +684,7 @@ class CinderBlockDeviceAPI(object):
         """
         try:
             cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
-        except CinderNotFound:
+        except CinderClientNotFound:
             raise UnknownVolume(blockdevice_id)
 
         device_path = self._get_device_path_api(cinder_volume)
@@ -852,7 +858,7 @@ def get_keystone_session(**config):
         )
 
 
-def get_cinder_client(session, region, version=1):
+def get_cinder_client(session, region, version):
     """
     Create a Cinder (volume) client from a Keystone session.
 
@@ -864,17 +870,6 @@ def get_cinder_client(session, region, version=1):
     return CinderClient(
         session=session, region_name=region, version=version
     )
-
-def get_cinder_v1_client(session, region):
-    """
-    Create a Cinder (volume) client from a Keystone session.
-
-    :param keystoneclient.Session session: Authenticated Keystone session.
-    :param str region: Openstack region.
-    :return: A cinderclient.Client
-    """
-    return get_cinder_client(session, region, version=1)
-
 
 def get_nova_v2_client(session, region):
     """
@@ -899,12 +894,24 @@ def cinder_from_configuration(region, cluster_id, **config):
     :param config: A dictionary of configuration options for Openstack.
     """
     session = get_keystone_session(**config)
-    cinder_client = get_cinder_v1_client(session, region)
+    cinder_api_version = config.get(
+        "cinder_api_version", 
+        DEFAULT_CINDER_API_VERSION,
+    )
+    cinder_client = get_cinder_client(
+        session, 
+        region,
+        version=cinder_api_version
+    )
+    
     nova_client = get_nova_v2_client(session, region)
 
     logging_cinder = _LoggingCinderVolumeManager(
         cinder_client.volumes
     )
+
+    if cinder_api_version == 2:
+        logging_cinder = Cinder1to2Adapter(logging_cinder)
 
     logging_nova_volume_manager = _LoggingNovaVolumeManager(
         _nova_volumes=nova_client.volumes
@@ -918,3 +925,19 @@ def cinder_from_configuration(region, cluster_id, **config):
         nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,
     )
+
+
+class Cinder1to2Adapter(proxyForInterface(ICinderVolumeManager, "_client_v2")):
+    """
+    Deal with annoying differences in the method signatures between
+    cinderclient.client.{v1,v2}.volumes.VolumeManager
+    """
+    def create(self, size, metadata=None, display_name=None):
+        """
+        v1 uses display_name rather than name.
+        """
+        return self._client_v2.create(
+            size=size,
+            metadata=metadata,
+            name=display_name
+        )
