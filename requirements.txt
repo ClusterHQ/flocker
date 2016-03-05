@@ -2,7 +2,7 @@ argparse==1.3.0
 attrs==15.1.0
 Babel==1.3
 backports.ssl-match-hostname==3.4.0.2
-bitmath==1.2.3-4
+bitmath==1.2.3.post4
 boto==2.38.0
 boto3==1.2.2
 botocore==1.3.17
@@ -26,6 +26,7 @@ ipaddress==1.0.7
 iso8601==0.1.10
 jmespath==0.9.0
 jsonschema==2.4.0
+keystoneauth1==2.3.0
 klein==0.2.3
 machinist==0.2.0
 msgpack-python==0.4.6
@@ -37,8 +38,9 @@ oslo.config==1.12.1
 oslo.i18n==1.7.0
 oslo.serialization==1.6.0
 oslo.utils==1.6.0
-pbr==0.11.1
+pbr==1.8.1
 pip==7.1.0
+positional==1.0.1
 prettytable==0.7.2
 psutil==2.1.2
 pyasn1==0.1.9
@@ -47,11 +49,11 @@ pycparser==2.14
 pycrypto==2.6.1
 pyOpenSSL==0.15.1
 pyrsistent==0.11.9
-python-cinderclient==1.1.1
+python-cinderclient==1.6.0
 python-dateutil==2.4.2
 python-keystoneclient==1.4.0
 python-keystoneclient-rackspace==0.1.3
-python-novaclient==2.24.1
+python-novaclient==3.3.0
 pytz==2015.4
 PyYAML==3.10
 repoze.lru==0.6
