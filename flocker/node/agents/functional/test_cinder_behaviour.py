@@ -144,29 +144,32 @@ class CinderPagingTests(TestCase):
     Tests for Cinder V2 paging.
 
     These tests will only work on an OpenStack server where Cinder API
-    has been configured with ``osapi_max_limit = 2``.
+    has been configured with ``osapi_max_limit = 5``.
 
-    To configure devstack this way, add the following to ``local.conf``
+    To configure devstack this way, add the following to ``local.conf``:
 
-        ```
-        [[post-config|$CINDER_CONF]] 
-        [DEFAULT]                    
-        osapi_max_limit = 2          
-        ```
-
+    ```
+    [[post-config|$CINDER_CONF]] 
+    [DEFAULT]                    
+    osapi_max_limit = 5
+    ```
     """
-    def test_unpaged_v1(self):
-        """
-        Cinder v1 client does not handle paged API responses so if we
-        set the ``osapi_max_limit = 2`` the Cinder API server will
-        only return 2 results at a time and the Cinder v1 client will
-        only report the first two.
-        """
-        client = cinder_volume_manager(version=1)
 
+    def _create_volumes(self, client, volume_count):
+        """
+        Create multiple volumes, wait for them to be available and
+        clean them all up after the test, blocking until they have
+        been deleted.
+
+        :param cinderclient.client.Client client: The Cinder client to use.
+        :param int volume_count: The number of volumes to create.
+        :returns: The ``list`` of volumes created.
+        """
         volumes = list(
-            client.create(size=1)
-            for i in range(10)
+            client.create(
+                size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
+            )
+            for i in range(volume_count)
         )
 
         list(CINDER_VOLUME(id=v.id).write() for v in volumes)
@@ -186,38 +189,27 @@ class CinderPagingTests(TestCase):
             )
             for v in volumes
         )
+        return volumes
+
+    def test_unpaged_v1(self):
+        """
+        Cinder v1 client does not handle paged API responses so if we
+        set the ``osapi_max_limit = 5`` the Cinder API server will
+        only return 2 results at a time and the Cinder v1 client will
+        only report the first two.
+        """
+        client = cinder_volume_manager(version=1)
+        self._create_volumes(client, 10)
         self.assertEqual(5, len(client.list()))
 
     def test_paged_v2(self):
         """
         Cinder v2 client does handle paged API responses so if we
-        set the ``osapi_max_limit = 2`` the Cinder API server will
-        only return all the results.
+        set the ``osapi_max_limit = 5`` the Cinder API server will
+        return all the results.
         """
         client = cinder_volume_manager(version=2)
-
-        volumes = list(
-            client.create(size=1)
-            for i in range(10)
-        )
-
-        list(CINDER_VOLUME(id=v.id).write() for v in volumes)
-
-        self.addCleanup(
-            delete_multiple_volumes, 
-            cinder_volume_manager=client,
-            volumes=volumes
-        )
-
-        list(
-            wait_for_volume_state(
-                volume_manager=client,
-                expected_volume=v,
-                desired_state=u'available',
-                transient_states=(u'creating',),
-            )
-            for v in volumes
-        )
+        volumes = self._create_volumes(client, 10)
         self.assertEqual(
             set(v.id for v in volumes), 
             set(v.id for v in client.list())
