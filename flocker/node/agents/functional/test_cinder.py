@@ -114,13 +114,6 @@ class CinderBlockDeviceAPIInterfaceTests(
         :return: A ``cinderclient.Cinder`` instance.
         """
         return self.api.cinder_volume_manager
-        # try:
-        #     config = get_blockdevice_config(ProviderType.openstack)
-        # except InvalidConfig as e:
-        #     self.skipTest(str(e))
-        # session = get_keystone_session(**config)
-        # region = get_openstack_region_for_test()
-        # return get_cinder_client(session, region)
 
     def test_foreign_volume(self):
         """
