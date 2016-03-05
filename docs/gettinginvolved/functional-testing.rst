@@ -165,7 +165,6 @@ To run the Cinder functional tests on DevStack:
      username: "<DevStack username e.g. admin>"
      password: "<DevStack password>"
      tenant_name: "<DevStack project name e.g. demo>"
-     region_name: "<DevStack region e.g. RegionOne>"
      auth_url: "<DevStack keystone server endpoint e.g. http://192.0.2.100:5000/v2.0>"
      # This is important, so that the tests know to load the OpenStack Cinder
      # driver despite not using ``openstack`` as the top-level name.
@@ -178,5 +177,4 @@ To run the Cinder functional tests on DevStack:
    FLOCKER_FUNCTIONAL_TEST=TRUE \
    FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=$HOME/acceptance.yml \
    FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=devstack-openstack \
-   FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=<devstack region e.g. RegionOne> \
    trial --testmodule flocker/node/agents/cinder.py
