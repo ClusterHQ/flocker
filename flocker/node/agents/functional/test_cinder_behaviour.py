@@ -4,7 +4,7 @@
 Test for real world behaviour of Cinder implementations to validate some of our
 basic assumptions/understandings of how Cinder works in the real world.
 """
-
+from itertools import repeat
 from unittest import SkipTest
 
 from bitmath import Byte
@@ -19,6 +19,7 @@ from ..test.blockdevicefactory import (
     get_blockdevice_config,
     get_minimum_allocatable_size,
 )
+from ....common import poll_until
 from ....testtools import TestCase, random_name
 
 from .logging import CINDER_VOLUME
@@ -125,6 +126,19 @@ class VolumesSetMetadataTests(TestCase):
         self.assertEqual(set(), missing_items)
 
 
+def delete_multiple_volumes(cinder_volume_manager, volumes):
+    for volume in volumes:
+        cinder_volume_manager.delete(volume)
+
+    deleted_volume_ids = set(v.id for v in volumes)
+    def all_gone():
+        found_volume_ids = set(
+            v.id for v in cinder_volume_manager.list()
+        )
+        return len(deleted_volume_ids.intersection(found_volume_ids)) == 0
+    return poll_until(all_gone, repeat(1, 60))
+
+
 class CinderPagingTests(TestCase):
     """
     Tests for Cinder V2 paging.
@@ -157,7 +171,11 @@ class CinderPagingTests(TestCase):
 
         list(CINDER_VOLUME(id=v.id).write() for v in volumes)
 
-        self.addCleanup(lambda: list(client.delete(v) for v in volumes))
+        self.addCleanup(
+            delete_multiple_volumes, 
+            cinder_volume_manager=client,
+            volumes=volumes
+        )
 
         list(
             wait_for_volume_state(
@@ -168,10 +186,7 @@ class CinderPagingTests(TestCase):
             )
             for v in volumes
         )
-        self.assertEqual(
-            5, 
-            set(v.id for v in client.list())
-        )
+        self.assertEqual(5, len(client.list()))
 
     def test_paged_v2(self):
         """
@@ -188,7 +203,11 @@ class CinderPagingTests(TestCase):
 
         list(CINDER_VOLUME(id=v.id).write() for v in volumes)
 
-        self.addCleanup(lambda: list(client.delete(v) for v in volumes))
+        self.addCleanup(
+            delete_multiple_volumes, 
+            cinder_volume_manager=client,
+            volumes=volumes
+        )
 
         list(
             wait_for_volume_state(
