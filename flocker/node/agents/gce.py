@@ -340,8 +340,6 @@ def gce_credentials_from_config(gce_credentials_config=None):
         )
     else:
         credentials = GoogleCredentials.get_application_default()
-        # credentials = AppAssertionCredentials(
-        #     "https://www.googleapis.com/auth/cloud-platform")
     return credentials
 
 
@@ -779,6 +777,7 @@ class GCEBlockDeviceAPI(object):
             timeout_sec=5*60,
             instance=node_id
         )
+
 
 def gce_from_configuration(cluster_id, project=None, zone=None,
                            credentials=None):
