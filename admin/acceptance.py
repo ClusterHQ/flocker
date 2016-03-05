@@ -58,12 +58,13 @@ from flocker.provision._install import (
 from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._common import Cluster
-from flocker.acceptance.testtools import DatasetBackend
 from flocker.testtools.cluster_utils import (
     make_cluster_id, Providers, TestTypes
 )
 from flocker.common import parse_version, UnparseableVersion
 from flocker.common.runner import run, run_ssh
+from flocker.node import backends
+from flocker.node.backends import backend_loader
 
 
 def _validate_version_option(option_name, option_value):
@@ -252,8 +253,7 @@ RUNNER_ATTRIBUTES = [
 
     'top_level', 'config', 'package_source', 'variants',
 
-    # DatasetBackend named constant of the dataset backend the nodes use - eg
-    # DatasetBackend.zfs
+    # BackendDescription of the dataset backend the nodes use
     'dataset_backend',
 
     # dict giving configuration for the dataset backend the nodes use - eg
@@ -274,9 +274,9 @@ class ManagedRunner(object):
         stop.
     :ivar PackageSource package_source: The version of the software this object
         will install on the nodes when it "starts" them.
-    :ivar NamedConstant dataset_backend: The ``DatasetBackend`` constant
-        representing the dataset backend that the nodes will be configured to
-        use when they are "started".
+    :ivar BackendDescription dataset_backend: The description of the dataset
+        backend that the nodes will be configured to use when they are
+        "started".
     :ivar dict dataset_backend_configuration: The backend-specific
         configuration the nodes will be given for their dataset backend.
     :ivar ClusterIdentity identity: The identity information of the cluster.
@@ -391,14 +391,17 @@ class ManagedRunner(object):
 
 def _provider_for_cluster_id(dataset_backend):
     """
-    Get the ``Providers`` value that probably corresponds to a value from
-    ``DatasetBackend``.
-    Note that this function will ignore the case of a managed provider,
-    as this information cannot be known by just knowing the backend.
+    Get the ``Providers`` value that probably corresponds to the
+    ``BackendDescription``.
+
+    .. note::
+
+       This function will ignore the case of a managed provider,
+       as this information cannot be known by just knowing the backend.
     """
-    if dataset_backend is DatasetBackend.aws:
+    if dataset_backend is backends.AWS:
         return Providers.AWS
-    if dataset_backend is DatasetBackend.openstack:
+    if dataset_backend is backends.OPENSTACK:
         return Providers.OPENSTACK
     return Providers.UNSPECIFIED
 
@@ -524,9 +527,9 @@ def configured_cluster_for_nodes(
     :param Certificates certificates: The certificates to install on the
         cluster.
     :param nodes: The ``ManagedNode``s on which to operate.
-    :param NamedConstant dataset_backend: The ``DatasetBackend`` constant
-        representing the dataset backend that the nodes will be configured to
-        use when they are "started".
+    :param BackendDescription dataset_backend: The description of the dataset
+        backend that the nodes will be configured to use when they are
+        "started".
     :param dict dataset_backend_configuration: The backend-specific
         configuration the nodes will be given for their dataset backend.
     :param FilePath dataset_backend_config_file: A FilePath that has the
@@ -570,7 +573,7 @@ class LibcloudRunner(object):
 
     :ivar LibcloudProvioner provisioner: The provisioner to use to create the
         nodes.
-    :ivar DatasetBackend dataset_backend: The volume backend the nodes are
+    :ivar BackendDescription dataset_backend: The volume backend the nodes are
         configured with.
     :ivar int num_nodes: The number of nodes in the cluster.
     :ivar ClusterIdentity identity: The identity information of the cluster.
@@ -638,7 +641,7 @@ class LibcloudRunner(object):
         """
         commands = node.provision(package_source=self.package_source,
                                   variants=self.variants)
-        if self.dataset_backend == DatasetBackend.zfs:
+        if self.dataset_backend == backends.ZFS:
             zfs_commands = configure_zfs(node, variants=self.variants)
             commands = commands.on(success=lambda _: zfs_commands)
 
@@ -861,7 +864,7 @@ class LibcloudRunner(object):
                            variants=self.variants)
             for node in self.nodes
         ])
-        if self.dataset_backend == DatasetBackend.zfs:
+        if self.dataset_backend == backends.ZFS:
             zfs_commands = parallel([
                 configure_zfs(node, variants=self.variants)
                 for node in self.nodes
@@ -931,7 +934,7 @@ class CommonOptions(Options):
         ['dataset-backend', None, 'zfs',
          'The dataset backend to test against. '
          'One of {}'.format(', '.join(backend.name for backend
-                                      in DatasetBackend.iterconstants()))],
+                                      in backend_loader.list()))],
         ['config-file', None, None,
          'Configuration for compute-resource providers and dataset backends.'],
         ['branch', None, None, 'Branch to grab packages from'],
@@ -988,8 +991,8 @@ class CommonOptions(Options):
         """
         Get the storage driver the acceptance testing nodes will use.
 
-        :return: A constant from ``DatasetBackend`` matching the name of the
-            backend chosen by the command-line options.
+        :return: A ``BackendDescription`` matching the name of the backend
+            chosen by the command-line options.
         """
         configuration = self.dataset_backend_configuration()
         # Avoid requiring repetition of the backend name when it is the same as
@@ -1001,7 +1004,7 @@ class CommonOptions(Options):
             "backend", self["dataset-backend"]
         )
         try:
-            return DatasetBackend.lookupByName(dataset_backend_name)
+            return backend_loader.get(dataset_backend_name)
         except ValueError:
             raise UsageError(
                 "Unknown dataset backend: {}".format(
@@ -1084,7 +1087,8 @@ class CommonOptions(Options):
                         provider_config):
         """
         :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param BackendDescription dataset_backend: The description of the
+            dataset backend the nodes are configured with.
         :param provider_config: The ``managed`` section of the acceptance
             testing configuration file.  The section of the configuration
             file should look something like:
@@ -1124,7 +1128,8 @@ class CommonOptions(Options):
         the ``--number-of-nodes`` command line option.
 
         :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param BackendDescription dataset_backend: The description of the
+            dataset backend the nodes are configured with.
         :param provider: The name of the cloud provider of nodes for the tests.
         :param provider_config: The ``managed`` section of the acceptance
 
@@ -1171,7 +1176,8 @@ class CommonOptions(Options):
     def _runner_GCE(self, package_source, dataset_backend, provider_config):
         """
         :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param BackendDescription dataset_backend: The description of the
+            dataset backend the nodes are configured with.
         :param provider_config: The ``gce`` section of the acceptance
             testing configuration file.  See the documentation linked below for
             the form of the configuration.
@@ -1186,7 +1192,8 @@ class CommonOptions(Options):
                           provider_config):
         """
         :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param BackendDescription dataset_backend: The description of the
+            dataset backend the nodes are configured with.
         :param dict provider_config: The ``rackspace`` section of the
             acceptance testing configuration file.  See the linked
             documentation for the form of that section.
@@ -1201,7 +1208,8 @@ class CommonOptions(Options):
                     provider_config):
         """
         :param PackageSource package_source: The source of omnibus packages.
-        :param DatasetBackend dataset_backend: A ``DatasetBackend`` constant.
+        :param BackendDescription dataset_backend: The description of the
+            dataset backend the nodes are configured with.
         :param dict provider_config: The ``aws`` section of the acceptance
             testing configuration file.  See the linked documentation for the
             form of that section.
