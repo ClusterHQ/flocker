@@ -136,7 +136,7 @@ OpenStack
 
 The configuration stanza for a private OpenStack deployment is similar to Rackspace (above), with a few notable differences:
 
-* ``auth_plugin`` should be included, which refers to an authentication plugin provided by ``python-keystoneclient``, and
+* ``auth_plugin`` should be included, which refers to an authentication plugin provided by ``python-keystoneclient``.
 * ``provider: "openstack"`` should be included, if the top level key is not ``openstack``.
 
 If required, you may need to add additional fields.
@@ -150,9 +150,9 @@ Refer to document "Setting up a DevStack instance" on Google Drive.
 
 To run the Cinder functional tests on DevStack:
 
-* boot a supported guest operating system in DevStack,
-* log into the guest and clone your branch of the Flocker source code and
-* install the Flocker dependencies in a ``virtualenv``.
+* Boot a supported guest operating system in DevStack.
+* Log into the guest and clone your branch of the Flocker source code.
+* Install the Flocker dependencies in a ``virtualenv``.
 * Create ``$HOME/acceptance.yml`` containing:
 
 .. code:: yaml
