@@ -57,6 +57,19 @@ On Ubuntu 14.04 (64-bit), the Flocker CLI can be installed from the ClusterHQ re
 
 .. begin-body-installing-client-linux
 
+Installing on RHEL 7.2
+======================
+
+.. note:: 
+   These instructions require that you have ``sudo`` access.
+
+
+On RHEL 7.2, the Flocker CLI can be installed from the ClusterHQ repository:
+
+   .. prompt:: bash root@rhel:~$
+
+      yum install -y clusterhq-flocker-cli
+
 Installing on Other Linux Distributions
 =======================================
 
