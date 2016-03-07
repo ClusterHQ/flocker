@@ -16,12 +16,9 @@ Next Release
   This could lead to the appearance of data loss, as different volumes get used.
   Now, even if multiple volumes are created, only a single volume will be used.
   This was particularly likely to occur on AWS.
-
-This Release
-============
-
 * The container agent is now optional and can be safely disabled if you don't expect to be using Flocker's deprecated container API or ``flocker-deploy``.
   The :ref:`Flocker plugin for Docker<plugin>` allows you to use Flocker from Docker without using Flocker's container API.
+* The :ref:`OpenStack block device backend <openstack-dataset-backend>` can now be configured to use Cinder API V2, which allows Flocker to manage larger numbers (> 1000) of volumes on OpenStack.
 
 Previous Releases
 =================
