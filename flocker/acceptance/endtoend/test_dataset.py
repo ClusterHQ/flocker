@@ -96,7 +96,7 @@ class DatasetAPITests(AsyncTestCase):
         reason="Does not maintain compute_instance_id across restarting "
                "flocker (and didn't as of most recent release).")
     @skip_backend(
-        unsupported={DatasetBackend.gce},
+        unsupported={backends.GCE},
         reason="GCE was not available during the most recent release.")
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
@@ -359,7 +359,7 @@ class DatasetAPITests(AsyncTestCase):
         return wait_for_dataset
 
     @skip_backend(
-        unsupported={DatasetBackend.gce},
+        unsupported={backends.GCE},
         reason="The GCE backend does not let you create two volumes with the "
                "same dataset id. When this test is run with GCE the test "
                "fails to create the extra volume, and we do not test the "

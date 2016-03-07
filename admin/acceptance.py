@@ -403,7 +403,7 @@ def _provider_for_cluster_id(dataset_backend):
         return Providers.AWS
     if dataset_backend is backends.OPENSTACK:
         return Providers.OPENSTACK
-    if dataset_backend is DatasetBackend.gce:
+    if dataset_backend is backends.GCE:
         return Providers.GCE
     return Providers.UNSPECIFIED
 
