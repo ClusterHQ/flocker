@@ -5,18 +5,12 @@ Test for real world behaviour of Cinder implementations to validate some of our
 basic assumptions/understandings of how Cinder works in the real world.
 """
 from itertools import repeat
-from unittest import SkipTest
 
 from bitmath import Byte
 
-from ..cinder import (
-    get_keystone_session, get_cinder_client, wait_for_volume_state,
-)
+from ..cinder import wait_for_volume_state
 from ..test.blockdevicefactory import (
-    InvalidConfig,
     ProviderType,
-    get_openstack_region_for_test,
-    get_blockdevice_config,
     get_minimum_allocatable_size,
     get_blockdeviceapi_with_cleanup,
 )
@@ -37,7 +31,7 @@ class VolumesCreateTests(TestCase):
     def setUp(self):
         super(VolumesCreateTests, self).setUp()
         self.cinder_volumes = get_blockdeviceapi_with_cleanup(
-            self, 
+            self,
             ProviderType.openstack
         ).cinder_volume_manager
 
@@ -79,10 +73,9 @@ class VolumesSetMetadataTests(TestCase):
     def setUp(self):
         super(VolumesSetMetadataTests, self).setUp()
         self.cinder_volumes = get_blockdeviceapi_with_cleanup(
-            self, 
+            self,
             ProviderType.openstack
         ).cinder_volume_manager
-
 
     def test_updated_metadata_is_listed(self):
         """
@@ -124,6 +117,7 @@ def delete_multiple_volumes(cinder_volume_manager, volumes):
         cinder_volume_manager.delete(volume)
 
     deleted_volume_ids = set(v.id for v in volumes)
+
     def all_gone():
         found_volume_ids = set(
             v.id for v in cinder_volume_manager.list()
@@ -142,8 +136,8 @@ class CinderPagingTests(TestCase):
     To configure devstack this way, add the following to ``local.conf``:
 
     ```
-    [[post-config|$CINDER_CONF]] 
-    [DEFAULT]                    
+    [[post-config|$CINDER_CONF]]
+    [DEFAULT]
     osapi_max_limit = 5
     ```
     """
@@ -162,13 +156,15 @@ class CinderPagingTests(TestCase):
         try:
             for i in range(volume_count):
                 v = client.create(
-                    size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
+                    size=int(
+                        Byte(get_minimum_allocatable_size()).to_GiB().value
+                    )
                 )
                 volumes.append(v)
                 CINDER_VOLUME(id=v.id).write()
         finally:
             self.addCleanup(
-                delete_multiple_volumes, 
+                delete_multiple_volumes,
                 cinder_volume_manager=client,
                 volumes=volumes
             )
@@ -192,7 +188,7 @@ class CinderPagingTests(TestCase):
         only report the first two.
         """
         client = get_blockdeviceapi_with_cleanup(
-            self, 
+            self,
             ProviderType.openstack
         ).cinder_volume_manager
 
@@ -206,12 +202,12 @@ class CinderPagingTests(TestCase):
         return all the results.
         """
         client = get_blockdeviceapi_with_cleanup(
-            self, 
+            self,
             ProviderType.openstack
         ).cinder_volume_manager
 
         volumes = self._create_volumes(client, 10)
         self.assertEqual(
-            set(v.id for v in volumes), 
+            set(v.id for v in volumes),
             set(v.id for v in client.list())
         )

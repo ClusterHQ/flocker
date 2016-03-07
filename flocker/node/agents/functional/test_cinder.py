@@ -42,7 +42,7 @@ from ..test.blockdevicefactory import (
 from ....testtools import TestCase, flaky, run_process
 
 from ..cinder import (
-    get_keystone_session, get_cinder_client, get_nova_v2_client,
+    get_keystone_session, get_cinder_client,
     wait_for_volume_state, UnexpectedStateException, UnattachedVolume,
     TimeoutException
 )
@@ -359,7 +359,6 @@ class OpenStackFixture(object):
         self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
         self.cinder = self.blockdevice_api.cinder_volume_manager
         self.nova = self.blockdevice_api.nova_volume_manager
-
 
     def _detach(self, instance_id, volume):
         self.nova.delete_server_volume(instance_id, volume.id)

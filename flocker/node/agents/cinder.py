@@ -895,15 +895,15 @@ def cinder_from_configuration(region, cluster_id, **config):
     """
     session = get_keystone_session(**config)
     cinder_api_version = config.get(
-        "cinder_api_version", 
+        "cinder_api_version",
         DEFAULT_CINDER_API_VERSION,
     )
     cinder_client = get_cinder_client(
-        session, 
+        session,
         region,
         version=cinder_api_version
     )
-    
+
     nova_client = get_nova_v2_client(session, region)
 
     logging_cinder = _LoggingCinderVolumeManager(
