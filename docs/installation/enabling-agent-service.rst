@@ -18,8 +18,8 @@ The Flocker agents, the ``flocker-dataset-agent`` and the ``flocker-container-ag
 
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
 
-CentOS 7
-========
+CentOS 7, RHEL 7.2
+==================
 
 #. Run the following commands to enable the agent service:
 
