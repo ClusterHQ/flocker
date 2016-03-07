@@ -793,6 +793,7 @@ class LibcloudRunner(object):
             node_cert_and_key,
             self.dataset_backend_configuration,
             'libcloud',
+            index=index,
             logging_config=self.config.get('logging'),
         )
         d = perform(make_dispatcher(reactor), commands)

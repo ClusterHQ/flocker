@@ -83,6 +83,7 @@ class Cluster(PClass):
     default_volume_size = field(type=int, mandatory=True)
     certificates = field(type=Certificates, mandatory=True)
     dataset_backend_config_file = field(mandatory=True, type=FilePath)
+    volume_hub_token = field(mandatory=False, type=str)
 
     @property
     def certificates_path(self):
