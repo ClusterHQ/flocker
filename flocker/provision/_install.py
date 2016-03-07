@@ -833,10 +833,13 @@ def task_install_volume_hub_control(token):
     :param str token: Token for a Volume Hub account which the cluster
         will be connected to.
     """
+    cmd = (
+        "TARGET=control-service TOKEN=\"{token}\" "
+        "sh -c 'curl -ssL https://get-volumehub.clusterhq.com/ |sh'"
+    ).format(token=token)
+
     return sequence([
-        run(
-            "TARGET=control-service TOKEN=\"{token}\" sh -c 'curl -ssL https://get-volumehub.clusterhq.com/ |sh'".format(token=token)
-        )
+        run(cmd)
     ])
 
 
@@ -848,18 +851,17 @@ def task_install_volume_hub_agent(token, index):
         will be connected to.
     :param int index: Index of the node.
     """
-    if index == 0:
-        return sequence([
-            run(
-                "TARGET=agent-node RUN_FLOCKER_AGENT_HERE=1 TOKEN=\"{token}\" sh -c 'curl -ssL https://get-volumehub.clusterhq.com/ |sh'".format(token=token)
-            )
-        ])
-    else:
-        return sequence([
-            run(
-                "TARGET=agent-node TOKEN=\"{token}\" sh -c 'curl -ssL https://get-volumehub.clusterhq.com/ |sh'".format(token=token)
-            )
-        ])
+    cmd = (
+        "TARGET=agent-node {run_agent} TOKEN=\"{token}\" "
+        "sh -c 'curl -ssL https://get-volumehub.clusterhq.com/ |sh'"
+    ).format(
+        run_agent="RUN_FLOCKER_AGENT_HERE=1" if index == 0 else "",
+        token=token
+    )
+
+    return sequence([
+        run(cmd)
+    ])
 
 
 def task_enable_docker(distribution):
