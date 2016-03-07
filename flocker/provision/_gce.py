@@ -22,7 +22,7 @@ provisioner, and unwinding the encoded description is:
 import json
 
 from eliot import start_action
-from pyrsistent import PClass, field
+from pyrsistent import PClass, field, pset_field
 from textwrap import dedent
 from twisted.conch.ssh.keys import Key
 from zope.interface import implementer
@@ -56,6 +56,12 @@ _GCE_ACCEPTANCE_USERNAME = u"flocker-acceptance"
 # The "default" network in the clusterhq-acceptance project on GCE has this set
 # up for instances tagged flocker-acceptance.
 _GCE_FIREWALL_TAG = u"allow-incoming-traffic"
+
+# Tag for all instances created by the GCEProvisioner.
+_GCE_PROVISIONER_TAG = "flocker-gce-provisioner"
+
+# Tag to indicate that the description is intended to be JSON formatted.
+_JSON_DESCRIPTION_TAG = u"json-description"
 
 
 def _clean_to_gce_name(identifier):
@@ -272,31 +278,72 @@ def _create_gce_instance_config(instance_name, project, zone, machine_type,
     return gce_slave_instance_config
 
 
-@implementer(INode)
-class GCENode(PClass):
+class GCEInstance(PClass):
     """
-    ``INode`` implementation for GCE.
+    Representation of a GCE instance, with all of the information to do
+    cloud-level interactions.
 
     :ivar unicode address: The public IP address of the instance.
     :ivar unicode private_address: The network internal IP address of the
         instance.
-    :ivar bytes distribution: The OS distribution of the instance.
     :ivar unicode project: The project the instance a member of.
     :ivar unicode zone: The zone the instance is in.
     :ivar unicode name: The GCE name of the instance used to identify the
         instance.
-    :ivar bytes username: The preferred username to access the instance as.
     :ivar compute: A Google Compute Engine Service that can be used to make
         calls to the GCE API.
     """
-    address = field(type=bytes)
-    private_address = field(type=bytes)
-    distribution = field(type=bytes)
-    project = field(type=unicode)
-    zone = field(type=unicode)
-    name = field(type=unicode)
-    username = field(type=bytes)
-    compute = field()
+    address = field(type=bytes, mandatory=True)
+    private_address = field(type=bytes, mandatory=True)
+    project = field(type=unicode, mandatory=True)
+    zone = field(type=unicode, mandatory=True)
+    name = field(type=unicode, mandatory=True)
+    tags = pset_field(item_type=unicode)
+    compute = field(mandatory=True)
+
+    def destroy(self):
+        """
+        Destroy this instance, and block until it has completed.
+        """
+        with start_action(
+            action_type=u"flocker:provision:gce:destroy",
+            instance_id=self.name,
+        ):
+            operation = self.compute.instances().delete(
+                project=self.project,
+                zone=self.zone,
+                instance=self.name
+            ).execute()
+            wait_for_operation(self.compute, operation, timeout_steps=[5]*60)
+
+
+@implementer(INode)
+class GCENode(PClass):
+    """
+    ``INode`` implementation for GCE. This encompasses cloud-level interactions
+    as well as the ability to SSH into the node, and execute
+    distribution-specific commands.
+
+    :ivar GCEInstance instance: The GCE instance to use for underlying
+        cloud operations.
+    :ivar bytes distribution: The OS distribution of the instance.
+    :ivar bytes username: The preferred username to access the instance as.
+    """
+    instance = field(type=GCEInstance, mandatory=True)
+    username = field(type=bytes, mandatory=True)
+    distribution = field(type=bytes, mandatory=True)
+
+    @property
+    def address(self):
+        return self.instance.address
+
+    @property
+    def private_address(self):
+        return self.instance.private_address
+
+    @property
+    def name(self):
+        return self.instance.name
 
     def get_default_username(self):
         return self.username
@@ -334,16 +381,7 @@ class GCENode(PClass):
         return sequence(commands)
 
     def destroy(self):
-        with start_action(
-            action_type=u"flocker:provision:gce:destroy",
-            instance_id=self.name,
-        ):
-            operation = self.compute.instances().delete(
-                project=self.project,
-                zone=self.zone,
-                instance=self.name
-            ).execute()
-            wait_for_operation(self.compute, operation, timeout_steps=[1]*60)
+        return self.instance.destroy()
 
     def reboot(self):
         """
@@ -386,6 +424,60 @@ class GCEProvisioner(PClass):
     def get_ssh_key(self):
         return self.ssh_public_key
 
+    def _gce_instance_from_instance_resource(self, instance_resource):
+        """
+        Constructs a :class:`GCEInstance` from the instance_resource dict
+        returned from the API.
+
+        :param dict instance_resource: The instance resource dict returned from
+            the GCE API.
+
+        :returns GCEInstance: The :class:`GCEInstance` that corresponds to the
+            given instance resource dict.
+        """
+        if instance_resource.get('status') == 'TERMINATED':
+            return None
+
+        network_interface = instance_resource["networkInterfaces"][0]
+        return GCEInstance(
+            address=bytes(network_interface["accessConfigs"][0]["natIP"]),
+            private_address=bytes(network_interface["networkIP"]),
+            project=self.project,
+            zone=self.zone,
+            name=instance_resource['name'],
+            tags=instance_resource['tags'].get('items', []),
+            compute=self.compute
+        )
+
+    def _gce_node_from_instance_resource(self, instance_resource):
+        """
+        Constructs a :class:`GCENode` from an instance_resource.
+        """
+        instance = self._gce_instance_from_instance_resource(instance_resource)
+        if not instance:
+            return None
+
+        if _GCE_PROVISIONER_TAG not in instance.tags:
+            return None
+
+        if _JSON_DESCRIPTION_TAG not in instance.tags:
+            raise ValueError(
+                "Could not create a ``GCENode`` from instance resource"
+                "{instance} because the {tag} tag was not present.".format(
+                    instance=str(instance_resource), tag=_JSON_DESCRIPTION_TAG)
+            )
+
+        # XXX: If you get KeyErrors or JSON parsing errors from this code, it
+        # probably means you are trying to create a :class:``GCENode`` object
+        # from a GCE instance that was not created by this version of this
+        # software.
+        description_blob = json.loads(instance_resource["description"])
+        return GCENode(
+            instance=instance,
+            username=bytes(description_blob["username"]),
+            distribution=bytes(description_blob["distribution"])
+        )
+
     def create_node(self, name, distribution, metadata={}):
         instance_name = _clean_to_gce_name(name)
         ssh_key = unicode(self.ssh_public_key.toString('OPENSSH'))
@@ -414,13 +506,15 @@ class GCEProvisioner(PClass):
             ],
             disk_size=_GCE_DISK_SIZE_GIB,
             description=json.dumps({
-                u"description-format": u"v1",
+                u"description-format": u"v2",
                 u"created-by-python": u"flocker.provision._gce.GCEProvisioner",
                 u"name": name,
+                u"distribution": distribution,
+                u"username": username,
                 u"metadata": metadata
             }),
-            tags=set([u"flocker-gce-provisioner",
-                      u"json-description",
+            tags=set([_GCE_PROVISIONER_TAG,
+                      _JSON_DESCRIPTION_TAG,
                       _GCE_FIREWALL_TAG]),
             delete_disk_on_terminate=True,
             startup_script=dedent("""\
@@ -436,7 +530,7 @@ class GCEProvisioner(PClass):
         ).execute()
 
         operation_result = wait_for_operation(
-            self.compute, operation, timeout_steps=[1]*60)
+            self.compute, operation, timeout_steps=[5]*60)
 
         if not operation_result:
             raise ValueError(
@@ -449,17 +543,37 @@ class GCEProvisioner(PClass):
             project=self.project, zone=self.zone, instance=instance_name
         ).execute()
 
-        network_interface = instance_resource["networkInterfaces"][0]
-        return GCENode(
-            address=bytes(network_interface["accessConfigs"][0]["natIP"]),
-            private_address=bytes(network_interface["networkIP"]),
-            distribution=bytes(distribution),
-            project=self.project,
-            zone=self.zone,
-            name=instance_name,
-            username=bytes(username),
-            compute=self.compute
-        )
+        return self._gce_node_from_instance_resource(instance_resource)
+
+    def _list_all_nodes(self):
+        """
+        Returns all nodes in the given project and zone that were created by
+        this script.
+
+        :returns: An iterable of :class:`GCEInstance` instances.
+        """
+        unfiltered_results = []
+        next_page = None
+        while True:
+            response = self.compute.instances().list(
+                zone=self.zone, project=self.project, pageToken=next_page
+            ).execute()
+            unfiltered_results += list(
+                self._gce_node_from_instance_resource(resource)
+                for resource in response['items'])
+            next_page = response.get('nextPageToken')
+            if not next_page:
+                break
+        return list(instance for instance in unfiltered_results
+                    if instance)
+
+    def get_nodes(self, filters):
+        # XXX: Only returns nodes if filters contains an array of ip_addresses.
+        ip_addresses = filters.get('ip_address', [])
+        if not ip_addresses:
+            return []
+        return list(gce_node for gce_node in self._list_all_nodes()
+                    if gce_node.address in ip_addresses)
 
     def create_nodes(self, reactor, names, distribution, metadata={}):
         """
