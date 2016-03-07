@@ -1094,7 +1094,7 @@ def task_configure_flocker_agent(
     Configure the flocker agents by writing out the configuration file.
 
     :param bytes control_node: The address of the control agent.
-    :param DatasetBackend dataset_backend: The volume backend the nodes are
+    :param BackendDescription dataset_backend: The volume backend the nodes are
         configured with.
     :param dict dataset_backend_configuration: The backend specific
         configuration options.

@@ -39,9 +39,7 @@ from ..test.blockdevicefactory import (
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
     get_minimum_allocatable_size, get_openstack_region_for_test,
 )
-from ....testtools import (
-    REALISTIC_BLOCKDEVICE_SIZE, TestCase, flaky, run_process,
-)
+from ....testtools import TestCase, flaky, run_process
 
 from ..cinder import (
     get_keystone_session, get_cinder_v1_client, get_nova_v2_client,
@@ -638,7 +636,7 @@ class BlockDeviceAPIDestroyTests(TestCase):
         """
         new_volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=int(REALISTIC_BLOCKDEVICE_SIZE.to_Byte()),
+            size=get_minimum_allocatable_size(),
         )
 
         expected_timeout = 8

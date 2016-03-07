@@ -92,6 +92,19 @@ class PluginLoader(PClass):
 
         return (True, "")
 
+    def list(self):
+        """
+        Return a list of available plugins.
+
+        .. note::
+
+           This list may not include all third-party plugins.
+
+        :return: The availble plugins.
+        :rtype: ``PVector`` of ``plugin_type``s.
+        """
+        return self.builtin_plugins
+
     def get(self, plugin_name):
         """
         Find the plugin in ``builtin_plugins`` that matches the one named by
