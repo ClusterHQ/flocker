@@ -322,7 +322,7 @@ class PublishInstallerImagesEffectsTests(TestCase):
                     content=json.dumps(
                         thaw(ami_map),
                         encoding='utf-8',
-                    ),
+                    ) + b"\n",
                 ), lambda intent: None),
             ],
             eff=publish_installer_images_effects(options=options)

@@ -355,7 +355,7 @@ def publish_installer_images_effects(options):
     )
     yield Effect(
         intent=StandardOut(
-            content=json.dumps(thaw(ami_map), encoding="utf-8")
+            content=json.dumps(thaw(ami_map), encoding="utf-8") + b"\n"
         )
     )
 
