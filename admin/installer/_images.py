@@ -311,8 +311,6 @@ class PublishInstallerImagesOptions(Options):
          "Copy images to all regions. [default: False]"]
     ]
     optParameters = [
-        ["target_bucket", None, DEFAULT_IMAGE_BUCKET,
-         "The bucket to upload installer AMI names to.\n", unicode],
         ["build_region", None, DEFAULT_BUILD_REGION.value,
          "A region where the image will be built.\n", unicode],
         ["distribution", None, DEFAULT_DISTRIBUTION,
