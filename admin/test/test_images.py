@@ -25,6 +25,7 @@ from testtools.matchers import Contains
 
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
+from twisted.python.usage import UsageError
 
 from flocker.testtools import (
     AsyncTestCase, TestCase, random_name, FakeSysModule
@@ -54,15 +55,6 @@ require_packer = skipIf(
     not PACKER_PATH.exists(),
     "Tests require ``packer`` to be installed at ``/opt/packer/packer``."
 )
-
-
-def default_options():
-    """
-    :return: The default ``PublishInstallerOptions``.
-    """
-    options = PublishInstallerImagesOptions()
-    options.parseOptions([])
-    return options
 
 
 class ParserData(PClass):
@@ -181,7 +173,7 @@ class PackerConfigureTests(TestCase):
     """
     def test_configuration(self):
         """
-        Source AMI ID, build region, and target regions can all be overridden
+        Source AMIs, build region, and target regions can all be overridden
         in a chosen template.
         """
         expected_build_region = AWS_REGIONS.EU_WEST_1
@@ -190,11 +182,13 @@ class PackerConfigureTests(TestCase):
             AWS_REGIONS.AP_SOUTHEAST_1,
             AWS_REGIONS.AP_SOUTHEAST_2,
         ]
-        expected_source_ami = random_name(self)
+        expected_source_ami_map = {
+            AWS_REGIONS.EU_WEST_1: random_name(self)
+        }
         intent = PackerConfigure(
             build_region=expected_build_region,
             publish_regions=expected_publish_regions,
-            source_ami=expected_source_ami,
+            source_ami_map=expected_source_ami_map,
             template=u"docker",
             distribution=u"ubuntu-14.04",
         )
@@ -217,7 +211,7 @@ class PackerConfigureTests(TestCase):
         self.assertEqual(
             (expected_build_region.value,
              set(c.value for c in expected_publish_regions),
-             expected_source_ami),
+             expected_source_ami_map[expected_build_region]),
             (build_region, set(publish_regions),
              build_source_ami)
         )
@@ -303,7 +297,11 @@ class PublishInstallerImagesEffectsTests(TestCase):
         The function generates a packer configuration file, runs packer
         build and uploads the AMI ids to a given S3 bucket.
         """
-        options = default_options()
+        options = PublishInstallerImagesOptions()
+        options.parseOptions(
+            [b'--source-ami-map', b'{"us-west-1": "ami-1234"}']
+        )
+
         configuration_path = self.make_temporary_directory()
         ami_map = PACKER_OUTPUT_US_ALL.output
         perform_sequence(
@@ -311,7 +309,7 @@ class PublishInstallerImagesEffectsTests(TestCase):
                 (PackerConfigure(
                     build_region=options["build_region"],
                     publish_regions=options["regions"],
-                    source_ami=options["source_ami"],
+                    source_ami_map=options["source-ami-map"],
                     template=options["template"],
                     distribution=options["distribution"],
                 ), lambda intent: configuration_path),
@@ -477,4 +475,25 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         self.expectThat(
             flocker_image.tags,
             Contains({u'Key': 'FLOCKER_VERSION', u'Value': flocker_version}),
+        )
+
+
+class PublishInstallerImagesOptionsTests(TestCase):
+    """
+    Tests for ``PublishInstallerImagesOptions``
+    """
+    def test_source_ami_map_required(self):
+        """
+        ``--source-ami-map`` is required.
+        """
+        options = PublishInstallerImagesOptions()
+
+        exception = self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            [],
+        )
+        self.assertIn(
+            u"--source-ami-map is required.",
+            unicode(exception)
         )
