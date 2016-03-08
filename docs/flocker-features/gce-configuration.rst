@@ -8,7 +8,7 @@ Google GCE / PD Block Device Backend
 
 The GCE backend uses PD volumes as the storage for datasets.
 This backend can be used when Flocker dataset agents are run on GCE instances.
-The configuration item to use GCE should look like:
+The :file:`agent.yml` configuration file for the GCE backend should contain the following:
 
 .. code-block:: yaml
 

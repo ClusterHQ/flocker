@@ -8,7 +8,7 @@ Amazon AWS / EBS Block Device Backend
 
 The AWS backend uses EBS volumes as the storage for datasets.
 This backend can be used when Flocker dataset agents are run on EC2 instances.
-The configuration item to use AWS should look like:
+The :file:`agent.yml` configuration file for the AWS backend should contain the following:
 
 .. code-block:: yaml
 
