@@ -274,10 +274,6 @@ class P2PManifestationDeployer(object):
         better solution.
         """
         local_state = cluster_state.get_node(self.node_uuid)
-        # We need to know applications (for now) to see if we should delay
-        # deletion or handoffs. Eventually this will rely on leases instead.
-        if local_state.applications is None:
-            return sequentially(changes=[])
         phases = []
 
         not_in_use_datasets = NotInUseDatasets(
