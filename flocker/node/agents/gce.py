@@ -707,12 +707,50 @@ class GCEBlockDeviceAPI(object):
             # this point). Might involve putting all GCE interactions behind a
             # zope interface and then using a proxy implementation to inject
             # code.
-            self._do_blocking_operation(
+            result = self._do_blocking_operation(
                 self._compute.instances().detachDisk,
                 instance=attached_to,
                 deviceName=blockdevice_id,
                 timeout_sec=VOLUME_DETATCH_TIMEOUT
             )
+
+            # If there is an outstanding detach operation, attach_to will be
+            # reported, but an attempt to detach will quickly fail with an
+            # `INVALID_FIELD_VALUE`.
+            #
+            # Attempt to detect this scenario, and poll until the volume is
+            # detached.
+            if 'error' in result:
+                potentially_detaching_error = None
+                for error in result['error']:
+                    if error == 'INVALID_FIELD_VALUE':
+                        potentially_detaching_error = error
+
+                if potentially_detaching_error is not None:
+                    try:
+                        poll_until(
+                            lambda: self._extract_attached_to(blockdevice_id),
+                            [1] * VOLUME_DETATCH_TIMEOUT
+                        )
+                        raise GCEVolumeException(
+                            "Volume appeared to be detaching, but never "
+                            "detached {}: {}".format(
+                                blockdevice_id,
+                                str(potentially_detaching_error)
+                            )
+                        )
+                    except UnattachedVolume:
+                        # If we eventually get an `UnattachedVolume` exception
+                        # then the volume has been successfully detached.
+                        pass
+                else:
+                    raise GCEVolumeException(
+                        "Error detaching volume {}: {}".format(
+                            blockdevice_id,
+                            str(result['error'])
+                        )
+                    )
+
             return None
 
     def get_device_path(self, blockdevice_id):
