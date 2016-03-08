@@ -80,7 +80,7 @@ Follow these steps to build the virtual machine images:
 
    A new AMI image will be built in the ``us-west-1`` region.
    That image will be copied to all available AWS regions.
-   The region specific AMI image IDs will be uploaded to the ``clusterhq-installer-images`` S3 bucket in an object matching the template name ``docker`` in JSON format.
+   The region specific AMI image IDs will be printed to ``stdout`` in JSON format.
    Make a note of the ``us-west-1`` AMI image ID because you'll use it for building the Flocker AMI in the next step.
 
    .. note::
@@ -117,10 +117,9 @@ Follow these steps to build the virtual machine images:
 
    A new AMI image will be built in the ``us-west-1`` region.
    That image will be copied to all available AWS regions.
-   The region specific AMI image IDs will be uploaded to the ``clusterhq-installer-images`` S3 bucket in an object matching the template name ``flocker`` in JSON format.
+   The region specific AMI image IDs will be printed to ``stdout`` in JSON format.
 
-   .. XXX: Now that I document it, it's going to be easier if the command just prints the JSON AMI map to ``stdout``.
-      We can then add a new option to consume that JSON in line or from a URL.
+   .. XXX: We need a new option to consume that JSON in line or from a URL.
       E.g. ``--source_ami_map_url <S3 URL>`` and ``--source_ami_map_body <inline JSON>``
 
 4. Add the new images to the CloudFormation template.
