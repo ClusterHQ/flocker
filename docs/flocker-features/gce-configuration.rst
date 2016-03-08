@@ -1,12 +1,12 @@
 .. _gce-dataset-backend:
 
-=====================================
-Google GCE / PD Block Device Backend 
-=====================================
+=================================================
+Google GCE / Persistent Disk Block Device Backend 
+=================================================
 
 .. begin-body
 
-The GCE backend uses PD volumes as the storage for datasets.
+The GCE backend uses persistent disk volumes as the storage for datasets.
 This backend can be used when Flocker dataset agents are run on GCE instances.
 The :file:`agent.yml` configuration file for the GCE backend should contain the following:
 
@@ -54,7 +54,7 @@ properties:
    This option should have precisely the content of that JSON blob.
    For convenience, since JSON is valid YAML, you can copy the contents of the file directly into your YAML configuration.
 
-The Google GCE / PD driver maintained by ClusterHQ provides :ref:`storage-profiles`.
+The Google GCE / Persistent disk driver maintained by ClusterHQ provides :ref:`storage-profiles`.
 The three available profiles are:
 
 * **Gold**: SSD Persistent Disk
