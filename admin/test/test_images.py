@@ -8,9 +8,6 @@ from subprocess import check_call, CalledProcessError
 from unittest import skipIf
 
 import boto3
-from botocore.exceptions import (
-    ClientError, NoCredentialsError, EndpointConnectionError
-)
 from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
     extract_from_urllib3,
 )
@@ -26,8 +23,6 @@ from testtools.matchers import StartsWith
 from testtools.content import text_content, content_from_file, ContentType
 from testtools.matchers import Contains
 
-from fixtures import Fixture
-
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
 
@@ -36,7 +31,7 @@ from flocker.testtools import (
 )
 
 from ..installer._images import (
-    WriteToS3, PackerBuild,
+    StandardOut, PackerBuild,
     _PackerOutputParser, PackerConfigure,
     AWS_REGIONS, publish_installer_images_effects, RealPerformers,
     PublishInstallerImagesOptions, PACKER_PATH
@@ -46,22 +41,6 @@ from ..installer._images import (
 # exception when we try an API call on an idled persistent connection.
 # See https://github.com/boto/boto3/issues/220
 extract_from_urllib3()
-
-try:
-    boto3.session.Session().client('s3').list_buckets()
-except (ClientError, NoCredentialsError, EndpointConnectionError) as e:
-    S3_INACCESSIBLE = True
-    S3_INACCESSIBLE_REASON = (
-        "S3 is not accessible. "
-        "Check AWS credentials in ~/.aws/credentials. "
-        "Error was: {!r}"
-    ).format(e)
-    del e
-else:
-    S3_INACCESSIBLE = False
-    S3_INACCESSIBLE_REASON = ""
-
-require_s3_credentials = skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
 
 try:
     import flocker as _flocker
@@ -290,74 +269,28 @@ class PackerBuildIntegrationTests(AsyncTestCase):
         return d.addCallback(check_error)
 
 
-class S3BucketFixture(Fixture):
+class StandardOutTests(TestCase):
     """
-    Create a temporary S3 bucket for the duration of a test.
+    Tests for ``StandardOut``.
     """
-    def __init__(self, test_case):
-        super(S3BucketFixture, self).__init__()
-        self.test_case = test_case
-        # Bucket names must be a valid DNS label
-        # https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-s3-bucket-naming-requirements.html
-        self.bucket_name = random_name(
-            test_case
-        ).lower().replace("_", "")[-63:]
-
-    def _setUp(self):
-        self.s3client = boto3.client("s3")
-        self.s3client.create_bucket(Bucket=self.bucket_name)
-
-        def cleanup():
-            self.empty_bucket()
-            self.s3client.delete_bucket(Bucket=self.bucket_name)
-        self.addCleanup(cleanup)
-
-    def empty_bucket(self):
-        """
-        Delete all the objects in the temporary bucket.
-        """
-        bucket = self.s3client.list_objects(Bucket=self.bucket_name)
-        for s3object in bucket.get("Contents", []):
-            self.s3client.delete_object(
-                Bucket=self.bucket_name,
-                Key=s3object["Key"],
-            )
-
-    def get_object_content(self, key):
-        """
-        :param unicode key: The key name of an object in the bucket.
-        :returns: The content of the object with ``key``
-        """
-        return self.s3client.get_object(
-            Bucket=self.bucket_name,
-            Key=key
-        )["Body"].read()
-
-
-class WriteToS3Tests(TestCase):
-    """
-    Tests for ``WriteToS3``.
-    """
-    @require_s3_credentials
     def test_perform(self):
         """
-        ``WriteToS3`` has a performer that creates a new object with
-        ``target_key`` and ``content`` in ``target_bucket``
+        ``StandardOut`` has a performer that writes content to sys.stdout.
         """
-        s3 = self.useFixture(S3BucketFixture(test_case=self))
-        intent = WriteToS3(
+        fake_sys_module = FakeSysModule()
+        intent = StandardOut(
             content=random_name(self).encode('ascii'),
-            target_key=random_name(self),
-            target_bucket=s3.bucket_name,
         )
         result = sync_perform(
-            dispatcher=RealPerformers().dispatcher(),
+            dispatcher=RealPerformers(
+                sys_module=fake_sys_module
+            ).dispatcher(),
             effect=Effect(intent=intent)
         )
         self.assertIs(None, result)
         self.assertEqual(
             intent.content,
-            s3.get_object_content(key=intent.target_key),
+            fake_sys_module.stdout.getvalue()
         )
 
 
@@ -385,13 +318,11 @@ class PublishInstallerImagesEffectsTests(TestCase):
                 (PackerBuild(
                     configuration_path=configuration_path,
                 ), lambda intent: ami_map),
-                (WriteToS3(
+                (StandardOut(
                     content=json.dumps(
                         thaw(ami_map),
                         encoding='utf-8',
-                    ),
-                    target_bucket=options["target_bucket"],
-                    target_key=options["template"],
+                    ) + b"\n",
                 ), lambda intent: None),
             ],
             eff=publish_installer_images_effects(options=options)
@@ -468,8 +399,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         )
 
     @require_packer
-    @require_s3_credentials
-    def test_build_both(self):
+    def foo_test_build_both(self):
         """
         ``publish-installer-images`` can be called twice to first generate
         Docker images and then Flocker images built on the Docker images.
@@ -479,10 +409,8 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         swarm_version = u"1.0.1"
         flocker_version = u"1.10.1"
         build_region = u"us-west-1"
-        s3 = self.useFixture(S3BucketFixture(test_case=self))
         returncode, stdout, stderr = self.publish_installer_images(
-            args=['--target_bucket', s3.bucket_name,
-                  '--template', 'docker',
+            args=['--template', 'docker',
                   '--copy_to_all_regions',
                   '--build_region', build_region],
             extra_enviroment={
@@ -490,18 +418,16 @@ class PublishInstallerImagesIntegrationTests(TestCase):
                 u'SWARM_VERSION': swarm_version,
             }
         )
-        # The script should have uploaded AMI map to an object called "docker"
-        docker_object_content = s3.get_object_content(key=u'docker')
         self.addDetail(
-            'docker_object_content', text_content(docker_object_content)
+            'docker_object_content', text_content(stdout)
         )
 
         # It should be valid JSON.
-        docker_ami_map = json.loads(docker_object_content)
+        docker_ami_map = json.loads(stdout)
+
         # We can use that image as the source for the Flocker image
         returncode, stdout, stderr = self.publish_installer_images(
-            args=['--target_bucket', s3.bucket_name,
-                  '--template', 'flocker',
+            args=['--template', 'flocker',
                   '--build_region', build_region,
                   '--copy_to_all_regions',
                   '--source_ami', docker_ami_map[build_region]],
@@ -509,13 +435,11 @@ class PublishInstallerImagesIntegrationTests(TestCase):
                 u'FLOCKER_VERSION': flocker_version
             }
         )
-        # And now we should have a "flocker" AMI map
-        flocker_object_content = s3.get_object_content(key=u'flocker')
         self.addDetail(
-            'flocker_object_content', text_content(flocker_object_content)
+            'flocker_object_content', text_content(stdout)
         )
         # It should be valid JSON.
-        flocker_ami_map = json.loads(flocker_object_content)
+        flocker_ami_map = json.loads(stdout)
 
         ec2 = boto3.resource('ec2', region_name=build_region)
         # Get a list of all the related images and tags in case of errors.
