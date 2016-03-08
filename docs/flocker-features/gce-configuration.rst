@@ -23,9 +23,8 @@ For more information, see the Google Cloud Platform instructions for `setting th
 The required scope is ``https://www.googleapis.com/auth/compute``.
 In the GCE console this corresponds to the ``Allow API access to all Google Cloud services in the same project`` checkbox when you start an instance.
 
-If you do not want to use the instance scope to authenticate, you can also do
-so using service account credentials.
-For more information about the format of that option, see the optional ``credentials`` key.
+If you do not want to use the instance scope to authenticate, you can alternatively add service account credentials to the :file:`agent.yml` configuration file.
+For more information about the format of that option, see the optional ``credentials`` key below.
 
 There are no mandatory properties for GCE, but there are some optional
 properties:
