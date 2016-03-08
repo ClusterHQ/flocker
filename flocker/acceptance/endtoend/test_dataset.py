@@ -209,6 +209,8 @@ class DatasetAPITests(AsyncTestCase):
 
     @flaky(u'FLOC-3341')
     @require_moving_backend
+    # GCE sometimes takes 1 full minute to detach a disk.
+    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     @require_cluster(2)
     def test_dataset_move(self, cluster):
         """
