@@ -7,11 +7,6 @@ import os
 from subprocess import check_call, CalledProcessError
 from unittest import skipIf
 
-import boto3
-from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
-    extract_from_urllib3,
-)
-
 from effect import Effect, sync_perform
 from effect.testing import perform_sequence
 
@@ -21,7 +16,6 @@ from pyrsistent import PClass, field, pmap_field, thaw
 
 from testtools.matchers import StartsWith
 from testtools.content import text_content, content_from_file, ContentType
-from testtools.matchers import Contains
 
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
@@ -37,11 +31,6 @@ from ..installer._images import (
     AWS_REGIONS, publish_installer_images_effects, RealPerformers,
     PublishInstallerImagesOptions, PACKER_PATH
 )
-
-# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
-# exception when we try an API call on an idled persistent connection.
-# See https://github.com/boto/boto3/issues/220
-extract_from_urllib3()
 
 try:
     import flocker as _flocker
