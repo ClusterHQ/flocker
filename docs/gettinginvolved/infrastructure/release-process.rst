@@ -37,6 +37,8 @@ Software
 
 * `Docker <https://docs.docker.com/installation/>`_
 * `virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/install.html>`_
+* `Packer <https://www.packer.io>`_
+   The Packer command must be installed at ``/opt/packer/packer``.
 
 **OS X**
 
@@ -240,6 +242,44 @@ Release
 
    Enter your access key and secret token when prompted.
    The other configurable values may be left as their defaults.
+
+#. Update the CloudFormation installer template.
+
+   .. _release-process-cloudformation:
+
+   The following commands will generate new AWS AMI images with this version of Flocker pre-installed.
+   The new AMI images will be used in the CloudFormation template used in the :ref:`docker-integration` installation instructions.
+
+   .. code:: console
+
+      FLOCKER_VERSION="${TAG:?}"
+
+      DOCKER_VERSION=1.10.0
+      SWARM_VERSION=1.1.0
+
+      export FLOCKER_VERSION DOCKER_VERSION SWARM_VERSION
+
+      admin/ami-search-ubuntu > /tmp/ami_map_ubuntu.json
+
+      admin/publish-installer-images \
+          --copy_to_all_regions \
+          --template=docker \
+          --source-ami-map="$(<ami_map_ubuntu.json)" > ami_map_docker.json
+
+      admin/publish-installer-images \
+          --copy_to_all_regions \
+          --template=flocker \
+          --source-ami-map="$(<ami_map_docker.json)" > ami_map_flocker.json
+
+      admin/create-cloudformation-template \
+           --client-ami-map-body="$(<ami_map_docker.json)" \
+           --node-ami-map-body="$(<ami_map_flocker.json)" \
+           > "flocker-cluster.cloudformation.${FLOCKER_VERSION}.json"
+
+      aws --region us-east-1 \
+          s3 cp --acl public-read \
+          "flocker-cluster.cloudformation.${FLOCKER_VERSION}.json" \
+          s3://installer.downloads.clusterhq.com/
 
 #. Publish artifacts and documentation:
 

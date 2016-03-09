@@ -219,14 +219,14 @@ def flocker_docker_template(cluster_size, client_ami_map, node_ami_map):
         Default="",
     ))
 
-    # Base AMIs pre-baked with the following products:
-    # Docker 1.9.1
-    # Flocker 1.9.0.dev1+1221.gde4c49f
-    # Please update the version fields above when new AMIs are generated.
     template.add_mapping(
-        'RegionMap', {
-            'client': client_ami_map,
-            'node': node_ami_map,
+        'RegionMapClient', {
+            k: {"AMI": v} for k, v in client_ami_map.items()
+        }
+    )
+    template.add_mapping(
+        'RegionMapNode', {
+            k: {"AMI": v} for k, v in node_ami_map.items()
         }
     )
 
@@ -287,7 +287,7 @@ def flocker_docker_template(cluster_size, client_ami_map, node_ami_map):
         # Create an EC2 instance for the {Agent, Control} Node.
         ec2_instance = ec2.Instance(
             node_name,
-            ImageId=FindInMap("RegionMap", "node", Ref("AWS::Region")),
+            ImageId=FindInMap("RegionMapNode", Ref("AWS::Region"), "AMI"),
             InstanceType="m3.large",
             KeyName=Ref(keyname_param),
             SecurityGroups=[Ref(instance_sg)],
@@ -370,7 +370,7 @@ def flocker_docker_template(cluster_size, client_ami_map, node_ami_map):
     # Client Node creation.
     client_instance = ec2.Instance(
         CLIENT_NODE_NAME,
-        ImageId=FindInMap("RegionMap", "client", Ref("AWS::Region")),
+        ImageId=FindInMap("RegionMapClient", Ref("AWS::Region"), "AMI"),
         InstanceType="m3.medium",
         KeyName=Ref(keyname_param),
         SecurityGroups=[Ref(instance_sg)],

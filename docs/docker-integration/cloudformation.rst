@@ -43,7 +43,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/02-create-key.png" alt="Creating a new AWS key pair"/>
-            <span>Click "Create Key Pair". Give your key pair a meaningful name, like <strong>flocker-test</strong>. You'll need this later, so <strong>make a note of it</strong>.</span>
+            <span>Click "Create Key Pair". Give your key pair a meaningful name, like <strong><i>&lt;username&gt;</i>-flocker-test</strong>. You'll need this later, so <strong>make a note of it</strong>.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/03-pem-downloaded.png" alt="A downloaded pem file"/>
@@ -165,7 +165,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
                 <img src="../_images/31-stack-outputs.png" alt="Stack outputs in CloudFormation" style="margin: 2em 0;"/>
                 <p>Now open a Terminal window, and run the following commands to log in and verify your cluster is working.</p>
                 <p>Where a command includes a string like <code>&lt;ClientNodeIP&gt;</code>, use the corresponding value from the Outputs tab.</p>
-                <p>Where a command has <code>&lt;KeyPath&gt;</code> use the path on your machine to the <code>.pem</code> file you downloaded in Step 1, for example: <code>~/Downloads/flocker-test.pem</code>.</p>
+                <p>Where a command has <code>&lt;KeyPath&gt;</code> use the path on your machine to the <code>.pem</code> file you downloaded in Step 1, for example: <code>~/Downloads/<i>&lt;username&gt;</i>-flocker-test.pem</code>.</p>
                 <div style="text-align: left; margin: 2em 0;">
 
 .. prompt:: bash
