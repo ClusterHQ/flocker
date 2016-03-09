@@ -8,8 +8,6 @@ import json
 import sys
 from tempfile import mkdtemp
 
-import boto3
-
 from effect import (
     Effect, ComposedDispatcher, TypeDispatcher,
     sync_performer, base_dispatcher,
@@ -186,18 +184,13 @@ class PackerBuild(PClass):
     sys_module = field(initial=sys)
 
 
-class WriteToS3(PClass):
+class StandardOut(PClass):
     """
-    The attributes necessary to write bytes to an S3 bucket.
+    The attributes necessary to write bytes to stdout.
 
     :ivar content: The bytes to write.
-    :ivar target_bucket: The name of the S3 bucket.
-    :ivar target_key: The name of the object which will be created in the S3
-        bucket.
     """
     content = field(type=bytes, mandatory=True)
-    target_bucket = field(type=unicode, mandatory=True)
-    target_key = field(type=unicode, mandatory=True)
 
 
 class RealPerformers(object):
@@ -275,17 +268,11 @@ class RealPerformers(object):
         return d
 
     @sync_performer
-    def perform_write_to_s3(self, dispatcher, intent):
+    def perform_standard_out(self, dispatcher, intent):
         """
-        Create a new object in an existing S3 bucket with the key and content
-        in ``intent``.
+        Print the content in ``intent`` to stdout.
         """
-        client = boto3.client("s3")
-        client.put_object(
-            Bucket=intent.target_bucket,
-            Key=intent.target_key,
-            Body=intent.content
-        )
+        self.sys_module.stdout.write(intent.content)
 
     # Map intents to performers.
     def dispatcher(self):
@@ -294,7 +281,7 @@ class RealPerformers(object):
                 {
                     PackerConfigure: self.perform_packer_configure,
                     PackerBuild: self.perform_packer_build,
-                    WriteToS3: self.perform_write_to_s3,
+                    StandardOut: self.perform_standard_out,
                 }
             ),
             base_dispatcher
@@ -324,8 +311,6 @@ class PublishInstallerImagesOptions(Options):
          "Copy images to all regions. [default: False]"]
     ]
     optParameters = [
-        ["target_bucket", None, DEFAULT_IMAGE_BUCKET,
-         "The bucket to upload installer AMI names to.\n", unicode],
         ["build_region", None, DEFAULT_BUILD_REGION.value,
          "A region where the image will be built.\n", unicode],
         ["distribution", None, DEFAULT_DISTRIBUTION,
@@ -366,12 +351,9 @@ def publish_installer_images_effects(options):
             configuration_path=configuration_path,
         )
     )
-    # Publish the regional AMI map to S3
     yield Effect(
-        intent=WriteToS3(
-            content=json.dumps(thaw(ami_map), encoding="utf-8"),
-            target_bucket=options['target_bucket'],
-            target_key=options["template"],
+        intent=StandardOut(
+            content=json.dumps(thaw(ami_map), encoding="utf-8") + b"\n"
         )
     )
 
