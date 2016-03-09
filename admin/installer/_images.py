@@ -16,7 +16,7 @@ from effect.do import do
 
 from txeffect import deferred_performer, perform as async_perform
 
-from pyrsistent import PClass, field, freeze, thaw, pvector_field
+from pyrsistent import PClass, field, freeze, thaw, pvector_field, pmap_field
 
 from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
@@ -51,23 +51,9 @@ class AWS_REGIONS(Values):
     US_WEST_1 = RegionConstant(u"us-west-1")
     US_WEST_2 = RegionConstant(u"us-west-2")
 
-# Hard coded Ubuntu 14.04 base AMI.
-# XXX These AMIs are constantly being updated.
-# This should be looked up dynamically using Canonical's AWS owner ID
-# 099720109477. See:
-# https://askubuntu.com/a/53586
-SOURCE_AMIS = {
-    u"ubuntu-14.04": {
-        AWS_REGIONS.US_EAST_1: u"ami-20d3fc4a",
-        AWS_REGIONS.US_WEST_1: u"ami-842355e4",
-        AWS_REGIONS.US_WEST_2: u"ami-25c52345",
-    }
-}
-
 DEFAULT_IMAGE_BUCKET = u'clusterhq-installer-images'
 DEFAULT_BUILD_REGION = AWS_REGIONS.US_WEST_1
 DEFAULT_DISTRIBUTION = u"ubuntu-14.04"
-DEFAULT_AMI = SOURCE_AMIS[DEFAULT_DISTRIBUTION][DEFAULT_BUILD_REGION]
 DEFAULT_TEMPLATE = u"docker"
 
 
@@ -161,14 +147,14 @@ class PackerConfigure(PClass):
         ubuntu-14.04 is the only one implemented so far.
     :ivar configuration_directory: The directory containing prototype
         configuration templates.
-    :ivar source_ami: The AMI ID to use as the base image.
+    :ivar source_ami_map: The AMI map containing base images.
     """
     build_region = field(type=RegionConstant, mandatory=True)
     publish_regions = pvector_field(item_type=RegionConstant)
     template = field(type=unicode, mandatory=True)
     distribution = field(type=unicode, mandatory=True)
     configuration_directory = field(type=FilePath, initial=PACKER_TEMPLATE_DIR)
-    source_ami = field(type=unicode, mandatory=True)
+    source_ami_map = pmap_field(key_type=RegionConstant, value_type=unicode)
 
 
 class PackerBuild(PClass):
@@ -236,7 +222,9 @@ class RealPerformers(object):
             configuration = json.load(infile)
 
         configuration['builders'][0]['region'] = intent.build_region
-        configuration['builders'][0]['source_ami'] = intent.source_ami
+        configuration['builders'][0]['source_ami'] = intent.source_ami_map[
+            intent.build_region
+        ]
         configuration['builders'][0]['ami_regions'] = thaw(
             intent.publish_regions
         )
@@ -302,6 +290,19 @@ def _validate_constant(constants, option_value, option_name):
     return constant_value
 
 
+def _validate_ami_region_map(blob):
+    """
+    Validate and decode the supplied JSON encoded mapping.
+
+    :param bytes blob: The JSON encoded blob.
+    :returns: A ``dict`` of (``RegionConstant``, ``u"ami-id"``).
+    """
+    return dict(
+        (AWS_REGIONS.lookupByValue(k), v)
+        for k, v in json.loads(blob).items()
+    )
+
+
 class PublishInstallerImagesOptions(Options):
     """
     Options for uploading Packer-generated image IDs.
@@ -315,8 +316,9 @@ class PublishInstallerImagesOptions(Options):
          "A region where the image will be built.\n", unicode],
         ["distribution", None, DEFAULT_DISTRIBUTION,
          "The distribution of operating system to install.\n", unicode],
-        ["source_ami", None, DEFAULT_AMI,
-         "The distribution of operating system to install.\n", unicode],
+        ["source-ami-map", None, None,
+         "A JSON encoded map of AWS region to AMI ID of base images.\n",
+         _validate_ami_region_map],
         ["template", None, DEFAULT_TEMPLATE,
          "The template to build.\n", unicode],
     ]
@@ -331,6 +333,8 @@ class PublishInstallerImagesOptions(Options):
             self['regions'] = tuple(AWS_REGIONS.iterconstants())
         else:
             self['regions'] = tuple()
+        if self['source-ami-map'] is None:
+            raise UsageError("--source-ami-map is required.")
 
 
 @do
@@ -342,7 +346,7 @@ def publish_installer_images_effects(options):
             publish_regions=options["regions"],
             template=options["template"],
             distribution=options["distribution"],
-            source_ami=options["source_ami"],
+            source_ami_map=options["source-ami-map"],
         )
     )
     # Build the Docker images
