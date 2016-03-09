@@ -23,7 +23,7 @@ from flocker.testtools import TestCase
 from flocker.ca import RootCredential
 from flocker.provision import PackageSource
 from flocker.provision._install import ManagedNode
-from flocker.acceptance.testtools import DatasetBackend
+from flocker.node import backends
 from ..acceptance import CommonOptions
 
 
@@ -43,7 +43,7 @@ class ManagedRunnerTests(TestCase):
                 build_server=b"",
             ),
             distribution=b'centos-7',
-            dataset_backend=DatasetBackend.zfs,
+            dataset_backend=backends.ZFS,
             dataset_backend_configuration={},
             identity=ClusterIdentity(
                 name=b'cluster',

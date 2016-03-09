@@ -59,6 +59,19 @@ class PluginLoaderTests(TestCase):
     Tests for ``PluginLoader``.
     """
 
+    def test_list_plugins(self):
+        """
+        ``PluginLoader.list`` returns the list of builtin plugins.
+        """
+        loader = DUMMY_LOADER.set(
+            "builtin_plugins", [
+                DummyDescription(name=u"other-builtin"),
+                DummyDescription(name=u"builtin"),
+            ]
+        )
+        plugins = loader.list()
+        self.assertEqual(plugins, loader.builtin_plugins)
+
     def test_builtin_backend(self):
         """
         If the plugin name is that of a pre-configured plugin, the

@@ -20,7 +20,7 @@ from .._install import (
     UnknownAction, DistributionNotSupported)
 from .._ssh import Put
 from .._effect import sequence
-from ...acceptance.testtools import DatasetBackend
+from ...node.backends import backend_loader
 from ...testtools import TestCase
 
 from ... import __version__ as flocker_version
@@ -62,7 +62,7 @@ class ConfigureFlockerAgentTests(TestCase):
         expected_backend_configuration = dict(pool=expected_pool)
         commands = task_configure_flocker_agent(
             control_node=control_address,
-            dataset_backend=DatasetBackend.lookupByName(
+            dataset_backend=backend_loader.get(
                 BASIC_AGENT_YML["dataset"]["backend"]
             ),
             dataset_backend_configuration=expected_backend_configuration,

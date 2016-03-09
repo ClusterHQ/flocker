@@ -22,8 +22,10 @@ from ...node.agents.blockdevice import ICloudAPI
 
 from ...provision import PackageSource
 
+from ...node import backends
+
 from ..testtools import (
-    require_cluster, require_moving_backend, create_dataset, DatasetBackend,
+    require_cluster, require_moving_backend, create_dataset,
     skip_backend, get_backend_api, verify_socket,
     get_default_volume_size,
 )
@@ -90,7 +92,7 @@ class DatasetAPITests(AsyncTestCase):
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
     @skip_backend(
-        unsupported={DatasetBackend.loopback},
+        unsupported={backends.LOOPBACK},
         reason="Does not maintain compute_instance_id across restarting "
                "flocker (and didn't as of most recent release).")
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
@@ -177,7 +179,7 @@ class DatasetAPITests(AsyncTestCase):
         d.addCallback(cat_and_verify_file)
         return d
 
-    @require_cluster(1, required_backend=DatasetBackend.aws)
+    @require_cluster(1, required_backend=backends.AWS)
     def test_dataset_creation_with_gold_profile(self, cluster, backend):
         """
         A dataset created with the gold profile as specified in metadata on EBS

@@ -24,6 +24,7 @@ Debian
 deduplication
 Deis
 devel
+DevStack
 DigitalOcean
 Dockerized
 dropdown
