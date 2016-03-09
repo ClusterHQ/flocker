@@ -354,7 +354,8 @@ def find_dataset_changes(uuid, current_state, desired_state):
                             # datasets; this is wrong. See FLOC-2060.
                             in (node.manifestations or {}).values())
                         for node in current_state.nodes}
-    local_desired_datasets = desired_datasets.get(uuid, set())
+    local_desired_datasets = set(dataset for dataset in desired_datasets.get(uuid, set())
+                                 if dataset.deleted is False)
     local_desired_dataset_ids = set(dataset.dataset_id for dataset in
                                     local_desired_datasets)
     local_current_dataset_ids = set(dataset.dataset_id for dataset in
