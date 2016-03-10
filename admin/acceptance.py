@@ -1381,29 +1381,31 @@ def capture_journal(reactor, host, output_file):
     :param file output_file: File to write to.
     :return deferred: that will run the journalctl command
     """
-    formatter = journald_json_formatter(output_file)
-    ran = run_ssh(
-        reactor=reactor,
-        host=host,
-        username='root',
-        command=[
-            b'journalctl',
-            b'--lines', b'0',
-            b'--output', b'export',
-            b'--follow',
-            # Only bother with units we care about:
-            b'-u', b'docker',
-            b'-u', b'flocker-control',
-            b'-u', b'flocker-dataset-agent',
-            b'-u', b'flocker-container-agent',
-            b'-u', b'flocker-docker-plugin',
-        ],
-        handle_stdout=formatter,
-    )
-    ran.addErrback(write_failure, logger=None)
-    # Deliver a final empty line to process the last message
-    ran.addCallback(lambda ignored: formatter(b""))
-    return ran
+    def get_journald_output():
+        formatter = journald_json_formatter(output_file)
+        ran = run_ssh(
+            reactor=reactor,
+            host=host,
+            username='root',
+            command=[
+                b'journalctl',
+                b'--lines', b'0',
+                b'--output', b'export',
+                b'--follow',
+                # Only bother with units we care about:
+                b'-u', b'docker',
+                b'-u', b'flocker-control',
+                b'-u', b'flocker-dataset-agent',
+                b'-u', b'flocker-container-agent',
+                b'-u', b'flocker-docker-plugin',
+            ],
+            handle_stdout=formatter,
+        )
+        ran.addErrback(write_failure, logger=None)
+        # Deliver a final empty line to process the last message
+        ran.addCallback(lambda ignored: formatter(b""))
+        return ran
+    return loop_until(reactor, get_journald_output, repeat(2.0))
 
 
 def journald_json_formatter(output_file):
