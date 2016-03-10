@@ -1293,22 +1293,26 @@ def capture_upstart(reactor, host, output_file):
             (b"upstart", b"docker")]:
         path = FilePath(b'/var/log/').child(directory).child(service + b'.log')
         formatter = TailFormatter(output_file, host, service)
-        ran = run_ssh(
-            reactor=reactor,
-            host=host,
-            username='root',
-            command=[
-                b'tail',
-                b'-F',
-                path.path
-            ],
-            handle_stdout=formatter.handle_output_line,
-        )
-        ran.addErrback(write_failure, logger=None)
-        # Deliver a final empty line to process the last message
-        ran.addCallback(lambda ignored, formatter=formatter:
-                        formatter.handle_output_line(b""))
-        results.append(ran)
+
+        def pull_logs_for_process():
+            ran = run_ssh(
+                reactor=reactor,
+                host=host,
+                username='root',
+                command=[
+                    b'tail',
+                    b'-F',
+                    path.path
+                ],
+                handle_stdout=formatter.handle_output_line,
+            )
+            ran.addErrback(write_failure, logger=None)
+            # Deliver a final empty line to process the last message
+            ran.addCallback(lambda ignored, formatter=formatter:
+                            formatter.handle_output_line(b""))
+            return ran
+
+        results.append(loop_until(reactor, pull_logs_for_process, repeat(2.0)))
     return gather_deferreds(results)
 
 
