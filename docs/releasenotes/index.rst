@@ -16,6 +16,7 @@ Next Release
   This could lead to the appearance of data loss, as different volumes get used.
   Now, even if multiple volumes are created, only a single volume will be used.
   This was particularly likely to occur on AWS.
+* Dataset backend support for :ref:`Google Compute Engine <gce-dataset-backend>`.
 
 This Release
 ============
