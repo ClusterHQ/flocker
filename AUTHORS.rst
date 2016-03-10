@@ -6,3 +6,4 @@ The following people and organizations contributed to its development; please ad
 * Scotch Media (Base for documentation theme)
 * Wentao Zhang (zhangwentao234@huaewi.com, Huawei Ltd.)
 * Sean McGinnis (Dell SC Series storage configuration documentation)
+* Huai Cheng Zheng <huaicheng.zheng@transwarp.io>
