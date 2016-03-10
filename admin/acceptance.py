@@ -1291,10 +1291,11 @@ def capture_upstart(reactor, host, output_file):
             (b"flocker", b"flocker-container-agent"),
             (b"flocker", b"flocker-docker-plugin"),
             (b"upstart", b"docker")]:
-        path = FilePath(b'/var/log/').child(directory).child(service + b'.log')
-        formatter = TailFormatter(output_file, host, service)
 
-        def pull_logs_for_process():
+        def pull_logs_for_process(directory=directory, service=service):
+            path = FilePath(
+                b'/var/log/').child(directory).child(service + b'.log')
+            formatter = TailFormatter(output_file, host, service)
             ran = run_ssh(
                 reactor=reactor,
                 host=host,
@@ -1312,7 +1313,9 @@ def capture_upstart(reactor, host, output_file):
                             formatter.handle_output_line(b""))
             return ran
 
-        results.append(loop_until(reactor, pull_logs_for_process, repeat(2.0)))
+        results.append(
+            loop_until(reactor, pull_logs_for_process, repeat(2.0))
+        )
     return gather_deferreds(results)
 
 
