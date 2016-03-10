@@ -123,6 +123,7 @@ class ContainerAPITests(AsyncTestCase):
 
     @flaky(u'FLOC-2488')
     @require_moving_backend
+    @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(2, require_container_agent=True)
     def test_move_container_with_dataset(self, cluster):
         """
