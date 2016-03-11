@@ -864,6 +864,17 @@ class CinderAPIVersionDetectionFailure(Exception):
     """
     Unable to connect to a supported version of the Cinder API.
     """
+    _template = "CinderAPIVersionDetectionFailure(endpoint_errors={!r})"
+
+    def __init__(self, endpoint_errors):
+        self.endpoint_errors = endpoint_errors
+
+    def __str__(self):
+        return self._template.format(
+            self.endpoint_errors,
+        )
+
+    __repr__ = __str__
 
 
 def get_cinder_client(session, region):
@@ -877,17 +888,19 @@ def get_cinder_client(session, region):
     :param str region: Openstack region.
     :return: A cinderclient.Client (v2 else v1)
     """
+    endpoint_errors = []
     for version, service_type in SUPPORTED_VERSIONS:
         client = CinderClient(
             version=version, session=session, region_name=region
         )
         try:
             client.volumes.list(limit=1)
-        except EndpointNotFound:
+        except EndpointNotFound as e:
+            endpoint_errors.append(e)
             continue
         else:
             return client
-    raise CinderAPIVersionDetectionFailure()
+    raise CinderAPIVersionDetectionFailure(endpoint_errors)
 
 
 def get_nova_v2_client(session, region):
