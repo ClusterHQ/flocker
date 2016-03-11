@@ -224,9 +224,7 @@ class CinderHttpsTests(TestCase):
         config['peer_verify'] = False
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
-        cinder_client = get_cinder_client(
-            session, region, version=config["cinder_api_version"]
-        )
+        cinder_client = get_cinder_client(session, region)
         self.assertTrue(self._authenticates_ok(cinder_client))
 
     def test_verify_ca_path_no_match_fails(self):
@@ -249,9 +247,7 @@ class CinderHttpsTests(TestCase):
             AUTHORITY_CERTIFICATE_FILENAME).path
         session = get_keystone_session(**config)
         region = get_openstack_region_for_test()
-        cinder_client = get_cinder_client(
-            session, region, version=config["cinder_api_version"]
-        )
+        cinder_client = get_cinder_client(session, region)
         self.assertFalse(self._authenticates_ok(cinder_client))
 
 

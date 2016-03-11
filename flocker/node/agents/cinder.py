@@ -46,10 +46,6 @@ from ._logging import (
     OPENSTACK_ACTION, CINDER_CREATE
 )
 
-# Default to Cinder API V1 for backwards compatibility with Rackspace.
-# This can be overridden in the driver configuration file.
-DEFAULT_CINDER_API_VERSION = 1
-
 # The key name used for identifying the Flocker cluster_id in the metadata for
 # a volume.
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
@@ -916,12 +912,14 @@ def cinder_from_configuration(region, cluster_id, **config):
 
     nova_client = get_nova_v2_client(session, region)
 
-    logging_cinder = _LoggingCinderVolumeManager(
+    wrapped_cinder_volume_manager = _LoggingCinderVolumeManager(
         cinder_client.volumes
     )
 
-    if cinder_api_version == 2:
-        logging_cinder = Cinder1to2Adapter(logging_cinder)
+    # Add a Cinder v1 adapter if necessary
+    wrapped_cinder_volume_manager = CINDER_V1_ADAPTERS[
+        cinder_client.version
+    ](wrapped_cinder_volume_manager)
 
     logging_nova_volume_manager = _LoggingNovaVolumeManager(
         _nova_volumes=nova_client.volumes
@@ -930,7 +928,7 @@ def cinder_from_configuration(region, cluster_id, **config):
         _nova_servers=nova_client.servers
     )
     return CinderBlockDeviceAPI(
-        cinder_volume_manager=logging_cinder,
+        cinder_volume_manager=wrapped_cinder_volume_manager,
         nova_volume_manager=logging_nova_volume_manager,
         nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,
@@ -952,3 +950,9 @@ class Cinder1to2Adapter(proxyForInterface(ICinderVolumeManager, "_client_v2")):
             name=display_name
         )
 
+
+CINDER_V1_ADAPTERS = {
+    u"1": lambda client: client,
+    u"2": Cinder1to2Adapter,
+}
+    
