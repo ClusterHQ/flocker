@@ -872,7 +872,7 @@ def get_cinder_client(session, region):
         client = CinderClient(
             version=version, session=session, region_name=region
         )
-        client.list(limit=1)
+        client.volumes.list(limit=1)
         return client
     raise KeyError(
         "Unable to find supported Cinder service. "
