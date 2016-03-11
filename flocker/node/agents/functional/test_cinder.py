@@ -198,58 +198,47 @@ class CinderHttpsTests(TestCase):
     """
     Test connections to HTTPS-enabled OpenStack.
     """
-
-    @staticmethod
-    def _authenticates_ok(cinder_client):
-        """
-        Check connection is authorized.
-
-        :return: True if client connected OK, False otherwise.
-        """
+    def setUp(self):
         try:
-            cinder_client.authenticate()
-            return True
-        except Unauthorized:
-            return False
+            self.config = get_blockdevice_config(ProviderType.openstack)
+        except InvalidConfig as e:
+            self.skipTest(str(e))
+        auth_url = self.config['auth_url']
+        if not auth_url.startswith(u"https://"):
+            self.skipTest(
+                "Tests require a TLS auth_url endpoint beginning with https://. "
+                "Found auth_url: {}".format(auth_url)
+            )
 
     def test_verify_false(self):
         """
         With the peer_verify field set to False, connection to the
         OpenStack servers always succeeds.
         """
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
+        config = self.config.copy()
         config['peer_verify'] = False
-        session = get_keystone_session(**config)
-        region = get_openstack_region_for_test()
-        cinder_client = get_cinder_client(session, region)
-        self.assertTrue(self._authenticates_ok(cinder_client))
-
+        session = get_keystone_session(**self.config)
+        session.invalidate()
+        # This will fail if authentication fails.
+        token = session.get_token()
+        
     def test_verify_ca_path_no_match_fails(self):
         """
         With a CA file that does not match any CA, connection to the
         OpenStack servers fails.
         """
-        path = FilePath(self.mktemp())
-        path.makedirs()
+        config = self.config.copy()
+        path = self.make_temporary_directory()
         RootCredential.initialize(path, b"mycluster")
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
         config['backend'] = 'openstack'
         config['auth_plugin'] = 'password'
-        config['password'] = 'password'
         config['peer_verify'] = True
         config['peer_ca_path'] = path.child(
             AUTHORITY_CERTIFICATE_FILENAME).path
         session = get_keystone_session(**config)
-        region = get_openstack_region_for_test()
-        cinder_client = get_cinder_client(session, region)
-        self.assertFalse(self._authenticates_ok(cinder_client))
-
+        session.invalidate()
+        self.assertRaises(Unauthorized, session.get_token)
+            
 
 class VirtIOClient:
     """
