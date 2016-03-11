@@ -44,7 +44,7 @@ from ....testtools import TestCase, flaky, run_process
 from ..cinder import (
     get_keystone_session, get_cinder_client,
     wait_for_volume_state, UnexpectedStateException, UnattachedVolume,
-    TimeoutException
+    TimeoutException,
 )
 
 from .logging import CINDER_VOLUME
@@ -670,3 +670,31 @@ class BlockDeviceAPIDestroyTests(TestCase):
             expected_timeout,
             time_module._current_time
         )
+
+
+class NewestSupportedCinderClientTests(TestCase):
+    """
+    """
+    def test_v1_only(self):
+        """
+        """
+        config = get_blockdevice_config(ProviderType.openstack)
+        session = get_keystone_session(**config)
+        client = get_cinder_client(session=session, region="RegionOne")
+        self.assertEqual(u"1", client.version)
+
+    def test_v2_only(self):
+        """
+        """
+        config = get_blockdevice_config(ProviderType.openstack)
+        session = get_keystone_session(**config)
+        client = get_cinder_client(session=session, region="RegionOne")
+        self.assertEqual(u"2", client.version)
+
+    def test_v1_and_v2(self):
+        """
+        """
+        config = get_blockdevice_config(ProviderType.openstack)
+        session = get_keystone_session(**config)
+        client = get_cinder_client(session=session, region="RegionOne")
+        self.assertEqual(u"2", client.version)

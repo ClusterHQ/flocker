@@ -19,6 +19,7 @@ from keystoneclient.openstack.common.apiclient.exceptions import (
 )
 
 from keystoneclient.auth import get_plugin_class
+from keystoneclient.client import Client as KeystoneClient
 from keystoneclient.session import Session
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from cinderclient.client import Client as CinderClient
@@ -858,18 +859,35 @@ def get_keystone_session(**config):
         )
 
 
-def get_cinder_client(session, region, version):
+SUPPORTED_VERSIONS = (
+    (2, u"volumev2"),
+    (1, u"volume"),
+)
+
+
+
+def get_cinder_client(session, region):
     """
     Create a Cinder (volume) client from a Keystone session.
 
     :param keystoneclient.Session session: Authenticated Keystone session.
     :param str region: Openstack region.
-    :param int version: The Cinder API version. 1 or 2.
     :return: A cinderclient.Client
     """
-    return CinderClient(
-        session=session, region_name=region, version=version
+    keystone = KeystoneClient(session=session)
+    available_services = keystone.services.list()
+    available_service_types = tuple(s.type for s in available_services)
+    for version, service_type in SUPPORTED_VERSIONS:
+        if service_type in available_service_types:
+            return CinderClient(
+                version=version, session=session, region_name=region
+            )
+    raise KeyError(
+        "Unable to find supported Cinder service. "
+        "Available services: {!r}"
+        "Supported services: {!r}".format(available_services, SUPPORTED_VERSIONS)
     )
+
 
 def get_nova_v2_client(session, region):
     """
@@ -894,15 +912,7 @@ def cinder_from_configuration(region, cluster_id, **config):
     :param config: A dictionary of configuration options for Openstack.
     """
     session = get_keystone_session(**config)
-    cinder_api_version = config.get(
-        "cinder_api_version",
-        DEFAULT_CINDER_API_VERSION,
-    )
-    cinder_client = get_cinder_client(
-        session,
-        region,
-        version=cinder_api_version
-    )
+    cinder_client = get_cinder_client(session, region)
 
     nova_client = get_nova_v2_client(session, region)
 
@@ -941,3 +951,4 @@ class Cinder1to2Adapter(proxyForInterface(ICinderVolumeManager, "_client_v2")):
             metadata=metadata,
             name=display_name
         )
+
