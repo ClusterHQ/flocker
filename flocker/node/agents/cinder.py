@@ -868,14 +868,12 @@ def get_cinder_client(session, region):
     :param str region: Openstack region.
     :return: A cinderclient.Client
     """
-    keystone = KeystoneClient(session=session)
-    available_services = keystone.services.list()
-    available_service_types = tuple(s.type for s in available_services)
     for version, service_type in SUPPORTED_VERSIONS:
-        if service_type in available_service_types:
-            return CinderClient(
-                version=version, session=session, region_name=region
-            )
+        client = CinderClient(
+            version=version, session=session, region_name=region
+        )
+        client.list(limit=1)
+        return client
     raise KeyError(
         "Unable to find supported Cinder service. "
         "Available services: {!r}"
