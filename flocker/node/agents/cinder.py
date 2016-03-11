@@ -14,11 +14,11 @@ from eliot import Message
 
 from pyrsistent import PClass, field
 
+from keystoneauth1.exceptions.catalog import EndpointNotFound
 from keystoneclient.openstack.common.apiclient.exceptions import (
     HttpError as KeystoneHttpError,
 )
 from keystoneclient.auth import get_plugin_class
-from keystoneclient.client import Client as KeystoneClient
 from keystoneclient.session import Session
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from cinderclient.client import Client as CinderClient
@@ -860,27 +860,34 @@ SUPPORTED_VERSIONS = (
 )
 
 
+class CinderAPIVersionDetectionFailure(Exception):
+    """
+    Unable to connect to a supported version of the Cinder API.
+    """
+
+
 def get_cinder_client(session, region):
     """
     Create a Cinder (volume) client from a Keystone session.
 
+    Try all ``SUPPORTED_VERSIONS`` in order and return the first client to
+    successfully complete a ``list`` API call.
+
     :param keystoneclient.Session session: Authenticated Keystone session.
     :param str region: Openstack region.
-    :return: A cinderclient.Client
+    :return: A cinderclient.Client (v2 else v1)
     """
     for version, service_type in SUPPORTED_VERSIONS:
         client = CinderClient(
             version=version, session=session, region_name=region
         )
-        client.volumes.list(limit=1)
-        return client
-    raise KeyError(
-        "Unable to find supported Cinder service. "
-        "Available services: {!r}"
-        "Supported services: {!r}".format(
-            available_services, SUPPORTED_VERSIONS
-        )
-    )
+        try:
+            client.volumes.list(limit=1)
+        except EndpointNotFound:
+            continue
+        else:
+            return client
+    raise CinderAPIVersionDetectionFailure()
 
 
 def get_nova_v2_client(session, region):
