@@ -98,6 +98,8 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
 
     dependency_links = [
+        # Use prerelease twisted
+        "https://twistedmatrix.com/Releases/pre/16.0.0pre2/Twisted-16.0.0pre2.tar.bz2#egg=Twisted-16.0.0rc2",  # noqa
     ],
 
     # Some "trove classifiers" which are relevant.
