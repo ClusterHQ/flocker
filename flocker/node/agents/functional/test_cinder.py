@@ -37,7 +37,7 @@ from ..test.test_blockdevice import (
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size, get_openstack_region_for_test,
+    get_minimum_allocatable_size,
 )
 from ....testtools import TestCase, flaky, run_process
 
@@ -206,7 +206,8 @@ class CinderHttpsTests(TestCase):
         auth_url = self.config['auth_url']
         if not auth_url.startswith(u"https://"):
             self.skipTest(
-                "Tests require a TLS auth_url endpoint beginning with https://. "
+                "Tests require a TLS auth_url endpoint "
+                "beginning with https://. "
                 "Found auth_url: {}".format(auth_url)
             )
 
@@ -220,8 +221,8 @@ class CinderHttpsTests(TestCase):
         session = get_keystone_session(**self.config)
         session.invalidate()
         # This will fail if authentication fails.
-        token = session.get_token()
-        
+        session.get_token()
+
     def test_verify_ca_path_no_match_fails(self):
         """
         With a CA file that does not match any CA, connection to the
@@ -238,7 +239,7 @@ class CinderHttpsTests(TestCase):
         session = get_keystone_session(**config)
         session.invalidate()
         self.assertRaises(Unauthorized, session.get_token)
-            
+
 
 class VirtIOClient:
     """

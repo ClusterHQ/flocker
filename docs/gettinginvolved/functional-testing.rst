@@ -138,8 +138,6 @@ The configuration stanza for a private OpenStack deployment is similar to Racksp
 
 * ``auth_plugin`` should be included, which refers to an authentication plugin provided by ``python-keystoneclient``.
 * ``provider: "openstack"`` should be included, if the top level key is not ``openstack``.
-* ``cinder_api_version`` should be set to ``2`` if your OpenStack supports Cinder API V2.
-  Cinder API V2 supports result paging which allows Flocker to operate when there are large (> 1000) numbers of Cinder block devices.
 
 If required, you may need to add additional fields.
 For more information, see :ref:`openstack-dataset-backend`.
@@ -171,7 +169,6 @@ To run the Cinder functional tests on DevStack:
      # This is important, so that the tests know to load the OpenStack Cinder
      # driver despite not using ``openstack`` as the top-level name.
      provider: "openstack"
-     cinder_api_version: 2
 
 * Run trial as ``root``:
 

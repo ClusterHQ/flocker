@@ -52,12 +52,12 @@ For testing purposes, it is possible to turn off certificate verification, by se
        auth_plugin: "password"
        ...
 
-The OpenStack backend will autodetect the best (most recent) available version of the Cinder API.
+The OpenStack backend will automatically detect the best (most recent) available version of the Cinder API.
 `Cinder API V2`_  and  `Cinder API V1`_ are both supported.
 
 .. note:: At the time of writing Rackspace only supports `Cinder API V1`_.
-          Cinder API V1 does not support paging of responses, so responses are limited to ``<= 1000`` items. 
-	  Therefore Flocker will be limited to managing ``<= 1000`` volumes.
+          Cinder API V1 does not support paging of responses, so responses are limited to ``<= 1000`` items.
+          Therefore Flocker will be limited to managing ``<= 1000`` volumes.
 
 Other items are typically required but vary depending on the `OpenStack authentication plugin selected`_
 (Flocker relies on these plugins; it does not provide them itself).

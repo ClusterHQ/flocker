@@ -17,7 +17,6 @@ from pyrsistent import PClass, field
 from keystoneclient.openstack.common.apiclient.exceptions import (
     HttpError as KeystoneHttpError,
 )
-
 from keystoneclient.auth import get_plugin_class
 from keystoneclient.client import Client as KeystoneClient
 from keystoneclient.session import Session
@@ -856,10 +855,9 @@ def get_keystone_session(**config):
 
 
 SUPPORTED_VERSIONS = (
-    (2, u"volumev2"),
-    (1, u"volume"),
+    (u"2", u"volumev2"),
+    (u"1", u"volume"),
 )
-
 
 
 def get_cinder_client(session, region):
@@ -881,7 +879,9 @@ def get_cinder_client(session, region):
     raise KeyError(
         "Unable to find supported Cinder service. "
         "Available services: {!r}"
-        "Supported services: {!r}".format(available_services, SUPPORTED_VERSIONS)
+        "Supported services: {!r}".format(
+            available_services, SUPPORTED_VERSIONS
+        )
     )
 
 
@@ -955,4 +955,3 @@ CINDER_V1_ADAPTERS = {
     u"1": lambda client: client,
     u"2": Cinder1to2Adapter,
 }
-    
