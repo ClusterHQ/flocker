@@ -24,7 +24,7 @@ from random import uniform
 from zope.interface import implementer
 
 from eliot import (
-    ActionType, Field, writeFailure, MessageType, write_traceback,
+    ActionType, Field, writeFailure, MessageType, write_traceback, Message
 )
 from eliot.twisted import DeferredContext
 
@@ -312,6 +312,13 @@ class _UnconvergedDelay(object):
         :return _Sleep: an instance of `_Sleep` with a duration
             following an exponential backoff curve.
         """
+        Message.log(
+            message_type=u'flocker:node:_loop:delay',
+            log_level=u'INFO',
+            message=u'Intentionally delaying the next iteration of the '
+                    u'convergence loop to avoid RequestLimitExceeded.',
+            current_wait=self._delay
+        )
         s = _Sleep(delay_seconds=self._delay)
         self._delay *= _UNCONVERGED_BACKOFF_FACTOR
         if self._delay > self.max_sleep:
@@ -597,8 +604,16 @@ class ConvergenceLoop(object):
         d.addErrback(error)
 
         # We're done with the iteration:
-        d.addCallback(
-            lambda delay: self.fsm.receive(delay))
+        def send_delay_to_fsm(delay):
+            Message.log(
+                message_type=u'flocker:node:_loop:CONVERGE:delay',
+                log_level=u'INFO',
+                message=u'Delaying until next convergence loop.',
+                delay=delay
+            )
+            return self.fsm.receive(delay)
+
+        d.addCallback(send_delay_to_fsm)
         d.addActionFinish()
 
     def output_SCHEDULE_WAKEUP(self, context):
