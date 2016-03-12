@@ -37,14 +37,13 @@ from ..test.test_blockdevice import (
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size, get_openstack_region_for_test,
+    get_minimum_allocatable_size,
 )
 from ....testtools import TestCase, flaky, run_process
 
 from ..cinder import (
-    get_keystone_session, get_cinder_client,
-    wait_for_volume_state, UnexpectedStateException, UnattachedVolume,
-    TimeoutException,
+    get_keystone_session, wait_for_volume_state, UnexpectedStateException,
+    UnattachedVolume, TimeoutException,
 )
 
 from .logging import CINDER_VOLUME
@@ -656,37 +655,3 @@ class BlockDeviceAPIDestroyTests(TestCase):
             expected_timeout,
             time_module._current_time
         )
-
-
-class NewestSupportedCinderClientTests(TestCase):
-    """
-    """
-    def test_v1_only(self):
-        """
-        """
-        config = get_blockdevice_config(ProviderType.openstack)
-        session = get_keystone_session(**config)
-        client = get_cinder_client(
-            session=session, region=get_openstack_region_for_test()
-        )
-        self.assertEqual(u"1", client.version)
-
-    def test_v2_only(self):
-        """
-        """
-        config = get_blockdevice_config(ProviderType.openstack)
-        session = get_keystone_session(**config)
-        client = get_cinder_client(
-            session=session, region=get_openstack_region_for_test()
-        )
-        self.assertEqual(u"2", client.version)
-
-    def test_v1_and_v2(self):
-        """
-        """
-        config = get_blockdevice_config(ProviderType.openstack)
-        session = get_keystone_session(**config)
-        client = get_cinder_client(
-            session=session, region=get_openstack_region_for_test()
-        )
-        self.assertEqual(u"2", client.version)
