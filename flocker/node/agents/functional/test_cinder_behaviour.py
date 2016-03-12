@@ -4,7 +4,6 @@
 Test for real world behaviour of Cinder implementations to validate some of our
 basic assumptions/understandings of how Cinder works in the real world.
 """
-from itertools import repeat
 
 from bitmath import Byte
 
@@ -14,7 +13,6 @@ from ..test.blockdevicefactory import (
     get_minimum_allocatable_size,
     get_blockdeviceapi_with_cleanup,
 )
-from ....common import poll_until
 from ....testtools import TestCase, random_name
 
 from .logging import CINDER_VOLUME
@@ -110,17 +108,3 @@ class VolumesSetMetadataTests(TestCase):
         missing_items = expected_items - actual_items
 
         self.assertEqual(set(), missing_items)
-
-
-def delete_multiple_volumes(cinder_volume_manager, volumes):
-    for volume in volumes:
-        cinder_volume_manager.delete(volume)
-
-    deleted_volume_ids = set(v.id for v in volumes)
-
-    def all_gone():
-        found_volume_ids = set(
-            v.id for v in cinder_volume_manager.list()
-        )
-        return len(deleted_volume_ids.intersection(found_volume_ids)) == 0
-    return poll_until(all_gone, repeat(1, 60))
