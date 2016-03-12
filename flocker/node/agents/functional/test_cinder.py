@@ -37,7 +37,7 @@ from ..test.test_blockdevice import (
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size,
+    get_minimum_allocatable_size, get_openstack_region_for_test,
 )
 from ....testtools import TestCase, flaky, run_process
 
@@ -666,7 +666,9 @@ class NewestSupportedCinderClientTests(TestCase):
         """
         config = get_blockdevice_config(ProviderType.openstack)
         session = get_keystone_session(**config)
-        client = get_cinder_client(session=session, region="RegionOne")
+        client = get_cinder_client(
+            session=session, region=get_openstack_region_for_test()
+        )
         self.assertEqual(u"1", client.version)
 
     def test_v2_only(self):
@@ -674,7 +676,9 @@ class NewestSupportedCinderClientTests(TestCase):
         """
         config = get_blockdevice_config(ProviderType.openstack)
         session = get_keystone_session(**config)
-        client = get_cinder_client(session=session, region="RegionOne")
+        client = get_cinder_client(
+            session=session, region=get_openstack_region_for_test()
+        )
         self.assertEqual(u"2", client.version)
 
     def test_v1_and_v2(self):
@@ -682,5 +686,7 @@ class NewestSupportedCinderClientTests(TestCase):
         """
         config = get_blockdevice_config(ProviderType.openstack)
         session = get_keystone_session(**config)
-        client = get_cinder_client(session=session, region="RegionOne")
+        client = get_cinder_client(
+            session=session, region=get_openstack_region_for_test()
+        )
         self.assertEqual(u"2", client.version)
