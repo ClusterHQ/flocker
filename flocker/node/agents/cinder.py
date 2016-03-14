@@ -854,9 +854,34 @@ def get_keystone_session(**config):
         )
 
 
-SUPPORTED_VERSIONS = (
-    (u"2", u"volumev2"),
-    (u"1", u"volume"),
+class Cinder1to2Adapter(proxyForInterface(ICinderVolumeManager, "_client_v2")):
+    """
+    Deal with annoying differences in the method signatures between
+    cinderclient.client.{v1,v2}.volumes.VolumeManager
+    """
+    def create(self, size, metadata=None, display_name=None):
+        """
+        v1 uses display_name rather than name.
+        """
+        return self._client_v2.create(
+            size=size,
+            metadata=metadata,
+            name=display_name
+        )
+
+
+CINDER_API_METADATA_IN_PRIORITY_ORDER = (
+    dict(version=u"2", adapter_v1=Cinder1to2Adapter),
+    dict(version=u"1", adapter_v1=lambda client: client),
+)
+
+CINDER_V1_ADAPTERS = {
+    v["version"]: v["adapter_v1"]
+    for v in CINDER_API_METADATA_IN_PRIORITY_ORDER
+}
+
+CINDER_API_SUPPORTED_VERSIONS = tuple(
+    v["version"] for v in CINDER_API_METADATA_IN_PRIORITY_ORDER
 )
 
 
@@ -889,7 +914,7 @@ def get_cinder_client(session, region):
     :return: A ``cinderclient.Client``
     """
     endpoint_errors = []
-    for version, service_type in SUPPORTED_VERSIONS:
+    for version in CINDER_API_SUPPORTED_VERSIONS:
         client = CinderClient(
             version=version, session=session, region_name=region
         )
@@ -956,25 +981,3 @@ def cinder_from_configuration(region, cluster_id, **config):
         nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,
     )
-
-
-class Cinder1to2Adapter(proxyForInterface(ICinderVolumeManager, "_client_v2")):
-    """
-    Deal with annoying differences in the method signatures between
-    cinderclient.client.{v1,v2}.volumes.VolumeManager
-    """
-    def create(self, size, metadata=None, display_name=None):
-        """
-        v1 uses display_name rather than name.
-        """
-        return self._client_v2.create(
-            size=size,
-            metadata=metadata,
-            name=display_name
-        )
-
-
-CINDER_V1_ADAPTERS = {
-    u"1": lambda client: client,
-    u"2": Cinder1to2Adapter,
-}
