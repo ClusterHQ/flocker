@@ -505,6 +505,8 @@ class DockerPluginTests(AsyncTestCase):
         return d
 
     @require_cluster(1)
+    # Test can be slow on GCE.
+    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     def test_listed(self, cluster):
         """
         A volume created outside of Docker can be listed via the Docker
