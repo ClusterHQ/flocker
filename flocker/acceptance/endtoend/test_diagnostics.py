@@ -99,7 +99,6 @@ class DiagnosticsTests(AsyncTestCase):
                     Equals(expected_basenames + container_agent_basenames),
                 ])
             )
-            self.assertEqual(expected_basenames, actual_basenames)
 
         verifying = downloading.addCallback(verify_archive)
 
