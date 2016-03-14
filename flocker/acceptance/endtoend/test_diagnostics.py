@@ -94,11 +94,11 @@ class DiagnosticsTests(AsyncTestCase):
             ])
             self.expectThat(
                 actual_basenames,
-                MatchesAny([
+                MatchesAny(
                     Equals(expected_basenames),
                     Equals(expected_basenames.union(
                         container_agent_basenames)),
-                ])
+                )
             )
 
         verifying = downloading.addCallback(verify_archive)
