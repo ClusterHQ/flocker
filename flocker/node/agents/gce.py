@@ -330,6 +330,18 @@ def _extract_attached_to(disk):
 
 
 def gce_credentials_from_config(gce_credentials_config=None):
+    """
+    This function creates a proper GCE credentials object either from a passed
+    in configuration blob or, if this code is being run on a GCE instance, from
+    the default service account credentials associated with the VM.
+
+    :param dict gce_credentials_config: A credentials dict used to authenticate
+        against GCE. This should have the same content as the JSON blob you
+        download when you create a new key for a service account. If this is
+        ``None``, then the instances implicit credentials will be used.
+
+    :returns: A GCE credentials object for use with the GCE API.
+    """
     if gce_credentials_config is not None:
         credentials = SignedJwtAssertionCredentials(
             gce_credentials_config['client_email'],
@@ -825,8 +837,8 @@ def gce_from_configuration(cluster_id, project=None, zone=None,
     :param UUID cluster_id: The unique identifier of the cluster with which to
         associate the resulting object.  It will only manipulate volumes
         belonging to this cluster.
-    :param str project: The GCE project for the cluster
-    :param str zone: The GCE zone the cluster will be located in
+    :param unicode project: The GCE project for the cluster.
+    :param unicode zone: The GCE zone the cluster will be located in.
     :param dict credentials: Optional GCE credentials for a service
         account that has permissions to carry out GCE volume actions
         (create, delete, detatch, etc.). If this is omitted the user
