@@ -21,7 +21,7 @@ from bitmath import Byte
 import netifaces
 import psutil
 
-from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
+from keystoneauth1.exceptions.http import BadRequest
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
@@ -239,7 +239,7 @@ class CinderHttpsTests(TestCase):
         })
         session = get_keystone_session(**self.config)
         session.invalidate()
-        self.assertRaises(Unauthorized, session.get_token)
+        self.assertRaises(BadRequest, session.get_token)
 
 
 class VirtIOClient:
