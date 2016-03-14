@@ -881,12 +881,12 @@ def get_cinder_client(session, region):
     """
     Create a Cinder (volume) client from a Keystone session.
 
-    Try all ``SUPPORTED_VERSIONS`` in order and return the first client to
+    Try Cinder V2 and Cinder V1 in order and return the first client to
     successfully complete a ``list`` API call.
 
     :param keystoneclient.Session session: Authenticated Keystone session.
     :param str region: Openstack region.
-    :return: A cinderclient.Client (v2 else v1)
+    :return: A ``cinderclient.Client``
     """
     endpoint_errors = []
     for version, service_type in SUPPORTED_VERSIONS:
