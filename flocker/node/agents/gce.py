@@ -18,7 +18,9 @@ from bitmath import GiB, Byte
 from eliot import Message, start_action, write_traceback
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
-from oauth2client.gce import AppAssertionCredentials
+from oauth2client.client import (
+    GoogleCredentials, SignedJwtAssertionCredentials
+)
 from pyrsistent import PClass, field
 from twisted.python.filepath import FilePath
 from twisted.python.constants import (
@@ -238,14 +240,18 @@ def get_metadata_path(path):
 
     :returns unicode: The resulting value from the metadata server.
     """
-    timeout_sec = 3
     with start_action(
         action_type=u"flocker:node:agents:gce:get_metadata_path",
         path=path
     ) as action:
+        timeout_sec = 3
         r = requests.get(_METADATA_SERVER + path,
                          headers=_METADATA_HEADERS,
                          timeout=timeout_sec)
+        if r.status_code != 200:
+            raise ValueError("Did not get success result from metadata server "
+                             "for path {}, instead got {}.".format(
+                                 path, r.status_code))
         action.add_success_fields(response=r.text)
         return r.text
 
@@ -323,6 +329,32 @@ def _extract_attached_to(disk):
     return unicode(users[0].split('/')[-1])
 
 
+def gce_credentials_from_config(gce_credentials_config=None):
+    """
+    This function creates a proper GCE credentials object either from a passed
+    in configuration blob or, if this code is being run on a GCE instance, from
+    the default service account credentials associated with the VM.
+
+    :param dict gce_credentials_config: A credentials dict used to authenticate
+        against GCE. This should have the same content as the JSON blob you
+        download when you create a new key for a service account. If this is
+        ``None``, then the instances implicit credentials will be used.
+
+    :returns: A GCE credentials object for use with the GCE API.
+    """
+    if gce_credentials_config is not None:
+        credentials = SignedJwtAssertionCredentials(
+            gce_credentials_config['client_email'],
+            gce_credentials_config['private_key'],
+            scope=[
+                u"https://www.googleapis.com/auth/compute",
+            ]
+        )
+    else:
+        credentials = GoogleCredentials.get_application_default()
+    return credentials
+
+
 @implementer(IBlockDeviceAPI)
 @implementer(IProfiledBlockDeviceAPI)
 @implementer(ICloudAPI)
@@ -377,20 +409,23 @@ class GCEBlockDeviceAPI(object):
             of the volume) is a pure function of blockdevice_id.
     """
 
-    def __init__(self, cluster_id, project, zone):
+    def __init__(self, cluster_id, project, zone, gce_credentials_config=None):
         """
         Initialize the GCEBlockDeviceAPI.
 
         :param unicode project: The project where all GCE operations will take
             place.
         :param unicode zone: The zone where all GCE operations will take place.
+        :param dict gce_credentials: Optional GCE credentials for a
+            service account that has permissions to carry out GCE
+            volume actions (create, delete, detatch, etc.). If this is
+            omitted the user must enable the default service account
+            on all cluster nodes.
         """
-        # TODO(mewert): Also enable credentials via service account private
-        # keys.
-        credentials = AppAssertionCredentials(
-            "https://www.googleapis.com/auth/cloud-platform")
+        credentials = gce_credentials_from_config(gce_credentials_config)
         self._compute = discovery.build(
-            'compute', 'v1', credentials=credentials)
+            'compute', 'v1', credentials=credentials
+        )
         self._project = project
         self._zone = zone
         self._cluster_id = cluster_id
@@ -684,17 +719,55 @@ class GCEBlockDeviceAPI(object):
             # this point). Might involve putting all GCE interactions behind a
             # zope interface and then using a proxy implementation to inject
             # code.
-            self._do_blocking_operation(
+            result = self._do_blocking_operation(
                 self._compute.instances().detachDisk,
                 instance=attached_to,
                 deviceName=blockdevice_id,
                 timeout_sec=VOLUME_DETATCH_TIMEOUT
             )
+
+            # If there is an outstanding detach operation, attach_to will be
+            # reported, but an attempt to detach will quickly fail with an
+            # `INVALID_FIELD_VALUE`.
+            #
+            # Attempt to detect this scenario, and poll until the volume is
+            # detached.
+            if 'error' in result:
+                potentially_detaching_error = None
+                for error in result['error']:
+                    if error == 'INVALID_FIELD_VALUE':
+                        potentially_detaching_error = error
+
+                if potentially_detaching_error is not None:
+                    try:
+                        poll_until(
+                            lambda: self._extract_attached_to(blockdevice_id),
+                            [1] * VOLUME_DETATCH_TIMEOUT
+                        )
+                        raise GCEVolumeException(
+                            "Volume appeared to be detaching, but never "
+                            "detached {}: {}".format(
+                                blockdevice_id,
+                                str(potentially_detaching_error)
+                            )
+                        )
+                    except UnattachedVolume:
+                        # If we eventually get an `UnattachedVolume` exception
+                        # then the volume has been successfully detached.
+                        pass
+                else:
+                    raise GCEVolumeException(
+                        "Error detaching volume {}: {}".format(
+                            blockdevice_id,
+                            str(result['error'])
+                        )
+                    )
+
             return None
 
     def get_device_path(self, blockdevice_id):
         self._get_attached_to(blockdevice_id)
-        return FilePath(u"/dev/disk/by-id/google-" + blockdevice_id)
+        return FilePath(u"/dev/disk/by-id/google-" + blockdevice_id).realpath()
 
     def destroy_volume(self, blockdevice_id):
         try:
@@ -754,3 +827,27 @@ class GCEBlockDeviceAPI(object):
             timeout_sec=5*60,
             instance=node_id
         )
+
+
+def gce_from_configuration(cluster_id, project=None, zone=None,
+                           credentials=None):
+    """
+    Build a ``GCEBlockDeviceAPI`` instance using data from configuration
+
+    :param UUID cluster_id: The unique identifier of the cluster with which to
+        associate the resulting object.  It will only manipulate volumes
+        belonging to this cluster.
+    :param unicode project: The GCE project for the cluster.
+    :param unicode zone: The GCE zone the cluster will be located in.
+    :param dict credentials: Optional GCE credentials for a service
+        account that has permissions to carry out GCE volume actions
+        (create, delete, detatch, etc.). If this is omitted the user
+        must enable the default service account on all cluster nodes.
+
+    :return: A ``GCEBlockDeviceAPI`` instance.
+    """
+    if project is None:
+        project = get_machine_project()
+    if zone is None:
+        zone = get_machine_zone()
+    return GCEBlockDeviceAPI(cluster_id, project, zone, credentials)
