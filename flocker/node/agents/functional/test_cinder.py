@@ -349,7 +349,7 @@ class OpenStackFixture(object):
 
     def cleanup(self, instance_id, volume):
         try:
-            self.blockdevice_api.detach(volume.id)
+            self.blockdevice_api.detach_volume(volume.id)
         except UnattachedVolume:
             pass
         try:
