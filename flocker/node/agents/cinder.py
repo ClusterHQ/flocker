@@ -925,10 +925,15 @@ def cinder_from_configuration(region, cluster_id, **config):
     :param cluster_id: The unique identifier for the cluster to access.
     :param config: A dictionary of configuration options for Openstack.
     """
-    session = get_keystone_session(**config)
-    cinder_client = get_cinder_client(session, region)
+    cinder_client = get_cinder_client(
+        session=get_keystone_session(**config),
+        region=region,
+    )
 
-    nova_client = get_nova_v2_client(session, region)
+    nova_client = get_nova_v2_client(
+        session=get_keystone_session(**config),
+        region=region,
+    )
 
     wrapped_cinder_volume_manager = _LoggingCinderVolumeManager(
         cinder_client.volumes
