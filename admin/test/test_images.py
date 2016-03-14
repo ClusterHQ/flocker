@@ -7,11 +7,6 @@ import os
 from subprocess import check_call, CalledProcessError
 from unittest import skipIf
 
-import boto3
-from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
-    extract_from_urllib3,
-)
-
 from effect import Effect, sync_perform
 from effect.testing import perform_sequence
 
@@ -21,10 +16,10 @@ from pyrsistent import PClass, field, pmap_field, thaw
 
 from testtools.matchers import StartsWith
 from testtools.content import text_content, content_from_file, ContentType
-from testtools.matchers import Contains
 
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
+from twisted.python.usage import UsageError
 
 from flocker.testtools import (
     AsyncTestCase, TestCase, random_name, FakeSysModule
@@ -36,11 +31,6 @@ from ..installer._images import (
     AWS_REGIONS, publish_installer_images_effects, RealPerformers,
     PublishInstallerImagesOptions, PACKER_PATH
 )
-
-# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
-# exception when we try an API call on an idled persistent connection.
-# See https://github.com/boto/boto3/issues/220
-extract_from_urllib3()
 
 try:
     import flocker as _flocker
@@ -54,15 +44,6 @@ require_packer = skipIf(
     not PACKER_PATH.exists(),
     "Tests require ``packer`` to be installed at ``/opt/packer/packer``."
 )
-
-
-def default_options():
-    """
-    :return: The default ``PublishInstallerOptions``.
-    """
-    options = PublishInstallerImagesOptions()
-    options.parseOptions([])
-    return options
 
 
 class ParserData(PClass):
@@ -181,7 +162,7 @@ class PackerConfigureTests(TestCase):
     """
     def test_configuration(self):
         """
-        Source AMI ID, build region, and target regions can all be overridden
+        Source AMIs, build region, and target regions can all be overridden
         in a chosen template.
         """
         expected_build_region = AWS_REGIONS.EU_WEST_1
@@ -190,11 +171,13 @@ class PackerConfigureTests(TestCase):
             AWS_REGIONS.AP_SOUTHEAST_1,
             AWS_REGIONS.AP_SOUTHEAST_2,
         ]
-        expected_source_ami = random_name(self)
+        expected_source_ami_map = {
+            AWS_REGIONS.EU_WEST_1: random_name(self)
+        }
         intent = PackerConfigure(
             build_region=expected_build_region,
             publish_regions=expected_publish_regions,
-            source_ami=expected_source_ami,
+            source_ami_map=expected_source_ami_map,
             template=u"docker",
             distribution=u"ubuntu-14.04",
         )
@@ -217,7 +200,7 @@ class PackerConfigureTests(TestCase):
         self.assertEqual(
             (expected_build_region.value,
              set(c.value for c in expected_publish_regions),
-             expected_source_ami),
+             expected_source_ami_map[expected_build_region]),
             (build_region, set(publish_regions),
              build_source_ami)
         )
@@ -303,7 +286,11 @@ class PublishInstallerImagesEffectsTests(TestCase):
         The function generates a packer configuration file, runs packer
         build and uploads the AMI ids to a given S3 bucket.
         """
-        options = default_options()
+        options = PublishInstallerImagesOptions()
+        options.parseOptions(
+            [b'--source-ami-map', b'{"us-west-1": "ami-1234"}']
+        )
+
         configuration_path = self.make_temporary_directory()
         ami_map = PACKER_OUTPUT_US_ALL.output
         perform_sequence(
@@ -311,7 +298,7 @@ class PublishInstallerImagesEffectsTests(TestCase):
                 (PackerConfigure(
                     build_region=options["build_region"],
                     publish_regions=options["regions"],
-                    source_ami=options["source_ami"],
+                    source_ami_map=options["source-ami-map"],
                     template=options["template"],
                     distribution=options["distribution"],
                 ), lambda intent: configuration_path),
@@ -398,83 +385,23 @@ class PublishInstallerImagesIntegrationTests(TestCase):
             StartsWith(u"Usage: {}".format(self.script.basename()))
         )
 
-    @require_packer
-    def foo_test_build_both(self):
+
+class PublishInstallerImagesOptionsTests(TestCase):
+    """
+    Tests for ``PublishInstallerImagesOptions``
+    """
+    def test_source_ami_map_required(self):
         """
-        ``publish-installer-images`` can be called twice to first generate
-        Docker images and then Flocker images built on the Docker images.
-        The IDs of the generated AMIs are published to S3.
+        ``--source-ami-map`` is required.
         """
-        docker_version = u"1.10.0"
-        swarm_version = u"1.0.1"
-        flocker_version = u"1.10.1"
-        build_region = u"us-west-1"
-        returncode, stdout, stderr = self.publish_installer_images(
-            args=['--template', 'docker',
-                  '--copy_to_all_regions',
-                  '--build_region', build_region],
-            extra_enviroment={
-                u'DOCKER_VERSION': docker_version,
-                u'SWARM_VERSION': swarm_version,
-            }
-        )
-        self.addDetail(
-            'docker_object_content', text_content(stdout)
-        )
+        options = PublishInstallerImagesOptions()
 
-        # It should be valid JSON.
-        docker_ami_map = json.loads(stdout)
-
-        # We can use that image as the source for the Flocker image
-        returncode, stdout, stderr = self.publish_installer_images(
-            args=['--template', 'flocker',
-                  '--build_region', build_region,
-                  '--copy_to_all_regions',
-                  '--source_ami', docker_ami_map[build_region]],
-            extra_enviroment={
-                u'FLOCKER_VERSION': flocker_version
-            }
+        exception = self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            [],
         )
-        self.addDetail(
-            'flocker_object_content', text_content(stdout)
-        )
-        # It should be valid JSON.
-        flocker_ami_map = json.loads(stdout)
-
-        ec2 = boto3.resource('ec2', region_name=build_region)
-        # Get a list of all the related images and tags in case of errors.
-        all_images = dict(
-            (i.id, dict(name=i.name, tags=i.tags))
-            for i in ec2.images.filter(
-                Owners=[u'self'],
-                Filters=[
-                    {
-                        u'Name': 'name',
-                        u'Values': [
-                            u'clusterhq_ubuntu-14.04_docker*',
-                            u'clusterhq_ubuntu-14.04_flocker*'
-                        ]
-                    }
-                ]
-            )
-        )
-        self.addDetail(
-            u"all_images",
-            text_content(json.dumps(all_images))
-        )
-
-        docker_image = ec2.Image(docker_ami_map[build_region])
-        self.expectThat(
-            docker_image.tags,
-            Contains({u'Key': 'DOCKER_VERSION', u'Value': docker_version}),
-        )
-        self.expectThat(
-            docker_image.tags,
-            Contains({u'Key': 'SWARM_VERSION', u'Value': swarm_version}),
-        )
-
-        flocker_image = ec2.Image(flocker_ami_map[build_region])
-        self.expectThat(
-            flocker_image.tags,
-            Contains({u'Key': 'FLOCKER_VERSION', u'Value': flocker_version}),
+        self.assertIn(
+            u"--source-ami-map is required.",
+            unicode(exception)
         )
