@@ -860,7 +860,7 @@ SUPPORTED_VERSIONS = (
 )
 
 
-class CinderAPIVersionDetectionFailure(Exception):
+class CinderAPIVersionDetectionFailure(EnvironmentError):
     """
     Unable to connect to a supported version of the Cinder API.
     """
