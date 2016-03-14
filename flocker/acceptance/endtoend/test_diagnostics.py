@@ -13,6 +13,7 @@ from twisted.python.filepath import FilePath
 from ...common.runner import run_ssh, download
 from ...testtools import AsyncTestCase
 from ..testtools import require_cluster
+from testtools.matchers import MatchesAny, Equals
 
 
 class DiagnosticsTests(AsyncTestCase):
@@ -66,13 +67,16 @@ class DiagnosticsTests(AsyncTestCase):
                         continue
                     actual_basenames.add(basename)
 
+            container_agent_basenames = set([
+                'flocker-container-agent_startup.gz',
+                'flocker-container-agent_eliot.gz',
+            ])
+
             expected_basenames = set([
                 'flocker-control_startup.gz',
                 'flocker-control_eliot.gz',
                 'flocker-dataset-agent_startup.gz',
                 'flocker-dataset-agent_eliot.gz',
-                'flocker-container-agent_startup.gz',
-                'flocker-container-agent_eliot.gz',
                 'flocker-docker-plugin_startup.gz',
                 'flocker-docker-plugin_eliot.gz',
                 'flocker-version',
@@ -88,6 +92,13 @@ class DiagnosticsTests(AsyncTestCase):
                 'fdisk',
                 'lshw',
             ])
+            self.expectThat(
+                actual_basenames,
+                MatchesAny([
+                    Equals(expected_basenames),
+                    Equals(expected_basenames + container_agent_basenames),
+                ])
+            )
             self.assertEqual(expected_basenames, actual_basenames)
 
         verifying = downloading.addCallback(verify_archive)
