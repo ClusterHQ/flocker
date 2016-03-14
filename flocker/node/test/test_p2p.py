@@ -665,6 +665,37 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
                 dataset=MANIFESTATION.dataset)])])
         self.assertEqual(expected, changes)
 
+    def test_ignore_deleted(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ignores configured but
+        deleted datasets when calculating changes.
+        """
+        hostname = u"node1.example.com"
+
+        node_state = NodeState(hostname=hostname, applications=[],
+                               manifestations={}, devices={}, paths={})
+        current = DeploymentState(nodes=frozenset({node_state}))
+
+        api = P2PManifestationDeployer(
+            hostname,
+            create_volume_service(self),
+        )
+
+        node = Node(
+            hostname=hostname,
+            manifestations={
+                MANIFESTATION.dataset_id: MANIFESTATION.transform(
+                    ['dataset', 'deleted'], True
+                )
+            },
+        )
+        desired = Deployment(nodes=frozenset({node}))
+
+        changes = api.calculate_changes(desired, current,
+                                        NodeLocalState(node_state=node_state))
+
+        self.assertEqual(NO_CHANGES, changes)
+
     def test_dataset_resize(self):
         """
         ``P2PManifestationDeployer.calculate_changes`` specifies that a
