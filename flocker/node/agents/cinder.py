@@ -379,6 +379,37 @@ def _extract_nova_server_addresses(addresses):
     return all_addresses
 
 
+def _nova_detach(nova_volume_manager, cinder_volume_manager,
+                 server_id, cinder_volume):
+    """
+    Detach a Cinder volume from a Nova host and block until the volume has
+    detached.
+
+    :param nova_volume_manager: A ``nova.VolumManager``.
+    :param cinder_volume_manager: A ``cinder.VolumManager``.
+    :param server_id: The Nova server ID.
+    :param cinder_volume: A cinder.Volume.
+    """
+    try:
+        nova_volume_manager.delete_server_volume(
+            server_id=server_id,
+            attachment_id=cinder_volume.id
+        )
+    except NovaNotFound:
+        raise UnattachedVolume(cinder_volume.id)
+
+    # This'll blow up if the volume is deleted from elsewhere.  FLOC-1882.
+    # Also note that we use the Cinder API here rather than the Nova API.
+    # They may get out sync and it's the Cinder volume status that's important
+    # if we are to successfully delete the volume next.
+    wait_for_volume_state(
+        volume_manager=cinder_volume_manager,
+        expected_volume=cinder_volume,
+        desired_state=u'available',
+        transient_states=(u'in-use', u'detaching')
+    )
+
+
 @implementer(IBlockDeviceAPI)
 @implementer(ICloudAPI)
 class CinderBlockDeviceAPI(object):
@@ -548,20 +579,11 @@ class CinderBlockDeviceAPI(object):
         server_id = _blockdevicevolume_from_cinder_volume(
             cinder_volume).attached_to
 
-        try:
-            self.nova_volume_manager.delete_server_volume(
-                server_id=server_id,
-                attachment_id=blockdevice_id
-            )
-        except NovaNotFound:
-            raise UnattachedVolume(blockdevice_id)
-
-        # This'll blow up if the volume is deleted from elsewhere.  FLOC-1882.
-        wait_for_volume_state(
-            volume_manager=self.cinder_volume_manager,
-            expected_volume=cinder_volume,
-            desired_state=u'available',
-            transient_states=(u'in-use', u'detaching')
+        _nova_detach(
+            nova_volume_manager=self.nova_volume_manager,
+            cinder_volume_manager=self.cinder_volume_manager,
+            server_id=server_id,
+            cinder_volume=cinder_volume,
         )
 
     def destroy_volume(self, blockdevice_id):

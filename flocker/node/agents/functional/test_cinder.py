@@ -44,7 +44,7 @@ from ....testtools import TestCase, flaky, run_process
 
 from ..cinder import (
     get_keystone_session, wait_for_volume_state, UnexpectedStateException,
-    UnattachedVolume, TimeoutException, UnknownVolume,
+    UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
 )
 
 from .logging import CINDER_VOLUME
@@ -349,7 +349,14 @@ class OpenStackFixture(object):
 
     def cleanup(self, instance_id, volume):
         try:
-            self.blockdevice_api.detach_volume(volume.id)
+            # Can't use self.blockdevice_api.detach_volume here because it
+            # expects all volumes to be ``flocker-`` volumes.
+            _nova_detach(
+                nova_volume_manager=self.nova,
+                cinder_volume_manager=self.cinder,
+                server_id=instance_id,
+                cinder_volume=volume
+            )
         except UnattachedVolume:
             pass
         try:
