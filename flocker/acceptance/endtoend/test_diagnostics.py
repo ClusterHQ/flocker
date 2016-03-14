@@ -96,7 +96,8 @@ class DiagnosticsTests(AsyncTestCase):
                 actual_basenames,
                 MatchesAny([
                     Equals(expected_basenames),
-                    Equals(expected_basenames.union(container_agent_basenames)),
+                    Equals(expected_basenames.union(
+                        container_agent_basenames)),
                 ])
             )
 
