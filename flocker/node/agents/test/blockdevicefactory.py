@@ -228,7 +228,8 @@ def _gce(cluster_id, config):
     project = get_metadata_path("project/project-id")
     full_zone = get_metadata_path("instance/zone")
     zone = full_zone.split("/")[-1]
-    return GCEBlockDeviceAPI(cluster_id=cluster_id, project=project, zone=zone)
+    return GCEBlockDeviceAPI(cluster_id=cluster_id, project=project, zone=zone,
+                             gce_credentials_config=None)
 
 
 # Map provider labels to IBlockDeviceAPI factory.

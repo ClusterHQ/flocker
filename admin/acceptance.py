@@ -403,6 +403,8 @@ def _provider_for_cluster_id(dataset_backend):
         return Providers.AWS
     if dataset_backend is backends.OPENSTACK:
         return Providers.OPENSTACK
+    if dataset_backend is backends.GCE:
+        return Providers.GCE
     return Providers.UNSPECIFIED
 
 
@@ -1289,24 +1291,33 @@ def capture_upstart(reactor, host, output_file):
             (b"flocker", b"flocker-container-agent"),
             (b"flocker", b"flocker-docker-plugin"),
             (b"upstart", b"docker")]:
-        path = FilePath(b'/var/log/').child(directory).child(service + b'.log')
-        formatter = TailFormatter(output_file, host, service)
-        ran = run_ssh(
-            reactor=reactor,
-            host=host,
-            username='root',
-            command=[
-                b'tail',
-                b'-F',
-                path.path
-            ],
-            handle_stdout=formatter.handle_output_line,
+
+        def pull_logs_for_process(directory=directory, service=service):
+            path = FilePath(
+                b'/var/log/').child(directory).child(service + b'.log')
+            formatter = TailFormatter(output_file, host, service)
+            ran = run_ssh(
+                reactor=reactor,
+                host=host,
+                username='root',
+                command=[
+                    b'tail',
+                    b'-F',
+                    path.path
+                ],
+                handle_stdout=formatter.handle_output_line,
+            )
+            ran.addErrback(write_failure, logger=None)
+            # Deliver a final empty line to process the last message
+            ran.addCallback(lambda ignored, formatter=formatter:
+                            formatter.handle_output_line(b""))
+            return ran
+
+        # Keep re-running the log gathering ssh command so that we continue to
+        # get logs even after a network blip or a VM restart.
+        results.append(
+            loop_until(reactor, pull_logs_for_process, repeat(2.0))
         )
-        ran.addErrback(write_failure, logger=None)
-        # Deliver a final empty line to process the last message
-        ran.addCallback(lambda ignored, formatter=formatter:
-                        formatter.handle_output_line(b""))
-        results.append(ran)
     return gather_deferreds(results)
 
 
@@ -1372,29 +1383,33 @@ def capture_journal(reactor, host, output_file):
     :param file output_file: File to write to.
     :return deferred: that will run the journalctl command
     """
-    formatter = journald_json_formatter(output_file)
-    ran = run_ssh(
-        reactor=reactor,
-        host=host,
-        username='root',
-        command=[
-            b'journalctl',
-            b'--lines', b'0',
-            b'--output', b'export',
-            b'--follow',
-            # Only bother with units we care about:
-            b'-u', b'docker',
-            b'-u', b'flocker-control',
-            b'-u', b'flocker-dataset-agent',
-            b'-u', b'flocker-container-agent',
-            b'-u', b'flocker-docker-plugin',
-        ],
-        handle_stdout=formatter,
-    )
-    ran.addErrback(write_failure, logger=None)
-    # Deliver a final empty line to process the last message
-    ran.addCallback(lambda ignored: formatter(b""))
-    return ran
+    def get_journald_output():
+        formatter = journald_json_formatter(output_file)
+        ran = run_ssh(
+            reactor=reactor,
+            host=host,
+            username='root',
+            command=[
+                b'journalctl',
+                b'--lines', b'0',
+                b'--output', b'export',
+                b'--follow',
+                # Only bother with units we care about:
+                b'-u', b'docker',
+                b'-u', b'flocker-control',
+                b'-u', b'flocker-dataset-agent',
+                b'-u', b'flocker-container-agent',
+                b'-u', b'flocker-docker-plugin',
+            ],
+            handle_stdout=formatter,
+        )
+        ran.addErrback(write_failure, logger=None)
+        # Deliver a final empty line to process the last message
+        ran.addCallback(lambda ignored: formatter(b""))
+        return ran
+    # Keep re-running the log gathering ssh command so that we continue to
+    # get logs even after a network blip or a VM restart.
+    return loop_until(reactor, get_journald_output, repeat(2.0))
 
 
 def journald_json_formatter(output_file):

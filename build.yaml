@@ -1503,7 +1503,7 @@ job_type:
       directories_to_delete: []
       notify_slack: '#nightly-builds'
 
-    run_acceptance_on_GCE_CentOS_7_with_LOOPBACK:
+    run_acceptance_on_GCE_CentOS_7_with_GCE:
       at: '0 5 * * *'
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_steps:
@@ -1517,7 +1517,7 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
                    'export ACCEPTANCE_TEST_PROVIDER=gce',
-                   *run_acceptance_loopback_tests,
+                   *run_acceptance_tests,
                    *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
@@ -1530,7 +1530,7 @@ job_type:
       directories_to_delete: []
       notify_slack: '#nightly-builds'
 
-    run_acceptance_on_GCE_Ubuntu_Trusty_with_LOOPBACK:
+    run_acceptance_on_GCE_Ubuntu_Trusty_with_GCE:
       at: '0 6 * * *'
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
@@ -1544,7 +1544,7 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
                    'export ACCEPTANCE_TEST_PROVIDER=gce',
-                   *run_acceptance_loopback_tests,
+                   *run_acceptance_tests,
                    *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
