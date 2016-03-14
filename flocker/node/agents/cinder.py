@@ -856,12 +856,13 @@ def get_keystone_session(**config):
 
 class Cinder1to2Adapter(proxyForInterface(ICinderVolumeManager, "_client_v2")):
     """
-    Deal with annoying differences in the method signatures between
+    Deal with an annoying difference in the method signature between
     cinderclient.client.{v1,v2}.volumes.VolumeManager
     """
     def create(self, size, metadata=None, display_name=None):
         """
-        v1 uses display_name rather than name.
+        ``python-cinderclient.client.V1.VolumeManager.create`` uses
+        display_name rather than name.
         """
         return self._client_v2.create(
             size=size,
