@@ -1313,6 +1313,8 @@ def capture_upstart(reactor, host, output_file):
                             formatter.handle_output_line(b""))
             return ran
 
+        # Keep re-running the log gathering ssh command so that we continue to
+        # get logs even after a network blip or a VM restart.
         results.append(
             loop_until(reactor, pull_logs_for_process, repeat(2.0))
         )
@@ -1405,6 +1407,8 @@ def capture_journal(reactor, host, output_file):
         # Deliver a final empty line to process the last message
         ran.addCallback(lambda ignored: formatter(b""))
         return ran
+    # Keep re-running the log gathering ssh command so that we continue to
+    # get logs even after a network blip or a VM restart.
     return loop_until(reactor, get_journald_output, repeat(2.0))
 
 

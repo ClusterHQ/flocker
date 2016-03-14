@@ -604,14 +604,14 @@ class ConvergenceLoop(object):
         d.addErrback(error)
 
         # We're done with the iteration:
-        def send_delay_to_fsm(delay):
+        def send_delay_to_fsm(sleep):
             Message.log(
                 message_type=u'flocker:node:_loop:CONVERGE:delay',
                 log_level=u'INFO',
                 message=u'Delaying until next convergence loop.',
-                delay=delay
+                delay=sleep.delay_seconds
             )
-            return self.fsm.receive(delay)
+            return self.fsm.receive(sleep)
 
         d.addCallback(send_delay_to_fsm)
         d.addActionFinish()
