@@ -198,6 +198,7 @@ class CinderHttpsTests(TestCase):
     Test connections to HTTPS-enabled OpenStack.
     """
     def setUp(self):
+        super(CinderHttpsTests, self).setUp()
         try:
             self.config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
