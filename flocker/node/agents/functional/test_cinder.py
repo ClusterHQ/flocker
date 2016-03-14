@@ -217,8 +217,7 @@ class CinderHttpsTests(TestCase):
         With the peer_verify field set to False, connection to the
         OpenStack servers always succeeds.
         """
-        config = self.config.copy()
-        config['peer_verify'] = False
+        self.config['peer_verify'] = False
         session = get_keystone_session(**self.config)
         session.invalidate()
         # This will fail if authentication fails.
@@ -229,15 +228,16 @@ class CinderHttpsTests(TestCase):
         With a CA file that does not match any CA, connection to the
         OpenStack servers fails.
         """
-        config = self.config.copy()
         path = self.make_temporary_directory()
         RootCredential.initialize(path, b"mycluster")
-        config['backend'] = 'openstack'
-        config['auth_plugin'] = 'password'
-        config['peer_verify'] = True
-        config['peer_ca_path'] = path.child(
-            AUTHORITY_CERTIFICATE_FILENAME).path
-        session = get_keystone_session(**config)
+        self.config.update({
+            'backend': 'openstack',
+            'auth_plugin': 'password',
+            'peer_verify': True,
+            'peer_ca_path': path.child(
+                AUTHORITY_CERTIFICATE_FILENAME).path
+        })
+        session = get_keystone_session(**self.config)
         session.invalidate()
         self.assertRaises(Unauthorized, session.get_token)
 
