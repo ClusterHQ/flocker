@@ -41,7 +41,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 			<p>The AWS Key Pair allows you to login to your AWS cluster securely.</p>
 			<p>
 			<a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#KeyPairs:sort=keyName" class="button" target="_blank" align="middle">Log in to AWS</a>
-            <br />
+			<br />
 			(This button will open AWS in a new window)</p>
 		</div>
 		<div class="step-stages__step first">
