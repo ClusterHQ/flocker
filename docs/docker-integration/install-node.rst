@@ -21,6 +21,12 @@ Installing the Flocker Node Services
 * :ref:`aws-install-docker`
 * :ref:`rackspace-install-docker`
 
+.. _rhel-7-install-docker:
+
+.. include:: ../installation/install-node.rst
+   :start-after: .. begin-body-installing-node-rhel
+   :end-before: .. end-body-installing-node-rhel
+
 .. _centos-7-install-docker:
 
 .. include:: ../installation/install-node.rst
