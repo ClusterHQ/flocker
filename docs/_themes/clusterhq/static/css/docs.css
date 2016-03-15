@@ -81,6 +81,10 @@ Pods
 	background-color: #00a99d;
 }
 
+.pod-boxout .button--manual {
+	background-color: #333333;
+}
+
 .pod-boxout span {
 	height: 70px;
 	margin-bottom: 16px;

@@ -17,7 +17,7 @@ Flocker integrates with a range of Cluster Managers.
 Using Flocker with a Cluster Manager
 ====================================
 
-To install Flocker, first choose which Cluster Manager you are using, or intend to use:
+For installation and configuration information for using Flocker with a cluster manager, first choose which integration you are using, or intend to use:
 
 .. raw:: html
 
@@ -25,33 +25,36 @@ To install Flocker, first choose which Cluster Manager you are using, or intend 
 	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
 			<img src="_static/images/docker2x.png" alt="Docker logo"/>
 			<span>Docker Swarm, with Docker Compose<em>Try it Now</em></span>
-	        <a href="docker-integration/" class="button button--fast">Use Flocker with Docker Swarm</a>
+	        <a href="docker-integration/" class="button button--fast">Using Flocker with Docker</a>
 	    </div>
 
 	    <div class="pod-boxout pod-boxout--orchestration">
 			<img src="_static/images/kubernetes2x.png" alt="Kubernetes logo"/>
 			<span>Kubernetes</span>
-	        <a href="kubernetes-integration/" class="button">Use Flocker with Kubernetes</a>
+	        <a href="kubernetes-integration/" class="button">Using Flocker with Kubernetes</a>
 	    </div>
 
 	    <div class="pod-boxout pod-boxout--orchestration">
 			<img src="_static/images/mesos2x.png" alt="mesos logo"/>
 			<span>Mesos</span>
-	        <a href="mesos-integration/" class="button">Use Flocker with Mesos</a>
+	        <a href="mesos-integration/" class="button">Using Flocker with Mesos</a>
 	    </div>
 	</div>
 
 Using Flocker without a Cluster Manager
 =======================================
 
-Alternatively, if you want to install Flocker without a specific Cluster Manager in mind, that is also possible:
+If you want to install Flocker without a specific Cluster Manager in mind, that is also possible:
 
 .. raw:: html
 
-	 <div class="pod-boxout pod-boxout--minor pod-boxout--orchestration">
-		<span><img src="_static/images/icon-question2x.png" aria-hidden="true" alt=""/>&nbsp;Install Flocker without a Cluster Manager</span>
-        <a href="flocker-standalone/" class="button">Install or Learn</a>
-    </div>
+   <div class="pods-eq">
+	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
+		   <span>Install Flocker without a Cluster Manager
+           </span>
+		     <a href="flocker-standalone/" class="button button--manual">Install Flocker</a>
+	    </div>	
+   </div>
 
 Is your chosen Cluster Manager missing?
 Please let us know with the form below!
