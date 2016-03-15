@@ -46,7 +46,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 		</div>
 		<div class="step-stages__step first">
 			<img src="../_images/01-keys-menu.png" alt="AWS key pairs section in console"/>
-            <span><a href="" target="_blank">Log in to the AWS console</a> and select your region. This should be the same region where you will create your cluster.</span>
+            <span>When you have logged in to the AWS console, select your region. This should be the same region where you will create your cluster.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/02-create-key.png" alt="Creating a new AWS key pair"/>
