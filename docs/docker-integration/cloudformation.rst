@@ -141,7 +141,8 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 
 	<div class="step-stages step-stages--3up">
 		<div class="step-stages__excerpt">
-			<h2 class="step-stages__heading">Wait for the cluster to boot</h2>
+			<img src="../_images/kettle.png" alt="Wait for the cluster to boot"/>
+			<h3 class="step-stages__subheading">Wait for the Cluster to Boot</h3>
 			<p>It will take 5-10 minutes for the cluster servers to boot and to configure the Flocker and Docker Swarm services on each server.</p>
 		</div>
 		<div class="step-stages__step first">
@@ -224,6 +225,7 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 .. image:: /images/installer-swarm-compose/23-create-complete.png
 .. image:: /images/installer-swarm-compose/31-stack-outputs.png
 .. image:: /images/installer-swarm-compose/32-volume-hub-verification.png
+.. image:: /images/kettle.png
 
 .. raw:: html
 
