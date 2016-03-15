@@ -6,9 +6,12 @@
         .toctree-wrapper { display:none; }
     </style>
 
-================================================================
-Installing Flocker with Docker Swarm on AWS using CloudFormation
-================================================================
+==================
+Installing Flocker 
+==================
+---------------------------------------------
+with Docker Swarm on AWS using CloudFormation
+---------------------------------------------
 
 In this guide you will learn how to quickly deploy a cluster of servers running Flocker and Docker Swarm.
 You will launch four EC2 instances in your AWS account, as illustrated below:
