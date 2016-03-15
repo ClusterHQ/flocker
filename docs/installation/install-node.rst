@@ -64,7 +64,7 @@ Installing on RHEL 7
    
    Run the following commands as root on the target node:
 
-   .. prompt:: bash root@rhel:~$
+   .. prompt:: bash [root@rhel]#
 
       yum list installed clusterhq-release || yum install -y https://clusterhq-archive.s3.amazonaws.com/centos/clusterhq-release$(rpm -E %dist).centos.noarch.rpm
 

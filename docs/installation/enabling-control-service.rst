@@ -32,7 +32,7 @@ On AWS, an external firewall is used instead, which will need to be configured s
 RHEL 7.2
 ========
 
-.. prompt:: bash root@rhel:~$
+.. prompt:: bash [root@rhel]#
       
    systemctl enable flocker-control
    systemctl start flocker-control
