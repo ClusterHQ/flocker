@@ -66,9 +66,9 @@ Installing on RHEL 7.2
 
 On RHEL 7.2, the Flocker CLI can be installed from the ClusterHQ repository:
 
-   .. prompt:: bash root@rhel:~$
+.. prompt:: bash root@rhel:~$
 
-      yum install -y clusterhq-flocker-cli
+   yum install -y clusterhq-flocker-cli
 
 Installing on Other Linux Distributions
 =======================================
