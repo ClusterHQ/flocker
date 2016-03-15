@@ -11,19 +11,18 @@ You'll need to setup at least two nodes.
 
 #. Create a new cloud server:
 
-   * Visit the `Google Cloud Console <https://console.cloud.google.com/>`
+   * Visit the `Google Cloud Console <https://console.cloud.google.com/>`_.
    * Navigate to the project you want to use.
-   * Use the menu in the upper left to navigate to ``Compute Engine``
+   * Use the menu in the upper left to navigate to ``Compute Engine``.
    * Click ``Create Instance``.
-   * Choose a name and a zone for your instance. Zone must be the same for all
-     instances.
+   * Choose a name and a zone for your instance. Zone must be the same for all instances.
    * Choose a machine type.
    * For the Boot Disk, choose a supported Linux distribution (either CentOS 7 or Ubuntu 14.04) as your image.
    * Check ``Allow API access to all Google Cloud services in the same project``.
 
-#. SSH in:
+#. Gain SSH Access:
 
-   You can SSH into the machine either using the in-browser SSH client by clicking ``SSH`` on the instances page, or by using the `gcloud <https://cloud.google.com/sdk/gcloud/>` command line tool.
+   You can SSH into the machine either using the in-browser SSH client by clicking ``SSH`` on the instances page, or by using the `gcloud <https://cloud.google.com/sdk/gcloud/>`_ command line tool.
 
    .. prompt:: bash alice@mercury:~$
 
