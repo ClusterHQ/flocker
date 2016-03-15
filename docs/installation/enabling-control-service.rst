@@ -32,10 +32,10 @@ On AWS, an external firewall is used instead, which will need to be configured s
 RHEL 7.2
 ========
 
-   .. prompt:: bash root@rhel:~$
+.. prompt:: bash root@rhel:~$
       
-      systemctl enable flocker-control
-      systemctl start flocker-control
+   systemctl enable flocker-control
+   systemctl start flocker-control
 
 The control service needs to be accessible remotely.
 You will need to configure FirewallD to allow access to the control service HTTP API and for agent connections.
