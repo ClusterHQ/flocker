@@ -942,7 +942,7 @@ def get_cinder_client(session, region):
             version=version, session=session, region_name=region
         )
         try:
-            client.volumes.list(limit=1)
+            client.volumes.list(limit=1, detailed=False)
         except EndpointNotFound as e:
             endpoint_errors.append(e)
             continue
