@@ -81,7 +81,7 @@ Installing on RHEL 7
    
       yum install -y clusterhq-flocker-docker-plugin
 
-.. XXX FLOC-3454 to create a task directive for installing the plugin
+   .. XXX FLOC-3454 to create a task directive for installing the plugin
 
 #. **Repeat the previous steps for all other nodes:**
 
@@ -124,7 +124,7 @@ Installing on CentOS 7
    
       yum install -y clusterhq-flocker-docker-plugin
 
-.. XXX FLOC-3454 to create a task directive for installing the plugin
+   .. XXX FLOC-3454 to create a task directive for installing the plugin
 
 #. **Repeat the previous steps for all other nodes:**
 
@@ -167,7 +167,7 @@ Installing on Ubuntu 14.04
    
       apt-get install -y clusterhq-flocker-docker-plugin
 
-.. XXX FLOC-3454 to create a task directive for installing the plugin
+   .. XXX FLOC-3454 to create a task directive for installing the plugin
 
 #. **Repeat the previous steps for all other nodes:**
 
