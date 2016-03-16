@@ -35,8 +35,12 @@ from ..gce import (
 )
 from ....provision._gce import GCEInstanceBuilder
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
-    detach_destroy_volumes, make_icloudapi_tests
+    make_iprofiledblockdeviceapi_tests,
+)
+from ..testtools import (
+    detach_destroy_volumes,
+    make_iblockdeviceapi_tests,
+    make_icloudapi_tests,
 )
 from ..test.blockdevicefactory import (
     ProviderType, get_blockdeviceapi_with_cleanup,

@@ -9,8 +9,10 @@ from _cinder import (
     make_inovavolumemanager_tests,
 )
 from _blockdevice import (
+    FakeCloudAPI,
     detach_destroy_volumes,
     make_iblockdeviceapi_tests,
+    make_icloudapi_tests,
     mountroot_for_test,
     umount,
     umount_all,
@@ -19,10 +21,12 @@ from _loopback import (
     loopbackblockdeviceapi_for_test,
 )
 __all__ = [
+    'FakeCloudAPI',
     'detach_destroy_volumes',
     'loopbackblockdeviceapi_for_test',
     'make_iblockdeviceapi_tests',
     'make_icindervolumemanager_tests',
+    'make_icloudapi_tests',
     'make_inovavolumemanager_tests',
     'mountroot_for_test',
     'umount',

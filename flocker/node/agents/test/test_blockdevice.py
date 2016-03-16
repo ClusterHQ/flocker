@@ -32,8 +32,8 @@ from hypothesis.strategies import (
     dictionaries, tuples, booleans,
 )
 
+from testtools.matchers import Equals
 from testtools.deferredruntest import SynchronousDeferredRunTest
-from testtools.matchers import Equals, AllMatch, IsInstance
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
@@ -83,10 +83,6 @@ from ..blockdevice import (
     ProcessLifetimeCache,
     FilesystemExists,
     UnknownInstanceID,
-
-    ICloudAPI,
-    _SyncToThreadedAsyncCloudAPIAdapter,
-
     log_list_volumes, CALL_LIST_VOLUMES,
 )
 
@@ -110,7 +106,7 @@ from ...testtools import (
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
-    AsyncTestCase, TestCase,
+    TestCase,
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
@@ -125,9 +121,11 @@ from ....common.test.test_thread import NonThreadPool, NonReactor
 from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 
 from ..testtools import (
+    FakeCloudAPI,
     detach_destroy_volumes,
     loopbackblockdeviceapi_for_test,
     make_iblockdeviceapi_tests,
+    make_icloudapi_tests,
     mountroot_for_test,
     umount,
     umount_all,
@@ -723,26 +721,6 @@ class BlockDeviceDeployerDiscoverRawStateTests(TestCase):
             dict(
                 with_fs=True,
                 without_fs=False))
-
-
-@implementer(ICloudAPI)
-class FakeCloudAPI(proxyForInterface(IBlockDeviceAPI)):
-    """
-    Wrap a ``IBlockDeviceAPI`` and also provide ``ICloudAPI``.
-    """
-    def __init__(self, block_api, live_nodes=()):
-        """
-        @param block_api: ``IBlockDeviceAPI`` to wrap.
-        @param live_nodes: Live nodes beyond the current one.
-        """
-        self.original = block_api
-        self.live_nodes = live_nodes
-
-    def list_live_nodes(self):
-        return [self.compute_instance_id()] + list(self.live_nodes)
-
-    def start_node(self, node_id):
-        return
 
 
 class BlockDeviceDeployerDiscoverStateTests(TestCase):
@@ -4974,52 +4952,6 @@ class ProcessLifetimeCacheTests(TestCase):
 
         self.assertRaises(UnattachedVolume,
                           self.cache.get_device_path, attached_id1)
-
-
-def make_icloudapi_tests(
-        blockdevice_api_factory,
-):
-    """
-    :param blockdevice_api_factory: A factory which will be called
-        with the generated ``TestCase`` during the ``setUp`` for each
-        test and which should return a provider of both ``IBlockDeviceAPI``
-        and ``ICloudAPI`` to be tested.
-
-    :returns: A ``TestCase`` with tests that will be performed on the
-       supplied ``IBlockDeviceAPI``/``ICloudAPI`` provider.
-    """
-    class Tests(AsyncTestCase):
-        def setUp(self):
-            super(Tests, self).setUp()
-            self.api = blockdevice_api_factory(test_case=self)
-            self.this_node = self.api.compute_instance_id()
-            self.async_cloud_api = _SyncToThreadedAsyncCloudAPIAdapter(
-                _reactor=reactor, _sync=self.api,
-                _threadpool=reactor.getThreadPool())
-
-        def test_interface(self):
-            """
-            The result of the factory provides ``ICloudAPI``.
-            """
-            self.assertTrue(verifyObject(ICloudAPI, self.api))
-
-        def test_current_machine_is_live(self):
-            """
-            The machine running the test is reported as alive.
-            """
-            d = self.async_cloud_api.list_live_nodes()
-            d.addCallback(lambda live:
-                          self.assertIn(self.api.compute_instance_id(), live))
-            return d
-
-        def test_list_live_nodes(self):
-            """
-            ``list_live_nodes`` returns an iterable of unicode values.
-            """
-            live_nodes = self.api.list_live_nodes()
-            self.assertThat(live_nodes, AllMatch(IsInstance(unicode)))
-
-    return Tests
 
 
 class FakeCloudAPITests(make_icloudapi_tests(
