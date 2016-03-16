@@ -39,10 +39,14 @@ Once it's up and running we'll guide you through a tutorial to deploy a sample a
 			<h2 class="step-stages__heading">1</h2>
 			<h3 class="step-stages__subheading">Create an AWS Key Pair</h3>
 			<p>The AWS Key Pair allows you to login to your AWS cluster securely.</p>
+			<p>
+			<a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#KeyPairs:sort=keyName" class="button" target="_blank" align="middle">Log in to AWS</a>
+			<br />
+			This button will open AWS in a new window.</p>
 		</div>
 		<div class="step-stages__step first">
 			<img src="../_images/01-keys-menu.png" alt="AWS key pairs section in console"/>
-            <span><a href="https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#KeyPairs:sort=keyName" target="_blank">Log in to the AWS console</a> and select your region. This should be the same region where you will create your cluster.</span>
+            <span>When you have logged in to the AWS console, select your region. This should be the same region where you will create your cluster.</span>
 		</div>
 		<div class="step-stages__step">
 			<img src="../_images/02-create-key.png" alt="Creating a new AWS key pair"/>
