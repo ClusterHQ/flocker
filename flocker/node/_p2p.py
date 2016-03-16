@@ -274,10 +274,6 @@ class P2PManifestationDeployer(object):
         better solution.
         """
         local_state = cluster_state.get_node(self.node_uuid)
-        # We need to know applications (for now) to see if we should delay
-        # deletion or handoffs. Eventually this will rely on leases instead.
-        if local_state.applications is None:
-            return sequentially(changes=[])
         phases = []
 
         not_in_use_datasets = NotInUseDatasets(
@@ -358,7 +354,11 @@ def find_dataset_changes(uuid, current_state, desired_state):
                             # datasets; this is wrong. See FLOC-2060.
                             in (node.manifestations or {}).values())
                         for node in current_state.nodes}
-    local_desired_datasets = desired_datasets.get(uuid, set())
+
+    local_desired_datasets = set(
+        dataset for dataset in desired_datasets.get(uuid, set())
+        if dataset.deleted is False
+    )
     local_desired_dataset_ids = set(dataset.dataset_id for dataset in
                                     local_desired_datasets)
     local_current_dataset_ids = set(dataset.dataset_id for dataset in
@@ -411,6 +411,7 @@ def find_dataset_changes(uuid, current_state, desired_state):
                    if dataset.dataset_id in creating_dataset_ids)
 
     deleting = set(dataset for dataset in chain(*desired_datasets.values())
-                   if dataset.deleted)
+                   if dataset.deleted
+                   and dataset.dataset_id in local_current_dataset_ids)
     return DatasetChanges(going=going, deleting=deleting,
                           creating=creating, resizing=resizing)

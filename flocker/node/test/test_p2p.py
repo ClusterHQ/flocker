@@ -518,7 +518,7 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
 
         changes = api.calculate_changes(desired, current,
                                         NodeLocalState(node_state=node_state))
-        self.assertEqual(NoOp(sleep=timedelta(seconds=60)), changes)
+        self.assertEqual(NO_CHANGES, changes)
 
     def test_volume_handoff(self):
         """
@@ -665,6 +665,37 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
                 dataset=MANIFESTATION.dataset)])])
         self.assertEqual(expected, changes)
 
+    def test_ignore_deleted(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ignores configured but
+        deleted datasets when calculating changes.
+        """
+        hostname = u"node1.example.com"
+
+        node_state = NodeState(hostname=hostname, applications=[],
+                               manifestations={}, devices={}, paths={})
+        current = DeploymentState(nodes=frozenset({node_state}))
+
+        api = P2PManifestationDeployer(
+            hostname,
+            create_volume_service(self),
+        )
+
+        node = Node(
+            hostname=hostname,
+            manifestations={
+                MANIFESTATION.dataset_id: MANIFESTATION.transform(
+                    ['dataset', 'deleted'], True
+                )
+            },
+        )
+        desired = Deployment(nodes=frozenset({node}))
+
+        changes = api.calculate_changes(desired, current,
+                                        NodeLocalState(node_state=node_state))
+
+        self.assertEqual(NO_CHANGES, changes)
+
     def test_dataset_resize(self):
         """
         ``P2PManifestationDeployer.calculate_changes`` specifies that a
@@ -758,32 +789,6 @@ class P2PManifestationDeployerCalculateChangesTests(TestCase):
                     dataset=dataset,
                     hostname=u'node2.example.com')]
             )])
-        self.assertEqual(expected, changes)
-
-    def test_unknown_applications(self):
-        """
-        If applications are unknown, no changes are calculated.
-        """
-        node_state = NodeState(
-            hostname=u"10.1.1.1",
-            manifestations={MANIFESTATION.dataset_id:
-                            MANIFESTATION},
-            devices={}, paths={},
-            applications=None,
-        )
-
-        api = P2PManifestationDeployer(
-            node_state.hostname, create_volume_service(self)
-        )
-        current = DeploymentState(nodes=[node_state])
-        desired = Deployment(nodes=[
-            Node(hostname=api.hostname,
-                 manifestations=node_state.manifestations.transform(
-                     (DATASET_ID, "dataset", "deleted"), True))])
-
-        changes = api.calculate_changes(desired, current,
-                                        NodeLocalState(node_state=node_state))
-        expected = NoOp(sleep=timedelta(seconds=60))
         self.assertEqual(expected, changes)
 
     def test_different_node_is_ignorant(self):

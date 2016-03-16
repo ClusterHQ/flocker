@@ -28,13 +28,14 @@ from ...testtools import (
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
-    get_docker_client, verify_socket, check_http_server, DatasetBackend,
+    get_docker_client, verify_socket, check_http_server,
     extract_external_port,
     create_dataset, require_moving_backend,
 )
 
 from ..scripts import SCRIPTS
 
+from ...node import backends
 from ...node.agents.ebs import EBSMandatoryProfileAttributes
 
 
@@ -256,7 +257,7 @@ class DockerPluginTests(AsyncTestCase):
         self.require_docker('1.9.0', cluster)
         return self._test_create_container(cluster)
 
-    @require_cluster(1, required_backend=DatasetBackend.aws)
+    @require_cluster(1, required_backend=backends.AWS)
     def test_create_silver_volume_with_v2_plugin_api(self, cluster, backend):
         """
         Docker >=1.9, using the v2 plugin API, can create a volume with the
@@ -504,6 +505,8 @@ class DockerPluginTests(AsyncTestCase):
         return d
 
     @require_cluster(1)
+    # Test can be slow on GCE.
+    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     def test_listed(self, cluster):
         """
         A volume created outside of Docker can be listed via the Docker

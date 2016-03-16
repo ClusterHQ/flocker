@@ -21,7 +21,6 @@ from docker.tls import TLSConfig
 from twisted.internet import defer
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
-from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
 from twisted.internet.error import ProcessTerminated
@@ -48,8 +47,10 @@ from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
 from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
-from ..node.script import get_backend, get_api
-from ..node import dockerpy_client
+from ..node.backends import backend_loader
+from ..node.script import get_api
+from ..node import dockerpy_client, backends
+from ..node.agents.blockdevice import _SyncToThreadedAsyncAPIAdapter
 from ..provision import reinstall_flocker_from_package_source
 
 from .node_scripts import SCRIPTS as NODE_SCRIPTS
@@ -184,22 +185,13 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
     )
 
 
-# Highly duplicative of other constants.  FLOC-2584.
-class DatasetBackend(Names):
-    loopback = NamedConstant()
-    zfs = NamedConstant()
-    gce = NamedConstant()
-    aws = NamedConstant()
-    openstack = NamedConstant()
-
-
 def get_dataset_backend(test_case):
     """
     Get the volume backend the acceptance tests are running as.
 
     :param test_case: The ``TestCase`` running this unit test.
 
-    :return DatasetBackend: The configured backend.
+    :return BackendDescription: The configured backend.
     :raise SkipTest: if the backend is specified.
     """
     backend = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
@@ -207,10 +199,10 @@ def get_dataset_backend(test_case):
         raise SkipTest(
             "Set acceptance testing volume backend using the " +
             "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
-    return DatasetBackend.lookupByName(backend)
+    return backend_loader.get(backend)
 
 
-def get_backend_api(test_case, cluster_id):
+def get_backend_api(cluster_id):
     """
     Get an appropriate BackendAPI for the specified dataset backend.
 
@@ -218,8 +210,6 @@ def get_backend_api(test_case, cluster_id):
     APIs in tests. For many dataset backends this does not make sense, but it
     provides a convenient means to interact with cloud backends such as EBS or
     cinder.
-
-    :param test_case: The test case that is being run.
 
     :param cluster_id: The unique cluster_id, used for backend APIs that
         require this in order to be constructed.
@@ -237,13 +227,18 @@ def get_backend_api(test_case, cluster_id):
         raise SkipTest(
             "Set acceptance testing volume backend using the " +
             "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
+    if backend_name in ('loopback', 'zfs'):
+        # XXX If we ever want to setup loopback acceptance tests running on the
+        # same node as the tests themselves, we will want to adjust this.
+        raise SkipTest(
+            "The loopback backend API can't be used remotely.")
     backend_config_filepath = FilePath(backend_config_filename)
     full_backend_config = yaml.safe_load(
         backend_config_filepath.getContent())
     backend_config = full_backend_config.get(backend_name)
     if 'backend' in backend_config:
         backend_config.pop('backend')
-    backend = get_backend(backend_name)
+    backend = backend_loader.get(backend_name)
     return get_api(backend, pmap(backend_config), reactor, cluster_id)
 
 
@@ -275,7 +270,7 @@ def skip_backend(unsupported, reason):
     return decorator
 
 require_moving_backend = skip_backend(
-    unsupported={DatasetBackend.loopback},
+    unsupported={backends.LOOPBACK},
     reason="doesn't support moving")
 
 
@@ -879,7 +874,7 @@ class Cluster(PClass):
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
             return timeout(
-                reactor, cleaning_datasets, 60,
+                reactor, cleaning_datasets, 180,
                 Exception("Timed out cleaning up datasets"),
             )
 
@@ -902,11 +897,39 @@ class Cluster(PClass):
                     Exception("Timed out cleaning up leases"),
                 )
 
+        def cleanup_volumes():
+            try:
+                api = get_backend_api(self.cluster_uuid)
+            except SkipTest:
+                # Can't clean up volumes if we don't have a backend api.
+                return
+
+            async_api = _SyncToThreadedAsyncAPIAdapter.from_api(api)
+
+            def detach_and_destroy_volume(volume):
+                d = async_api.detach_volume(volume.blockdevice_id)
+                d.addBoth(
+                    lambda _: async_api.destroy_volume(volume.blockdevice_id)
+                )
+                return d
+
+            cleaning_volumes = api_clean_state(
+                u"volumes",
+                async_api.list_volumes,
+                async_api.list_volumes,
+                detach_and_destroy_volume,
+            )
+            return timeout(
+                reactor, cleaning_volumes, 60,
+                Exception("Timed out cleaning up volumes"),
+            )
+
         d = DeferredContext(cleanup_leases())
         d.addCallback(cleanup_flocker_containers)
         if remove_foreign_containers:
             d.addCallback(cleanup_all_containers)
         d.addCallback(cleanup_datasets)
+        d.addCallback(lambda _: cleanup_volumes())
         return d.result
 
     def get_file(self, node, path):
@@ -1044,7 +1067,7 @@ def require_cluster(num_nodes, required_backend=None,
     :param int num_nodes: The number of nodes that are required in the cluster.
 
     :param required_backend: This optional parameter can be set to a
-        ``DatasetBackend`` constant in order to construct the requested backend
+        ``BackendDescription`` in order to construct the requested backend
         for use in the test. This is done in a backdoor sort of manner, and is
         only for use by tests which want to interact with the specified backend
         in order to verify the acceptance test should pass. If this is set, the
@@ -1067,8 +1090,7 @@ def require_cluster(num_nodes, required_backend=None,
                         'This test requires backend type {} but is being run '
                         'on {}.'.format(required_backend.name,
                                         backend_type.name))
-                kwargs['backend'] = get_backend_api(test_case,
-                                                    cluster.cluster_uuid)
+                kwargs['backend'] = get_backend_api(cluster.cluster_uuid)
             return test_method(test_case, *args, **kwargs)
 
         @wraps(test_method)

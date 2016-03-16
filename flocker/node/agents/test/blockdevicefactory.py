@@ -230,7 +230,8 @@ def _gce(cluster_id, config):
     return create_gce_block_device_api(
         cluster_id=cluster_id,
         project=project,
-        zone=zone
+        zone=zone,
+        gce_credentials_config=None
     )
 
 

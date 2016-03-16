@@ -27,6 +27,7 @@ from twisted.python.runtime import platform
 from twisted.python.usage import UsageError
 
 from ...common.script import ICommandLineScript
+from ...common.plugin import PluginNotFound
 from ...common import get_all_ips
 from ...common._era import get_era
 
@@ -34,9 +35,10 @@ from ..script import (
     AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
     _context_factory_and_credential, DatasetServiceFactory,
-    AgentService, BackendDescription, get_configuration,
+    AgentService, get_configuration,
     DeployerType, _get_external_ip, LOG_GET_EXTERNAL_IP
 )
+from ..backends import BackendDescription
 from ..agents.cinder import CinderBlockDeviceAPI
 from ..agents.ebs import EBSBlockDeviceAPI
 
@@ -322,8 +324,8 @@ class AgentServiceGetAPITests(TestCase):
         class WrongAPI(object):
             pass
 
-        agent_service = self.agent_service.set(
-            "backends", [
+        agent_service = self.agent_service.transform(
+            ["backends", "builtin_plugins"], [
                 BackendDescription(
                     name=u"foo", needs_reactor=False, needs_cluster_id=False,
                     api_factory=API, deployer_type=DeployerType.p2p,
@@ -356,8 +358,8 @@ class AgentServiceGetAPITests(TestCase):
         class API(PClass):
             reactor = field()
 
-        agent_service = self.agent_service.set(
-            "backends", [
+        agent_service = self.agent_service.transform(
+            ["backends", "builtin_plugins"], [
                 BackendDescription(
                     name=self.agent_service.backend_name,
                     needs_reactor=True, needs_cluster_id=False,
@@ -383,8 +385,8 @@ class AgentServiceGetAPITests(TestCase):
         class API(PClass):
             cluster_id = field()
 
-        agent_service = self.agent_service.set(
-            "backends", [
+        agent_service = self.agent_service.transform(
+            ["backends", "builtin_plugins"], [
                 BackendDescription(
                     name=self.agent_service.backend_name,
                     needs_reactor=False, needs_cluster_id=True,
@@ -408,13 +410,13 @@ class AgentServiceGetAPITests(TestCase):
             region = field()
             api_key = field()
 
-        agent_service = self.agent_service.set(
-            "backends", [
+        agent_service = self.agent_service.transform(
+            ["backends", "builtin_plugins"], [
                 BackendDescription(
                     name=self.agent_service.backend_name,
                     needs_reactor=False, needs_cluster_id=False,
                     api_factory=API, deployer_type=DeployerType.p2p,
-                    required_config=set(["region", "api_key", ]),
+                    required_config={u"region", u"api_key"},
                 ),
             ],
         )
@@ -489,10 +491,7 @@ class AgentServiceGetAPITests(TestCase):
         agent_service = self.agent_service.set(
             "backend_name", u"flocker.not.a.real.module",
         )
-        exc = self.assertRaises(ValueError, agent_service.get_api)
-        self.assertEqual(str(exc),
-                         "'flocker.not.a.real.module' is neither a "
-                         "built-in backend nor a 3rd party module.")
+        self.assertRaises(PluginNotFound, agent_service.get_api)
 
     def test_wrong_package_3rd_party_backend(self):
         """
@@ -502,10 +501,7 @@ class AgentServiceGetAPITests(TestCase):
         agent_service = self.agent_service.set(
             "backend_name", u"notarealmoduleireallyhope",
         )
-        exc = self.assertRaises(ValueError, agent_service.get_api)
-        self.assertEqual(str(exc),
-                         "'notarealmoduleireallyhope' is neither a "
-                         "built-in backend nor a 3rd party module.")
+        self.assertRaises(PluginNotFound, agent_service.get_api)
 
 
 class AgentServiceDeployerTests(TestCase):
@@ -542,8 +538,8 @@ class AgentServiceDeployerTests(TestCase):
 
         agent_service = self.agent_service.set(
             "get_external_ip", get_external_ip,
-        ).set(
-            "backends", [
+        ).transform(
+            ["backends", "builtin_plugins"], [
                 BackendDescription(
                     name=self.agent_service.backend_name,
                     needs_reactor=False, needs_cluster_id=False,

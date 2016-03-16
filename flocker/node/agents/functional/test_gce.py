@@ -22,8 +22,8 @@ account.  When creating your GCE instance be sure to check ``Allow API access
 to all Google Cloud services in the same project.``
 
 """
-
 from uuid import uuid4
+
 from fixtures import Fixture
 from characteristic import attributes
 from twisted.python.components import proxyForInterface
@@ -32,30 +32,30 @@ from testtools.matchers import (
     AnyMatch,
     Contains,
     Equals,
+    MatchesAll,
     MatchesException,
     MatchesStructure,
     Not,
     Raises,
 )
+from googleapiclient.errors import HttpError
 
 from ..blockdevice import (
-    AlreadyAttachedVolume, UnknownVolume, UnattachedVolume
+    AlreadyAttachedVolume, UnknownVolume, UnattachedVolume, MandatoryProfiles
 )
 
 from ..gce import (
-    get_machine_zone, get_machine_project, IGCEAtomicOperations
+    get_machine_zone, get_machine_project, GCEDiskTypes, GCEVolumeException
 )
 from ....provision._gce import GCEInstanceBuilder
-
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests
+    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
+    detach_destroy_volumes, make_icloudapi_tests
 )
-
 from ..test.blockdevicefactory import (
     ProviderType, get_blockdeviceapi_with_cleanup,
     get_minimum_allocatable_size, get_device_allocation_unit
 )
-
 from ....testtools import TestCase
 
 
@@ -93,7 +93,18 @@ class GCEComputeTestObjects(Fixture):
             instance_name,
             machine_type=u"f1-micro"
         )
-        self.addCleanup(lambda: instance.destroy())
+
+        def destroy_best_effort(inst):
+            try:
+                inst.destroy()
+            except HttpError as e:
+                if e.resp.status == 404:
+                    # The test must have already destroyed the instance.
+                    pass
+                else:
+                    raise
+
+        self.addCleanup(lambda: destroy_best_effort(instance))
         return instance
 
 
@@ -178,6 +189,51 @@ def repeat_call_proxy_for(interface, provider):
         originalAttribute='_original'
     )(_RepeatProxy(_provider=provider))
 
+class GCEProfiledBlockDeviceApiTests(
+        make_iprofiledblockdeviceapi_tests(
+            profiled_blockdevice_api_factory=gceblockdeviceapi_for_test,
+            dataset_size=get_minimum_allocatable_size())):
+
+    def test_profile_respected(self):
+        """
+        Override base class which verifies that errors are not raised when
+        constructing mandatory profiles but also add a check that we
+        have created the correct volume type for each profile.
+        """
+        for profile in (c.value for c in MandatoryProfiles.iterconstants()):
+            dataset_id = uuid4()
+            self.addCleanup(detach_destroy_volumes, self.api)
+            new_volume = self.api.create_volume_with_profile(
+                dataset_id=dataset_id,
+                size=self.dataset_size,
+                profile_name=profile
+            )
+            if profile in (MandatoryProfiles.GOLD.value,
+                           MandatoryProfiles.SILVER.value):
+                expected_disk_type = GCEDiskTypes.SSD
+            else:
+                expected_disk_type = GCEDiskTypes.STANDARD
+
+            disk = self.api._get_gce_volume(new_volume.blockdevice_id)
+            actual_disk_type = disk['type']
+            actual_disk_type = actual_disk_type.split('/')[-1]
+            self.assertThat(
+                actual_disk_type, Equals(expected_disk_type.value),
+                'Incorrect disk type for profile {}'.format(profile)
+            )
+
+
+class GCECloudAPIInterfaceTests(
+        make_icloudapi_tests(
+            blockdevice_api_factory=gceblockdeviceapi_for_test,
+        )
+):
+    """
+    :class:`ICloudAPI` Interface adherence Tests for
+    :class:`GCEBlockDeviceAPI`.
+    """
+>>>>>>> gce-staging-branch-FLOC-4275
+
 
 class GCEBlockDeviceAPITests(TestCase):
     """
@@ -208,6 +264,95 @@ class GCEBlockDeviceAPITests(TestCase):
         self.assertEqual([cluster_2_dataset_id],
                          list(x.dataset_id
                               for x in gce_block_device_api_2.list_volumes()))
+
+    def test_create_duplicate_dataset_ids(self):
+        """
+        Two :class:`GCEBlockDeviceAPI` instances can be run with different
+        cluster_ids. Since users can specify the names of their
+        dataset, Make sure that creating a 2 volumes with the same
+        dataset_id raises GCEVolumeException.
+        """
+        gce_block_device_api_1 = gceblockdeviceapi_for_test(self)
+        gce_block_device_api_2 = gceblockdeviceapi_for_test(self)
+
+        shared_dataset_id = uuid4()
+
+        gce_block_device_api_1.create_volume(shared_dataset_id,
+                                             get_minimum_allocatable_size())
+        self.assertRaises(
+            GCEVolumeException,
+            gce_block_device_api_2.create_volume,
+            shared_dataset_id,
+            get_minimum_allocatable_size())
+
+    def test_list_live_nodes_pagination_and_removal(self):
+        """
+        list_live_nodes should be able to walk pages to get all live nodes and
+        should not have nodes after they are destroyed or stopped.
+
+        Also, _stop_node and start_node should be able to take a node off-line
+        and bring it back online.
+
+        Sorry for testing two things in this test.
+
+        Unfortunately, to verify pagination is working there must be two nodes
+        running. Also, to test start_node and _stop_node, there must be a
+        second instance started up. Since starting and stopping a node is time
+        consuming, I decided to combine these into the same test. My apologies
+        to future maintainers if this makes debugging failures less pleasant.
+        """
+        api = gceblockdeviceapi_for_test(self)
+
+        # Set page size to 1 to force pagination after we spin up a second
+        # node.
+        api._page_size = 1
+
+        gce_fixture = self.useFixture(GCEComputeTestObjects(
+            compute=api._compute,
+            project=get_machine_project(),
+            zone=get_machine_zone()
+        ))
+
+        other_instance_name = u"functional-test-" + unicode(uuid4())
+        other_instance = gce_fixture.create_instance(other_instance_name)
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Contains(other_instance_name),
+                Contains(api.compute_instance_id())
+            )
+        )
+
+        api._stop_node(other_instance_name)
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Not(Contains(other_instance_name)),
+                Contains(api.compute_instance_id())
+            )
+        )
+
+        api.start_node(other_instance_name)
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Contains(other_instance_name),
+                Contains(api.compute_instance_id())
+            )
+        )
+
+        other_instance.destroy()
+
+        self.assertThat(
+            api.list_live_nodes(),
+            MatchesAll(
+                Not(Contains(other_instance_name)),
+                Contains(api.compute_instance_id())
+            )
+        )
 
     def test_attach_elsewhere_attached_volume(self):
         """
@@ -312,4 +457,36 @@ class GCEBlockDeviceAPITests(TestCase):
         self.assertThat(
             api.list_volumes(),
             AllMatch(Not(MatchesStructure(dataset_id=Equals(dataset_id))))
+        )
+
+    def test_list_volumes_walks_pages(self):
+        """
+        Ensure that we can walk multiple pages returned from listing GCE
+        volumes.
+        """
+        api = gceblockdeviceapi_for_test(self)
+        self.patch(api, '_page_size', 1)
+
+        volume_1 = api.create_volume(
+            dataset_id=uuid4(),
+            size=get_minimum_allocatable_size()
+        )
+        volume_2 = api.create_volume(
+            dataset_id=uuid4(),
+            size=get_minimum_allocatable_size()
+        )
+
+        blockdevice_ids = [v.blockdevice_id for v in api.list_volumes()]
+        self.assertThat(
+            blockdevice_ids,
+            MatchesAll(Contains(volume_1.blockdevice_id),
+                       Contains(volume_2.blockdevice_id))
+        )
+
+        api.destroy_volume(volume_2.blockdevice_id)
+        blockdevice_ids = [v.blockdevice_id for v in api.list_volumes()]
+        self.assertThat(
+            blockdevice_ids,
+            MatchesAll(Contains(volume_1.blockdevice_id),
+                       Not(Contains(volume_2.blockdevice_id)))
         )

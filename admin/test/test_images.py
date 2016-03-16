@@ -7,14 +7,6 @@ import os
 from subprocess import check_call, CalledProcessError
 from unittest import skipIf
 
-import boto3
-from botocore.exceptions import (
-    ClientError, NoCredentialsError, EndpointConnectionError
-)
-from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
-    extract_from_urllib3,
-)
-
 from effect import Effect, sync_perform
 from effect.testing import perform_sequence
 
@@ -24,44 +16,21 @@ from pyrsistent import PClass, field, pmap_field, thaw
 
 from testtools.matchers import StartsWith
 from testtools.content import text_content, content_from_file, ContentType
-from testtools.matchers import Contains
-
-from fixtures import Fixture
 
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
+from twisted.python.usage import UsageError
 
 from flocker.testtools import (
     AsyncTestCase, TestCase, random_name, FakeSysModule
 )
 
 from ..installer._images import (
-    WriteToS3, PackerBuild,
+    StandardOut, PackerBuild,
     _PackerOutputParser, PackerConfigure,
     AWS_REGIONS, publish_installer_images_effects, RealPerformers,
     PublishInstallerImagesOptions, PACKER_PATH
 )
-
-# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
-# exception when we try an API call on an idled persistent connection.
-# See https://github.com/boto/boto3/issues/220
-extract_from_urllib3()
-
-try:
-    boto3.session.Session().client('s3').list_buckets()
-except (ClientError, NoCredentialsError, EndpointConnectionError) as e:
-    S3_INACCESSIBLE = True
-    S3_INACCESSIBLE_REASON = (
-        "S3 is not accessible. "
-        "Check AWS credentials in ~/.aws/credentials. "
-        "Error was: {!r}"
-    ).format(e)
-    del e
-else:
-    S3_INACCESSIBLE = False
-    S3_INACCESSIBLE_REASON = ""
-
-require_s3_credentials = skipIf(S3_INACCESSIBLE, S3_INACCESSIBLE_REASON)
 
 try:
     import flocker as _flocker
@@ -75,15 +44,6 @@ require_packer = skipIf(
     not PACKER_PATH.exists(),
     "Tests require ``packer`` to be installed at ``/opt/packer/packer``."
 )
-
-
-def default_options():
-    """
-    :return: The default ``PublishInstallerOptions``.
-    """
-    options = PublishInstallerImagesOptions()
-    options.parseOptions([])
-    return options
 
 
 class ParserData(PClass):
@@ -202,7 +162,7 @@ class PackerConfigureTests(TestCase):
     """
     def test_configuration(self):
         """
-        Source AMI ID, build region, and target regions can all be overridden
+        Source AMIs, build region, and target regions can all be overridden
         in a chosen template.
         """
         expected_build_region = AWS_REGIONS.EU_WEST_1
@@ -211,11 +171,13 @@ class PackerConfigureTests(TestCase):
             AWS_REGIONS.AP_SOUTHEAST_1,
             AWS_REGIONS.AP_SOUTHEAST_2,
         ]
-        expected_source_ami = random_name(self)
+        expected_source_ami_map = {
+            AWS_REGIONS.EU_WEST_1: random_name(self)
+        }
         intent = PackerConfigure(
             build_region=expected_build_region,
             publish_regions=expected_publish_regions,
-            source_ami=expected_source_ami,
+            source_ami_map=expected_source_ami_map,
             template=u"docker",
             distribution=u"ubuntu-14.04",
         )
@@ -238,7 +200,7 @@ class PackerConfigureTests(TestCase):
         self.assertEqual(
             (expected_build_region.value,
              set(c.value for c in expected_publish_regions),
-             expected_source_ami),
+             expected_source_ami_map[expected_build_region]),
             (build_region, set(publish_regions),
              build_source_ami)
         )
@@ -290,74 +252,28 @@ class PackerBuildIntegrationTests(AsyncTestCase):
         return d.addCallback(check_error)
 
 
-class S3BucketFixture(Fixture):
+class StandardOutTests(TestCase):
     """
-    Create a temporary S3 bucket for the duration of a test.
+    Tests for ``StandardOut``.
     """
-    def __init__(self, test_case):
-        super(S3BucketFixture, self).__init__()
-        self.test_case = test_case
-        # Bucket names must be a valid DNS label
-        # https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-s3-bucket-naming-requirements.html
-        self.bucket_name = random_name(
-            test_case
-        ).lower().replace("_", "")[-63:]
-
-    def _setUp(self):
-        self.s3client = boto3.client("s3")
-        self.s3client.create_bucket(Bucket=self.bucket_name)
-
-        def cleanup():
-            self.empty_bucket()
-            self.s3client.delete_bucket(Bucket=self.bucket_name)
-        self.addCleanup(cleanup)
-
-    def empty_bucket(self):
-        """
-        Delete all the objects in the temporary bucket.
-        """
-        bucket = self.s3client.list_objects(Bucket=self.bucket_name)
-        for s3object in bucket.get("Contents", []):
-            self.s3client.delete_object(
-                Bucket=self.bucket_name,
-                Key=s3object["Key"],
-            )
-
-    def get_object_content(self, key):
-        """
-        :param unicode key: The key name of an object in the bucket.
-        :returns: The content of the object with ``key``
-        """
-        return self.s3client.get_object(
-            Bucket=self.bucket_name,
-            Key=key
-        )["Body"].read()
-
-
-class WriteToS3Tests(TestCase):
-    """
-    Tests for ``WriteToS3``.
-    """
-    @require_s3_credentials
     def test_perform(self):
         """
-        ``WriteToS3`` has a performer that creates a new object with
-        ``target_key`` and ``content`` in ``target_bucket``
+        ``StandardOut`` has a performer that writes content to sys.stdout.
         """
-        s3 = self.useFixture(S3BucketFixture(test_case=self))
-        intent = WriteToS3(
+        fake_sys_module = FakeSysModule()
+        intent = StandardOut(
             content=random_name(self).encode('ascii'),
-            target_key=random_name(self),
-            target_bucket=s3.bucket_name,
         )
         result = sync_perform(
-            dispatcher=RealPerformers().dispatcher(),
+            dispatcher=RealPerformers(
+                sys_module=fake_sys_module
+            ).dispatcher(),
             effect=Effect(intent=intent)
         )
         self.assertIs(None, result)
         self.assertEqual(
             intent.content,
-            s3.get_object_content(key=intent.target_key),
+            fake_sys_module.stdout.getvalue()
         )
 
 
@@ -370,7 +286,11 @@ class PublishInstallerImagesEffectsTests(TestCase):
         The function generates a packer configuration file, runs packer
         build and uploads the AMI ids to a given S3 bucket.
         """
-        options = default_options()
+        options = PublishInstallerImagesOptions()
+        options.parseOptions(
+            [b'--source-ami-map', b'{"us-west-1": "ami-1234"}']
+        )
+
         configuration_path = self.make_temporary_directory()
         ami_map = PACKER_OUTPUT_US_ALL.output
         perform_sequence(
@@ -378,20 +298,18 @@ class PublishInstallerImagesEffectsTests(TestCase):
                 (PackerConfigure(
                     build_region=options["build_region"],
                     publish_regions=options["regions"],
-                    source_ami=options["source_ami"],
+                    source_ami_map=options["source-ami-map"],
                     template=options["template"],
                     distribution=options["distribution"],
                 ), lambda intent: configuration_path),
                 (PackerBuild(
                     configuration_path=configuration_path,
                 ), lambda intent: ami_map),
-                (WriteToS3(
+                (StandardOut(
                     content=json.dumps(
                         thaw(ami_map),
                         encoding='utf-8',
-                    ),
-                    target_bucket=options["target_bucket"],
-                    target_key=options["template"],
+                    ) + b"\n",
                 ), lambda intent: None),
             ],
             eff=publish_installer_images_effects(options=options)
@@ -467,90 +385,23 @@ class PublishInstallerImagesIntegrationTests(TestCase):
             StartsWith(u"Usage: {}".format(self.script.basename()))
         )
 
-    @require_packer
-    @require_s3_credentials
-    def test_build_both(self):
+
+class PublishInstallerImagesOptionsTests(TestCase):
+    """
+    Tests for ``PublishInstallerImagesOptions``
+    """
+    def test_source_ami_map_required(self):
         """
-        ``publish-installer-images`` can be called twice to first generate
-        Docker images and then Flocker images built on the Docker images.
-        The IDs of the generated AMIs are published to S3.
+        ``--source-ami-map`` is required.
         """
-        docker_version = u"1.10.0"
-        swarm_version = u"1.0.1"
-        flocker_version = u"1.10.1"
-        build_region = u"us-west-1"
-        s3 = self.useFixture(S3BucketFixture(test_case=self))
-        returncode, stdout, stderr = self.publish_installer_images(
-            args=['--target_bucket', s3.bucket_name,
-                  '--template', 'docker',
-                  '--copy_to_all_regions',
-                  '--build_region', build_region],
-            extra_enviroment={
-                u'DOCKER_VERSION': docker_version,
-                u'SWARM_VERSION': swarm_version,
-            }
-        )
-        # The script should have uploaded AMI map to an object called "docker"
-        docker_object_content = s3.get_object_content(key=u'docker')
-        self.addDetail(
-            'docker_object_content', text_content(docker_object_content)
-        )
+        options = PublishInstallerImagesOptions()
 
-        # It should be valid JSON.
-        docker_ami_map = json.loads(docker_object_content)
-        # We can use that image as the source for the Flocker image
-        returncode, stdout, stderr = self.publish_installer_images(
-            args=['--target_bucket', s3.bucket_name,
-                  '--template', 'flocker',
-                  '--build_region', build_region,
-                  '--copy_to_all_regions',
-                  '--source_ami', docker_ami_map[build_region]],
-            extra_enviroment={
-                u'FLOCKER_VERSION': flocker_version
-            }
+        exception = self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            [],
         )
-        # And now we should have a "flocker" AMI map
-        flocker_object_content = s3.get_object_content(key=u'flocker')
-        self.addDetail(
-            'flocker_object_content', text_content(flocker_object_content)
-        )
-        # It should be valid JSON.
-        flocker_ami_map = json.loads(flocker_object_content)
-
-        ec2 = boto3.resource('ec2', region_name=build_region)
-        # Get a list of all the related images and tags in case of errors.
-        all_images = dict(
-            (i.id, dict(name=i.name, tags=i.tags))
-            for i in ec2.images.filter(
-                Owners=[u'self'],
-                Filters=[
-                    {
-                        u'Name': 'name',
-                        u'Values': [
-                            u'clusterhq_ubuntu-14.04_docker*',
-                            u'clusterhq_ubuntu-14.04_flocker*'
-                        ]
-                    }
-                ]
-            )
-        )
-        self.addDetail(
-            u"all_images",
-            text_content(json.dumps(all_images))
-        )
-
-        docker_image = ec2.Image(docker_ami_map[build_region])
-        self.expectThat(
-            docker_image.tags,
-            Contains({u'Key': 'DOCKER_VERSION', u'Value': docker_version}),
-        )
-        self.expectThat(
-            docker_image.tags,
-            Contains({u'Key': 'SWARM_VERSION', u'Value': swarm_version}),
-        )
-
-        flocker_image = ec2.Image(flocker_ami_map[build_region])
-        self.expectThat(
-            flocker_image.tags,
-            Contains({u'Key': 'FLOCKER_VERSION', u'Value': flocker_version}),
+        self.assertIn(
+            u"--source-ami-map is required.",
+            unicode(exception)
         )

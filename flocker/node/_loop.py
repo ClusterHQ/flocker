@@ -24,7 +24,7 @@ from random import uniform
 from zope.interface import implementer
 
 from eliot import (
-    ActionType, Field, writeFailure, MessageType, write_traceback,
+    ActionType, Field, writeFailure, MessageType, write_traceback, Message
 )
 from eliot.twisted import DeferredContext
 
@@ -270,7 +270,67 @@ class _Sleep(trivialInput(ConvergenceLoopInputs.SLEEP)):
 
 # How many seconds to sleep between iterations when we may yet not be
 # converged so want to do another iteration again soon:
-_UNCONVERGED_DELAY = _Sleep(delay_seconds=0.1)
+
+_UNCONVERGED_DELAY = 0.1
+_UNCONVERGED_BACKOFF_FACTOR = 4
+
+
+class _UnconvergedDelay(object):
+    """
+    Keep track of the next sleep duration while unconverged.
+
+    When looping for convergence, we want to have exponential backoff
+    in many situations. Instances of this class allow for the next sleep
+    duration to be calculated.
+
+    Call `sleep` to get a `_Sleep` instance for the next duration to sleep.
+    This will also update the state to return a longer sleep next time.
+
+    Calling `reset_delay` will mean that the next call to `sleep` will return
+    `min_sleep`.
+    """
+    def __init__(self,
+                 max_sleep=10,
+                 min_sleep=_UNCONVERGED_DELAY):
+        """
+        Create an instance of `_UnconvergedDelay`.
+
+        :param float max_sleep: the maximum duration for a `_Sleep` that
+            `sleep` should return.
+        :param float min_sleep: the duration for the `_Sleep` that will
+             be returned from the first call to `sleep`, and calls
+             immediately following a call to `reset_delay`.
+        """
+        self.max_sleep = max_sleep
+        self.min_sleep = min_sleep
+        self._delay = self.min_sleep
+
+    def sleep(self):
+        """
+        Get the duration that should be slept for this iteration.
+
+        :return _Sleep: an instance of `_Sleep` with a duration
+            following an exponential backoff curve.
+        """
+        Message.log(
+            message_type=u'flocker:node:_loop:delay',
+            log_level=u'INFO',
+            message=u'Intentionally delaying the next iteration of the '
+                    u'convergence loop to avoid RequestLimitExceeded.',
+            current_wait=self._delay
+        )
+        s = _Sleep(delay_seconds=self._delay)
+        self._delay *= _UNCONVERGED_BACKOFF_FACTOR
+        if self._delay > self.max_sleep:
+            self._delay = self.max_sleep
+        return s
+
+    def reset_delay(self):
+        """
+        Reset the backoff algorithm so that the next call to `sleep`
+        will return `min_sleep`.
+        """
+        self._delay = self.min_sleep
 
 
 class ConvergenceLoopStates(Names):
@@ -386,6 +446,7 @@ class ConvergenceLoop(object):
         self._last_discovered_local_state = None
         self._last_acknowledged_state = None
         self._sleep_timeout = None
+        self._unconverged_sleep = _UnconvergedDelay()
 
     def output_STORE_INFO(self, context):
         old_client = self.client
@@ -501,15 +562,21 @@ class ConvergenceLoop(object):
                 self.configuration, self.cluster_state, local_state
             )
             if isinstance(action, NoOp):
-                # We've converged, we can sleep for NoOp's sleep duration.
+                # If we have converged, we need to reset the sleep delay
+                # in case there were any incremental back offs while
+                # waiting to converge.
+                self._unconverged_sleep.reset_delay()
                 # We add some jitter so not all agents wake up at exactly
                 # the same time, to reduce load on system:
                 sleep_duration = _Sleep.with_jitter(
                     action.sleep.total_seconds())
             else:
                 # We're going to do some work, we should do another
-                # iteration quickly in case there's followup work:
-                sleep_duration = _UNCONVERGED_DELAY
+                # iteration, but chances are that if, for any reason,
+                # the backend is saturated, by looping too fast, we
+                # will only make things worse, so there is an incremental
+                # back off in the sleep interval.
+                sleep_duration = self._unconverged_sleep.sleep()
 
             LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
                 self.fsm.logger)
@@ -532,13 +599,21 @@ class ConvergenceLoop(object):
         # converging again; hopefully next time we'll have more success.
         def error(failure):
             writeFailure(failure, self.fsm.logger)
-            # We should retry quickly to redo the failed work:
-            return _UNCONVERGED_DELAY
+            # We should retry to redo the failed work:
+            return self._unconverged_sleep.sleep()
         d.addErrback(error)
 
         # We're done with the iteration:
-        d.addCallback(
-            lambda delay: self.fsm.receive(delay))
+        def send_delay_to_fsm(sleep):
+            Message.log(
+                message_type=u'flocker:node:_loop:CONVERGE:delay',
+                log_level=u'INFO',
+                message=u'Delaying until next convergence loop.',
+                delay=sleep.delay_seconds
+            )
+            return self.fsm.receive(sleep)
+
+        d.addCallback(send_delay_to_fsm)
         d.addActionFinish()
 
     def output_SCHEDULE_WAKEUP(self, context):

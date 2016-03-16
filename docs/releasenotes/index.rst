@@ -12,6 +12,15 @@ You can learn more about where we might be going with future releases by:
 Next Release
 ============
 
+* Fixed a race condition where multiple volumes for a given dataset could be created and used.
+  This could lead to the appearance of data loss, as different volumes get used.
+  Now, even if multiple volumes are created, only a single volume will be used.
+  This was particularly likely to occur on AWS.
+* Dataset backend support for :ref:`Google Compute Engine <gce-dataset-backend>`.
+
+This Release
+============
+
 * The container agent is now optional and can be safely disabled if you don't expect to be using Flocker's deprecated container API or ``flocker-deploy``.
   The :ref:`Flocker plugin for Docker<plugin>` allows you to use Flocker from Docker without using Flocker's container API.
 

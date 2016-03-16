@@ -11,22 +11,26 @@ driver:
 - Python API: https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/ # noqa
 - Python Oauth: https://developers.google.com/identity/protocols/OAuth2ServiceAccount#authorizingrequests # noqa
 """
+from uuid import UUID
 
 import requests
-
 from bitmath import GiB, Byte
+from eliot import Message, start_action, write_traceback
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
-from oauth2client.gce import AppAssertionCredentials
+from oauth2client.client import (
+    GoogleCredentials, SignedJwtAssertionCredentials
+)
 from pyrsistent import PClass, field
-from socket import gethostname
 from twisted.python.filepath import FilePath
-from uuid import UUID
+from twisted.python.constants import (
+    Values, ValueConstant
+)
 from zope.interface import implementer, Interface
 
 from .blockdevice import (
-    IBlockDeviceAPI, BlockDeviceVolume, AlreadyAttachedVolume, UnknownVolume,
-    UnattachedVolume
+    IBlockDeviceAPI, IProfiledBlockDeviceAPI, ICloudAPI, BlockDeviceVolume,
+    AlreadyAttachedVolume, UnknownVolume, UnattachedVolume, MandatoryProfiles
 )
 from ...common import poll_until
 
@@ -34,6 +38,37 @@ from ...common import poll_until
 # about the instance the code is being run on.
 _METADATA_SERVER = u'http://169.254.169.254/computeMetadata/v1/'
 _METADATA_HEADERS = {u'Metadata-Flavor': u'Google'}
+
+# timeouts were gathered by running each operation 250 times. The
+# chosen timeouts are 3-5 times higher than the maximum time taken for
+# each operation.  This should be a couple of standard deviations from
+# the mean.
+# All this might fall apart if GCE is having a very slow day...
+VOLUME_DEFAULT_TIMEOUT = 120
+VOLUME_LIST_TIMEOUT = 10
+VOLUME_DELETE_TIMEOUT = 20
+VOLUME_INSERT_TIMEOUT = 20
+VOLUME_ATTACH_TIMEOUT = 90
+VOLUME_DETATCH_TIMEOUT = 120
+
+
+class GCEVolumeException(Exception):
+    """
+    Exception that'll be raised when we perform a volume operation
+    that's illegal in GCE.
+    """
+    pass
+
+
+class GCEDiskTypes(Values):
+    SSD = ValueConstant(u"pd-ssd")
+    STANDARD = ValueConstant(u"pd-standard")
+
+
+class GCEStorageProfiles(Values):
+    GOLD = ValueConstant(GCEDiskTypes.SSD.value)
+    SILVER = ValueConstant(GCEDiskTypes.SSD.value)
+    BRONZE = ValueConstant(GCEDiskTypes.STANDARD.value)
 
 
 class OperationPoller(Interface):
@@ -153,7 +188,7 @@ def _create_poller(operation):
         )
 
 
-def wait_for_operation(compute, operation, timeout_steps):
+def wait_for_operation(compute, operation, timeout_steps, sleep=None):
     """
     Blocks until a GCE operation is complete, or timeout passes.
 
@@ -166,18 +201,31 @@ def wait_for_operation(compute, operation, timeout_steps):
         This can be either a zone or a global operation.
     :param timeout_steps: Iterable of times in seconds to wait until timing out
         the operation.
+    :param sleep: a callable taking a number of seconds to sleep while
+        polling. Defaults to `time.sleep`
 
     :returns dict: A dict representing the concluded GCE operation
         resource or `None` if the operation times out.
     """
     poller = _create_poller(operation)
 
-    def finished_operation_result():
-        latest_operation = poller.poll(compute)
-        if latest_operation['status'] == 'DONE':
-            return latest_operation
+    with start_action(
+        action_type=u"flocker:node:agents:gce:wait_for_operation",
+        operation=operation
+    ) as action:
+        def finished_operation_result():
+            latest_operation = poller.poll(compute)
+            if latest_operation['status'] == 'DONE':
+                return latest_operation
+            return None
 
-    return poll_until(finished_operation_result, timeout_steps)
+        final_operation = poll_until(
+            finished_operation_result,
+            timeout_steps,
+            sleep
+        )
+        action.add_success_fields(final_operation=final_operation)
+        return final_operation
 
 
 def get_metadata_path(path):
@@ -192,11 +240,20 @@ def get_metadata_path(path):
 
     :returns unicode: The resulting value from the metadata server.
     """
-    timeout_sec = 3
-    r = requests.get(_METADATA_SERVER + path,
-                     headers=_METADATA_HEADERS,
-                     timeout=timeout_sec)
-    return r.text
+    with start_action(
+        action_type=u"flocker:node:agents:gce:get_metadata_path",
+        path=path
+    ) as action:
+        timeout_sec = 3
+        r = requests.get(_METADATA_SERVER + path,
+                         headers=_METADATA_HEADERS,
+                         timeout=timeout_sec)
+        if r.status_code != 200:
+            raise ValueError("Did not get success result from metadata server "
+                             "for path {}, instead got {}.".format(
+                                 path, r.status_code))
+        action.add_success_fields(response=r.text)
+        return r.text
 
 
 def get_machine_zone():
@@ -253,46 +310,76 @@ def _dataset_id_to_blockdevice_id(dataset_id):
 
 def _extract_attached_to(disk):
     """
-    Given a GCE disk resource, determines the unicode name of the machine that
-    it is attached to.
+    Given a GCE disk resource, determines the unicode name of the
+    machine that it is attached to. If the disk is attached READ_ONLY
+    to multiple machines, we simply return the first instance (flocker
+    doesn't support volumes attached to multiple machines).
 
     :param dict disk: A GCE disk resource as returned from the API.
 
     :returns: The `unicode` name of the instance the disk is attached to or
         `None` if it is not attached to anything.
     """
-    # TODO(mewert): determine how this works with a disk being attached to
-    # multiple machines, update comment above.
     users = disk.get('users', [])
-    if users:
-        return unicode(users[0].split('/')[-1])
+    if not users:
+        return None
+    if len(users) > 1:
+        raise GCEVolumeException(
+            "Volume is attached to more than one instance:{}".format(disk))
+    return unicode(users[0].split('/')[-1])
 
 
-def create_gce_block_device_api(cluster_id, project, zone):
+#def create_gce_block_device_api(cluster_id, project, zone):
+#    """
+#    Factory for :class:`GCEBlockDeviceAPI` instances.
+#
+#    :param cluster_id: The cluster id for this cluster.
+#    :param project: The project to use for this
+#        :class:`BlockDeviceAPI`.
+#    :param zone: The zone to create and modify blockdevices within.
+#    """
+#    credentials = AppAssertionCredentials(
+#        "https://www.googleapis.com/auth/cloud-platform")
+#    compute = discovery.build('compute', 'v1', credentials=credentials)
+#    return GCEBlockDeviceAPI(
+#        _atomic_operations=GCEAtomicOperations(
+#            _compute=compute,
+#            _project=unicode(project),
+#            _zone=unicode(zone)
+#        ),
+#        _cluster_id=unicode(cluster_id),
+#    )
+
+
+def gce_credentials_from_config(gce_credentials_config=None):
     """
-    Factory for :class:`GCEBlockDeviceAPI` instances.
+    This function creates a proper GCE credentials object either from a passed
+    in configuration blob or, if this code is being run on a GCE instance, from
+    the default service account credentials associated with the VM.
 
-    :param cluster_id: The cluster id for this cluster.
-    :param project: The project to use for this
-        :class:`BlockDeviceAPI`.
-    :param zone: The zone to create and modify blockdevices within.
+    :param dict gce_credentials_config: A credentials dict used to authenticate
+        against GCE. This should have the same content as the JSON blob you
+        download when you create a new key for a service account. If this is
+        ``None``, then the instances implicit credentials will be used.
+
+    :returns: A GCE credentials object for use with the GCE API.
     """
-    # TODO(mewert): Also enable credentials via service account private
-    # keys.
-    credentials = AppAssertionCredentials(
-        "https://www.googleapis.com/auth/cloud-platform")
-    compute = discovery.build('compute', 'v1', credentials=credentials)
-    return GCEBlockDeviceAPI(
-        _atomic_operations=GCEAtomicOperations(
-            _compute=compute,
-            _project=unicode(project),
-            _zone=unicode(zone)
-        ),
-        _cluster_id=unicode(cluster_id),
-    )
+    if gce_credentials_config is not None:
+        credentials = SignedJwtAssertionCredentials(
+            gce_credentials_config['client_email'],
+            gce_credentials_config['private_key'],
+            scope=[
+                u"https://www.googleapis.com/auth/compute",
+            ]
+        )
+    else:
+        credentials = GoogleCredentials.get_application_default()
+    return credentials
 
 
 @implementer(IBlockDeviceAPI)
+@implementer(IProfiledBlockDeviceAPI)
+@implementer(ICloudAPI)
 class GCEBlockDeviceAPI(PClass):
     """
     A GCE Persistent Disk (PD) implementation of ``IBlockDeviceAPI`` which
@@ -348,9 +435,31 @@ class GCEBlockDeviceAPI(PClass):
     :ivar unicode _cluster_id: The cluster id of the cluster this driver
         operates under.
     """
-    # TODO(mewert): Logging throughout.
     _atomic_operations = field(mandatory=True)
     _cluster_id = field(type=unicode, mandatory=True)
+
+#    def __init__(self, cluster_id, project, zone, gce_credentials_config=None):
+#        """
+#        Initialize the GCEBlockDeviceAPI.
+#
+#        :param unicode project: The project where all GCE operations will take
+#            place.
+#        :param unicode zone: The zone where all GCE operations will take place.
+#        :param dict gce_credentials: Optional GCE credentials for a
+#            service account that has permissions to carry out GCE
+#            volume actions (create, delete, detatch, etc.). If this is
+#            omitted the user must enable the default service account
+#            on all cluster nodes.
+#        """
+#        credentials = gce_credentials_from_config(gce_credentials_config)
+#        self._compute = discovery.build(
+#            'compute', 'v1', credentials=credentials
+#        )
+#        self._project = project
+#        self._zone = zone
+#        self._cluster_id = cluster_id
+#        # None signifies to use the default page size.
+#        self._page_size = None
 
     def _disk_resource_description(self):
         """
@@ -371,62 +480,121 @@ class GCEBlockDeviceAPI(PClass):
         return int(GiB(1).to_Byte().value)
 
     def list_volumes(self):
-        # TODO(mewert) Walk the pages (at this layer, reading multiple pages
-        # isn't atomic).
-        result = self._atomic_operations.list_disks()
-        return list(
-            BlockDeviceVolume(
-                blockdevice_id=unicode(disk['name']),
-                size=int(GiB(int(disk['sizeGb'])).to_Byte()),
-                attached_to=_extract_attached_to(disk),
-                dataset_id=_blockdevice_id_to_dataset_id(disk['name'])
+        """
+        For operations that can return long lists of results, GCE will
+        require you to page through the result set, retrieving one
+        page of results for each query.  You are done paging when the
+        returned ``pageToken`` is ``None``.
+        """
+        with start_action(
+            action_type=u"flocker:node:agents:gce:list_volumes",
+        ) as action:
+            disks = []
+            page_token = None
+            done = False
+            while not done:
+                response = self._atomic_operations.list_disks(
+                    page_size=self._page_size,
+                    page_token=page_token,
+                ).execute()
+
+                disks.extend(
+                    response.get('items', [])
+                )
+
+                page_token = response.get('nextPageToken')
+                done = not page_token
+
+            # 'description' will not even be in the dictionary if no
+            # description was specified.
+            def disk_in_cluster(disk):
+                if disk['name'].startswith(_PREFIX):
+                    if 'description' in disk:
+                        return (disk['description'] ==
+                                self._disk_resource_description())
+                    else:
+                        Message.log(
+                            message_type=u'flocker:node:agents:gce:'
+                                         u'list_volumes:suspicious_disk',
+                            log_level=u'ERROR',
+                            message=u'Disk missing description, yet name '
+                                    u'appears as if it came from the flocker '
+                                    u'GCE dataset backend.',
+                            disk=disk
+                        )
+                        return False
+                return False
+
+            ignored_volumes = []
+            cluster_volumes = []
+            for disk in disks:
+                if disk_in_cluster(disk):
+                    cluster_volumes.append(
+                        BlockDeviceVolume(
+                            blockdevice_id=unicode(disk['name']),
+                            size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+                            attached_to=_extract_attached_to(disk),
+                            dataset_id=_blockdevice_id_to_dataset_id(
+                                disk['name'])
+                        )
+                    )
+                else:
+                    ignored_volumes.append(
+                        {'name': disk['name'],
+                         'description': disk.get('description')})
+
+            Message.log(
+                message_type=u'flocker:node:agents:gce:list_volumes:ignored',
+                ignored_volumes=ignored_volumes
+>>>>>>> gce-staging-branch-FLOC-4275
             )
-            for disk in result['items']
-            if (disk['name'].startswith(_PREFIX) and
-                disk['description'] == self._disk_resource_description())
-        )
+            action.add_success_fields(
+                cluster_volumes=list(
+                    {
+                        'blockdevice_id': v.blockdevice_id,
+                        'size': v.size,
+                        'attached_to': v.attached_to,
+                        'dataset_id': unicode(v.dataset_id),
+                    } for v in cluster_volumes)
+            )
+            return cluster_volumes
 
     def compute_instance_id(self):
         """
         GCE does operations based on the `name` of resources, and also
-        assigns the name to the hostname
+        assigns the name to the hostname. Users can change the
+        system's hostname but the metadata server's hostname attribute
+        will return the original instance name. Thus, we use that as the
+        source of the hostname.
         """
-        # TODO(mewert): Consider getting this from the metadata server instead.
-        #               Technically people can change their hostname.
-        return unicode(gethostname())
+        fqdn = get_metadata_path("instance/hostname")
+        return unicode(fqdn.split(".")[0])
 
-    def create_volume(self, dataset_id, size):
+    def create_volume_with_profile(self, dataset_id, size, profile_name):
         blockdevice_id = _dataset_id_to_blockdevice_id(dataset_id)
-
+        size = Byte(size)
+        profile_type = MandatoryProfiles.lookupByValue(profile_name).name
+        gce_disk_type = GCEStorageProfiles.lookupByName(profile_type).value
         try:
             self._atomic_operations.create_disk(
                 name=blockdevice_id,
-                size=Byte(size),
+                size=size,
                 description=self._disk_resource_description(),
+                gce_disk_type=gce_disk_type
+            )
+            self._do_blocking_operation(
+                self._compute.disks().insert,
+                body=config,
+                timeout_sec=VOLUME_INSERT_TIMEOUT,
             )
         except HttpError as e:
             if e.resp.status == 409:
-                # This indicates that the disk resource already exists.  The
-                # IBlockDeviceAPI interface does not provide an Exception to
-                # raise in this scenario. Instead, just log a message.
-                # TODO(mewert): Log angrily that this happened.
-                pass
+                msg = ("A dataset named {} already exists in this GCE "
+                       "project.".format(dataset_id))
+                raise GCEVolumeException(msg)
             else:
                 raise
-        else:
-            return BlockDeviceVolume(
-                blockdevice_id=blockdevice_id,
-                size=int(size),
-                attached_to=None,
-                dataset_id=dataset_id,
-            )
 
-        # TODO(mewert): Log the specifics of what is happening.
-
-        # If there was a permissible error in creating the disk, then we need
-        # to get the current status of the disk from the cloud in order to
-        # return a BlockDeviceVolume.
-        disk = self._atomic_operations.get_disk_details(blockdevice_id)
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
             size=int(GiB(int(disk['sizeGb'])).to_Byte()),
@@ -434,34 +602,48 @@ class GCEBlockDeviceAPI(PClass):
             dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
         )
 
-    def attach_volume(self, blockdevice_id, attach_to):
-        try:
-            # TODO(mewert): Verify timeout and error conditions.
-            # TODO(mewert): Test what happens when disk is attached RW to a
-            #               different instance, raise the correct error.
-            result = self._atomic_operations.attach_disk(
-                disk_name=blockdevice_id,
-                instance_name=attach_to
-            )
-        except HttpError as e:
-            if e.resp.status == 400:
-                # TODO(mewert): verify with the rest API that this is the only
-                # way to get a 400.
-                raise UnknownVolume(blockdevice_id)
-            else:
-                raise e
-        errors = result.get('error', {}).get('errors', [])
-        for e in errors:
-            if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
-                raise AlreadyAttachedVolume(blockdevice_id)
+    def create_volume(self, dataset_id, size):
+        return self.create_volume_with_profile(
+            dataset_id, size, MandatoryProfiles.DEFAULT.value)
 
-        disk = self._atomic_operations.get_disk_details(blockdevice_id)
-        return BlockDeviceVolume(
+    def attach_volume(self, blockdevice_id, attach_to):
+        with start_action(
+            action_type=u"flocker:node:agents:gce:attach_volume",
             blockdevice_id=blockdevice_id,
-            size=int(GiB(int(disk['sizeGb'])).to_Byte()),
-            attached_to=attach_to,
-            dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
-        )
+            attach_to=attach_to,
+        ) as action:
+            try:
+                result = self._atomic_operations.attach_disk(
+                    disk_name=blockdevice_id,
+                    instance_name=attach_to
+                )
+
+            except HttpError as e:
+                if e.resp.status == 400:
+                    write_traceback()
+                    raise UnknownVolume(blockdevice_id)
+                else:
+                    raise
+            errors = result.get('error', {}).get('errors', [])
+            for e in errors:
+                if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
+                    raise AlreadyAttachedVolume(blockdevice_id)
+            disk = self._atomic_operations.get_disk_details(blockdevice_id)
+            result = BlockDeviceVolume(
+                blockdevice_id=blockdevice_id,
+                size=int(GiB(int(disk['sizeGb'])).to_Byte()),
+                attached_to=attach_to,
+                dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
+            )
+            action.add_success_fields(
+                final_volume={
+                    'blockdevice_id': result.blockdevice_id,
+                    'size': result.size,
+                    'attached_to': result.attached_to,
+                    'dataset_id': unicode(result.dataset_id),
+                }
+            )
+            return result
 
     def _get_attached_to(self, blockdevice_id):
         """
@@ -477,62 +659,119 @@ class GCEBlockDeviceAPI(PClass):
         :raises UnattachedVolume: If the volume is not attached to any
             instance.
         """
-        try:
-            # TODO(mewert) verify timeouts and error conditions.
-            disk = self._atomic_operations.get_disk_details(blockdevice_id)
-        except HttpError as e:
-            if e.resp.status == 404:
-                # TODO(mewert) Verify with the rest API this is the only way to
-                # get a 404.
-                raise UnknownVolume(blockdevice_id)
-            else:
-                raise e
-        attached_to = _extract_attached_to(disk)
-        if not attached_to:
-            raise UnattachedVolume(blockdevice_id)
-        return attached_to
+        with start_action(
+            action_type=u"flocker:node:agents:gce:get_attached_to",
+            blockdevice_id=blockdevice_id
+        ) as action:
+            try:
+                disk = self._atomic_operations.get_disk_details(blockdevice_id)
+            except HttpError as e:
+                if e.resp.status == 404:
+                    raise UnknownVolume(blockdevice_id)
+                else:
+                    raise
+            attached_to = _extract_attached_to(disk)
+            if not attached_to:
+                raise UnattachedVolume(blockdevice_id)
+            action.add_success_fields(attached_to=attached_to)
+            return attached_to
 
     def detach_volume(self, blockdevice_id):
-        attached_to = self._get_attached_to(blockdevice_id)
-        resulting_operation = self._atomic_operations.detach_disk(
-            instance_name=attached_to,
-            disk_name=blockdevice_id
-        )
-        errors = resulting_operation.get('error', {}).get('errors', [])
-        error_condition_might_be_detached_volume = False
+        with start_action(
+            action_type=u"flocker:node:agents:gce:detach_volume",
+            blockdevice_id=blockdevice_id,
+        ):
+            attached_to = self._get_attached_to(blockdevice_id)
+            resulting_operation = self._atomic_operations.detach_disk(
+                instance_name=attached_to,
+                disk_name=blockdevice_id
+            )
 
-        # Inspect the errors to see if the error might be that the volume was
-        # already detached.
-        for e in errors:
-            if e.get('code') == 'INVALID_FIELD_VALUE':
-                error_condition_might_be_detached_volume = True
+            # If there is an outstanding detach operation, attach_to will be
+            # reported, but an attempt to detach will quickly fail with an
+            # `INVALID_FIELD_VALUE`.
+            #
+            # Attempt to detect this scenario, and poll until the volume is
+            # detached.
+            if 'error' in result:
+                potentially_detaching_error = None
+                for error in result['error']:
+                    if error == 'INVALID_FIELD_VALUE':
+                        potentially_detaching_error = error
 
-        if error_condition_might_be_detached_volume:
-            # Raise an UnattachedVolume error if it is no longer attached.
-            self._get_attached_to(blockdevice_id)
+                if potentially_detaching_error is not None:
+                    try:
+                        poll_until(
+                            lambda: self._extract_attached_to(blockdevice_id),
+                            [1] * VOLUME_DETATCH_TIMEOUT
+                        )
+                        raise GCEVolumeException(
+                            "Volume appeared to be detaching, but never "
+                            "detached {}: {}".format(
+                                blockdevice_id,
+                                str(potentially_detaching_error)
+                            )
+                        )
+                    except UnattachedVolume:
+                        # If we eventually get an `UnattachedVolume` exception
+                        # then the volume has been successfully detached.
+                        pass
+                else:
+                    raise GCEVolumeException(
+                        "Error detaching volume {}: {}".format(
+                            blockdevice_id,
+                            str(result['error'])
+                        )
+                    )
 
-        if errors:
-            # TODO(mewert): logging.
-            raise ValueError('Unknown failure for GCE detach operation: %s' %
-                             errors)
+            return None
 
     def get_device_path(self, blockdevice_id):
-        # TODO(mewert): Verify that we need this extra API call.
         self._get_attached_to(blockdevice_id)
-
-        # TODO(mewert): Verify we can get away returning a symlink here, or
-        # just walk the symlink.
-        return FilePath(u"/dev/disk/by-id/google-" + blockdevice_id)
+        return FilePath(u"/dev/disk/by-id/google-" + blockdevice_id).realpath()
 
     def destroy_volume(self, blockdevice_id):
         try:
-            # TODO(mewert) verify timeouts and error conditions.
             self._atomic_operations.destroy_disk(blockdevice_id)
         except HttpError as e:
             if e.resp.status == 404:
                 raise UnknownVolume(blockdevice_id)
+            elif e.resp.status == 400:
+                raise GCEVolumeException(
+                    "Cannot destroy volume {}: {}".format(
+                        blockdevice_id, str(e)
+                    )
+                )
             else:
-                raise e
+                raise
+        return None
+
+    def list_live_nodes(self):
+        page_token = None
+        done = False
+        nodes = []
+        while not done:
+            result = self._atomic_operations.list_nodes(page_token,
+                                                        self._page_size)
+            page_token = result.get('nextPageToken')
+            nodes.extend(result['items'])
+            done = not page_token
+        return set(node["name"] for node in nodes
+                   if node["status"] == "RUNNING")
+
+    def start_node(self, node_id):
+        self._atomic_operations.start_node(node_id)
+
+    def _stop_node(self, node_id):
+        """
+        Stops a node. This shuts the node down, but leaves the boot disk
+        available so that it can be started again using ``start_node``.
+
+        Note this is only used in the functional tests of start_node.
+
+        :param unicode node_id: The compute_instance_id of the node to stop.
+        """
+        self._atomic_operations.stop_node(node_id)
 
 
 class IGCEAtomicOperations(Interface):
@@ -540,13 +779,14 @@ class IGCEAtomicOperations(Interface):
     Interface describing the atomic operations that GCE supports.
     """
 
-    def create_disk(name, size, description):
+    def create_disk(name, size, description, gce_disk_type):
         """
         Create a new GCE PD. Block until the disk is created.
 
         :param unicode name: The name of the new disk.
         :param size: A ``bitmath`` class that has a to_GiB method.
         :param unicode description: The description of the disk.
+        :param unicode gce_disk_type: The GCE disk type.
 
         :returns: A GCE operation resource dict describing the create
             operation.
@@ -586,9 +826,12 @@ class IGCEAtomicOperations(Interface):
             operation.
         """
 
-    def list_disks():
+    def list_disks(self, page_token=None, page_size=None):
         """
         List GCE disks.
+
+        :param page_token: The page token for the page of disks to retrieve.
+        :param page_size: The number of results to return per page.
 
         :returns: A GCE API list of disk resources. See:
             https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/compute_v1.disks.html#list # noqa
@@ -605,6 +848,35 @@ class IGCEAtomicOperations(Interface):
         :returns: A GCE API disk resources. See:
             https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/compute_v1.disks.html#get # noqa
             for the structure.
+        """
+
+    def list_nodes(page_token, page_size):
+        """
+        List all of the nodes available on GCE.
+
+        :param unicode page_token: The token corresponding to the page of
+            results to display.
+        :param int page_size: The number of results to include per page.
+
+        :returns: A GCE API list_nodes response See:
+            https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/compute_v1.instances.html#list # noqa
+            for the structure.
+        """
+
+    def start_node(node_id):
+        """
+        Starts a stopped node.
+
+        :param unicode node_id: The unique identifier of the node to be
+            started.
+        """
+
+    def stop_node(node_id):
+        """
+        Stops a node, assumes it can be started again with start_node.
+
+        :param unicode node_id: The unique identifier of the node to be
+            stopped.
         """
 
 
@@ -626,7 +898,11 @@ class GCEAtomicOperations(PClass):
     _project = field(type=unicode, mandatory=True)
     _zone = field(type=unicode, mandatory=True)
 
-    def _do_blocking_operation(self, function, **kwargs):
+    def _do_blocking_operation(self,
+                               function,
+                               timeout_sec=VOLUME_DEFAULT_TIMEOUT,
+                               sleep=None,
+                               **kwargs):
         """
         Perform a GCE operation, blocking until the operation completes.
 
@@ -636,42 +912,50 @@ class GCEAtomicOperations(PClass):
         `function` returns an object that has an `execute()` method that
         returns a GCE operation resource dict.
 
-        This function will then poll the operation until it reaches state
-        'DONE' or times out, and then returns the final operation resource
-        dict.
+        This function will then poll the operation until it reaches
+        state 'DONE' or times out, and then returns the final
+        operation resource dict. The value for the timeout was chosen
+        by testing the running time of our GCE operations. Sometimes
+        certain operations can take over 30s but they rarely, if ever,
+        take over a minute.
+
+        Timeouts should not be caught here but should propogate up the
+        stack and the node will eventually retry the operation via the
+        convergence loop.
 
         :param function: Callable that takes keyword arguments project and
             zone, and returns an executable that results in a GCE operation
             resource dict as described above.
+        :param int timeout_sec: The maximum amount of time to wait in seconds
+            for the operation to complete.
+        :param sleep: A callable that has the same signature and function as
+            ``time.sleep``. Only intended to be used in tests.
         :param kwargs: Additional keyword arguments to pass to function.
 
         :returns dict: A dict representing the concluded GCE operation
             resource.
         """
-        # TODO(mewert): Be more sophisticated about timeout and retry loop.
-        # Look at EBS code, read up on how GCE behaves, potentially allow each
-        # operation to specify its own timeout. Also pass a reactor in so you
-        # can test the timeout error paths in unit tests. Also document what
-        # happens on timeout.
         args = dict(project=self._project, zone=self._zone)
         args.update(kwargs)
         operation = function(**args).execute()
-        # TODO(bcox) Perform a decent test of typical latencies for
-        # operations within GCE and use that information to determine
-        # an appropriate timeout. Until that is done, use the
-        # following arbitrary timeout.
-        return wait_for_operation(self._compute, operation, [1]*65)
+        return wait_for_operation(
+            self._compute, operation, [1]*timeout_sec, sleep)
 
-    def create_disk(self, name, size, description):
+    def create_disk(self, name, size, description, gce_disk_type):
         sizeGiB = int(size.to_GiB())
         config = dict(
             name=name,
             sizeGb=sizeGiB,
             description=description,
+            type="projects/{project}/zones/{zone}/diskTypes/{type}".format(
+                project=self._project, zone=self._zone, type=gce_disk_type)
         )
         # TODO(mewert): Verify timeout and error conditions.
         return self._do_blocking_operation(
-            self._compute.disks().insert, body=config)
+            self._compute.disks().insert,
+            body=config
+            timeout_sec=VOLUME_INSERT_TIMEOUT,
+        )
 
     def attach_disk(self, disk_name, instance_name):
         config = dict(
@@ -687,25 +971,75 @@ class GCEAtomicOperations(PClass):
             self._compute.instances().attachDisk,
             instance=instance_name,
             body=config
+            timeout_sec=VOLUME_ATTACH_TIMEOUT,
         )
 
     def detach_disk(self, instance_name, disk_name):
         return self._do_blocking_operation(
             self._compute.instances().detachDisk, instance=instance_name,
-            deviceName=disk_name
+            deviceName=disk_name, timeout_sec=VOLUME_DETATCH_TIMEOUT
         )
 
     def destroy_disk(self, disk_name):
         return self._do_blocking_operation(
             self._compute.disks().delete,
-            disk=disk_name
+            disk=disk_name,
+            timeout_sec=VOLUME_DELETE_TIMEOUT,
         )
 
-    def list_disks(self):
+    def list_disks(self, page_token=None, page_size=None):
         return self._compute.disks().list(project=self._project,
-                                          zone=self._zone).execute()
+                                          zone=self._zone,
+                                          maxResults=page_size,
+                                          pageToken=page_token).execute()
 
     def get_disk_details(self, disk_name):
         return self._compute.disks().get(project=self._project,
                                          zone=self._zone,
                                          disk=disk_name).execute()
+
+    def list_nodes(self, page_token, page_size):
+        return self._compute.instances().list(
+            project=self._project,
+            zone=self._zone,
+            maxResults=page_size,
+            pageToken=page_token
+        ).execute()
+
+    def start_node(self, node_id):
+        self._do_blocking_operation(
+            self._compute.instances().start,
+            timeout_sec=5*60,
+            instance=node_id
+        )
+
+    def stop_node(self, node_id):
+        self._do_blocking_operation(
+            self._compute.instances().stop,
+            timeout_sec=5*60,
+            instance=node_id
+        )
+
+
+def gce_from_configuration(cluster_id, project=None, zone=None,
+                           credentials=None):
+    """
+    Build a ``GCEBlockDeviceAPI`` instance using data from configuration
+
+    :param UUID cluster_id: The unique identifier of the cluster with which to
+        associate the resulting object.  It will only manipulate volumes
+        belonging to this cluster.
+    :param unicode project: The GCE project for the cluster.
+    :param unicode zone: The GCE zone the cluster will be located in.
+    :param dict credentials: Optional GCE credentials for a service
+        account that has permissions to carry out GCE volume actions
+        (create, delete, detatch, etc.). If this is omitted the user
+        must enable the default service account on all cluster nodes.
+
+    :return: A ``GCEBlockDeviceAPI`` instance.
+    """
+    if project is None:
+        project = get_machine_project()
+    if zone is None:
+        zone = get_machine_zone()
+    return GCEBlockDeviceAPI(cluster_id, project, zone, credentials)

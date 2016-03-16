@@ -6,10 +6,11 @@ Tests for the datasets REST API.
 import os
 
 from datetime import timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 from unittest import SkipTest, skipIf
 
 from testtools import run_test_with
+from testtools.matchers import MatchesListwise, AfterPreprocessing, Equals
 from twisted.internet import reactor
 
 
@@ -21,9 +22,12 @@ from ...node.agents.blockdevice import ICloudAPI
 
 from ...provision import PackageSource
 
+from ...node import backends
+
 from ..testtools import (
-    require_cluster, require_moving_backend, create_dataset, DatasetBackend,
-    skip_backend, get_backend_api, verify_socket
+    require_cluster, require_moving_backend, create_dataset,
+    skip_backend, get_backend_api, verify_socket,
+    get_default_volume_size,
 )
 
 
@@ -88,9 +92,13 @@ class DatasetAPITests(AsyncTestCase):
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
     @skip_backend(
-        unsupported={DatasetBackend.loopback},
+        unsupported={backends.LOOPBACK},
         reason="Does not maintain compute_instance_id across restarting "
                "flocker (and didn't as of most recent release).")
+    @skip_backend(
+        unsupported={backends.GCE},
+        # XXX: FLOC-4297: Enable this after the next marketing release.
+        reason="GCE was not available during the most recent release.")
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
@@ -175,7 +183,7 @@ class DatasetAPITests(AsyncTestCase):
         d.addCallback(cat_and_verify_file)
         return d
 
-    @require_cluster(1, required_backend=DatasetBackend.aws)
+    @require_cluster(1, required_backend=backends.AWS)
     def test_dataset_creation_with_gold_profile(self, cluster, backend):
         """
         A dataset created with the gold profile as specified in metadata on EBS
@@ -202,6 +210,8 @@ class DatasetAPITests(AsyncTestCase):
 
     @flaky(u'FLOC-3341')
     @require_moving_backend
+    # GCE sometimes takes 1 full minute to detach a disk.
+    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     @require_cluster(2)
     def test_dataset_move(self, cluster):
         """
@@ -262,7 +272,7 @@ class DatasetAPITests(AsyncTestCase):
 
         All attributes, including the maximum size, are preserved.
         """
-        api = get_backend_api(self, cluster.cluster_uuid)
+        api = get_backend_api(cluster.cluster_uuid)
         if not ICloudAPI.providedBy(api):
             raise SkipTest(
                 "Backend doesn't support ICloudAPI; therefore it might support"
@@ -318,3 +328,96 @@ class DatasetAPITests(AsyncTestCase):
 
         waiting_for_shutdown.addCallback(move_dataset)
         return waiting_for_shutdown
+
+    @require_cluster(1)
+    def test_unregistered_volume(self, cluster):
+        """
+        If there is already a backend volume for a dataset when it is created,
+        that volume is used for that dataset.
+        """
+        api = get_backend_api(cluster.cluster_uuid)
+
+        # Create a volume for a dataset
+        dataset_id = uuid4()
+        volume = api.create_volume(dataset_id, size=get_default_volume_size())
+
+        # Then create the coresponding dataset.
+        wait_for_dataset = create_dataset(self, cluster, dataset_id=dataset_id)
+
+        def check_volumes(dataset):
+            new_volumes = api.list_volumes()
+            # That volume should be the only dataset in the cluster.
+            # Clear `.attached_to` on the new volume, since we expect it to be
+            # attached.
+            self.assertThat(
+                new_volumes,
+                MatchesListwise([
+                    AfterPreprocessing(
+                        lambda new_volume: new_volume.set('attached_to', None),
+                        Equals(volume)
+                    ),
+                ])
+            )
+        wait_for_dataset.addCallback(check_volumes)
+        return wait_for_dataset
+
+    @skip_backend(
+        unsupported={backends.GCE},
+        reason="The GCE backend does not let you create two volumes with the "
+               "same dataset id. When this test is run with GCE the test "
+               "fails to create the extra volume, and we do not test the "
+               "functionality this test was designed to test.")
+    @require_cluster(2)
+    def test_extra_volume(self, cluster):
+        """
+        If an extra volume is created for a dataset, that volume isn't used.
+
+        .. note:
+           This test will be flaky if flocker doesn't correctly ignore extra
+           volumes that claim to belong to a dataset, since the dataset picked
+           will be random.
+        """
+        api = get_backend_api(cluster.cluster_uuid)
+
+        # Create the dataset
+        wait_for_dataset = create_dataset(self, cluster)
+
+        created_volume = []
+
+        # Create an extra volume claiming to belong to that dataset
+        def create_extra(dataset):
+            # Create a second volume for that dataset
+            volume = api.create_volume(dataset.dataset_id,
+                                       size=get_default_volume_size())
+            created_volume.append(volume)
+            return dataset
+
+        wait_for_extra_volume = wait_for_dataset.addCallback(create_extra)
+
+        # Once created, request to move the dataset to node2
+        def move_dataset(dataset):
+            dataset_moving = cluster.client.move_dataset(
+                UUID(cluster.nodes[1].uuid), dataset.dataset_id)
+
+            # Wait for the dataset to be moved; we expect the state to
+            # match that of the originally created dataset in all ways
+            # other than the location.
+            moved_dataset = dataset.set(
+                primary=UUID(cluster.nodes[1].uuid))
+            dataset_moving.addCallback(
+                lambda dataset: cluster.wait_for_dataset(moved_dataset))
+            return dataset_moving
+        wait_for_move = wait_for_extra_volume.addCallback(move_dataset)
+
+        # Check that the extra volume isn't attached to a node.
+        # This indicates that the originally created volume is attached.
+        def check_attached(dataset):
+            blockdevice_id = created_volume[0].blockdevice_id
+            [volume] = [volume for volume in api.list_volumes()
+                        if volume.blockdevice_id == blockdevice_id]
+
+            self.assertEqual(volume.attached_to, None)
+
+        return wait_for_move.addCallback(check_attached)
+
+        return wait_for_dataset

@@ -1,3 +1,5 @@
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
 """
 Troposphere script to generate an AWS CloudFormation JSON template.
 
@@ -27,6 +29,7 @@ https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new
 
 import argparse
 import os
+import json
 
 from troposphere import FindInMap, GetAtt, Base64, Join, Tags
 from troposphere import Parameter, Output, Ref, Template, GetAZs, Select
@@ -34,13 +37,10 @@ from troposphere.s3 import Bucket
 import troposphere.ec2 as ec2
 from troposphere.cloudformation import WaitConditionHandle, WaitCondition
 
-# pylint: disable=relative-import
-from _cloudformation_helper import (
-    MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE, InvalidClusterSizeException
-)
-# pylint: enable=relative-import
-
+MIN_CLUSTER_SIZE = 3
+MAX_CLUSTER_SIZE = 10
 DEFAULT_CLUSTER_SIZE = MIN_CLUSTER_SIZE
+
 NODE_CONFIGURATION_TIMEOUT = u"900"
 AGENT_NODE_NAME_TEMPLATE = u"AgentNode{index}"
 EC2_INSTANCE_NAME_TEMPLATE = u"{stack_name}_{node_type}"
@@ -62,6 +62,94 @@ CLIENT_SETUP = 'setup_client.sh'
 SIGNAL_CONFIG_COMPLETION = 'signal_config_completion.sh'
 
 
+def _validate_cluster_size(size):
+    """
+    Validate that user-input cluster size is supported by Installer.
+
+    :param int size: Desired number of nodes in the cluster.
+    :raises: InvalidClusterSizeException,
+             if input cluster size is unsupported.
+    :returns: Validated cluster size.
+    :rtype: int
+    """
+    try:
+        size = int(size)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            u"Must be an integer. Found {!r}".format(
+                size
+            )
+        )
+
+    if size < MIN_CLUSTER_SIZE or size > MAX_CLUSTER_SIZE:
+        raise argparse.ArgumentTypeError(
+            u"Must be between {} and {}. Found {}.".format(
+                MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE, size
+            )
+        )
+    return size
+
+
+def create_cloudformation_template_options():
+    """
+    :returns: A command line option parser for
+        `admin/create-cloudformation-template`.
+    """
+    parser = argparse.ArgumentParser(
+        description=(
+            u'Create a CloudFormation template '
+            u'for a Flocker cluster used in the '
+            u'Docker, Swarm, Compose installation instructions.'
+        )
+    )
+
+    parser.add_argument(
+        u'--cluster-size',
+        default=MIN_CLUSTER_SIZE,
+        type=_validate_cluster_size,
+        help=(
+            u'An integer corresponding to desired '
+            u'number of nodes in the cluster. '
+            u'Supported sizes: min={0}, max={1}'
+        ).format(
+            MIN_CLUSTER_SIZE,
+            MAX_CLUSTER_SIZE
+        )
+    )
+
+    parser.add_argument(
+        u'--client-ami-map-body',
+        type=json.loads,
+        help=u'A JSON map of AWS region to AMI ID for client.',
+        dest='client_ami_map',
+        required=True,
+    )
+
+    parser.add_argument(
+        u'--node-ami-map-body',
+        type=json.loads,
+        help=u'A JSON map of AWS region to AMI ID for nodes.',
+        dest='node_ami_map',
+        required=True,
+    )
+
+    return parser
+
+
+def create_cloudformation_template_main(argv, basepath, toplevel):
+    """
+    The entry point for `admin/create-cloudformation-template`.
+    """
+    parser = create_cloudformation_template_options()
+    options = parser.parse_args(argv)
+
+    print flocker_docker_template(
+        cluster_size=options.cluster_size,
+        client_ami_map=options.client_ami_map,
+        node_ami_map=options.node_ami_map,
+    )
+
+
 def _sibling_lines(filename):
     """
     Read file content into an output string.
@@ -72,332 +160,265 @@ def _sibling_lines(filename):
         return f.readlines()
 
 
-def _get_cluster_size():
+def flocker_docker_template(cluster_size, client_ami_map, node_ami_map):
     """
-    Gather desired number of nodes in the cluster from input argument.
-
-    :returns: Desired cluster size, with a default of ``MIN_CLUSTER_SIZE``
-    :rtype: int
+    :param int cluster_size: The number of nodes to create in the Flocker
+        cluster (including control service node).
+    :param dict client_ami_map: A map between AWS region name and AWS AMI ID
+        for the client.
+    :param dict node_ami_map: A map between AWS region name and AWS AMI ID
+        for the node.
+    :returns: a CloudFormation template for a Flocker + Docker + Docker Swarm
+        cluster.
     """
-    def _parse_args():
-        """
-        Parse input arguments to the script.
+    # Base JSON template.
+    template = Template()
 
-        :returns: an object built from attributes parsed out of command line
-        :rtype: Namespace
-        """
-        parser = argparse.ArgumentParser(
-            description='Create CloudFormation template'
-                        ' for cluster of desired size '
-                        '(default: {0} nodes).'.format(MIN_CLUSTER_SIZE))
+    # Keys corresponding to CloudFormation user Inputs.
+    access_key_id_param = template.add_parameter(Parameter(
+        "AmazonAccessKeyID",
+        Description="Required: Your Amazon AWS access key ID",
+        Type="String",
+        NoEcho=True,
+        AllowedPattern="[\w]+",
+        MinLength="16",
+        MaxLength="32",
+    ))
+    secret_access_key_param = template.add_parameter(Parameter(
+        "AmazonSecretAccessKey",
+        Description="Required: Your Amazon AWS secret access key",
+        Type="String",
+        NoEcho=True,
+        MinLength="1",
+    ))
+    keyname_param = template.add_parameter(Parameter(
+        "EC2KeyPair",
+        Description="Required: Name of an existing EC2 KeyPair to enable SSH "
+                    "access to the instance",
+        Type="AWS::EC2::KeyPair::KeyName",
+    ))
+    template.add_parameter(Parameter(
+        "S3AccessPolicy",
+        Description="Required: Is current IAM user allowed to access S3? "
+                    "S3 access is required to distribute Flocker and Docker "
+                    "configuration amongst stack nodes. Reference: "
+                    "http://docs.aws.amazon.com/IAM/latest/UserGuide/"
+                    "access_permissions.html Stack creation will fail if user "
+                    "cannot access S3",
+        Type="String",
+        AllowedValues=["Yes"],
+    ))
+    volumehub_token = template.add_parameter(Parameter(
+        "VolumeHubToken",
+        Description=(
+            "Optional: Your Volume Hub token. "
+            "You'll find the token at "
+            "https://volumehub.clusterhq.com/v1/token."
+        ),
+        Type="String",
+        Default="",
+    ))
 
-        def _add_parser_argument(parser, short_form_name, long_form_name,
-                                 default_value, argument_type, help_message):
-            """
-            Add an input argument to given parser.
-
-            :param argparse.ArgumentParser parser: Target parser for argument.
-            :param unicode short_form_name: Short form flag for the argument.
-            :param unicode long_form_name: Long form name of the argument.
-            :param unicode default_value: value produced if the argument is
-                                          absent from the command line.
-            :param type argument_type: type to which argument should be
-                                       converted.
-            :param unicode help_message: description of what the argument does.
-            """
-            parser.add_argument(short_form_name, long_form_name,
-                                default=default_value,
-                                type=argument_type,
-                                help=help_message)
-            return
-        _add_parser_argument(parser, short_form_name=u'-s',
-                             long_form_name=u'--size',
-                             default_value=MIN_CLUSTER_SIZE,
-                             argument_type=int,
-                             help_message=u'integer corresponding to desired'
-                             ' number of nodes in the cluster.'
-                             ' Supported sizes: min={0} max={1}'.format(
-                                 MIN_CLUSTER_SIZE,
-                                 MAX_CLUSTER_SIZE))
-        return parser.parse_args()
-    parsed_args = _parse_args()
-
-    def _validate_cluster_size(size):
-        """
-        Validate that user-input cluster size is supported by Installer.
-
-        :param int size: Desired number of nodes in the cluster.
-        :raises: InvalidClusterSizeException,
-                 if input cluster size is unsupported.
-        :returns: Validated cluster size.
-        :rtype: int
-        """
-        if size < MIN_CLUSTER_SIZE or size > MAX_CLUSTER_SIZE:
-            raise InvalidClusterSizeException(size)
-        return size
-    return _validate_cluster_size(parsed_args.size)
-
-# Base JSON template.
-template = Template()
-
-# Keys corresponding to CloudFormation user Inputs.
-access_key_id_param = template.add_parameter(Parameter(
-    "AmazonAccessKeyID",
-    Description="Required: Your Amazon AWS access key ID",
-    Type="String",
-    NoEcho=True,
-    AllowedPattern="[\w]+",
-    MinLength="16",
-    MaxLength="32",
-))
-secret_access_key_param = template.add_parameter(Parameter(
-    "AmazonSecretAccessKey",
-    Description="Required: Your Amazon AWS secret access key",
-    Type="String",
-    NoEcho=True,
-    MinLength="1",
-))
-keyname_param = template.add_parameter(Parameter(
-    "EC2KeyPair",
-    Description="Required: Name of an existing EC2 KeyPair to enable SSH "
-                "access to the instance",
-    Type="AWS::EC2::KeyPair::KeyName",
-))
-template.add_parameter(Parameter(
-    "S3AccessPolicy",
-    Description="Required: Is current IAM user allowed to access S3? "
-                "S3 access is required to distribute Flocker and Docker "
-                "configuration amongst stack nodes. Reference: "
-                "http://docs.aws.amazon.com/IAM/latest/UserGuide/"
-                "access_permissions.html Stack creation will fail if user "
-                "cannot access S3",
-    Type="String",
-    AllowedValues=["Yes"],
-))
-volumehub_token = template.add_parameter(Parameter(
-    "VolumeHubToken",
-    Description=(
-        "Optional: Your Volume Hub token. "
-        "You'll find the token at https://volumehub.clusterhq.com/v1/token."
-    ),
-    Type="String",
-    Default="",
-))
-
-# Base AMIs pre-baked with the following products:
-# Docker 1.9.1
-# Flocker 1.9.0.dev1+1221.gde4c49f
-# Please update the version fields above when new AMIs are generated.
-template.add_mapping(
-    'RegionMap', {
-        'us-east-1':      {"FlockerAMI": "ami-d81b3eb2",
-                           "ClientAMI": "ami-c61e3bac"},
-        'us-west-1':      {"FlockerAMI": "ami-2e10644e",
-                           "ClientAMI": "ami-aa1064ca"},
-        'us-west-2':      {"FlockerAMI": "ami-51879d30",
-                           "ClientAMI": "ami-8dbaa0ec"},
-        'eu-west-1':      {"FlockerAMI": "ami-6358f310",
-                           "ClientAMI": "ami-ef5bf09c"},
-        'eu-central-1':   {"FlockerAMI": "ami-32574e5e",
-                           "ClientAMI": "ami-6c544d00"},
-        'sa-east-1':      {"FlockerAMI": "ami-e4b73688",
-                           "ClientAMI": "ami-fdb43591"},
-        'ap-northeast-1': {"FlockerAMI": "ami-e71e2289",
-                           "ClientAMI": "ami-1a211d74"},
-        'ap-southeast-1': {"FlockerAMI": "ami-1bc10d78",
-                           "ClientAMI": "ami-cbc20ea8"},
-        'ap-southeast-2': {"FlockerAMI": "ami-c00b2ea3",
-                           "ClientAMI": "ami-c20b2ea1"},
-    }
-)
-
-instances = []
-
-# Select a random AvailabilityZone within given AWS Region.
-zone = Select(0, GetAZs(""))
-
-# S3 bucket to hold {Flocker, Docker, Swarm} configuration for distribution
-# between nodes.
-s3bucket = Bucket('ClusterConfig',
-                  DeletionPolicy='Retain')
-template.add_resource(s3bucket)
-
-# Create SecurityGroup for cluster instances.
-instance_sg = template.add_resource(
-    ec2.SecurityGroup(
-        "InstanceSecurityGroup",
-        GroupDescription="Enable ingress access on all protocols and ports.",
-        SecurityGroupIngress=[
-            ec2.SecurityGroupRule(
-                IpProtocol=protocol,
-                FromPort="0",
-                ToPort="65535",
-                CidrIp="0.0.0.0/0",
-            ) for protocol in ('tcp', 'udp')
-        ]
+    template.add_mapping(
+        'RegionMapClient', {
+            k: {"AMI": v} for k, v in client_ami_map.items()
+        }
     )
-)
+    template.add_mapping(
+        'RegionMapNode', {
+            k: {"AMI": v} for k, v in node_ami_map.items()
+        }
+    )
 
-# Base for post-boot {Flocker, Docker, Swarm} configuration on the nodes.
-base_user_data = [
-    '#!/bin/bash\n',
-    'aws_region="', Ref("AWS::Region"), '"\n',
-    'aws_zone="', zone, '"\n',
-    'access_key_id="', Ref(access_key_id_param), '"\n',
-    'secret_access_key="', Ref(secret_access_key_param), '"\n',
-    's3_bucket="', Ref(s3bucket), '"\n',
-    'stack_name="', Ref("AWS::StackName"), '"\n',
-    'volumehub_token="', Ref(volumehub_token), '"\n',
-    'node_count="{}"\n'.format(_get_cluster_size()),
-    'apt-get update\n',
-]
+    # Select a random AvailabilityZone within given AWS Region.
+    zone = Select(0, GetAZs(""))
 
-# XXX Flocker agents are indexed from 1 while the nodes overall are indexed
-# from 0.
-flocker_agent_number = 1
+    # S3 bucket to hold {Flocker, Docker, Swarm} configuration for distribution
+    # between nodes.
+    s3bucket = Bucket('ClusterConfig',
+                      DeletionPolicy='Retain')
+    template.add_resource(s3bucket)
 
-# Gather WaitConditions
-wait_condition_names = []
+    # Create SecurityGroup for cluster instances.
+    instance_sg = template.add_resource(
+        ec2.SecurityGroup(
+            "InstanceSecurityGroup",
+            GroupDescription=(
+                "Enable ingress access on all protocols and ports."
+            ),
+            SecurityGroupIngress=[
+                ec2.SecurityGroupRule(
+                    IpProtocol=protocol,
+                    FromPort="0",
+                    ToPort="65535",
+                    CidrIp="0.0.0.0/0",
+                ) for protocol in ('tcp', 'udp')
+            ]
+        )
+    )
 
-for i in range(_get_cluster_size()):
-    if i == 0:
-        node_name = CONTROL_NODE_NAME
-    else:
-        node_name = AGENT_NODE_NAME_TEMPLATE.format(index=i)
+    # Base for post-boot {Flocker, Docker, Swarm} configuration on the nodes.
+    base_user_data = [
+        '#!/bin/bash\n',
+        'aws_region="', Ref("AWS::Region"), '"\n',
+        'aws_zone="', zone, '"\n',
+        'access_key_id="', Ref(access_key_id_param), '"\n',
+        'secret_access_key="', Ref(secret_access_key_param), '"\n',
+        's3_bucket="', Ref(s3bucket), '"\n',
+        'stack_name="', Ref("AWS::StackName"), '"\n',
+        'volumehub_token="', Ref(volumehub_token), '"\n',
+        'node_count="{}"\n'.format(cluster_size),
+        'apt-get update\n',
+    ]
 
-    # Create an EC2 instance for the {Agent, Control} Node.
-    ec2_instance = ec2.Instance(
-        node_name,
-        ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "FlockerAMI"),
-        InstanceType="m3.large",
+    # XXX Flocker agents are indexed from 1 while the nodes overall are indexed
+    # from 0.
+    flocker_agent_number = 1
+
+    # Gather WaitConditions
+    wait_condition_names = []
+
+    for i in range(cluster_size):
+        if i == 0:
+            node_name = CONTROL_NODE_NAME
+        else:
+            node_name = AGENT_NODE_NAME_TEMPLATE.format(index=i)
+
+        # Create an EC2 instance for the {Agent, Control} Node.
+        ec2_instance = ec2.Instance(
+            node_name,
+            ImageId=FindInMap("RegionMapNode", Ref("AWS::Region"), "AMI"),
+            InstanceType="m3.large",
+            KeyName=Ref(keyname_param),
+            SecurityGroups=[Ref(instance_sg)],
+            AvailabilityZone=zone,
+            Tags=Tags(Name=node_name))
+
+        # WaitCondition and corresponding Handler to signal completion
+        # of {Flocker, Docker, Swarm} configuration on the node.
+        wait_condition_handle = WaitConditionHandle(
+            INFRA_WAIT_HANDLE_TEMPLATE.format(node=node_name))
+        template.add_resource(wait_condition_handle)
+        wait_condition = WaitCondition(
+            INFRA_WAIT_CONDITION_TEMPLATE.format(node=node_name),
+            Handle=Ref(wait_condition_handle),
+            Timeout=NODE_CONFIGURATION_TIMEOUT,
+        )
+        template.add_resource(wait_condition)
+
+        # Gather WaitConditions
+        wait_condition_names.append(wait_condition.name)
+
+        user_data = base_user_data[:]
+        user_data += [
+            'node_number="{}"\n'.format(i),
+            'node_name="{}"\n'.format(node_name),
+            'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
+        ]
+
+        # Setup S3 utilities to push/pull node-specific data to/from S3 bucket.
+        user_data += _sibling_lines(S3_SETUP)
+
+        if i == 0:
+            # Control Node configuration.
+            control_service_instance = ec2_instance
+            user_data += ['flocker_node_type="control"\n']
+            user_data += _sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
+            user_data += _sibling_lines(DOCKER_SWARM_CA_SETUP)
+            user_data += _sibling_lines(DOCKER_SETUP)
+
+            # Setup Swarm 1.0.1
+            user_data += _sibling_lines(SWARM_MANAGER_SETUP)
+            template.add_output([
+                Output(
+                    "ControlNodeIP",
+                    Description="Public IP of Flocker Control and "
+                                "Swarm Manager.",
+                    Value=GetAtt(ec2_instance, "PublicIp"),
+                )
+            ])
+        else:
+            # Agent Node configuration.
+            ec2_instance.DependsOn = control_service_instance.name
+            user_data += [
+                'flocker_node_type="agent"\n',
+                'flocker_agent_number="{}"\n'.format(
+                    flocker_agent_number
+                )
+            ]
+            flocker_agent_number += 1
+            user_data += _sibling_lines(DOCKER_SETUP)
+
+            # Setup Swarm 1.0.1
+            user_data += _sibling_lines(SWARM_NODE_SETUP)
+            template.add_output([
+                Output(
+                    "AgentNode{}IP".format(i),
+                    Description=(
+                        "Public IP of Agent Node for Flocker and Swarm."
+                    ),
+                    Value=GetAtt(ec2_instance, "PublicIp"),
+                )
+            ])
+
+        user_data += _sibling_lines(FLOCKER_CONFIGURATION_GETTER)
+        user_data += _sibling_lines(VOLUMEHUB_SETUP)
+        user_data += _sibling_lines(SIGNAL_CONFIG_COMPLETION)
+        ec2_instance.UserData = Base64(Join("", user_data))
+        template.add_resource(ec2_instance)
+
+    # Client Node creation.
+    client_instance = ec2.Instance(
+        CLIENT_NODE_NAME,
+        ImageId=FindInMap("RegionMapClient", Ref("AWS::Region"), "AMI"),
+        InstanceType="m3.medium",
         KeyName=Ref(keyname_param),
         SecurityGroups=[Ref(instance_sg)],
         AvailabilityZone=zone,
-        Tags=Tags(Name=node_name))
-
-    # WaitCondition and corresponding Handler to signal completion
-    # of {Flocker, Docker, Swarm} configuration on the node.
-    wait_condition_handle = WaitConditionHandle(
-        INFRA_WAIT_HANDLE_TEMPLATE.format(node=node_name))
+        Tags=Tags(Name=CLIENT_NODE_NAME))
+    wait_condition_handle = WaitConditionHandle(CLIENT_WAIT_HANDLE)
     template.add_resource(wait_condition_handle)
     wait_condition = WaitCondition(
-        INFRA_WAIT_CONDITION_TEMPLATE.format(node=node_name),
+        CLIENT_WAIT_CONDITION,
         Handle=Ref(wait_condition_handle),
         Timeout=NODE_CONFIGURATION_TIMEOUT,
     )
     template.add_resource(wait_condition)
 
-    # Gather WaitConditions
-    wait_condition_names.append(wait_condition.name)
-
+    # Client Node {Flockerctl, Docker-compose} configuration.
     user_data = base_user_data[:]
     user_data += [
-        'node_number="{}"\n'.format(i),
-        'node_name="{}"\n'.format(node_name),
         'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
+        'node_number="{}"\n'.format("-1"),
     ]
-
-    # Setup S3 utilities to push/pull node-specific data to/from S3 bucket.
     user_data += _sibling_lines(S3_SETUP)
-
-    if i == 0:
-        # Control Node configuration.
-        control_service_instance = ec2_instance
-        user_data += ['flocker_node_type="control"\n']
-        user_data += _sibling_lines(FLOCKER_CONFIGURATION_GENERATOR)
-        user_data += _sibling_lines(DOCKER_SWARM_CA_SETUP)
-        user_data += _sibling_lines(DOCKER_SETUP)
-
-        # Setup Swarm 1.0.1
-        user_data += _sibling_lines(SWARM_MANAGER_SETUP)
-        template.add_output([
-            Output(
-                "ControlNodeIP",
-                Description="Public IP of Flocker Control and "
-                            "Swarm Manager.",
-                Value=GetAtt(ec2_instance, "PublicIp"),
-            )
-        ])
-    else:
-        # Agent Node configuration.
-        ec2_instance.DependsOn = control_service_instance.name
-        user_data += [
-            'flocker_node_type="agent"\n',
-            'flocker_agent_number="{}"\n'.format(
-                flocker_agent_number
-            )
-        ]
-        flocker_agent_number += 1
-        user_data += _sibling_lines(DOCKER_SETUP)
-
-        # Setup Swarm 1.0.1
-        user_data += _sibling_lines(SWARM_NODE_SETUP)
-        template.add_output([
-            Output(
-                "AgentNode{}IP".format(i),
-                Description="Public IP of Agent Node for Flocker and Swarm.",
-                Value=GetAtt(ec2_instance, "PublicIp"),
-            )
-        ])
-
-    user_data += _sibling_lines(FLOCKER_CONFIGURATION_GETTER)
-    user_data += _sibling_lines(VOLUMEHUB_SETUP)
+    user_data += _sibling_lines(CLIENT_SETUP)
     user_data += _sibling_lines(SIGNAL_CONFIG_COMPLETION)
-    ec2_instance.UserData = Base64(Join("", user_data))
-    template.add_resource(ec2_instance)
+    client_instance.UserData = Base64(Join("", user_data))
 
-# Client Node creation.
-client_instance = ec2.Instance(
-    CLIENT_NODE_NAME,
-    ImageId=FindInMap("RegionMap", Ref("AWS::Region"), "ClientAMI"),
-    InstanceType="m3.medium",
-    KeyName=Ref(keyname_param),
-    SecurityGroups=[Ref(instance_sg)],
-    AvailabilityZone=zone,
-    Tags=Tags(Name=CLIENT_NODE_NAME))
-wait_condition_handle = WaitConditionHandle(CLIENT_WAIT_HANDLE)
-template.add_resource(wait_condition_handle)
-wait_condition = WaitCondition(
-    CLIENT_WAIT_CONDITION,
-    Handle=Ref(wait_condition_handle),
-    Timeout=NODE_CONFIGURATION_TIMEOUT,
-)
-template.add_resource(wait_condition)
+    # Start Client Node after Control Node and Agent Nodes are
+    # up and running Flocker, Docker, Swarm stack.
+    client_instance.DependsOn = wait_condition_names
+    template.add_resource(client_instance)
 
-# Client Node {Flockerctl, Docker-compose} configuration.
-user_data = base_user_data[:]
-user_data += [
-    'wait_condition_handle="', Ref(wait_condition_handle), '"\n',
-    'node_number="{}"\n'.format("-1"),
-]
-user_data += _sibling_lines(S3_SETUP)
-user_data += _sibling_lines(CLIENT_SETUP)
-user_data += _sibling_lines(SIGNAL_CONFIG_COMPLETION)
-client_instance.UserData = Base64(Join("", user_data))
-
-# Start Client Node after Control Node and Agent Nodes are
-# up and running Flocker, Docker, Swarm stack.
-client_instance.DependsOn = wait_condition_names
-template.add_resource(client_instance)
-
-# List of Output fields upon successful creation of the stack.
-template.add_output([
-    Output(
-        "ClientNodeIP",
-        Description="Public IP address of the client node.",
-        Value=GetAtt(client_instance, "PublicIp"),
-    )
-])
-template.add_output(Output(
-    "ClientConfigDockerSwarmHost",
-    Value=Join("",
-               ["export DOCKER_HOST=tcp://",
-                GetAtt(control_service_instance, "PublicIp"), ":2376"]),
-    Description="Client config: Swarm Manager's DOCKER_HOST setting."
-))
-template.add_output(Output(
-    "ClientConfigDockerTLS",
-    Value="export DOCKER_TLS_VERIFY=1",
-    Description="Client config: Enable TLS client for Swarm."
-))
-print(template.to_json())
+    # List of Output fields upon successful creation of the stack.
+    template.add_output([
+        Output(
+            "ClientNodeIP",
+            Description="Public IP address of the client node.",
+            Value=GetAtt(client_instance, "PublicIp"),
+        )
+    ])
+    template.add_output(Output(
+        "ClientConfigDockerSwarmHost",
+        Value=Join("",
+                   ["export DOCKER_HOST=tcp://",
+                    GetAtt(control_service_instance, "PublicIp"), ":2376"]),
+        Description="Client config: Swarm Manager's DOCKER_HOST setting."
+    ))
+    template.add_output(Output(
+        "ClientConfigDockerTLS",
+        Value="export DOCKER_TLS_VERIFY=1",
+        Description="Client config: Enable TLS client for Swarm."
+    ))
+    return template.to_json()
