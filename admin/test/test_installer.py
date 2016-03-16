@@ -87,7 +87,8 @@ def remote_docker_compose(client_ip, docker_host, compose_file_path, *args):
     """
     return remote_command(
         client_ip,
-        ('DOCKER_TLS_VERIFY=1', 'DOCKER_HOST={}'.format(docker_host),
+        ('COMPOSE_HTTP_TIMEOUT=360', 'DOCKER_TLS_VERIFY=1',
+         'DOCKER_HOST={}'.format(docker_host),
          'docker-compose', '--file', compose_file_path) + args,
     )
 
