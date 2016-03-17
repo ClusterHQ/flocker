@@ -46,7 +46,7 @@ from ..blockdevice import (
 
 from ..gce import (
     get_machine_zone, get_machine_project, GCEDiskTypes, GCEVolumeException,
-    IGCEAtomicOperations
+    IGCEVolumeManager
 )
 from ....provision._gce import GCEInstanceBuilder
 from ..test.test_blockdevice import (
@@ -216,7 +216,7 @@ class GCEProfiledBlockDeviceApiTests(
             else:
                 expected_disk_type = GCEDiskTypes.STANDARD
 
-            disk = self.api._atomic_operations.get_disk_details(
+            disk = self.api._volume_manager.get_disk_details(
                 new_volume.blockdevice_id)
             actual_disk_type = disk['type']
             actual_disk_type = actual_disk_type.split('/')[-1]
@@ -310,7 +310,7 @@ class GCEBlockDeviceAPITests(TestCase):
         api = api.set('_page_size', 1)
 
         gce_fixture = self.useFixture(GCEComputeTestObjects(
-            compute=api._atomic_operations._compute,
+            compute=api._volume_manager._compute,
             project=get_machine_project(),
             zone=get_machine_zone()
         ))
@@ -363,7 +363,7 @@ class GCEBlockDeviceAPITests(TestCase):
         """
         api = gceblockdeviceapi_for_test(self)
         gce_fixture = self.useFixture(GCEComputeTestObjects(
-            compute=api._atomic_operations._compute,
+            compute=api._volume_manager._compute,
             project=get_machine_project(),
             zone=get_machine_zone()
         ))
@@ -403,10 +403,10 @@ class GCEBlockDeviceAPITests(TestCase):
         :class:`VolumeException`.
         """
         actual_api = gceblockdeviceapi_for_test(self)
-        atomic_operations = actual_api._atomic_operations
+        volume_manager = actual_api._volume_manager
         api = actual_api.set(
-            '_atomic_operations',
-            repeat_call_proxy_for(IGCEAtomicOperations, atomic_operations)
+            '_volume_manager',
+            repeat_call_proxy_for(IGCEVolumeManager, volume_manager)
         )
 
         dataset_id = uuid4()

@@ -408,14 +408,14 @@ class GCEBlockDeviceAPI(PClass):
         - The path of the device (or at least the path to a symlink to a path
             of the volume) is a pure function of blockdevice_id.
 
-    :ivar _atomic_operations: A provider of :class:`IGCEAtomicOperations` to
+    :ivar _volume_manager: A provider of :class:`IGCEVolumeManager` to
         use to perform cluster operations.
     :ivar unicode _cluster_id: The cluster id of the cluster this driver
         operates under.
     :ivar int _page_size: The size of page to request for paged listing
         operations.  None signifies to use the default page size.
     """
-    _atomic_operations = field(mandatory=True)
+    _volume_manager = field(mandatory=True)
     _cluster_id = field(type=unicode, mandatory=True)
     _page_size = field(type=(int, type(None)), mandatory=True, initial=None)
 
@@ -451,7 +451,7 @@ class GCEBlockDeviceAPI(PClass):
             page_token = None
             done = False
             while not done:
-                response = self._atomic_operations.list_disks(
+                response = self._volume_manager.list_disks(
                     page_size=self._page_size,
                     page_token=page_token,
                 )
@@ -533,7 +533,7 @@ class GCEBlockDeviceAPI(PClass):
         profile_type = MandatoryProfiles.lookupByValue(profile_name).name
         gce_disk_type = GCEStorageProfiles.lookupByName(profile_type).value
         try:
-            self._atomic_operations.create_disk(
+            self._volume_manager.create_disk(
                 name=blockdevice_id,
                 size=size,
                 description=self._disk_resource_description(),
@@ -547,7 +547,7 @@ class GCEBlockDeviceAPI(PClass):
             else:
                 raise
 
-        disk = self._atomic_operations.get_disk_details(blockdevice_id)
+        disk = self._volume_manager.get_disk_details(blockdevice_id)
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
             size=int(GiB(int(disk['sizeGb'])).to_Byte()),
@@ -566,7 +566,7 @@ class GCEBlockDeviceAPI(PClass):
             attach_to=attach_to,
         ) as action:
             try:
-                result = self._atomic_operations.attach_disk(
+                result = self._volume_manager.attach_disk(
                     disk_name=blockdevice_id,
                     instance_name=attach_to
                 )
@@ -581,7 +581,7 @@ class GCEBlockDeviceAPI(PClass):
             for e in errors:
                 if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
                     raise AlreadyAttachedVolume(blockdevice_id)
-            disk = self._atomic_operations.get_disk_details(blockdevice_id)
+            disk = self._volume_manager.get_disk_details(blockdevice_id)
             result = BlockDeviceVolume(
                 blockdevice_id=blockdevice_id,
                 size=int(GiB(int(disk['sizeGb'])).to_Byte()),
@@ -617,7 +617,7 @@ class GCEBlockDeviceAPI(PClass):
             blockdevice_id=blockdevice_id
         ) as action:
             try:
-                disk = self._atomic_operations.get_disk_details(blockdevice_id)
+                disk = self._volume_manager.get_disk_details(blockdevice_id)
             except HttpError as e:
                 if e.resp.status == 404:
                     raise UnknownVolume(blockdevice_id)
@@ -635,7 +635,7 @@ class GCEBlockDeviceAPI(PClass):
             blockdevice_id=blockdevice_id,
         ):
             attached_to = self._get_attached_to(blockdevice_id)
-            result = self._atomic_operations.detach_disk(
+            result = self._volume_manager.detach_disk(
                 instance_name=attached_to,
                 disk_name=blockdevice_id
             )
@@ -685,7 +685,7 @@ class GCEBlockDeviceAPI(PClass):
 
     def destroy_volume(self, blockdevice_id):
         try:
-            self._atomic_operations.destroy_disk(blockdevice_id)
+            self._volume_manager.destroy_disk(blockdevice_id)
         except HttpError as e:
             if e.resp.status == 404:
                 raise UnknownVolume(blockdevice_id)
@@ -704,7 +704,7 @@ class GCEBlockDeviceAPI(PClass):
         done = False
         nodes = []
         while not done:
-            result = self._atomic_operations.list_nodes(page_token,
+            result = self._volume_manager.list_nodes(page_token,
                                                         self._page_size)
             page_token = result.get('nextPageToken')
             nodes.extend(result['items'])
@@ -713,7 +713,7 @@ class GCEBlockDeviceAPI(PClass):
                    if node["status"] == "RUNNING")
 
     def start_node(self, node_id):
-        self._atomic_operations.start_node(node_id)
+        self._volume_manager.start_node(node_id)
 
     def _stop_node(self, node_id):
         """
@@ -724,10 +724,10 @@ class GCEBlockDeviceAPI(PClass):
 
         :param unicode node_id: The compute_instance_id of the node to stop.
         """
-        self._atomic_operations.stop_node(node_id)
+        self._volume_manager.stop_node(node_id)
 
 
-class IGCEAtomicOperations(Interface):
+class IGCEVolumeManager(Interface):
     """
     Interface describing the atomic operations that GCE supports.
     """
@@ -833,8 +833,8 @@ class IGCEAtomicOperations(Interface):
         """
 
 
-@implementer(IGCEAtomicOperations)
-class GCEAtomicOperations(PClass):
+@implementer(IGCEVolumeManager)
+class GCEVolumeManager(PClass):
     """
     Class that encompasses all operations that can be done atomically on GCE.
 
@@ -1002,7 +1002,7 @@ def gce_from_configuration(cluster_id, project=None, zone=None,
     )
 
     return GCEBlockDeviceAPI(
-        _atomic_operations=GCEAtomicOperations(
+        _volume_manager=GCEVolumeManager(
             _compute=compute,
             _project=unicode(project),
             _zone=unicode(zone)
