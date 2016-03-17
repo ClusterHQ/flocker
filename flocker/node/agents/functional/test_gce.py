@@ -144,7 +144,7 @@ class GCEBlockDeviceAPIInterfaceTests(
 class _RepeatProxy(object):
     """
     Implementation of a proxy for an interface that calls each method of the
-    underlying interface twice in a row, and returns the value from the first
+    underlying interface twice in a row, and returns the value from the second
     call.
     """
 
