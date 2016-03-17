@@ -412,10 +412,13 @@ class GCEBlockDeviceAPITests(TestCase):
         dataset_id = uuid4()
 
         # There is no :class:`VolumeException` for creating an already created
-        # volume. Thus, GCE just returns success in that case.
-        api.create_volume(
-            dataset_id=dataset_id,
-            size=get_minimum_allocatable_size()
+        # volume. Thus, GCE just raises its own custom exception in that case.
+        self.assertThat(
+            lambda: api.create_volume(
+                dataset_id=dataset_id,
+                size=get_minimum_allocatable_size()
+            ),
+            Raises(MatchesException(GCEVolumeException))
         )
 
         volumes = api.list_volumes()
@@ -436,12 +439,14 @@ class GCEBlockDeviceAPITests(TestCase):
             Raises(MatchesException(AlreadyAttachedVolume))
         )
 
-        # Paths of blockdevices on GCE should have their dataset_id in them.
         self.assertThat(
             api.get_device_path(volume.blockdevice_id).path,
-            Contains(unicode(dataset_id))
+            Contains('/dev/sd')
         )
 
+        api.detach_volume(
+            blockdevice_id=volume.blockdevice_id,
+        )
         self.assertThat(
             lambda: api.detach_volume(
                 blockdevice_id=volume.blockdevice_id,

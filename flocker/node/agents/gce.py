@@ -648,14 +648,14 @@ class GCEBlockDeviceAPI(PClass):
             # detached.
             if 'error' in result:
                 potentially_detaching_error = None
-                for error in result['error']:
-                    if error == 'INVALID_FIELD_VALUE':
+                for error in result['error']['errors']:
+                    if error.get('code') == 'INVALID_FIELD_VALUE':
                         potentially_detaching_error = error
 
                 if potentially_detaching_error is not None:
                     try:
                         poll_until(
-                            lambda: self._extract_attached_to(blockdevice_id),
+                            lambda: self._get_attached_to(blockdevice_id),
                             [1] * VOLUME_DETATCH_TIMEOUT
                         )
                         raise GCEVolumeException(
