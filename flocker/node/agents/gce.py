@@ -329,28 +329,6 @@ def _extract_attached_to(disk):
     return unicode(users[0].split('/')[-1])
 
 
-#def create_gce_block_device_api(cluster_id, project, zone):
-#    """
-#    Factory for :class:`GCEBlockDeviceAPI` instances.
-#
-#    :param cluster_id: The cluster id for this cluster.
-#    :param project: The project to use for this
-#        :class:`BlockDeviceAPI`.
-#    :param zone: The zone to create and modify blockdevices within.
-#    """
-#    credentials = AppAssertionCredentials(
-#        "https://www.googleapis.com/auth/cloud-platform")
-#    compute = discovery.build('compute', 'v1', credentials=credentials)
-#    return GCEBlockDeviceAPI(
-#        _atomic_operations=GCEAtomicOperations(
-#            _compute=compute,
-#            _project=unicode(project),
-#            _zone=unicode(zone)
-#        ),
-#        _cluster_id=unicode(cluster_id),
-#    )
-
-
 def gce_credentials_from_config(gce_credentials_config=None):
     """
     This function creates a proper GCE credentials object either from a passed
@@ -434,32 +412,12 @@ class GCEBlockDeviceAPI(PClass):
         use to perform cluster operations.
     :ivar unicode _cluster_id: The cluster id of the cluster this driver
         operates under.
+    :ivar int _page_size: The size of page to request for paged listing
+        operations.  None signifies to use the default page size.
     """
     _atomic_operations = field(mandatory=True)
     _cluster_id = field(type=unicode, mandatory=True)
-
-#    def __init__(self, cluster_id, project, zone, gce_credentials_config=None):
-#        """
-#        Initialize the GCEBlockDeviceAPI.
-#
-#        :param unicode project: The project where all GCE operations will take
-#            place.
-#        :param unicode zone: The zone where all GCE operations will take place.
-#        :param dict gce_credentials: Optional GCE credentials for a
-#            service account that has permissions to carry out GCE
-#            volume actions (create, delete, detatch, etc.). If this is
-#            omitted the user must enable the default service account
-#            on all cluster nodes.
-#        """
-#        credentials = gce_credentials_from_config(gce_credentials_config)
-#        self._compute = discovery.build(
-#            'compute', 'v1', credentials=credentials
-#        )
-#        self._project = project
-#        self._zone = zone
-#        self._cluster_id = cluster_id
-#        # None signifies to use the default page size.
-#        self._page_size = None
+    _page_size = field(type=(int, type(None)), mandatory=True, initial=None)
 
     def _disk_resource_description(self):
         """
@@ -496,7 +454,7 @@ class GCEBlockDeviceAPI(PClass):
                 response = self._atomic_operations.list_disks(
                     page_size=self._page_size,
                     page_token=page_token,
-                ).execute()
+                )
 
                 disks.extend(
                     response.get('items', [])
@@ -546,7 +504,6 @@ class GCEBlockDeviceAPI(PClass):
             Message.log(
                 message_type=u'flocker:node:agents:gce:list_volumes:ignored',
                 ignored_volumes=ignored_volumes
->>>>>>> gce-staging-branch-FLOC-4275
             )
             action.add_success_fields(
                 cluster_volumes=list(
@@ -582,11 +539,6 @@ class GCEBlockDeviceAPI(PClass):
                 description=self._disk_resource_description(),
                 gce_disk_type=gce_disk_type
             )
-            self._do_blocking_operation(
-                self._compute.disks().insert,
-                body=config,
-                timeout_sec=VOLUME_INSERT_TIMEOUT,
-            )
         except HttpError as e:
             if e.resp.status == 409:
                 msg = ("A dataset named {} already exists in this GCE "
@@ -595,6 +547,7 @@ class GCEBlockDeviceAPI(PClass):
             else:
                 raise
 
+        disk = self._atomic_operations.get_disk_details(blockdevice_id)
         return BlockDeviceVolume(
             blockdevice_id=blockdevice_id,
             size=int(GiB(int(disk['sizeGb'])).to_Byte()),
@@ -682,7 +635,7 @@ class GCEBlockDeviceAPI(PClass):
             blockdevice_id=blockdevice_id,
         ):
             attached_to = self._get_attached_to(blockdevice_id)
-            resulting_operation = self._atomic_operations.detach_disk(
+            result = self._atomic_operations.detach_disk(
                 instance_name=attached_to,
                 disk_name=blockdevice_id
             )
@@ -953,7 +906,7 @@ class GCEAtomicOperations(PClass):
         # TODO(mewert): Verify timeout and error conditions.
         return self._do_blocking_operation(
             self._compute.disks().insert,
-            body=config
+            body=config,
             timeout_sec=VOLUME_INSERT_TIMEOUT,
         )
 
@@ -970,7 +923,7 @@ class GCEAtomicOperations(PClass):
         return self._do_blocking_operation(
             self._compute.instances().attachDisk,
             instance=instance_name,
-            body=config
+            body=config,
             timeout_sec=VOLUME_ATTACH_TIMEOUT,
         )
 
@@ -1042,4 +995,17 @@ def gce_from_configuration(cluster_id, project=None, zone=None,
         project = get_machine_project()
     if zone is None:
         zone = get_machine_zone()
-    return GCEBlockDeviceAPI(cluster_id, project, zone, credentials)
+
+    gce_credentials = gce_credentials_from_config(credentials)
+    compute = discovery.build(
+        'compute', 'v1', credentials=gce_credentials
+    )
+
+    return GCEBlockDeviceAPI(
+        _atomic_operations=GCEAtomicOperations(
+            _compute=compute,
+            _project=unicode(project),
+            _zone=unicode(zone)
+        ),
+        _cluster_id=unicode(cluster_id),
+    )

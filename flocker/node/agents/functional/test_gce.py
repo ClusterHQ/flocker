@@ -45,7 +45,8 @@ from ..blockdevice import (
 )
 
 from ..gce import (
-    get_machine_zone, get_machine_project, GCEDiskTypes, GCEVolumeException
+    get_machine_zone, get_machine_project, GCEDiskTypes, GCEVolumeException,
+    IGCEAtomicOperations
 )
 from ....provision._gce import GCEInstanceBuilder
 from ..test.test_blockdevice import (
@@ -189,6 +190,7 @@ def repeat_call_proxy_for(interface, provider):
         originalAttribute='_original'
     )(_RepeatProxy(_provider=provider))
 
+
 class GCEProfiledBlockDeviceApiTests(
         make_iprofiledblockdeviceapi_tests(
             profiled_blockdevice_api_factory=gceblockdeviceapi_for_test,
@@ -214,7 +216,8 @@ class GCEProfiledBlockDeviceApiTests(
             else:
                 expected_disk_type = GCEDiskTypes.STANDARD
 
-            disk = self.api._get_gce_volume(new_volume.blockdevice_id)
+            disk = self.api._atomic_operations.get_disk_details(
+                new_volume.blockdevice_id)
             actual_disk_type = disk['type']
             actual_disk_type = actual_disk_type.split('/')[-1]
             self.assertThat(
@@ -232,7 +235,6 @@ class GCECloudAPIInterfaceTests(
     :class:`ICloudAPI` Interface adherence Tests for
     :class:`GCEBlockDeviceAPI`.
     """
->>>>>>> gce-staging-branch-FLOC-4275
 
 
 class GCEBlockDeviceAPITests(TestCase):
@@ -305,10 +307,10 @@ class GCEBlockDeviceAPITests(TestCase):
 
         # Set page size to 1 to force pagination after we spin up a second
         # node.
-        api._page_size = 1
+        api = api.set('_page_size', 1)
 
         gce_fixture = self.useFixture(GCEComputeTestObjects(
-            compute=api._compute,
+            compute=api._atomic_operations._compute,
             project=get_machine_project(),
             zone=get_machine_zone()
         ))
@@ -465,7 +467,7 @@ class GCEBlockDeviceAPITests(TestCase):
         volumes.
         """
         api = gceblockdeviceapi_for_test(self)
-        self.patch(api, '_page_size', 1)
+        api = api.set('_page_size', 1)
 
         volume_1 = api.create_volume(
             dataset_id=uuid4(),

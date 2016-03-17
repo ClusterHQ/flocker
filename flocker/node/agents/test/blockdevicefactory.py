@@ -28,7 +28,7 @@ from twisted.python.constants import Names, NamedConstant
 
 from ..cinder import cinder_from_configuration
 from ..ebs import EBSBlockDeviceAPI, ec2_client
-from ..gce import create_gce_block_device_api, get_metadata_path
+from ..gce import gce_from_configuration
 from ..test.test_blockdevice import detach_destroy_volumes
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
 from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
@@ -224,15 +224,7 @@ def _gce(cluster_id, config):
     :param config: Unused.
     :return: A GCEBlockDeviceAPI instance.
     """
-    project = get_metadata_path("project/project-id")
-    full_zone = get_metadata_path("instance/zone")
-    zone = full_zone.split("/")[-1]
-    return create_gce_block_device_api(
-        cluster_id=cluster_id,
-        project=project,
-        zone=zone,
-        gce_credentials_config=None
-    )
+    return gce_from_configuration(cluster_id=cluster_id)
 
 
 # Map provider labels to IBlockDeviceAPI factory.
