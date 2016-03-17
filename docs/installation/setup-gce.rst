@@ -18,7 +18,8 @@ You'll need to setup at least two nodes.
    * Choose a name and a zone for your instance. Zone must be the same for all instances.
    * Choose a machine type.
    * For the Boot Disk, choose a supported Linux distribution (either CentOS 7 or Ubuntu 14.04) as your image.
-   * Check ``Allow API access to all Google Cloud services in the same project``.
+   * Under ``Identity and API Access`` select ``Set access for each API`` and grant Read Write access to ``Compute``.
+   * Click ``Create`` to create the new instance.
 
 #. Gain SSH Access:
 
