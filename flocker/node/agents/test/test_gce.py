@@ -17,9 +17,9 @@ from zope.interface.verify import verifyClass
 from ....testtools import TestCase
 
 from ..gce import (
-    GCEAtomicOperations,
+    GCEVolumeManager,
     GlobalOperationPoller,
-    IGCEAtomicOperations,
+    IGCEVolumeManager,
     MalformedOperation,
     OperationPoller,
     ZoneOperationPoller,
@@ -277,13 +277,13 @@ class CreatePollerTests(TestCase):
         )
 
 
-class GCEAtomicOperationsTests(TestCase):
+class GCEVolumeManagerTests(TestCase):
     """
-    Tests for :class:`GCEAtomicOperations`
+    Tests for :class:`GCEVolumeManager`
     """
 
     def test_interface(self):
         """
-        :class:`GCEAtomicOperations` implements :class:`IGCEAtomicOperations`.
+        :class:`GCEVolumeManager` implements :class:`IGCEVolumeManager`.
         """
-        verifyClass(IGCEAtomicOperations, GCEAtomicOperations)
+        verifyClass(IGCEVolumeManager, GCEVolumeManager)
