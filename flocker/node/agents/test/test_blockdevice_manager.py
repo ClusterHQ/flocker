@@ -25,10 +25,9 @@ from ..blockdevice_manager import (
     RemountError,
     UnmountError,
 )
-
-from .test_blockdevice import (
+from ..loopback import LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+from ..testtools import (
     loopbackblockdeviceapi_for_test,
-    LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
     mountroot_for_test,
 )
 
