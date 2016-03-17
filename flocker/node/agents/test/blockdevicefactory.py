@@ -29,7 +29,7 @@ from twisted.python.constants import Names, NamedConstant
 from ..cinder import cinder_from_configuration
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..gce import gce_from_configuration
-from ..test.test_blockdevice import detach_destroy_volumes
+from ..testtools import detach_destroy_volumes
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
 from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 

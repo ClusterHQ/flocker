@@ -30,7 +30,7 @@ Testing Your Driver
    .. code-block:: python
 
       from uuid import uuid4
-      from flocker.node.agents.test.test_blockdevice import make_iblockdeviceapi_tests
+      from flocker.node.agents.testtools import make_iblockdeviceapi_tests
 
       def api_factory(test):
           # Return an instance of your IBlockDeviceAPI implementation class, given
