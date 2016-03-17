@@ -166,7 +166,7 @@ def format_status(status):
     """
     github, jenkins = status
     return u"{}: {} ({})".format(
-        github['context'], jenkins and jenkins.value, github['target_url'])
+        github['context'], jenkins.value, github['target_url'])
 
 
 def infinite_sleeps(sleep_for):
@@ -319,10 +319,9 @@ def get_jenkins_info(jenkins_session, status):
     """
     if status['context'].startswith('jenkins-'):
         jenkins_url = status['target_url']
-        if jenkins_url:
-            project = jenkins_session.get(
-                jenkins_url + JENKINS_BUILD_INFO_PATH).json()
-            return jenkins_info_from_response(project)
+        project = jenkins_session.get(
+            jenkins_url + JENKINS_BUILD_INFO_PATH).json()
+        return jenkins_info_from_response(project)
     return None, None
 
 
