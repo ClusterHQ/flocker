@@ -906,7 +906,6 @@ class GCEOperations(PClass):
             type="projects/{project}/zones/{zone}/diskTypes/{type}".format(
                 project=self._project, zone=self._zone, type=gce_disk_type)
         )
-        # TODO(mewert): Verify timeout and error conditions.
         return self._do_blocking_operation(
             self._compute.disks().insert,
             body=config,
