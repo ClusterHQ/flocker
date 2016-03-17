@@ -4,11 +4,11 @@
 Test helpers for ``flocker.node.agents``.
 """
 
-from _cinder import (
+from ._cinder import (
     make_icindervolumemanager_tests,
     make_inovavolumemanager_tests,
 )
-from _blockdevice import (
+from ._blockdevice import (
     FakeCloudAPI,
     detach_destroy_volumes,
     make_iblockdeviceapi_tests,
@@ -18,7 +18,7 @@ from _blockdevice import (
     umount,
     umount_all,
 )
-from _loopback import (
+from ._loopback import (
     fakeprofiledloopbackblockdeviceapi_for_test,
     loopbackblockdeviceapi_for_test,
 )
