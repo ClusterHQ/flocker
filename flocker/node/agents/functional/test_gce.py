@@ -46,7 +46,7 @@ from ..blockdevice import (
 
 from ..gce import (
     get_machine_zone, get_machine_project, GCEDiskTypes, GCEVolumeException,
-    IGCEVolumeManager
+    IGCEOperations
 )
 from ....provision._gce import GCEInstanceBuilder
 from ..test.test_blockdevice import (
@@ -216,7 +216,7 @@ class GCEProfiledBlockDeviceApiTests(
             else:
                 expected_disk_type = GCEDiskTypes.STANDARD
 
-            disk = self.api._volume_manager.get_disk_details(
+            disk = self.api._operations.get_disk_details(
                 new_volume.blockdevice_id)
             actual_disk_type = disk['type']
             actual_disk_type = actual_disk_type.split('/')[-1]
@@ -310,7 +310,7 @@ class GCEBlockDeviceAPITests(TestCase):
         api = api.set('_page_size', 1)
 
         gce_fixture = self.useFixture(GCEComputeTestObjects(
-            compute=api._volume_manager._compute,
+            compute=api._operations._compute,
             project=get_machine_project(),
             zone=get_machine_zone()
         ))
@@ -363,7 +363,7 @@ class GCEBlockDeviceAPITests(TestCase):
         """
         api = gceblockdeviceapi_for_test(self)
         gce_fixture = self.useFixture(GCEComputeTestObjects(
-            compute=api._volume_manager._compute,
+            compute=api._operations._compute,
             project=get_machine_project(),
             zone=get_machine_zone()
         ))
@@ -390,7 +390,7 @@ class GCEBlockDeviceAPITests(TestCase):
 
     def test_duplicated_calls(self):
         """
-        Verify that if every call to the :class:`GCEAtomicOperation` s is
+        Verify that if every call to the :class:`GCEOperations` is
         duplicated that we handle the errors correctly.
 
         This should force some specific scheduling situations that resemble
@@ -403,10 +403,10 @@ class GCEBlockDeviceAPITests(TestCase):
         :class:`VolumeException`.
         """
         actual_api = gceblockdeviceapi_for_test(self)
-        volume_manager = actual_api._volume_manager
+        operations = actual_api._operations
         api = actual_api.set(
-            '_volume_manager',
-            repeat_call_proxy_for(IGCEVolumeManager, volume_manager)
+            '_operations',
+            repeat_call_proxy_for(IGCEOperations, operations)
         )
 
         dataset_id = uuid4()
@@ -444,14 +444,16 @@ class GCEBlockDeviceAPITests(TestCase):
             Contains('/dev/sd')
         )
 
+        # Detach volume does not error out because we have cleanup code in our
+        # acceptance tests that assumes that calls to detach_volume while the
+        # volume is already being detached do not error out, and instead block
+        # until the volume is detached.
+        #
+        # With the repeat call proxy, this manifests as neither call reporting
+        # the unattached volume, but both calls merely block until the
+        # blockdevice is detached.
         api.detach_volume(
             blockdevice_id=volume.blockdevice_id,
-        )
-        self.assertThat(
-            lambda: api.detach_volume(
-                blockdevice_id=volume.blockdevice_id,
-            ),
-            Raises(MatchesException(UnattachedVolume))
         )
 
         self.assertThat(
