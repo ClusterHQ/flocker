@@ -34,11 +34,11 @@ from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
     CREATE_VOLUME_FAILURE, AWS_ACTION, VOLUME_BUSY_MESSAGE,
 )
-from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
+from ..testtools import (
+    make_iblockdeviceapi_tests,
     make_icloudapi_tests,
+    make_iprofiledblockdeviceapi_tests,
 )
-
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,

@@ -7,6 +7,8 @@ A loopback implementation of the ``IBlockDeviceAPI`` for testing.
 from uuid import UUID, uuid4
 from subprocess import check_output
 
+from bitmath import MiB
+
 from zope.interface import implementer
 
 from twisted.python.filepath import FilePath
@@ -21,6 +23,10 @@ from .blockdevice import (
     allocated_size,
     get_blockdevice_volume,
 )
+
+LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
+# Enough space for the ext4 journal:
+LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 
 
 def _blockdevicevolume_from_dataset_id(dataset_id, size,
