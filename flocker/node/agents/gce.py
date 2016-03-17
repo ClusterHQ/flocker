@@ -779,7 +779,7 @@ class IGCEAtomicOperations(Interface):
             operation.
         """
 
-    def list_disks(self, page_token=None, page_size=None):
+    def list_disks(page_token=None, page_size=None):
         """
         List GCE disks.
 
