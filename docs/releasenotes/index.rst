@@ -17,6 +17,7 @@ Next Release
   Now, even if multiple volumes are created, only a single volume will be used.
   This was particularly likely to occur on AWS.
 * Dataset backend support for :ref:`Google Compute Engine <gce-dataset-backend>`.
+* Fixed brew tap for flocker client tools on OSX, which had regressed on Yosemite.
 
 This Release
 ============
