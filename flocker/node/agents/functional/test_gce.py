@@ -34,13 +34,11 @@ from ..gce import (
     get_machine_zone, get_machine_project, GCEDiskTypes, GCEVolumeException
 )
 from ....provision._gce import GCEInstanceBuilder
-from ..test.test_blockdevice import (
-    make_iprofiledblockdeviceapi_tests,
-)
 from ..testtools import (
     detach_destroy_volumes,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
+    make_iprofiledblockdeviceapi_tests,
 )
 from ..test.blockdevicefactory import (
     ProviderType, get_blockdeviceapi_with_cleanup,

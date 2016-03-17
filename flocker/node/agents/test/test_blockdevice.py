@@ -37,7 +37,6 @@ from testtools.deferredruntest import SynchronousDeferredRunTest
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
-from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 
@@ -54,8 +53,8 @@ from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployerLocalState, BlockDeviceDeployer,
     BlockDeviceCalculator,
-
-    IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
+    IBlockDeviceAPI,
+    IProfiledBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     UnmountBlockDevice, DetachVolume, AttachVolume,
@@ -123,8 +122,10 @@ from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 from ..testtools import (
     FakeCloudAPI,
     detach_destroy_volumes,
+    fakeprofiledloopbackblockdeviceapi_for_test,
     loopbackblockdeviceapi_for_test,
     make_iblockdeviceapi_tests,
+    make_iprofiledblockdeviceapi_tests,
     make_icloudapi_tests,
     mountroot_for_test,
     umount,
@@ -3424,54 +3425,6 @@ class BlockDeviceDeployerCalculateChangesTests(
         )
 
 
-class IProfiledBlockDeviceAPITestsMixin(object):
-    """
-    Tests to perform on ``IProfiledBlockDeviceAPI`` providers.
-    """
-    def test_interface(self):
-        """
-        The API object provides ``IProfiledBlockDeviceAPI``.
-        """
-        self.assertTrue(
-            verifyObject(IProfiledBlockDeviceAPI, self.api)
-        )
-
-    def test_profile_respected(self):
-        """
-        Verify no errors are raised when constructing volumes with the
-        mandatory profiles.
-        """
-        for profile in (c.value for c in MandatoryProfiles.iterconstants()):
-            dataset_id = uuid4()
-            self.addCleanup(detach_destroy_volumes, self.api)
-            self.api.create_volume_with_profile(dataset_id=dataset_id,
-                                                size=self.dataset_size,
-                                                profile_name=profile)
-
-
-def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
-                                       dataset_size):
-    """
-    Create tests for classes that implement ``IProfiledBlockDeviceAPI``.
-
-    :param profiled_blockdevice_api_factory: A factory that generates the
-        ``IProfiledBlockDeviceAPI`` provider to test.
-
-    :param dataset_size: The size in bytes of the datasets to be created for
-        test.
-
-    :returns: A ``TestCase`` with tests that will be performed on the
-       supplied ``IProfiledBlockDeviceAPI`` provider.
-    """
-    class Tests(IProfiledBlockDeviceAPITestsMixin, TestCase):
-        def setUp(self):
-            super(Tests, self).setUp()
-            self.api = profiled_blockdevice_api_factory(self)
-            self.dataset_size = dataset_size
-
-    return Tests
-
-
 class IBlockDeviceAsyncAPITestsMixin(object):
     """
     Tests to perform on ``IBlockDeviceAsyncAPI`` providers.
@@ -3825,47 +3778,6 @@ class LosetupListTests(TestCase):
             [(FilePath('/dev/loop0'), FilePath('/tmp/rjw'))],
             _losetup_list_parse(input_text)
         )
-
-
-@implementer(IProfiledBlockDeviceAPI)
-class FakeProfiledLoopbackBlockDeviceAPI(
-        proxyForInterface(IBlockDeviceAPI, "_loopback_blockdevice_api")):
-    """
-    Fake implementation of ``IProfiledBlockDeviceAPI`` and ``IBlockDeviceAPI``
-    on top of ``LoopbackBlockDeviceAPI``. Profiles are not actually
-    implemented for loopback devices, but this fake is useful for testing the
-    intermediate layers.
-
-    :ivar _loopback_blockdevice_api: The underlying ``LoopbackBlockDeviceAPI``.
-    :ivar pmap dataset_profiles: A pmap from blockdevice_id to desired profile
-        at creation time.
-    """
-    def __init__(self, loopback_blockdevice_api):
-        self._loopback_blockdevice_api = loopback_blockdevice_api
-        self.dataset_profiles = pmap({})
-
-    def create_volume_with_profile(self, dataset_id, size, profile_name):
-        """
-        Calls the underlying ``create_volume`` on
-        ``_loopback_blockdevice_api``, but records the desired profile_name for
-        the purpose of test validation.
-        """
-        volume = self._loopback_blockdevice_api.create_volume(
-            dataset_id=dataset_id, size=size)
-        self.dataset_profiles = self.dataset_profiles.set(
-            volume.blockdevice_id, profile_name)
-        return volume
-
-
-def fakeprofiledloopbackblockdeviceapi_for_test(test_case,
-                                                allocation_unit=None):
-    """
-    Constructs a ``FakeProfiledLoopbackBlockDeviceAPI`` for use in tests that
-    want to verify functionality with an ``IProfiledBlockDeviceAPI`` provider.
-    """
-    return FakeProfiledLoopbackBlockDeviceAPI(
-        loopback_blockdevice_api=loopbackblockdeviceapi_for_test(
-            test_case, allocation_unit=allocation_unit))
 
 
 class FakeProfiledLoopbackBlockDeviceIProfiledBlockDeviceTests(

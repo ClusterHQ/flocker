@@ -18,11 +18,13 @@ from _blockdevice import (
     umount_all,
 )
 from _loopback import (
+    fakeprofiledloopbackblockdeviceapi_for_test,
     loopbackblockdeviceapi_for_test,
 )
 __all__ = [
     'FakeCloudAPI',
     'detach_destroy_volumes',
+    'fakeprofiledloopbackblockdeviceapi_for_test',
     'loopbackblockdeviceapi_for_test',
     'make_iblockdeviceapi_tests',
     'make_icindervolumemanager_tests',

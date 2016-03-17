@@ -32,6 +32,8 @@ from ..blockdevice import (
     BlockDeviceVolume,
     IBlockDeviceAPI,
     ICloudAPI,
+    IProfiledBlockDeviceAPI,
+    MandatoryProfiles,
     UnattachedVolume,
     UnknownVolume,
     _SyncToThreadedAsyncCloudAPIAdapter,
@@ -819,3 +821,51 @@ class FakeCloudAPI(proxyForInterface(IBlockDeviceAPI)):
 
     def start_node(self, node_id):
         return
+
+
+class IProfiledBlockDeviceAPITestsMixin(object):
+    """
+    Tests to perform on ``IProfiledBlockDeviceAPI`` providers.
+    """
+    def test_interface(self):
+        """
+        The API object provides ``IProfiledBlockDeviceAPI``.
+        """
+        self.assertTrue(
+            verifyObject(IProfiledBlockDeviceAPI, self.api)
+        )
+
+    def test_profile_respected(self):
+        """
+        Verify no errors are raised when constructing volumes with the
+        mandatory profiles.
+        """
+        for profile in (c.value for c in MandatoryProfiles.iterconstants()):
+            dataset_id = uuid4()
+            self.addCleanup(detach_destroy_volumes, self.api)
+            self.api.create_volume_with_profile(dataset_id=dataset_id,
+                                                size=self.dataset_size,
+                                                profile_name=profile)
+
+
+def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
+                                       dataset_size):
+    """
+    Create tests for classes that implement ``IProfiledBlockDeviceAPI``.
+
+    :param profiled_blockdevice_api_factory: A factory that generates the
+        ``IProfiledBlockDeviceAPI`` provider to test.
+
+    :param dataset_size: The size in bytes of the datasets to be created for
+        test.
+
+    :returns: A ``TestCase`` with tests that will be performed on the
+       supplied ``IProfiledBlockDeviceAPI`` provider.
+    """
+    class Tests(IProfiledBlockDeviceAPITestsMixin, TestCase):
+        def setUp(self):
+            super(Tests, self).setUp()
+            self.api = profiled_blockdevice_api_factory(self)
+            self.dataset_size = dataset_size
+
+    return Tests
