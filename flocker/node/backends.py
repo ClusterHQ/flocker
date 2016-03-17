@@ -21,6 +21,7 @@ from .agents.loopback import (
 )
 from .agents.cinder import cinder_from_configuration
 from .agents.ebs import aws_from_configuration
+from .agents.gce import gce_from_configuration
 
 
 def _zfs_storagepool(
@@ -138,6 +139,12 @@ _DEFAULT_BACKENDS = [
             u"region", u"zone", u"access_key_id", u"secret_access_key",
         },
     ),
+    BackendDescription(
+        name=u"gce", needs_reactor=False, needs_cluster_id=True,
+        api_factory=gce_from_configuration,
+        deployer_type=DeployerType.block,
+        required_config=set([]),
+    ),
 ]
 
 backend_loader = PluginLoader(
@@ -151,3 +158,4 @@ AWS = backend_loader.get('aws')
 OPENSTACK = backend_loader.get('openstack')
 LOOPBACK = backend_loader.get('loopback')
 ZFS = backend_loader.get('zfs')
+GCE = backend_loader.get('gce')

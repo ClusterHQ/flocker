@@ -874,7 +874,7 @@ class Cluster(PClass):
                 lambda item: self.client.delete_dataset(item.dataset_id),
             )
             return timeout(
-                reactor, cleaning_datasets, 60,
+                reactor, cleaning_datasets, 180,
                 Exception("Timed out cleaning up datasets"),
             )
 
