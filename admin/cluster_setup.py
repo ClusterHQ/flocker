@@ -67,7 +67,8 @@ class LibcloudRunner(OldLibcloudRunner):
             ),
             certificates=certificates,
             dataset_backend_config_file=dataset_backend_config_file,
-            volume_hub_token=self.config.get('volume-hub').get('token')
+            volume_hub_token=self.config.get('volume-hub').get('token'),
+            volume_hub_url=self.config.get('volume-hub').get('url')
         )
         commands = configure_control_node(
             cluster,

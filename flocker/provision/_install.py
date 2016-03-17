@@ -826,35 +826,43 @@ def task_install_api_certificates(api_cert, api_key):
         ])
 
 
-def task_install_volume_hub_control(token):
+def task_install_volume_hub_control(token, volume_hub_url=None):
     """
     Install the Volume Hub agent on the control service node.
 
     :param str token: Token for a Volume Hub account which the cluster
         will be connected to.
+    :param str volume_hub_url: URL for a Volume Hub server.
     """
     cmd = (
+        "{hostname}"
         "TARGET=control-service TOKEN=\"{token}\" "
         "sh -c 'curl -ssL https://get-volumehub.clusterhq.com/ |sh'"
-    ).format(token=token)
+    ).format(
+        hostname="CATALOG_FIREHOSE_HOSTNAME=" + volume_hub_url if volume_hub_url else "",
+        token=token
+    )
 
     return sequence([
         run(cmd)
     ])
 
 
-def task_install_volume_hub_agent(token, index):
+def task_install_volume_hub_agent(token, index, volume_hub_url=None):
     """
     Install the Volume Hub agent on agent nodes.
 
     :param str token: Token for a Volume Hub account which the cluster
         will be connected to.
     :param int index: Index of the node.
+    :param str volume_hub_url: URL for a Volume Hub server.
     """
     cmd = (
+        "{hostname}"
         "TARGET=agent-node {run_agent} TOKEN=\"{token}\" "
         "sh -c 'curl -ssL https://get-volumehub.clusterhq.com/ |sh'"
     ).format(
+        hostname="CATALOG_FIREHOSE_HOSTNAME=" + volume_hub_url if volume_hub_url else "",
         run_agent="RUN_FLOCKER_AGENT_HERE=1" if index == 0 else "",
         token=token
     )
@@ -1755,7 +1763,8 @@ def configure_control_node(
             task_enable_flocker_control(cluster.control_node.distribution,
                                         setup_action),
             task_install_volume_hub_control(
-                cluster.volume_hub_token
+                cluster.volume_hub_token,
+                cluster.volume_hub_url
             ),
             if_firewall_available(
                 cluster.control_node.distribution,
@@ -1822,7 +1831,8 @@ def configure_node(
             ),
             task_install_volume_hub_agent(
                 cluster.volume_hub_token,
-                index
+                index,
+                cluster.volume_hub_url
             ),
         ]),
     )
