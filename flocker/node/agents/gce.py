@@ -705,7 +705,7 @@ class GCEBlockDeviceAPI(PClass):
         nodes = []
         while not done:
             result = self._operations.list_nodes(page_token,
-                                                        self._page_size)
+                                                 self._page_size)
             page_token = result.get('nextPageToken')
             nodes.extend(result['items'])
             done = not page_token

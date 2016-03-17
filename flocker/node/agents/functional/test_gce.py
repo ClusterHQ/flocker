@@ -41,7 +41,7 @@ from testtools.matchers import (
 from googleapiclient.errors import HttpError
 
 from ..blockdevice import (
-    AlreadyAttachedVolume, UnknownVolume, UnattachedVolume, MandatoryProfiles
+    AlreadyAttachedVolume, UnknownVolume, MandatoryProfiles
 )
 
 from ..gce import (
