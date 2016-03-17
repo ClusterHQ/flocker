@@ -124,6 +124,8 @@ from ..testtools import (
     detach_destroy_volumes,
     fakeprofiledloopbackblockdeviceapi_for_test,
     loopbackblockdeviceapi_for_test,
+    # NB: Think carefully before moving this.
+    # Backend driver docs used to instruct developers to import this from here.
     make_iblockdeviceapi_tests,
     make_iprofiledblockdeviceapi_tests,
     make_icloudapi_tests,
