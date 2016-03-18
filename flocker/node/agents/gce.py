@@ -899,7 +899,7 @@ class GCEOperations(PClass):
 
         # A custom sleep function that drops the lock while the actual sleeping
         # is going on.
-        def custom_sleep(*args, **kwargs):
+        def lock_dropped_sleep(*args, **kwargs):
             self._lock.release()
             try:
                 return sleep(*args, **kwargs)
@@ -912,7 +912,7 @@ class GCEOperations(PClass):
         try:
             operation = function(**args).execute()
             return wait_for_operation(
-                self._compute, operation, [1]*timeout_sec, sleep)
+                self._compute, operation, [1]*timeout_sec, lock_dropped_sleep)
         finally:
             self._lock.release()
 
