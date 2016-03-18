@@ -11,7 +11,9 @@ driver:
 - Python API: https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/ # noqa
 - Python Oauth: https://developers.google.com/identity/protocols/OAuth2ServiceAccount#authorizingrequests # noqa
 """
+import time
 from uuid import UUID
+from threading import Lock
 
 import requests
 from bitmath import GiB, Byte
@@ -654,8 +656,13 @@ class GCEBlockDeviceAPI(PClass):
 
                 if potentially_detaching_error is not None:
                     try:
+                        # We want to poll until _get_attached_to no longer
+                        # returns a compute_instance_id, and instead raises an
+                        # UnattachedVolume exception.
                         poll_until(
-                            lambda: self._get_attached_to(blockdevice_id),
+                            lambda: not bool(
+                                self._get_attached_to(blockdevice_id)
+                            ),
                             [1] * VOLUME_DETATCH_TIMEOUT
                         )
                         raise GCEVolumeException(
@@ -853,6 +860,7 @@ class GCEOperations(PClass):
     _compute = field(mandatory=True)
     _project = field(type=unicode, mandatory=True)
     _zone = field(type=unicode, mandatory=True)
+    _lock = field(mandatory=True, initial=Lock())
 
     def _do_blocking_operation(self,
                                function,
@@ -891,11 +899,26 @@ class GCEOperations(PClass):
         :returns dict: A dict representing the concluded GCE operation
             resource.
         """
+        if sleep is None:
+            sleep = time.sleep
+
+        def lock_dropped_sleep(*args, **kwargs):
+            """
+            A custom sleep function that drops the lock while the actual
+            sleeping is going on.
+            """
+            self._lock.release()
+            try:
+                return sleep(*args, **kwargs)
+            finally:
+                self._lock.acquire()
+
         args = dict(project=self._project, zone=self._zone)
         args.update(kwargs)
-        operation = function(**args).execute()
-        return wait_for_operation(
-            self._compute, operation, [1]*timeout_sec, sleep)
+        with self._lock:
+            operation = function(**args).execute()
+            return wait_for_operation(
+                self._compute, operation, [1]*timeout_sec, lock_dropped_sleep)
 
     def create_disk(self, name, size, description, gce_disk_type):
         sizeGiB = int(size.to_GiB())
@@ -943,23 +966,26 @@ class GCEOperations(PClass):
         )
 
     def list_disks(self, page_token=None, page_size=None):
-        return self._compute.disks().list(project=self._project,
-                                          zone=self._zone,
-                                          maxResults=page_size,
-                                          pageToken=page_token).execute()
+        with self._lock:
+            return self._compute.disks().list(project=self._project,
+                                              zone=self._zone,
+                                              maxResults=page_size,
+                                              pageToken=page_token).execute()
 
     def get_disk_details(self, disk_name):
-        return self._compute.disks().get(project=self._project,
-                                         zone=self._zone,
-                                         disk=disk_name).execute()
+        with self._lock:
+            return self._compute.disks().get(project=self._project,
+                                             zone=self._zone,
+                                             disk=disk_name).execute()
 
     def list_nodes(self, page_token, page_size):
-        return self._compute.instances().list(
-            project=self._project,
-            zone=self._zone,
-            maxResults=page_size,
-            pageToken=page_token
-        ).execute()
+        with self._lock:
+            return self._compute.instances().list(
+                project=self._project,
+                zone=self._zone,
+                maxResults=page_size,
+                pageToken=page_token
+            ).execute()
 
     def start_node(self, node_id):
         self._do_blocking_operation(
