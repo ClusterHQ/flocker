@@ -1,14 +1,15 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
-Test helpers for ``flocker.node.agents``.
+Test helpers for ``flocker.node.agents.cinder``.
 """
 
 from zope.interface.verify import verifyObject
 
 from flocker.testtools import TestCase
-from .cinder import (
-    ICinderVolumeManager, INovaVolumeManager,
+from ..cinder import (
+    ICinderVolumeManager,
+    INovaVolumeManager,
 )
 
 
