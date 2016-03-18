@@ -902,9 +902,11 @@ class GCEOperations(PClass):
         if sleep is None:
             sleep = time.sleep
 
-        # A custom sleep function that drops the lock while the actual sleeping
-        # is going on.
         def lock_dropped_sleep(*args, **kwargs):
+            """
+            A custom sleep function that drops the lock while the actual
+            sleeping is going on.
+            """
             self._lock.release()
             try:
                 return sleep(*args, **kwargs)
@@ -913,13 +915,10 @@ class GCEOperations(PClass):
 
         args = dict(project=self._project, zone=self._zone)
         args.update(kwargs)
-        self._lock.acquire()
-        try:
+        with self._lock:
             operation = function(**args).execute()
             return wait_for_operation(
                 self._compute, operation, [1]*timeout_sec, lock_dropped_sleep)
-        finally:
-            self._lock.release()
 
     def create_disk(self, name, size, description, gce_disk_type):
         sizeGiB = int(size.to_GiB())
@@ -967,35 +966,26 @@ class GCEOperations(PClass):
         )
 
     def list_disks(self, page_token=None, page_size=None):
-        self._lock.acquire()
-        try:
+        with self._lock:
             return self._compute.disks().list(project=self._project,
                                               zone=self._zone,
                                               maxResults=page_size,
                                               pageToken=page_token).execute()
-        finally:
-            self._lock.release()
 
     def get_disk_details(self, disk_name):
-        self._lock.acquire()
-        try:
+        with self._lock:
             return self._compute.disks().get(project=self._project,
                                              zone=self._zone,
                                              disk=disk_name).execute()
-        finally:
-            self._lock.release()
 
     def list_nodes(self, page_token, page_size):
-        self._lock.acquire()
-        try:
+        with self._lock:
             return self._compute.instances().list(
                 project=self._project,
                 zone=self._zone,
                 maxResults=page_size,
                 pageToken=page_token
             ).execute()
-        finally:
-            self._lock.release()
 
     def start_node(self, node_id):
         self._do_blocking_operation(
