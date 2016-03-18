@@ -656,8 +656,13 @@ class GCEBlockDeviceAPI(PClass):
 
                 if potentially_detaching_error is not None:
                     try:
+                        # We want to poll until _get_attached_to no longer
+                        # returns a compute_instance_id, and instead raises an
+                        # UnattachedVolume exception.
                         poll_until(
-                            lambda: self._get_attached_to(blockdevice_id),
+                            lambda: not bool(
+                                self._get_attached_to(blockdevice_id)
+                            ),
                             [1] * VOLUME_DETATCH_TIMEOUT
                         )
                         raise GCEVolumeException(
