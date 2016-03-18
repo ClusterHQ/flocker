@@ -911,6 +911,13 @@ class Cluster(PClass):
                 d.addBoth(
                     lambda _: async_api.destroy_volume(volume.blockdevice_id)
                 )
+                # Consume failures and write them out. Failures might just
+                # indicate that the cluster beat us to deleting the volume
+                # which should not cause the test to fail, we only want the
+                # test to fail if list_volumes still returns a non-empty list.
+                # The construction of api_clean_state should prevent this from
+                # masking significant failures to clean up volumes.
+                d.addErrback(write_failure)
                 return d
 
             cleaning_volumes = api_clean_state(
