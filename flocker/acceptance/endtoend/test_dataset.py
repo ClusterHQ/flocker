@@ -36,7 +36,7 @@ class DatasetAPITests(AsyncTestCase):
     Tests for the dataset API.
     """
 
-    run_test_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
 
     @flaky(u'FLOC-3207')
     @require_cluster(1)

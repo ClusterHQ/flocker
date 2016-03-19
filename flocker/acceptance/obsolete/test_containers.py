@@ -30,7 +30,7 @@ class ContainerAPITests(AsyncTestCase):
     Tests for the container API.
     """
 
-    run_test_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
 
     def _create_container(self, cluster, script):
         """
