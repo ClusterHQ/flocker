@@ -66,8 +66,15 @@ __all__ = [
     'require_cluster',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli', 'create_application',
-    'create_attached_volume', 'get_docker_client'
+    'create_attached_volume', 'get_docker_client', 'ACCEPTANCE_TEST_TIMEOUT'
     ]
+
+
+# GCE sometimes takes up to a minute and a half to do a single operation,
+# safer to wait at least 5 minutes per test, as most tests have to do at
+# least 2 operations in series (cleanup then run test).
+ACCEPTANCE_TEST_TIMEOUT = timedelta(minutes=5)
+
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
