@@ -27,7 +27,7 @@ from ...node import backends
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     skip_backend, get_backend_api, verify_socket,
-    get_default_volume_size,
+    get_default_volume_size, ACCEPTANCE_TEST_TIMEOUT
 )
 
 
@@ -35,6 +35,8 @@ class DatasetAPITests(AsyncTestCase):
     """
     Tests for the dataset API.
     """
+
+    run_test_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
 
     @flaky(u'FLOC-3207')
     @require_cluster(1)
@@ -210,8 +212,6 @@ class DatasetAPITests(AsyncTestCase):
 
     @flaky(u'FLOC-3341')
     @require_moving_backend
-    # GCE sometimes takes 1 full minute to detach a disk.
-    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     @require_cluster(2)
     def test_dataset_move(self, cluster):
         """

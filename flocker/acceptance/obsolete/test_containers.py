@@ -14,7 +14,9 @@ from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 
 from ...common import loop_until
-from ...testtools import AsyncTestCase, async_runner, flaky, random_name
+from ...testtools import (
+    AsyncTestCase, async_runner, flaky, random_name, ACCEPTANCE_TEST_TIMEOUT
+)
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
@@ -27,6 +29,9 @@ class ContainerAPITests(AsyncTestCase):
     """
     Tests for the container API.
     """
+
+    run_test_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+
     def _create_container(self, cluster, script):
         """
         Create a container listening on port 8080.
@@ -340,8 +345,6 @@ class ContainerAPITests(AsyncTestCase):
             lambda _: assert_http_server(self, origin.public_address, port))
         return running
 
-    # Unfortunately this test is very very slow.
-    @run_test_with(async_runner(timeout=timedelta(minutes=5)))
     @require_cluster(2, require_container_agent=True)
     def test_reboot(self, cluster):
         """
