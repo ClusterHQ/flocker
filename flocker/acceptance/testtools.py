@@ -3,6 +3,7 @@
 """
 Testing utilities for ``flocker.acceptance``.
 """
+from datetime import timedelta
 from functools import wraps
 from json import dumps
 from os import environ, close
