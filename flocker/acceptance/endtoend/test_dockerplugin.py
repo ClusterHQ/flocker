@@ -4,7 +4,6 @@
 Tests for the Flocker Docker plugin.
 """
 
-from datetime import timedelta
 from distutils.version import LooseVersion  # pylint: disable=import-error
 
 from testtools import run_test_with
@@ -24,7 +23,7 @@ from ...common.runner import run_ssh
 from ...dockerplugin.test.test_api import volume_expression
 
 from ...testtools import (
-    AsyncTestCase, random_name, flaky, async_runner,
+    AsyncTestCase, random_name, flaky, async_runner, ACCEPTANCE_TEST_TIMEOUT
 )
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
@@ -43,6 +42,9 @@ class DockerPluginTests(AsyncTestCase):
     """
     Tests for the Docker plugin.
     """
+
+    run_test_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+
     def require_docker(self, required_version, cluster):
         """
         Check for a specific minimum version of Docker on a remote node.
@@ -471,8 +473,6 @@ class DockerPluginTests(AsyncTestCase):
 
     @require_moving_backend
     @flaky(u'FLOC-3346')
-    # Test is very slow on Rackspace, it seems:
-    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     @require_cluster(2)
     def test_move_volume_different_node(self, cluster):
         """
@@ -505,8 +505,6 @@ class DockerPluginTests(AsyncTestCase):
         return d
 
     @require_cluster(1)
-    # Test can be slow on GCE.
-    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     def test_listed(self, cluster):
         """
         A volume created outside of Docker can be listed via the Docker
