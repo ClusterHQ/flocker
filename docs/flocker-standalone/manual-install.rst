@@ -26,6 +26,7 @@ Manually Installing Flocker
    :hidden:
    
    setup-aws
+   setup-gce
    setup-rackspace
 
 .. _post-installation-configuration-standalone-flocker:

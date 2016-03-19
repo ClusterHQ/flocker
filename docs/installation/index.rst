@@ -66,6 +66,7 @@ To get the full Flocker functionality, the following installation steps will tak
    :hidden:
 
    ../installation/setup-aws
+   ../installation/setup-gce
    ../installation/setup-rackspace
 
 .. begin-body-configuring-flocker

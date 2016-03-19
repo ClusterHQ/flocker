@@ -8,7 +8,7 @@ Amazon AWS / EBS Block Device Backend
 
 The AWS backend uses EBS volumes as the storage for datasets.
 This backend can be used when Flocker dataset agents are run on EC2 instances.
-The configuration item to use AWS should look like:
+The :file:`agent.yml` configuration file for the AWS backend should contain the following:
 
 .. code-block:: yaml
 
@@ -29,7 +29,7 @@ In addition to the mandatory properties shown, there are some optional propertie
    An AWS session token.
    This allows cross-account access.
    It is mainly useful for testing since session tokens only last for a short time.
-   See http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html for more information on when session tokens are required.
+   For more information on when session tokens are required, see the AWS instructions for `Temporary Security Credentials  <http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html>`_.
 
 .. option:: validate_region
 

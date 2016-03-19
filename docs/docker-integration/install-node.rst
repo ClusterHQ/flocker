@@ -19,6 +19,7 @@ Installing the Flocker Node Services
    :end-before: .. end-body-installing-node-guides
 
 * :ref:`aws-install-docker`
+* :ref:`gce-install-docker`
 * :ref:`rackspace-install-docker`
 
 .. _centos-7-install-docker:
