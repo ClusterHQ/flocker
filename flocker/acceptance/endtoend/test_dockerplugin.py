@@ -6,8 +6,6 @@ Tests for the Flocker Docker plugin.
 
 from distutils.version import LooseVersion  # pylint: disable=import-error
 
-from testtools import run_test_with
-
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 
@@ -43,7 +41,7 @@ class DockerPluginTests(AsyncTestCase):
     Tests for the Docker plugin.
     """
 
-    run_test_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
 
     def require_docker(self, required_version, cluster):
         """
