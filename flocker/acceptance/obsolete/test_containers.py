@@ -14,13 +14,12 @@ from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 
 from ...common import loop_until
-from ...testtools import (
-    AsyncTestCase, async_runner, flaky, random_name, ACCEPTANCE_TEST_TIMEOUT
-)
+from ...testtools import AsyncTestCase, async_runner, flaky, random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
     assert_http_server, query_http_server, is_process_running,
+    ACCEPTANCE_TEST_TIMEOUT
 )
 from ..scripts import SCRIPTS
 

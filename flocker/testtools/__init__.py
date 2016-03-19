@@ -64,7 +64,6 @@ __all__ = [
     'FakeSysModule',
     'MemoryCoreReactor',
     'REALISTIC_BLOCKDEVICE_SIZE',
-    'ACCEPTANCE_TEST_TIMEOUT',
     'make_standard_options_test',
     'TestCase',
     'assertContainsAll',
@@ -88,12 +87,6 @@ __all__ = [
 ]
 
 REALISTIC_BLOCKDEVICE_SIZE = RACKSPACE_MINIMUM_VOLUME_SIZE
-
-
-# GCE sometimes takes up to a minute and a half to do a single operation,
-# safer to wait at least 5 minutes per test, as most tests have to do at
-# least 2 operations in series (cleanup then run test).
-ACCEPTANCE_TEST_TIMEOUT = timedelta(minutes=5)
 
 
 @implementer(IProcessTransport)

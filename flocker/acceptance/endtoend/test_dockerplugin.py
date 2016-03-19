@@ -20,14 +20,12 @@ from ...common.runner import run_ssh
 
 from ...dockerplugin.test.test_api import volume_expression
 
-from ...testtools import (
-    AsyncTestCase, random_name, flaky, async_runner, ACCEPTANCE_TEST_TIMEOUT
-)
+from ...testtools import AsyncTestCase, random_name, flaky, async_runner
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
     get_docker_client, verify_socket, check_http_server,
     extract_external_port,
-    create_dataset, require_moving_backend,
+    create_dataset, require_moving_backend, ACCEPTANCE_TEST_TIMEOUT
 )
 
 from ..scripts import SCRIPTS
