@@ -1,0 +1,12 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+if __name__ == '__main__':
+    from admin.eliot_stats import eliot_stats_main as main
+    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)

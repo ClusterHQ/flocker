@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+from twisted.internet.task import react
+
+from admin.cluster_command import cluster_command_main
+
+if __name__ == '__main__':
+    react(cluster_command_main, (sys.argv[1:], BASEPATH, TOPLEVEL))

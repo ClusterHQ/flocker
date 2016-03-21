@@ -37,6 +37,7 @@ oslo.config==1.12.1
 oslo.i18n==1.7.0
 oslo.serialization==1.6.0
 oslo.utils==1.6.0
+pandas==0.18.0
 pbr==0.11.1
 pip==7.1.0
 prettytable==0.7.2
