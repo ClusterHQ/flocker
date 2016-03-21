@@ -24,6 +24,12 @@ Installing the Flocker Client
 
 .. note:: If you are using a 32-bit Ubuntu platform, see the instructions for  :ref:`installing-flocker-cli-linux-kubernetes`.
 
+.. _installing-flocker-cli-rhel-7.2-kubernetes:
+
+.. include:: ../installation/install-client.rst
+   :start-after: .. begin-body-installing-client-rhel-7.2
+   :end-before: .. end-body-installing-client-rhel-7.2
+
 .. _installing-flocker-cli-linux-kubernetes:
 
 .. include:: ../installation/install-client.rst
