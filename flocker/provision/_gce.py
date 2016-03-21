@@ -536,10 +536,6 @@ class GCEProvisioner(PClass):
                       u"json-description",
                       _GCE_FIREWALL_TAG]),
             delete_disk_on_terminate=True,
-            startup_script=dedent("""\
-                #!/bin/sh
-                sed -i '/Defaults *requiretty/d' /etc/sudoers
-                """),
         )
 
         return GCENode(

@@ -95,7 +95,7 @@ class CommandChannelWithTTY(_CommandChannel):
     CentOS/RHEL wants us to have a pty in order to run commands with sudo.
     Create a pty that won't be used when creating the channel.
     """
-    def ttyChannelOpen(self, ignored):
+    def channelOpen(self, ignored):
         """
         Create a pty by sending a pty-req to the server
         """
