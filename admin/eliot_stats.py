@@ -30,6 +30,10 @@ def eliot_stats_main(args, top_level, base_path):
          "action_type", "action_status",
          "timestamp"]
     ]
+
+    # Get the unique action_status values in this dataset
+    action_status_values = data.action_status.unique()
+
     # Turn action_status values into columns
     data = pandas.pivot_table(
         data,
@@ -41,10 +45,12 @@ def eliot_stats_main(args, top_level, base_path):
     # There should only ever be succeeded or failed.
     # Unfortunately, maximum returns NaT if one is found, so replace those with
     # 0 (the unix epoch).
-    end_time = numpy.maximum(
-        data.succeeded.fillna(0),
-        data.failed.fillna(0)
-    )
+    # There may not be any failures, but if there are, check both failed and
+    # succeeded columns for the end time.
+    end_time = numpy.maximum(*tuple(
+        data[key].fillna(0)
+        for key in action_status_values
+    ))
     data["duration"] = end_time - data.started
     data["succeeded"] = data.succeeded.notnull()
     print data[["started", "duration", "succeeded"]].to_string()
