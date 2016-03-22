@@ -23,9 +23,8 @@ For installation and configuration information for using Flocker with a cluster 
 
 	<div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
-			<span>Docker Swarm, with Docker Compose</span>
 			<img src="_static/images/docker2x.png" alt="Docker logo"/>
-	        <span><em>Easiest way to install Flocker</em></span><a href="docker-integration/" class="button button--fast">Using Flocker with Docker</a>
+	        <span>Docker Swarm, with Docker Compose<em>Easiest way to install Flocker</em></span><a href="docker-integration/" class="button button--fast">Using Flocker with Docker</a>
 	    </div>
 
 	    <div class="pod-boxout pod-boxout--orchestration">
@@ -36,8 +35,8 @@ For installation and configuration information for using Flocker with a cluster 
 
 	    <div class="pod-boxout pod-boxout--orchestration">
 			<img src="_static/images/mesos2x.png" alt="mesos logo"/>
-			<span>Mesos</span>
-	        <a href="mesos-integration/" class="button">Using Flocker with Mesos</a>
+	        <span>Mesos</span>
+			<a href="mesos-integration/" class="button">Using Flocker with Mesos</a>
 	    </div>
 	</div>
 
