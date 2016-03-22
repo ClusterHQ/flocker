@@ -7,7 +7,6 @@ AWS provisioner.
 import logging
 
 from itertools import izip_longest, repeat
-from textwrap import dedent
 
 from pyrsistent import PClass, field
 

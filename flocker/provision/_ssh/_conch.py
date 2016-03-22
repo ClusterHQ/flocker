@@ -26,7 +26,7 @@ from twisted.conch.endpoints import (
 from twisted.conch.ssh.common import NS
 import twisted.conch.ssh.session as session
 from twisted.conch.client.knownhosts import KnownHostsFile
-from twisted.internet.defer import Deferred, inlineCallbacks
+from twisted.internet.defer import Deferred, inlineCallbacks, CancelledError
 from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
 from twisted.internet.error import ConnectionDone
 from twisted.protocols.basic import LineOnlyReceiver
@@ -100,7 +100,7 @@ class CommandChannelWithTTY(_CommandChannel):
         Create a pty by sending a pty-req to the server
         """
         term = 'xterm'
-        winSize = (25,80,0,0)
+        winSize = (25, 80, 0, 0)
         ptyReqData = session.packRequest_pty_req(term, winSize, '')
         self.conn.sendRequest(self, 'pty-req', ptyReqData)
         command = self.conn.sendRequest(
@@ -126,14 +126,15 @@ class SSHCommandClientEndpointWithTTY(SSHCommandClientEndpoint):
 
         @return: See L{SSHCommandClientEndpoint.connect}'s return value.
         """
-        from twisted.internet.defer import Deferred, CancelledError
-        commandConnected = Deferred()
+
         def disconnectOnFailure(passthrough):
             # Close the connection immediately in case of cancellation, since
             # that implies user wants it gone immediately (e.g. a timeout):
-            immediate =  passthrough.check(CancelledError)
+            immediate = passthrough.check(CancelledError)
             self._creator.cleanupConnection(connection, immediate)
             return passthrough
+
+        commandConnected = Deferred()
         commandConnected.addErrback(disconnectOnFailure)
 
         channel = CommandChannelWithTTY(

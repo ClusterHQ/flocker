@@ -23,7 +23,6 @@ import json
 
 from eliot import start_action
 from pyrsistent import PClass, field
-from textwrap import dedent
 from twisted.conch.ssh.keys import Key
 from zope.interface import implementer
 from googleapiclient import discovery
