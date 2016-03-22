@@ -9,4 +9,4 @@ import sys
 
 if __name__ == '__main__':
     from admin.eliot_stats import eliot_stats_main as main
-    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)
+    data = main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)
