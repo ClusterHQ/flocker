@@ -28,8 +28,8 @@ from ._common import PackageSource, Variants
 from ._ssh import (
     Run, Sudo,
     run_network_interacting_from_args, sudo_network_interacting_from_args,
-    run, run_from_args, sudo_from_args,
-    put,
+    run, sudo, run_from_args, sudo_from_args,
+    put, sudo_put, run_script, sudo_script,
     run_remotely,
 )
 from ._ssh._conch import make_dispatcher
@@ -272,16 +272,8 @@ def ensure_minimal_setup(package_manager):
         # Fedora/CentOS sometimes configured to require tty for sudo
         # ("sorry, you must have a tty to run sudo"). Disable that to
         # allow automated tests to run.
-        return sequence([
-            run_network_interacting_from_args([
-                'su', 'root', '-c', [package_manager, '-y', 'install', 'sudo']
-            ]),
-            run_from_args([
-                'su', 'root', '-c', [
-                    'sed', '--in-place', '-e',
-                    's/Defaults.*requiretty/Defaults !requiretty/',
-                    '/etc/sudoers'
-                ]]),
+        return run_network_interacting_from_args([
+            'su', 'root', '-c', [package_manager, '-y', 'install', 'sudo']
         ])
     elif package_manager == 'apt':
         return sequence([
@@ -326,7 +318,7 @@ def wipe_yum_cache(repository):
 
     :param bytes repository: The name of the repository to clear.
     """
-    return run_from_args([
+    return sudo_from_args([
         b"yum",
         b"--disablerepo=*",
         b"--enablerepo=" + repository,
@@ -363,7 +355,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
         # If package has previously been installed, 'yum install' fails,
         # so check if it is installed first.
         # XXX This needs retry
-        run(
+        sudo_script(
             command="yum list installed {} || yum install -y {}".format(
                 quote(repo_package_name),
                 get_repository_url(
@@ -386,11 +378,8 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
             # tell yum to always update metadata for this repository.
             metadata_expire=0
             """) % (base_url,)
-        commands.append(put(content=repo,
-                            path='/tmp/clusterhq-build.repo'))
-        commands.append(run_from_args([
-            'cp', '/tmp/clusterhq-build.repo',
-            '/etc/yum.repos.d/clusterhq-build.repo']))
+        commands.append(sudo_put(content=repo,
+                                 path='/etc/yum.repos.d/clusterhq-build.repo'))
         repo_options = ['--enablerepo=clusterhq-build']
     else:
         repo_options = get_repo_options(
@@ -409,8 +398,7 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
                                             base_package))
 
     # Install package and all dependencies:
-
-    commands.append(yum_install(repo_options + [package_name]))
+    commands.append(yum_install(repo_options + [package_name], sudo=True))
 
     return sequence(commands)
 
@@ -447,35 +435,33 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # ensure that we start from a good base system with the required
         # capabilities, particularly that the add-apt-repository command
         # is available, and HTTPS URLs are supported.
-        apt_get_update(),
-        apt_get_install(["apt-transport-https", "software-properties-common"]),
-
+        apt_get_update(sudo=True),
+        apt_get_install(["apt-transport-https", "software-properties-common"],
+                        sudo=True),
         # Add ClusterHQ repo for installation of Flocker packages.
         # XXX This needs retry
-        run(command='add-apt-repository -y "deb {} /"'.format(repository_url))
+        sudo(command='add-apt-repository -y "deb {} /"'.format(repository_url))
         ]
 
     pinned_host = urlparse(repository_url).hostname
 
     if base_url is not None:
         # Add BuildBot repo for running tests
-        commands.append(run_network_interacting_from_args([
+        commands.append(sudo_network_interacting_from_args([
             "add-apt-repository", "-y", "deb {} /".format(base_url)]))
         # During a release, or during upgrade testing, we might not be able to
         # rely on package management to install flocker from the correct
         # server. Thus, in all cases we pin precisely which url we want to
         # install flocker from.
         pinned_host = urlparse(package_source.build_server).hostname
-    commands.append(put(dedent('''\
+    commands.append(sudo_put(dedent('''\
         Package: *
         Pin: origin {}
         Pin-Priority: 700
-    '''.format(pinned_host)), '/tmp/apt-pref'))
-    commands.append(run_from_args([
-        'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-700']))
+    '''.format(pinned_host)), '/etc/apt/preferences.d/buildbot-700'))
 
     # Update to read package info from new repos
-    commands.append(apt_get_update())
+    commands.append(apt_get_update(sudo=True))
 
     base_package = package_name
     os_version = package_source.os_version()
@@ -490,13 +476,11 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # version of a dependency, and apt, which wants to install the
         # most recent version.  Note that this trumps the Buildbot
         # pinning above.
-        commands.append(put(dedent('''\
+        commands.append(sudo_put(dedent('''\
             Package: clusterhq-*
             Pin: version {}
             Pin-Priority: 900
-        '''.format(os_version)), '/tmp/apt-pref'))
-        commands.append(run_from_args([
-            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/clusterhq-900']))
+        '''.format(os_version)), '/etc/apt/preferences.d/clusterhq-900'))
 
     # Execute a request to s3 so that this can be tagged as a test install for
     # statistical tracking.
@@ -507,7 +491,7 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
     # Install package and all dependencies
     # We use --force-yes here because our packages aren't signed.
-    commands.append(apt_get_install(["--force-yes", package_name]))
+    commands.append(apt_get_install(["--force-yes", package_name], sudo=True))
 
     return sequence(commands)
 
@@ -559,8 +543,6 @@ def task_cli_pkg_install(distribution, package_source=PackageSource()):
     """
     commands = task_package_install("clusterhq-flocker-cli", distribution,
                                     package_source)
-    # Although client testing is currently done as root.e want to use
-    # sudo for better documentation output.
     return sequence([
         (Effect(Sudo(command=e.intent.command,
                      log_command_filter=e.intent.log_command_filter))
@@ -708,16 +690,6 @@ def task_test_homebrew(recipe):
     ])
 
 
-def task_install_ssh_key():
-    """
-    Install the authorized ssh keys of the current user for root as well.
-    """
-    return sequence([
-        sudo_from_args(['cp', '.ssh/authorized_keys',
-                        '/root/.ssh/authorized_keys']),
-    ])
-
-
 def task_upgrade_kernel(distribution):
     """
     Upgrade kernel.
@@ -770,16 +742,17 @@ def task_install_control_certificates(ca_cert, control_cert, control_key):
     # Be better if permissions were correct from the start.
     # https://clusterhq.atlassian.net/browse/FLOC-1922
     return sequence([
-        run('mkdir -p /etc/flocker'),
-        run('chmod u=rwX,g=,o= /etc/flocker'),
-        put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
-        put(path="/etc/flocker/control-service.crt",
-            content=control_cert.getContent()),
-        put(path="/etc/flocker/control-service.key",
-            content=control_key.getContent(),
-            log_content_filter=_remove_private_key),
-        ])
-
+        sudo('mkdir -p /etc/flocker'),
+        sudo('chmod u=rwX,g=,o= /etc/flocker'),
+        sudo_put(path="/etc/flocker/cluster.crt",
+                 content=ca_cert.getContent()),
+        sudo_put(path="/etc/flocker/control-service.crt",
+                 content=control_cert.getContent()),
+        sudo_put(path="/etc/flocker/control-service.key",
+                 content=control_key.getContent(),
+                 log_content_filter=_remove_private_key),
+        sudo('chmod u=rw,g=,o= /etc/flocker/control-service.key'),
+    ])
 
 def task_install_node_certificates(ca_cert, node_cert, node_key):
     """
@@ -794,15 +767,17 @@ def task_install_node_certificates(ca_cert, node_cert, node_key):
     # Be better if permissions were correct from the start.
     # https://clusterhq.atlassian.net/browse/FLOC-1922
     return sequence([
-        run('mkdir -p /etc/flocker'),
-        run('chmod u=rwX,g=,o= /etc/flocker'),
-        put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
-        put(path="/etc/flocker/node.crt",
-            content=node_cert.getContent()),
-        put(path="/etc/flocker/node.key",
-            content=node_key.getContent(),
-            log_content_filter=_remove_private_key),
-        ])
+        sudo('mkdir -p /etc/flocker'),
+        sudo('chmod u=rwX,g=,o= /etc/flocker'),
+        sudo_put(path="/etc/flocker/cluster.crt",
+                 content=ca_cert.getContent()),
+        sudo_put(path="/etc/flocker/node.crt",
+                 content=node_cert.getContent()),
+        sudo_put(path="/etc/flocker/node.key",
+                 content=node_key.getContent(),
+                 log_content_filter=_remove_private_key),
+        sudo('chmod u=rw,g=,o= /etc/flocker/node.key'),
+    ])
 
 
 def task_install_api_certificates(api_cert, api_key):
@@ -816,14 +791,15 @@ def task_install_api_certificates(api_cert, api_key):
     # Be better if permissions were correct from the start.
     # https://clusterhq.atlassian.net/browse/FLOC-1922
     return sequence([
-        run('mkdir -p /etc/flocker'),
-        run('chmod u=rwX,g=,o= /etc/flocker'),
-        put(path="/etc/flocker/plugin.crt",
-            content=api_cert.getContent()),
-        put(path="/etc/flocker/plugin.key",
-            content=api_key.getContent(),
-            log_content_filter=_remove_private_key),
-        ])
+        sudo('mkdir -p /etc/flocker'),
+        sudo('chmod u=rwX,g=,o= /etc/flocker'),
+        sudo_put(path="/etc/flocker/plugin.crt",
+                 content=api_cert.getContent()),
+        sudo_put(path="/etc/flocker/plugin.key",
+                 content=api_key.getContent(),
+                 log_content_filter=_remove_private_key),
+        sudo('chmod u=rw,g=,o= /etc/flocker/plugin.key'),
+    ])
 
 
 def task_enable_docker(distribution):
@@ -849,8 +825,8 @@ def task_enable_docker(distribution):
             # initializes a 100G filesystem which can take a while.  The
             # default startup timeout is frequently too low to let this
             # complete.
-            run("mkdir -p /etc/systemd/system/docker.service.d"),
-            put(
+            sudo("mkdir -p /etc/systemd/system/docker.service.d"),
+            sudo_put(
                 path=conf_path,
                 content=dedent(
                     """\
@@ -859,22 +835,23 @@ def task_enable_docker(distribution):
                     """
                 ),
             ),
-            put(path="/etc/systemd/system/docker.service.d/02-TLS.conf",
-                content=dedent(
-                    """\
-                    [Service]
-                    ExecStart=
-                    ExecStart=/usr/bin/docker daemon -H fd:// {}
-                    """.format(docker_tls_options))),
-            run_from_args(["systemctl", "enable", "docker.service"]),
+            sudo_put(path="/etc/systemd/system/docker.service.d/02-TLS.conf",
+                     content=dedent(
+                         """\
+                         [Service]
+                         ExecStart=
+                         ExecStart=/usr/bin/docker daemon -H fd:// {}
+                         """.format(docker_tls_options))),
+            sudo_from_args(["systemctl", "enable", "docker.service"]),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            put(path="/etc/default/docker",
+            sudo_put(
+                path="/etc/default/docker",
                 content=(
                     'DOCKER_OPTS="-H unix:///var/run/docker.sock {}"'.format(
                         docker_tls_options))),
-            ])
+        ])
     else:
         raise DistributionNotSupported(distribution=distribution)
 
@@ -885,8 +862,8 @@ def open_firewalld(service):
 
     :param str service: Name of service.
     """
-    return sequence([run_from_args(['firewall-cmd', '--reload'])] + [
-        run_from_args(command + [service])
+    return sequence([sudo_from_args(['firewall-cmd', '--reload'])] + [
+        sudo_from_args(command + [service])
         for command in [['firewall-cmd', '--permanent', '--add-service'],
                         ['firewall-cmd', '--add-service']]])
 
@@ -898,7 +875,7 @@ def open_ufw(service):
     :param str service: Name of service.
     """
     return sequence([
-        run_from_args(['ufw', 'allow', service])
+        sudo_from_args(['ufw', 'allow', service])
         ])
 
 
@@ -926,21 +903,27 @@ def task_enable_flocker_control(distribution, action="start"):
 
     if is_centos(distribution):
         return sequence([
-            run_from_args(['systemctl', 'enable', 'flocker-control']),
-            run_from_args(['systemctl', action.lower(), 'flocker-control']),
+            sudo_from_args(['systemctl', 'enable', 'flocker-control']),
+            sudo_from_args(['systemctl', action.lower(), 'flocker-control']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            put(
+            sudo_put(
                 path='/etc/init/flocker-control.override',
                 content=dedent('''\
                     start on runlevel [2345]
                     stop on runlevel [016]
                     '''),
             ),
-            run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
-            run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
-            run_from_args(['service', 'flocker-control', action.lower()]),
+            sudo_script(dedent("""\
+            if grep -q flocker-control-api /etc/services; then
+                echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services
+            fi""")),  # noqa
+            sudo_script(dedent("""\
+            if grep -q flocker-control-agent /etc/services; then
+                echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services
+            fi""")),  # noqa
+            sudo_from_args(['service', 'flocker-control', action.lower()]),
         ])
 
     else:
@@ -965,14 +948,14 @@ def task_enable_docker_plugin(distribution):
     """
     if is_centos(distribution):
         return sequence([
-            run_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
-            run_from_args(['systemctl', START, 'flocker-docker-plugin']),
-            run_from_args(['systemctl', START, 'docker']),
+            sudo_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
+            sudo_from_args(['systemctl', START, 'flocker-docker-plugin']),
+            sudo_from_args(['systemctl', START, 'docker']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            run_from_args(['service', 'flocker-docker-plugin', 'restart']),
-            run_from_args(['service', 'docker', 'restart']),
+            sudo_from_args(['service', 'flocker-docker-plugin', 'restart']),
+            sudo_from_args(['service', 'docker', 'restart']),
         ])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1033,26 +1016,30 @@ def open_firewall_for_docker_api(distribution):
     Open the firewall for remote access to Docker API.
     """
     if is_centos(distribution):
-        upload = put(path="/usr/lib/firewalld/services/docker.xml",
-                     content=dedent(
-                         """\
-                         <?xml version="1.0" encoding="utf-8"?>
-                         <service>
-                         <short>Docker API Port</short>
-                         <description>The Docker API, over TLS.</description>
-                         <port protocol="tcp" port="2376"/>
-                         </service>
-                         """))
+        upload = sudo_put(
+            path="/usr/lib/firewalld/services/docker.xml",
+            content=dedent(
+                """\
+                <?xml version="1.0" encoding="utf-8"?>
+                <service>
+                <short>Docker API Port</short>
+                <description>The Docker API, over TLS.</description>
+                <port protocol="tcp" port="2376"/>
+                </service>
+                """)
+        )
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
-        upload = put(path="/etc/ufw/applications.d/docker",
-                     content=dedent(
-                         """
-                         [docker]
-                         title=Docker API
-                         description=Docker API.
-                         ports=2376/tcp
-                         """))
+        upload = sudo_put(
+            path="/etc/ufw/applications.d/docker",
+            content=dedent(
+                """
+                [docker]
+                title=Docker API
+                description=Docker API.
+                ports=2376/tcp
+                """)
+        )
         open_firewall = open_ufw
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1117,7 +1104,7 @@ def task_configure_flocker_agent(
     if logging_config is not None:
         content['logging'] = logging_config
 
-    put_config_file = put(
+    put_config_file = sudo_put(
         path='/etc/flocker/agent.yml',
         content=yaml.safe_dump(content),
         log_content_filter=_remove_dataset_fields
@@ -1140,27 +1127,27 @@ def task_enable_flocker_agent(distribution, action="start"):
 
     if is_centos(distribution):
         return sequence([
-            run_from_args(['systemctl',
-                           'enable',
-                           'flocker-dataset-agent']),
-            run_from_args(['systemctl',
-                           action.lower(),
-                           'flocker-dataset-agent']),
-            run_from_args(['systemctl',
-                           'enable',
-                           'flocker-container-agent']),
-            run_from_args(['systemctl',
-                           action.lower(),
-                           'flocker-container-agent']),
+            sudo_from_args(['systemctl',
+                            'enable',
+                            'flocker-dataset-agent']),
+            sudo_from_args(['systemctl',
+                            action.lower(),
+                            'flocker-dataset-agent']),
+            sudo_from_args(['systemctl',
+                            'enable',
+                            'flocker-container-agent']),
+            sudo_from_args(['systemctl',
+                            action.lower(),
+                            'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            run_from_args(['service',
-                           'flocker-dataset-agent',
-                           action.lower()]),
-            run_from_args(['service',
-                           'flocker-container-agent',
-                           action.lower()]),
+            sudo_from_args(['service',
+                            'flocker-dataset-agent',
+                            action.lower()]),
+            sudo_from_args(['service',
+                            'flocker-container-agent',
+                            action.lower()]),
         ])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1171,11 +1158,11 @@ def task_create_flocker_pool_file():
     Create a file-back zfs pool for flocker.
     """
     return sequence([
-        run('mkdir -p /var/opt/flocker'),
-        run('truncate --size 10G /var/opt/flocker/pool-vdev'),
+        sudo('mkdir -p /var/opt/flocker'),
+        sudo('truncate --size 10G /var/opt/flocker/pool-vdev'),
         # XXX - See FLOC-3018
-        run('ZFS_MODULE_LOADING=yes '
-            'zpool create flocker /var/opt/flocker/pool-vdev'),
+        sudo('ZFS_MODULE_LOADING=yes '
+             'zpool create flocker /var/opt/flocker/pool-vdev'),
     ])
 
 
@@ -1190,33 +1177,33 @@ def task_install_zfs(distribution, variants=set()):
     if distribution == 'ubuntu-14.04':
         commands += [
             # ZFS not available in base Ubuntu - add ZFS repo
-            run_network_interacting_from_args([
+            sudo_network_interacting_from_args([
                 "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
         ]
         commands += [
             # Update to read package info from new repos
-            apt_get_update(),
+            apt_get_update(sudo=True),
             # Package spl-dkms sometimes does not have libc6-dev as a
             # dependency, add it before ZFS installation requires it.
             # See https://github.com/zfsonlinux/zfs/issues/3298
-            apt_get_install(["libc6-dev"]),
-            apt_get_install(["zfsutils"]),
+            apt_get_install(["libc6-dev"], sudo=True),
+            apt_get_install(["zfsutils"], sudo=True),
             ]
 
     elif is_centos(distribution):
         commands += [
-            yum_install([ZFS_REPO[distribution]]),
+            yum_install([ZFS_REPO[distribution]], sudo=True),
         ]
         if distribution == 'centos-7':
-            commands.append(yum_install(["epel-release"]))
+            commands.append(yum_install(["epel-release"], sudo=True))
 
         if Variants.ZFS_TESTING in variants:
             commands += [
-                yum_install(['yum-utils']),
-                run_from_args([
+                yum_install(['yum-utils'], sudo=True),
+                sudo_from_args([
                     'yum-config-manager', '--enable', 'zfs-testing'])
             ]
-        commands.append(yum_install(["zfs"]))
+        commands.append(yum_install(["zfs"], sudo=True))
     else:
         raise DistributionNotSupported(distribution)
 
@@ -1234,14 +1221,14 @@ def configure_zfs(node, variants):
     """
     return sequence([
         run_remotely(
-            username='root',
+            username=node.get_default_username(),
             address=node.address,
             commands=task_upgrade_kernel(
                 distribution=node.distribution),
         ),
         node.reboot(),
         run_remotely(
-            username='root',
+            username=node.get_default_username(),
             address=node.address,
             commands=sequence([
                 task_install_zfs(
@@ -1260,7 +1247,7 @@ def _uninstall_flocker_ubuntu1404():
     Return an ``Effect`` for uninstalling the Flocker package from an Ubuntu
     14.04 machine.
     """
-    return run_from_args([
+    return sudo_from_args([
         b"apt-get", b"remove", b"-y", b"--purge", b"clusterhq-python-flocker",
     ])
 
@@ -1271,7 +1258,7 @@ def _uninstall_flocker_centos7():
     machine.
     """
     def maybe_disable(unit):
-        return run(
+        return sudo_script(
             u"{{ "
             u"systemctl is-enabled {unit} && "
             u"systemctl stop {unit} && "
@@ -1287,7 +1274,7 @@ def _uninstall_flocker_centos7():
                 u"flocker-container-agent", u"flocker-docker-plugin",
             ]
         ) + [
-            run_from_args([
+            sudo_from_args([
                 b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
             ]),
             # Force yum to update the metadata for the release repositories.
@@ -1295,7 +1282,7 @@ def _uninstall_flocker_centos7():
             # metadata will not have expired for them yet.
             wipe_yum_cache(repository="clusterhq"),
             wipe_yum_cache(repository="clusterhq-testing"),
-            run_from_args([
+            sudo_from_args([
                 b"yum", b"erase", b"-y", b"clusterhq-release",
             ]),
         ]
@@ -1364,7 +1351,7 @@ def task_install_docker(distribution):
         update = b""
 
     return retry_effect_with_timeout(
-        run(command=(
+        sudo_script(command=(
             b"[[ -e /usr/bin/docker ]] || { " + update +
             b"curl https://get.docker.com/ > /tmp/install-docker.sh && "
             b"sh /tmp/install-docker.sh"
@@ -1429,7 +1416,7 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
         acceptance tests.
     """
     return sequence([
-        run_from_args(['docker', 'pull', image]) for image in images
+        sudo_from_args(['docker', 'pull', image]) for image in images
     ])
 
 
@@ -1451,7 +1438,7 @@ def task_enable_docker_head_repository(distribution):
     """
     if is_centos(distribution):
         return sequence([
-            put(content=dedent("""\
+            sudo_put(content=dedent("""\
                 [virt7-testing]
                 name=virt7-testing
                 baseurl=http://cbs.centos.org/repos/virt7-testing/x86_64/os/
@@ -1508,7 +1495,7 @@ def _run_on_all_nodes(nodes, task):
     """
     return parallel(list(
         run_remotely(
-            username='root',
+            username=node.get_default_username(),
             address=node.address,
             commands=task(node),
         )
@@ -1623,7 +1610,7 @@ def reinstall_flocker_from_package_source(
         return perform(
             dispatcher,
             run_remotely(
-                username='root',
+                username=control_node.get_default_username(),
                 address=control_node,
                 commands=sequence([
                     run_from_args([
@@ -1649,7 +1636,7 @@ def reinstall_flocker_from_package_source(
         restart_commands = sequence([
             # First restart the control agent.
             run_remotely(
-                username='root',
+                username=control_node.get_default_username(),
                 address=control_node,
                 commands=sequence([
                     task_enable_flocker_control(
@@ -1666,7 +1653,7 @@ def reinstall_flocker_from_package_source(
             # Then restart the node agents (and docker on all of the nodes).
             parallel([
                 run_remotely(
-                    username='root',
+                    username=node.get_default_username(),
                     address=node.address,
                     commands=sequence([
                         task_enable_docker_plugin(node.distribution),
@@ -1707,7 +1694,7 @@ def configure_control_node(
         setup_action = 'restart'
 
     return run_remotely(
-        username='root',
+        username=cluster.control_node.get_default_username(),
         address=cluster.control_node.address,
         commands=sequence([
             task_install_control_certificates(
@@ -1750,7 +1737,7 @@ def configure_node(
         setup_action = 'restart'
 
     return run_remotely(
-        username='root',
+        username=node.get_default_username(),
         address=node.address,
         commands=sequence([
             task_install_node_certificates(
@@ -1782,64 +1769,23 @@ def configure_node(
     )
 
 
-def provision_as_root(node, package_source, variants=()):
+def provision_for_any_user(node, package_source, variants=()):
     """
-    Provision flocker on a node using the root user.
+    Provision flocker on a node using the default user.
 
     :param INode node: Node to provision.
     :param PackageSource package_source: See func:`task_install_flocker`
     :param set variants: The set of variant configurations to use when
         provisioning
     """
-    commands = []
-
-    commands.append(run_remotely(
-        username='root',
+    commands = [run_remotely(
+        username=node.get_default_username(),
         address=node.address,
         commands=provision(
             package_source=package_source,
             distribution=node.distribution,
             variants=variants,
         ),
-    ))
-
-    return sequence(commands)
-
-
-def provision_for_any_user(node, package_source, variants=()):
-    """
-    Provision flocker on a node using the default user. If the user is not
-    root, then copy the authorized_users over to the root user and then
-    provision as root.
-
-    :param INode node: Node to provision.
-    :param PackageSource package_source: See func:`task_install_flocker`
-    :param set variants: The set of variant configurations to use when
-        provisioning
-    """
-    username = node.get_default_username()
-
-    if username == 'root':
-        return provision_as_root(node, package_source, variants)
-
-    commands = []
-
-    # cloud-init may not have allowed sudo without tty yet, so try SSH key
-    # installation for a few more seconds:
-    start = []
-
-    def for_thirty_seconds(*args, **kwargs):
-        if not start:
-            start.append(time())
-        return Effect(Constant((time() - start[0]) < 30))
-
-    commands.append(run_remotely(
-        username=username,
-        address=node.address,
-        commands=retry(task_install_ssh_key(), for_thirty_seconds),
-    ))
-
-    commands.append(
-        provision_as_root(node, package_source, variants))
+    )]
 
     return sequence(commands)

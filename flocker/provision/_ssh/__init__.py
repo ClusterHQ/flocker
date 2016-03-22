@@ -2,19 +2,19 @@
 
 from ._model import (
     run_network_interacting_from_args, sudo_network_interacting_from_args,
-    Run, run, run_from_args,
-    Sudo, sudo, sudo_from_args,
-    Put, put,
+    Run, run, run_from_args, run_script,
+    Sudo, sudo, sudo_from_args, sudo_script,
+    Put, put, sudo_put,
     Comment, comment,
     RunRemotely, run_remotely,
-    perform_comment, perform_put, perform_sudo
+    perform_comment, perform_put
 )
 
 __all__ = [
     "run_network_interacting_from_args", "sudo_network_interacting_from_args",
-    "Run", "run", "run_from_args",
-    "Sudo", "sudo", "sudo_from_args",
-    "Put", "put",
+    "Run", "run", "run_from_args", "run_script",
+    "Sudo", "sudo", "sudo_from_args", "sudo_script",
+    "Put", "put", "sudo_put",
     "Comment", "comment",
     "RunRemotely", "run_remotely",
     "perform_comment", "perform_put", "perform_sudo",

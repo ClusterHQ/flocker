@@ -110,6 +110,28 @@ class Sudo(PClass):
             log_command_filter=log_command_filter)
 
 
+class RunScript(PClass):
+    """
+    Run a multi-statement shell script on the host
+    :ivar bytes command: The command_string to run.
+    :ivar callable log_command_filter: A filter to apply to any logging
+        of the executed command.
+    """
+    command = field(type=bytes, mandatory=True)
+    log_command_filter = field(mandatory=True)
+
+
+class SudoScript(PClass):
+    """
+    Run a multi-statement shell script on the host using sudo
+    :ivar bytes command: The command_string to run.
+    :ivar callable log_command_filter: A filter to apply to any logging
+        of the executed command.
+    """
+    command = field(type=bytes, mandatory=True)
+    log_command_filter = field(mandatory=True)
+
+
 @sync_performer
 def perform_sudo(dispatcher, intent):
     """
@@ -117,6 +139,26 @@ def perform_sudo(dispatcher, intent):
     """
     return Effect(Run(
         command='sudo ' + intent.command, log_command_filter=identity))
+
+
+@sync_performer
+def perform_run_script(dispatcher, intent):
+    """
+    Default implementation of `SudoScript`.
+    """
+    quoted_command = shell_quote(intent.command)
+    return Effect(Run(
+        command='bash -c ' + quoted_command, log_command_filter=identity))
+
+
+@sync_performer
+def perform_sudo_script(dispatcher, intent):
+    """
+    Default implementation of `SudoScript`.
+    """
+    quoted_command = shell_quote(intent.command)
+    return Effect(Sudo(
+        command='bash -c ' + quoted_command, log_command_filter=identity))
 
 
 class Put(PClass):
@@ -133,6 +175,19 @@ class Put(PClass):
     log_content_filter = field(mandatory=True)
 
 
+class SudoPut(Put):
+    """
+    Create a file with the given content on a remote host using sudo.
+
+    :ivar bytes content: The desired contents.
+    :ivar bytes path: The remote path to create.
+    :ivar callable log_content_filter: A filter to apply to any logging
+        of the transferred content.
+
+    Note to reviewer: I'm unsure if we ever use inheritance like this.
+    """
+
+
 @sync_performer
 def perform_put(dispatcher, intent):
     """
@@ -145,6 +200,23 @@ def perform_put(dispatcher, intent):
     return Effect(Run(
         command=create_put_command(intent.content, intent.path),
         log_command_filter=lambda _: create_put_command(
+            intent.log_content_filter(intent.content), intent.path)
+        ))
+
+
+@sync_performer
+def perform_sudo_put(dispatcher, intent):
+    """
+    Default implementation of `SudoPut`.
+    """
+    def create_sudo_put_command(content, path):
+        # Escape printf format markers
+        content = content.replace('\\', '\\\\').replace('%', '%%')
+        return 'printf -- %s | sudo tee %s' % (shell_quote(content),
+                                               shell_quote(path))
+    return Effect(Run(
+        command=create_sudo_put_command(intent.content, intent.path),
+        log_command_filter=lambda _: create_sudo_put_command(
             intent.log_content_filter(intent.content), intent.path)
         ))
 
@@ -188,6 +260,32 @@ def sudo(command, log_command_filter=identity):
     """
     return Effect(Sudo(command=command, log_command_filter=log_command_filter))
 
+def run_script(command, log_command_filter=identity):
+    """
+    Run a shell command on a remote host with sudo.
+
+    :param bytes command: The command to run.
+    :param callable log_command_filter: A filter to apply to any logging
+        of the executed command.
+
+    :return Effect:
+    """
+    return Effect(RunScript(command=command,
+                             log_command_filter=log_command_filter))
+
+def sudo_script(command, log_command_filter=identity):
+    """
+    Run a shell command on a remote host with sudo.
+
+    :param bytes command: The command to run.
+    :param callable log_command_filter: A filter to apply to any logging
+        of the executed command.
+
+    :return Effect:
+    """
+    return Effect(SudoScript(command=command,
+                             log_command_filter=log_command_filter))
+
 
 def put(content, path, log_content_filter=identity):
     """
@@ -201,6 +299,21 @@ def put(content, path, log_content_filter=identity):
     :return Effect:
     """
     return Effect(Put(
+        content=content, path=path, log_content_filter=log_content_filter))
+
+
+def sudo_put(content, path, log_content_filter=identity):
+    """
+    Create a file with the given content on a remote host using sudo
+
+    :param bytes content: The desired contents.
+    :param bytes path: The remote path to create.
+    :param callable log_content_filter: A filter to apply to any logging
+        of the transferred content.
+
+    :return Effect:
+    """
+    return Effect(SudoPut(
         content=content, path=path, log_content_filter=log_content_filter))
 
 
