@@ -23,9 +23,9 @@ For installation and configuration information for using Flocker with a cluster 
 
 	<div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
+			<span>Docker Swarm, with Docker Compose</span>
 			<img src="_static/images/docker2x.png" alt="Docker logo"/>
-			<span>Docker Swarm, with Docker Compose<em>Try it Now</em></span>
-	        <a href="docker-integration/" class="button button--fast">Using Flocker with Docker</a>
+	        <span><em>Easiest way to install Flocker</em></span><a href="docker-integration/" class="button button--fast">Using Flocker with Docker</a>
 	    </div>
 
 	    <div class="pod-boxout pod-boxout--orchestration">
@@ -50,9 +50,7 @@ If you want to install Flocker without a specific Cluster Manager in mind, that 
 
    <div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
-		   <span>Install Flocker without a Cluster Manager
-           </span>
-		     <a href="flocker-standalone/" class="button button--manual">Install Flocker</a>
+		     <a href="flocker-standalone/" class="button button--manual">Using Flocker without a Cluster Manager</a>
 	    </div>	
    </div>
 
