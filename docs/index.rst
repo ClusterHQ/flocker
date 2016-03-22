@@ -23,33 +23,53 @@ For installation and configuration information for using Flocker with a cluster 
 
 	<div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
+			<p><b>Docker Swarm, with Docker Compose</b></p>
 			<img src="_static/images/docker2x.png" alt="Docker logo"/>
-	        <span>Docker Swarm, with Docker Compose<em>Easiest way to install Flocker</em></span><a href="docker-integration/" class="button button--fast">Using Flocker with Docker</a>
+	        <span><p><em>Easiest way to install Flocker</em></p>
+			<p>Plus:
+			<br />Tutorials
+			<br/>Blog Articles
+			<br/>Advanced Concepts
+			</p></span>
+			<br /><br />
+			<a href="docker-integration/" class="button button--fast">Use Flocker with Docker</a>
 	    </div>
 
 	    <div class="pod-boxout pod-boxout--orchestration">
+			<p><b>Kubernetes</b></p><br />
 			<img src="_static/images/kubernetes2x.png" alt="Kubernetes logo"/>
-			<span>Kubernetes</span>
-	        <a href="kubernetes-integration/" class="button">Using Flocker with Kubernetes</a>
+	        <span><p>How to install Flocker</p>
+			<p>Plus:
+			<br />Tutorials
+			<br/>Blog Articles
+			</p></span>
+            <br /><br />
+	        <a href="kubernetes-integration/" class="button">Use Flocker with Kubernetes</a>
 	    </div>
 
 	    <div class="pod-boxout pod-boxout--orchestration">
+			<p><b>Mesos</b></p><br />
 			<img src="_static/images/mesos2x.png" alt="mesos logo"/>
-	        <span>Mesos</span>
-			<a href="mesos-integration/" class="button">Using Flocker with Mesos</a>
+	        <span><p>How to install Flocker</p>
+			<p>Plus:
+			<br />Tutorials
+			<br/>Blog Articles
+			</p></span>
+			<br /><br />
+			<a href="mesos-integration/" class="button">Use Flocker with Mesos</a>
 	    </div>
 	</div>
 
 Using Flocker without a Cluster Manager
 =======================================
 
-If you want to install Flocker without a specific Cluster Manager in mind, that is also possible:
+Alternatively, if you want to install Flocker without a specific Cluster Manager in mind, that is also possible:
 
 .. raw:: html
 
    <div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
-		     <a href="flocker-standalone/" class="button button--manual">Using Flocker without a Cluster Manager</a>
+		     <a href="flocker-standalone/" class="button">Use Flocker without a Cluster Manager</a>
 	    </div>	
    </div>
 
