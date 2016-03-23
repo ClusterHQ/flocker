@@ -14,7 +14,7 @@ To start using the Open vStorage Flocker plugin, see the `Open vStorage document
 
 .. XXX FLOC 2443 to expand this Backend storage section
 
-.. _Open vStorage Flocker driver on GitHub: https://github.com/netapp/flocker
+.. _Open vStorage Flocker driver on GitHub: https://github.com/openvstorage/openvstorage-flocker-driver
 .. _Open vStorage documentation: https://openvstorage.gitbooks.io/openvstorage/content/Administration/createvdisk.html#docker
 
 .. end-body
