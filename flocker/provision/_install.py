@@ -28,8 +28,8 @@ from ._common import PackageSource, Variants
 from ._ssh import (
     Run, Sudo,
     run_network_interacting_from_args, sudo_network_interacting_from_args,
-    run, sudo, run_from_args, sudo_from_args,
-    put, sudo_put, run_script, sudo_script,
+    run, put, run_from_args,
+    sudo, sudo_put, sudo_from_args, sudo_script,
     run_remotely,
 )
 from ._ssh._conch import make_dispatcher
@@ -737,11 +737,10 @@ def _remove_private_keys(content):
         # strangely short key, keep all content
         return content
     end_of_key = end+len(suffix)
-    # there might be more than one private key in here.
-    # Not performant if there are hundreds of keys...
     trimmed_key = (content[:trim_start] +
                    '...REMOVED...' +
                    content[trim_end:end_of_key])
+    # keep looking for more keys
     return trimmed_key + _remove_private_keys(content[end_of_key:])
 
 
@@ -851,13 +850,16 @@ def task_enable_docker(distribution):
                     """
                 ),
             ),
-            sudo_put(path="/etc/systemd/system/docker.service.d/02-TLS.conf",
-                     content=dedent(
-                         """\
-                         [Service]
-                         ExecStart=
-                         ExecStart=/usr/bin/docker daemon -H fd:// {}
-                         """.format(docker_tls_options))),
+            sudo_put(
+                path="/etc/systemd/system/docker.service.d/02-TLS.conf",
+                content=dedent(
+                    """\
+                    [Service]
+                    ExecStart=
+                    ExecStart=/usr/bin/docker daemon -H fd:// {}
+                    """.format(docker_tls_options)
+                )
+            ),
             sudo_from_args(["systemctl", "enable", "docker.service"]),
         ])
     elif distribution == 'ubuntu-14.04':

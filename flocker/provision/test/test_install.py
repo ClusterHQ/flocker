@@ -13,7 +13,7 @@ from textwrap import dedent
 from .._install import (
     task_configure_flocker_agent,
     task_enable_flocker_agent,
-    run, put, run_from_args,
+    run, put, run_from_args, sudo,
     get_repository_url, UnsupportedDistribution, get_installable_version,
     get_repo_options,
     _remove_dataset_fields, _remove_private_keys,
@@ -103,10 +103,10 @@ class EnableFlockerAgentTests(TestCase):
             distribution=distribution,
         )
         expected_sequence = sequence([
-            run(command="systemctl enable flocker-dataset-agent"),
-            run(command="systemctl start flocker-dataset-agent"),
-            run(command="systemctl enable flocker-container-agent"),
-            run(command="systemctl start flocker-container-agent"),
+            sudo(command="systemctl enable flocker-dataset-agent"),
+            sudo(command="systemctl start flocker-dataset-agent"),
+            sudo(command="systemctl enable flocker-container-agent"),
+            sudo(command="systemctl start flocker-container-agent"),
         ])
         self.assertEqual(commands, expected_sequence)
 
@@ -122,10 +122,10 @@ class EnableFlockerAgentTests(TestCase):
             action="restart"
         )
         expected_sequence = sequence([
-            run(command="systemctl enable flocker-dataset-agent"),
-            run(command="systemctl restart flocker-dataset-agent"),
-            run(command="systemctl enable flocker-container-agent"),
-            run(command="systemctl restart flocker-container-agent"),
+            sudo(command="systemctl enable flocker-dataset-agent"),
+            sudo(command="systemctl restart flocker-dataset-agent"),
+            sudo(command="systemctl enable flocker-container-agent"),
+            sudo(command="systemctl restart flocker-container-agent"),
         ])
         self.assertEqual(commands, expected_sequence)
 
@@ -139,8 +139,8 @@ class EnableFlockerAgentTests(TestCase):
             distribution=distribution,
         )
         expected_sequence = sequence([
-            run(command="service flocker-dataset-agent start"),
-            run(command="service flocker-container-agent start"),
+            sudo(command="service flocker-dataset-agent start"),
+            sudo(command="service flocker-container-agent start"),
         ])
         self.assertEqual(commands, expected_sequence)
 
@@ -156,8 +156,8 @@ class EnableFlockerAgentTests(TestCase):
             action="restart"
         )
         expected_sequence = sequence([
-            run(command="service flocker-dataset-agent restart"),
-            run(command="service flocker-container-agent restart"),
+            sudo(command="service flocker-dataset-agent restart"),
+            sudo(command="service flocker-container-agent restart"),
         ])
         self.assertEqual(commands, expected_sequence)
 

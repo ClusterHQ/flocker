@@ -112,7 +112,8 @@ class Sudo(PClass):
 
 class RunScript(PClass):
     """
-    Run a multi-statement shell script on the host
+    Run a multi-statement shell script on the host.
+
     :ivar bytes command: The command_string to run.
     :ivar callable log_command_filter: A filter to apply to any logging
         of the executed command.
@@ -123,7 +124,10 @@ class RunScript(PClass):
 
 class SudoScript(PClass):
     """
-    Run a multi-statement shell script on the host using sudo
+    Run a multi-statement shell script on the host using sudo. Useful
+    since naively sudoing a multi-command string will only sudo the
+    first command.
+
     :ivar bytes command: The command_string to run.
     :ivar callable log_command_filter: A filter to apply to any logging
         of the executed command.
@@ -207,13 +211,13 @@ def perform_put(dispatcher, intent):
 @sync_performer
 def perform_sudo_put(dispatcher, intent):
     """
-    Default implementation of `SudoPut`.
+    Default implementation of `SudoPut`. Uses tee since we can't sudo
+    command redirection.
     """
     def create_sudo_put_command(content, path):
         # Escape printf format markers
         content = content.replace('\\', '\\\\').replace('%', '%%')
-        # use tee in order to sudo but don't output what
-        # we are writing since it can contain a key
+        # don't output what we are writing since it can contain a key
         return 'printf -- %s | sudo tee %s > /dev/null' % (
             shell_quote(content), shell_quote(path))
     return Effect(Run(
@@ -264,7 +268,7 @@ def sudo(command, log_command_filter=identity):
 
 def run_script(command, log_command_filter=identity):
     """
-    Run a shell command on a remote host with sudo.
+    Run multiple shell commands or statements on a remote host.
 
     :param bytes command: The command to run.
     :param callable log_command_filter: A filter to apply to any logging
@@ -277,7 +281,7 @@ def run_script(command, log_command_filter=identity):
 
 def sudo_script(command, log_command_filter=identity):
     """
-    Run a shell command on a remote host with sudo.
+    Run multiple shell commands or statements on a remote host with sudo.
 
     :param bytes command: The command to run.
     :param callable log_command_filter: A filter to apply to any logging
@@ -306,7 +310,7 @@ def put(content, path, log_content_filter=identity):
 
 def sudo_put(content, path, log_content_filter=identity):
     """
-    Create a file with the given content on a remote host using sudo
+    Create a file with the given content on a remote host using sudo.
 
     :param bytes content: The desired contents.
     :param bytes path: The remote path to create.
