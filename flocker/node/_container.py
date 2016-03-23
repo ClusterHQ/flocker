@@ -710,4 +710,4 @@ class ApplicationNodeDeployer(object):
             phases.append(in_parallel(changes=start_restart))
 
         return sequentially(changes=phases,
-                            sleep_when_empty=timedelta(seconds=1))
+                            sleep_when_empty=timedelta(seconds=5))
