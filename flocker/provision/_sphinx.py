@@ -113,7 +113,7 @@ class TaskDirective(Directive):
             raise self.error("task: %s not supported"
                              % (type(e.args[0]).__name__,))
         except SequenceFailed as e:
-            print e.error
+            print e.exc_info
 
         for command_line in command_lines:
             # handler can return either a string or a list.  If it returns a

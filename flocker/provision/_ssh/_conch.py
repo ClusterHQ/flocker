@@ -32,8 +32,10 @@ import os
 
 from ...common import loop_until, timeout
 from ._model import (
-    Run, Sudo, Put, Comment, RunRemotely, perform_comment, perform_put,
-    perform_sudo)
+    Run, Sudo, RunScript, SudoScript, Put, SudoPut, Comment, RunRemotely,
+    perform_comment, perform_put, perform_sudo, perform_sudo_put,
+    perform_run_script, perform_sudo_script,
+)
 
 from .._effect import dispatcher as base_dispatcher
 
@@ -109,7 +111,10 @@ def get_ssh_dispatcher(connection, context):
     return TypeDispatcher({
         Run: perform_run,
         Sudo: perform_sudo,
+        RunScript: perform_run_script,
+        SudoScript: perform_sudo_script,
         Put: perform_put,
+        SudoPut: perform_sudo_put,
         Comment: perform_comment,
     })
 
