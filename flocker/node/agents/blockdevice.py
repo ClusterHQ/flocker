@@ -1961,7 +1961,7 @@ class BlockDeviceDeployer(PClass):
         # `ATTACHED_ELSEWHERE` need the same behavior as `NON_MANIFEST`, so we
         # don't check them either.
 
-        not_in_use_datasets = set(not_in_use(local_datasets.values())
+        not_in_use_datasets = set(not_in_use(local_datasets.values()))
         for dataset_id, dataset in local_datasets.items():
             if dataset in not_in_use_datasets:
                 continue
