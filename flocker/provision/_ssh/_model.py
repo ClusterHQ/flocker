@@ -212,8 +212,10 @@ def perform_sudo_put(dispatcher, intent):
     def create_sudo_put_command(content, path):
         # Escape printf format markers
         content = content.replace('\\', '\\\\').replace('%', '%%')
-        return 'printf -- %s | sudo tee %s' % (shell_quote(content),
-                                               shell_quote(path))
+        # use tee in order to sudo but don't output what
+        # we are writing since it can contain a key
+        return 'printf -- %s | sudo tee %s > /dev/null' % (
+            shell_quote(content), shell_quote(path))
     return Effect(Run(
         command=create_sudo_put_command(intent.content, intent.path),
         log_command_filter=lambda _: create_sudo_put_command(

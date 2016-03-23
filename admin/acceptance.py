@@ -11,6 +11,7 @@ from itertools import repeat
 from base64 import b32encode
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
+from time import time
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
@@ -27,7 +28,8 @@ from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.python.reflect import prefixedMethodNames
 
-from effect import parallel
+from effect import parallel, Effect, Constant
+from effect.retry import retry
 from txeffect import perform
 
 from uuid import UUID
@@ -54,6 +56,7 @@ from flocker.provision._install import (
     configure_cluster,
     configure_node,
     configure_zfs,
+    task_install_ssh_key,
 )
 from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
@@ -1429,6 +1432,25 @@ def journald_json_formatter(output_file):
                 accumulated.clear()
     return handle_output_line
 
+def install_root_ssh_key(reactor, nodes):
+    start = []
+
+    def for_thirty_seconds(*args, **kwargs):
+        if not start:
+            start.append(time())
+        return Effect(Constant((time() - start[0]) < 30))
+
+    return perform(
+        make_dispatcher(reactor),
+        parallel([
+            run_remotely(
+                username=node.get_default_username(),
+                address=node.address,
+                commands=retry(task_install_ssh_key(), for_thirty_seconds),
+            ) for node in nodes
+        ])
+    )
+
 
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
@@ -1478,6 +1500,8 @@ def main(reactor, args, base_path, top_level):
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
+        yield install_root_ssh_key(reactor, cluster.all_nodes)
+
         if options['distribution'] in ('centos-7',):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
@@ -1507,12 +1531,11 @@ def main(reactor, args, base_path, top_level):
             )
 
         setup_succeeded = True
-        result = 0
-        # result = yield run_tests(
-        #     reactor=reactor,
-        #     cluster=cluster,
-        #     trial_args=options['trial-args'],
-        #     package_source=options.package_source())
+        result = yield run_tests(
+            reactor=reactor,
+            cluster=cluster,
+            trial_args=options['trial-args'],
+            package_source=options.package_source())
     finally:
         reached_finally = True
         # We delete the nodes if the user hasn't asked to keep them

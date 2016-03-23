@@ -690,6 +690,16 @@ def task_test_homebrew(recipe):
     ])
 
 
+def task_install_ssh_key():
+    """
+    Install the authorized ssh keys of the current user for root as well.
+    """
+    return sequence([
+        sudo_from_args(['cp', '.ssh/authorized_keys',
+                        '/root/.ssh/authorized_keys']),
+    ])
+
+
 def task_upgrade_kernel(distribution):
     """
     Upgrade kernel.
@@ -706,9 +716,9 @@ def task_upgrade_kernel(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
-def _remove_private_key(content):
+def _remove_private_keys(content):
     """
-    Remove most of the contents of a private key file for logging.
+    Remove most of the contents of private key files for logging.
     """
     prefix = '-----BEGIN PRIVATE KEY-----'
     suffix = '-----END PRIVATE KEY-----'
@@ -726,7 +736,13 @@ def _remove_private_key(content):
     if trim_end <= trim_start:
         # strangely short key, keep all content
         return content
-    return content[:trim_start] + '...REMOVED...' + content[trim_end:]
+    end_of_key = end+len(suffix)
+    # there might be more than one private key in here.
+    # Not performant if there are hundreds of keys...
+    trimmed_key = (content[:trim_start] +
+                   '...REMOVED...' +
+                   content[trim_end:end_of_key])
+    return trimmed_key + _remove_private_keys(content[end_of_key:])
 
 
 def task_install_control_certificates(ca_cert, control_cert, control_key):
@@ -750,7 +766,7 @@ def task_install_control_certificates(ca_cert, control_cert, control_key):
                  content=control_cert.getContent()),
         sudo_put(path="/etc/flocker/control-service.key",
                  content=control_key.getContent(),
-                 log_content_filter=_remove_private_key),
+                 log_content_filter=_remove_private_keys),
         sudo('chmod u=rw,g=,o= /etc/flocker/control-service.key'),
     ])
 
@@ -775,7 +791,7 @@ def task_install_node_certificates(ca_cert, node_cert, node_key):
                  content=node_cert.getContent()),
         sudo_put(path="/etc/flocker/node.key",
                  content=node_key.getContent(),
-                 log_content_filter=_remove_private_key),
+                 log_content_filter=_remove_private_keys),
         sudo('chmod u=rw,g=,o= /etc/flocker/node.key'),
     ])
 
@@ -797,7 +813,7 @@ def task_install_api_certificates(api_cert, api_key):
                  content=api_cert.getContent()),
         sudo_put(path="/etc/flocker/plugin.key",
                  content=api_key.getContent(),
-                 log_content_filter=_remove_private_key),
+                 log_content_filter=_remove_private_keys),
         sudo('chmod u=rw,g=,o= /etc/flocker/plugin.key'),
     ])
 
