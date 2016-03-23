@@ -19,7 +19,7 @@ class SequenceFailed(Exception, object):
     Raised if an effect in a :class:``Sequence`` fails.
 
     :ivar list results: The list of successful results.
-    :ivar error: The error result of the last run effect.
+    :ivar exc_info: The error result of the last run effect.
     """
 
     def __str__(self):
