@@ -34,7 +34,7 @@ from .blockdevice import (
     IBlockDeviceAPI, IProfiledBlockDeviceAPI, ICloudAPI, BlockDeviceVolume,
     AlreadyAttachedVolume, UnknownVolume, UnattachedVolume, MandatoryProfiles
 )
-from ...common import poll_until
+from ...common import poll_until, loop_until
 
 # GCE instances have a metadata server that can be queried for information
 # about the instance the code is being run on.
@@ -228,6 +228,55 @@ def wait_for_operation(compute, operation, timeout_steps, sleep=None):
         )
         action.add_success_fields(final_operation=final_operation)
         return final_operation
+
+
+def wait_for_operation_async(reactor, compute, operation, timeout_steps):
+    """
+    Fires a deferred once a GCE operation is complete, or timeout passes.
+
+    This function will poll the operation until it reaches state 'DONE' or
+    times out, and then returns the final operation resource dict.
+
+    :param reactor: The twisted ``IReactorTime`` provider to use to schedule
+        delays.
+    :param compute: The GCE compute python API object.
+    :param operation: A dict representing a pending GCE operation resource.
+        This can be either a zone or a global operation.
+    :param timeout_steps: Iterable of times in seconds to wait until timing out
+        the operation.
+
+    :returns Deferred: A Deferred firing with the concluded GCE operation
+        resource or calling its errback operation times out.
+    """
+    poller = _create_poller(operation)
+
+    eliot_action = start_action(
+        action_type=u"flocker:node:agents:gce:wait_for_operation_async",
+        operation=operation
+    )
+
+    # Apologies for open-rolling eliot action manipulation. Eliot's
+    # interactions with deferred confuse me.
+    with eliot_action.context():
+        def finished_operation_result():
+            latest_operation = poller.poll(compute)
+            if latest_operation['status'] == 'DONE':
+                return latest_operation
+            return None
+
+        operation_deferred = loop_until(
+            reactor,
+            finished_operation_result,
+            timeout_steps,
+        )
+
+    def conclude_operation(final_operation):
+        eliot_action.add_success_fields(final_operation=final_operation)
+        eliot_action.finish()
+        return final_operation
+
+    operation_deferred.addCallback(conclude_operation)
+    return operation_deferred
 
 
 def get_metadata_path(path):
