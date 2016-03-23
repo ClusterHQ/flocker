@@ -52,7 +52,6 @@ For installation and configuration information for using Flocker with a cluster 
 			<img src="_static/images/mesos2x.png" alt="mesos logo"/>
 	        <span><p>How to install Flocker</p>
 			<p>Plus:
-			<br />Tutorials
 			<br/>Blog Articles
 			</p></span>
 			<br /><br />
