@@ -570,7 +570,7 @@ class ApplicationNodeDeployer(object):
         volume_state = state.volume
         volume_configuration = configuration.volume
 
-        restart_state = volume_state.restart_policy
+        restart_state = state.restart_policy
         # The volume comparison is too complicated to leave up to `!=` below.
         # Check volumes separately.
         # Restart policies don't implement comparison usefully.  See FLOC-2500.
