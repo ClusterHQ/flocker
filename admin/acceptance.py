@@ -1432,6 +1432,7 @@ def journald_json_formatter(output_file):
                 accumulated.clear()
     return handle_output_line
 
+
 def install_root_ssh_key(reactor, nodes):
     start = []
 

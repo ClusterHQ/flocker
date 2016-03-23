@@ -9,9 +9,9 @@ from pipes import quote
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin, urlparse
-from effect import Func, Effect, Constant, parallel
-from effect.retry import retry
-from time import time
+from effect import Func, Effect, parallel
+
+
 import yaml
 
 from zope.interface import implementer
@@ -769,6 +769,7 @@ def task_install_control_certificates(ca_cert, control_cert, control_key):
         sudo('chmod u=rw,g=,o= /etc/flocker/control-service.key'),
     ])
 
+
 def task_install_node_certificates(ca_cert, node_cert, node_key):
     """
     Install certificates and private key required by a node.
@@ -1456,14 +1457,16 @@ def task_enable_docker_head_repository(distribution):
     """
     if is_centos(distribution):
         return sequence([
-            sudo_put(content=dedent("""\
+            sudo_put(
+                content=dedent("""\
                 [virt7-testing]
                 name=virt7-testing
                 baseurl=http://cbs.centos.org/repos/virt7-testing/x86_64/os/
                 enabled=1
                 gpgcheck=0
                 """),
-                path="/etc/yum.repos.d/virt7-testing.repo")
+                path="/etc/yum.repos.d/virt7-testing.repo"
+            )
         ])
     else:
         raise DistributionNotSupported(distribution=distribution)

@@ -266,6 +266,7 @@ def sudo(command, log_command_filter=identity):
     """
     return Effect(Sudo(command=command, log_command_filter=log_command_filter))
 
+
 def run_script(command, log_command_filter=identity):
     """
     Run multiple shell commands or statements on a remote host.
@@ -277,7 +278,8 @@ def run_script(command, log_command_filter=identity):
     :return Effect:
     """
     return Effect(RunScript(command=command,
-                             log_command_filter=log_command_filter))
+                            log_command_filter=log_command_filter))
+
 
 def sudo_script(command, log_command_filter=identity):
     """
