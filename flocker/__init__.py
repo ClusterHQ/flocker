@@ -28,7 +28,7 @@ def _disable_pyrsistent_c_extensions():
     """
     import os
     os.environ[b"PYRSISTENT_NO_C_EXTENSION"] = b"1"
-_disable_pyrsistent_c_extensions()
+# _disable_pyrsistent_c_extensions()
 del _disable_pyrsistent_c_extensions
 
 

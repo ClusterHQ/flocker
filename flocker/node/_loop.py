@@ -517,8 +517,8 @@ class ConvergenceLoop(object):
             return succeed(None)
 
     def output_CONVERGE(self, context):
-        with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
-                          desired_configuration=self.configuration).context():
+        with LOG_CONVERGE(self.fsm.logger, cluster_state={},
+                          desired_configuration={}).context():
             log_discovery = LOG_DISCOVERY(self.fsm.logger)
             with log_discovery.context():
                 discover = DeferredContext(maybeDeferred(

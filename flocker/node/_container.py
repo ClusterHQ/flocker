@@ -570,17 +570,13 @@ class ApplicationNodeDeployer(object):
         volume_state = state.volume
         volume_configuration = configuration.volume
 
+        restart_state = comparable_state.restart_policy
         # The volume comparison is too complicated to leave up to `!=` below.
         # Check volumes separately.
-        comparable_state = state.set(volume=None)
-        comparable_configuration = configuration.set(volume=None)
-
         # Restart policies don't implement comparison usefully.  See FLOC-2500.
-        restart_state = comparable_state.restart_policy
-        comparable_state = comparable_state.set(restart_policy=RestartNever())
-        comparable_configuration = comparable_configuration.set(
-            restart_policy=RestartNever()
-        )
+        comparable_state = state.set(volume=None, restart_policy=RestartNever())
+        comparable_configuration = configuration.set(
+            volume=None, restart_policy=RestartNever())
 
         return (
             comparable_state != comparable_configuration or
