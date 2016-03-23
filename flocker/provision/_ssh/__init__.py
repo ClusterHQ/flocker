@@ -7,7 +7,7 @@ from ._model import (
     Put, put, sudo_put,
     Comment, comment,
     RunRemotely, run_remotely,
-    perform_comment, perform_put
+    perform_comment, perform_put, perform_sudo
 )
 
 __all__ = [
