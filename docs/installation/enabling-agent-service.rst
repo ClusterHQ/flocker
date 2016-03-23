@@ -49,7 +49,7 @@ Ubuntu
 
 .. end-body-enable-agent-main
 
-.. begin-body-enable-agent-kubernetes
+.. begin-body-enable-agent-other
 
 .. note::
    Flocker's container management features depend on Docker.
@@ -57,8 +57,8 @@ Ubuntu
 
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
 
-CentOS 7
-========
+CentOS 7, RHEL 7.2
+==================
 
 Run the following commands to enable the agent service:
 
@@ -73,4 +73,4 @@ Run the following commands to enable the agent service:
 .. task:: enable_flocker_agent ubuntu-14.04
       :prompt: [root@agent-node]#
 
-.. end-body-enable-agent-kubernetes
+.. end-body-enable-agent-other
