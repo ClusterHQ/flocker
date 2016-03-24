@@ -19,6 +19,7 @@ Installing the Flocker Node Services
    :end-before: .. end-body-installing-node-guides
 
 * :ref:`aws-install-standalone-flocker`
+* :ref:`gce-install-standalone-flocker`
 * :ref:`rackspace-install-standalone-flocker`
 
 .. _centos-7-install-standalone-flocker:

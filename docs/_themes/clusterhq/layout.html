@@ -1,6 +1,4 @@
-{%- if meta is defined and meta.get('layout') == 'homepage' -%}
-{%- extends 'layout_homepage.html' -%}
-{%- elif pagename =='version' -%}
+{%- if pagename =='version' -%}
 {%- extends 'layout_version.html' -%}
 {%- else -%}
 {%- extends 'layout_docs.html' -%}

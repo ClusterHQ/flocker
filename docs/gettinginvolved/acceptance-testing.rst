@@ -166,10 +166,12 @@ GCE
 To run the acceptance tests on GCE, you need:
 
 - GCE credentials (1 of the following):
+
   - Preferred: run ``gcloud auth login``.
   - Set the environment variable ``GOOGLE_APPLICATION_CREDENTIALS`` to point to a JSON file downloaded as the key to a service account.
   - Run the tests from a GCE VM that has been given ``compute`` privileges.
   - Add the JSON dict you get for a service accounts credentials to your ``acceptance.yaml``.
+
 - A location where the acceptance test cluster will be run (project and zone).
 
 .. code-block:: yaml
@@ -182,11 +184,12 @@ To run the acceptance tests on GCE, you need:
        <Optional dict equivalent to the json you get for service account keys>
 
 
-You will need an ssh agent running with access to the corresponding private key.
+You will need an ssh agent with corresponding private key loaded.
 
 GCE can use these dataset backends:
 
 * :ref:`Loopback<loopback-dataset-backend>`
+* :ref:`GCE<gce-dataset-backend>`
 
 .. prompt:: bash $
 

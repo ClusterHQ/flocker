@@ -66,16 +66,15 @@ These are the best options for running Flocker on a supported public or private 
 	        <a href="../flocker-features/openstack-configuration.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
+			<img src="../_static/images/gce2x.png" alt="GCE logo"/>
+			<span>GCE PD</span>
+	        <a href="../flocker-features/gce-configuration.html" class="button">Learn more</a>
+	    </div>
+	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/vmware2x.png" alt="VMWare logo"/>
 			<span>VMware vSphere</span>
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="../flocker-features/vmware-configuration.html" class="button">Learn more</a>
-	    </div>
-	     <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/gce2x.png" alt="GCE logo"/>
-			<span>GCE PD</span>
-			<img class="icon-key-assign" src="../_static/images/icon-soon2x.png" aria-hidden="true" alt=""/>
-	        <div class="button button--disabled">Coming soon</div>
 	    </div>
 	</div>
 
