@@ -21,43 +21,56 @@ For installation and configuration information for using Flocker with a cluster 
 
 .. raw:: html
 
-	<div class="pods-eq">
-	    <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
-			<p><b>Docker Swarm, with Docker Compose</b></p>
-			<img src="_static/images/docker2x.png" alt="Docker logo"/>
-	        <span><p><em>Easiest way to install Flocker</em></p>
-			<p>Plus:
-			<br />Tutorials
-			<br/>Blog Articles
-			<br/>Advanced Concepts
-			</p></span>
-			<br /><br />
-			<a href="docker-integration/" class="button button--fast">Use Flocker with Docker</a>
-	    </div>
+   <div class="pods-eq">
+        <div class="pod-boxout pod-boxout--orchestration pod-boxout--recommended">
+            <div class="heading-logo-lockup">    
+            <p><strong>Docker Swarm, with Docker Compose</strong></p>
+                <img src="_static/images/docker2x.png" alt="Docker logo"/>
+        </div>
+             <div class="bulleted-list">
+        <p><em>Easiest way to install Flocker</em></p>
+                <p>Plus:</p>
+                <ul>
+            <li>Tutorials</li>
+                    <li>Blog Articles</li>
+                    <li>Advanced Concepts</li>
+           </ul>
+            </div>
+            <a href="docker-integration/" class="button button--fast">Use Flocker with Docker</a>
+        </div>
 
-	    <div class="pod-boxout pod-boxout--orchestration">
-			<p><b>Kubernetes</b></p><br />
-			<img src="_static/images/kubernetes2x.png" alt="Kubernetes logo"/>
-	        <span><p>How to install Flocker</p>
-			<p>Plus:
-			<br />Tutorials
-			<br/>Blog Articles
-			</p></span>
-            <br /><br />
-	        <a href="kubernetes-integration/" class="button">Use Flocker with Kubernetes</a>
-	    </div>
+        <div class="pod-boxout pod-boxout--orchestration">
+        <div class="heading-logo-lockup">             
+            <p><strong>Kubernetes</strong></p>
+                <img src="_static/images/kubernetes2x.png" alt="Kubernetes logo"/>
+        </div>
+            <div class="bulleted-list">
+        <p>How to install Flocker</p>
+            <p>Plus:</p>
+        <ul>
+            <li>Tutorials</li>
+            <li>Blog Articles</li>
+        </ul>
+            </div>
+            <a href="kubernetes-integration/" class="button">Use Flocker with Kubernetes</a>
+        </div>
 
-	    <div class="pod-boxout pod-boxout--orchestration">
-			<p><b>Mesos</b></p><br />
-			<img src="_static/images/mesos2x.png" alt="mesos logo"/>
-	        <span><p>How to install Flocker</p>
-			<p>Plus:
-			<br/>Blog Articles
-			</p></span>
-			<br /><br />
-			<a href="mesos-integration/" class="button">Use Flocker with Mesos</a>
-	    </div>
-	</div>
+        <div class="pod-boxout pod-boxout--orchestration">
+        <div class="heading-logo-lockup">          
+            <p><strong>Mesos</strong></p>
+            <img src="_static/images/mesos2x.png" alt="mesos logo"/>
+        </div>
+             <div class="bulleted-list">
+        <p>How to install Flocker</p>
+            <p>Plus:</p>
+        <ul>
+            <li>Blog Articles</li>
+        </ul>
+            </div>
+            <a href="mesos-integration/" class="button">Use Flocker with Mesos</a>
+        </div>
+   </div>
+
 
 Using Flocker without a Cluster Manager
 =======================================

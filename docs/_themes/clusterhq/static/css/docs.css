@@ -909,3 +909,8 @@ a.download:before {
         padding: 0 15px;
     }
 }
+
+/* Docs homepage bullet list */
+div.bulleted-list { text-align: left} 
+div.heading-logo-lockup {min-height: 20rem} 
+div.bulleted-list ul {min-height: 7rem}
