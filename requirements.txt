@@ -46,7 +46,7 @@ pyasn1-modules==0.0.8
 pycparser==2.14
 pycrypto==2.6.1
 pyOpenSSL==0.15.1
-pyrsistent==0.11.12chq
+pyrsistent==0.11.9chq1
 python-cinderclient==1.1.1
 python-dateutil==2.4.2
 python-keystoneclient==1.4.0
