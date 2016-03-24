@@ -318,9 +318,9 @@ common_cli:
 
     # using the caching-layer, install all the dependencies
     pip install --upgrade pip
-    pip install . ${PIP_ADDITIONAL_OPTIONS}
     # Use --process-dependency-links so we can use the pyrsistent fork.
-    pip install --process-dependency-links ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
+    pip install --process-dependency-links . ${PIP_ADDITIONAL_OPTIONS}
+    pip install ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
     # install junix for our coverage report
     pip install python-subunit junitxml ${PIP_ADDITIONAL_OPTIONS}
 
