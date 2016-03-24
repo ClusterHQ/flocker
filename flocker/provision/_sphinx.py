@@ -17,14 +17,16 @@ from inspect import getsourcefile
 from docutils.parsers.rst import Directive
 from docutils import nodes
 from docutils.statemachine import StringList
-
+from pipes import quote as shell_quote
 from flocker import __version__ as version
 
 from flocker.common.version import get_installable_version
 from flocker.docs.version_extensions import PLACEHOLDER
 
 from . import _tasks as tasks
-from ._ssh import Run, Sudo, Comment, Put
+from ._ssh import (
+    Run, RunScript, Sudo, SudoScript, Comment, Put, SudoPut
+)
 from ._effect import dispatcher as base_dispatcher, SequenceFailed, HTTPGet
 from effect import (
     sync_perform, sync_performer,
@@ -46,6 +48,10 @@ def run_for_docs(effect):
         commands.append("sudo %s" % (intent.command,))
 
     @sync_performer
+    def sudo_script(dispatcher, intent):
+        commands.append("sudo bash -c %s" % (shell_quote(intent.command),))
+
+    @sync_performer
     def comment(dispatcher, intent):
         commands.append("# %s" % (intent.comment))
 
@@ -53,6 +59,14 @@ def run_for_docs(effect):
     def put(dispatcher, intent):
         commands.append([
             "cat <<EOF > %s" % (intent.path,),
+        ] + intent.content.splitlines() + [
+            "EOF",
+        ])
+
+    @sync_performer
+    def sudo_put(dispatcher, intent):
+        commands.append([
+            "cat <<EOF | sudo tee %s" % (intent.path,),
         ] + intent.content.splitlines() + [
             "EOF",
         ])
@@ -67,8 +81,11 @@ def run_for_docs(effect):
             TypeDispatcher({
                 Run: run,
                 Sudo: sudo,
+                RunScript: run,
+                SudoScript: sudo_script,
                 Comment: comment,
                 Put: put,
+                SudoPut: sudo_put,
                 HTTPGet: get,
             }),
             base_dispatcher,
