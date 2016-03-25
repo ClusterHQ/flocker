@@ -445,7 +445,7 @@ class GCEInstanceBuilder(PClass):
         if image is None:
             image = get_latest_gce_image_for_distribution('centos-7',
                                                           self.compute)
-        body =  _create_gce_instance_config(
+        body = _create_gce_instance_config(
             instance_name=instance_name,
             project=self.project,
             zone=self.zone,
@@ -459,7 +459,6 @@ class GCEInstanceBuilder(PClass):
             body=body
         ).execute()
 
-    
     def _make_gce_instance(self, instance_name):
         instance_resource = self.compute.instances().get(
             project=self.project, zone=self.zone, instance=instance_name
@@ -501,7 +500,6 @@ class GCEInstanceBuilder(PClass):
             )
 
         return self._make_gce_instance(instance_name)
-
 
     def create_instance_async(
             self, reactor, instance_name, image=None, **kwargs):
