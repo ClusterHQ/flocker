@@ -226,11 +226,31 @@ def _cached_dfs_serialize(input_object):
 
     :returns: An entirely serializable version of input_object.
     """
-    if _is_pyrsistent(input_object):
-        if input_object in _cached_dfs_serialize_cache:
-            return _cached_dfs_serialize_cache[input_object]
+    # Ensure this is a quick function for basic types:
+    if input_object is None:
+        return None
+    t = type(input_object)
+    is_pyrsistent = False
+    if (
+            t is str or
+            t is unicode or
+            t is int or
+            t is long or
+            t is float or
+            t is bool
+    ):
+        return input_object
+    elif t is dict or t is list or t is tuple:
+        # Don't send basic collections through object serialization, isinstance
+        # is not a very cheap operation.
+        obj = input_object
+    else:
+        if _is_pyrsistent(input_object):
+            is_pyrsistent = True
+            if input_object in _cached_dfs_serialize_cache:
+                return _cached_dfs_serialize_cache[input_object]
+        obj = _to_serializables(input_object)
 
-    obj = _to_serializables(input_object)
     result = obj
 
     if isinstance(obj, dict):
@@ -240,7 +260,7 @@ def _cached_dfs_serialize(input_object):
     elif isinstance(obj, (list, tuple)):
         result = list(_cached_dfs_serialize(x) for x in obj)
 
-    if _is_pyrsistent(input_object):
+    if is_pyrsistent:
         _cached_dfs_serialize_cache[input_object] = result
 
     return result
