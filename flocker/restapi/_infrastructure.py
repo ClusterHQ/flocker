@@ -271,7 +271,8 @@ def structured(inputSchema, outputSchema, schema_store=None,
                     if isinstance(result, EndpointResponse):
                         code = result.code
                         json = result.result
-                    eliot_action.add_success_fields(code=code, json=json)
+                    # Not logging JSON as it is very large
+                    eliot_action.add_success_fields(code=code, json=None)
                     return result
                 d.addCallback(got_result)
                 d.addActionFinish()
