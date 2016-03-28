@@ -1,10 +1,14 @@
+# Todo:
 # Need to add the specified key to the ssh agent
 # -- or use it to connect if that's possible??
-
-
-
+# -- what if the user doesn't have an ssh agent running?
+# need to have the command line option of specifying the api cert name
+# if flocker exists on the node, uninstall flocker first
+# if agent_config_filepath isn't specified don't distribute it to the nodes?
 
 import sys
+from functools import partial
+import tempfile
 
 from pyrsistent import PClass, field
 from eliot import FileDestination
@@ -12,12 +16,23 @@ from zope.interface import implementer
 from twisted.python.usage import Options, UsageError
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.defer import Deferred
+from twisted.python.filepath import FilePath
 
+from effect import parallel
 from txeffect import perform
-from flocker.provision._ssh import (
-    run, run_remotely
-)
 
+#from flocker.provision._common import PackageSource
+from flocker.provision._install import (
+    task_install_flocker,
+    _run_on_all_nodes,
+    _remove_dataset_fields,
+    task_install_control_certificates,
+    task_install_node_certificates,
+    task_install_api_certificates,
+)
+from flocker.provision._ssh import (
+    run, run_remotely, sudo_put
+)
 from flocker.node import DeployerType, BackendDescription
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._effect import sequence
@@ -28,7 +43,6 @@ from flocker.provision._common import INode
 from .acceptance import (
     configure_eliot_logging_for_acceptance,
 )
-
 
 
 @implementer(INode)
@@ -48,31 +62,26 @@ class RunOptions(Options):
     description = "Provision a Flocker cluster."
 
     optParameters = [
-        ['user', None, None, ""],
-        ['identity', None, None, ""],
-        ['agent-config', None, None, ""],
-        ['control-node', None, None, ""],
-        ['agent-nodes', None, None, ""],
-        ['cluster-name', None, None, ""], # optional
+        ['user', 'u', 'ubuntu', ""],
+        ['identity', 'i', None, ""],
+        ['agent-config', None, '/home/bcox/config_files/agent.yml', ""],
+        ['control-node', None, 'ec2-52-38-69-204.us-west-2.compute.amazonaws.com', ""],
+        ['agent-nodes', None, 'ec2-52-38-69-204.us-west-2.compute.amazonaws.com', ""],
+        ['cluster-name', None, u'mycluster', ""], # optional
         ['cluster-id', None, None, ""], # optional
         ['cert-directory', None, None,
          "Directory for storing the cluster certificates. "
          "If not specified, then a temporary directory is used."],
     ]
+
     optFlags = [
-        ['install-flocker',],
-        ['install-flocker-docker-plugin',],
-        ['no-certs',],
-        ['force'],
+        ['install-flocker', None, ""],
+        ['install-flocker-docker-plugin', None, ""],
+        ['no-certs', None, ""],
+        ['force', None, ""],
     ]
 
 
-
-#from flocker.provision._common import PackageSource
-from flocker.provision._install import (
-    task_install_flocker,
-    _run_on_all_nodes
-)
 
 def install_flocker(cluster):
     """
@@ -96,9 +105,57 @@ def install_flocker_docker_plugin(cluster):
 
 
 def distribute_certs(cluster, options):
-    # create the certs locally
-    # distribute to the nodes
     # need to have the user specify the api cert name...
+    run_remotely(
+        username=cluster.control_node.get_default_username(),
+        address=cluster.control_node.address,
+        commands=sequence([
+            task_install_control_certificates(
+                cluster.certificates.cluster.certificate,
+                cluster.certificates.control.certificate,
+                cluster.certificates.control.key),
+        ])
+    )
+    # todo, run this in parallel
+    for certnkey, node in zip(cluster.certificates.nodes, cluster.agent_nodes):
+        run_remotely(
+            username=node.get_default_username(),
+            address=node.address,
+            commands=sequence([
+                task_install_node_certificates(
+                    cluster.certificates.cluster.certificate,
+                    # todo, get the right cert from the node
+                    certnkey.certificate,
+                    certnkey.key),
+                task_install_api_certificates(
+                    cluster.certificates.user.certificate,
+                    cluster.certificates.user.key)
+            ])
+        )
+
+def distribute_agent_yaml(cluster):
+    put_config_file = sudo_put(
+        path='/etc/flocker/agent.yml',
+        content=cluster.dataset_backend_config_file,
+        log_content_filter=_remove_dataset_fields
+    )
+    # todo new function run_on_nodes?
+    return parallel(list(
+        run_remotely(
+            username=node.get_default_username(),
+            address=node.address,
+            commands=put_config_file,
+        )
+        for node in cluster.agent_nodes
+    ))
+
+
+def post_install_actions():
+    # TODO:
+    # if we installed flocker, enable the service and
+    # also open ports on firewall (if enabled)
+    #
+    # restart services
     pass
 
 
@@ -123,24 +180,16 @@ def print_install_plan(cluster, options):
     user_message.append("Agent Nodes:")
     for node in cluster.agent_nodes:
         user_message.append("  - {}".format(str(node.address)))
+    print("")
     for line in user_message:
         print(line)
 
 
 def prompt_user_for_continue():
     answer = raw_input("Do you want to continue? [Y/n]")
-    if not answer.tolower() == 'y':
+    if not answer.lower() == 'y':
         print("Abort.")
         sys.exit(1)
-
-
-# def ensure_keys(self, reactor):
-#     # ensure we have the private key for the provided key
-#     key = get_ssh_key()
-#     if key is not None:
-#         return ensure_agent_has_ssh_key(reactor, key)
-#     else:
-#         return succeed(None)
 
 
 def get_node_distro(reactor, host, username, d):
@@ -172,41 +221,32 @@ def create_node(reactor, ip_address, username):
     return distro_query
 
 
+def create_cert_directory(options):
+    directory = None
+    if options['cert-directory']:
+        directory = FilePath(options['cert-directory'])
+        if not directory.exists():
+            directory.makedirs()
+        elif not directory.isdir():
+            print("Certificate directory exists but is not a directory")
+            sys.exit(1)
+    else:
+        directory = FilePath(tempfile.mkdtemp(prefix=options['cluster-name']))
+        print("New cluster certs will be created in {}".format(
+            str(directory.realpath())))
+    assert directory, "Directory should not be none"
+    return directory
+
+
 def get_certificates(options, control_node, agent_nodes):
+    directory = create_cert_directory(options)
     return Certificates.generate(
-        directory=options['cert-directory'],
+        directory=directory,
         control_hostname=control_node.address,
         num_nodes=len(agent_nodes),
         cluster_name=options['cluster-name'],
         cluster_id=options['cluster-id']
     )
-
-
-@inlineCallbacks
-def create_cluster(reactor, username,
-                   control_node_address, agent_node_addresses,
-                   dataset_backend, agent_yaml_path):
-    # todo, do this in parallel without inline callbacks
-    control_node = yield create_node(reactor, control_node_address, username)
-    agent_nodes = []
-    for node_address in agent_node_addresses:
-        agent_node = yield create_node(reactor, node_address, username)
-        agent_nodes.append(agent_node)
-    if control_node_address in agent_node_addresses:
-        all_nodes = agent_nodes
-    else:
-        all_nodes = [control_node] + agent_nodes
-    #certificates = get_certificates(control_node, agent_nodes)
-    cluster = Cluster(
-        all_nodes=all_nodes,
-        control_node=control_node,
-        agent_nodes=agent_nodes,
-        dataset_backend=get_backend_description(),
-        default_vlume_size=10,
-        certificates=get_certificates(control_node, agent_node),
-        dataset_backend_config_file=agent_yaml_path
-    )
-    yield returnValue(cluster)
 
 
 def get_backend_description(options):
@@ -216,16 +256,44 @@ def get_backend_description(options):
                               api_factory=None,
                               deployer_type=DeployerType.block)
 
+
+@inlineCallbacks
+def create_cluster(reactor, options,
+                   control_node_address, agent_node_addresses,
+                   agent_config_filepath):
+    # todo, do this in parallel without inline callbacks
+    username = options['user']
+    control_node = yield create_node(reactor, control_node_address, username)
+    agent_nodes = []
+    for node_address in agent_node_addresses:
+        agent_node = yield create_node(reactor, node_address, username)
+        agent_nodes.append(agent_node)
+    if control_node_address in agent_node_addresses:
+        all_nodes = agent_nodes
+    else:
+        all_nodes = [control_node] + agent_nodes
+    cluster = Cluster(
+        all_nodes=all_nodes,
+        control_node=control_node,
+        agent_nodes=agent_nodes,
+        dataset_backend=get_backend_description(options),
+        default_volume_size=10,
+        certificates=get_certificates(options, control_node, agent_nodes),
+        dataset_backend_config_file=agent_config_filepath
+    )
+    yield returnValue(cluster)
+
+
 @inlineCallbacks
 def run_provisioning(cluster, actions):
     print "We need to do: "
     for action in actions:
-        print action
+        yield action()
 
 
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
-    options = RunOptions(top_level=top_level)
+    options = RunOptions()
     configure_eliot_logging_for_acceptance()
     try:
         options.parseOptions(args)
@@ -243,17 +311,31 @@ def main(reactor, args, base_path, top_level):
     reactor.addSystemEventTrigger(
         'before', 'shutdown', log_writer.stopService)
 
-    # todo, implement this
-    #ensure_keys()
-    cluster = create_cluster(options)
+    # todo, need to use the identity file supplied on the command line
+
+    agent_nodes = [options['agent-nodes']]
+    agent_config_filepath = FilePath(options['agent-config'])
+    if not agent_config_filepath.isfile():
+        print "could not find agent-config at {}".format(
+            agent_config_filepath.realpath())
+        sys.exit(1)
+    cluster = yield create_cluster(
+        reactor=reactor,
+        options=options,
+        control_node_address=options['control-node'],
+        agent_node_addresses=agent_nodes,
+        agent_config_filepath=agent_config_filepath
+    )
+
     actions = []
     if options['install-flocker']:
-        actions.append(install_flocker)
+        actions.append(partial(install_flocker, cluster))
     if options['install-flocker-docker-plugin']:
-        actions.append(install_flocker_docker_plugin)
+        actions.append(partial(install_flocker_docker_plugin, cluster))
     if not options['no-certs']:
-        actions.append(distribute_certs)
-    print_install_plan()
+        actions.append(partial(distribute_certs, cluster, options))
+    actions.append(partial(distribute_agent_yaml, cluster))
+    print_install_plan(cluster, options)
     if not options['force']:
         prompt_user_for_continue()
-    run_provisioning(cluster, actions)
+    yield run_provisioning(cluster, actions)
