@@ -104,7 +104,9 @@ def flocker_control_main():
         :param frame: None or frame object. See ``signal.signal``.
         """
         current_time = time.strftime("%Y%m%d%H%M%S")
-        path = FilePath('/var/lib/flocker/profile-{}'.format(current_time))
+        path = FilePath(
+            '/var/lib/flocker/profile-control-{}'.format(current_time)
+        )
         # This dumps the current profiling statistics and disables the
         # collection of profiling data. When the profiler is next enabled
         # the new statistics are added to existing data.

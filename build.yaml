@@ -318,6 +318,7 @@ common_cli:
 
     # using the caching-layer, install all the dependencies
     pip install --upgrade pip
+    pip install -r requirements.txt ${PIP_ADDITIONAL_OPTIONS}
     pip install . ${PIP_ADDITIONAL_OPTIONS}
     pip install ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
     # install junix for our coverage report

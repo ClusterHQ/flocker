@@ -33,8 +33,11 @@ REQUEST = ActionType(
     [REQUEST_PATH, METHOD],
     [],
     u"A request was received on the public HTTP interface.")
+
+# JSON response not in action finish because the json response is sometimes a
+# very large cluster configuration.
 JSON_REQUEST = ActionType(
     LOG_SYSTEM + u":json_request",
     [JSON],
-    [RESPONSE_CODE, JSON],
+    [RESPONSE_CODE],
     u"A request containing JSON request and response bodies.")

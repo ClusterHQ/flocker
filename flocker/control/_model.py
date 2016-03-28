@@ -1128,11 +1128,14 @@ class DeploymentState(PClass):
         [original_node] = nodes
         updated_node = original_node.evolver()
         for key, value in node_state.items():
-            if value is not None:
+            if value is not None and value != updated_node[key]:
                 updated_node = updated_node.set(key, value)
-        return self.set(
-            "nodes", self.nodes.discard(original_node).add(
-                updated_node.persistent()))
+        updated_node = updated_node.persistent()
+        if updated_node != original_node:
+            return self.set(
+                "nodes", self.nodes.discard(original_node).add(
+                    updated_node))
+        return self
 
     def remove_node(self, node_uuid):
         """

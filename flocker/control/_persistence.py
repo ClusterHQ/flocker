@@ -173,7 +173,7 @@ class _ConfigurationEncoder(JSONEncoder):
             result[_CLASS_MARKER] = obj.__class__.__name__
             return result
         elif isinstance(obj, PClass):
-            result = obj.evolver().data
+            result = obj._to_dict()
             result[_CLASS_MARKER] = obj.__class__.__name__
             return result
         elif isinstance(obj, PMap):
@@ -316,10 +316,14 @@ def update_leases(transform, persistence_service):
         persistence service has saved.
     """
     config = persistence_service.get()
-    new_config = config.set("leases", transform(config.leases))
-    d = persistence_service.save(new_config)
-    d.addCallback(lambda _: new_config.leases)
-    return d
+    new_leases = transform(config.leases)
+    if new_leases != config.leases:
+        # The leases in the configuration are out of date.
+        new_config = config.set("leases", new_leases)
+        d = persistence_service.save(new_config)
+        d.addCallback(lambda _: new_config.leases)
+        return d
+    return succeed(new_leases)
 
 
 class ConfigurationPersistenceService(MultiService):
