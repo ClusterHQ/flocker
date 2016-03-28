@@ -164,7 +164,7 @@ def run_command(args, added_env=None, cwd=None):
     else:
         env = None
     try:
-        return check_call(args=args, env=env, cwd=cwd,)
+        return check_output(args=args, env=env, cwd=cwd,)
     except CalledProcessError as e:
         print e.output
 
@@ -357,7 +357,7 @@ class VirtualEnv(object):
         python_path = self.root.child('bin').child('python').path
 
         run_command(
-            [python_path, '-m', 'pip', 'install', package_uri],
+            [python_path, '-m', 'pip', '--quiet', 'install', package_uri],
         )
 
 
