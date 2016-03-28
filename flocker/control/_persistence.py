@@ -173,7 +173,7 @@ class _ConfigurationEncoder(JSONEncoder):
             result[_CLASS_MARKER] = obj.__class__.__name__
             return result
         elif isinstance(obj, PClass):
-            result = obj.evolver().data
+            result = obj._to_dict()
             result[_CLASS_MARKER] = obj.__class__.__name__
             return result
         elif isinstance(obj, PMap):

@@ -1,3 +1,4 @@
+git+https://github.com/ClusterHQ/pyrsistent@53c1abf20b7c07f0e36b5c0cf6891e161740fa8e#egg=pyrsistent-0.11.13chq
 argparse==1.3.0
 attrs==15.1.0
 Babel==1.3
@@ -38,7 +39,6 @@ oslo.i18n==1.7.0
 oslo.serialization==1.6.0
 oslo.utils==1.6.0
 pbr==0.11.1
-pip==7.1.0
 prettytable==0.7.2
 psutil==2.1.2
 pyasn1==0.1.9
@@ -46,7 +46,6 @@ pyasn1-modules==0.0.8
 pycparser==2.14
 pycrypto==2.6.1
 pyOpenSSL==0.15.1
-pyrsistent==0.11.9
 python-cinderclient==1.1.1
 python-dateutil==2.4.2
 python-keystoneclient==1.4.0
