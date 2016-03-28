@@ -67,6 +67,20 @@ Install Flocker's development dependencies in a ``virtualenv`` by running the fo
 .. _Docker: https://www.docker.com/
 
 
+CentOS 7
+^^^^^^^^
+
+.. prompt:: bash $
+
+   sudo yum install git python-virtualenv libffi-devel openssl-devel gcc enchant-devel
+
+Ubuntu
+^^^^^^
+
+.. prompt:: bash $
+
+   sudo apt-get install git virtualenvwrapper python-dev libffi-dev libssl-dev enchant
+
 Running Tests
 =============
 
