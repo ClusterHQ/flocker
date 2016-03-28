@@ -23,7 +23,6 @@ import json
 
 from eliot import start_action
 from pyrsistent import PClass, field
-from textwrap import dedent
 from twisted.conch.ssh.keys import Key
 from zope.interface import implementer
 from googleapiclient import discovery
@@ -533,10 +532,6 @@ class GCEProvisioner(PClass):
                       u"json-description",
                       _GCE_FIREWALL_TAG]),
             delete_disk_on_terminate=True,
-            startup_script=dedent("""\
-                #!/bin/sh
-                sed -i '/Defaults *requiretty/d' /etc/sudoers
-                """),
         )
 
         return GCENode(
