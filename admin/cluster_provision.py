@@ -6,16 +6,18 @@
 # need to have the command line option of specifying the api cert name
 # if flocker exists on the node, uninstall flocker first
 # if agent_config_filepath isn't specified don't distribute it to the nodes?
+# post install options to restart services and set them up on init
+# firewall stuff??
 
 import sys
 from functools import partial
 import tempfile
 import yaml
 
-from pyrsistent import PClass, field
-from eliot import FileDestination
 from zope.interface import implementer
-from twisted.python.usage import Options, UsageError
+from pyrsistent import PClass, field
+#from eliot import FileDestination
+#from twisted.python.usage import Options, UsageError
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.defer import Deferred
 from twisted.python.filepath import FilePath
@@ -39,12 +41,17 @@ from flocker.node import DeployerType, BackendDescription
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._effect import sequence
 from flocker.provision._common import Cluster
-from flocker.provision._ca import Certificates
-from flocker.common.script import eliot_logging_service
-from flocker.provision._common import INode
-from .acceptance import (
-    configure_eliot_logging_for_acceptance,
+from flocker.provision._ca import Certificates, EmptyCertificates
+#from flocker.common.script import eliot_logging_service
+from flocker.common.script import (
+    flocker_standard_options,
+    ICommandLineScript,
+    FlockerScriptRunner
 )
+from flocker.provision._common import INode
+# from .acceptance import (
+#     configure_eliot_logging_for_acceptance,
+# )
 
 
 @implementer(INode)
@@ -63,7 +70,8 @@ class ManagedNode(PClass):
         return self.username
 
 
-class RunOptions(Options):
+@flocker_standard_options
+class FlockerProvisionOptions(Options):
     description = "Provision a Flocker cluster."
 
     optParameters = [
@@ -78,6 +86,7 @@ class RunOptions(Options):
         ['cert-directory', None, None,
          "Directory for storing the cluster certificates. "
          "If not specified, then a temporary directory is used."],
+        ['api-cert-name', None, 'plugin', ""],
     ]
 
     optFlags = [
@@ -125,7 +134,7 @@ def get_nodes(options):
 
 
 def install_flocker(cluster):
-    # Todo: if flocker exists on the node, uninstall flocker first
+    # Todo: what happens if flocker is installed on the nodes?
     _run_on_all_nodes(
         cluster.all_nodes,
         task=lambda node: task_install_flocker(
@@ -171,7 +180,8 @@ def distribute_certs(cluster, options):
                     certnkey.key),
                 task_install_api_certificates(
                     cluster.certificates.user.certificate,
-                    cluster.certificates.user.key)
+                    cluster.certificates.user.key,
+                    options['api-cert-name'])
             ])
         )
         node_commands.append(cmd)
@@ -322,13 +332,16 @@ def create_cluster(reactor, options,
         all_nodes = agent_nodes
     else:
         all_nodes = [control_node] + agent_nodes
+    certificates = EmptyCertificates()
+    if not options['no-certs']:
+        certificates=get_certificates(options, control_node, agent_nodes)
     cluster = Cluster(
         all_nodes=all_nodes,
         control_node=control_node,
         agent_nodes=agent_nodes,
         dataset_backend=get_backend_description(options),
         default_volume_size=10,
-        certificates=get_certificates(options, control_node, agent_nodes),
+        certificates=certificates,
         dataset_backend_config_file=agent_config_filepath
     )
     yield returnValue(cluster)
@@ -340,50 +353,47 @@ def run_provisioning(reactor, cluster, actions):
         yield perform(make_dispatcher(reactor), action())
 
 
-@inlineCallbacks
-def main(reactor, args, base_path, top_level):
-    options = RunOptions()
-    configure_eliot_logging_for_acceptance()
-    try:
-        options.parseOptions(args)
-    except UsageError as e:
-        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
-        raise SystemExit(1)
+@implementer(ICommandLineScript)
+class FlockerProvisionScript(object):
+    """
+    Command-line script for ``flocker-provision``.
+    """
 
-    log_writer = eliot_logging_service(
-        destination=FileDestination(
-            file=open("%s.log" % (base_path.basename(),), "a")
-        ),
-        reactor=reactor,
-        capture_stdout=False)
-    log_writer.startService()
-    reactor.addSystemEventTrigger(
-        'before', 'shutdown', log_writer.stopService)
+    @inlineCallbacks
+    def main(reactor, options):
 
-    # todo, need to use the identity file supplied on the command line
-    control_node, agent_nodes = get_nodes(options)
-    agent_config_filepath = FilePath(options['agent-config'])
-    if not agent_config_filepath.isfile():
-        print "could not find agent-config at {}".format(
-            agent_config_filepath.realpath())
-        sys.exit(1)
-    cluster = yield create_cluster(
-        reactor=reactor,
-        options=options,
-        control_node_address=options['control-node'],
-        agent_node_addresses=agent_nodes,
-        agent_config_filepath=agent_config_filepath
-    )
+        # todo, need to use the identity file supplied on the command line
 
-    actions = []
-    if options['install-flocker']:
-        actions.append(partial(install_flocker, cluster))
-    if options['install-flocker-docker-plugin']:
-        actions.append(partial(install_flocker_docker_plugin, cluster))
-    if not options['no-certs']:
-        actions.append(partial(distribute_certs, cluster, options))
-    actions.append(partial(distribute_agent_yaml, cluster))
-    print_install_plan(cluster, options)
-    if not options['force']:
-        prompt_user_for_continue()
-    yield run_provisioning(reactor, cluster, actions)
+        control_node, agent_nodes = get_nodes(options)
+        agent_config_filepath = FilePath(options['agent-config'])
+        if not agent_config_filepath.isfile():
+            print "could not find agent-config at {}".format(
+                agent_config_filepath.realpath())
+            sys.exit(1)
+        cluster = yield create_cluster(
+            reactor=reactor,
+            options=options,
+            control_node_address=options['control-node'],
+            agent_node_addresses=agent_nodes,
+            agent_config_filepath=agent_config_filepath
+        )
+
+        actions = []
+        if options['install-flocker']:
+            actions.append(partial(install_flocker, cluster))
+        if options['install-flocker-docker-plugin']:
+            actions.append(partial(install_flocker_docker_plugin, cluster))
+        if not options['no-certs']:
+            actions.append(partial(distribute_certs, cluster, options))
+        actions.append(partial(distribute_agent_yaml, cluster))
+        print_install_plan(cluster, options)
+        if not options['force']:
+            prompt_user_for_continue()
+        yield run_provisioning(reactor, cluster, actions)
+
+
+def flocker_provision_main():
+    return FlockerScriptRunner(
+        FlockerProvisionScript(),
+        FlockerProvisionOptions(),
+        logging=False).main()

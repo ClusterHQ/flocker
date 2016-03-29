@@ -796,7 +796,7 @@ def task_install_node_certificates(ca_cert, node_cert, node_key):
     ])
 
 
-def task_install_api_certificates(api_cert, api_key):
+def task_install_api_certificates(api_cert, api_key, api_cert_name='plugin'):
     """
     Install certificate and private key required by Docker plugin to
     access the Flocker REST API.
@@ -809,12 +809,12 @@ def task_install_api_certificates(api_cert, api_key):
     return sequence([
         sudo('mkdir -p /etc/flocker'),
         sudo('chmod u=rwX,g=,o= /etc/flocker'),
-        sudo_put(path="/etc/flocker/plugin.crt",
+        sudo_put(path="/etc/flocker/{}.crt".format(api_cert_name),
                  content=api_cert.getContent()),
-        sudo_put(path="/etc/flocker/plugin.key",
+        sudo_put(path="/etc/flocker/{.key".format(api_cert_name),
                  content=api_key.getContent(),
                  log_content_filter=_remove_private_keys),
-        sudo('chmod u=rw,g=,o= /etc/flocker/plugin.key'),
+        sudo('chmod u=rw,g=,o= /etc/flocker/{}.key'.format(api_cert_name)),
     ])
 
 

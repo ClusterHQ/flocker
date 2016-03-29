@@ -10,5 +10,5 @@ import sys
 
 if __name__ == '__main__':
     from twisted.internet.task import react
-    from admin.cluster_provision import main
+    from admin.cluster_provision import flocker_provision_main as main
     react(main, (sys.argv[1:], BASEPATH, TOPLEVEL))
