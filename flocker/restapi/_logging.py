@@ -37,4 +37,4 @@ JSON_REQUEST = ActionType(
     LOG_SYSTEM + u":json_request",
     [JSON],
     [RESPONSE_CODE],
-    u"A request containing JSON request and response bodies.")
+    u"A request containing JSON request body and HTTP response code.")
