@@ -516,6 +516,11 @@ class ConvergenceLoop(object):
             return succeed(None)
 
     def output_CONVERGE(self, context):
+        # XXX: We stopped logging configuration and cluster state here for
+        # performance reasons.
+        # But without some limited logging it'll be difficult to debug problems
+        # all the way from a configuration change to the failed convergence
+        # operation. FLOC-4331.
         with LOG_CONVERGE(self.fsm.logger).context():
             log_discovery = LOG_DISCOVERY(self.fsm.logger)
             with log_discovery.context():
