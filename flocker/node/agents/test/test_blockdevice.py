@@ -1864,7 +1864,7 @@ class CalculateDesiredStateTests(TestCase):
 def assert_calculated_changes(
         case, node_state, node_config, nonmanifest_datasets, expected_changes,
         additional_node_states=frozenset(), leases=Leases(),
-        discovered_datasets=None, persistent_state=None,
+        discovered_datasets=None
 ):
     """
     Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
@@ -1907,7 +1907,6 @@ def assert_calculated_changes(
         case, deployer, node_state, node_config,
         nonmanifest_datasets, additional_node_states, set(),
         expected_changes, local_state, leases=leases,
-        persistent_state=persistent_state,
     )
 
 
@@ -2144,6 +2143,10 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
                 metadata={u"foo": u"bar"},
             )
         )
+
+        # Add a registered volume to discovered dataset. Upon deletion datasets
+        # to not get unregistered. This also should not result in any
+        # convergence operations.
         foreign_registered_dataset_id = uuid4()
         foreign_registered_dataset = DiscoveredDataset(
             dataset_id=foreign_registered_dataset_id,
@@ -2160,13 +2163,6 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
             discovered_datasets=[
                 foreign_registered_dataset
             ],
-            persistent_state=PersistentState().transform(
-                ["blockdevice_ownership"],
-                lambda bdo: bdo.record_ownership(
-                    dataset_id=foreign_registered_dataset.dataset_id,
-                    blockdevice_id=foreign_registered_dataset.blockdevice_id,
-                )
-            )
         )
 
 
@@ -4335,9 +4331,23 @@ class DestroyVolumeTests(
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
-        change = DestroyVolume(blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer,
-                                              InMemoryStatePersister()))
+        blockdevice_id = volume.blockdevice_id
+        change = DestroyVolume(blockdevice_id=blockdevice_id)
+        state_persister = InMemoryStatePersister()
+        state_persister.record_ownership(dataset_id, blockdevice_id)
+        self.successResultOf(run_state_change(
+            change, deployer, state_persister
+        ))
+
+        # DestroyVolume does not unregister a blockdevice. This has the
+        # side-effect of the volume appearing to be Registered after it is
+        # deleted. This might not be ideal, but that is the current
+        # understanding of the system, so we should test that understanding is
+        # correct.
+        self.assertEqual(
+            state_persister.get_state().blockdevice_ownership,
+            {dataset_id: blockdevice_id},
+        )
 
         self.assertEqual([], api.list_volumes())
 
