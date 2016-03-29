@@ -23,15 +23,11 @@ import json
 
 from eliot import start_action
 from pyrsistent import PClass, field
-from textwrap import dedent
 from twisted.conch.ssh.keys import Key
 from zope.interface import implementer
 from googleapiclient import discovery
-from oauth2client.client import (
-    GoogleCredentials, SignedJwtAssertionCredentials
-)
 
-from ..node.agents.gce import wait_for_operation
+from ..node.agents.gce import wait_for_operation, gce_credentials_from_config
 from ..common import retry_effect_with_timeout
 
 from ._common import IProvisioner, INode
@@ -463,7 +459,7 @@ class GCEInstanceBuilder(PClass):
         ).execute()
 
         operation_result = wait_for_operation(
-            self.compute, operation, timeout_steps=[1]*60)
+            self.compute, operation, timeout_steps=[5]*60)
 
         if not operation_result:
             raise ValueError(
@@ -536,10 +532,6 @@ class GCEProvisioner(PClass):
                       u"json-description",
                       _GCE_FIREWALL_TAG]),
             delete_disk_on_terminate=True,
-            startup_script=dedent("""\
-                #!/bin/sh
-                sed -i '/Defaults *requiretty/d' /etc/sudoers
-                """),
         )
 
         return GCENode(
@@ -582,16 +574,7 @@ def gce_provisioner(
     :return: An class:`IProvisioner` provider for GCE instances.
     """
     key = Key.fromString(bytes(ssh_public_key))
-    if gce_credentials is not None:
-        credentials = SignedJwtAssertionCredentials(
-            gce_credentials['client_email'],
-            gce_credentials['private_key'],
-            scope=[
-                u"https://www.googleapis.com/auth/compute",
-            ]
-        )
-    else:
-        credentials = GoogleCredentials.get_application_default()
+    credentials = gce_credentials_from_config(gce_credentials)
     compute = discovery.build('compute', 'v1', credentials=credentials)
 
     return GCEProvisioner(
