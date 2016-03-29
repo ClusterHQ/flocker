@@ -1864,7 +1864,7 @@ class CalculateDesiredStateTests(TestCase):
 def assert_calculated_changes(
         case, node_state, node_config, nonmanifest_datasets, expected_changes,
         additional_node_states=frozenset(), leases=Leases(),
-        discovered_datasets=None
+        discovered_datasets=None,
 ):
     """
     Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
@@ -2144,9 +2144,17 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
             )
         )
 
-        # Add a registered volume to discovered dataset. Upon deletion datasets
-        # to not get unregistered. This also should not result in any
-        # convergence operations.
+        # Upon deletion, datasets to not get unregistered, so they will still
+        # be in the discovered datasets.
+
+        registered_dataset = DiscoveredDataset(
+            dataset_id=self.DATASET_ID,
+            blockdevice_id=self.BLOCKDEVICE_ID,
+            state=DatasetStates.REGISTERED,
+        )
+
+        # Foreign deleted datasets show up as REGISTERED, but they are not in
+        # our config.
         foreign_registered_dataset_id = uuid4()
         foreign_registered_dataset = DiscoveredDataset(
             dataset_id=foreign_registered_dataset_id,
@@ -2161,6 +2169,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
             nonmanifest_datasets={},
             expected_changes=in_parallel(changes=[]),
             discovered_datasets=[
+                registered_dataset,
                 foreign_registered_dataset
             ],
         )
