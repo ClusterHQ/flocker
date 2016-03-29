@@ -71,8 +71,6 @@ def flocker_dataset_agent_main():
     options = DatasetAgentOptions()
 
     # Use CPU time instead of wallclock time.
-    # The control service does a lot of waiting and we do not
-    # want the profiler to include that.
     pr = cProfile.Profile(clock)
 
     signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
@@ -98,8 +96,6 @@ def flocker_container_agent_main():
     agent_script = AgentScript(service_factory=service_factory)
 
     # Use CPU time instead of wallclock time.
-    # The control service does a lot of waiting and we do not
-    # want the profiler to include that.
     pr = cProfile.Profile(clock)
 
     signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
