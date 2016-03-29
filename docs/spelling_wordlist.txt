@@ -11,6 +11,7 @@ bugfix
 Buildbot
 CentOS
 centric
+Ceph
 checksum
 chmod
 cli
@@ -38,6 +39,7 @@ flocker-deploy
 flocker-node
 Flocker
 Freenode
+GlusterFS
 handoff
 handoffs
 hoc
@@ -54,6 +56,7 @@ internet
 invalidations
 IPv4
 IPv
+iSCSI
 journald
 js
 keychain
@@ -79,6 +82,7 @@ Node.js
 ok
 online
 OpenStack
+OpenSSL
 pathnames
 pem
 petabyte
@@ -104,6 +108,7 @@ snapshotting
 stateful
 sysadmin
 syslog
+sudo
 terabytes
 timestamp
 terraform

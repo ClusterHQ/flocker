@@ -12,7 +12,7 @@ FAQs
 Troubleshooting
 ---------------
 
-Flocker doesn’t seem to working, how can I check the logs?
+Flocker doesn't seem to working, how can I check the logs?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you think the Flocker services are running correctly, you can check the services or logs using the following methods:
@@ -57,7 +57,7 @@ The node running my container has frozen or locked up, what is going to happen?
 If the node your container is running has frozen or locked up, then Flocker may not be able to instruct the volume to move.
 The container using the volume may also not be able to stop, because no process may be able to tell it to stop.
 
-If your instructure allows it, you can restart or terminate your node whereby Flocker will be able to operate on the volume.
+If your infrastructure allows it, you can restart or terminate your node whereby Flocker will be able to operate on the volume.
 If your infrastructure does not allow this, you may need wait to see if the node returns to being healthy.
 
 Why does the ``uft-flocker-volumes`` command not work?
@@ -158,7 +158,7 @@ You can use NFS and block storage side by side, they are not exclusive.
 Can I attach a single volume to multiple hosts?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Not currently, support from multi-attach backends like `GCE in Read Only mode`, or NFS-like backends like storage, or distributed filesystems like Glusterfs would need to be integrated.
+Not currently, support from multi-attach backends like `GCE in Read Only mode`, or NFS-like backends like storage, or distributed filesystems like GlusterFS would need to be integrated.
 Flocker focuses mainly on block-storage uses cases that attach a volume to a single node at a time.
 
 What happens when the node where my container is running dies, crashes or restarts?
@@ -175,10 +175,10 @@ No, the control service is not HA and has no integration with key values storage
 The control service can stop and all containers and the dataset will continue to function.
 
 If you want to provide sudo-HA for the control service you can.
-The control service saves a json file in :file:`/var/lib/flocker/`, of which you can take periodic backups.
-In case of failure you can easily restore the control service, as long as you replace the json file and have all the needed certificates that were used by the failed control service.
+The control service saves a :file:`.json` file in :file:`/var/lib/flocker/`, of which you can take periodic backups.
+In case of failure you can easily restore the control service, as long as you replace the :file:`.json` file and have all the needed certificates that were used by the failed control service.
 
-Backing up your control and cluster certificates along with the json file is a good idea.
+Backing up your control and cluster certificates along with the :file:`.json` file is a good idea.
 
 Are AWS IAM roles supports with AWS?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -207,7 +207,7 @@ Will you support Nomad, RancherOS, etc?
 If we find that enough users want support for Flocker in other frameworks or projects then we will certainly consider it.
 We have looked at adding support to Rancher in the past but it’s not currently something we are working on.
 
-Will you support Rkt?
+Will you support rkt?
 ^^^^^^^^^^^^^^^^^^^^^
 
 Yes, most likely.
@@ -232,9 +232,9 @@ Does Flocker handle security policies?
 At the moment Flocker is configured to use SSL/TLS for its agent and control service communication.
 However, most security policies that have to do with containers are left to the container runtime or orchestration framework.
 Likewise security for volume is managed via the backend that is chosen to run with Flocker.
-Flocker doesn’t provide any other container-to-volume based security.
+Flocker doesn't provide any other container-to-volume based security.
 
-I’m getting in openssl error when I start flocker services, what should I do?
+I’m getting an OpenSSL error when I start Flocker services, what should I do?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Make sure when your create your certificates that you use a DNS or IP name for the control service certificate.
@@ -248,10 +248,10 @@ For more information on authentication, see :ref:`authentication-standalone-floc
    
 If you have further issues with SSL, please contact support@clusterhq.com.
 
-Can I use OpenSSL certificates instead of the flocker-ca tool?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Can I use OpenSSL certificates instead of the ``flocker-ca`` tool?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It’s not officially supported yet, but there is a repository that you can use for experimental support for openssl. OpenSSL with Flocker
+It’s not officially supported yet, but there is a repository that you can use for experimental support for OpenSSL. OpenSSL with Flocker
 
 
 About ClusterHQ
