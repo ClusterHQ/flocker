@@ -102,6 +102,7 @@ Rackspace
 Redis
 redis
 resize
+rkt
 roadmap
 routable
 screenshot
