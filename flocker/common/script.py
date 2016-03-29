@@ -340,7 +340,7 @@ def main_for_service(reactor, service):
 
 def enable_profiling(profile, signal, frame):
     """
-    Enable profiling of the control service.
+    Enable profiling of a Flocker service.
 
     :param profile: A cProfile Profile object for a Flocker service.
     :param int signal: See ``signal.signal``.
@@ -351,7 +351,7 @@ def enable_profiling(profile, signal, frame):
 
 def disable_profiling(profile, service, signal, frame):
     """
-    Disable profiling of the control service.
+    Disable profiling of a Flocker service.
     Dump profiling statistics to a file.
 
     :param profile: A cProfile Profile object for a Flocker service.
