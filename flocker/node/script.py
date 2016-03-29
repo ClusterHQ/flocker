@@ -10,7 +10,8 @@ from contextlib import closing
 import cProfile
 import signal
 import sys
-from time import sleep, clock, strftime
+from functools import partial
+from time import sleep, clock
 
 import yaml
 
@@ -31,7 +32,8 @@ from twisted.internet.defer import succeed
 
 from ..common.script import (
     ICommandLineScript,
-    flocker_standard_options, FlockerScriptRunner, main_for_service)
+    flocker_standard_options, FlockerScriptRunner, main_for_service,
+    enable_profiling, disable_profiling)
 from ..common.plugin import PluginLoader
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
@@ -73,34 +75,8 @@ def flocker_dataset_agent_main():
     # want the profiler to include that.
     pr = cProfile.Profile(clock)
 
-    def enable_profiling(signal, frame):
-        """
-        Enable profiling of the control service.
-
-        :param int signal: See ``signal.signal``.
-        :param frame: None or frame object. See ``signal.signal``.
-        """
-        pr.enable()
-
-    def disable_profiling(signal, frame):
-        """
-        Disable profiling of the control service.
-        Dump profiling statistics to a file.
-
-        :param int signal: See ``signal.signal``.
-        :param frame: None or frame object. See ``signal.signal``.
-        """
-        current_time = strftime("%Y%m%d%H%M%S")
-        path = FilePath(
-            '/var/lib/flocker/profile-dataset-{}'.format(current_time)
-        )
-        # This dumps the current profiling statistics and disables the
-        # collection of profiling data. When the profiler is next enabled
-        # the new statistics are added to existing data.
-        pr.dump_stats(path.path)
-
-    signal.signal(signal.SIGUSR1, enable_profiling)
-    signal.signal(signal.SIGUSR2, disable_profiling)
+    signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
+    signal.signal(signal.SIGUSR2, partial(disable_profiling, pr, 'dataset'))
 
     return FlockerScriptRunner(
         script=agent_script,
@@ -126,34 +102,8 @@ def flocker_container_agent_main():
     # want the profiler to include that.
     pr = cProfile.Profile(clock)
 
-    def enable_profiling(signal, frame):
-        """
-        Enable profiling of the control service.
-
-        :param int signal: See ``signal.signal``.
-        :param frame: None or frame object. See ``signal.signal``.
-        """
-        pr.enable()
-
-    def disable_profiling(signal, frame):
-        """
-        Disable profiling of the control service.
-        Dump profiling statistics to a file.
-
-        :param int signal: See ``signal.signal``.
-        :param frame: None or frame object. See ``signal.signal``.
-        """
-        current_time = strftime("%Y%m%d%H%M%S")
-        path = FilePath(
-            '/var/lib/flocker/profile-container-{}'.format(current_time)
-        )
-        # This dumps the current profiling statistics and disables the
-        # collection of profiling data. When the profiler is next enabled
-        # the new statistics are added to existing data.
-        pr.dump_stats(path.path)
-
-    signal.signal(signal.SIGUSR1, enable_profiling)
-    signal.signal(signal.SIGUSR2, disable_profiling)
+    signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
+    signal.signal(signal.SIGUSR2, partial(disable_profiling, pr, 'container'))
 
     return FlockerScriptRunner(
         script=agent_script,

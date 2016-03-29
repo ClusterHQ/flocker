@@ -7,7 +7,8 @@ Script for starting control service server.
 
 import cProfile
 import signal
-import time
+from functools import partial
+from time import clock
 
 from twisted.python.usage import Options
 from twisted.internet.endpoints import serverFromString
@@ -19,7 +20,8 @@ from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
 from ._clusterstate import ClusterStateService
 from ..common.script import (
-    flocker_standard_options, FlockerScriptRunner, main_for_service)
+    flocker_standard_options, FlockerScriptRunner, main_for_service,
+    enable_profiling, disable_profiling)
 from ._protocol import ControlAMPService
 from ..ca import (
     rest_api_context_factory, ControlCredential, amp_server_context_factory,
@@ -84,36 +86,10 @@ def flocker_control_main():
     # Use CPU time instead of wallclock time.
     # The control service does a lot of waiting and we do not
     # want the profiler to include that.
-    pr = cProfile.Profile(time.clock)
+    pr = cProfile.Profile(clock)
 
-    def enable_profiling(signal, frame):
-        """
-        Enable profiling of the control service.
-
-        :param int signal: See ``signal.signal``.
-        :param frame: None or frame object. See ``signal.signal``.
-        """
-        pr.enable()
-
-    def disable_profiling(signal, frame):
-        """
-        Disable profiling of the control service.
-        Dump profiling statistics to a file.
-
-        :param int signal: See ``signal.signal``.
-        :param frame: None or frame object. See ``signal.signal``.
-        """
-        current_time = time.strftime("%Y%m%d%H%M%S")
-        path = FilePath(
-            '/var/lib/flocker/profile-control-{}'.format(current_time)
-        )
-        # This dumps the current profiling statistics and disables the
-        # collection of profiling data. When the profiler is next enabled
-        # the new statistics are added to existing data.
-        pr.dump_stats(path.path)
-
-    signal.signal(signal.SIGUSR1, enable_profiling)
-    signal.signal(signal.SIGUSR2, disable_profiling)
+    signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
+    signal.signal(signal.SIGUSR2, partial(disable_profiling, pr, 'control'))
 
     return FlockerScriptRunner(
         script=ControlScript(),
