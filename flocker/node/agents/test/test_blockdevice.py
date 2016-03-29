@@ -1864,7 +1864,7 @@ class CalculateDesiredStateTests(TestCase):
 def assert_calculated_changes(
         case, node_state, node_config, nonmanifest_datasets, expected_changes,
         additional_node_states=frozenset(), leases=Leases(),
-        discovered_datasets=None,
+        discovered_datasets=None, persistent_state=None,
 ):
     """
     Assert that ``BlockDeviceDeployer`` calculates certain changes in a certain
@@ -1907,6 +1907,7 @@ def assert_calculated_changes(
         case, deployer, node_state, node_config,
         nonmanifest_datasets, additional_node_states, set(),
         expected_changes, local_state, leases=leases,
+        persistent_state=persistent_state,
     )
 
 
@@ -2143,11 +2144,29 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
                 metadata={u"foo": u"bar"},
             )
         )
+        foreign_registered_dataset_id = uuid4()
+        foreign_registered_dataset = DiscoveredDataset(
+            dataset_id=foreign_registered_dataset_id,
+            blockdevice_id=_create_blockdevice_id_for_test(
+                foreign_registered_dataset_id
+            ),
+            state=DatasetStates.REGISTERED,
+        )
 
         assert_calculated_changes(
             self, local_state, local_config,
             nonmanifest_datasets={},
             expected_changes=in_parallel(changes=[]),
+            discovered_datasets=[
+                foreign_registered_dataset
+            ],
+            persistent_state=PersistentState().transform(
+                ["blockdevice_ownership"],
+                lambda bdo: bdo.record_ownership(
+                    dataset_id=foreign_registered_dataset.dataset_id,
+                    blockdevice_id=foreign_registered_dataset.blockdevice_id,
+                )
+            )
         )
 
 

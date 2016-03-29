@@ -368,7 +368,7 @@ def compute_cluster_state(node_state, additional_node_states,
 def assert_calculated_changes_for_deployer(
     case, deployer, node_state, node_config, nonmanifest_datasets,
     additional_node_states, additional_node_config, expected_changes,
-    local_state, leases=Leases()
+    local_state, leases=Leases(), persistent_state=None,
 ):
     """
     Assert that ``calculate_changes`` returns certain changes when it is
@@ -391,6 +391,7 @@ def assert_calculated_changes_for_deployer(
         ``calculate_changes``. Must be the correct type for the type of
         ``IDeployer`` being tested.
     :param Leases leases: Currently configured leases. By default none exist.
+    :param PersistentState persistent_state: Agent state which is persisted.
     """
     cluster_state = compute_cluster_state(node_state, additional_node_states,
                                           nonmanifest_datasets)
@@ -398,6 +399,10 @@ def assert_calculated_changes_for_deployer(
         nodes={node_config} | additional_node_config,
         leases=leases,
     )
+    if persistent_state is not None:
+        cluster_configuration = cluster_configuration.set(
+            'persistent_state', persistent_state
+        )
     changes = deployer.calculate_changes(
         cluster_configuration, cluster_state, local_state
     )
