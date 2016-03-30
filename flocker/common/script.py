@@ -360,11 +360,10 @@ def disable_profiling(profile, service, signal, frame):
     :param frame: None or frame object. See ``signal.signal``.
     """
     current_time = strftime("%Y%m%d%H%M%S")
-    path = FilePath(
-        '/var/lib/flocker/profile-{service}-{current_time}'.format(
-            service=service,
-            current_time=current_time
-        )
+    path = FilePath('/var/lib/flocker')
+    path = path.child('profile-{service}-{current_time}'.format(
+        service=service,
+        current_time=current_time)
     )
     # This dumps the current profiling statistics and disables the
     # collection of profiling data. When the profiler is next enabled
