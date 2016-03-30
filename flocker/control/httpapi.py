@@ -143,7 +143,7 @@ def _extract_containers_state(deployment_state):
     container in the deployment state.
 
     N.B.: Callers of this function should not mutate the returned value as this
-    function uses an lru_cache.
+    function uses an lru_cache (FLOC-4345 to clean up).
 
     :param DeploymentState deployment_state: The deployment state to extract
         the containers from.
@@ -152,9 +152,7 @@ def _extract_containers_state(deployment_state):
     """
     result = []
     for node in deployment_state.nodes:
-        if node.applications is None:
-            continue
-        for application in node.applications:
+        for application in (node.applications or ()):
             container = container_configuration_response(
                 application, node.uuid)
             container[u"running"] = application.running
@@ -1257,7 +1255,7 @@ def _containers_from_deployment(deployment):
     Extract the containers from the supplied deployment instance.
 
     N.B.: Callers of this function should not mutate the returned value as this
-    function uses an lru_cache.
+    function uses an lru_cache (FLOC-4345 to clean up).
 
     :param Deployment deployment: A ``Deployment`` describing the state
         of the cluster.
