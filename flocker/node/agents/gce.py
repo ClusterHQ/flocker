@@ -246,7 +246,7 @@ def wait_for_operation_async(reactor, compute, operation, timeout_steps):
         the operation.
 
     :returns Deferred: A Deferred firing with the concluded GCE operation
-        resource or calling its errback operation times out.
+        resource or calling its errback if it times out.
     """
     poller = _create_poller(operation)
 
