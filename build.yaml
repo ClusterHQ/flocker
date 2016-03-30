@@ -624,7 +624,8 @@ common_cli:
           python-pip rpmlint" >> Dockerfile
     echo "RUN env URLGRABBER_DEBUG=1 yum update --assumeyes" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
-    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+    # Is this unused? --process-depency-links added but sort of untested.
+    echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
 
   build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
     # Download the latest pip requirements file from flocker
@@ -639,7 +640,8 @@ common_cli:
           libffi-dev libssl-dev build-essential python-pip \
           python2.7-dev lintian" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
-    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+    # Is this unused? --process-depency-links added but sort of untested.
+    echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
 
   build_dockerfile_ubuntu_wily: &build_dockerfile_ubuntu_wily |
     # Download the latest pip requirements file from flocker
@@ -654,7 +656,8 @@ common_cli:
           git ruby-dev libffi-dev libssl-dev build-essential python-pip \
           python2.7-dev lintian" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
-    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+    # Is this unused? --process-depency-links added but sort of untested.
+    echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
 
   do_not_abort_on_errors: &do_not_abort_on_errors |
     # make sure we don't abort the job on the first error we find.
