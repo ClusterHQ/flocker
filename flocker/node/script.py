@@ -311,7 +311,7 @@ class AgentServiceFactory(PClass):
     # This should have an explicit interface:
     # https://clusterhq.atlassian.net/browse/FLOC-1929
     deployer_factory = field(mandatory=True)
-    get_external_ip = field(initial=_get_external_ip, mandatory=True)
+    get_external_ip = field(initial=(lambda: _get_external_ip), mandatory=True)
 
     def get_service(self, reactor, options):
         """
@@ -437,12 +437,12 @@ class AgentService(PClass):
     backends = field(
         PluginLoader,
         mandatory=True,
-        initial=backend_loader,
+        initial=(lambda: backend_loader),
     )
     deployers = field(factory=pmap, initial=_DEFAULT_DEPLOYERS, mandatory=True)
     reactor = field(initial=reactor, mandatory=True)
 
-    get_external_ip = field(initial=_get_external_ip, mandatory=True)
+    get_external_ip = field(initial=(lambda: _get_external_ip), mandatory=True)
 
     control_service_host = field(type=bytes, mandatory=True)
     control_service_port = field(type=int, mandatory=True)
@@ -578,8 +578,9 @@ class DatasetServiceFactory(PClass):
     A helper for creating most of the pieces that go into a dataset convergence
     agent.
     """
-    agent_service_factory = field(initial=AgentService.from_configuration)
-    configuration_factory = field(initial=get_configuration)
+    agent_service_factory = field(
+        initial=(lambda: AgentService.from_configuration))
+    configuration_factory = field(initial=(lambda: get_configuration))
 
     def get_service(self, reactor, options):
         """
