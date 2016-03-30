@@ -631,7 +631,11 @@ class GCEBlockDeviceAPI(PClass):
             errors = result.get('error', {}).get('errors', [])
             for e in errors:
                 if e.get('code') == u"RESOURCE_IN_USE_BY_ANOTHER_RESOURCE":
+                    write_traceback()
                     raise AlreadyAttachedVolume(blockdevice_id)
+                elif e.get('code') == u'RESOURCE_NOT_FOUND':
+                    write_traceback()
+                    raise UnknownVolume(blockdevice_id)
             disk = self._operations.get_disk_details(blockdevice_id)
             result = BlockDeviceVolume(
                 blockdevice_id=blockdevice_id,
@@ -700,7 +704,10 @@ class GCEBlockDeviceAPI(PClass):
             if 'error' in result:
                 potentially_detaching_error = None
                 for error in result['error']['errors']:
-                    if error.get('code') == 'INVALID_FIELD_VALUE':
+                    if (
+                        error.get('code') == 'INVALID_FIELD_VALUE' or
+                        error.get('code') == 'INVALID_USAGE'
+                    ):
                         potentially_detaching_error = error
 
                 if potentially_detaching_error is not None:
