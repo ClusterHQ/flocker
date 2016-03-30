@@ -4,7 +4,7 @@
 Persistence of cluster configuration.
 """
 
-from json import dumps, loads, JSONEncoder
+from json import dumps, loads
 from uuid import UUID
 from calendar import timegm
 from datetime import datetime
@@ -20,6 +20,8 @@ from twisted.python.filepath import FilePath
 from twisted.application.service import Service, MultiService
 from twisted.internet.defer import succeed
 from twisted.internet.task import LoopingCall
+
+from weakref import WeakKeyDictionary
 
 from ._model import SERIALIZABLE_CLASSES, Deployment, Configuration
 
@@ -162,37 +164,108 @@ class ConfigurationMigration(object):
         return dumps(decoded_config)
 
 
-class _ConfigurationEncoder(JSONEncoder):
+def _to_serializables(obj):
     """
-    JSON encoder that can encode the configuration model.
-    Base encoder for version 1 configurations.
+    This function turns assorted types into serializable objects (objects that
+    can be serialized by the default JSON encoder). Note that this is done
+    shallowly for containers. For example, ``PClass``es will be turned into
+    dicts, but the values and keys of the dict might still not be serializable.
+
+    It is up to higher layers to traverse containers recursively to achieve
+    full serialization.
+
+    :param obj: The object to serialize.
+
+    :returns: An object that is shallowly JSON serializable.
     """
-    def default(self, obj):
-        if isinstance(obj, PRecord):
-            result = dict(obj)
-            result[_CLASS_MARKER] = obj.__class__.__name__
-            return result
-        elif isinstance(obj, PClass):
-            result = obj.evolver().data
-            result[_CLASS_MARKER] = obj.__class__.__name__
-            return result
-        elif isinstance(obj, PMap):
-            return {_CLASS_MARKER: u"PMap", u"values": dict(obj).items()}
-        elif isinstance(obj, (PSet, PVector, set)):
-            return list(obj)
-        elif isinstance(obj, FilePath):
-            return {_CLASS_MARKER: u"FilePath",
-                    u"path": obj.path.decode("utf-8")}
-        elif isinstance(obj, UUID):
-            return {_CLASS_MARKER: u"UUID",
-                    "hex": unicode(obj)}
-        elif isinstance(obj, datetime):
-            if obj.tzinfo is None:
-                raise ValueError(
-                    "Datetime without a timezone: {}".format(obj))
-            return {_CLASS_MARKER: u"datetime",
-                    "seconds": timegm(obj.utctimetuple())}
-        return JSONEncoder.default(self, obj)
+    if isinstance(obj, PRecord):
+        result = dict(obj)
+        result[_CLASS_MARKER] = obj.__class__.__name__
+        return result
+    elif isinstance(obj, PClass):
+        result = obj._to_dict()
+        result[_CLASS_MARKER] = obj.__class__.__name__
+        return result
+    elif isinstance(obj, PMap):
+        return {_CLASS_MARKER: u"PMap", u"values": dict(obj).items()}
+    elif isinstance(obj, (PSet, PVector, set)):
+        return list(obj)
+    elif isinstance(obj, FilePath):
+        return {_CLASS_MARKER: u"FilePath",
+                u"path": obj.path.decode("utf-8")}
+    elif isinstance(obj, UUID):
+        return {_CLASS_MARKER: u"UUID",
+                "hex": unicode(obj)}
+    elif isinstance(obj, datetime):
+        if obj.tzinfo is None:
+            raise ValueError(
+                "Datetime without a timezone: {}".format(obj))
+        return {_CLASS_MARKER: u"datetime",
+                "seconds": timegm(obj.utctimetuple())}
+    return obj
+
+
+def _is_pyrsistent(obj):
+    """
+    Boolean check if an object is an instance of a pyrsistent object.
+    """
+    return isinstance(obj, (PRecord, PClass, PMap, PSet, PVector))
+
+
+_BASIC_JSON_TYPES = frozenset([str, unicode, int, long, float, bool])
+_BASIC_JSON_COLLECTIONS = frozenset([dict, list, tuple])
+
+
+_cached_dfs_serialize_cache = WeakKeyDictionary()
+
+
+def _cached_dfs_serialize(input_object):
+    """
+    This serializes an input object into something that can be serialized by
+    the python json encoder.
+
+    This caches the serialization of pyrsistent objects in a
+    ``WeakKeyDictionary``, so the cache should be automatically cleared when
+    the input object that is cached is destroyed.
+
+    :returns: An entirely serializable version of input_object.
+    """
+    # Ensure this is a quick function for basic types:
+    if input_object is None:
+        return None
+
+    # Note that ``type(x) in frozenset([str, int])`` is faster than
+    # ``isinstance(x, (str, int))``.
+    input_type = type(input_object)
+    if input_type in _BASIC_JSON_TYPES:
+        return input_object
+
+    is_pyrsistent = False
+    if input_type in _BASIC_JSON_COLLECTIONS:
+        # Don't send basic collections through shallow object serialization,
+        # isinstance is not a very cheap operation.
+        obj = input_object
+    else:
+        if _is_pyrsistent(input_object):
+            is_pyrsistent = True
+            if input_object in _cached_dfs_serialize_cache:
+                return _cached_dfs_serialize_cache[input_object]
+        obj = _to_serializables(input_object)
+
+    result = obj
+
+    obj_type = type(obj)
+    if obj_type == dict:
+        result = dict((_cached_dfs_serialize(key),
+                       _cached_dfs_serialize(value))
+                      for key, value in obj.iteritems())
+    elif obj_type == list or obj_type == tuple:
+        result = list(_cached_dfs_serialize(x) for x in obj)
+
+    if is_pyrsistent:
+        _cached_dfs_serialize_cache[input_object] = result
+
+    return result
 
 
 def wire_encode(obj):
@@ -202,7 +275,7 @@ def wire_encode(obj):
     :param obj: An object from the configuration model, e.g. ``Deployment``.
     :return bytes: Encoded object.
     """
-    return dumps(obj, cls=_ConfigurationEncoder)
+    return dumps(_cached_dfs_serialize(obj))
 
 
 def wire_decode(data):
@@ -239,8 +312,7 @@ def to_unserialized_json(obj):
     :param obj: An object that can be passed to ``wire_encode``.
     :return: Python object that can be JSON serialized.
     """
-    # Worst implementation everrrr:
-    return loads(wire_encode(obj))
+    return _cached_dfs_serialize(obj)
 
 _DEPLOYMENT_FIELD = Field(u"configuration", to_unserialized_json)
 _LOG_STARTUP = MessageType(u"flocker-control:persistence:startup",
