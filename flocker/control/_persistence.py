@@ -207,7 +207,7 @@ def _to_serializables(obj):
 
 def _is_pyrsistent(obj):
     """
-    Boolean check if an object is a pyrsistent object.
+    Boolean check if an object is an instance of a pyrsistent object.
     """
     return isinstance(obj, (PRecord, PClass, PMap, PSet, PVector))
 
@@ -229,8 +229,10 @@ def _cached_dfs_serialize(input_object):
     # Ensure this is a quick function for basic types:
     if input_object is None:
         return None
+
+    # Note that ``type(x) == str or type(x) == int`` is faster than
+    # ``isinstance(x, (str, int))``.
     t = type(input_object)
-    is_pyrsistent = False
     if (
             t is str or
             t is unicode or
@@ -240,9 +242,11 @@ def _cached_dfs_serialize(input_object):
             t is bool
     ):
         return input_object
-    elif t is dict or t is list or t is tuple:
-        # Don't send basic collections through object serialization, isinstance
-        # is not a very cheap operation.
+
+    is_pyrsistent = False
+    if t is dict or t is list or t is tuple:
+        # Don't send basic collections through shallow object serialization,
+        # isinstance is not a very cheap operation.
         obj = input_object
     else:
         if _is_pyrsistent(input_object):
@@ -273,7 +277,7 @@ def wire_encode(obj):
     :param obj: An object from the configuration model, e.g. ``Deployment``.
     :return bytes: Encoded object.
     """
-    return dumps(_cached_dfs_serialize(_cached_dfs_serialize(obj)))
+    return dumps(_cached_dfs_serialize(obj))
 
 
 def wire_decode(data):
@@ -310,7 +314,6 @@ def to_unserialized_json(obj):
     :param obj: An object that can be passed to ``wire_encode``.
     :return: Python object that can be JSON serialized.
     """
-    # Best implementation everrrr:
     return _cached_dfs_serialize(obj)
 
 _DEPLOYMENT_FIELD = Field(u"configuration", to_unserialized_json)
