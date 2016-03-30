@@ -379,21 +379,13 @@ LOG_SEND_TO_CONTROL_SERVICE = ActionType(
     [_FIELD_CONNECTION, _FIELD_LOCAL_CHANGES], [],
     u"Send the local state to the control service.")
 
-_FIELD_CLUSTERSTATE = Field(
-    u"cluster_state", to_unserialized_json,
-    u"The state of the cluster, according to control service.")
-
-_FIELD_CONFIGURATION = Field(
-    u"desired_configuration", to_unserialized_json,
-    u"The configuration of the cluster according to the control service.")
-
 _FIELD_ACTIONS = Field(
     u"calculated_actions", repr,
     u"The actions we decided to take to converge with configuration.")
 
 LOG_CONVERGE = ActionType(
     u"flocker:agent:converge",
-    [_FIELD_CLUSTERSTATE, _FIELD_CONFIGURATION], [],
+    [], [],
     u"The convergence action within the loop.")
 
 LOG_DISCOVERY = ActionType(
@@ -524,8 +516,12 @@ class ConvergenceLoop(object):
             return succeed(None)
 
     def output_CONVERGE(self, context):
-        with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
-                          desired_configuration=self.configuration).context():
+        # XXX: We stopped logging configuration and cluster state here for
+        # performance reasons.
+        # But without some limited logging it'll be difficult to debug problems
+        # all the way from a configuration change to the failed convergence
+        # operation. FLOC-4331.
+        with LOG_CONVERGE(self.fsm.logger).context():
             log_discovery = LOG_DISCOVERY(self.fsm.logger)
             with log_discovery.context():
                 discover = DeferredContext(maybeDeferred(
