@@ -142,6 +142,9 @@ def _extract_containers_state(deployment_state):
     Turn the deployment state into serializable simple types for every
     container in the deployment state.
 
+    N.B.: Callers of this function should not mutate the returned value as this
+    function uses an lru_cache.
+
     :param DeploymentState deployment_state: The deployment state to extract
         the containers from.
 
@@ -548,7 +551,8 @@ class ConfigurationAPIUserV1(object):
         :return: A ``list`` of ``dict`` representing each of the containers
             that are configured to exist anywhere on the cluster.
         """
-        return list(containers_from_deployment(self.persistence_service.get()))
+        return list(
+            _containers_from_deployment(self.persistence_service.get()))
 
     @app.route("/state/containers", methods=['GET'])
     @user_documentation(
@@ -1248,9 +1252,12 @@ def datasets_from_deployment(deployment):
 
 
 @lru_cache(1)
-def containers_from_deployment(deployment):
+def _containers_from_deployment(deployment):
     """
     Extract the containers from the supplied deployment instance.
+
+    N.B.: Callers of this function should not mutate the returned value as this
+    function uses an lru_cache.
 
     :param Deployment deployment: A ``Deployment`` describing the state
         of the cluster.
