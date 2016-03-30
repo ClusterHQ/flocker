@@ -168,7 +168,7 @@ def _to_serializables(obj):
     """
     This function turns assorted types into serializable objects (objects that
     can be serialized by the default JSON encoder). Note that this is done
-    shallowly for containers. For example, ``PClass`` es will be turned into
+    shallowly for containers. For example, ``PClass``es will be turned into
     dicts, but the values and keys of the dict might still not be serializable.
 
     It is up to higher layers to traverse containers recursively to achieve
