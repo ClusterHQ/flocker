@@ -857,6 +857,10 @@ def omnibus_package_builder(
         steps=(
             InstallVirtualEnv(virtualenv=virtualenv),
             InstallApplication(virtualenv=virtualenv,
+                               package_uri='pip==8.1.1'),
+            InstallApplication(virtualenv=virtualenv,
+                               package_uri='-r/flocker/requirements.txt'),
+            InstallApplication(virtualenv=virtualenv,
                                package_uri=package_uri),
             # get_package_version_step must be run before steps that reference
             # rpm_version
