@@ -27,7 +27,11 @@ from twisted.conch.ssh.keys import Key
 from zope.interface import implementer
 from googleapiclient import discovery
 
-from ..node.agents.gce import wait_for_operation, gce_credentials_from_config
+from ..node.agents.gce import (
+    gce_credentials_from_config,
+    wait_for_operation,
+    wait_for_operation_async,
+)
 from ..common import retry_effect_with_timeout
 
 from ._common import IProvisioner, INode
@@ -430,44 +434,41 @@ class GCEInstanceBuilder(PClass):
     project = field(type=unicode)
     compute = field()
 
-    def create_instance(self, instance_name, image=None, **kwargs):
+    def _execute_create_instance(self, instance_name, image=None, **kwargs):
         """
-        Create a GCE instance.
+        Executes a create instance request on GCE and returns the operation.
 
-        :param unicode instance: The name of the instance to create.
-        :param unicode image: The link to the GCE image to use for the base
-            disk. Defaults to the latest CentOS 7 image if unspecified.
-        :param **kwargs: Other keyword arguments for the creation of the
-            instance. See documentation of ``_create_gce_instance_config`` for
-            keyword argument values.
-        :returns GCEInstance: The instance that was started.
+        :returns dict: A GCE operation resource object, suitable for use with
+            ``wait_for_operation``.
         """
         if image is None:
             image = get_latest_gce_image_for_distribution('centos-7',
                                                           self.compute)
-        config = _create_gce_instance_config(
+        body = _create_gce_instance_config(
             instance_name=instance_name,
             project=self.project,
             zone=self.zone,
             image=image,
             **kwargs
         )
-        operation = self.compute.instances().insert(
+
+        return self.compute.instances().insert(
             project=self.project,
             zone=self.zone,
-            body=config
+            body=body
         ).execute()
 
-        operation_result = wait_for_operation(
-            self.compute, operation, timeout_steps=[5]*60)
+    def _make_gce_instance(self, instance_name):
+        """
+        Queries the GCE API to to get information about the named instance to
+        construct an object of type ``GCEInstance``.
 
-        if not operation_result:
-            raise ValueError(
-                "Timed out waiting for creation of VM: {}".format(
-                    instance_name
-                )
-            )
+        :param unicode instance_name: The unique name of the GCE instance
+            resource.
 
+        :returns GCEInstance: A ``GCEInstance`` object that represents the
+            GCE instance resource with name ``instance_name``.
+        """
         instance_resource = self.compute.instances().get(
             project=self.project, zone=self.zone, instance=instance_name
         ).execute()
@@ -481,6 +482,59 @@ class GCEInstanceBuilder(PClass):
             name=instance_name,
             compute=self.compute,
         )
+
+    def create_instance(self, instance_name, image=None, **kwargs):
+        """
+        Create a GCE instance.
+
+        :param unicode instance: The name of the instance to create.
+        :param unicode image: The link to the GCE image to use for the base
+            disk. Defaults to the latest CentOS 7 image if unspecified.
+        :param **kwargs: Other keyword arguments for the creation of the
+            instance. See documentation of ``_create_gce_instance_config`` for
+            keyword argument values.
+        :returns GCEInstance: The instance that was started.
+        """
+        operation = self._execute_create_instance(
+            instance_name, image=image, **kwargs)
+
+        operation_result = wait_for_operation(
+            self.compute, operation, timeout_steps=[5]*60)
+
+        if not operation_result:
+            raise ValueError(
+                "Timed out waiting for creation of VM: {}".format(
+                    instance_name
+                )
+            )
+
+        return self._make_gce_instance(instance_name)
+
+    def create_instance_async(
+            self, reactor, instance_name, image=None, **kwargs):
+        """
+        Create a GCE instance.
+
+        :param reactor: The twisted ``IReactorTime`` provider to use to
+            schedule delays.
+        :param unicode instance: The name of the instance to create.
+        :param unicode image: The link to the GCE image to use for the base
+            disk. Defaults to the latest CentOS 7 image if unspecified.
+        :param **kwargs: Other keyword arguments for the creation of the
+            instance. See documentation of ``_create_gce_instance_config`` for
+            keyword argument values.
+        :returns Deferred: Fires with the ``GCEInstance`` that was started.
+        """
+        operation = self._execute_create_instance(
+            instance_name, image=image, **kwargs)
+
+        operation_deferred = wait_for_operation_async(
+            reactor, self.compute, operation, timeout_steps=[5]*60)
+
+        operation_deferred.addCallback(
+            lambda _: self._make_gce_instance(instance_name))
+
+        return operation_deferred
 
 
 @implementer(IProvisioner)
@@ -499,11 +553,10 @@ class GCEProvisioner(PClass):
     def get_ssh_key(self):
         return self.ssh_public_key
 
-    def create_node(self, name, distribution, metadata={}):
+    def _create_instance_kwargs(self, name, distribution, metadata, username):
         instance_name = _clean_to_gce_name(name)
         ssh_key = unicode(self.ssh_public_key.toString('OPENSSH'))
-        username = _GCE_ACCEPTANCE_USERNAME
-        instance = self.instance_builder.create_instance(
+        return dict(
             instance_name=instance_name,
             machine_type=_GCE_INSTANCE_TYPE,
             image=get_latest_gce_image_for_distribution(
@@ -534,25 +587,45 @@ class GCEProvisioner(PClass):
             delete_disk_on_terminate=True,
         )
 
+    def create_node(self, name, distribution, metadata=None):
+        if metadata is None:
+            metadata = {}
+        username = _GCE_ACCEPTANCE_USERNAME
+
+        instance = self.instance_builder.create_instance(
+            **self._create_instance_kwargs(name, distribution, metadata,
+                                           username)
+        )
+
         return GCENode(
             instance=instance,
             distribution=bytes(distribution),
             username=bytes(username)
         )
 
-    def create_nodes(self, reactor, names, distribution, metadata={}):
-        """
-        Create nodes with the given names.
+    def create_nodes(self, reactor, names, distribution, metadata=None):
+        if metadata is None:
+            metadata = {}
 
-        This method is not implemented as it is not used yet.
-        As of this time create_nodes is only used by setup-cluster
-        which does not support GCE.
-        One way to implement this method would be to use a variant of
-        wait_for_operation that uses loop_until instead of poll_until
-        to perform the waiting.
-        """
-        raise NotImplementedError(
-            "GCE does not have create_nodes implemented yet.")
+        username = _GCE_ACCEPTANCE_USERNAME
+
+        results = []
+
+        for name in names:
+            instance_deferred = self.instance_builder.create_instance_async(
+                reactor,
+                **self._create_instance_kwargs(name, distribution, metadata,
+                                               username)
+            )
+
+            instance_deferred.addCallback(lambda instance: GCENode(
+                instance=instance,
+                distribution=bytes(distribution),
+                username=bytes(username)
+            ))
+
+            results.append(instance_deferred)
+        return results
 
 
 def gce_provisioner(
