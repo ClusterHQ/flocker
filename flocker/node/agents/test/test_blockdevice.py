@@ -2144,10 +2144,34 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
             )
         )
 
+        # Upon deletion, datasets to not get unregistered, so they will still
+        # be in the discovered datasets.
+
+        registered_dataset = DiscoveredDataset(
+            dataset_id=self.DATASET_ID,
+            blockdevice_id=self.BLOCKDEVICE_ID,
+            state=DatasetStates.REGISTERED,
+        )
+
+        # Foreign deleted datasets show up as REGISTERED, but they are not in
+        # our config.
+        foreign_registered_dataset_id = uuid4()
+        foreign_registered_dataset = DiscoveredDataset(
+            dataset_id=foreign_registered_dataset_id,
+            blockdevice_id=_create_blockdevice_id_for_test(
+                foreign_registered_dataset_id
+            ),
+            state=DatasetStates.REGISTERED,
+        )
+
         assert_calculated_changes(
             self, local_state, local_config,
             nonmanifest_datasets={},
             expected_changes=in_parallel(changes=[]),
+            discovered_datasets=[
+                registered_dataset,
+                foreign_registered_dataset
+            ],
         )
 
 
@@ -4316,9 +4340,23 @@ class DestroyVolumeTests(
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
-        change = DestroyVolume(blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer,
-                                              InMemoryStatePersister()))
+        blockdevice_id = volume.blockdevice_id
+        change = DestroyVolume(blockdevice_id=blockdevice_id)
+        state_persister = InMemoryStatePersister()
+        state_persister.record_ownership(dataset_id, blockdevice_id)
+        self.successResultOf(run_state_change(
+            change, deployer, state_persister
+        ))
+
+        # DestroyVolume does not unregister a blockdevice. This has the
+        # side-effect of the volume appearing to be Registered after it is
+        # deleted. This might not be ideal, but that is the current
+        # understanding of the system, so we should test that understanding is
+        # correct.
+        self.assertEqual(
+            state_persister.get_state().blockdevice_ownership,
+            {dataset_id: blockdevice_id},
+        )
 
         self.assertEqual([], api.list_volumes())
 
