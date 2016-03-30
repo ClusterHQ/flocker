@@ -7,8 +7,11 @@ The command-line ``flocker-*-agent`` tools.
 
 from socket import socket
 from contextlib import closing
+import cProfile
+import signal
 import sys
-from time import sleep
+from functools import partial
+from time import sleep, clock
 
 import yaml
 
@@ -29,7 +32,8 @@ from twisted.internet.defer import succeed
 
 from ..common.script import (
     ICommandLineScript,
-    flocker_standard_options, FlockerScriptRunner, main_for_service)
+    flocker_standard_options, FlockerScriptRunner, main_for_service,
+    enable_profiling, disable_profiling)
 from ..common.plugin import PluginLoader
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
@@ -66,6 +70,12 @@ def flocker_dataset_agent_main():
     agent_script = AgentScript(service_factory=service_factory.get_service)
     options = DatasetAgentOptions()
 
+    # Use CPU time instead of wallclock time.
+    pr = cProfile.Profile(clock)
+
+    signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
+    signal.signal(signal.SIGUSR2, partial(disable_profiling, pr, 'dataset'))
+
     return FlockerScriptRunner(
         script=agent_script,
         options=options,
@@ -84,6 +94,13 @@ def flocker_container_agent_main():
         deployer_factory=deployer_factory
     ).get_service
     agent_script = AgentScript(service_factory=service_factory)
+
+    # Use CPU time instead of wallclock time.
+    pr = cProfile.Profile(clock)
+
+    signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
+    signal.signal(signal.SIGUSR2, partial(disable_profiling, pr, 'container'))
+
     return FlockerScriptRunner(
         script=agent_script,
         options=ContainerAgentOptions()
