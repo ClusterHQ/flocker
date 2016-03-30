@@ -212,6 +212,10 @@ def _is_pyrsistent(obj):
     return isinstance(obj, (PRecord, PClass, PMap, PSet, PVector))
 
 
+_BASIC_JSON_TYPES = frozenset([str, unicode, int, long, float, bool])
+_BASIC_JSON_COLLECTIONS = frozenset([dict, list, tuple])
+
+
 _cached_dfs_serialize_cache = WeakKeyDictionary()
 
 
@@ -230,21 +234,14 @@ def _cached_dfs_serialize(input_object):
     if input_object is None:
         return None
 
-    # Note that ``type(x) == str or type(x) == int`` is faster than
+    # Note that ``type(x) in frozenset([str, int])`` is faster than
     # ``isinstance(x, (str, int))``.
-    t = type(input_object)
-    if (
-            t is str or
-            t is unicode or
-            t is int or
-            t is long or
-            t is float or
-            t is bool
-    ):
+    input_type = type(input_object)
+    if input_type in _BASIC_JSON_TYPES:
         return input_object
 
     is_pyrsistent = False
-    if t is dict or t is list or t is tuple:
+    if input_type in _BASIC_JSON_COLLECTIONS:
         # Don't send basic collections through shallow object serialization,
         # isinstance is not a very cheap operation.
         obj = input_object
@@ -257,11 +254,12 @@ def _cached_dfs_serialize(input_object):
 
     result = obj
 
-    if isinstance(obj, dict):
+    obj_type = type(obj)
+    if obj_type == dict:
         result = dict((_cached_dfs_serialize(key),
                        _cached_dfs_serialize(value))
                       for key, value in obj.iteritems())
-    elif isinstance(obj, (list, tuple)):
+    elif obj_type == list or obj_type == tuple:
         result = list(_cached_dfs_serialize(x) for x in obj)
 
     if is_pyrsistent:
