@@ -27,10 +27,6 @@ class CertAndKey(object):
         self.key = key
 
 
-class EmptyCertificates(object):
-    directory = None
-
-
 class Certificates(object):
     """
     The certificates generated for a cluster.
@@ -55,11 +51,16 @@ class Certificates(object):
             directory.globChildren(b"control-*.key")[0])
         self.user = CertAndKey(directory.child(b"user.crt"),
                                directory.child(b"user.key"))
-        nodes = []
-        for child in directory.globChildren(b"node-*.crt"):
-            sibling = FilePath(child.path[:-3] + b"key")
-            nodes.append(CertAndKey(child, sibling))
-        self.nodes = nodes
+
+        def get_agent_certs(cert_glob):
+            certs = []
+            for child in directory.globChildren(cert_glob):
+                sibling = FilePath(child.path[:-3] + b"key")
+                certs.append(CertAndKey(child, sibling))
+            return certs
+
+        self.plugins = get_agent_certs(b"plugin-*.crt")
+        self.nodes = get_agent_certs(b"node-*.crt")
 
     @classmethod
     def generate(cls, directory, control_hostname, num_nodes, cluster_name,
@@ -91,6 +92,7 @@ class Certificates(object):
         directory.child(b"allison.key").moveTo(directory.child(b"user.key"))
         for i in range(num_nodes):
             run(b"create-node-certificate")
+            run(b"create-api-certificate", b"plugin-{}".format(i))
         for i, child in enumerate(
                 directory.globChildren(b"????????-????-*.crt")):
             sibling = FilePath(child.path[:-3] + b"key")

@@ -3,7 +3,6 @@
 
 import sys
 from functools import partial
-#import tempfile
 import yaml
 
 from zope.interface import implementer
@@ -27,6 +26,7 @@ from flocker.provision._install import (
     task_enable_flocker_control,
     task_enable_flocker_agent,
     task_enable_docker_plugin,
+    task_install_docker_plugin,
 )
 from flocker.provision._ssh import (
     run, run_remotely, sudo_put
@@ -34,8 +34,7 @@ from flocker.provision._ssh import (
 from flocker.node import DeployerType, BackendDescription
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._effect import sequence
-from flocker.provision._common import Cluster
-from flocker.provision._ca import Certificates, EmptyCertificates
+from flocker.provision._ca import Certificates
 from flocker.common.script import (
     flocker_standard_options,
     ICommandLineScript,
@@ -67,9 +66,9 @@ class FlockerProvisionOptions(Options):
     optParameters = [
         ['user', None, 'ubuntu', ""],
         ['identity', None, None, ""],
-        ['agent-config', None, '/home/bcox/config_files/agent.yml', ""],
-        ['control-node', None, 'ec2-52-38-69-204.us-west-2.compute.amazonaws.com', ""],
-        ['agent-nodes', None, 'ec2-52-38-69-204.us-west-2.compute.amazonaws.com', ""],
+        ['agent-config', None, '', ""],
+        ['control-node', None, '', ""],
+        ['agent-nodes', None, '', ""],
         ['cluster-name', None, u'flocker_cluster', ""], # optional
         ['cluster-id', None, None, ""], # optional
         ['cluster-file', None, None, ""], # optional
@@ -123,53 +122,49 @@ def get_node_addresses(options):
         return options['control-node'], parse_node_list(options['agent-nodes'])
 
 
-def install_flocker(cluster):
+def install_flocker(all_nodes):
     return run_on_nodes(
-        cluster.all_nodes,
+        all_nodes,
         task=lambda node: task_install_flocker(
             distribution=node.distribution,
         )
     )
 
 
-def install_flocker_docker_plugin(cluster):
+def install_flocker_docker_plugin(all_nodes):
     return run_on_nodes(
-        cluster.all_nodes,
-        task=lambda node: task_install_flocker(
+        all_nodes,
+        task=lambda node: task_install_docker_plugin(
             distribution=node.distribution,
         )
     )
 
 
-def distribute_certs(cluster, options):
-    # need to have the user specify the api cert name...
-    control_command = run_remotely(
-        username=cluster.control_node.get_default_username(),
-        address=cluster.control_node.address,
-        commands=sequence([
-        task_install_control_certificates(
-            cluster.certificates.cluster.certificate,
-            cluster.certificates.control.certificate,
-            cluster.certificates.control.key),
-        ])
+def distribute_certs(control_node, agent_nodes, certificates):
+    control_command = run_on_nodes(
+        [control_node],
+        task=lambda node: task_install_control_certificates(
+            certificates.cluster.certificate,
+            certificates.control.certificate,
+            certificates.control.key)
     )
 
     node_commands = []
-    for certnkey, node in zip(cluster.certificates.nodes,
-                              cluster.agent_nodes):
+    for certnkey, plugin_certnkey, node in zip(certificates.nodes,
+                                               certificates.plugins,
+                                               agent_nodes):
         cmd = run_remotely(
             username=node.get_default_username(),
             address=node.address,
             commands=sequence([
                 task_install_node_certificates(
-                    cluster.certificates.cluster.certificate,
-                    # todo, get the right cert from the node
+                    certificates.cluster.certificate,
                     certnkey.certificate,
                     certnkey.key),
                 task_install_api_certificates(
-                    cluster.certificates.user.certificate,
-                    cluster.certificates.user.key,
-                    options['api-cert-name'])
+                    plugin_certnkey.certificate,
+                    plugin_certnkey.key,
+                    'plugin')
             ])
         )
         node_commands.append(cmd)
@@ -177,33 +172,33 @@ def distribute_certs(cluster, options):
     return sequence([control_command, parallel_node_commands])
 
 
-def distribute_agent_yaml(cluster):
-    content = cluster.dataset_backend_config_file.getContent()
+def distribute_agent_yaml(agent_nodes, agent_config_filepath):
+    content = agent_config_filepath.getContent()
     put_config_file = sudo_put(
         path='/etc/flocker/agent.yml',
         content=content,
         log_content_filter=_remove_dataset_fields
     )
     return run_on_nodes(
-        nodes=cluster.agent_nodes,
+        nodes=agent_nodes,
         task=lambda node: put_config_file
     )
 
 
-def post_install_actions(cluster, options):
+def post_install_actions(control_node, agent_nodes, options):
     # TODO: should we also open ports on firewall (if enabled)?
     commands = []
     if options['install-flocker']:
         commands.append(
             run_on_nodes(
-                nodes=[cluster.control_node],
+                nodes=[control_node],
                 task=lambda node: task_enable_flocker_control(
                     node.distribution, action='restart')
             )
         )
         commands.append(
             run_on_nodes(
-                cluster.agent_nodes,
+                agent_nodes,
                 lambda node: task_enable_flocker_agent(node.distribution,
                                                        action='restart')
             )
@@ -211,7 +206,7 @@ def post_install_actions(cluster, options):
     if options['install-flocker-docker-plugin']:
         commands.append(
             run_on_nodes(
-                cluster.agent_nodes,
+                agent_nodes,
                 lambda node: task_enable_docker_plugin(node.distribution)
             )
         )
@@ -256,6 +251,15 @@ def prompt_user_for_continue():
         sys.exit(1)
 
 
+def bail_if_docker_not_installed(agent_nodes):
+    def die():
+        print "Docker must be installed on all agent nodes"
+        sys.exit(1)
+
+    # Todo: implement me
+    pass
+
+
 def get_node_distro(reactor, host, username, d):
     """
     Determines the node's distribution in a series of steps We've made
@@ -279,6 +283,8 @@ def get_node_distro(reactor, host, username, d):
 
     def raise_(ex):
         raise ex()
+
+    # TODO: add RHEL support
 
     def is_centos_7():
         is_os_version('CentOS Linux 7',
@@ -339,6 +345,7 @@ def get_doomed_certs(directory):
     cert_files = ('cluster.crt', 'cluster.key',
                   'node-*.crt', 'node-*.key',
                   'control-*.crt', 'control-*.key',
+                  'plugin-*.crt', 'plugin-*.key',
                   'user.crt', 'user.key')
     doomed_certs = []
     for cert_file in cert_files:
@@ -389,56 +396,29 @@ def create_nodes(reactor, options,
                  control_node_address, agent_node_addresses):
     print "inspecting nodes..."
     username = options['user']
-    control_deferred = yield create_node(reactor, control_node_address, username)
+    control_deferred = create_node(reactor, control_node_address, username)
     agent_deferreds = []
     for node_address in agent_node_addresses:
-        d = yield create_node(reactor, node_address, username)
+        d = create_node(reactor, node_address, username)
         agent_deferreds.append(d)
+
     # we've fired off all our calls in parallel, now collect them
     agent_nodes = []
     control_node = yield control_deferred
     for node_deferred in agent_deferreds:
         node = yield node_deferred
         agent_nodes.append(node)
-    yield returnValue((control_node, agent_nodes))
-
-# @inlineCallbacks
-# def create_nodes(reactor, options,
-#                  control_node_address, agent_node_addresses):
-#     # todo, do this in parallel
-#     print "inspecting nodes..."
-#     username = options['user']
-#     control_node = yield create_node(reactor, control_node_address, username)
-#     agent_nodes = []
-#     for node_address in agent_node_addresses:
-#         agent_node = yield create_node(reactor, node_address, username)
-#         agent_nodes.append(agent_node)
-#     yield returnValue((control_node, agent_nodes))
-
-
-def create_cluster(options, control_node, agent_nodes, agent_config_filepath):
     agent_node_addresses = set((a.address for a in agent_nodes))
-    if control_node.address in agent_node_addresses:
+
+    if control_node_address in agent_node_addresses:
         all_nodes = agent_nodes
     else:
         all_nodes = [control_node] + agent_nodes
-    certificates = EmptyCertificates()
-    if not options['no-certs']:
-        certificates=get_certificates(options, control_node, agent_nodes)
-    cluster = Cluster(
-        all_nodes=all_nodes,
-        control_node=control_node,
-        agent_nodes=agent_nodes,
-        dataset_backend=get_backend_description(options),
-        default_volume_size=10,
-        certificates=certificates,
-        dataset_backend_config_file=agent_config_filepath
-    )
-    return cluster
+    yield returnValue((control_node, agent_nodes, all_nodes))
 
 
 @inlineCallbacks
-def run_provisioning(reactor, cluster, actions):
+def run_provisioning(reactor, actions):
     for action in actions:
         yield perform(make_dispatcher(reactor), action())
 
@@ -458,9 +438,10 @@ class FlockerProvisionScript(object):
             print "could not find agent-config at {}".format(
                 agent_config_filepath.realpath())
             sys.exit(1)
-        control_node, agent_nodes = yield create_nodes(
+        control_node, agent_nodes, all_nodes = yield create_nodes(
             reactor, options, control_node_address, agent_node_addresses)
 
+        bail_if_docker_not_installed(agent_nodes)
         warn_if_overwriting_certs(options)
         print_install_plan(options, control_node, agent_nodes)
         if not options['force']:
@@ -469,23 +450,24 @@ class FlockerProvisionScript(object):
         create_cert_directory(options)
         delete_doomed_certs(options)
 
-        cluster = create_cluster(
-            options=options,
-            control_node=control_node,
-            agent_nodes=agent_nodes,
-            agent_config_filepath=agent_config_filepath
-        )
+        certificates = None
+        if not options['no-certs']:
+            certificates = get_certificates(options, control_node, agent_nodes)
+
         actions = []
         if options['install-flocker']:
-            actions.append(partial(install_flocker, cluster))
+            actions.append(partial(install_flocker, all_nodes))
         if options['install-flocker-docker-plugin']:
-            actions.append(partial(install_flocker_docker_plugin, cluster))
+            actions.append(partial(install_flocker_docker_plugin, all_nodes))
         if not options['no-certs']:
-            actions.append(partial(distribute_certs, cluster, options))
-        actions.append(partial(distribute_agent_yaml, cluster))
-        actions.append(partial(post_install_actions, cluster, options))
+            actions.append(partial(
+                distribute_certs, control_node, agent_nodes, certificates))
+        actions.append(partial(
+            distribute_agent_yaml, agent_nodes, agent_config_filepath))
+        actions.append(partial(
+            post_install_actions, control_node, agent_nodes, options))
 
-        yield run_provisioning(reactor, cluster, actions)
+        yield run_provisioning(reactor, actions)
 
 
 def flocker_provision_main(reactor, args, base_path, top_level):
