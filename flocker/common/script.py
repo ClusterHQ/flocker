@@ -3,6 +3,7 @@
 """Helpers for flocker shell commands."""
 
 import sys
+from time import strftime
 
 from bitmath import MiB
 
@@ -335,3 +336,36 @@ def main_for_service(reactor, service):
     reactor.addSystemEventTrigger(
         "before", "shutdown", _chain_stop_result, service, stop)
     return stop
+
+
+def enable_profiling(profile, signal, frame):
+    """
+    Enable profiling of a Flocker service.
+
+    :param profile: A ``cProfile.Profile`` object for a Flocker service.
+    :param int signal: See ``signal.signal``.
+    :param frame: None or frame object. See ``signal.signal``.
+    """
+    profile.enable()
+
+
+def disable_profiling(profile, service, signal, frame):
+    """
+    Disable profiling of a Flocker service.
+    Dump profiling statistics to a file.
+
+    :param profile: A ``cProfile.Profile`` object for a Flocker service.
+    :param str service: Name of or identifier for a Flocker service.
+    :param int signal: See ``signal.signal``.
+    :param frame: None or frame object. See ``signal.signal``.
+    """
+    current_time = strftime("%Y%m%d%H%M%S")
+    path = FilePath('/var/lib/flocker')
+    path = path.child('profile-{service}-{current_time}'.format(
+        service=service,
+        current_time=current_time)
+    )
+    # This dumps the current profiling statistics and disables the
+    # collection of profiling data. When the profiler is next enabled
+    # the new statistics are added to existing data.
+    profile.dump_stats(path.path)

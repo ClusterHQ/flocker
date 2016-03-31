@@ -28,6 +28,7 @@ Manually Installing Flocker with Docker Swarm
    :hidden:
    
    setup-aws
+   setup-gce
    setup-rackspace
 
 .. _post-installation-configuration-with-docker:

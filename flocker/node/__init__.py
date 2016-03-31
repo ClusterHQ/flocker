@@ -13,7 +13,7 @@ from ._deploy import (
     ILocalState,
     NodeLocalState,
 )
-from ._container import ApplicationNodeDeployer
+from ._container import ApplicationNodeDeployer, NOOP_SLEEP_TIME
 from ._p2p import P2PManifestationDeployer
 
 from .backends import BackendDescription
@@ -24,7 +24,7 @@ from ._docker import dockerpy_client
 
 __all__ = [
     'IDeployer', 'ILocalState', 'NodeLocalState', 'IStateChange',
-    'NoOp',
+    'NoOp', 'NOOP_SLEEP_TIME',
     'P2PManifestationDeployer',
     'ApplicationNodeDeployer',
     'run_state_change', 'in_parallel', 'sequentially',

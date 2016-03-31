@@ -16,6 +16,11 @@ rackspace:
   key: "33333333333333333333333333333333"
   keyname: "your.rackspace.ssh.key.identifier"
 
+gce:
+  project: "your-project-name"
+  zone: "us-central1-f"
+  ssh_public_key: "ssh-rsa AAA..."
+
 managed:
   addresses:
     - "192.0.2.15"
@@ -45,3 +50,7 @@ storage-drivers:
     username: "your.rackspace.username"
     api_key: "33333333333333333333333333333333"
     auth_url: "https://identity.api.rackspacecloud.com/v2.0"
+
+  gce:
+    project: "your-project-name"
+    zone: "us-central1-f"

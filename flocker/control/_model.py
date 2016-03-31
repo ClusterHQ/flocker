@@ -1128,11 +1128,20 @@ class DeploymentState(PClass):
         [original_node] = nodes
         updated_node = original_node.evolver()
         for key, value in node_state.items():
-            if value is not None:
+            # XXX This is an optimization to avoid calling ``set`` unless the
+            # value has changed. ``set`` is slow.
+            if value is not None and value != updated_node[key]:
                 updated_node = updated_node.set(key, value)
-        return self.set(
-            "nodes", self.nodes.discard(original_node).add(
-                updated_node.persistent()))
+        updated_node = updated_node.persistent()
+
+        # XXX This is an optimization to avoid calling ``set``
+        # unless the value has changed. ``set`` is slow.
+        if updated_node != original_node:
+            return self.set(
+                "nodes", self.nodes.discard(original_node).add(
+                    updated_node))
+        else:
+            return self
 
     def remove_node(self, node_uuid):
         """

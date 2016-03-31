@@ -19,6 +19,7 @@ from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
     assert_http_server, query_http_server, is_process_running,
+    ACCEPTANCE_TEST_TIMEOUT
 )
 from ..scripts import SCRIPTS
 
@@ -27,6 +28,9 @@ class ContainerAPITests(AsyncTestCase):
     """
     Tests for the container API.
     """
+
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+
     def _create_container(self, cluster, script):
         """
         Create a container listening on port 8080.
@@ -121,8 +125,8 @@ class ContainerAPITests(AsyncTestCase):
         )
         return d
 
-    @flaky(u'FLOC-2488')
     @require_moving_backend
+    @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(2, require_container_agent=True)
     def test_move_container_with_dataset(self, cluster):
         """
@@ -340,8 +344,6 @@ class ContainerAPITests(AsyncTestCase):
             lambda _: assert_http_server(self, origin.public_address, port))
         return running
 
-    # Unfortunately this test is very very slow.
-    @run_test_with(async_runner(timeout=timedelta(minutes=5)))
     @require_cluster(2, require_container_agent=True)
     def test_reboot(self, cluster):
         """

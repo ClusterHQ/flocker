@@ -28,7 +28,7 @@ from twisted.python.constants import Names, NamedConstant
 
 from ..cinder import cinder_from_configuration
 from ..ebs import EBSBlockDeviceAPI, ec2_client
-from ..gce import GCEBlockDeviceAPI, get_metadata_path
+from ..gce import gce_from_configuration
 from ..testtools import detach_destroy_volumes
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
 from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
@@ -221,14 +221,10 @@ def _gce(cluster_id, config):
     code is running. This function assumes it's running on a GCE node.
 
     :param cluster_id: The flocker cluster id.
-    :param config: Any additional configuration (possibly provider-specific)
-        necessary to authenticate a Persistent Disk session.
+    :param config: Unused.
     :return: A GCEBlockDeviceAPI instance.
     """
-    project = get_metadata_path("project/project-id")
-    full_zone = get_metadata_path("instance/zone")
-    zone = full_zone.split("/")[-1]
-    return GCEBlockDeviceAPI(cluster_id=cluster_id, project=project, zone=zone)
+    return gce_from_configuration(cluster_id=cluster_id)
 
 
 # Map provider labels to IBlockDeviceAPI factory.

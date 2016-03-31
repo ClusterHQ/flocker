@@ -7,7 +7,6 @@ AWS provisioner.
 import logging
 
 from itertools import izip_longest, repeat
-from textwrap import dedent
 
 from pyrsistent import PClass, field
 
@@ -380,10 +379,6 @@ class AWSProvisioner(PClass):
                 # On some operating systems a tty is requried for sudo.
                 # Since AWS systems have a non-root user as the login,
                 # disable this, so we can use sudo with conch.
-                user_data=dedent("""\
-                    #!/bin/sh
-                    sed -i '/Defaults *requiretty/d' /etc/sudoers
-                    """),
             )
             return reservation.instances
 

@@ -893,11 +893,15 @@ class OmnibusPackageBuilderTests(TestCase):
 
         package_files = FilePath('/package-files')
 
+        virtualenv = VirtualEnv(root=expected_virtualenv_path)
         expected = BuildSequence(
             steps=(
                 # clusterhq-python-flocker steps
-                InstallVirtualEnv(
-                    virtualenv=VirtualEnv(root=expected_virtualenv_path)),
+                InstallVirtualEnv(virtualenv=virtualenv),
+                InstallApplication(virtualenv=virtualenv,
+                                   package_uri='pip==8.1.1'),
+                InstallApplication(virtualenv=virtualenv,
+                                   package_uri='-r/flocker/requirements.txt'),
                 InstallApplication(
                     virtualenv=VirtualEnv(root=expected_virtualenv_path),
                     package_uri=b'https://www.example.com/foo/Bar-1.2.3.whl',

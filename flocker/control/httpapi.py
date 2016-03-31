@@ -30,6 +30,8 @@ from klein import Klein
 
 from pyrsistent import discard
 
+from repoze.lru import lru_cache
+
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request,
     private_api
@@ -132,6 +134,30 @@ def _if_configuration_matches(original):
         return original(self, request, **route_arguments)
 
     return render_if_matches
+
+
+@lru_cache(1)
+def _extract_containers_state(deployment_state):
+    """
+    Turn the deployment state into serializable simple types for every
+    container in the deployment state.
+
+    N.B.: Callers of this function should not mutate the returned value as this
+    function uses an lru_cache (FLOC-4345 to clean up).
+
+    :param DeploymentState deployment_state: The deployment state to extract
+        the containers from.
+
+    :returns: The states of the containers in simple types.
+    """
+    result = []
+    for node in deployment_state.nodes:
+        for application in (node.applications or ()):
+            container = container_configuration_response(
+                application, node.uuid)
+            container[u"running"] = application.running
+            result.append(container)
+    return result
 
 
 class ConfigurationAPIUserV1(object):
@@ -523,7 +549,8 @@ class ConfigurationAPIUserV1(object):
         :return: A ``list`` of ``dict`` representing each of the containers
             that are configured to exist anywhere on the cluster.
         """
-        return list(containers_from_deployment(self.persistence_service.get()))
+        return list(
+            _containers_from_deployment(self.persistence_service.get()))
 
     @app.route("/state/containers", methods=['GET'])
     @user_documentation(
@@ -551,17 +578,8 @@ class ConfigurationAPIUserV1(object):
         :return: A ``list`` of ``dict`` representing each of the containers
             that are configured to exist anywhere on the cluster.
         """
-        result = []
         deployment_state = self.cluster_state_service.as_deployment()
-        for node in deployment_state.nodes:
-            if node.applications is None:
-                continue
-            for application in node.applications:
-                container = container_configuration_response(
-                    application, node.uuid)
-                container[u"running"] = application.running
-                result.append(container)
-        return result
+        return _extract_containers_state(deployment_state)
 
     def _get_attached_volume(self, node_uuid, volume):
         """
@@ -1231,18 +1249,26 @@ def datasets_from_deployment(deployment):
                 )
 
 
-def containers_from_deployment(deployment):
+@lru_cache(1)
+def _containers_from_deployment(deployment):
     """
     Extract the containers from the supplied deployment instance.
+
+    N.B.: Callers of this function should not mutate the returned value as this
+    function uses an lru_cache (FLOC-4345 to clean up).
 
     :param Deployment deployment: A ``Deployment`` describing the state
         of the cluster.
 
-    :return: Iterable returning all containers.
+    :return: List of all containers.
     """
+    results = []
     for node in deployment.nodes:
         for application in node.applications:
-            yield container_configuration_response(application, node.uuid)
+            results.append(
+                container_configuration_response(application, node.uuid)
+            )
+    return results
 
 
 def container_configuration_response(application, node):

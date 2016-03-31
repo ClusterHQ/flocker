@@ -5,7 +5,6 @@ Tests for ``flocker.node._container``.
 """
 
 from uuid import UUID, uuid4
-from datetime import timedelta
 
 from ipaddr import IPAddress
 
@@ -19,7 +18,7 @@ from twisted.internet.defer import FirstError
 from twisted.python.filepath import FilePath
 
 from .. import (
-    ApplicationNodeDeployer, NoOp,
+    ApplicationNodeDeployer, NoOp, NOOP_SLEEP_TIME
 )
 from ..testtools import (
     EMPTY,
@@ -904,7 +903,7 @@ def no_change():
     Construct the exact ``IStateChange`` that ``ApplicationNodeDeployer``
     returns when it doesn't want to make any changes.
     """
-    return NoOp(sleep=timedelta(seconds=1))
+    return NoOp(sleep=NOOP_SLEEP_TIME)
 
 
 class ApplicationNodeDeployerCalculateVolumeChangesTests(TestCase):
@@ -1141,7 +1140,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         """
         assert_application_calculated_changes(
             self, EMPTY_NODESTATE, to_node(EMPTY_NODESTATE), set(),
-            NoOp(sleep=timedelta(seconds=1)),
+            no_change(),
         )
 
     def test_proxy_needs_creating(self):
@@ -1412,7 +1411,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[node_state]),
             local_state=NodeLocalState(node_state=node_state))
-        expected = NoOp(sleep=timedelta(seconds=1))
+        expected = no_change()
         self.assertEqual(expected, result)
 
     def test_node_not_described(self):

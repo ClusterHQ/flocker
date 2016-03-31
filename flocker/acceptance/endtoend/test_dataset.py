@@ -27,7 +27,7 @@ from ...node import backends
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     skip_backend, get_backend_api, verify_socket,
-    get_default_volume_size,
+    get_default_volume_size, ACCEPTANCE_TEST_TIMEOUT
 )
 
 
@@ -35,6 +35,8 @@ class DatasetAPITests(AsyncTestCase):
     """
     Tests for the dataset API.
     """
+
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
 
     @flaky(u'FLOC-3207')
     @require_cluster(1)
@@ -95,6 +97,10 @@ class DatasetAPITests(AsyncTestCase):
         unsupported={backends.LOOPBACK},
         reason="Does not maintain compute_instance_id across restarting "
                "flocker (and didn't as of most recent release).")
+    @skip_backend(
+        unsupported={backends.GCE},
+        # XXX: FLOC-4297: Enable this after the next marketing release.
+        reason="GCE was not available during the most recent release.")
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
@@ -355,6 +361,12 @@ class DatasetAPITests(AsyncTestCase):
         wait_for_dataset.addCallback(check_volumes)
         return wait_for_dataset
 
+    @skip_backend(
+        unsupported={backends.GCE},
+        reason="The GCE backend does not let you create two volumes with the "
+               "same dataset id. When this test is run with GCE the test "
+               "fails to create the extra volume, and we do not test the "
+               "functionality this test was designed to test.")
     @require_cluster(2)
     def test_extra_volume(self, cluster):
         """

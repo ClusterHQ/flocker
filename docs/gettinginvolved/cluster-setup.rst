@@ -129,6 +129,17 @@ To create a cluster on AWS, see :ref:`acceptance-testing-aws-config`.
 
   admin/setup-cluster --distribution centos-7 --provider aws --config-file config.yml --number-of-nodes 2
 
+.. _cluster-setup-gce-config:
+
+GCE
+===
+
+To create a cluster on GCE, see :ref:`acceptance-testing-gce-config`.
+
+.. prompt:: bash $
+
+  admin/setup-cluster --distribution centos-7 --provider gce --dataset-backend gce --config-file config.yml --number-of-nodes 2
+
 .. _cluster-setup-managed-config:
 
 Managed
@@ -292,7 +303,7 @@ An example of how to run :program:`add-cluster-nodes` would be:
 
 .. prompt:: bash $
 
-  admin/add-cluster-node \
+  admin/add-cluster-nodes \
     --distribution centos-7 \
     --branch master \
     --config-file ~/clusters/test0/managed.yaml \
@@ -375,7 +386,7 @@ An example of how to use it, without specifying any optional argument would be:
 
 .. prompt:: bash $
 
-  admin/setup-cluster-containers \
+  benchmark/setup-cluster-containers \
     --image "clusterhq/mongodb" \
     --mountpoint "/data/db" \
     --apps-per-node 5 \
@@ -394,12 +405,12 @@ so that it can be re-used for testing a different configuration.
 
 .. prompt:: bash $
 
-   admin/cleanup-cluster <options>
+   benchmark/cleanup-cluster <options>
 
 
-The :program:`admin/cleanup-cluster` script has several options:
+The :program:`benchmark/cleanup-cluster` script has several options:
 
-.. program:: admin/cleanup-cluster
+.. program:: benchmark/cleanup-cluster
 
 .. option:: --control-node <address>
 
