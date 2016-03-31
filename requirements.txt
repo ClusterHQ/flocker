@@ -1,3 +1,4 @@
+git+https://github.com/ClusterHQ/pyrsistent@5b722c3ad75ed2da414a40e6d27af373a8610018#egg=pyrsistent-0.11.13chq
 argparse==1.3.0
 attrs==15.1.0
 Babel==2.2.0
@@ -6,9 +7,9 @@ bitmath==1.2.3.post4
 boto==2.38.0
 boto3==1.2.2
 botocore==1.3.17
-cffi==1.1.2
+cffi==1.5.2
 characteristic==14.3.0
-cryptography==1.1.2
+cryptography==1.2.3
 debtcollector==1.3.0
 docker-py==1.6.0
 docutils==0.12
@@ -41,7 +42,6 @@ oslo.i18n==3.4.0
 oslo.serialization==2.4.0
 oslo.utils==3.7.0
 pbr==1.8.1
-pip==7.1.0
 positional==1.0.1
 prettytable==0.7.2
 psutil==2.1.2
@@ -50,7 +50,6 @@ pyasn1-modules==0.0.8
 pycparser==2.14
 pycrypto==2.6.1
 pyOpenSSL==0.15.1
-pyrsistent==0.11.9
 python-cinderclient==1.6.0
 python-dateutil==2.4.2
 python-keystoneclient==2.3.1

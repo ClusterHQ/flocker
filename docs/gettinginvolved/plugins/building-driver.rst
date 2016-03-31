@@ -12,6 +12,7 @@ These drivers include:
 
 * `OpenStack Cinder <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/cinder.py>`_
 * `Amazon EBS <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/ebs.py>`_
+* `Google Compute Engine Persistent Disk <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/gce.py>`_
 
 After you have implemented the driver, you will need to test your implementation, and ClusterHQ provide a number of test suites to help you do this.
 These tests are the bare minimum required to accept the driver.
@@ -30,7 +31,7 @@ Testing Your Driver
    .. code-block:: python
 
       from uuid import uuid4
-      from flocker.node.agents.test.test_blockdevice import make_iblockdeviceapi_tests
+      from flocker.node.agents.testtools import make_iblockdeviceapi_tests
 
       def api_factory(test):
           # Return an instance of your IBlockDeviceAPI implementation class, given

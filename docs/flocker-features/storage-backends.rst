@@ -15,6 +15,7 @@ ClusterHQ supported drivers
 ===========================
 
 * :ref:`aws-dataset-backend`
+* :ref:`gce-dataset-backend`
 * :ref:`openstack-dataset-backend`
 * :ref:`loopback-dataset-backend`
 
@@ -22,6 +23,7 @@ ClusterHQ supported drivers
    :hidden:
 
    aws-configuration
+   gce-configuration
    openstack-configuration
    loopback-configuration
 

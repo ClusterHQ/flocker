@@ -30,9 +30,7 @@ from flocker.ca import (
     RootCredential, AUTHORITY_CERTIFICATE_FILENAME, NodeCredential
 )
 
-# make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
-# but I want to keep the branch size down
-from ..test.test_blockdevice import (
+from ..testtools import (
     make_iblockdeviceapi_tests, make_icloudapi_tests,
 )
 from ..test.blockdevicefactory import (

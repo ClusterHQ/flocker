@@ -32,6 +32,9 @@ from ._deploy import IDeployer, NodeLocalState
 _logger = Logger()
 
 
+NOOP_SLEEP_TIME = timedelta(seconds=5)
+
+
 def _eliot_system(part):
     return u"flocker:node:container_deployer:" + part
 
@@ -570,16 +573,19 @@ class ApplicationNodeDeployer(object):
         volume_state = state.volume
         volume_configuration = configuration.volume
 
+        restart_state = state.restart_policy
         # The volume comparison is too complicated to leave up to `!=` below.
         # Check volumes separately.
-        comparable_state = state.set(volume=None)
-        comparable_configuration = configuration.set(volume=None)
-
-        # Restart policies don't implement comparison usefully.  See FLOC-2500.
-        restart_state = comparable_state.restart_policy
-        comparable_state = comparable_state.set(restart_policy=RestartNever())
-        comparable_configuration = comparable_configuration.set(
-            restart_policy=RestartNever()
+        # Restart policies don't implement comparison usefully.  See FLOC-2500
+        # XXX This is an optimization to assign both values with a single call
+        # to ``set``.  ``set`` is slow.
+        comparable_state = state.set(
+            volume=None,
+            restart_policy=RestartNever(),
+        )
+        comparable_configuration = configuration.set(
+            volume=None,
+            restart_policy=RestartNever(),
         )
 
         return (
@@ -713,5 +719,7 @@ class ApplicationNodeDeployer(object):
         if start_restart:
             phases.append(in_parallel(changes=start_restart))
 
-        return sequentially(changes=phases,
-                            sleep_when_empty=timedelta(seconds=1))
+        return sequentially(
+            changes=phases,
+            sleep_when_empty=NOOP_SLEEP_TIME
+        )

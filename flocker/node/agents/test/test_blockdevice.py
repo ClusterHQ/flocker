@@ -6,10 +6,8 @@ Tests for ``flocker.node.agents.blockdevice``.
 
 from errno import ENOTDIR
 from functools import partial
-from os import getuid
-import time
 from uuid import UUID, uuid4
-from subprocess import STDOUT, PIPE, Popen, check_output, check_call
+from subprocess import check_output, check_call
 from stat import S_IRWXU
 from datetime import datetime, timedelta
 
@@ -34,16 +32,15 @@ from hypothesis.strategies import (
     dictionaries, tuples, booleans,
 )
 
+from testtools.matchers import Equals
 from testtools.deferredruntest import SynchronousDeferredRunTest
-from testtools.matchers import Equals, AllMatch, IsInstance
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
-from twisted.python.components import proxyForInterface
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 
-from eliot import start_action, write_traceback, Message, Logger
+from eliot import Logger
 from eliot.testing import (
     validate_logging, capture_logging,
     LoggedAction, LoggedMessage, assertHasMessage, assertHasAction
@@ -56,9 +53,9 @@ from ...test.istatechange import make_istatechange_tests
 from ..blockdevice import (
     BlockDeviceDeployerLocalState, BlockDeviceDeployer,
     BlockDeviceCalculator,
-
-    IBlockDeviceAPI, MandatoryProfiles, IProfiledBlockDeviceAPI,
-    BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
+    IBlockDeviceAPI,
+    IProfiledBlockDeviceAPI,
+    BlockDeviceVolume, UnknownVolume,
     CreateBlockDeviceDataset, UnattachedVolume, DatasetExists,
     UnmountBlockDevice, DetachVolume, AttachVolume,
     CreateFilesystem, DestroyVolume, MountBlockDevice,
@@ -85,21 +82,17 @@ from ..blockdevice import (
     ProcessLifetimeCache,
     FilesystemExists,
     UnknownInstanceID,
-    get_blockdevice_volume,
-
-    ICloudAPI,
-    _SyncToThreadedAsyncCloudAPIAdapter,
-
     log_list_volumes, CALL_LIST_VOLUMES,
 )
 
 from ..loopback import (
-    check_allocatable_size,
     LoopbackBlockDeviceAPI,
     _losetup_list_parse,
     _losetup_list, _blockdevicevolume_from_dataset_id,
     _backing_file_name,
     EventuallyConsistentBlockDeviceAPI,
+    LOOPBACK_ALLOCATION_UNIT,
+    LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
 )
 from ....common.algebraic import tagged_union_strategy
 
@@ -112,7 +105,7 @@ from ...testtools import (
 )
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests, random_name,
-    AsyncTestCase, TestCase,
+    TestCase,
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
@@ -126,10 +119,21 @@ from ....control.testtools import InMemoryStatePersister
 from ....common.test.test_thread import NonThreadPool, NonReactor
 from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 
-CLEANUP_RETRY_LIMIT = 10
-LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
-# Enough space for the ext4 journal:
-LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
+from ..testtools import (
+    FakeCloudAPI,
+    detach_destroy_volumes,
+    fakeprofiledloopbackblockdeviceapi_for_test,
+    loopbackblockdeviceapi_for_test,
+    # NB: Think carefully before moving this.
+    # Backend driver docs used to instruct developers to import this from here.
+    make_iblockdeviceapi_tests,
+    make_iprofiledblockdeviceapi_tests,
+    make_icloudapi_tests,
+    mountroot_for_test,
+    umount,
+    umount_all,
+)
+
 
 EMPTY_NODE_STATE = NodeState(uuid=uuid4(), hostname=u"example.com")
 
@@ -334,37 +338,6 @@ def create_blockdevicedeployer(
         _async_block_device_api=async_api,
         mountroot=mountroot_for_test(test_case),
     )
-
-
-def detach_destroy_volumes(api):
-    """
-    Detach and destroy all volumes known to this API.
-    If we failed to detach a volume for any reason,
-    sleep for 1 second and retry until we hit CLEANUP_RETRY_LIMIT.
-    This is to facilitate best effort cleanup of volume
-    environment after each test run, so that future runs
-    are not impacted.
-    """
-    volumes = api.list_volumes()
-    retry = 0
-    action_type = u"agent:blockdevice:cleanup:details"
-    with start_action(action_type=action_type):
-        while retry < CLEANUP_RETRY_LIMIT and len(volumes) > 0:
-            for volume in volumes:
-                try:
-                    if volume.attached_to is not None:
-                        api.detach_volume(volume.blockdevice_id)
-                    api.destroy_volume(volume.blockdevice_id)
-                except:
-                    write_traceback(_logger)
-
-            time.sleep(1.0)
-            volumes = api.list_volumes()
-            retry += 1
-
-        if len(volumes) > 0:
-            Message.new(u"agent:blockdevice:failedcleanup:volumes",
-                        volumes=volumes).write()
 
 
 def delete_manifestation(node_state, manifestation):
@@ -751,26 +724,6 @@ class BlockDeviceDeployerDiscoverRawStateTests(TestCase):
             dict(
                 with_fs=True,
                 without_fs=False))
-
-
-@implementer(ICloudAPI)
-class FakeCloudAPI(proxyForInterface(IBlockDeviceAPI)):
-    """
-    Wrap a ``IBlockDeviceAPI`` and also provide ``ICloudAPI``.
-    """
-    def __init__(self, block_api, live_nodes=()):
-        """
-        @param block_api: ``IBlockDeviceAPI`` to wrap.
-        @param live_nodes: Live nodes beyond the current one.
-        """
-        self.original = block_api
-        self.live_nodes = live_nodes
-
-    def list_live_nodes(self):
-        return [self.compute_instance_id()] + list(self.live_nodes)
-
-    def start_node(self, node_id):
-        return
 
 
 class BlockDeviceDeployerDiscoverStateTests(TestCase):
@@ -2191,10 +2144,34 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
             )
         )
 
+        # Upon deletion, datasets to not get unregistered, so they will still
+        # be in the discovered datasets.
+
+        registered_dataset = DiscoveredDataset(
+            dataset_id=self.DATASET_ID,
+            blockdevice_id=self.BLOCKDEVICE_ID,
+            state=DatasetStates.REGISTERED,
+        )
+
+        # Foreign deleted datasets show up as REGISTERED, but they are not in
+        # our config.
+        foreign_registered_dataset_id = uuid4()
+        foreign_registered_dataset = DiscoveredDataset(
+            dataset_id=foreign_registered_dataset_id,
+            blockdevice_id=_create_blockdevice_id_for_test(
+                foreign_registered_dataset_id
+            ),
+            state=DatasetStates.REGISTERED,
+        )
+
         assert_calculated_changes(
             self, local_state, local_config,
             nonmanifest_datasets={},
             expected_changes=in_parallel(changes=[]),
+            discovered_datasets=[
+                registered_dataset,
+                foreign_registered_dataset
+            ],
         )
 
 
@@ -3474,688 +3451,6 @@ class BlockDeviceDeployerCalculateChangesTests(
         )
 
 
-class IBlockDeviceAPITestsMixin(object):
-    """
-    Tests to perform on ``IBlockDeviceAPI`` providers.
-    """
-    this_node = None
-
-    def repeat_retries(self):
-        """
-        @return: An iterable of delay intervals, measured in seconds, used
-             to retry in ``repeat_until_consistent``. By default only one
-             try is allowed; subclasses can override to change this
-             policy.
-        """
-        return [0]
-
-    def repeat_until_consistent(self, f, *args, **kwargs):
-        """
-        Repeatedly call a function with given arguments until AssertionErrors
-        stop or configured number of repetitions are reached.
-
-        Some backends are eventually consistent, which means results of
-        listing volumes may not reflect actions immediately. So for
-        read-only operations that rely on listing we want to be able to
-        retry.
-
-        Retry policy can be changed by overriding the ``repeat_retries``
-        method.
-
-        @param f: Function to call.
-        @param args: Arguments for ``f``.
-        @param kwargs: Keyword arguments for ``f``.
-        """
-        for step in self.repeat_retries():
-            try:
-                return f(*args, **kwargs)
-            except AssertionError as e:
-                time.sleep(step)
-        raise e
-
-    def _verify_volume_size(self, requested_size, expected_volume_size):
-        """
-        Assert the implementation of
-        ``IBlockDeviceAPI.list_volumes`` returns ``BlockDeviceVolume``s
-        with the ``expected_volume_size`` and that
-        ``IBlockDeviceAPI.create_volume`` creates devices with an
-        ``expected_device_size`` (expected_volume_size plus platform
-        specific over allocation).
-
-        A device is created and attached, then ``lsblk`` is used to
-        measure the size of the block device, as reported by the
-        kernel of the machine to which the device is attached.
-
-        :param int requested_size: Requested size of created volume.
-        :param int expected_size: Expected size of created device.
-        """
-        dataset_id = uuid4()
-        # Create a new volume.
-        volume = self.api.create_volume(
-            dataset_id=dataset_id,
-            size=requested_size,
-        )
-        if self.device_allocation_unit is None:
-            expected_device_size = expected_volume_size
-        else:
-            expected_device_size = allocated_size(
-                self.device_allocation_unit, expected_volume_size
-            )
-
-        # Attach it, so that we can measure its size, as reported by
-        # the kernel of the machine to which it's attached.
-        self.api.attach_volume(
-            volume.blockdevice_id, attach_to=self.this_node,
-        )
-
-        def validate(volume):
-            # Reload the volume using ``IBlockDeviceAPI.list_volumes`` in
-            # case the implementation hasn't verified that the requested
-            # size has actually been stored.
-            volume = get_blockdevice_volume(self.api, volume.blockdevice_id)
-
-            device_path = self.api.get_device_path(volume.blockdevice_id).path
-
-            command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
-                       b"--output", b"SIZE", device_path.encode("ascii")]
-            command_output = check_output(command).split(b'\n')[0]
-            device_size = int(command_output.strip().decode("ascii"))
-            self.assertEqual(
-                (expected_volume_size, expected_device_size),
-                (volume.size, device_size)
-            )
-        self.repeat_until_consistent(validate, volume)
-
-    def test_interface(self):
-        """
-        ``api`` instances provide ``IBlockDeviceAPI``.
-        """
-        self.assertTrue(
-            verifyObject(IBlockDeviceAPI, self.api)
-        )
-
-    def test_compute_instance_id_unicode(self):
-        """
-        ``compute_instance_id`` returns a ``unicode`` string.
-        """
-        self.assertIsInstance(self.this_node, unicode)
-
-    def test_compute_instance_id_nonempty(self):
-        """
-        ``compute_instance_id`` returns a non-empty string.
-        """
-        self.assertNotEqual(u"", self.this_node)
-
-    def test_list_volume_empty(self):
-        """
-        ``list_volumes`` returns an empty ``list`` if no block devices have
-        been created.
-        """
-        self.assertEqual([], self.api.list_volumes())
-
-    def test_created_is_listed(self):
-        """
-        ``create_volume`` returns a ``BlockDeviceVolume`` that is returned by
-        ``list_volumes``.
-        """
-        dataset_id = uuid4()
-        new_volume = self.api.create_volume(
-            dataset_id=dataset_id,
-            size=self.minimum_allocatable_size)
-        self.repeat_until_consistent(
-            lambda: self.assertIn(new_volume, self.api.list_volumes()))
-
-    def test_listed_volume_attributes(self):
-        """
-        ``list_volumes`` returns ``BlockDeviceVolume`` s that have the
-        same dataset_id and (maybe over-allocated size) as was passed
-        to ``create_volume``.
-        """
-        expected_dataset_id = uuid4()
-
-        self.api.create_volume(
-            dataset_id=expected_dataset_id,
-            size=self.minimum_allocatable_size,
-        )
-
-        def validate():
-            listed_volumes = self.api.list_volumes()
-            # Ideally we wouldn't two two assertions, but it's the easiest
-            # thing to do that works with the retry logic.
-            self.assertEqual(len(listed_volumes), 1)
-            listed_volume = listed_volumes[0]
-
-            self.assertEqual(
-                (expected_dataset_id, self.minimum_allocatable_size),
-                (listed_volume.dataset_id, listed_volume.size)
-            )
-        self.repeat_until_consistent(validate)
-
-    def test_created_volume_attributes(self):
-        """
-        ``create_volume`` returns a ``BlockDeviceVolume`` that has a dataset_id
-        and a size.
-        """
-        expected_dataset_id = uuid4()
-
-        new_volume = self.api.create_volume(
-            dataset_id=expected_dataset_id,
-            size=self.minimum_allocatable_size,
-        )
-
-        self.assertEqual(
-            (expected_dataset_id, self.minimum_allocatable_size),
-            (new_volume.dataset_id, new_volume.size)
-        )
-
-    def test_attach_unknown_volume(self):
-        """
-        An attempt to attach an unknown ``BlockDeviceVolume`` raises
-        ``UnknownVolume``.
-        """
-        self.assertRaises(
-            UnknownVolume,
-            self.api.attach_volume,
-            blockdevice_id=self.unknown_blockdevice_id,
-            attach_to=self.this_node,
-        )
-
-    def test_device_size(self):
-        """
-        ``attach_volume`` results in a device with the expected size.
-        """
-        requested_size = self.minimum_allocatable_size
-        self._verify_volume_size(
-            requested_size=requested_size,
-            expected_volume_size=requested_size
-        )
-
-    def test_attach_attached_volume(self):
-        """
-        An attempt to attach an already attached ``BlockDeviceVolume`` raises
-        ``AlreadyAttachedVolume``.
-        """
-        dataset_id = uuid4()
-
-        new_volume = self.api.create_volume(
-            dataset_id=dataset_id,
-            size=self.minimum_allocatable_size
-        )
-        attached_volume = self.api.attach_volume(
-            new_volume.blockdevice_id, attach_to=self.this_node,
-        )
-
-        self.assertRaises(
-            AlreadyAttachedVolume,
-            self.api.attach_volume,
-            blockdevice_id=attached_volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-
-    def test_attach_elsewhere_attached_volume(self):
-        """
-        An attempt to attach a ``BlockDeviceVolume`` already attached to
-        another host raises ``AlreadyAttachedVolume``.
-        """
-        # This is a hack.  We don't know any other IDs though.
-        # https://clusterhq.atlassian.net/browse/FLOC-1839
-        another_node = self.this_node + u"-different"
-
-        new_volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size
-        )
-        attached_volume = self.api.attach_volume(
-            new_volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-
-        self.assertRaises(
-            AlreadyAttachedVolume,
-            self.api.attach_volume,
-            blockdevice_id=attached_volume.blockdevice_id,
-            attach_to=another_node,
-        )
-
-    def test_attach_unattached_volume(self):
-        """
-        An unattached ``BlockDeviceVolume`` can be attached.
-        """
-        dataset_id = uuid4()
-        new_volume = self.api.create_volume(
-            dataset_id=dataset_id,
-            size=self.minimum_allocatable_size
-        )
-        expected_volume = BlockDeviceVolume(
-            blockdevice_id=new_volume.blockdevice_id,
-            size=new_volume.size,
-            attached_to=self.this_node,
-            dataset_id=dataset_id
-        )
-        attached_volume = self.api.attach_volume(
-            blockdevice_id=new_volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-        self.assertEqual(expected_volume, attached_volume)
-
-    def test_attached_volume_listed(self):
-        """
-        An attached ``BlockDeviceVolume`` is listed.
-        """
-        dataset_id = uuid4()
-        new_volume = self.api.create_volume(
-            dataset_id=dataset_id,
-            size=self.minimum_allocatable_size
-        )
-        expected_volume = BlockDeviceVolume(
-            blockdevice_id=new_volume.blockdevice_id,
-            size=new_volume.size,
-            attached_to=self.this_node,
-            dataset_id=dataset_id,
-        )
-        self.api.attach_volume(
-            blockdevice_id=new_volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-        self.repeat_until_consistent(
-            lambda: self.assertEqual([expected_volume],
-                                     self.api.list_volumes()))
-
-    def test_list_attached_and_unattached(self):
-        """
-        ``list_volumes`` returns both attached and unattached
-        ``BlockDeviceVolume``s.
-        """
-        new_volume1 = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size
-        )
-        new_volume2 = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size
-        )
-        attached_volume = self.api.attach_volume(
-            blockdevice_id=new_volume2.blockdevice_id,
-            attach_to=self.this_node,
-        )
-        self.repeat_until_consistent(
-            lambda: self.assertItemsEqual(
-                [new_volume1, attached_volume],
-                self.api.list_volumes()
-            ))
-
-    def test_multiple_volumes_attached_to_host(self):
-        """
-        ``attach_volume`` can attach multiple block devices to a single host.
-        """
-        volume1 = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size
-        )
-        volume2 = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size
-        )
-        attached_volume1 = self.api.attach_volume(
-            volume1.blockdevice_id, attach_to=self.this_node,
-        )
-        attached_volume2 = self.api.attach_volume(
-            volume2.blockdevice_id, attach_to=self.this_node,
-        )
-
-        self.repeat_until_consistent(
-            lambda: self.assertItemsEqual(
-                [attached_volume1, attached_volume2],
-                self.api.list_volumes()
-            ))
-
-    def test_get_device_path_unknown_volume(self):
-        """
-        ``get_device_path`` raises ``UnknownVolume`` if the supplied
-        ``blockdevice_id`` has not been created.
-        """
-        unknown_blockdevice_id = self.unknown_blockdevice_id
-        exception = self.assertRaises(
-            UnknownVolume,
-            self.api.get_device_path,
-            unknown_blockdevice_id
-        )
-        self.assertEqual(unknown_blockdevice_id, exception.blockdevice_id)
-
-    def test_get_device_path_unattached_volume(self):
-        """
-        ``get_device_path`` raises ``UnattachedVolume`` if the supplied
-        ``blockdevice_id`` corresponds to an unattached volume.
-        """
-        new_volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size
-        )
-        exception = self.assertRaises(
-            UnattachedVolume,
-            self.api.get_device_path,
-            new_volume.blockdevice_id
-        )
-        self.assertEqual(new_volume.blockdevice_id, exception.blockdevice_id)
-
-    def test_get_device_path_device(self):
-        """
-        ``get_device_path`` returns a ``FilePath`` to the device representing
-        the attached volume.
-        """
-        new_volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size
-        )
-        attached_volume = self.api.attach_volume(
-            new_volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-        device_path = self.api.get_device_path(attached_volume.blockdevice_id)
-        self.assertTrue(
-            device_path.isBlockDevice(),
-            u"Not a block device. Path: {!r}".format(device_path)
-        )
-
-    def test_get_device_path_device_repeatable_results(self):
-        """
-        ``get_device_path`` returns the same ``FilePath`` for the volume device
-        when called multiple times.
-        """
-        new_volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size
-        )
-        attached_volume = self.api.attach_volume(
-            new_volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-
-        device_path1 = self.api.get_device_path(attached_volume.blockdevice_id)
-        device_path2 = self.api.get_device_path(attached_volume.blockdevice_id)
-
-        self.assertEqual(device_path1, device_path2)
-
-    def test_destroy_unknown_volume(self):
-        """
-        ``destroy_volume`` raises ``UnknownVolume`` if the supplied
-        ``blockdevice_id`` does not exist.
-        """
-        volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        self.api.destroy_volume(volume.blockdevice_id)
-        exception = self.assertRaises(
-            UnknownVolume,
-            self.api.destroy_volume, blockdevice_id=volume.blockdevice_id
-        )
-        self.assertEqual(exception.args, (volume.blockdevice_id,))
-
-    def test_destroy_volume(self):
-        """
-        An unattached volume can be destroyed using ``destroy_volume``.
-        """
-        unrelated = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=self.minimum_allocatable_size,
-        )
-        self.api.destroy_volume(volume.blockdevice_id)
-        self.repeat_until_consistent(
-            lambda: self.assertEqual([unrelated],
-                                     self.api.list_volumes()))
-
-    def _destroyed_volume(self):
-        """
-        :return: A ``BlockDeviceVolume`` representing a volume which has been
-            destroyed.
-        """
-        volume = self.api.create_volume(
-            dataset_id=uuid4(), size=self.minimum_allocatable_size
-        )
-        self.api.destroy_volume(volume.blockdevice_id)
-        return volume
-
-    def test_destroy_destroyed_volume(self):
-        """
-        ``destroy_volume`` raises ``UnknownVolume`` if the supplied
-        ``blockdevice_id`` was associated with a volume but that volume has
-        been destroyed.
-        """
-        volume = self._destroyed_volume()
-        exception = self.assertRaises(
-            UnknownVolume,
-            self.api.destroy_volume, blockdevice_id=volume.blockdevice_id
-        )
-        self.assertEqual(exception.args, (volume.blockdevice_id,))
-
-    def test_detach_unknown_volume(self):
-        """
-        ``detach_volume`` raises ``UnknownVolume`` if the supplied
-        ``blockdevice_id`` does not exist.
-        """
-        blockdevice_id = self.unknown_blockdevice_id
-        exception = self.assertRaises(
-            UnknownVolume,
-            self.api.detach_volume, blockdevice_id=blockdevice_id
-        )
-        self.assertEqual(exception.args, (blockdevice_id,))
-
-    def test_detach_detached_volume(self):
-        """
-        ``detach_volume`` raises ``UnattachedVolume`` if the supplied
-        ``blockdevice_id`` is not attached to a host.
-        """
-        volume = self.api.create_volume(
-            dataset_id=uuid4(), size=self.minimum_allocatable_size
-        )
-        exception = self.assertRaises(
-            UnattachedVolume,
-            self.api.detach_volume, volume.blockdevice_id
-        )
-        self.assertEqual(exception.args, (volume.blockdevice_id,))
-
-    def test_detach_volume(self):
-        """
-        A volume that is attached becomes detached after ``detach_volume`` is
-        called with its ``blockdevice_id``.
-        """
-        def fail_mount(device):
-            mountpoint = FilePath(self.mktemp())
-            mountpoint.makedirs()
-            process = Popen(
-                [b"mount", device_path.path, mountpoint.path],
-                stdout=PIPE,
-                stderr=STDOUT
-            )
-            output = process.stdout.read()
-            process.wait()
-            return output
-
-        # Create an unrelated, attached volume that should be undisturbed.
-        unrelated = self.api.create_volume(
-            dataset_id=uuid4(), size=self.minimum_allocatable_size
-        )
-        unrelated = self.api.attach_volume(
-            unrelated.blockdevice_id, attach_to=self.this_node
-        )
-
-        # Create the volume we'll detach.
-        volume = self.api.create_volume(
-            dataset_id=uuid4(), size=self.minimum_allocatable_size
-        )
-        volume = self.api.attach_volume(
-            volume.blockdevice_id, attach_to=self.this_node
-        )
-
-        device_path = self.api.get_device_path(volume.blockdevice_id)
-
-        attached_error = fail_mount(device_path)
-
-        self.api.detach_volume(volume.blockdevice_id)
-
-        self.repeat_until_consistent(
-            lambda: self.assertEqual(
-                {unrelated, volume.set(attached_to=None)},
-                set(self.api.list_volumes())
-            ))
-
-        detached_error = fail_mount(device_path)
-
-        # Make an incredibly indirect assertion to try to demonstrate we've
-        # successfully detached the device.  The volume never had a filesystem
-        # initialized on it so we couldn't mount it before when it was
-        # attached.  Now that it's detached we still shouldn't be able to mount
-        # it - but the reason we can't mount it should have changed.
-        #
-        # This isn't particularly great, no.
-        self.assertNotEqual(attached_error, detached_error)
-
-    def test_reattach_detached_volume(self):
-        """
-        A volume that has been detached can be re-attached.
-        """
-        # Create the volume we'll detach.
-        volume = self.api.create_volume(
-            dataset_id=uuid4(), size=self.minimum_allocatable_size
-        )
-        attached_volume = self.api.attach_volume(
-            volume.blockdevice_id, attach_to=self.this_node
-        )
-        self.api.detach_volume(volume.blockdevice_id)
-        reattached_volume = self.api.attach_volume(
-            volume.blockdevice_id, attach_to=self.this_node
-        )
-        self.repeat_until_consistent(
-            lambda: self.assertEqual(
-                (attached_volume, [attached_volume]),
-                (reattached_volume, self.api.list_volumes())
-            ))
-
-    def test_attach_destroyed_volume(self):
-        """
-        ``attach_volume`` raises ``UnknownVolume`` when called with the
-        ``blockdevice_id`` of a volume which has been destroyed.
-        """
-        volume = self._destroyed_volume()
-        exception = self.assertRaises(
-            UnknownVolume,
-            self.api.attach_volume, volume.blockdevice_id,
-            attach_to=self.this_node,
-        )
-        self.assertEqual(exception.args, (volume.blockdevice_id,))
-
-    def assert_foreign_volume(self, flocker_volume):
-        """
-        Assert that a volume does not belong to the API object under test.
-
-        :param BlockDeviceVolume flocker_volume: A volume to check for
-            membership.
-
-        :raise: A test-failing exception if the volume is found in the list of
-            volumes returned by the API object under test.
-
-        :return: ``None`` if the volume is not found in the list of volumes
-            returned by the API object under test.
-        """
-        self.assertNotIn(flocker_volume, self.api.list_volumes())
-
-
-def make_iblockdeviceapi_tests(
-        blockdevice_api_factory,
-        minimum_allocatable_size,
-        device_allocation_unit,
-        unknown_blockdevice_id_factory
-):
-    """
-    :param blockdevice_api_factory: A factory which will be called
-        with the generated ``TestCase`` during the ``setUp`` for each
-        test and which should return an implementation of
-        ``IBlockDeviceAPI`` to be tested.
-    :param int minimum_allocatable_size: The minumum block device size
-        (in bytes) supported on the platform under test. This must be
-        a multiple ``IBlockDeviceAPI.allocation_unit()``.
-    :param int device_allocation_unit: A size interval (in ``bytes``)
-        which the storage system is expected to allocate eg Cinder
-        allows sizes to be supplied in GiB, but certain Cinder storage
-        drivers may be constrained to create sizes with 8GiB
-        intervals.
-    :param unknown_blockdevice_id_factory: A factory which will be called
-        with an an instance of the generated ``TestCase``, and should
-        return a ``blockdevice_id`` which is valid but unknown, i.e. does
-        not match any actual volume in the backend.
-
-    :returns: A ``TestCase`` with tests that will be performed on the
-       supplied ``IBlockDeviceAPI`` provider.
-    """
-    class Tests(IBlockDeviceAPITestsMixin, TestCase):
-        def setUp(self):
-            super(Tests, self).setUp()
-            self.api = blockdevice_api_factory(test_case=self)
-            self.unknown_blockdevice_id = unknown_blockdevice_id_factory(self)
-            check_allocatable_size(
-                self.api.allocation_unit(),
-                minimum_allocatable_size
-            )
-            self.minimum_allocatable_size = minimum_allocatable_size
-            self.device_allocation_unit = device_allocation_unit
-            self.this_node = self.api.compute_instance_id()
-
-    return Tests
-
-
-class IProfiledBlockDeviceAPITestsMixin(object):
-    """
-    Tests to perform on ``IProfiledBlockDeviceAPI`` providers.
-    """
-    def test_interface(self):
-        """
-        The API object provides ``IProfiledBlockDeviceAPI``.
-        """
-        self.assertTrue(
-            verifyObject(IProfiledBlockDeviceAPI, self.api)
-        )
-
-    def test_profile_respected(self):
-        """
-        Verify no errors are raised when constructing volumes with the
-        mandatory profiles.
-        """
-        for profile in (c.value for c in MandatoryProfiles.iterconstants()):
-            dataset_id = uuid4()
-            self.addCleanup(detach_destroy_volumes, self.api)
-            self.api.create_volume_with_profile(dataset_id=dataset_id,
-                                                size=self.dataset_size,
-                                                profile_name=profile)
-
-
-def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
-                                       dataset_size):
-    """
-    Create tests for classes that implement ``IProfiledBlockDeviceAPI``.
-
-    :param profiled_blockdevice_api_factory: A factory that generates the
-        ``IProfiledBlockDeviceAPI`` provider to test.
-
-    :param dataset_size: The size in bytes of the datasets to be created for
-        test.
-
-    :returns: A ``TestCase`` with tests that will be performed on the
-       supplied ``IProfiledBlockDeviceAPI`` provider.
-    """
-    class Tests(IProfiledBlockDeviceAPITestsMixin, TestCase):
-        def setUp(self):
-            super(Tests, self).setUp()
-            self.api = profiled_blockdevice_api_factory(self)
-            self.dataset_size = dataset_size
-
-    return Tests
-
-
 class IBlockDeviceAsyncAPITestsMixin(object):
     """
     Tests to perform on ``IBlockDeviceAsyncAPI`` providers.
@@ -4226,29 +3521,6 @@ def losetup_detach_all(root_path):
             pass
         else:
             losetup_detach(device_file)
-
-
-def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
-    """
-    :returns: A ``LoopbackBlockDeviceAPI`` with a temporary root directory
-        created for the supplied ``test_case``.
-    """
-    user_id = getuid()
-    if user_id != 0:
-        test_case.skipTest(
-            "``LoopbackBlockDeviceAPI`` uses ``losetup``, "
-            "which requires root privileges. "
-            "Required UID: 0, Found UID: {!r}".format(user_id)
-        )
-
-    root_path = test_case.mktemp()
-    loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
-        root_path=root_path,
-        compute_instance_id=random_name(test_case),
-        allocation_unit=allocation_unit,
-    )
-    test_case.addCleanup(detach_destroy_volumes, loopback_blockdevice_api)
-    return loopback_blockdevice_api
 
 
 class LoopbackBlockDeviceAPITests(
@@ -4534,47 +3806,6 @@ class LosetupListTests(TestCase):
         )
 
 
-@implementer(IProfiledBlockDeviceAPI)
-class FakeProfiledLoopbackBlockDeviceAPI(
-        proxyForInterface(IBlockDeviceAPI, "_loopback_blockdevice_api")):
-    """
-    Fake implementation of ``IProfiledBlockDeviceAPI`` and ``IBlockDeviceAPI``
-    on top of ``LoopbackBlockDeviceAPI``. Profiles are not actually
-    implemented for loopback devices, but this fake is useful for testing the
-    intermediate layers.
-
-    :ivar _loopback_blockdevice_api: The underlying ``LoopbackBlockDeviceAPI``.
-    :ivar pmap dataset_profiles: A pmap from blockdevice_id to desired profile
-        at creation time.
-    """
-    def __init__(self, loopback_blockdevice_api):
-        self._loopback_blockdevice_api = loopback_blockdevice_api
-        self.dataset_profiles = pmap({})
-
-    def create_volume_with_profile(self, dataset_id, size, profile_name):
-        """
-        Calls the underlying ``create_volume`` on
-        ``_loopback_blockdevice_api``, but records the desired profile_name for
-        the purpose of test validation.
-        """
-        volume = self._loopback_blockdevice_api.create_volume(
-            dataset_id=dataset_id, size=size)
-        self.dataset_profiles = self.dataset_profiles.set(
-            volume.blockdevice_id, profile_name)
-        return volume
-
-
-def fakeprofiledloopbackblockdeviceapi_for_test(test_case,
-                                                allocation_unit=None):
-    """
-    Constructs a ``FakeProfiledLoopbackBlockDeviceAPI`` for use in tests that
-    want to verify functionality with an ``IProfiledBlockDeviceAPI`` provider.
-    """
-    return FakeProfiledLoopbackBlockDeviceAPI(
-        loopback_blockdevice_api=loopbackblockdeviceapi_for_test(
-            test_case, allocation_unit=allocation_unit))
-
-
 class FakeProfiledLoopbackBlockDeviceIProfiledBlockDeviceTests(
     make_iprofiledblockdeviceapi_tests(
         partial(fakeprofiledloopbackblockdeviceapi_for_test,
@@ -4586,49 +3817,6 @@ class FakeProfiledLoopbackBlockDeviceIProfiledBlockDeviceTests(
     ``IProfiledBlockDeviceAPI`` interface adherence Tests for
     ``FakeProfiledLoopbackBlockDevice``.
     """
-
-
-def umount(unmount_target):
-    """
-    Unmount a filesystem.
-
-    :param FilePath unmount_target: The device file that is mounted or
-        mountpoint directory.
-    """
-    check_output(['umount', unmount_target.path])
-
-
-def umount_all(root_path):
-    """
-    Unmount all devices with mount points contained in ``root_path``.
-
-    :param FilePath root_path: A directory in which to search for mount points.
-    """
-    def is_under_root(path):
-        try:
-            FilePath(path).segmentsFrom(root_path)
-        except ValueError:
-            return False
-        return True
-
-    partitions_under_root = list(p for p in psutil.disk_partitions()
-                                 if is_under_root(p.mountpoint))
-    for partition in partitions_under_root:
-        umount(FilePath(partition.mountpoint))
-
-
-def mountroot_for_test(test_case):
-    """
-    Create a mountpoint root directory and unmount any filesystems with mount
-    points beneath that directory when the test exits.
-
-    :param TestCase test_case: The ``TestCase`` which is being run.
-    :returns: A ``FilePath`` for the newly created mount root.
-    """
-    mountroot = FilePath(test_case.mktemp())
-    mountroot.makedirs()
-    test_case.addCleanup(umount_all, mountroot)
-    return mountroot
 
 
 _ARBITRARY_VOLUME = BlockDeviceVolume(
@@ -5152,9 +4340,23 @@ class DestroyVolumeTests(
             dataset_id=dataset_id, size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
         )
 
-        change = DestroyVolume(blockdevice_id=volume.blockdevice_id)
-        self.successResultOf(run_state_change(change, deployer,
-                                              InMemoryStatePersister()))
+        blockdevice_id = volume.blockdevice_id
+        change = DestroyVolume(blockdevice_id=blockdevice_id)
+        state_persister = InMemoryStatePersister()
+        state_persister.record_ownership(dataset_id, blockdevice_id)
+        self.successResultOf(run_state_change(
+            change, deployer, state_persister
+        ))
+
+        # DestroyVolume does not unregister a blockdevice. This has the
+        # side-effect of the volume appearing to be Registered after it is
+        # deleted. This might not be ideal, but that is the current
+        # understanding of the system, so we should test that understanding is
+        # correct.
+        self.assertEqual(
+            state_persister.get_state().blockdevice_ownership,
+            {dataset_id: blockdevice_id},
+        )
 
         self.assertEqual([], api.list_volumes())
 
@@ -5702,52 +4904,6 @@ class ProcessLifetimeCacheTests(TestCase):
 
         self.assertRaises(UnattachedVolume,
                           self.cache.get_device_path, attached_id1)
-
-
-def make_icloudapi_tests(
-        blockdevice_api_factory,
-):
-    """
-    :param blockdevice_api_factory: A factory which will be called
-        with the generated ``TestCase`` during the ``setUp`` for each
-        test and which should return a provider of both ``IBlockDeviceAPI``
-        and ``ICloudAPI`` to be tested.
-
-    :returns: A ``TestCase`` with tests that will be performed on the
-       supplied ``IBlockDeviceAPI``/``ICloudAPI`` provider.
-    """
-    class Tests(AsyncTestCase):
-        def setUp(self):
-            super(Tests, self).setUp()
-            self.api = blockdevice_api_factory(test_case=self)
-            self.this_node = self.api.compute_instance_id()
-            self.async_cloud_api = _SyncToThreadedAsyncCloudAPIAdapter(
-                _reactor=reactor, _sync=self.api,
-                _threadpool=reactor.getThreadPool())
-
-        def test_interface(self):
-            """
-            The result of the factory provides ``ICloudAPI``.
-            """
-            self.assertTrue(verifyObject(ICloudAPI, self.api))
-
-        def test_current_machine_is_live(self):
-            """
-            The machine running the test is reported as alive.
-            """
-            d = self.async_cloud_api.list_live_nodes()
-            d.addCallback(lambda live:
-                          self.assertIn(self.api.compute_instance_id(), live))
-            return d
-
-        def test_list_live_nodes(self):
-            """
-            ``list_live_nodes`` returns an iterable of unicode values.
-            """
-            live_nodes = self.api.list_live_nodes()
-            self.assertThat(live_nodes, AllMatch(IsInstance(unicode)))
-
-    return Tests
 
 
 class FakeCloudAPITests(make_icloudapi_tests(

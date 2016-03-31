@@ -12,7 +12,7 @@ with open("README.rst") as readme:
     description = readme.read()
 
 with open("requirements.txt") as requirements:
-    install_requires = requirements.readlines()
+    install_requires = [req for req in requirements.readlines() if 'git+https' not in req]
 with open("dev-requirements.txt") as dev_requirements:
     dev_requires = dev_requirements.readlines()
 

@@ -290,8 +290,11 @@ def extract_eliot_from_twisted_log(twisted_log_line):
         return None
     candidate = twisted_log_line[open_brace:close_brace + 1]
     try:
-        json.loads(candidate)
+        fields = json.loads(candidate)
     except (ValueError, TypeError):
+        return None
+    # Eliot lines always have these two keys.
+    if {"task_uuid", "timestamp"}.difference(fields):
         return None
     return candidate
 

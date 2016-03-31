@@ -16,6 +16,8 @@ Next Release
   This could lead to the appearance of data loss, as different volumes get used.
   Now, even if multiple volumes are created, only a single volume will be used.
   This was particularly likely to occur on AWS.
+* Dataset backend support for :ref:`Google Compute Engine <gce-dataset-backend>`.
+* Fixed brew tap for flocker client tools on OSX, which had regressed on Yosemite.
 * The container agent is now optional and can be safely disabled if you don't expect to be using Flocker's deprecated container API or ``flocker-deploy``.
   The :ref:`Flocker plugin for Docker<plugin>` allows you to use Flocker from Docker without using Flocker's container API.
 * The :ref:`OpenStack block device backend <openstack-dataset-backend>` will now use Cinder API V2 if it is available.
