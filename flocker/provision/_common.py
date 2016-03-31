@@ -11,7 +11,7 @@ from twisted.python.filepath import FilePath
 from flocker.common.version import make_rpm_version
 from ..node import BackendDescription
 
-from ._ca import Certificates
+from ._ca import Certificates, EmptyCertificates
 
 
 @attributes([
@@ -81,7 +81,8 @@ class Cluster(PClass):
     agent_nodes = field(mandatory=True)
     dataset_backend = field(type=BackendDescription, mandatory=True)
     default_volume_size = field(type=int, mandatory=True)
-    certificates = field(type=Certificates, mandatory=True)
+    certificates = field(type=(Certificates, EmptyCertificates),
+                         mandatory=True)
     dataset_backend_config_file = field(mandatory=True, type=FilePath)
 
     @property

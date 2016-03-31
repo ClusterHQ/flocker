@@ -27,6 +27,10 @@ class CertAndKey(object):
         self.key = key
 
 
+class EmptyCertificates(object):
+    directory = None
+
+
 class Certificates(object):
     """
     The certificates generated for a cluster.

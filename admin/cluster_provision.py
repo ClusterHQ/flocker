@@ -1,13 +1,7 @@
-
 # Todo:
-# Need to add the specified key to the ssh agent
-# -- or use it to connect if that's possible??
-# -- what if the user doesn't have an ssh agent running?
-# need to have the command line option of specifying the api cert name
-# if flocker exists on the node, uninstall flocker first
-# if agent_config_filepath isn't specified don't distribute it to the nodes?
-# post install options to restart services and set them up on init
-# firewall stuff??
+# get cluster certs out of the current directory if they exist
+# -- where should temp directory be created?
+
 
 import sys
 from functools import partial
@@ -16,8 +10,7 @@ import yaml
 
 from zope.interface import implementer
 from pyrsistent import PClass, field
-#from eliot import FileDestination
-#from twisted.python.usage import Options, UsageError
+from twisted.python.usage import Options
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.defer import Deferred
 from twisted.python.filepath import FilePath
@@ -25,14 +18,17 @@ from twisted.python.filepath import FilePath
 from effect import parallel
 from txeffect import perform
 
-#from flocker.provision._common import PackageSource
 from flocker.provision._install import (
     task_install_flocker,
-    _run_on_all_nodes,
+    run_on_nodes,
     _remove_dataset_fields,
     task_install_control_certificates,
     task_install_node_certificates,
     task_install_api_certificates,
+    UnsupportedDistribution,
+    task_enable_flocker_control,
+    task_enable_flocker_agent,
+    task_enable_docker_plugin,
 )
 from flocker.provision._ssh import (
     run, run_remotely, sudo_put
@@ -42,16 +38,12 @@ from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._effect import sequence
 from flocker.provision._common import Cluster
 from flocker.provision._ca import Certificates, EmptyCertificates
-#from flocker.common.script import eliot_logging_service
 from flocker.common.script import (
     flocker_standard_options,
     ICommandLineScript,
     FlockerScriptRunner
 )
 from flocker.provision._common import INode
-# from .acceptance import (
-#     configure_eliot_logging_for_acceptance,
-# )
 
 
 @implementer(INode)
@@ -75,8 +67,8 @@ class FlockerProvisionOptions(Options):
     description = "Provision a Flocker cluster."
 
     optParameters = [
-        ['user', 'u', 'ubuntu', ""],
-        ['identity', 'i', None, ""],
+        ['user', None, 'ubuntu', ""],
+        ['identity', None, None, ""],
         ['agent-config', None, '/home/bcox/config_files/agent.yml', ""],
         ['control-node', None, 'ec2-52-38-69-204.us-west-2.compute.amazonaws.com', ""],
         ['agent-nodes', None, 'ec2-52-38-69-204.us-west-2.compute.amazonaws.com', ""],
@@ -134,8 +126,7 @@ def get_nodes(options):
 
 
 def install_flocker(cluster):
-    # Todo: what happens if flocker is installed on the nodes?
-    _run_on_all_nodes(
+    return run_on_nodes(
         cluster.all_nodes,
         task=lambda node: task_install_flocker(
             distribution=node.distribution,
@@ -144,7 +135,7 @@ def install_flocker(cluster):
 
 
 def install_flocker_docker_plugin(cluster):
-    _run_on_all_nodes(
+    return run_on_nodes(
         cluster.all_nodes,
         task=lambda node: task_install_flocker(
             distribution=node.distribution,
@@ -154,7 +145,6 @@ def install_flocker_docker_plugin(cluster):
 
 def distribute_certs(cluster, options):
     # need to have the user specify the api cert name...
-    import pdb; pdb.set_trace()
     control_command = run_remotely(
         username=cluster.control_node.get_default_username(),
         address=cluster.control_node.address,
@@ -196,24 +186,40 @@ def distribute_agent_yaml(cluster):
         content=content,
         log_content_filter=_remove_dataset_fields
     )
-    # todo new function run_on_nodes?
-    return parallel(list(
-        run_remotely(
-            username=node.get_default_username(),
-            address=node.address,
-            commands=put_config_file,
+    return run_on_nodes(
+        nodes=cluster.agent_nodes,
+        task=lambda node: put_config_file
+    )
+
+
+def post_install_actions(cluster, options):
+    # TODO: should we also open ports on firewall (if enabled)?
+    commands = []
+    if options['install-flocker']:
+        commands.append(
+            run_on_nodes(
+                nodes=[cluster.control_node],
+                task=lambda node: task_enable_flocker_control(
+                    node.distribution, action='restart')
+            )
         )
-        for node in cluster.agent_nodes
-    ))
+        commands.append(
+            run_on_nodes(
+                cluster.agent_nodes,
+                lambda node: task_enable_flocker_agent(node.distribution,
+                                                       action='restart')
+            )
+        )
+    if options['install-flocker-docker-plugin']:
+        commands.append(
+            run_on_nodes(
+                cluster.agent_nodes,
+                lambda node: task_enable_docker_plugin(node.distribution,
+                                                       action='restart')
+            )
+        )
 
-
-def post_install_actions():
-    # TODO:
-    # if we installed flocker, enable the service and
-    # also open ports on firewall (if enabled)
-    #
-    # restart services
-    pass
+    return sequence(commands)
 
 
 def print_install_plan(cluster, options):
@@ -229,9 +235,7 @@ def print_install_plan(cluster, options):
         user_message.append("No certificates will be distributed to the nodes")
     else:
         user_message.append(
-            "New certificates will be distributed to the nodes")
-    user_message.append("Cluster")
-    user_message.append("-------")
+            "New certificates will be distributed to the nodes.")
     user_message.append("Control Node:")
     user_message.append("  - {} ({})".format(
         str(cluster.control_node.address), cluster.control_node.distribution))
@@ -252,19 +256,45 @@ def prompt_user_for_continue():
 
 
 def get_node_distro(reactor, host, username, d):
-    perform(
-        make_dispatcher(reactor),
-        run_remotely(
-            username=username,
-            address=host,
-            commands=sequence([
-                run('grep ubuntu /etc/os-release').on(
-                    success=lambda v: d.callback('ubuntu'),
-                    error=lambda v: d.callback('centos'),
-                )
-            ])
+    """
+    Determines the node's distribution in a series of steps We've made
+    some assumptions about the contents of /etc/os-release and that
+    might be a bit dangerous.
+    """
+    def is_os_version(os_string, on_success, on_error):
+        perform(
+            make_dispatcher(reactor),
+            run_remotely(
+                username=username,
+                address=host,
+                commands=sequence([
+                    run("grep '{}' /etc/os-release".format(os_string)).on(
+                        success=on_success,
+                        error=on_error,
+                    )
+                ])
+            )
         )
-    )
+
+    def raise_(ex):
+        raise ex()
+
+    def is_centos_7():
+        is_os_version('CentOS Linux 7',
+                      on_success=lambda v: d.callback('centos-7'),
+                      on_error=lambda v: raise_(UnsupportedDistribution))
+
+    def is_ubuntu_15():
+        is_os_version('Ubuntu 15.04',
+                      on_success=lambda v: d.callback('ubuntu-15.04'),
+                      on_error=lambda v: is_centos_7())
+
+    def is_ubuntu_14():
+        is_os_version('Ubuntu 14.04',
+                      on_success=lambda v: d.callback('ubuntu-14.04'),
+                      on_error=lambda v: is_ubuntu_15())
+
+    is_ubuntu_14()
 
 
 def create_node(reactor, ip_address, username):
@@ -360,7 +390,7 @@ class FlockerProvisionScript(object):
     """
 
     @inlineCallbacks
-    def main(reactor, options):
+    def main(self, reactor, options):
 
         # todo, need to use the identity file supplied on the command line
 
@@ -386,13 +416,15 @@ class FlockerProvisionScript(object):
         if not options['no-certs']:
             actions.append(partial(distribute_certs, cluster, options))
         actions.append(partial(distribute_agent_yaml, cluster))
+        actions.append(partial(post_install_actions, cluster, options))
         print_install_plan(cluster, options)
         if not options['force']:
             prompt_user_for_continue()
+
         yield run_provisioning(reactor, cluster, actions)
 
 
-def flocker_provision_main():
+def flocker_provision_main(reactor, args, base_path, top_level):
     return FlockerScriptRunner(
         FlockerProvisionScript(),
         FlockerProvisionOptions(),

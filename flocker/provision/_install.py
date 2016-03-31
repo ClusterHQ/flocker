@@ -140,6 +140,15 @@ def apt_get_install(args, sudo=False):
     )
 
 
+def install_distro_package(package_name, distribution, sudo=False):
+    if type(package_name) != list:
+        package_name = [package_name]
+    if is_centos(distribution):
+        return yum_install(package_name, sudo=sudo)
+    else:
+        return apt_get_install(package_name, sudo=sudo)
+
+
 def apt_get_update(sudo=False):
     """
     Update apt's package metadata cache.
@@ -811,7 +820,7 @@ def task_install_api_certificates(api_cert, api_key, api_cert_name='plugin'):
         sudo('chmod u=rwX,g=,o= /etc/flocker'),
         sudo_put(path="/etc/flocker/{}.crt".format(api_cert_name),
                  content=api_cert.getContent()),
-        sudo_put(path="/etc/flocker/{.key".format(api_cert_name),
+        sudo_put(path="/etc/flocker/{}.key".format(api_cert_name),
                  content=api_key.getContent(),
                  log_content_filter=_remove_private_keys),
         sudo('chmod u=rw,g=,o= /etc/flocker/{}.key'.format(api_cert_name)),
@@ -1327,7 +1336,7 @@ def uninstall_flocker(nodes):
     Return an ``Effect`` for uninstalling the Flocker package from all of the
     given nodes.
     """
-    return _run_on_all_nodes(
+    return run_on_nodes(
         nodes,
         task=lambda node: task_uninstall_flocker(node.distribution)
     )
@@ -1503,7 +1512,7 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def _run_on_all_nodes(nodes, task):
+def run_on_nodes(nodes, task):
     """
     Run some commands on some nodes.
 
@@ -1535,7 +1544,7 @@ def install_flocker(nodes, package_source):
 
     :return: An ``Effect`` which installs Flocker on the nodes.
     """
-    return _run_on_all_nodes(
+    return run_on_nodes(
         nodes,
         task=lambda node: sequence([
             task_install_flocker(
