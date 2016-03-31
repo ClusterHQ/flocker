@@ -1,11 +1,9 @@
 # Todo:
-# get cluster certs out of the current directory if they exist
-# -- where should temp directory be created?
-
+# user has to add their ssh key to the ssh agent, not ideal
 
 import sys
 from functools import partial
-import tempfile
+#import tempfile
 import yaml
 
 from zope.interface import implementer
@@ -72,7 +70,7 @@ class FlockerProvisionOptions(Options):
         ['agent-config', None, '/home/bcox/config_files/agent.yml', ""],
         ['control-node', None, 'ec2-52-38-69-204.us-west-2.compute.amazonaws.com', ""],
         ['agent-nodes', None, 'ec2-52-38-69-204.us-west-2.compute.amazonaws.com', ""],
-        ['cluster-name', None, u'mycluster', ""], # optional
+        ['cluster-name', None, u'flocker_cluster', ""], # optional
         ['cluster-id', None, None, ""], # optional
         ['cluster-file', None, None, ""], # optional
         ['cert-directory', None, None,
@@ -88,7 +86,7 @@ class FlockerProvisionOptions(Options):
         ['force', None, ""],
     ]
 
-def get_nodes(options):
+def get_node_addresses(options):
     def bad_config(msg):
         print msg
         sys.exit(1)
@@ -214,15 +212,14 @@ def post_install_actions(cluster, options):
         commands.append(
             run_on_nodes(
                 cluster.agent_nodes,
-                lambda node: task_enable_docker_plugin(node.distribution,
-                                                       action='restart')
+                lambda node: task_enable_docker_plugin(node.distribution)
             )
         )
 
     return sequence(commands)
 
 
-def print_install_plan(cluster, options):
+def print_install_plan(options, control_node, agent_nodes):
     user_message = []
     if (options['install-flocker'] or
         options['install-flocker-docker-plugin']):
@@ -234,18 +231,22 @@ def print_install_plan(cluster, options):
     if options['no-certs']:
         user_message.append("No certificates will be distributed to the nodes")
     else:
+        directory = get_cert_directory(options)
         user_message.append(
             "New certificates will be distributed to the nodes.")
+        user_message.append(
+            "Certificates will be created in {}.".format(directory.path))
     user_message.append("Control Node:")
     user_message.append("  - {} ({})".format(
-        str(cluster.control_node.address), cluster.control_node.distribution))
+        str(control_node.address), control_node.distribution))
     user_message.append("Agent Nodes:")
-    for node in cluster.agent_nodes:
+    for node in agent_nodes:
         user_message.append("  - {} ({})".format(
             str(node.address), node.distribution))
     print("")
     for line in user_message:
         print(line)
+    print
 
 
 def prompt_user_for_continue():
@@ -310,22 +311,58 @@ def create_node(reactor, ip_address, username):
     return distro_query
 
 
-def create_cert_directory(options):
-    directory = None
+def get_cert_directory(options):
     if options['cert-directory']:
         directory = FilePath(options['cert-directory'])
-        if not directory.exists():
-            directory.makedirs()
-        elif not directory.isdir():
-            print("Certificate directory exists but is not a directory")
-            sys.exit(1)
     else:
-        dir_prefix = '{}_'.format(options['cluster-name'])
-        directory = FilePath(tempfile.mkdtemp(prefix=dir_prefix))
-        print("New cluster certs will be created in {}".format(
-            str(directory.realpath())))
-    assert directory, "Directory should not be None"
+        directory = FilePath('./{}_certs'.format(options['cluster-name']))
     return directory
+
+
+def create_cert_directory(options):
+    directory = get_cert_directory(options)
+    check_cert_directory(directory)
+    if not directory.exists():
+        directory.makedirs()
+    return directory
+
+
+def check_cert_directory(directory):
+    if directory.exists() and not directory.isdir():
+        print("Error: Certificate directory {} exists "
+              "but is not a directory".format(directory.realpath()))
+        sys.exit(1)
+
+
+def get_doomed_certs(directory):
+    check_cert_directory(directory)
+    cert_files = ('cluster.crt', 'cluster.key',
+                  'node-*.crt', 'node-*.key',
+                  'control-*.crt', 'control-*.key',
+                  'user.crt', 'user.key')
+    doomed_certs = []
+    for cert_file in cert_files:
+        matches = directory.globChildren(cert_file)
+        doomed_certs.extend(matches)
+    return doomed_certs
+
+
+def warn_if_overwriting_certs(options):
+    directory = get_cert_directory(options)
+    doomed_certs = get_doomed_certs(directory)
+    if doomed_certs:
+        print
+        print("Warning you will overwrite the following "
+              "files in {}:".format(directory.path))
+        for cert_file in doomed_certs:
+            print " -{}".format(cert_file.basename())
+
+
+def delete_doomed_certs(options):
+    directory = get_cert_directory(options)
+    doomed_certs = get_doomed_certs(directory)
+    for path in doomed_certs:
+        path.remove()
 
 
 def get_certificates(options, control_node, agent_nodes):
@@ -348,17 +385,40 @@ def get_backend_description(options):
 
 
 @inlineCallbacks
-def create_cluster(reactor, options,
-                   control_node_address, agent_node_addresses,
-                   agent_config_filepath):
-    # todo, do this in parallel without inline callbacks
+def create_nodes(reactor, options,
+                 control_node_address, agent_node_addresses):
+    print "inspecting nodes..."
     username = options['user']
-    control_node = yield create_node(reactor, control_node_address, username)
-    agent_nodes = []
+    control_deferred = yield create_node(reactor, control_node_address, username)
+    agent_deferreds = []
     for node_address in agent_node_addresses:
-        agent_node = yield create_node(reactor, node_address, username)
-        agent_nodes.append(agent_node)
-    if control_node_address in agent_node_addresses:
+        d = yield create_node(reactor, node_address, username)
+        agent_deferreds.append(d)
+    # we've fired off all our calls in parallel, now collect them
+    agent_nodes = []
+    control_node = yield control_deferred
+    for node_deferred in agent_deferreds:
+        node = yield node_deferred
+        agent_nodes.append(node)
+    yield returnValue((control_node, agent_nodes))
+
+# @inlineCallbacks
+# def create_nodes(reactor, options,
+#                  control_node_address, agent_node_addresses):
+#     # todo, do this in parallel
+#     print "inspecting nodes..."
+#     username = options['user']
+#     control_node = yield create_node(reactor, control_node_address, username)
+#     agent_nodes = []
+#     for node_address in agent_node_addresses:
+#         agent_node = yield create_node(reactor, node_address, username)
+#         agent_nodes.append(agent_node)
+#     yield returnValue((control_node, agent_nodes))
+
+
+def create_cluster(options, control_node, agent_nodes, agent_config_filepath):
+    agent_node_addresses = set((a.address for a in agent_nodes))
+    if control_node.address in agent_node_addresses:
         all_nodes = agent_nodes
     else:
         all_nodes = [control_node] + agent_nodes
@@ -374,7 +434,7 @@ def create_cluster(reactor, options,
         certificates=certificates,
         dataset_backend_config_file=agent_config_filepath
     )
-    yield returnValue(cluster)
+    return cluster
 
 
 @inlineCallbacks
@@ -391,23 +451,30 @@ class FlockerProvisionScript(object):
 
     @inlineCallbacks
     def main(self, reactor, options):
-
-        # todo, need to use the identity file supplied on the command line
-
-        control_node, agent_nodes = get_nodes(options)
+        control_node_address, agent_node_addresses = get_node_addresses(
+            options)
         agent_config_filepath = FilePath(options['agent-config'])
         if not agent_config_filepath.isfile():
             print "could not find agent-config at {}".format(
                 agent_config_filepath.realpath())
             sys.exit(1)
-        cluster = yield create_cluster(
-            reactor=reactor,
+        control_node, agent_nodes = yield create_nodes(
+            reactor, options, control_node_address, agent_node_addresses)
+
+        warn_if_overwriting_certs(options)
+        print_install_plan(options, control_node, agent_nodes)
+        if not options['force']:
+            prompt_user_for_continue()
+
+        create_cert_directory(options)
+        delete_doomed_certs(options)
+
+        cluster = create_cluster(
             options=options,
-            control_node_address=options['control-node'],
-            agent_node_addresses=agent_nodes,
+            control_node=control_node,
+            agent_nodes=agent_nodes,
             agent_config_filepath=agent_config_filepath
         )
-
         actions = []
         if options['install-flocker']:
             actions.append(partial(install_flocker, cluster))
@@ -417,9 +484,6 @@ class FlockerProvisionScript(object):
             actions.append(partial(distribute_certs, cluster, options))
         actions.append(partial(distribute_agent_yaml, cluster))
         actions.append(partial(post_install_actions, cluster, options))
-        print_install_plan(cluster, options)
-        if not options['force']:
-            prompt_user_for_continue()
 
         yield run_provisioning(reactor, cluster, actions)
 
