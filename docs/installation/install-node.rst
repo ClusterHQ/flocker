@@ -20,7 +20,7 @@ Before you begin to install the Flocker node services, you will need the followi
 * A minimum of 2 nodes:
 
   * We support installing the Flocker node services on either CentOS 7 or Ubuntu 14.04.
-  * If you do not have any nodes, our guides listed below can be used to help you set up nodes, using either Amazon Web Services or Rackspace.
+  * If you do not have any nodes, our guides listed below can be used to help you set up nodes, using Amazon Web Services, Rackspace, or Google Compute Engine.
   * To avoid potential disk space problems (for example, when storing popular Docker images), we recommend a minimum of 16 GB storage on each node.
 
 * You will need permission for SSH access from your laptop.
@@ -36,9 +36,9 @@ Before you begin to install the Flocker node services, you will need the followi
 Helpful Guides for Setting Up Nodes
 ===================================
 
-If you do not have any nodes, the following guides will help you set some up, with either AWS or Rackspace.
+If you do not have any nodes, the following guides will help you set some up, with AWS, Rackspace, or GCE.
 
-.. note:: If you set up nodes with either AWS or Rackspace, you'll need to come back to the installation steps below to install the ``flocker-node`` packages specific to your operating system.
+.. note:: If you set up nodes with AWS, Rackspace, or GCE, you'll need to come back to the installation steps below to install the ``flocker-node`` packages specific to your operating system.
 
 .. end-body-installing-node-guides
 
@@ -49,7 +49,7 @@ If you do not have any nodes, the following guides will help you set some up, wi
 Installing on CentOS 7
 ======================
 
-.. note:: You should ensure your nodes are Flocker-ready, either by checking the prerequisites above, or by following our guides on using Amazon Web Services or Rackspace.
+.. note:: You should ensure your nodes are Flocker-ready, either by checking the prerequisites above, or by following our guides on using Amazon Web Services, Rackspace, or Google Compute Engine.
 
 #. **Log into the first node:**
 
@@ -92,7 +92,7 @@ Installing on CentOS 7
 Installing on Ubuntu 14.04
 ==========================
 
-.. note:: You should ensure your nodes are Flocker-ready, either by checking the prerequisites above, or by following our guides on using Amazon Web Services or Rackspace.
+.. note:: You should ensure your nodes are Flocker-ready, either by checking the prerequisites above, or by following our guides on using Amazon Web Services, Rackspace, or Google Compute Engine.
 
 #. **Log into the first node:**
 

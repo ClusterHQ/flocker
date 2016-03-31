@@ -28,6 +28,7 @@ Manually Installing Flocker with Kubernetes
    :hidden:
    
    setup-aws
+   setup-gce
    setup-rackspace
 
 .. _post-installation-configuration-with-kubernetes:

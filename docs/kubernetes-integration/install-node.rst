@@ -19,6 +19,7 @@ Installing the Flocker Node Services
    :end-before: .. end-body-installing-node-guides
 
 * :ref:`aws-install-kubernetes`
+* :ref:`gce-install-kubernetes`
 * :ref:`rackspace-install-kubernetes`
 
 .. _centos-7-install-kubernetes:

@@ -24,7 +24,7 @@ from random import uniform
 from zope.interface import implementer
 
 from eliot import (
-    ActionType, Field, writeFailure, MessageType, write_traceback,
+    ActionType, Field, writeFailure, MessageType, write_traceback, Message
 )
 from eliot.twisted import DeferredContext
 
@@ -312,6 +312,13 @@ class _UnconvergedDelay(object):
         :return _Sleep: an instance of `_Sleep` with a duration
             following an exponential backoff curve.
         """
+        Message.log(
+            message_type=u'flocker:node:_loop:delay',
+            log_level=u'INFO',
+            message=u'Intentionally delaying the next iteration of the '
+                    u'convergence loop to avoid RequestLimitExceeded.',
+            current_wait=self._delay
+        )
         s = _Sleep(delay_seconds=self._delay)
         self._delay *= _UNCONVERGED_BACKOFF_FACTOR
         if self._delay > self.max_sleep:
@@ -372,21 +379,13 @@ LOG_SEND_TO_CONTROL_SERVICE = ActionType(
     [_FIELD_CONNECTION, _FIELD_LOCAL_CHANGES], [],
     u"Send the local state to the control service.")
 
-_FIELD_CLUSTERSTATE = Field(
-    u"cluster_state", to_unserialized_json,
-    u"The state of the cluster, according to control service.")
-
-_FIELD_CONFIGURATION = Field(
-    u"desired_configuration", to_unserialized_json,
-    u"The configuration of the cluster according to the control service.")
-
 _FIELD_ACTIONS = Field(
     u"calculated_actions", repr,
     u"The actions we decided to take to converge with configuration.")
 
 LOG_CONVERGE = ActionType(
     u"flocker:agent:converge",
-    [_FIELD_CLUSTERSTATE, _FIELD_CONFIGURATION], [],
+    [], [],
     u"The convergence action within the loop.")
 
 LOG_DISCOVERY = ActionType(
@@ -517,8 +516,12 @@ class ConvergenceLoop(object):
             return succeed(None)
 
     def output_CONVERGE(self, context):
-        with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
-                          desired_configuration=self.configuration).context():
+        # XXX: We stopped logging configuration and cluster state here for
+        # performance reasons.
+        # But without some limited logging it'll be difficult to debug problems
+        # all the way from a configuration change to the failed convergence
+        # operation. FLOC-4331.
+        with LOG_CONVERGE(self.fsm.logger).context():
             log_discovery = LOG_DISCOVERY(self.fsm.logger)
             with log_discovery.context():
                 discover = DeferredContext(maybeDeferred(
@@ -597,8 +600,16 @@ class ConvergenceLoop(object):
         d.addErrback(error)
 
         # We're done with the iteration:
-        d.addCallback(
-            lambda delay: self.fsm.receive(delay))
+        def send_delay_to_fsm(sleep):
+            Message.log(
+                message_type=u'flocker:node:_loop:CONVERGE:delay',
+                log_level=u'INFO',
+                message=u'Delaying until next convergence loop.',
+                delay=sleep.delay_seconds
+            )
+            return self.fsm.receive(sleep)
+
+        d.addCallback(send_delay_to_fsm)
         d.addActionFinish()
 
     def output_SCHEDULE_WAKEUP(self, context):

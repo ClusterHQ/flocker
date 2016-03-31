@@ -7,8 +7,11 @@ The command-line ``flocker-*-agent`` tools.
 
 from socket import socket
 from contextlib import closing
+import cProfile
+import signal
 import sys
-from time import sleep
+from functools import partial
+from time import sleep, clock
 
 import yaml
 
@@ -29,7 +32,8 @@ from twisted.internet.defer import succeed
 
 from ..common.script import (
     ICommandLineScript,
-    flocker_standard_options, FlockerScriptRunner, main_for_service)
+    flocker_standard_options, FlockerScriptRunner, main_for_service,
+    enable_profiling, disable_profiling)
 from ..common.plugin import PluginLoader
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
@@ -66,6 +70,12 @@ def flocker_dataset_agent_main():
     agent_script = AgentScript(service_factory=service_factory.get_service)
     options = DatasetAgentOptions()
 
+    # Use CPU time instead of wallclock time.
+    pr = cProfile.Profile(clock)
+
+    signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
+    signal.signal(signal.SIGUSR2, partial(disable_profiling, pr, 'dataset'))
+
     return FlockerScriptRunner(
         script=agent_script,
         options=options,
@@ -84,6 +94,13 @@ def flocker_container_agent_main():
         deployer_factory=deployer_factory
     ).get_service
     agent_script = AgentScript(service_factory=service_factory)
+
+    # Use CPU time instead of wallclock time.
+    pr = cProfile.Profile(clock)
+
+    signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
+    signal.signal(signal.SIGUSR2, partial(disable_profiling, pr, 'container'))
+
     return FlockerScriptRunner(
         script=agent_script,
         options=ContainerAgentOptions()
@@ -294,7 +311,7 @@ class AgentServiceFactory(PClass):
     # This should have an explicit interface:
     # https://clusterhq.atlassian.net/browse/FLOC-1929
     deployer_factory = field(mandatory=True)
-    get_external_ip = field(initial=_get_external_ip, mandatory=True)
+    get_external_ip = field(initial=(lambda: _get_external_ip), mandatory=True)
 
     def get_service(self, reactor, options):
         """
@@ -420,12 +437,12 @@ class AgentService(PClass):
     backends = field(
         PluginLoader,
         mandatory=True,
-        initial=backend_loader,
+        initial=(lambda: backend_loader),
     )
     deployers = field(factory=pmap, initial=_DEFAULT_DEPLOYERS, mandatory=True)
     reactor = field(initial=reactor, mandatory=True)
 
-    get_external_ip = field(initial=_get_external_ip, mandatory=True)
+    get_external_ip = field(initial=(lambda: _get_external_ip), mandatory=True)
 
     control_service_host = field(type=bytes, mandatory=True)
     control_service_port = field(type=int, mandatory=True)
@@ -561,8 +578,9 @@ class DatasetServiceFactory(PClass):
     A helper for creating most of the pieces that go into a dataset convergence
     agent.
     """
-    agent_service_factory = field(initial=AgentService.from_configuration)
-    configuration_factory = field(initial=get_configuration)
+    agent_service_factory = field(
+        initial=(lambda: AgentService.from_configuration))
+    configuration_factory = field(initial=(lambda: get_configuration))
 
     def get_service(self, reactor, options):
         """

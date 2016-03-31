@@ -278,9 +278,6 @@ def ensure_minimal_setup(package_manager):
     :return: a sequence of commands to run on the distribution
     """
     if package_manager in ('dnf', 'yum'):
-        # Fedora/CentOS sometimes configured to require tty for sudo
-        # ("sorry, you must have a tty to run sudo"). Disable that to
-        # allow automated tests to run.
         return run_network_interacting_from_args([
             'su', 'root', '-c', [package_manager, '-y', 'install', 'sudo']
         ])

@@ -20,7 +20,7 @@ REQUEST_PATH = Field(
     u"The absolute path of the resource to which the request was issued.")
 JSON = Field.forTypes(
     u"json", [unicode, bytes, dict, list, None, bool, float],
-    u"JSON, either request or response depending on context.")
+    u"The JSON request body.")
 RESPONSE_CODE = Field.forTypes(
     u"code", [int],
     u"The response code for the request.")
@@ -33,8 +33,13 @@ REQUEST = ActionType(
     [REQUEST_PATH, METHOD],
     [],
     u"A request was received on the public HTTP interface.")
+
+# NB we deliberately do not log the entire JSON response body because the
+# volume of log that it generates for state and configuration requests in a
+# cluster with large numbers of datasets and nodes causes high CPU usage in the
+# control service and in the logging daemon. (FLOC-4327)
 JSON_REQUEST = ActionType(
     LOG_SYSTEM + u":json_request",
     [JSON],
-    [RESPONSE_CODE, JSON],
-    u"A request containing JSON request and response bodies.")
+    [RESPONSE_CODE],
+    u"A request containing JSON request body and HTTP response code.")

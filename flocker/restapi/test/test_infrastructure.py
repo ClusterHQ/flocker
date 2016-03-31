@@ -151,8 +151,7 @@ class ResultHandlingApplication(object):
         return self._constructSuccess({})
 
 
-def assertJSONLogged(test, logger, method, path, request, response,
-                     code):
+def assertJSONLogged(test, logger, method, path, request, code):
     """
     Assert that the a request with given method and path logged a JSON
     request and JSON response.
@@ -161,14 +160,13 @@ def assertJSONLogged(test, logger, method, path, request, response,
     :param MemoryLogger logger: The logger being used in the test.
     :param method: Expected logged HTTP method.
     :param path: Expected logged HTTP request path.
-    :param request: Expected logged JSON response.
-    :param response: Expected logged JSON response.
+    :param request: Expected logged JSON request.
     :param code: Expected HTTP response code.
     """
     parent = _assertRequestLogged(path, method)(test, logger)
     child = assertHasAction(
         test, logger, JSON_REQUEST, True, {u"json": request},
-        {u"json": response, u"code": code})
+        {u"code": code})
     test.assertIn(child, parent.children)
 
 
@@ -201,8 +199,7 @@ class StructuredResultHandlingMixin(object):
         """
 
     @validateLogging(
-        assertJSONLogged, b"GET", b"/foo/bar", {},
-        {"foo": "bar", "baz": ["quux"]}, OK)
+        assertJSONLogged, b"GET", b"/foo/bar", {}, OK)
     def test_encode(self, logger):
         """
         The return value of the decorated function is I{JSON} encoded and the
@@ -224,16 +221,6 @@ class StructuredResultHandlingMixin(object):
         If the return value of the decorated function cannot be I{JSON} encoded
         then the response generated has the I{INTERNAL SERVER ERROR} code.
         """
-        # Workaround the message validation code in @validateLogging,
-        # otherwise the invalid message being logged throws an exception!
-        # See https://github.com/ClusterHQ/eliot/issues/150
-        def cleanup():
-            for message in logger.messages:
-                if message.get("action_type") == "api:json_request":
-                    if message["json"].get("foo"):
-                        message["json"]["foo"] = None
-        self.addCleanup(cleanup)
-
         objects = {"foo": object()}
         request = dummyRequest(b"GET", b"/foo/bar", Headers(), b"")
 
@@ -243,7 +230,6 @@ class StructuredResultHandlingMixin(object):
 
     @validateLogging(
         assertJSONLogged, b"GET", b"/foo/explicitresponse", {},
-        ResultHandlingApplication.EXPLICIT_RESPONSE_RESULT,
         ResultHandlingApplication.EXPLICIT_RESPONSE_CODE)
     def test_explicitResponseObject(self, logger):
         """
@@ -268,7 +254,6 @@ class StructuredResultHandlingMixin(object):
 
     @validateLogging(
         assertJSONLogged, b"GET", b"/foo/explicitresponseheaders", {},
-        ResultHandlingApplication.EXPLICIT_RESPONSE_RESULT,
         ResultHandlingApplication.EXPLICIT_RESPONSE_CODE)
     def test_explicitResponseObjectWithHeaders(self, logger):
         """
@@ -428,7 +413,7 @@ class StructuredJSONTests(TestCase):
 
     @validateLogging(
         assertJSONLogged, b"PUT", b"/foo/bar",
-        {"foo": "bar", "baz": ["quux"]}, None, OK
+        {"foo": "bar", "baz": ["quux"]}, OK
     )
     def test_decode(self, logger):
         """
@@ -446,7 +431,7 @@ class StructuredJSONTests(TestCase):
 
     @validateLogging(
         assertJSONLogged, b"POST", b"/foo/bar",
-        {"foo": "bar", "baz": ["quux"]}, None, OK
+        {"foo": "bar", "baz": ["quux"]}, OK
     )
     def test_decodeNoContentType(self, logger):
         """
