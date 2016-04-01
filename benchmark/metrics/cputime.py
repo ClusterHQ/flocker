@@ -3,6 +3,8 @@
 CPU time metric for the control service benchmarks.
 """
 
+from os import environ
+
 from zope.interface import implementer
 
 from twisted.protocols.basic import LineOnlyReceiver
@@ -246,10 +248,11 @@ class SSHRunner(object):
     :ivar user: Remote user name.
     """
 
-    def __init__(self, reactor, cluster, user=b'root'):
+    def __init__(self, reactor, cluster, user=b'root', config_file=None):
         self.reactor = reactor
         self.cluster = cluster
         self.user = user
+        self.config_file = config_file
 
     def run(self, node, command_args, handle_stdout):
         """
@@ -265,6 +268,7 @@ class SSHRunner(object):
             self.user,
             self.cluster.public_address(node.public_address).exploded,
             command_args,
+            self.config_file,
             handle_stdout=handle_stdout,
         )
         return d
@@ -282,7 +286,9 @@ class CPUTime(object):
         self.reactor = reactor
         self.cluster = cluster
         if runner is None:
-            self.runner = SSHRunner(reactor, cluster)
+            self.runner = SSHRunner(
+                reactor, cluster, config_file=environ.get('BENCHMARK_SSH_CONFIG', None)
+            )
         else:
             self.runner = runner
         self.processes = processes

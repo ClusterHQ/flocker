@@ -223,7 +223,7 @@ SSH_OPTIONS = [
 ]
 
 
-def run_ssh(reactor, username, host, command, **kwargs):
+def run_ssh(reactor, username, host, command, config_file=None, **kwargs):
     """
     Run a process on a remote server using the locally installed ``ssh``
     command and kill it if the reactor stops.
@@ -235,11 +235,23 @@ def run_ssh(reactor, username, host, command, **kwargs):
     :param dict kwargs: Remaining keyword arguments to pass to ``run``.
     :return Deferred: Deferred that fires when the process is ended.
     """
-    ssh_command = [
-        b"ssh",
-    ] + SSH_OPTIONS + [
+    options = [
         b"-l", username,
         host,
+    ]
+
+    if config_file is not None:
+        options += [
+            b"-C",  # compress traffic
+            b"-q",  # suppress warnings
+            b"-F", config_file
+        ]
+    else:
+        options += SSH_OPTIONS
+
+    ssh_command = [
+        b"ssh",
+    ] + options + [
         ' '.join(map(shell_quote, command)),
     ]
 
