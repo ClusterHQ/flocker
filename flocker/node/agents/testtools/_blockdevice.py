@@ -28,7 +28,7 @@ from zope.interface.verify import verifyObject
 from ....testtools import TestCase, AsyncTestCase
 
 
-from ....ca.testtools import get_credential_sets
+from ....ca.testtools import CredentialSet
 from ....testtools import MemoryCoreReactor
 from ...script import AgentService
 
@@ -877,7 +877,7 @@ def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
 
 
 def dataset_agent_api_for_test(test_case, dataset_configuration):
-    ca_set = get_credential_sets()[0]
+    ca_set = CredentialSet.create()
     configuration = {
         u"control-service": {
             u"hostname": b"192.0.2.5",
