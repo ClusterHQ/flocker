@@ -114,33 +114,20 @@ class CinderBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``CinderBlockDeviceAPI``.
     """
-    def cinder_client(self):
-        """
-        :return: A ``cinderclient.Cinder`` instance.
-        """
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-        session = get_keystone_session(**config)
-        region = get_openstack_region_for_test()
-        return get_cinder_v1_client(session, region)
-
     def test_foreign_volume(self):
         """
         Non-Flocker Volumes are not listed.
         """
-        cinder_client = self.cinder_client()
-        requested_volume = cinder_client.volumes.create(
+        requested_volume = self.api.cinder_volume_manager.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
         CINDER_VOLUME(id=requested_volume.id).write()
         self.addCleanup(
-            cinder_client.volumes.delete,
+            self.api.cinder_volume_manager.delete,
             requested_volume.id,
         )
         wait_for_volume_state(
-            volume_manager=cinder_client.volumes,
+            volume_manager=self.api.cinder_volume_manager,
             expected_volume=requested_volume,
             desired_state=u'available',
             transient_states=(u'creating',),
@@ -166,7 +153,6 @@ class CinderBlockDeviceAPIInterfaceTests(
         """
         New volumes get a human-readable name.
         """
-        cinder_client = self.cinder_client()
         dataset_id = uuid4()
         flocker_volume = self.api.create_volume(
             dataset_id=dataset_id,
@@ -174,7 +160,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         )
         CINDER_VOLUME(id=flocker_volume.blockdevice_id).write()
         self.assertEqual(
-            cinder_client.volumes.get(
+            self.api.cinder_volume_manager.get(
                 flocker_volume.blockdevice_id).display_name,
             u"flocker-{}".format(dataset_id))
 
