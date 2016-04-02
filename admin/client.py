@@ -22,9 +22,15 @@ from flocker.provision._install import (
     task_cli_pip_prereqs,
     task_cli_pip_install,
     cli_pip_test,
+    install_distro_package,
+    allow_notty_sudo,
 )
 from flocker.provision._ssh import (
-    Run, Sudo, Put, Comment, perform_sudo, perform_put)
+    Run, Sudo, RunScript, SudoScript, Put, SudoPut, Comment,
+    perform_sudo, perform_put, perform_sudo_put,
+    perform_run_script, perform_sudo_script,
+)
+from flocker.provision._effect import HTTPGet
 
 
 @attributes(['image', 'package_manager'])
@@ -65,9 +71,13 @@ class ScriptBuilder(TypeDispatcher):
         TypeDispatcher.__init__(self, {
             Run: self.perform_run,
             Sudo: perform_sudo,
+            RunScript: perform_run_script,
+            SudoScript: perform_sudo_script,
             Put: perform_put,
+            SudoPut: perform_sudo_put,
             Comment: self.perform_comment,
-            Sequence: perform_sequence
+            Sequence: perform_sequence,
+            HTTPGet: self.perform_http_get,
         })
         perform(self, effects)
         # Add blank line to terminate script with a newline
@@ -87,6 +97,13 @@ class ScriptBuilder(TypeDispatcher):
         For Comment effects, prefix the comment with #
         """
         self.lines.append('# ' + intent.comment)
+
+    @sync_performer
+    def perform_http_get(self, dispatcher, intent):
+        """
+        For HTTPGet effect, call curl
+        """
+        self.lines.append('curl {}'.format(intent.url))
 
     def script(self):
         """
@@ -279,6 +296,8 @@ def get_steps_pkg(distribution, package_source=PackageSource()):
     package_manager = DOCKER_IMAGES[distribution].package_manager
     steps = [
         ensure_minimal_setup(package_manager),
+        allow_notty_sudo(distribution),
+        install_distro_package("curl", distribution),
         task_cli_pkg_install(distribution, package_source),
         cli_pkg_test(package_source),
     ]

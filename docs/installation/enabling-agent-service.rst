@@ -23,29 +23,29 @@ CentOS 7
 
 #. Run the following commands to enable the agent service:
 
-   .. task:: enable_flocker_agent centos-7
-      :prompt: [root@agent-node]#
+.. task:: enable_flocker_agent centos-7
+   :prompt: alice@centos:~$
 
 #. Run the following commands to enable the Flocker plugin for Docker:
 
-   .. prompt:: bash [root@agent-node]#
-   
-      systemctl enable flocker-docker-plugin
-      systemctl restart flocker-docker-plugin
+.. prompt:: bash alice@centos:~$
+
+   sudo systemctl enable flocker-docker-plugin
+   sudo systemctl restart flocker-docker-plugin
 
 Ubuntu
 ======
 
 #. Run the following commands to enable the agent service:
 
-   .. task:: enable_flocker_agent ubuntu-14.04
-      :prompt: [root@agent-node]#
+.. task:: enable_flocker_agent ubuntu-14.04
+   :prompt: alice@ubuntu:~$
 
 #. Run the following command to enable the Flocker plugin for Docker:
 
-   .. prompt:: bash [root@agent-node]#
+.. prompt:: bash alice@ubuntu:~$
 
-      service flocker-docker-plugin restart
+   service flocker-docker-plugin restart
 
 .. end-body-enable-agent-main
 
@@ -63,7 +63,7 @@ CentOS 7
 Run the following commands to enable the agent service:
 
 .. task:: enable_flocker_agent centos-7
-      :prompt: [root@agent-node]#
+      :prompt: alice@centos:~$
 
 Ubuntu
 ======
@@ -71,6 +71,6 @@ Ubuntu
 Run the following commands to enable the agent service:
 
 .. task:: enable_flocker_agent ubuntu-14.04
-      :prompt: [root@agent-node]#
+      :prompt: alice@ubuntu:~$
 
 .. end-body-enable-agent-kubernetes

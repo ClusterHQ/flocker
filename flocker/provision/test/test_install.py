@@ -13,10 +13,10 @@ from textwrap import dedent
 from .._install import (
     task_configure_flocker_agent,
     task_enable_flocker_agent,
-    run, put, run_from_args,
+    run, put, run_from_args, sudo,
     get_repository_url, UnsupportedDistribution, get_installable_version,
     get_repo_options,
-    _remove_dataset_fields, _remove_private_key,
+    _remove_dataset_fields, _remove_private_keys,
     UnknownAction, DistributionNotSupported)
 from .._ssh import Put
 from .._effect import sequence
@@ -103,10 +103,10 @@ class EnableFlockerAgentTests(TestCase):
             distribution=distribution,
         )
         expected_sequence = sequence([
-            run(command="systemctl enable flocker-dataset-agent"),
-            run(command="systemctl start flocker-dataset-agent"),
-            run(command="systemctl enable flocker-container-agent"),
-            run(command="systemctl start flocker-container-agent"),
+            sudo(command="systemctl enable flocker-dataset-agent"),
+            sudo(command="systemctl start flocker-dataset-agent"),
+            sudo(command="systemctl enable flocker-container-agent"),
+            sudo(command="systemctl start flocker-container-agent"),
         ])
         self.assertEqual(commands, expected_sequence)
 
@@ -122,10 +122,10 @@ class EnableFlockerAgentTests(TestCase):
             action="restart"
         )
         expected_sequence = sequence([
-            run(command="systemctl enable flocker-dataset-agent"),
-            run(command="systemctl restart flocker-dataset-agent"),
-            run(command="systemctl enable flocker-container-agent"),
-            run(command="systemctl restart flocker-container-agent"),
+            sudo(command="systemctl enable flocker-dataset-agent"),
+            sudo(command="systemctl restart flocker-dataset-agent"),
+            sudo(command="systemctl enable flocker-container-agent"),
+            sudo(command="systemctl restart flocker-container-agent"),
         ])
         self.assertEqual(commands, expected_sequence)
 
@@ -139,8 +139,8 @@ class EnableFlockerAgentTests(TestCase):
             distribution=distribution,
         )
         expected_sequence = sequence([
-            run(command="service flocker-dataset-agent start"),
-            run(command="service flocker-container-agent start"),
+            sudo(command="service flocker-dataset-agent start"),
+            sudo(command="service flocker-container-agent start"),
         ])
         self.assertEqual(commands, expected_sequence)
 
@@ -156,8 +156,8 @@ class EnableFlockerAgentTests(TestCase):
             action="restart"
         )
         expected_sequence = sequence([
-            run(command="service flocker-dataset-agent restart"),
-            run(command="service flocker-container-agent restart"),
+            sudo(command="service flocker-dataset-agent restart"),
+            sudo(command="service flocker-container-agent restart"),
         ])
         self.assertEqual(commands, expected_sequence)
 
@@ -340,14 +340,43 @@ class PrivateKeyLoggingTest(TestCase):
                 MFDk...REMOVED...OEWe
                 -----END PRIVATE KEY-----
                 '''),
-            _remove_private_key(key))
+            _remove_private_keys(key))
+
+    def test_multiple_private_keys_removed(self):
+        """
+        A private key is removed for logging.
+        """
+        key = dedent('''
+            -----BEGIN PRIVATE KEY-----
+            MFDkDKSLDDSf
+            MFSENSITIVED
+            MDKODSFJOEWe
+            -----END PRIVATE KEY-----
+            text_stuff
+            -----BEGIN PRIVATE KEY-----
+            MFDkDKSLDDSf
+            MFSENSITIVED
+            MDKODSFJOEWe
+            -----END PRIVATE KEY-----
+            ''')
+        self.assertEqual(
+            dedent('''
+                -----BEGIN PRIVATE KEY-----
+                MFDk...REMOVED...OEWe
+                -----END PRIVATE KEY-----
+                text_stuff
+                -----BEGIN PRIVATE KEY-----
+                MFDk...REMOVED...OEWe
+                -----END PRIVATE KEY-----
+                '''),
+            _remove_private_keys(key))
 
     def test_non_key_kept(self):
         """
         Non-key data is kept for logging.
         """
         key = 'some random data, not a key'
-        self.assertEqual(key, _remove_private_key(key))
+        self.assertEqual(key, _remove_private_keys(key))
 
     def test_short_key_kept(self):
         """
@@ -358,7 +387,7 @@ class PrivateKeyLoggingTest(TestCase):
             short
             -----END PRIVATE KEY-----
             ''')
-        self.assertEqual(key, _remove_private_key(key))
+        self.assertEqual(key, _remove_private_keys(key))
 
     def test_no_end_key_removed(self):
         """
@@ -372,7 +401,7 @@ class PrivateKeyLoggingTest(TestCase):
             ''')
         self.assertEqual(
             '\n-----BEGIN PRIVATE KEY-----\nMFDk...REMOVED...OEWe\n',
-            _remove_private_key(key))
+            _remove_private_keys(key))
 
 
 class DatasetLoggingTest(TestCase):
