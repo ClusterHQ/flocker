@@ -130,7 +130,7 @@ Here are some useful links for more information:
 Can I run Flocker with local storage?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Flocker integrates with many storage platforms including software defined storage platforms like EMC ScaleIO, Hedvig, Ceph, and ConvergIO.
+Flocker integrates with many storage platforms including software defined storage platforms like EMC ScaleIO, Hedvig, Ceph, and ConvergeIO.
 
 Flocker is not a platform that manages local storage such as existing HDD or SSD disks on your server, so you should choose a backend that is suitable for your needs.
 
