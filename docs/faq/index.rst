@@ -66,6 +66,29 @@ Why does the ``uft-flocker-volumes`` command not work?
 This prefix ``uft`` was removed in favor of ``flockerctl``.
 For more information, see :ref:`flockerctl`.
 
+Does Flocker handle security policies?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+At the moment Flocker is configured to use SSL/TLS for its agent and control service communication.
+However, most security policies that have to do with containers are left to the container runtime or orchestration framework.
+Likewise security for volume is managed via the backend that is chosen to run with Flocker.
+Flocker doesn't provide any other container-to-volume based security.
+
+
+I’m getting an OpenSSL error when I start Flocker services, what should I do?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Make sure when your create your certificates that you use a DNS or IP name for the control service certificate.
+This will make communicating with the control service from your agent nodes easier in the long run.
+
+If you create your control service certificate with the name ``my-control-service``, then your :file:`agent.yml` must also reference the control service as ``my-control-service``.
+This means that you must make that name DNS resolvable in order to avoid ssl issues.
+If you use a DNS name or IP, then the configuration is more natural.
+
+For more information on authentication, see :ref:`authentication-standalone-flocker`.
+   
+If you have further issues with SSL, please contact support@clusterhq.com.
+
 Using Flocker
 -------------
 
@@ -225,28 +248,6 @@ Your message will be forwarded to the ClusterHQ security team (a small group of 
 
 Due to the sensitive nature of security issues, we ask you not to send a message to one of the public mailing lists.
 ClusterHQ has a policy for :ref:`reporting-security-issues` designed to minimize any damage that could be inflicted through public knowledge of a defect while it is still outstanding.
-
-Does Flocker handle security policies?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-At the moment Flocker is configured to use SSL/TLS for its agent and control service communication.
-However, most security policies that have to do with containers are left to the container runtime or orchestration framework.
-Likewise security for volume is managed via the backend that is chosen to run with Flocker.
-Flocker doesn't provide any other container-to-volume based security.
-
-I’m getting an OpenSSL error when I start Flocker services, what should I do?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Make sure when your create your certificates that you use a DNS or IP name for the control service certificate.
-This will make communicating with the control service from your agent nodes easier in the long run.
-
-If you create your control service certificate with the name ``my-control-service``, then your :file:`agent.yml` must also reference the control service as ``my-control-service``.
-This means that you must make that name DNS resolvable in order to avoid ssl issues.
-If you use a DNS name or IP, then the configuration is more natural.
-
-For more information on authentication, see :ref:`authentication-standalone-flocker`.
-   
-If you have further issues with SSL, please contact support@clusterhq.com.
 
 Can I use OpenSSL certificates instead of the ``flocker-ca`` tool?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
