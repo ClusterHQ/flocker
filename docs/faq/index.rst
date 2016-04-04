@@ -95,10 +95,12 @@ How do I integrate Flocker with Mesos?
 
 You can integrate Flocker with Mesos using either the Mesos-Flocker Isolator, or with Marathon and the Flocker plugin for Docker.
 
+.. note:: Using Flocker with Mesos is one of our experimental projects, developed to less rigorous quality and testing standards than the mainline Flocker distribution. It is not built with production-readiness in mind.
+
 Here are some useful links for more information:
 
 * :ref:`Using Flocker with Mesos <mesos-integration>`
-* `Mesos-Flocker Isolator <http://flocker.mesosframeworks.com/ >`_
+* `Mesos-Flocker Isolator <http://flocker.mesosframeworks.com/>`_
 * `Demo: High Availability with Marathon and Flocker <https://clusterhq.com/2015/10/06/marathon-ha-demo/>`_
 * `Github: Using Mesos isolator for Flocker <https://github.com/ClusterHQ/mesos-module-flocker>`_
 
