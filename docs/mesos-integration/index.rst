@@ -22,7 +22,7 @@ Flocker works with Mesos via two different integration paths:
     <div class="pods-eq">
 	    <div class="pod-boxout pod-boxout--tutorial pod-boxout--2up">
 		   <span>Using the Mesos-Flocker Isolator</span>
-		     <a href="http://flocker.mesosframeworks.com/" class="button" target="_blank">Launch the Mesos-Flocker Isolator</a>
+		     <a href="http://flocker.mesosframeworks.com/" class="button" target="_blank">Open the Mesos-Flocker Isolator</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--tutorial pod-boxout--2up">
 		   <span>View the Mesos-Flocker isolator on GitHub</span>
