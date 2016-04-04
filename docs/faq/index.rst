@@ -72,7 +72,7 @@ Using Flocker
 How do I integrate Flocker with Docker Swarm?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Flocker Swarm is Docker native!
+Docker Swarm is Flocker native!
 This means you can use our Docker volume driver to easily integrate with Swarm.
 
 Here are some useful links for more information:
