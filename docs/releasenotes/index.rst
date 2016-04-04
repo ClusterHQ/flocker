@@ -17,6 +17,7 @@ Next Release
   Now, even if multiple volumes are created, only a single volume will be used.
   This was particularly likely to occur on AWS.
 * Fixed brew tap for flocker client tools on OSX, which had regressed on Yosemite.
+* Added documentation for the :ref:`Open vStorage <open-vstorage-backend>` driver.
 
 This Release
 ============
