@@ -132,8 +132,6 @@ Nodes on different hosts cannot access the same volume, because it can only be a
 
 If multiple containers on the same host want to use the same volume, they can, but be careful because multiple containers accessing the same storage volume can cause corruption.
 
-In order for Flocker to support multiple attachments it would need to support a network filesystem like NFS, GlusterFS or multi-attach based storage.
-
 Can Flocker work across availability zones in AWS or regions in Cinder?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
