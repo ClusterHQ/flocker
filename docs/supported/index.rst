@@ -117,6 +117,12 @@ These software defined storage options can be run on any infrastructure, includi
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="../flocker-features/convergeio-configuration.html" class="button">Learn more</a>
 	    </div>
+	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
+			<img src="../_static/images/open-vstorage.png" alt="open-vstorage logo"/>
+			<span>Open vStorage</span>
+			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
+	        <a href="../flocker-features/open-vstorage-configuration.html" class="button">Learn more</a>
+	    </div>
 	</div>
 
 

@@ -123,7 +123,9 @@ versa
 versioning
 virtualization
 VMware
+vPool
 vSphere
+vStorage
 Weaveworks
 webhook
 workflow

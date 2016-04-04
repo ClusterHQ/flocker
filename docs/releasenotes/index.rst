@@ -18,6 +18,7 @@ Next Release
   This was particularly likely to occur on AWS.
 * Dataset backend support for :ref:`Google Compute Engine <gce-dataset-backend>`.
 * Fixed brew tap for flocker client tools on OSX, which had regressed on Yosemite.
+* Added documentation for the :ref:`Open vStorage <open-vstorage-backend>` driver.
 
 This Release
 ============
