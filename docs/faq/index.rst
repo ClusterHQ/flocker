@@ -130,7 +130,7 @@ This means you can have multiple volumes for one container, and those volumes wi
 Flocker attaches volumes to the individual agent host (docker host) and this can only be one host at a time because Flocker attaches Block-based storage.
 Nodes on different hosts cannot access the same volume, because it can only be attached to one node at a time.
 
-If multiple containers on the same host want to use the same volume, they can, but be careful because multiple containers accessing the same block storage volume can cause corruption.
+If multiple containers on the same host want to use the same volume, they can, but be careful because multiple containers accessing the same storage volume can cause corruption.
 
 In order for Flocker to support multiple attachments it would need to support a network filesystem like NFS, GlusterFS or multi-attach based storage.
 
