@@ -26,11 +26,12 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase, AsyncTestCase
-
+from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
 
 from ....ca.testtools import CredentialSet
 from ....testtools import MemoryCoreReactor
-from ...script import AgentService
+from ...script import AgentService, get_api
+from ...backends import backend_and_api_args_from_configuration
 
 from ..blockdevice import (
     AlreadyAttachedVolume,
@@ -876,21 +877,30 @@ def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
     return Tests
 
 
-def dataset_agent_api_for_test(test_case, dataset_configuration):
-    ca_set = CredentialSet.create()
-    configuration = {
-        u"control-service": {
-            u"hostname": b"192.0.2.5",
-            u"port": 54123
-        },
-        u"node-credential": ca_set.node,
-        u"ca-certificate": ca_set.root.credential.certificate,
-    }
-    configuration.update(dataset_configuration)
-    agent_service = AgentService.from_configuration(
-        configuration=configuration,
-        reactor=MemoryCoreReactor(),
+def dataset_agent_api_for_test(test_case, dataset_configuration, reactor=None):
+    """
+    XXX
+    """
+    if reactor is None:
+        from twisted.internet import reactor
+
+    backend, api_args = backend_and_api_args_from_configuration(
+        dataset_configuration
     )
-    api = agent_service.get_api()
+    api = get_api(
+        backend=backend,
+        api_args=api_args,
+        reactor=reactor,
+        cluster_id=make_cluster_id(
+            # XXX I assume that this function will only be used from functional tests.
+            # Acceptance tests will load the API via the AgentService.
+            test_type=TestTypes.FUNCTIONAL,
+            # XXX This should match the backend, but Providers are
+            # ValueConstants rather than NamedConstants so we can't
+            # look them up and I'm not convinced whether they add any
+            # value.
+            provider=Providers.UNSPECIFIED,
+        ),
+    )
     test_case.addCleanup(detach_destroy_volumes, api)
     return api

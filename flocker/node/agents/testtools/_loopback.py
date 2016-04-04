@@ -30,11 +30,9 @@ def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
     api = dataset_agent_api_for_test(
         test_case=test_case,
         dataset_configuration={
-            u"dataset": {
-                u"backend": "loopback",
-                u"root_path": test_case.make_temporary_directory().path,
-                u"allocation_unit": allocation_unit,
-            }
+            u"backend": "loopback",
+            u"root_path": test_case.make_temporary_directory().path,
+            u"allocation_unit": allocation_unit,
         }
     )
     return api

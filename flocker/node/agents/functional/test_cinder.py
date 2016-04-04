@@ -93,9 +93,9 @@ def cinderblockdeviceapi_for_test(test_case):
     """
     return dataset_agent_api_for_test(
         test_case=test_case,
-        dataset_configuration={
-            u"dataset": get_blockdevice_config(ProviderType.openstack)
-        }
+        dataset_configuration=get_blockdevice_config(
+            ProviderType.openstack
+        )
     )
 
 
