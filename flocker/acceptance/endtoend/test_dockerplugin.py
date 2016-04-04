@@ -4,10 +4,7 @@
 Tests for the Flocker Docker plugin.
 """
 
-from datetime import timedelta
 from distutils.version import LooseVersion  # pylint: disable=import-error
-
-from testtools import run_test_with
 
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
@@ -23,14 +20,12 @@ from ...common.runner import run_ssh
 
 from ...dockerplugin.test.test_api import volume_expression
 
-from ...testtools import (
-    AsyncTestCase, random_name, flaky, async_runner,
-)
+from ...testtools import AsyncTestCase, random_name, flaky, async_runner
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
     get_docker_client, verify_socket, check_http_server,
     extract_external_port,
-    create_dataset, require_moving_backend,
+    create_dataset, require_moving_backend, ACCEPTANCE_TEST_TIMEOUT
 )
 
 from ..scripts import SCRIPTS
@@ -43,6 +38,9 @@ class DockerPluginTests(AsyncTestCase):
     """
     Tests for the Docker plugin.
     """
+
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+
     def require_docker(self, required_version, cluster):
         """
         Check for a specific minimum version of Docker on a remote node.
@@ -471,8 +469,6 @@ class DockerPluginTests(AsyncTestCase):
 
     @require_moving_backend
     @flaky(u'FLOC-3346')
-    # Test is very slow on Rackspace, it seems:
-    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     @require_cluster(2)
     def test_move_volume_different_node(self, cluster):
         """

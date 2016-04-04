@@ -318,8 +318,9 @@ common_cli:
 
     # using the caching-layer, install all the dependencies
     pip install --upgrade pip
-    pip install . ${PIP_ADDITIONAL_OPTIONS}
-    pip install ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
+    # Use --process-dependency-links so we can use the pyrsistent fork.
+    pip install --process-dependency-links . ${PIP_ADDITIONAL_OPTIONS}
+    pip install --process-dependency-links ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
     # install junix for our coverage report
     pip install python-subunit junitxml ${PIP_ADDITIONAL_OPTIONS}
 
@@ -623,7 +624,8 @@ common_cli:
           python-pip rpmlint" >> Dockerfile
     echo "RUN env URLGRABBER_DEBUG=1 yum update --assumeyes" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
-    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+    # Is this unused? --process-depency-links added but sort of untested.
+    echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
 
   build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
     # Download the latest pip requirements file from flocker
@@ -638,7 +640,8 @@ common_cli:
           libffi-dev libssl-dev build-essential python-pip \
           python2.7-dev lintian" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
-    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+    # Is this unused? --process-depency-links added but sort of untested.
+    echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
 
   build_dockerfile_ubuntu_wily: &build_dockerfile_ubuntu_wily |
     # Download the latest pip requirements file from flocker
@@ -653,7 +656,8 @@ common_cli:
           git ruby-dev libffi-dev libssl-dev build-essential python-pip \
           python2.7-dev lintian" >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
-    echo "RUN pip install -r /tmp/requirements.txt" >> Dockerfile
+    # Is this unused? --process-depency-links added but sort of untested.
+    echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
 
   do_not_abort_on_errors: &do_not_abort_on_errors |
     # make sure we don't abort the job on the first error we find.
@@ -1503,7 +1507,7 @@ job_type:
       directories_to_delete: []
       notify_slack: '#nightly-builds'
 
-    run_acceptance_on_GCE_CentOS_7_with_LOOPBACK:
+    run_acceptance_on_GCE_CentOS_7_with_GCE:
       at: '0 5 * * *'
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
       with_steps:
@@ -1517,7 +1521,7 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
                    'export ACCEPTANCE_TEST_PROVIDER=gce',
-                   *run_acceptance_loopback_tests,
+                   *run_acceptance_tests,
                    *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
@@ -1530,7 +1534,7 @@ job_type:
       directories_to_delete: []
       notify_slack: '#nightly-builds'
 
-    run_acceptance_on_GCE_Ubuntu_Trusty_with_LOOPBACK:
+    run_acceptance_on_GCE_Ubuntu_Trusty_with_GCE:
       at: '0 6 * * *'
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_steps:
@@ -1544,7 +1548,7 @@ job_type:
                    *setup_authentication,
                    'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
                    'export ACCEPTANCE_TEST_PROVIDER=gce',
-                   *run_acceptance_loopback_tests,
+                   *run_acceptance_tests,
                    *convert_results_to_junit,
                    *clean_packages,
                    *exit_with_return_code_from_test ]

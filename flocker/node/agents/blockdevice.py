@@ -1577,11 +1577,8 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
         # Other node will detach:
         Discovered.ATTACHED_ELSEWHERE: DoNothing,
-        # Some backends (AWS in particular) are only eventually consistent, so
-        # list_volumes might not report the volume even after it has already
-        # been created. We poll waiting for the backend to start reporting the
-        # created volume.
-        Discovered.REGISTERED: Poll,
+        # We reach this state when a dataset has been deleted.
+        Discovered.REGISTERED: DoNothing,
         Discovered.UNREGISTERED: RegisterVolume,
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
@@ -1961,8 +1958,11 @@ class BlockDeviceDeployer(PClass):
         # `ATTACHED_ELSEWHERE` need the same behavior as `NON_MANIFEST`, so we
         # don't check them either.
 
-        not_in_use_datasets = not_in_use(local_datasets.values())
+        # This is a performance optimization.  We deliberately use a ``set``
+        # here to allow fast hash based lookups.
+        not_in_use_datasets = set(not_in_use(local_datasets.values()))
         for dataset_id, dataset in local_datasets.items():
+            # Hash based lookup rather than iteration here.
             if dataset in not_in_use_datasets:
                 continue
             if dataset.state != DatasetStates.MOUNTED:

@@ -644,10 +644,7 @@ class ConvergenceLoopFSMTests(TestCase):
         logging.
         """
         transition = assertHasAction(self, logger, LOG_FSM_TRANSITION, True)
-        converge = assertHasAction(
-            self, logger, LOG_CONVERGE, True,
-            {u"cluster_state": self.cluster_state,
-             u"desired_configuration": self.configuration})
+        converge = assertHasAction(self, logger, LOG_CONVERGE, True)
         self.assertIn(converge, transition.children)
         send = assertHasAction(self, logger, LOG_SEND_TO_CONTROL_SERVICE, True,
                                {u"local_changes": [self.local_state]})
