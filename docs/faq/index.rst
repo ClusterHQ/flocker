@@ -252,7 +252,9 @@ ClusterHQ has a policy for :ref:`reporting-security-issues` designed to minimize
 Can I use OpenSSL certificates instead of the ``flocker-ca`` tool?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We don't currently support it, but we are looking into this, and should be able to provide some experimental instructions soon.
+It’s not officially supported yet, but you can use the `OpenSSL with Flocker <https://github.com/ClusterHQ/flocker-openssl>`_ repository for experimental support for OpenSSL.
+
+.. note:: OpenSSL with Flocker is one of our experimental projects, developed to less rigorous quality and testing standards than the mainline Flocker distribution. It is not built with production-readiness in mind.
 
 About ClusterHQ
 ---------------
