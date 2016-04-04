@@ -47,7 +47,7 @@ from ...control import (
     NodeState, NonManifestDatasets, Dataset as ModelDataset, ChangeSource,
     DockerImage, UpdateNodeStateEra,
 )
-from ...restapi._logging import JSON_REQUEST
+from ...restapi._logging import REQUEST
 from ...restapi import _infrastructure as rest_api
 from ... import __version__
 
@@ -809,7 +809,7 @@ class FlockerClientTests(make_clientv1_tests()):
 
         def got_response(_):
             parent = LoggedAction.ofType(logger.messages, my_action)[0]
-            child = LoggedAction.ofType(logger.messages, JSON_REQUEST)[0]
+            child = LoggedAction.ofType(logger.messages, REQUEST)[0]
             self.assertIn(child, list(parent.descendants()))
         d.addCallback(got_response)
         return d
