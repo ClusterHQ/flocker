@@ -41,8 +41,8 @@ If you think the Flocker services are running correctly, you can check the servi
 
 For more information, see :ref:`flocker-logging`.
 
-My volume says it’s in a different state than I expected, why is this?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In Volume Hub, my volume says it’s in a different state than I expected, why is this?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are a number of reasons this could happen.
 Your volume could be in detached, pending, attached, or deleted state.
