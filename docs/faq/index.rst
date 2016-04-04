@@ -132,6 +132,12 @@ Nodes on different hosts cannot access the same volume, because it can only be a
 
 If multiple containers on the same host want to use the same volume, they can, but be careful because multiple containers accessing the same storage volume can cause corruption.
 
+Can I attach a single volume to multiple hosts?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Not currently, support from multi-attach backends like `GCE in Read Only mode`, or NFS-like backends like storage, or distributed filesystems like GlusterFS would need to be integrated.
+Flocker focuses mainly on block-storage uses cases that attach a volume to a single node at a time.
+
 Can Flocker work across availability zones in AWS or regions in Cinder?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -154,12 +160,6 @@ Is there performance benchmarks vs NFS?
 
 No, we are attacking mainly block storage use cases where volumes are attached via iSCSI or Fiber Channel.
 You can use NFS and block storage side by side, they are not exclusive.
-
-Can I attach a single volume to multiple hosts?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Not currently, support from multi-attach backends like `GCE in Read Only mode`, or NFS-like backends like storage, or distributed filesystems like GlusterFS would need to be integrated.
-Flocker focuses mainly on block-storage uses cases that attach a volume to a single node at a time.
 
 What happens when the node where my container is running dies, crashes or restarts?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
