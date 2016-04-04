@@ -180,8 +180,8 @@ In case of failure you can easily restore the control service, as long as you re
 
 Backing up your control and cluster certificates along with the :file:`.json` file is a good idea.
 
-Are AWS IAM roles supports with AWS?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Are AWS IAM roles supported?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Not currently, our AWS backend just uses ``ACCESS KEY/ ACCESS TOKEN``
 
