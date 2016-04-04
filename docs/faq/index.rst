@@ -252,8 +252,7 @@ ClusterHQ has a policy for :ref:`reporting-security-issues` designed to minimize
 Can I use OpenSSL certificates instead of the ``flocker-ca`` tool?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It’s not officially supported yet, but there is a repository that you can use for experimental support for OpenSSL. OpenSSL with Flocker
-
+We don't currently support it, but we are looking into this, and should be able to provide some experimental instructions soon.
 
 About ClusterHQ
 ---------------
@@ -263,10 +262,17 @@ What is the working relationship with the Docker team?
 
 We communicate often, such as drivers for the development of the docker plugins was a large collaboration driven by ClusterHQ and other early pioneers in the industry.
 
+What is the working relationship with the Kubernetes team?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We have worked closely with the Kubernetes community to develop and deliver a plugin that allows all flocker backends to be compatible with Kubernetes.
+
+We also continue to work with the community on improving related capabilities for Kubernetes users.
+
 What is the working relationship with the Mesos team?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We have active members in the community that enable Flocker integrations with Mesos
+We have active members in the community that enable Flocker integrations with Mesos.
 
 What is the working relationship with Storage Vendors?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
