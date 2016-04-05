@@ -536,8 +536,7 @@ class AgentService(PClass):
 
         :return: The ``IDeployer`` provider.
         """
-        backend = self.get_backend()
-        deployer_factory = self.deployers[backend.deployer_type]
+        deployer_factory = self.deployers[self.backend_description.deployer_type]
 
         address = self.get_external_ip(
             self.control_service_host, self.control_service_port,

@@ -39,7 +39,7 @@ from ..script import (
     AgentService, get_configuration,
     DeployerType, _get_external_ip, LOG_GET_EXTERNAL_IP
 )
-from ..backends import BackendDescription, LOOPBACK
+from ..backends import BackendDescription, LOOPBACK, ZFS
 from ..agents.cinder import CinderBlockDeviceAPI
 from ..agents.ebs import EBSBlockDeviceAPI
 
@@ -241,8 +241,7 @@ class AgentServiceFromConfigurationTests(TestCase):
                 # Compare this separately :/
                 node_credential=None,
                 ca_certificate=self.ca_set.root.credential.certificate,
-
-                backend_name=u"zfs",
+                backend_description=ZFS,
                 api_args={
                     "name": name,
                     "mount_root": self.config.sibling(b"mount_root").path,
@@ -529,14 +528,13 @@ class AgentServiceDeployerTests(TestCase):
 
         agent_service = self.agent_service.set(
             "get_external_ip", get_external_ip,
-        ).transform(
-            ["backends", "builtin_plugins"], [
-                BackendDescription(
-                    name=self.agent_service.backend_name,
-                    needs_reactor=False, needs_cluster_id=False,
-                    api_factory=None, deployer_type=DeployerType.p2p,
-                ),
-            ],
+        ).set(
+            "backend_description",
+            BackendDescription(
+                name=u"foo",
+                needs_reactor=False, needs_cluster_id=False,
+                api_factory=None, deployer_type=DeployerType.p2p,
+            ),
         ).set(
             "deployers", {
                 DeployerType.p2p: Deployer,
