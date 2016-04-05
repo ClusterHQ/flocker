@@ -27,7 +27,7 @@ v1.11.0
   This could lead to the appearance of data loss, as different volumes get used.
   Now, even if multiple volumes are created, only a single volume will be used.
   This was particularly likely to occur on AWS.
-* The Flocker client tools can once again be installed on OSX Yosemite.
+* The Flocker client tools can once again be installed on OS X 10.10.
   A regression in the Flocker Homebrew tap file has been fixed.
 
 Previous Releases
