@@ -1197,6 +1197,15 @@ def set_container_agent_enabled_on_node(node, enabled):
         d.addCallback(lambda _: loop_until(
             reactor, lambda: is_process_running(
                 node, b'flocker-dataset-agent')))
+        d.addCallback(
+            lambda _:
+            node.run_script("disable_service", "flocker-dataset-agent"))
+        d.addCallback(
+            lambda _:
+            node.run_script("enable_service", "flocker-dataset-agent"))
+        d.addCallback(lambda _: loop_until(
+            reactor, lambda: is_process_running(
+                node, b'flocker-dataset-agent')))
     # Hide the value in the callback as it could come from
     # different places and shouldn't be used.
     d.addCallback(lambda _: None)
