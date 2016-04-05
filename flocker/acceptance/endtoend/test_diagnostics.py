@@ -11,8 +11,8 @@ from twisted.internet import reactor
 from twisted.python.filepath import FilePath
 
 from ...common.runner import run_ssh, download
-from ...testtools import AsyncTestCase
-from ..testtools import require_cluster
+from ...testtools import AsyncTestCase, async_runner
+from ..testtools import require_cluster, ACCEPTANCE_TEST_TIMEOUT
 from testtools.matchers import MatchesAny, Equals
 
 
@@ -20,6 +20,9 @@ class DiagnosticsTests(AsyncTestCase):
     """
     Tests for ``flocker-diagnostics``.
     """
+
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+
     # This only requires the container agent to check
     # that its log is collected. We still care about
     # that working, so we run it. We should stop

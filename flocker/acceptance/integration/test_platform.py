@@ -4,8 +4,8 @@
 Tests for integration with the host operating system which runs Flocker.
 """
 
-from ..testtools import require_cluster
-from ...testtools import AsyncTestCase
+from ..testtools import require_cluster, ACCEPTANCE_TEST_TIMEOUT
+from ...testtools import AsyncTestCase, async_runner
 from ...common.runner import RemoteFileNotFound
 
 from twisted.python.filepath import FilePath
@@ -15,6 +15,9 @@ class SyslogTests(AsyncTestCase):
     """
     Tests for Flocker's integration with syslog.
     """
+
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+
     def _assert_not_logged(self, cluster, fragment):
         """
         Assert that the given fragment of a log line does not appear in the
