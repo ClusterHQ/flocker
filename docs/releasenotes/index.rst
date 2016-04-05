@@ -28,7 +28,7 @@ v1.11.0
   Now, even if multiple volumes are created, only a single volume will be used.
   This was particularly likely to occur on AWS.
 * The Flocker client tools can once again be installed on OSX Yosemite.
-  A regression in the Flocker homebrew tap file has been fixed.
+  A regression in the Flocker Homebrew tap file has been fixed.
 
 Previous Releases
 =================
