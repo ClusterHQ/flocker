@@ -326,6 +326,8 @@ linkcheck_ignore = [
     r'https://feedback.clusterhq.com/',
     # Jenkins is not currently public and results in a 403
     r'http://ci-live.clusterhq.com:8080/',
+    # Google cloud console returns a 404 if you are not logged in
+    r'https://console.cloud.google.com/',
 
 
     # The following link checks fail because of a TLS handshake error.
