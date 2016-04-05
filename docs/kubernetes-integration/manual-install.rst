@@ -51,7 +51,7 @@ Manually Installing Flocker with Kubernetes
 3. Installing Kubernetes
 ========================
 
-Follow the `Kubernetes installation <http://kubernetes.io/gettingstarted/>`_ guide on each of your nodes.
+Follow the `Kubernetes installation <http://kubernetes.io/docs/getting-started-guides/>`_ guide on each of your nodes.
 
 .. _link-to-kubernetes-tutorials:
 
