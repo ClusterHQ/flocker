@@ -11,7 +11,7 @@ You'll need to setup at least two nodes.
 
 #. Create a new cloud server:
 
-   * Visit the `Google Cloud Console <https://console.cloud.google.com/>`_.
+   * Visit the `Google Cloud Console <https://console.cloud.google.com/start>`_.
    * Navigate to the project you want to use.
    * Use the menu in the upper left to navigate to ``Compute Engine``.
    * Click ``Create Instance``.
