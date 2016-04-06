@@ -63,12 +63,9 @@ Use the following steps to install Flocker using Docker containers:
 
 #. Run the following command where you want to be able to run the Docker ``--volume-driver=flocker`` command, this will start Flocker's Docker plugin:
 
-   * ``Control-Service-Host-DNS-or-IP`` is your control service host.
-   * ``Host-IP-Address`` is the current hosts local IP address.
-
    .. prompt:: bash $
 
-      docker run --restart=always -d --net=host -e FLOCKER_CONTROL_SERVICE_BASE_URL=<Control-Service-Host-DNS-or-IP>:4523/v1 -e MY_NETWORK_IDENTITY=<Host-IP-Address> -v /etc/flocker:/etc/flocker -v /run/docker:/run/docker --name=flocker-docker-plugin clusterhq/flocker-docker-plugin
+      docker run --restart=always -d --net=host -v /etc/flocker:/etc/flocker -v /run/docker:/run/docker --name=flocker-docker-plugin clusterhq/flocker-dockerplugin:<version>
 
 Example
 =======
