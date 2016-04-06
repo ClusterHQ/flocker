@@ -15,9 +15,12 @@ For some environments, such as CoreOS, and ECS you must install Flocker inside a
 You can find the relevant Docker Hub images here:
 
 * `Dataset Agent <https://hub.docker.com/r/clusterhq/flocker-dataset-agent/>`_
-* `Container Agent <https://hub.docker.com/r/clusterhq/flocker-container-agent/>`_
+* `Container Agent <https://hub.docker.com/r/clusterhq/flocker-container-agent/>`_ (deprecated - see note below)
 * `Control Service <https://hub.docker.com/r/clusterhq/flocker-control-service/>`_
-* `Docker Plugin <https://hub.docker.com/r/clusterhq/flocker-docker-plugin/>`_
+* `Docker Plugin <https://hub.docker.com/r/clusterhq/flocker-dockerplugin/builds/>`_
+
+.. note:: The Container Agent should only be used if you intend on using the :ref:`deprecated container API <deprecated-endpoints>`.
+   If you are using the Docker CLI, or any other cluster manager, it is not required.
 
 Before you install Flocker in containers, you must have generated the cluster certificate and key, any node certificates and keys, and API certificates and keys for the Docker plugin.
 
