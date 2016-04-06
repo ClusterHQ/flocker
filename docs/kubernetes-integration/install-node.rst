@@ -22,6 +22,12 @@ Installing the Flocker Node Services
 * :ref:`gce-install-kubernetes`
 * :ref:`rackspace-install-kubernetes`
 
+.. _rhel-7-install-kubernetes:
+
+.. include:: ../installation/install-node.rst
+   :start-after: .. begin-body-installing-node-rhel
+   :end-before: .. end-body-installing-node-rhel
+
 .. _centos-7-install-kubernetes:
 
 .. include:: ../installation/install-node.rst
