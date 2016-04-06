@@ -8,7 +8,7 @@ from klein import Klein
 
 from eliot import ActionType
 from eliot.testing import (
-    assertHasAction, capture_logging, LoggedAction, validateLogging,
+    capture_logging, LoggedAction, validateLogging,
 )
 
 from pyrsistent import pvector
@@ -24,7 +24,7 @@ from twisted.web.http import (
 from .. import _infrastructure
 from .._infrastructure import (
     EndpointResponse, user_documentation, structured, UserDocumentation)
-from .._logging import REQUEST, JSON_REQUEST
+from .._logging import REQUEST
 from .._error import DECODING_ERROR_DESCRIPTION, BadRequest
 
 from ..testtools import (EventChannel, dumps, loads,
@@ -151,25 +151,6 @@ class ResultHandlingApplication(object):
         return self._constructSuccess({})
 
 
-def assertJSONLogged(test, logger, method, path, request, code):
-    """
-    Assert that the a request with given method and path logged a JSON
-    request and JSON response.
-
-    :param TestCase test: The current test.
-    :param MemoryLogger logger: The logger being used in the test.
-    :param method: Expected logged HTTP method.
-    :param path: Expected logged HTTP request path.
-    :param request: Expected logged JSON request.
-    :param code: Expected HTTP response code.
-    """
-    parent = _assertRequestLogged(path, method)(test, logger)
-    child = assertHasAction(
-        test, logger, JSON_REQUEST, True, {u"json": request},
-        {u"code": code})
-    test.assertIn(child, parent.children)
-
-
 class StructuredResultHandlingMixin(object):
     """
     A mixin defining tests for the L{structured} decorator's behavior with
@@ -198,8 +179,7 @@ class StructuredResultHandlingMixin(object):
         @return: C{None}
         """
 
-    @validateLogging(
-        assertJSONLogged, b"GET", b"/foo/bar", {}, OK)
+    @validateLogging(_assertRequestLogged(b"/foo/bar"))
     def test_encode(self, logger):
         """
         The return value of the decorated function is I{JSON} encoded and the
@@ -228,9 +208,7 @@ class StructuredResultHandlingMixin(object):
 
         self.assertEqual(INTERNAL_SERVER_ERROR, request._code)
 
-    @validateLogging(
-        assertJSONLogged, b"GET", b"/foo/explicitresponse", {},
-        ResultHandlingApplication.EXPLICIT_RESPONSE_CODE)
+    @validateLogging(_assertRequestLogged(b"/foo/explicitresponse"))
     def test_explicitResponseObject(self, logger):
         """
         If the return value of the decorated function is an instance of
@@ -253,8 +231,7 @@ class StructuredResultHandlingMixin(object):
         return expected.verify(asResponse(request))
 
     @validateLogging(
-        assertJSONLogged, b"GET", b"/foo/explicitresponseheaders", {},
-        ResultHandlingApplication.EXPLICIT_RESPONSE_CODE)
+        _assertRequestLogged(b"/foo/explicitresponseheaders"))
     def test_explicitResponseObjectWithHeaders(self, logger):
         """
         If the return value of the decorated function is an instance of
@@ -269,10 +246,7 @@ class StructuredResultHandlingMixin(object):
         response = asResponse(request)
         self.assertEqual(response.headers.getRawHeaders("x-key"), ["value"])
 
-    @validateLogging(assertHasAction, JSON_REQUEST, False,
-                     {},
-                     {"code":
-                      ResultHandlingApplication.BAD_REQUEST_CODE})
+    @validateLogging(_assertRequestLogged(b"/foo/badrequest"))
     def test_badRequestRaised(self, logger):
         """
         If the decorated function raises L{BadRequest} then the generated
@@ -411,10 +385,7 @@ class StructuredJSONTests(TestCase):
         application = self.Application(None, None)
         self.assertEqual("foo", application.foo.__name__)
 
-    @validateLogging(
-        assertJSONLogged, b"PUT", b"/foo/bar",
-        {"foo": "bar", "baz": ["quux"]}, OK
-    )
+    @validateLogging(_assertRequestLogged(b"/foo/bar", b"PUT"))
     def test_decode(self, logger):
         """
         The I{JSON}-encoded request body is decoded into Python objects and
@@ -429,10 +400,7 @@ class StructuredJSONTests(TestCase):
         render(app.app.resource(), request)
         self.assertEqual(objects, app.kwargs)
 
-    @validateLogging(
-        assertJSONLogged, b"POST", b"/foo/bar",
-        {"foo": "bar", "baz": ["quux"]}, OK
-    )
+    @validateLogging(_assertRequestLogged(b"/foo/bar", b"POST"))
     def test_decodeNoContentType(self, logger):
         """
         The I{JSON}-encoded request body is decoded into Python objects and
