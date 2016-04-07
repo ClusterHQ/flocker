@@ -63,7 +63,7 @@ Use the following steps to install Flocker using Docker containers:
 
 #. Run the following command where you want to be able to run the Docker ``--volume-driver=flocker`` command, this will start Flocker's Docker plugin:
 
-   .. prompt:: bash $
+   .. version-prompt:: bash $
 
       docker run --restart=always -d --net=host -v /etc/flocker:/etc/flocker -v /run/docker:/run/docker --name=flocker-docker-plugin clusterhq/flocker-dockerplugin:|latest-installable|
 
