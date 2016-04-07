@@ -360,7 +360,7 @@ class OpenStackFixture(object):
     def _detach(self, instance_id, volume):
         self.nova.volumes.delete_server_volume(instance_id, volume.id)
         return wait_for_volume_state(
-            volume_manager=self.nova.volumes,
+            volume_manager=self.cinder.volumes,
             expected_volume=volume,
             desired_state=u'available',
             transient_states=(u'in-use', u'detaching'),
