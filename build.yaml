@@ -533,22 +533,6 @@ common_cli:
     --distribution ${DISTRIBUTION_NAME} \
     /flocker/dist/Flocker-${FLOCKER_VERSION}.tar.gz
 
-  build_homebrew_package: &build_homebrew_package  |
-    # and build a homebrew recipe and a package
-    SDIST_URL=file://${PWD}/dist/Flocker-${FLOCKER_VERSION}.tar.gz
-    RECIPE_FILE=${PWD}/Flocker${GIT_COMMIT}.rb
-    ${venv}/bin/python -m admin.homebrew --flocker-version ${GIT_COMMIT} \
-      --sdist ${SDIST_URL} --output-file ${RECIPE_FILE}
-
-  install_homebrew_package: &install_homebrew_package |
-    # make sure we're no longer in our virtualenv
-    deactivate
-    # install the new freshly baked package
-    brew update
-    brew tap ClusterHQ/tap
-    brew install ${RECIPE_FILE}
-    brew test ${RECIPE_FILE}
-
   build_repo_metadata: &build_repo_metadata |
     # the acceptance tests look for a package in a yum repository,
     # we provide one by starting a webserver and pointing the tests
@@ -672,33 +656,12 @@ common_cli:
     # To avoid it, we set '+e' on this shell.
     set +e
 
-  cleanup_old_jenkins_osx_yosemite_boxes: &cleanup_old_jenkins_osx_yosemite_boxes |
-    admin/ci-tools/cleanup-vagrant-boxes clusterhq/jenkins-osx-yosemite
-
   cleanup_cloud_resources: &cleanup_cloud_resources |
     # Cleanup leaked or stale cloud instances and volumes.
     ${venv}/bin/python setup.py --version
     ${venv}/bin/python admin/cleanup_cloud_resources \
     --config-file /tmp/acceptance.yaml \
     -- 1>cleanup_cloud_resources.stdout 2>cleanup_cloud_resources.stderr
-
-  new_vagrantfile_for_osx_yosemite: &new_vagrantfile_for_osx_yosemite |
-    # this builds a Vagrantfile which will use the latest jenkins-osx-yosemite
-    # vagrant box built overnight.
-    cat <<EOF_VAGRANTFILE >Vagrantfile
-    Vagrant.configure(2) do |config|
-       config.vm.box = 'clusterhq/jenkins-osx-yosemite'
-       # "vagrant plugin install vagrant-s3auth" to enable support for s3 box URLs
-       config.vm.box_url = "s3://${S3_BUCKET}/metadata.json"
-       config.vm.synced_folder '.', '/vagrant', disabled: true
-       config.vm.provider 'virtualbox' do |vb|
-          vb.memory = '1024'
-          # VirtualBox 5 now supports para-virtualization, let's use it.
-          vb.customize("pre-boot", ["modifyvm", :id, "--paravirtprovider", "KVM"])
-       end
-    end
-    EOF_VAGRANTFILE
-
 
   source_git_commit: &source_git_commit |
     # we use a script 'git-commit.sh' to pass any the git commit sha1
@@ -747,71 +710,6 @@ common_cli:
       vagrant ssh -c "rm -f ${item}"
     done
 
-
-  install_pkgs_on_vanilla_osx_yosemite_box: &install_pkgs_on_vanilla_osx_yosemite_box |
-    # permissions are not right, lets fix them here
-    sudo chown -R vagrant /users/vagrant
-    # do a bunch of steps before attempting to install Xcode command line tools
-    xcode-select --install
-    sudo xcodebuild -license accept
-    sudo /usr/sbin/DevToolsSecurity --enable
-    # installs XCode CommandLineTools from the CLI
-    # https://github.com/chcokr/osx-init/blob/master/install.sh#L25
-    touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    PROD=$(softwareupdate -l |grep '\\*.*Command Line' |head -n 1 \
-     | awk -F"*" '{print $2}' |sed -e 's/^ *//' |tr -d "\n")
-    softwareupdate -i "${PROD}" -v
-
-    # the basebox we use for OSX is missing quite a number of software pieces.
-    brew update
-    brew install rsync
-    brew install python
-    pip install virtualenv
-    brew install libffi
-    export PKG_CONFIG_PATH=/usr/local/Cellar/libffi/3.0.13/lib/pkgconfig/; pip install bcrypt
-    # brew test is failling unless we install these packages
-    pip install docutils
-    pip install botocore
-    pip install boto
-
-  package_jenkins_osx_yosemite_box: &package_jenkins_osx_yosemite_box |
-    # we now proceed to package our vagrant box
-    # let's stop it and wait a bit, as sometimes the box is not fully down
-    # when the vagrant halt command finishes.
-    vagrant halt ; sleep 60
-
-    # Write the status of the VM into the console output.  It's not clear
-    # whether it makes a difference or not what the status is at this point --
-    # ``vagrant package`` supposedly shuts down the VM automatically if
-    # necessary -- but some packaging problems suggest this might not be
-    # happening.  Having the extra information may be handy for debugging.
-    vagrant status
-
-    BOX_NAME="jenkins-osx-yosemite-${FLOCKER_VERSION}.box"
-    (
-      retry_n_times_with_timeout 2 1800 \
-        vagrant package --output "${BOX_NAME}"
-    ) || abort_build
-
-  start_vanilla_osx_yosemite_vagrant_box: &start_vanilla_osx_yosemite_vagrant_box |
-    cat <<EOF_VAGRANTFILE >Vagrantfile
-    Vagrant.configure(2) do |config|
-      config.vm.box = "AndrewDryga/vagrant-box-osx"
-      config.vm.provider "virtualbox" do |vb|
-        # increase the virtualbox instance RAM size
-        # our mesos executor will have 2GB, we'll stick to 1GB for the vagrant instance
-        vb.memory = "1024"
-        # VirtualBox 5 now supports para-virtualization.
-        vb.customize("pre-boot", ["modifyvm", :id, "--paravirtprovider", "KVM"])
-      end
-    end
-    EOF_VAGRANTFILE
-
-    (
-      retry_n_times_with_timeout 3 1200 \
-        VAGRANT_LOG=info vagrant up
-    ) || abort_build
-
   install_aws_cli: &install_aws_cli |
     # installs the AWS python based cli
     # we use the aws cli to upload the docs files to S3
@@ -842,52 +740,6 @@ common_cli:
     # ensure master docs at doc-dev are up-to-date
     [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --delete --acl public-read \
       s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
-
-  upload_vagrant_basebox_osx_yosemite_to_s3: &upload_vagrant_basebox_osx_yosemite_to_s3 |
-    # uploads the generated vagrant box to a folder on the S3
-    # clusterhq-vagrant-jenkins-boxes bucket.
-    BOX_NAME="jenkins-osx-yosemite-${FLOCKER_VERSION}.box"
-    SHA1=$( sha1sum ${BOX_NAME} | cut -f 1 -d " " )
-
-    S3_BOX_URL=s3://${S3_BUCKET}/${BOX_NAME}
-
-    # the JSON metadata for our box is jenkins-osx-yosemite-version.box.json
-    S3_BOX_JSON=s3://${S3_BUCKET}/${BOX_PATH}/${BOX_NAME}.json
-
-    # the JSON url below is what the vagrant file will consume
-    S3_BOX_JSON_LATEST=s3://${S3_BUCKET}/${BOX_PATH}/metadata.json
-
-    # vagrant doesn't support fully semantic versioning, numbering must be x.y.z
-    # https://github.com/mitchellh/vagrant/issues/6052
-    VAGRANT_BOX_VERSION="$( date +%s).0.0"
-
-    # generates the metadata.json, it used by vagrant box update operations.
-    create_vagrant_metadata_file \
-      metadata.json \
-      clusterhq/jenkins-osx-yosemite \
-      'This box contains the OSX box used for the client tests.' \
-      ${VAGRANT_BOX_VERSION} \
-      ${S3_BOX_URL} \
-      ${SHA1}
-
-    cp metadata.json ${BOX_NAME}.json
-
-    # uploads the vagrant box and metadata.json files
-    # We won't overwrite the json metadata files if the upload of the box
-    # failed
-    (
-      s3_upload ${S3_BUCKET} "${BOX_NAME}" &&  \
-      s3_upload ${S3_BUCKET} "${BOX_NAME}.json" &&  \
-      s3_upload ${S3_BUCKET} "metadata.json"
-    ) || abort_build
-
-    echo "This vagrant box is available at : ${S3_BOX_JSON_LATEST}"
-
-    # The box is supposed to be a gzipped tar file.  Validate that here.  Only
-    # do this *after* the upload so that the corrupt box is available online
-    # for inspection to debug the build failure.
-    gzip --verbose --test "${BOX_NAME}" || abort_build
-    tar --verbose --list --file "${BOX_NAME}" || abort_build
 
   run_lint: &run_lint |
     # Disable exiting on error, so we can run multiple lints
@@ -1316,96 +1168,6 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
-      notify_slack: '#nightly-builds'
-
-    build_vagrant_basebox_for_osx_yosemite:
-      at: '0 5 * * *'
-      on_nodes_with_labels: 'mesos-2GB'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang,
-                   *add_shell_functions,
-                   *set_home_variable_on_mesos,
-                   *do_not_abort_on_errors,
-
-                   # we create a build.sh script which will be used to
-                   # provision the OSX machine.
-                   # it installs XCode command line tools and other required
-                   # packages.
-                   *begin_build_sh_EOF,
-                   *add_shell_functions,
-                   *install_pkgs_on_vanilla_osx_yosemite_box,
-                   *end_build_sh_EOF,
-
-                   # starts and provisions an OSX vagrant machine
-                   # using the build.sh script created above
-                   *start_vanilla_osx_yosemite_vagrant_box,
-                   *run_build_sh_script_on_vagrant_box,
-
-                   # packages the vagrant box so that we can upload it to S3
-                   # we need to install pip and flocker deps, as we need
-                   # to find out the Flocker version
-                   *setup_pip_cache,
-                   *cleanup,
-                   *setup_venv,
-                   *setup_flocker_modules,
-                   *check_version,
-                   *package_jenkins_osx_yosemite_box,
-
-                   # upload this new vagrant box to S3
-                   *install_aws_cli,
-                   *get_s3_creds_for_bucket_vagrant_jenkins_boxes,
-                   *upload_vagrant_basebox_osx_yosemite_to_s3,
-
-                   # cleanup
-                   *clean_packages,
-                   'vagrant_destroy'
-            ]
-          }
-      timeout: 120
-      directories_to_delete: []
-      notify_slack: '#nightly-builds'
-
-    run_client_installation_on_OSX:
-      at: '30 7 * * *'
-      on_nodes_with_labels: 'mesos-4GB'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang,
-                   *add_shell_functions,
-
-                   *begin_build_sh_EOF,
-                   *hashbang,
-                   *add_shell_functions,
-                   *setup_pip_cache,
-                   *cleanup,
-                   *setup_venv,
-                   *setup_flocker_modules,
-                   'export DISTRIBUTION_NAME=OSX',
-                   *source_git_commit,
-                   *check_version,
-                   *build_sdist,
-                   *build_homebrew_package,
-                   *install_homebrew_package,
-                   *end_build_sh_EOF,
-
-                   '# Execution starts here:',
-                   *set_home_variable_on_mesos,
-                   *do_not_abort_on_errors,
-                   *get_s3_creds_for_bucket_vagrant_jenkins_boxes,
-                   *cleanup_old_jenkins_osx_yosemite_boxes,
-                   *new_vagrantfile_for_osx_yosemite,
-                   'vagrant_box_update',
-                   'vagrant_up',
-                   *run_build_sh_script_on_vagrant_box,
-                   'vagrant_destroy']
-          }
-      clean_repo: false
-      # FLOC-3597: Importing base box 'jenkins-osx-yosemite' step can
-      # sometimes take ~20 minutes, leaving us not quite enough time to
-      # actually run the tests. Also has to be less than the timeout for the
-      # main multijob, see jobs.groovy.j2:545.
-      timeout: 50
       notify_slack: '#nightly-builds'
 
     run_trial_for_gce_storage_driver_on_Ubuntu_trusty:
