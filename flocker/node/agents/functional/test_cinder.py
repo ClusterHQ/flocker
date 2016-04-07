@@ -14,6 +14,7 @@ See https://github.com/rackerlabs/mimic/issues/218
 """
 
 from unittest import skipIf
+from urlparse import urlsplit
 from uuid import uuid4
 
 from bitmath import Byte
@@ -202,6 +203,13 @@ class CinderHttpsTests(TestCase):
             self.config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
             self.skipTest(str(e))
+        auth_url = self.config['auth_url']
+        if not urlsplit(auth_url).scheme == u"https":
+            self.skipTest(
+                "Tests require a TLS auth_url endpoint "
+                "beginning with https://. "
+                "Found auth_url: {}".format(auth_url)
+            )
 
     def test_verify_false(self):
         """
