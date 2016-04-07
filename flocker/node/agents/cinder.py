@@ -15,7 +15,6 @@ from eliot import Message
 from pyrsistent import PClass, field
 
 from keystoneclient.openstack.common.apiclient.exceptions import (
-    NotFound as CinderNotFound,
     HttpError as KeystoneHttpError,
 )
 from keystoneclient.auth import get_plugin_class
@@ -541,7 +540,7 @@ class CinderBlockDeviceAPI(object):
     def detach_volume(self, blockdevice_id):
         try:
             cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
-        except CinderNotFound:
+        except CinderClientNotFound:
             raise UnknownVolume(blockdevice_id)
         server_id = _blockdevicevolume_from_cinder_volume(
             cinder_volume).attached_to
@@ -576,7 +575,7 @@ class CinderBlockDeviceAPI(object):
         """
         try:
             self.cinder_volume_manager.delete(blockdevice_id)
-        except CinderNotFound:
+        except CinderClientNotFound:
             raise UnknownVolume(blockdevice_id)
         start_time = self._time.time()
         # Wait until the volume is not there or until the operation
@@ -584,7 +583,7 @@ class CinderBlockDeviceAPI(object):
         while(self._time.time() - start_time < self._timeout):
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
-            except CinderNotFound:
+            except CinderClientNotFound:
                 return
             self._time.sleep(1.0)
         # If the volume is not deleted, raise an exception
@@ -678,7 +677,7 @@ class CinderBlockDeviceAPI(object):
         """
         try:
             cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
-        except CinderNotFound:
+        except CinderClientNotFound:
             raise UnknownVolume(blockdevice_id)
 
         device_path = self._get_device_path_api(cinder_volume)
