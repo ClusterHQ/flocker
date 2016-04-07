@@ -196,17 +196,20 @@ class CinderHttpsTests(TestCase):
     """
     Test connections to HTTPS-enabled OpenStack.
     """
+    def setUp(self):
+        super(CinderHttpsTests, self).setUp()
+        try:
+            self.config = get_blockdevice_config(ProviderType.openstack)
+        except InvalidConfig as e:
+            self.skipTest(str(e))
+
     def test_verify_false(self):
         """
         With the peer_verify field set to False, connection to the
         OpenStack servers always succeeds.
         """
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-        config['peer_verify'] = False
-        session = get_keystone_session(**config)
+        self.config['peer_verify'] = False
+        session = get_keystone_session(**self.config)
         session.invalidate()
         # This will fail if authentication fails.
         session.get_token()
@@ -218,14 +221,11 @@ class CinderHttpsTests(TestCase):
         """
         path = self.make_temporary_directory()
         RootCredential.initialize(path, b"mycluster")
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-        config['peer_verify'] = True
-        config['peer_ca_path'] = path.child(
-            AUTHORITY_CERTIFICATE_FILENAME).path
-        session = get_keystone_session(**config)
+        self.config['peer_verify'] = True
+        self.config['peer_ca_path'] = path.child(
+            AUTHORITY_CERTIFICATE_FILENAME
+        ).path
+        session = get_keystone_session(**self.config)
         session.invalidate()
         self.assertRaises(Unauthorized, session.get_token)
 
