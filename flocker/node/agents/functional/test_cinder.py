@@ -197,28 +197,58 @@ class CinderHttpsTests(TestCase):
     """
     Test connections to HTTPS-enabled OpenStack.
     """
-    def setUp(self):
-        super(CinderHttpsTests, self).setUp()
+    def session_for_test(self, config_override):
+        """
+        Creates a new Keystone session and invalidates it.
+
+        :param dict config_override: Override certain configuration values
+            before creating the test session.
+        :returns: A Keystone Session instance.
+        """
         try:
-            self.config = get_blockdevice_config(ProviderType.openstack)
+            config = get_blockdevice_config(ProviderType.openstack)
         except InvalidConfig as e:
             self.skipTest(str(e))
-        auth_url = self.config['auth_url']
+
+        config.update(config_override)
+
+        auth_url = config['auth_url']
         if not urlsplit(auth_url).scheme == u"https":
             self.skipTest(
                 "Tests require a TLS auth_url endpoint "
                 "beginning with https://. "
                 "Found auth_url: {}".format(auth_url)
             )
+        session = get_keystone_session(**config)
+        expected_options = set(config_override)
+        supported_options = set(
+            option.dest for option in session.auth.get_options()
+        )
+        unsupported_options = expected_options.difference(supported_options)
+
+        if unsupported_options:
+            self.skipTest(
+                "Test requires a keystone authentication driver "
+                "with support for options {!r}. "
+                "These options were missing {!r}.".format(
+                    ', '.join(expected_options),
+                    ', '.join(unsupported_options),
+                )
+            )
+
+        session.invalidate()
+        return session
 
     def test_verify_false(self):
         """
         With the peer_verify field set to False, connection to the
         OpenStack servers always succeeds.
         """
-        self.config['peer_verify'] = False
-        session = get_keystone_session(**self.config)
-        session.invalidate()
+        session = self.session_for_test(
+            config_override={
+                'peer_verify': False,
+            }
+        )
         # This will fail if authentication fails.
         session.get_token()
 
@@ -229,12 +259,14 @@ class CinderHttpsTests(TestCase):
         """
         path = self.make_temporary_directory()
         RootCredential.initialize(path, b"mycluster")
-        self.config['peer_verify'] = True
-        self.config['peer_ca_path'] = path.child(
-            AUTHORITY_CERTIFICATE_FILENAME
-        ).path
-        session = get_keystone_session(**self.config)
-        session.invalidate()
+        session = self.session_for_test(
+            config_override={
+                'peer_verify': True,
+                'peer_ca_path': path.child(
+                    AUTHORITY_CERTIFICATE_FILENAME
+                ).path
+            }
+        )
         self.assertRaises(Unauthorized, session.get_token)
 
 
