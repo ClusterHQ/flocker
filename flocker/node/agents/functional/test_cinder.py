@@ -196,6 +196,10 @@ class CinderCloudAPIInterfaceTests(
 class CinderHttpsTests(TestCase):
     """
     Test connections to HTTPS-enabled OpenStack.
+
+    XXX: These tests can only be run against a keystone server endpoint that
+    has SSL and that supports the "password" auth_plugin.
+    Which means that these tests are not run on any of our build servers.
     """
     def session_for_test(self, config_override):
         """
