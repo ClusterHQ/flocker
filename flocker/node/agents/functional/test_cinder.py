@@ -14,6 +14,7 @@ See https://github.com/rackerlabs/mimic/issues/218
 """
 
 from unittest import skipIf
+from urlparse import urlsplit
 from uuid import uuid4
 
 from bitmath import Byte
@@ -195,58 +196,82 @@ class CinderCloudAPIInterfaceTests(
 class CinderHttpsTests(TestCase):
     """
     Test connections to HTTPS-enabled OpenStack.
+
+    XXX: These tests can only be run against a keystone server endpoint that
+    has SSL and that supports the "password" auth_plugin.
+    Which means that these tests are not run on any of our build servers.
     """
-
-    @staticmethod
-    def _authenticates_ok(cinder_client):
+    def session_for_test(self, config_override):
         """
-        Check connection is authorized.
+        Creates a new Keystone session and invalidates it.
 
-        :return: True if client connected OK, False otherwise.
+        :param dict config_override: Override certain configuration values
+            before creating the test session.
+        :returns: A Keystone Session instance.
         """
         try:
-            cinder_client.authenticate()
-            return True
-        except Unauthorized:
-            return False
+            config = get_blockdevice_config(ProviderType.openstack)
+        except InvalidConfig as e:
+            self.skipTest(str(e))
+
+        config.update(config_override)
+
+        auth_url = config['auth_url']
+        if not urlsplit(auth_url).scheme == u"https":
+            self.skipTest(
+                "Tests require a TLS auth_url endpoint "
+                "beginning with https://. "
+                "Found auth_url: {}".format(auth_url)
+            )
+        session = get_keystone_session(**config)
+        expected_options = set(config_override)
+        supported_options = set(
+            option.dest for option in session.auth.get_options()
+        )
+        unsupported_options = expected_options.difference(supported_options)
+
+        if unsupported_options:
+            self.skipTest(
+                "Test requires a keystone authentication driver "
+                "with support for options {!r}. "
+                "These options were missing {!r}.".format(
+                    ', '.join(expected_options),
+                    ', '.join(unsupported_options),
+                )
+            )
+
+        session.invalidate()
+        return session
 
     def test_verify_false(self):
         """
         With the peer_verify field set to False, connection to the
         OpenStack servers always succeeds.
         """
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-        config['peer_verify'] = False
-        session = get_keystone_session(**config)
-        region = get_openstack_region_for_test()
-        cinder_client = get_cinder_v1_client(session, region)
-        self.assertTrue(self._authenticates_ok(cinder_client))
+        session = self.session_for_test(
+            config_override={
+                'peer_verify': False,
+            }
+        )
+        # This will fail if authentication fails.
+        session.get_token()
 
     def test_verify_ca_path_no_match_fails(self):
         """
         With a CA file that does not match any CA, connection to the
         OpenStack servers fails.
         """
-        path = FilePath(self.mktemp())
-        path.makedirs()
+        path = self.make_temporary_directory()
         RootCredential.initialize(path, b"mycluster")
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-        config['backend'] = 'openstack'
-        config['auth_plugin'] = 'password'
-        config['password'] = 'password'
-        config['peer_verify'] = True
-        config['peer_ca_path'] = path.child(
-            AUTHORITY_CERTIFICATE_FILENAME).path
-        session = get_keystone_session(**config)
-        region = get_openstack_region_for_test()
-        cinder_client = get_cinder_v1_client(session, region)
-        self.assertFalse(self._authenticates_ok(cinder_client))
+        session = self.session_for_test(
+            config_override={
+                'peer_verify': True,
+                'peer_ca_path': path.child(
+                    AUTHORITY_CERTIFICATE_FILENAME
+                ).path
+            }
+        )
+        self.assertRaises(Unauthorized, session.get_token)
 
 
 class VirtIOClient:
