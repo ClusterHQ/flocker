@@ -8,6 +8,7 @@ import os
 
 from hashlib import sha256
 from gzip import GzipFile
+from random import randrange
 from StringIO import StringIO
 import tempfile
 from textwrap import dedent
@@ -27,21 +28,23 @@ from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.python.usage import UsageError
 
+from pyrsistent import freeze, thaw, PClass, field
+
 from .. import release
 
 from ..release import (
     upload_python_packages, upload_packages, update_repo,
     parse_routing_rules, publish_docs, Environments,
-    DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
+    DocumentationRelease, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     UploadOptions, create_pip_index, upload_pip_index,
     publish_homebrew_recipe, PushFailed,
-    update_license_file,
+    update_license_file, UnexpectedDocumentationVersion
 )
 
 from ..packaging import Distribution
-from ..aws import FakeAWS, CreateCloudFrontInvalidation
+from ..aws import FakeAWS, CreateCloudFrontInvalidation, FakeAWSState
 from ..yum import FakeYum, yum_dispatcher
 
 from flocker.testtools import TestCase
@@ -177,6 +180,139 @@ class ParseRoutingRulesTests(TestCase):
         ]))
 
 
+STATE_EMPTY = FakeAWSState(
+    s3_buckets={
+        u"clusterhq-staging-docs": freeze({}),
+        u"clusterhq-docs": freeze({}),
+    }
+)
+
+WEEKLY_RELEASE_VERSION = u"1.10.3.dev2"
+
+STATE_WEEKLY_PRE_PUBLICATION = STATE_EMPTY.transform(
+    [u"s3_buckets", u"clusterhq-staging-docs"],
+    freeze({
+        u"release/flocker-{}/version.html".format(
+            WEEKLY_RELEASE_VERSION
+        ): WEEKLY_RELEASE_VERSION,
+        u"release/flocker-{}/index.html".format(
+            WEEKLY_RELEASE_VERSION
+        ): u'index-content',
+    })
+)
+
+STATE_WEEKLY_POST_PUBLICATION = STATE_WEEKLY_PRE_PUBLICATION.transform(
+    [u"s3_buckets", u"clusterhq-docs"],
+    freeze({
+        u"en/{}/version.html".format(
+            WEEKLY_RELEASE_VERSION
+        ): WEEKLY_RELEASE_VERSION,
+        u"en/{}/index.html".format(
+            WEEKLY_RELEASE_VERSION
+        ): u'index-content',
+        u"en/devel/version.html": WEEKLY_RELEASE_VERSION,
+        u"en/devel/index.html": u'index-content',
+    })
+).transform(
+    [u"cloudfront_invalidations"],
+    lambda l: l.append(
+        CreateCloudFrontInvalidation(
+            cname=u'docs.clusterhq.com',
+            paths={u'en/devel/',
+                   u'en/devel/index.html',
+                   u'en/devel/version.html',
+                   u'en/1.10.3.dev2/',
+                   u'en/1.10.3.dev2/index.html',
+                   u'en/1.10.3.dev2/version.html'}
+        )
+    )
+).transform(
+    [u"routing_rules", u"clusterhq-docs"],
+    RoutingRules([])
+)
+
+MARKETING_RELEASE_VERSION = u"1.10.3"
+
+STATE_MARKETING_PRE_PUBLICATION = STATE_WEEKLY_POST_PUBLICATION.transform(
+    [u"s3_buckets", u"clusterhq-staging-docs"],
+    lambda b: b.update({
+        u"release/flocker-{}/version.html".format(
+            MARKETING_RELEASE_VERSION
+        ): MARKETING_RELEASE_VERSION
+    })
+).transform(
+    [u"cloudfront_invalidations"],
+    freeze([])
+)
+
+STATE_MARKETING_POST_PUBLICATION = STATE_MARKETING_PRE_PUBLICATION.transform(
+    [u"s3_buckets", u"clusterhq-docs"],
+    lambda b: b.update({
+        u"en/{}/version.html".format(
+            MARKETING_RELEASE_VERSION
+        ): MARKETING_RELEASE_VERSION,
+        u"en/latest/version.html": MARKETING_RELEASE_VERSION
+    })
+).transform(
+    [u"cloudfront_invalidations"],
+    lambda l: l.append(
+        CreateCloudFrontInvalidation(
+            cname=u'docs.clusterhq.com',
+            paths={u'en/latest/',
+                   u'en/latest/version.html',
+                   u'en/1.10.3/',
+                   u'en/1.10.3/version.html'}
+        )
+    )
+).transform(
+    [u"routing_rules", u"clusterhq-docs"],
+    RoutingRules([])
+).transform(
+    [u"error_key", u"clusterhq-docs"],
+    u'en/1.10.3/error_pages/404.html',
+)
+
+POST1_RELEASE_VERSION = u"1.10.3.post1"
+STATE_POST1_PRE_PUBLICATION = STATE_MARKETING_POST_PUBLICATION.transform(
+    [u"s3_buckets", u"clusterhq-staging-docs"],
+    lambda b: b.update({
+        u"release/flocker-{}/version.html".format(
+            POST1_RELEASE_VERSION
+        ): MARKETING_RELEASE_VERSION,
+        u"release/flocker-{}/index.html".format(
+            POST1_RELEASE_VERSION
+        ): u"new-index-content"
+    })
+).transform(
+    [u"cloudfront_invalidations"],
+    freeze([])
+)
+
+
+STATE_POST1_POST_PUBLICATION = STATE_POST1_PRE_PUBLICATION.transform(
+    [u"s3_buckets", u"clusterhq-docs"],
+    lambda b: b.update({
+        u"en/{}/index.html".format(
+            MARKETING_RELEASE_VERSION
+        ): u"new-index-content",
+        u"en/latest/index.html": u"new-index-content",
+    })
+).transform(
+    [u"cloudfront_invalidations"],
+    lambda l: l.append(
+        CreateCloudFrontInvalidation(
+            cname=u'docs.clusterhq.com',
+            paths={u'en/1.10.3/',
+                   u'en/latest/',
+                   u'en/latest/index.html',
+                   u'en/latest/version.html',
+                   u'en/1.10.3/version.html',
+                   u'en/1.10.3/index.html'}
+        )
+    )
+)
+
+
 class PublishDocsTests(TestCase):
     """
     Tests for :func:``publish_docs``.
@@ -199,524 +335,199 @@ class PublishDocsTests(TestCase):
                          environment=environment,
                          routing_config=routing_config))
 
-    def test_copies_documentation(self):
+    def test_documentation_version_mismatch(self):
         """
-        Calling :func:`publish_docs` copies documentation from
-        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
-        ``s3://clusterhq-staging-docs/en/<doc_version>/`` and
-        ``s3://clusterhq-staging-docs/en/latest/``.
+        If the version number in the ``version.html`` file in the source
+        directory does not match the destination version number,
+        ``UnexpectedDocumentationVersion`` is raised with the mismatched
+        version numbers.
         """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html':
-                        'index-content',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html':
-                        'sub-index-content',
-                    'release/flocker-0.3.0+444.gf05215b/other.html':
-                        'other-content',
-                    'release/flocker-0.3.0+392.gd50b558/index.html':
-                        'bad-index',
-                    'release/flocker-0.3.0+392.gd50b558/sub/index.html':
-                        'bad-sub-index',
-                    'release/flocker-0.3.0+392.gd50b558/other.html':
-                        'bad-other',
-                },
-            })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.s3_buckets['clusterhq-staging-docs'], {
-                # originals
-                'index.html': '',
-                'en/index.html': '',
-                'release/flocker-0.3.0+444.gf05215b/index.html':
-                    'index-content',
-                'release/flocker-0.3.0+444.gf05215b/sub/index.html':
-                    'sub-index-content',
-                'release/flocker-0.3.0+444.gf05215b/other.html':
-                    'other-content',
-                'release/flocker-0.3.0+392.gd50b558/index.html':
-                    'bad-index',
-                'release/flocker-0.3.0+392.gd50b558/sub/index.html':
-                    'bad-sub-index',
-                'release/flocker-0.3.0+392.gd50b558/other.html':
-                    'bad-other',
-                # and new copies
-                'en/latest/index.html': 'index-content',
-                'en/latest/sub/index.html': 'sub-index-content',
-                'en/latest/other.html': 'other-content',
-                'en/0.3.1/index.html': 'index-content',
-                'en/0.3.1/sub/index.html': 'sub-index-content',
-                'en/0.3.1/other.html': 'other-content',
-            })
+        unexpected_version = u"0.0.0"
+        expected_version = WEEKLY_RELEASE_VERSION
 
-    def test_copies_documentation_production(self):
+        aws = FakeAWS(
+            state=STATE_WEEKLY_PRE_PUBLICATION.transform(
+                [u"s3_buckets", u"clusterhq-staging-docs",
+                 u"release/flocker-{}/version.html".format(
+                     WEEKLY_RELEASE_VERSION
+                 )],
+                unexpected_version
+            )
+        )
+        exception = self.assertRaises(
+            UnexpectedDocumentationVersion,
+            self.publish_docs,
+            aws=aws,
+            flocker_version=expected_version,
+            doc_version=expected_version,
+            environment=Environments.STAGING
+        )
+        self.assertEqual(
+            (unexpected_version, expected_version),
+            (exception.documentation_version,
+             exception.expected_version)
+        )
+
+    def test_copies_documentation_production_weekly(self):
         """
         Calling :func:`publish_docs` in production copies documentation from
         ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
         ``s3://clusterhq-docs/en/<doc_version>/`` and
-        ``s3://clusterhq-docs/en/latest/``.
+        ``s3://clusterhq-docs/en/devel/`` for weekly releases.
         """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/latest/index.html': '',
-                },
-                'clusterhq-staging-docs': {
-                    'release/flocker-0.3.1/index.html':
-                        'index-content',
-                    'release/flocker-0.3.1/sub/index.html':
-                        'sub-index-content',
-                    'release/flocker-0.3.1/other.html':
-                        'other-content',
-                    'release/flocker-0.3.0+392.gd50b558/index.html':
-                        'bad-index',
-                    'release/flocker-0.3.0+392.gd50b558/sub/index.html':
-                        'bad-sub-index',
-                    'release/flocker-0.3.0+392.gd50b558/other.html':
-                        'bad-other',
-                }
-            })
-        self.publish_docs(aws, '0.3.1', '0.3.1',
-                          environment=Environments.PRODUCTION)
-        self.assertEqual(
-            aws.s3_buckets['clusterhq-docs'], {
-                'index.html': '',
-                'en/index.html': '',
-                'en/latest/index.html': 'index-content',
-                'en/latest/sub/index.html': 'sub-index-content',
-                'en/latest/other.html': 'other-content',
-                'en/0.3.1/index.html': 'index-content',
-                'en/0.3.1/sub/index.html': 'sub-index-content',
-                'en/0.3.1/other.html': 'other-content',
-            })
+        aws = FakeAWS(state=STATE_WEEKLY_PRE_PUBLICATION)
 
-    def test_deletes_removed_documentation(self):
+        self.publish_docs(
+            aws=aws,
+            flocker_version=WEEKLY_RELEASE_VERSION,
+            doc_version=WEEKLY_RELEASE_VERSION,
+            environment=Environments.PRODUCTION
+        )
+
+        self.assertEqual(
+            STATE_WEEKLY_POST_PUBLICATION,
+            aws.state
+        )
+
+    def test_copies_documentation_production_marketing(self):
+        """
+        Calling :func:`publish_docs` in production copies documentation from
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
+        ``s3://clusterhq-docs/en/<doc_version>/`` and
+        ``s3://clusterhq-docs/en/latest/`` for marketing releases.
+        """
+        aws = FakeAWS(state=STATE_MARKETING_PRE_PUBLICATION)
+
+        self.publish_docs(
+            aws=aws,
+            flocker_version=MARKETING_RELEASE_VERSION,
+            doc_version=MARKETING_RELEASE_VERSION,
+            environment=Environments.PRODUCTION
+        )
+
+        self.assertEqual(
+            STATE_MARKETING_POST_PUBLICATION,
+            aws.state
+        )
+
+    def test_overwrites_existing_documentation(self):
         """
         Calling :func:`publish_docs` replaces documentation from
         ``s3://clusterhq-staging-docs/en/<doc_version>/``.
         with documentation from
         ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/``.
-        In particular, files with changed content are updated, and removed
-        files are deleted.
+        Files with changed content are updated.
         """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/latest/index.html': '',
-                    'en/0.3.1/index.html': 'old-index-content',
-                    'en/0.3.1/sub/index.html': 'old-sub-index-content',
-                    'en/0.3.1/other.html': 'other-content',
-                    'release/flocker-0.3.0+444.gf05215b/index.html':
-                        'index-content',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html':
-                        'sub-index-content',
-                },
+        initial_state = STATE_MARKETING_PRE_PUBLICATION.transform(
+            [u's3_buckets', u'clusterhq-docs'],
+            lambda b: b.update({
+                u"en/{}/version.html".format(
+                    MARKETING_RELEASE_VERSION
+                ): u"0.0.0",
+                u"en/latest/version.html": u"0.0.0",
             })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.s3_buckets['clusterhq-staging-docs'], {
-                'index.html': '',
-                'en/index.html': '',
-                'en/latest/index.html': 'index-content',
-                'en/latest/sub/index.html': 'sub-index-content',
-                'en/0.3.1/index.html': 'index-content',
-                'en/0.3.1/sub/index.html': 'sub-index-content',
-                # and the originals
-                'release/flocker-0.3.0+444.gf05215b/index.html':
-                    'index-content',
-                'release/flocker-0.3.0+444.gf05215b/sub/index.html':
-                    'sub-index-content',
-            })
+        )
+        aws = FakeAWS(state=initial_state)
 
-    def test_updated_routing_rules(self):
+        self.publish_docs(
+            aws=aws,
+            flocker_version=MARKETING_RELEASE_VERSION,
+            doc_version=MARKETING_RELEASE_VERSION,
+            environment=Environments.PRODUCTION
+        )
+
+        self.assertEqual(
+            STATE_MARKETING_POST_PUBLICATION,
+            aws.state
+        )
+
+    @skipIf(
+        True,
+        "XXX This fails because ``publish_docs`` doesn't do a separate"
+        "calculation of changed keys with the ``en/latest`` prefix."
+    )
+    def test_deletes_and_invalidates_documentation(self):
         """
-        Calling :func:`publish_docs` updates the routing rules for the
-        "clusterhq-staging-docs" bucket.
+        Calling :func:`publish_docs` deletes documentation pages from
+        ``s3://clusterhq-staging-docs/en/<doc_version>/``.
+        that do not exist in
+        ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/``.
+
         """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                },
+        initial_state = STATE_MARKETING_PRE_PUBLICATION.transform(
+            [u's3_buckets', u'clusterhq-docs'],
+            lambda b: b.update({
+                u"en/{}/unexpected_file.html".format(
+                    MARKETING_RELEASE_VERSION
+                ): "unexpected_content",
+                u"en/latest/another/unexpected_file.html": "blah",
             })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
-                          environment=Environments.STAGING,
-                          routing_config={
-                              "prefix/": {"key/": {"replace_key": "replace"}},
-                          })
-        self.assertThat(
-            aws.routing_rules['clusterhq-staging-docs'],
-            MatchesRoutingRules([
-                RoutingRule.when(key_prefix="prefix/key/").then_redirect(
-                    replace_key="prefix/replace",
-                    hostname="docs.staging.clusterhq.com",
-                    protocol="https",
-                    http_redirect_code="302",
-                ),
-            ]))
+        )
+        aws = FakeAWS(state=initial_state)
+
+        self.publish_docs(
+            aws=aws,
+            flocker_version=MARKETING_RELEASE_VERSION,
+            doc_version=MARKETING_RELEASE_VERSION,
+            environment=Environments.PRODUCTION
+        )
+
+        # Also invalidates the deleted keys.
+        [original_invalidation] = getattr(
+            STATE_MARKETING_POST_PUBLICATION,
+            u"cloudfront_invalidations",
+        )
+        new_invalidation = CreateCloudFrontInvalidation(
+            cname=original_invalidation.cname,
+            paths=original_invalidation.paths.copy()
+        )
+        new_invalidation.paths.update({
+            u'en/latest/another/unexpected_file.html',
+            u'en/1.10.3/unexpected_file.html'
+        })
+        self.assertEqual(
+            STATE_MARKETING_POST_PUBLICATION.transform(
+                [u"cloudfront_invalidations"],
+                freeze([new_invalidation])
+            ),
+            aws.state
+        )
 
     def test_updated_routing_rules_production(self):
         """
         Calling :func:`publish_docs` updates the routing rules for the
         "clusterhq-docs" bucket.
         """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                'clusterhq-docs': {
-                },
-                'clusterhq-staging-docs': {
+        initial_state = STATE_MARKETING_PRE_PUBLICATION
+        aws = FakeAWS(state=initial_state)
+
+        self.publish_docs(
+            aws=aws,
+            flocker_version=MARKETING_RELEASE_VERSION,
+            doc_version=MARKETING_RELEASE_VERSION,
+            environment=Environments.PRODUCTION,
+            routing_config={
+                u"prefix/": {
+                    u"key/": {u"replace_key": u"replace"}
                 },
             })
-        self.publish_docs(aws, '0.3.1', '0.3.1',
-                          environment=Environments.PRODUCTION,
-                          routing_config={
-                              "prefix/": {"key/": {"replace_key": "replace"}},
-                          })
         self.assertThat(
-            aws.routing_rules['clusterhq-docs'],
+            aws.state.routing_rules[u'clusterhq-docs'],
             MatchesRoutingRules([
-                RoutingRule.when(key_prefix="prefix/key/").then_redirect(
-                    replace_key="prefix/replace",
-                    hostname="docs.clusterhq.com",
-                    protocol="https",
-                    http_redirect_code="302",
+                RoutingRule.when(key_prefix=u"prefix/key/").then_redirect(
+                    replace_key=u"prefix/replace",
+                    hostname=u"docs.clusterhq.com",
+                    protocol=u"https",
+                    http_redirect_code=u"302",
                 ),
             ]))
-
-    def test_creates_cloudfront_invalidation_new_files(self):
-        """
-        Calling :func:`publish_docs` with a release or documentation version
-        creates an invalidation for
-        - en/latest/
-        - en/<doc_version>/
-        each for every path in the new documentation for <doc_version>.
-        """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/latest/index.html': '',
-                    'en/0.3.1/index.html': '',
-                    'en/0.3.1/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/other.html': '',
-                },
-            })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.cloudfront_invalidations, [
-                CreateCloudFrontInvalidation(
-                    cname='docs.staging.clusterhq.com',
-                    paths={
-                        'en/latest/',
-                        'en/latest/index.html',
-                        'en/latest/sub/',
-                        'en/latest/sub/index.html',
-                        'en/latest/sub/other.html',
-                        'en/0.3.1/',
-                        'en/0.3.1/index.html',
-                        'en/0.3.1/sub/',
-                        'en/0.3.1/sub/index.html',
-                        'en/0.3.1/sub/other.html',
-                    }),
-            ])
-
-    def test_creates_cloudfront_invalidation_trailing_index(self):
-        """
-        Calling :func:`publish_docs` with a release or documentation version
-        doesn't creates an invalidation for files that end in ``index.html``.
-        """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/latest/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub_index.html': '',
-                },
-            })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.cloudfront_invalidations, [
-                CreateCloudFrontInvalidation(
-                    cname='docs.staging.clusterhq.com',
-                    paths={
-                        'en/latest/',
-                        'en/latest/sub_index.html',
-                        'en/0.3.1/',
-                        'en/0.3.1/sub_index.html',
-                    }),
-            ])
-
-    def test_creates_cloudfront_invalidation_removed_files(self):
-        """
-        Calling :func:`publish_docs` with a release or documentation version
-        creates an invalidation for
-        - en/latest/
-        - en/<doc_version>/
-        each for every path in the old documentation for <doc_version>.
-        """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/latest/index.html': '',
-                    'en/0.3.1/index.html': '',
-                    'en/0.3.1/sub/index.html': '',
-                },
-            })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.cloudfront_invalidations, [
-                CreateCloudFrontInvalidation(
-                    cname='docs.staging.clusterhq.com',
-                    paths={
-                        'en/latest/',
-                        'en/latest/index.html',
-                        'en/latest/sub/',
-                        'en/latest/sub/index.html',
-                        'en/0.3.1/',
-                        'en/0.3.1/index.html',
-                        'en/0.3.1/sub/',
-                        'en/0.3.1/sub/index.html',
-                    }),
-            ])
-
-    def test_creates_cloudfront_invalidation_previous_version(self):
-        """
-        Calling :func:`publish_docs` with a release or documentation version
-        creates an invalidation for
-        - en/latest/
-        - en/<doc_version>/
-        each for every path in the documentation for version that was
-        previously `en/latest/`.
-        """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/latest/index.html': '',
-                    'en/0.3.0/index.html': '',
-                    'en/0.3.0/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
-                },
-            })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.cloudfront_invalidations, [
-                CreateCloudFrontInvalidation(
-                    cname='docs.staging.clusterhq.com',
-                    paths={
-                        'en/latest/',
-                        'en/latest/index.html',
-                        'en/latest/sub/',
-                        'en/latest/sub/index.html',
-                        'en/0.3.1/',
-                        'en/0.3.1/index.html',
-                        'en/0.3.1/sub/',
-                        'en/0.3.1/sub/index.html',
-                    }),
-            ])
-
-    def test_creates_cloudfront_invalidation_devel_new_files(self):
-        """
-        Calling :func:`publish_docs` with a development version creates an
-        invalidation for
-        - en/devel/
-        - en/<doc_version>/
-        each for every path in the new documentation for <doc_version>.
-        """
-        aws = FakeAWS(
-            routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/devel/': 'en/0.3.0/',
-                },
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/devel/index.html': '',
-                    'en/0.3.1.dev1/index.html': '',
-                    'en/0.3.1.dev1/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/other.html': '',
-                },
-            })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.cloudfront_invalidations, [
-                CreateCloudFrontInvalidation(
-                    cname='docs.staging.clusterhq.com',
-                    paths={
-                        'en/devel/',
-                        'en/devel/index.html',
-                        'en/devel/sub/',
-                        'en/devel/sub/index.html',
-                        'en/devel/sub/other.html',
-                        'en/0.3.1.dev1/',
-                        'en/0.3.1.dev1/index.html',
-                        'en/0.3.1.dev1/sub/',
-                        'en/0.3.1.dev1/sub/index.html',
-                        'en/0.3.1.dev1/sub/other.html',
-                    }),
-            ])
-
-    def test_creates_cloudfront_invalidation_devel_removed_files(self):
-        """
-        Calling :func:`publish_docs` with a development version creates an
-        invalidation for
-        - en/devel/
-        - en/<doc_version>/
-        each for every path in the old documentation for <doc_version>.
-        """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/devel/index.html': '',
-                    'en/0.3.1.dev1/index.html': '',
-                    'en/0.3.1.dev1/sub/index.html': '',
-                },
-            })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.cloudfront_invalidations, [
-                CreateCloudFrontInvalidation(
-                    cname='docs.staging.clusterhq.com',
-                    paths={
-                        'en/devel/',
-                        'en/devel/index.html',
-                        'en/devel/sub/',
-                        'en/devel/sub/index.html',
-                        'en/0.3.1.dev1/',
-                        'en/0.3.1.dev1/index.html',
-                        'en/0.3.1.dev1/sub/',
-                        'en/0.3.1.dev1/sub/index.html',
-                    }),
-            ])
-
-    def test_creates_cloudfront_invalidation_devel_previous_version(self):
-        """
-        Calling :func:`publish_docs` with a development version creates an
-        invalidation for
-        - en/devel/
-        - en/<doc_version>/
-        each for every path in the documentation for version that was
-        previously `en/devel/`.
-        """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/devel/index.html': '',
-                    'en/0.3.0/index.html': '',
-                    'en/0.3.0/sub/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/index.html': '',
-                    'release/flocker-0.3.0+444.gf05215b/sub/index.html': '',
-                },
-            })
-        self.publish_docs(aws, '0.3.0+444.gf05215b', '0.3.1.dev1',
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            aws.cloudfront_invalidations, [
-                CreateCloudFrontInvalidation(
-                    cname='docs.staging.clusterhq.com',
-                    paths={
-                        'en/devel/',
-                        'en/devel/index.html',
-                        'en/devel/sub/index.html',
-                        'en/devel/sub/',
-                        'en/0.3.1.dev1/',
-                        'en/0.3.1.dev1/index.html',
-                        'en/0.3.1.dev1/sub/',
-                        'en/0.3.1.dev1/sub/index.html',
-                    }),
-            ])
-
-    def test_creates_cloudfront_invalidation_production(self):
-        """
-        Calling :func:`publish_docs` in production creates an invalidation for
-        ``docs.clusterhq.com``.
-        """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/latest/index.html': '',
-                    'en/0.3.1/index.html': '',
-                    'en/0.3.1/sub/index.html': '',
-                },
-                'clusterhq-staging-docs': {},
-            })
-        self.publish_docs(aws, '0.3.1', '0.3.1',
-                          environment=Environments.PRODUCTION)
-        self.assertEqual(
-            aws.cloudfront_invalidations, [
-                CreateCloudFrontInvalidation(
-                    cname='docs.clusterhq.com',
-                    paths={
-                        'en/latest/',
-                        'en/latest/index.html',
-                        'en/latest/sub/',
-                        'en/latest/sub/index.html',
-                        'en/0.3.1/',
-                        'en/0.3.1/index.html',
-                        'en/0.3.1/sub/',
-                        'en/0.3.1/sub/index.html',
-                    }),
-            ])
 
     def test_production_gets_tagged_version(self):
         """
         Trying to publish to production, when the version being pushed isn't
         tagged raises an exception.
         """
-        aws = FakeAWS(routing_rules={}, s3_buckets={})
+        aws = FakeAWS(state=STATE_EMPTY)
         self.assertRaises(
             NotTagged,
             self.publish_docs,
@@ -728,28 +539,49 @@ class PublishDocsTests(TestCase):
         Publishing a documentation version to the version of the latest full
         release in production succeeds.
         """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-docs': {},
-                'clusterhq-staging-docs': {},
-            })
+        aws = FakeAWS(state=STATE_POST1_PRE_PUBLICATION)
         # Does not raise:
         self.publish_docs(
-            aws, '0.3.1.post1', '0.3.1', environment=Environments.PRODUCTION)
+            aws=aws,
+            flocker_version=POST1_RELEASE_VERSION,
+            doc_version=MARKETING_RELEASE_VERSION,
+            environment=Environments.PRODUCTION
+        )
+        self.expectThat(
+            thaw(aws.state.s3_buckets),
+            Equals(
+                thaw(STATE_POST1_POST_PUBLICATION.s3_buckets)
+            ),
+        )
+        self.expectThat(
+            thaw(aws.state.routing_rules),
+            Equals(
+                thaw(STATE_POST1_POST_PUBLICATION.routing_rules)
+            ),
+        )
+        self.expectThat(
+            thaw(aws.state.error_key),
+            Equals(
+                thaw(STATE_POST1_POST_PUBLICATION.error_key)
+            ),
+        )
+        self.expectThat(
+            thaw(aws.state.cloudfront_invalidations),
+            Equals(
+                thaw(STATE_POST1_POST_PUBLICATION.cloudfront_invalidations)
+            ),
+        )
 
+    @skipIf(
+        True,
+        "XXX: We don't do pre-releases any more. "
+        "This test is redundant."
+    )
     def test_production_can_publish_prerelease(self):
         """
         Publishing a pre-release succeeds.
         """
-        aws = FakeAWS(
-            routing_rules={
-            },
-            s3_buckets={
-                'clusterhq-docs': {},
-                'clusterhq-staging-docs': {},
-            })
+        aws = FakeAWS(state=STATE_EMPTY)
         # Does not raise:
         self.publish_docs(
             aws, '0.3.2rc1', '0.3.2rc1', environment=Environments.PRODUCTION)
@@ -758,134 +590,12 @@ class PublishDocsTests(TestCase):
         """
         Trying to publish to version that isn't a release fails.
         """
-        aws = FakeAWS(routing_rules={}, s3_buckets={})
+        aws = FakeAWS(state=STATE_EMPTY)
         self.assertRaises(
             NotARelease,
             self.publish_docs,
             aws, '0.3.0+444.gf05215b', '0.3.0+444.gf05215b',
             environment=Environments.STAGING)
-
-    def assert_error_key_update(self, doc_version, environment, should_update):
-        """
-        Call ``publish_docs`` and assert that only the expected buckets have an
-        updated error_key property.
-
-        :param unicode doc_version: The version of the documentation that is
-            being published.
-        :param NamedConstant environment: One of the ``NamedConstants`` in
-            ``Environments``.
-        :param bool should_update: A flag indicating whether the error_key for
-            the bucket associated with ``environment`` is expected to be
-            updated.
-        :raises: ``FailTest`` if an error_key in any of the S3 buckets has been
-            updated unexpectedly.
-        """
-        # Get a set of all target S3 buckets.
-        bucket_names = set()
-        for e in Environments.iterconstants():
-            bucket_names.add(
-                DOCUMENTATION_CONFIGURATIONS[e].documentation_bucket
-            )
-        # And that all the buckets themselves are empty.
-        empty_buckets = {bucket_name: {} for bucket_name in bucket_names}
-        # Including the dev bucket
-        empty_buckets['clusterhq-staging-docs'] = {}
-        # And that all the buckets have an empty error_key
-        empty_error_keys = {bucket_name: b'' for bucket_name in bucket_names}
-
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets=empty_buckets,
-            error_key=empty_error_keys
-        )
-        # The value of any updated error_key will include the version that's
-        # being published.
-        expected_error_path = 'en/{}/error_pages/404.html'.format(doc_version)
-        expected_updated_bucket = (
-            DOCUMENTATION_CONFIGURATIONS[environment].documentation_bucket
-        )
-        # Grab a copy of the current error_key before it gets mutated.
-        expected_error_keys = aws.error_key.copy()
-        if should_update:
-            # And if an error_key is expected to be updated we expect it to be
-            # for the bucket corresponding to the environment that we're
-            # publishing to.
-            expected_error_keys[expected_updated_bucket] = expected_error_path
-
-        self.publish_docs(
-            aws,
-            flocker_version=doc_version,
-            doc_version=doc_version,
-            environment=environment
-        )
-
-        self.assertEqual(expected_error_keys, aws.error_key)
-
-    def test_error_key_dev_staging(self):
-        """
-        Publishing documentation for a development release to the staging
-        bucket, updates the error_key in that bucket only.
-        """
-        self.assert_error_key_update(
-            doc_version='0.4.1.dev1',
-            environment=Environments.STAGING,
-            should_update=True
-        )
-
-    def test_error_key_dev_production(self):
-        """
-        Publishing documentation for a development release to the production
-        bucket, does not update the error_key in any of the buckets.
-        """
-        self.assert_error_key_update(
-            doc_version='0.4.1.dev1',
-            environment=Environments.PRODUCTION,
-            should_update=False
-        )
-
-    def test_error_key_pre_staging(self):
-        """
-        Publishing documentation for a pre-release to the staging
-        bucket, updates the error_key in that bucket only.
-        """
-        self.assert_error_key_update(
-            doc_version='0.4.1rc1',
-            environment=Environments.STAGING,
-            should_update=True
-        )
-
-    def test_error_key_pre_production(self):
-        """
-        Publishing documentation for a pre-release to the production
-        bucket, does not update the error_key in any of the buckets.
-        """
-        self.assert_error_key_update(
-            doc_version='0.4.1rc1',
-            environment=Environments.PRODUCTION,
-            should_update=False
-        )
-
-    def test_error_key_marketing_staging(self):
-        """
-        Publishing documentation for a marketing release to the staging
-        bucket, updates the error_key in that bucket.
-        """
-        self.assert_error_key_update(
-            doc_version='0.4.1',
-            environment=Environments.STAGING,
-            should_update=True
-        )
-
-    def test_error_key_marketing_production(self):
-        """
-        Publishing documentation for a marketing release to the production
-        bucket, updates the error_key in that bucket.
-        """
-        self.assert_error_key_update(
-            doc_version='0.4.1',
-            environment=Environments.PRODUCTION,
-            should_update=True
-        )
 
 
 class UpdateRepoTests(TestCase):
@@ -894,12 +604,12 @@ class UpdateRepoTests(TestCase):
     """
     def setUp(self):
         super(UpdateRepoTests, self).setUp()
-        self.target_bucket = 'test-target-bucket'
-        self.target_key = 'test/target/key'
+        self.target_bucket = u'test-target-bucket'
+        self.target_key = u'test/target/key'
         self.package_directory = FilePath(self.mktemp())
 
-        self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node',
-                         'clusterhq-flocker-docker-plugin']
+        self.packages = [u'clusterhq-flocker-cli', u'clusterhq-flocker-node',
+                         u'clusterhq-flocker-docker-plugin']
 
     def update_repo(self, aws, yum,
                     package_directory, target_bucket, target_key, source_repo,
@@ -937,35 +647,35 @@ class UpdateRepoTests(TestCase):
         - Other packages on the buildserver are not downloaded.
         - Existing metadata files are left untouched.
         """
-        existing_s3_keys = {
-            os.path.join(self.target_key, 'existing_package.rpm'): '',
+        existing_s3_keys = freeze({
+            os.path.join(self.target_key, u'existing_package.rpm'): u'',
             os.path.join(self.target_key,
-                         'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'):
-                'existing-content-to-be-replaced',  # noqa
-            os.path.join(self.target_key, 'repodata', 'repomod.xml'):
-                '<oldhash>-metadata.xml',
-            os.path.join(self.target_key, 'repodata',
-                         '<oldhash>-metadata.xml'):
-                'metadata for: existing_package.rpm',
-        }
-        # Copy before passing to FakeAWS
-        expected_keys = existing_s3_keys.copy()
+                         u'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'):
+                u'existing-content-to-be-replaced',  # noqa
+            os.path.join(self.target_key, u'repodata', u'repomod.xml'):
+                u'<oldhash>-metadata.xml',
+            os.path.join(self.target_key, u'repodata',
+                         u'<oldhash>-metadata.xml'):
+                u'metadata for: existing_package.rpm',
+        })
 
         aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: existing_s3_keys,
-            },
+            state=FakeAWSState(
+                s3_buckets=freeze({
+                    self.target_bucket: existing_s3_keys,
+                }),
+            )
         )
 
-        unspecified_package = 'unspecified-package-0.3.3-0.dev.7.noarch.rpm'
-        repo_contents = {
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
-            'clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm':
-            'docker-plugin-package',
-            unspecified_package: 'unspecified-package-content',
-        }
+        unspecified_package = u'unspecified-package-0.3.3-0.dev.7.noarch.rpm'
+        repo_contents = freeze({
+            u'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': u'cli-package',
+            u'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm':
+                u'node-package',
+            u'clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm':
+                u'docker-plugin-package',
+            unspecified_package: u'unspecified-package-content',
+        })
 
         self.update_repo(
             aws=aws,
@@ -981,32 +691,34 @@ class UpdateRepoTests(TestCase):
 
         # The expected files are the new files plus the package which already
         # existed in S3.
-        expected_packages = {
-            'existing_package.rpm',
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
-            'clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm',
-        }
+        expected_packages = freeze({
+            u'existing_package.rpm',
+            u'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
+            u'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
+            u'clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm',
+        })
 
-        expected_keys.update({
-            'test/target/key/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm':
-                'cli-package',
-            'test/target/key/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm':
-                'node-package',
-            'test/target/key/clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm':  # noqa
-                'docker-plugin-package',
-            })
-        expected_keys.update({
-            os.path.join(self.target_key, 'repodata', 'repomod.xml'):
-                '<newhash>-metadata.xml',
-            os.path.join(self.target_key, 'repodata',
-                         '<newhash>-metadata.xml'):
-                'metadata content for: ' + ','.join(sorted(expected_packages)),
+        expected_keys = existing_s3_keys.update({
+            u'test/target/key/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm':
+                u'cli-package',
+            u'test/target/key/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm':
+                u'node-package',
+            u'test/target/key/clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm':  # noqa
+                u'docker-plugin-package',
+        }).update({
+            os.path.join(self.target_key, u'repodata', u'repomod.xml'):
+                u'<newhash>-metadata.xml',
+            os.path.join(self.target_key, u'repodata',
+                         u'<newhash>-metadata.xml'):
+                u'metadata content for: ' + ','.join(
+                    sorted(expected_packages)
+                ),
         })
 
         self.assertEqual(
-            expected_keys,
-            aws.s3_buckets[self.target_bucket])
+            thaw(expected_keys),
+            thaw(aws.state.s3_buckets[self.target_bucket])
+        )
 
     def test_fake_deb(self):
         """
@@ -1016,32 +728,31 @@ class UpdateRepoTests(TestCase):
         - Existing packages on S3 are preserved in the metadata.
         - Other packages on the buildserver are not downloaded.
         """
-        existing_s3_keys = {
-            os.path.join(self.target_key, 'existing_package.deb'): '',
+        existing_s3_keys = freeze({
+            os.path.join(self.target_key, u'existing_package.deb'): '',
             os.path.join(self.target_key,
-                         'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb'):
-                'existing-content-to-be-replaced',  # noqa
-            os.path.join(self.target_key, 'Packages.gz'):
-                'metadata for: existing_package.deb',
-        }
-        # Copy before passing to FakeAWS
-        expected_keys = existing_s3_keys.copy()
+                         u'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb'):
+                u'existing-content-to-be-replaced',  # noqa
+            os.path.join(self.target_key, u'Packages.gz'):
+                u'metadata for: existing_package.deb',
+        })
 
         aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: existing_s3_keys,
-            },
+            state=FakeAWSState(
+                s3_buckets=freeze({
+                    self.target_bucket: existing_s3_keys,
+                }),
+            )
         )
 
-        unspecified_package = 'unspecified-package_0.3.3-0.dev.7_all.deb'
-        repo_contents = {
-            'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb': 'cli-package',
-            'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb': 'node-package',
-            'clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb':
-            'docker-plugin-package',
-            unspecified_package: 'unspecified-package-content',
-        }
+        unspecified_package = u'unspecified-package_0.3.3-0.dev.7_all.deb'
+        repo_contents = freeze({
+            u'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb': u'cli-package',
+            u'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb': u'node-package',
+            u'clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb':
+                u'docker-plugin-package',
+            unspecified_package: u'unspecified-package-content',
+        })
 
         self.update_repo(
             aws=aws,
@@ -1051,34 +762,34 @@ class UpdateRepoTests(TestCase):
             target_key=self.target_key,
             source_repo=create_fake_repository(self, files=repo_contents),
             packages=self.packages,
-            flocker_version='0.3.3.dev7',
-            distribution=Distribution(name='ubuntu', version='14.04'),
+            flocker_version=u'0.3.3.dev7',
+            distribution=Distribution(name=u'ubuntu', version=u'14.04'),
         )
 
         # The expected files are the new files plus the package which already
         # existed in S3.
-        expected_packages = {
-            'existing_package.deb',
-            'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb',
-            'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
-            'clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb',
-        }
+        expected_packages = freeze({
+            u'existing_package.deb',
+            u'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb',
+            u'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
+            u'clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb',
+        })
 
-        expected_keys.update({
-            'test/target/key/Release': 'Origin: ClusterHQ\n',
-            'test/target/key/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb':
-                'cli-package',
-            'test/target/key/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb':
-                'node-package',
-            'test/target/key/clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb':  # noqa
-                'docker-plugin-package',
-            'test/target/key/Packages.gz':
-                'Packages.gz for: ' + ','.join(sorted(expected_packages)),
+        expected_keys = existing_s3_keys.update({
+            u'test/target/key/Release': u'Origin: ClusterHQ\n',
+            u'test/target/key/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb':
+                u'cli-package',
+            u'test/target/key/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb':
+                u'node-package',
+            u'test/target/key/clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb':  # noqa
+                u'docker-plugin-package',
+            u'test/target/key/Packages.gz':
+                u'Packages.gz for: ' + u','.join(sorted(expected_packages)),
             })
 
         self.assertEqual(
             expected_keys,
-            aws.s3_buckets[self.target_bucket])
+            aws.state.s3_buckets[self.target_bucket])
 
     def test_package_not_available_exception(self):
         """
@@ -1086,10 +797,11 @@ class UpdateRepoTests(TestCase):
         is raised.
         """
         aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
+            state=FakeAWSState(
+                s3_buckets=freeze({
+                    self.target_bucket: freeze({}),
+                }),
+            )
         )
 
         exception = self.assertRaises(
@@ -1103,8 +815,8 @@ class UpdateRepoTests(TestCase):
             source_repo=create_fake_repository(
                 self, files={}),
             packages=self.packages,
-            flocker_version='0.3.3.dev7',
-            distribution=Distribution(name="centos", version="7"),
+            flocker_version=u'0.3.3.dev7',
+            distribution=Distribution(name=u"centos", version=u"7"),
         )
 
         self.assertEqual(404, exception.response.status_code)
@@ -1123,10 +835,11 @@ class UpdateRepoTests(TestCase):
         repo_uri = 'file://' + source_repo.path
 
         aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
+            state=FakeAWSState(
+                s3_buckets={
+                    self.target_bucket: freeze({}),
+                },
+            )
         )
 
         class RealYum(object):
@@ -1141,33 +854,33 @@ class UpdateRepoTests(TestCase):
             target_key=self.target_key,
             source_repo=repo_uri,
             packages=self.packages,
-            flocker_version='0.3.3.dev7',
-            distribution=Distribution(name='centos', version='7'),
+            flocker_version=u'0.3.3.dev7',
+            distribution=Distribution(name=u'centos', version=u'7'),
         )
 
         expected_files = {
             os.path.join(self.target_key, file)
             for file in [
-                'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
-                'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
-                'clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm',
-                'repodata/repomd.xml',
+                u'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
+                u'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
+                u'clusterhq-flocker-docker-plugin-0.3.3-0.dev.7.noarch.rpm',
+                u'repodata/repomd.xml',
             ]
         }
-        files_on_s3 = aws.s3_buckets[self.target_bucket]
+        files_on_s3 = aws.state.s3_buckets[self.target_bucket]
 
-        repodata_path = os.path.join(self.target_key, 'repodata')
+        repodata_path = os.path.join(self.target_key, u'repodata')
 
         # Yum repositories prefix metadata files with the sha256 hash
         # of the file. Since these files contain timestamps, we calculate
         # the hash from the file, to determine the expected file names.
         for metadata_file in [
-                'other.sqlite.bz2',
-                'filelists.xml.gz',
-                'primary.xml.gz',
-                'filelists.sqlite.bz2',
-                'primary.sqlite.bz2',
-                'other.xml.gz',
+                u'other.sqlite.bz2',
+                u'filelists.xml.gz',
+                u'primary.xml.gz',
+                u'filelists.sqlite.bz2',
+                u'primary.sqlite.bz2',
+                u'other.xml.gz',
                 ]:
             for key in files_on_s3:
                 if (key.endswith(metadata_file) and
@@ -1176,13 +889,13 @@ class UpdateRepoTests(TestCase):
                         os.path.join(
                             repodata_path,
                             sha256(files_on_s3[key]).hexdigest() +
-                            '-' + metadata_file)
+                            u'-' + metadata_file)
                     )
                     break
             else:
                 expected_files.add(
                     os.path.join(
-                        repodata_path, '<missing>-' + metadata_file))
+                        repodata_path, u'<missing>-' + metadata_file))
 
         # The original source repository contains no metadata.
         # This tests that CreateRepo creates the expected metadata files from
@@ -1202,14 +915,15 @@ class UpdateRepoTests(TestCase):
         source_repo = FilePath(self.mktemp())
         source_repo.createDirectory()
 
-        FilePath(__file__).sibling('apt-repo').copyTo(source_repo)
-        repo_uri = 'file://' + source_repo.path
+        FilePath(__file__).sibling(u'apt-repo').copyTo(source_repo)
+        repo_uri = u'file://' + source_repo.path
 
         aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
+            state=FakeAWSState(
+                s3_buckets=freeze({
+                    self.target_bucket: freeze({}),
+                }),
+            )
         )
 
         class RealYum(object):
@@ -1224,21 +938,21 @@ class UpdateRepoTests(TestCase):
             target_key=self.target_key,
             source_repo=repo_uri,
             packages=self.packages,
-            flocker_version='0.3.3.dev7',
-            distribution=Distribution(name="ubuntu", version="14.04"),
+            flocker_version=u'0.3.3.dev7',
+            distribution=Distribution(name=u"ubuntu", version=u"14.04"),
         )
 
         expected_files = {
             os.path.join(self.target_key, file)
             for file in [
-                'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb',
-                'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
-                'clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb',
-                'Packages.gz',
-                'Release',
+                u'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb',
+                u'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
+                u'clusterhq-flocker-docker-plugin_0.3.3-0.dev.7_all.deb',
+                u'Packages.gz',
+                u'Release',
             ]
         }
-        files_on_s3 = aws.s3_buckets[self.target_bucket]
+        files_on_s3 = aws.state.s3_buckets[self.target_bucket]
 
         # The original source repository contains no metadata.
         # This tests that CreateRepo creates the expected metadata files from
@@ -1247,7 +961,9 @@ class UpdateRepoTests(TestCase):
 
         # The repository is built in self.packages_directory
         # Ensure that that does not leak into the metadata.
-        packages_gz = files_on_s3[os.path.join(self.target_key, 'Packages.gz')]
+        packages_gz = files_on_s3[
+            os.path.join(self.target_key, u'Packages.gz')
+        ]
         with GzipFile(fileobj=StringIO(packages_gz), mode="r") as f:
             packages_metadata = f.read()
         self.assertNotIn(self.package_directory.path, packages_metadata)
@@ -1419,15 +1135,18 @@ class UploadPythonPackagesTests(TestCase):
 
     def setUp(self):
         super(UploadPythonPackagesTests, self).setUp()
-        self.target_bucket = 'test-target-bucket'
+        self.target_bucket = u'test-target-bucket'
         self.scratch_directory = FilePath(self.mktemp())
         self.top_level = FilePath(self.mktemp())
         self.top_level.makedirs()
         self.aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            })
+            state=FakeAWSState(
+                routing_rules=freeze({}),
+                s3_buckets=freeze({
+                    self.target_bucket: {},
+                })
+            )
+        )
 
     def upload_python_packages(self):
         """
@@ -1471,7 +1190,7 @@ class UploadPythonPackagesTests(TestCase):
 
         self.upload_python_packages()
 
-        aws_keys = self.aws.s3_buckets[self.target_bucket].keys()
+        aws_keys = self.aws.state.s3_buckets[self.target_bucket].keys()
         self.assertEqual(
             sorted(aws_keys),
             ['python/Flocker-0.3.0-py2-none-any.whl',
@@ -1681,14 +1400,16 @@ class UploadPipIndexTests(TestCase):
         """
         An index file is uploaded to S3.
         """
-        bucket = 'clusterhq-archive'
+        bucket = u'clusterhq-archive'
         aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                bucket: {
-                    'python/Flocker-0.3.1-py2-none-any.whl': '',
-                },
-            })
+            state=FakeAWSState(
+                s3_buckets=freeze({
+                    bucket: {
+                        u'python/Flocker-0.3.1-py2-none-any.whl': u'',
+                    },
+                })
+            )
+        )
 
         scratch_directory = FilePath(self.mktemp())
         scratch_directory.makedirs()
@@ -1700,11 +1421,11 @@ class UploadPipIndexTests(TestCase):
                 target_bucket=bucket))
 
         self.assertEqual(
-            aws.s3_buckets[bucket]['python/index.html'],
+            aws.state.s3_buckets[bucket][u'python/index.html'],
             (
-                '<html>\nThis is an index for pip\n<div>'
-                '<a href="Flocker-0.3.1-py2-none-any.whl">'
-                'Flocker-0.3.1-py2-none-any.whl</a><br />\n</div></html>'
+                u'<html>\nThis is an index for pip\n<div>'
+                u'<a href="Flocker-0.3.1-py2-none-any.whl">'
+                u'Flocker-0.3.1-py2-none-any.whl</a><br />\n</div></html>'
             ))
 
 

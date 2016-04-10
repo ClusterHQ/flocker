@@ -7,9 +7,12 @@ Effectful interface to boto.
 import os
 from characteristic import attributes, Attribute
 from effect import Effect, sync_performer, TypeDispatcher
-from effect.do import do
+from effect.do import do, do_return
 
 import boto
+from boto.s3.website import RoutingRules
+from pyrsistent import PClass, pmap_field, PMap, field, discard, freeze
+from twisted.python.filepath import FilePath
 
 
 @attributes([
@@ -55,7 +58,7 @@ class UpdateS3ErrorPage(object):
     def error_key(self):
         """
         """
-        return '{}error_pages/404.html'.format(self.target_prefix)
+        return u'{}error_pages/404.html'.format(self.target_prefix)
 
 
 @sync_performer
@@ -281,8 +284,49 @@ def perform_download_s3_key(dispatcher, intent):
 
     bucket = s3.get_bucket(intent.source_bucket)
     key = bucket.get_key(intent.source_key)
+    if key is None:
+        raise KeyError(intent.source_key)
     with intent.target_path.open('w') as target_file:
         key.get_contents_to_file(target_file)
+
+
+@attributes([
+    "source_bucket",
+    "source_key",
+])
+class ReadS3Key(object):
+    """
+    Read a file from S3.
+
+    :ivar bytes source_bucket: Name of bucket to read key from.
+    :ivar bytes source_key: Name of key to read.
+    """
+
+
+@sync_performer
+@do
+def perform_read_s3_key(dispatcher, intent):
+    """
+    See :class:`ReadS3Key`.
+    """
+    target_file = FilePath(
+        u'/tmp/{}.perform_read_s3_key'.format(
+            __file__.replace(u"/", "!"),
+        )
+    ).temporarySibling()
+    target_file.requireCreate(False)
+    try:
+        yield Effect(
+            DownloadS3Key(
+                source_bucket=intent.source_bucket,
+                source_key=intent.source_key,
+                target_path=target_file,
+            )
+        )
+        yield do_return(target_file.getContent())
+    finally:
+        if target_file.exists():
+            target_file.remove()
 
 
 @attributes([
@@ -364,6 +408,7 @@ boto_dispatcher = TypeDispatcher({
     CopyS3Keys: perform_copy_s3_keys,
     DownloadS3KeyRecursively: perform_download_s3_key_recursively,
     DownloadS3Key: perform_download_s3_key,
+    ReadS3Key: perform_read_s3_key,
     UploadToS3Recursively: perform_upload_s3_key_recursively,
     UploadToS3: perform_upload_s3_key,
     CreateCloudFrontInvalidation: perform_create_cloudfront_invalidation,
@@ -380,11 +425,31 @@ class ContentTypeUnicode(unicode):
         return self
 
 
-@attributes([
-    Attribute('routing_rules'),
-    Attribute('s3_buckets'),
-    Attribute('error_key', default_factory=dict)
-])
+class FakeAWSState(PClass):
+    """
+    The immutable state of ``FakeAWS``
+
+    :ivar routing_rules: Dictionary of routing rules for S3 buckets. They are
+        represented as dictonaries mapping key prefixes to replacements. Other
+        types of rules and attributes are supported or represented.
+    :ivar s3_buckets: Dictionary of fake S3 buckets. Each bucket is represented
+        as a dictonary mapping keys to contents. Other attributes are ignored.
+    :ivar cloudfront_invalidations: List of
+        :class:`CreateCloudFrontInvalidation` that have been requested.
+    """
+    routing_rules = pmap_field(
+        key_type=unicode,
+        value_type=RoutingRules
+    )
+    s3_buckets = pmap_field(
+        key_type=unicode,
+        value_type=PMap
+    )
+    error_key = pmap_field(key_type=unicode, value_type=unicode)
+    cloudfront_invalidations = field(initial=freeze([]))
+
+
+@attributes(['state'])
 class FakeAWS(object):
     """
     Enough of a fake implementation of AWS to test
@@ -399,14 +464,17 @@ class FakeAWS(object):
         :class:`CreateCloudFrontInvalidation` that have been requested.
     """
     def __init__(self):
-        self.cloudfront_invalidations = []
+        self.initial_state = self.state
 
     @sync_performer
     def _perform_update_s3_routing_rules(self, dispatcher, intent):
         """
         See :class:`UpdateS3RoutingRule`.
         """
-        self.routing_rules[intent.bucket] = intent.routing_rules
+        self.state = self.state.transform(
+            ['routing_rules', intent.bucket],
+            intent.routing_rules
+        )
 
     @sync_performer
     def _perform_update_s3_error_page(self, dispatcher, intent):
@@ -414,8 +482,11 @@ class FakeAWS(object):
         See :class:`UpdateS3ErrorPage`.
         """
         new_error_key = intent.error_key
-        old_error_key = self.error_key.get(intent.bucket)
-        self.error_key[intent.bucket] = new_error_key
+        old_error_key = self.state.error_key.get(intent.bucket)
+        self.state = self.state.transform(
+            [u'error_key', intent.bucket],
+            new_error_key
+        )
         if old_error_key == new_error_key:
             return None
         return old_error_key
@@ -425,34 +496,42 @@ class FakeAWS(object):
         """
         See :class:`CreateCloudFrontInvalidation`.
         """
-        self.cloudfront_invalidations.append(intent)
+        self.state = self.state.transform(
+            ['cloudfront_invalidations'],
+            lambda l: l.append(intent)
+        )
 
     @sync_performer
     def _perform_delete_s3_keys(self, dispatcher, intent):
         """
         See :class:`DeleteS3Keys`.
         """
-        bucket = self.s3_buckets[intent.bucket]
         for key in intent.keys:
-            del bucket[intent.prefix + key]
+            self.state = self.state.transform(
+                ['s3_buckets', intent.bucket, intent.prefix + key],
+                discard,
+            )
 
     @sync_performer
     def _perform_copy_s3_keys(self, dispatcher, intent):
         """
         See :class:`CopyS3Keys`.
         """
-        source_bucket = self.s3_buckets[intent.source_bucket]
-        destination_bucket = self.s3_buckets[intent.destination_bucket]
+        source_bucket = self.state.s3_buckets[intent.source_bucket]
         for key in intent.keys:
-            destination_bucket[intent.destination_prefix + key] = (
-                source_bucket[intent.source_prefix + key])
+            self.state = self.state.transform(
+                ['s3_buckets',
+                 intent.destination_bucket,
+                 intent.destination_prefix + key],
+                source_bucket[intent.source_prefix + key]
+            )
 
     @sync_performer
     def _perform_list_s3_keys(self, dispatcher, intent):
         """
         See :class:`ListS3Keys`.
         """
-        bucket = self.s3_buckets[intent.bucket]
+        bucket = self.state.s3_buckets[intent.bucket]
         return {key[len(intent.prefix):]
                 for key in bucket
                 if key.startswith(intent.prefix)}
@@ -462,7 +541,7 @@ class FakeAWS(object):
         """
         See :class:`DownloadS3Key`.
         """
-        bucket = self.s3_buckets[intent.source_bucket]
+        bucket = self.state.s3_buckets[intent.source_bucket]
         intent.target_path.setContent(bucket[intent.source_key])
 
     @sync_performer
@@ -470,13 +549,18 @@ class FakeAWS(object):
         """
         See :class:`UploadToS3`.
         """
-        bucket = self.s3_buckets[intent.target_bucket]
+
         with intent.file.open() as source_file:
             content = source_file.read()
+        # XXX: Need to think about this.
+        # The fake currently only allows unicode content.
         content_type = intent.content_type
         if content_type is not None:
             content = ContentTypeUnicode(content, content_type)
-        bucket[intent.target_key] = content
+        self.state = self.state.transform(
+            ['s3_buckets', intent.target_bucket, intent.target_key],
+            content
+        )
 
     def get_dispatcher(self):
         """
@@ -487,6 +571,7 @@ class FakeAWS(object):
             # Share implementation with real implementation
             DownloadS3KeyRecursively: perform_download_s3_key_recursively,
             UploadToS3Recursively: perform_upload_s3_key_recursively,
+            ReadS3Key: perform_read_s3_key,
 
             # Fake implementation
             UpdateS3RoutingRules: self._perform_update_s3_routing_rules,
