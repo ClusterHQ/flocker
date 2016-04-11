@@ -106,40 +106,6 @@ common_cli:
       export venv=/tmp/${RANDOM}
     done
 
-    function os {
-      # Let's figure out if this is OSX or Linux
-      # and return the OS type (or the distribution for a Linux OS)
-      _nix_flavour=$(uname)
-      if [ 'Darwin' == "${_nix_flavour}" ]; then
-        echo "OSX"
-      else
-        # Determine OS platform
-        source /etc/os-release
-        echo ${ID}
-      fi
-    }
-    function is_ubuntu {
-      if [ 'ubuntu' == "$(os)" ]; then
-        return 0
-      else
-        return 1
-      fi
-    }
-    function is_centos {
-      if [ 'centos' == "$(os)" ]; then
-        return 0
-      else
-        return 1
-      fi
-    }
-    function is_osx {
-      if [ 'OSX' == "$(os)" ]; then
-        return 0
-      else
-        return 1
-      fi
-    }
-
     # fix the docker permission issue, the base image doesn't have the correct
     # permissions/owners.
     # This is to be tackled as part of:
