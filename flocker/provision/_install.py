@@ -847,7 +847,7 @@ def task_enable_docker(distribution):
         ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
         ' -H=0.0.0.0:2376')
 
-    if is_centos(distribution):
+    if is_centos(distribution) or is_rhel(distribution):
         conf_path = (
             "/etc/systemd/system/docker.service.d/01-TimeoutStartSec.conf"
         )
