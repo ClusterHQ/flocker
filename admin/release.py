@@ -15,8 +15,7 @@ import tempfile
 import virtualenv
 
 from datetime import datetime
-from subprocess import check_call, check_output
-from sys import platform as _platform
+from subprocess import check_call
 
 from boto.s3.website import RoutingRules, RoutingRule
 
@@ -114,12 +113,6 @@ class MissingPreRelease(Exception):
     """
     Raised if trying to release a pre-release for which the previous expected
     pre-release does not exist.
-    """
-
-
-class PushFailed(Exception):
-    """
-    Raised if pushing to Git fails.
     """
 
 

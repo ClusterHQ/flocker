@@ -27,8 +27,6 @@ from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.python.usage import UsageError
 
-from .. import release
-
 from ..release import (
     upload_python_packages, upload_packages, update_repo,
     parse_routing_rules, publish_docs, Environments,
@@ -36,7 +34,7 @@ from ..release import (
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     UploadOptions, create_pip_index, upload_pip_index,
-    PushFailed, update_license_file,
+    update_license_file,
 )
 
 from ..packaging import Distribution
