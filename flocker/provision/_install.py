@@ -95,6 +95,18 @@ def tag_as_test_install(flocker_version, distribution, package_name):
     return http_get(tag_url)
 
 
+def is_rhel(distribution):
+    """
+    Determine whether the named distribution is a version of RHEL.
+
+    :param bytes distribution: The name of the distribution to inspect.
+
+    :return: ``True`` if the distribution named is a version of RHEL,
+        ``False`` otherwise.
+    """
+    return distribution.startswith("rhel-")
+
+
 def is_centos(distribution):
     """
     Determine whether the named distribution is a version of CentOS.
@@ -526,7 +538,7 @@ def task_package_install(package_name, distribution,
     else:
         base_url = None
 
-    if is_centos(distribution):
+    if is_centos(distribution) or is_rhel(distribution):
         installer = install_commands_yum
     elif is_ubuntu(distribution):
         installer = install_commands_ubuntu
