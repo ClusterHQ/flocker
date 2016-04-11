@@ -196,7 +196,8 @@ def get_repository_url(distribution, flocker_version):
                         ),
         # Use CentOS packages for RHEL
         'rhel-7.2': "https://{archive_bucket}.s3.amazonaws.com/"
-                    "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                    "{key}/clusterhq-release$(rpm -E %dist).centos."
+                    "noarch.rpm".format(
                         archive_bucket=ARCHIVE_BUCKET,
                         key='centos',
                         ),
