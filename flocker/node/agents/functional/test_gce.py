@@ -50,14 +50,14 @@ from ..gce import (
 )
 from ....provision._gce import GCEInstanceBuilder
 from ..testtools import (
+    ProviderType,
     detach_destroy_volumes,
+    get_blockdeviceapi_with_cleanup,
+    get_device_allocation_unit,
+    get_minimum_allocatable_size,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
     make_iprofiledblockdeviceapi_tests,
-)
-from ..test.blockdevicefactory import (
-    ProviderType, get_blockdeviceapi_with_cleanup,
-    get_minimum_allocatable_size, get_device_allocation_unit
 )
 from ....testtools import TestCase
 

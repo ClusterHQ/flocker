@@ -33,15 +33,14 @@ Is there a script to cleanup volumes leftover from running functional tests?
 -----------------------------------------------------------------------------
 
 Yes.
-After each test case, `detach_destroy_volumes <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/test_blockdevice.py>`_ is run automatically to cleanup volumes created by the test case.
-This cleanup call is added as part of `get_blockdeviceapi_with_cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py>`_ .
+After each test case, ``flocker.node.agents.testtools.detach_destroy_volumes`` will cleanup volumes created by the test case.
+This cleanup function is registered for you if you load your API using ``flocker.node.agents.testtools.get_blockdeviceapi_with_cleanup``.
 
-Please use ``get_blockdeviceapi_with_cleanup`` in your test wrapper.
 
 I get a lot of output in ``journactl`` and it’s very difficult to track what all is happening, is there an easy way to view the logs?
 -------------------------------------------------------------------------------------------------------------------------------------
 
-`eliottree` is the preferred way, but it currently does not work due to `a known bug <https://github.com/jonathanj/eliottree/issues/28>`_ . 
+`eliottree` is the preferred way, but it currently does not work due to `a known bug <https://github.com/jonathanj/eliottree/issues/28>`_ .
 
 Troubleshooting
 ===============
@@ -50,7 +49,7 @@ How do I go about debugging after a functional test has failed?
 ---------------------------------------------------------------
 
 Start with the Flocker node agent log (:file:`/var/log/flocker/flocker-dataset-agent.log`).
-You can use `eliot-tree <https://github.com/jonathanj/eliottree>`_ to render the log in ASCII format. 
+You can use `eliot-tree <https://github.com/jonathanj/eliottree>`_ to render the log in ASCII format.
 
 Following this, review the storage driver log, then storage backend logs.
 
@@ -83,7 +82,7 @@ Please check that you have configured Flocker CA certs as documented for your sp
 * :ref:`Configuring Cluster Authentication for the Kubernetes Integration <authentication-kubernetes>`
 * :ref:`Configuring Cluster Authentication for an Integration of Flocker with Other Systems <authentication-docker>`
 
-How do I reset the Flocker control service state if my test environment is messed up? 
+How do I reset the Flocker control service state if my test environment is messed up?
 -------------------------------------------------------------------------------------
 
 Flocker control state is stored in :file:`/var/lib/flocker/current_configuration.v1.json` on the control compute node.
@@ -92,6 +91,6 @@ You can remove the file to reset the Flocker control service state:
 
 .. prompt:: bash $
 
-	systemctl stop flocker-control
-	rm /var/lib/flocker/current_configuration.v1.json
-	systemctl start flocker-control
+        systemctl stop flocker-control
+        rm /var/lib/flocker/current_configuration.v1.json
+        systemctl start flocker-control

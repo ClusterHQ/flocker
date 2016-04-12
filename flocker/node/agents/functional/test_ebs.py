@@ -35,14 +35,16 @@ from .._logging import (
     CREATE_VOLUME_FAILURE, AWS_ACTION, VOLUME_BUSY_MESSAGE,
 )
 from ..testtools import (
+    InvalidConfig,
+    ProviderType,
+    get_blockdevice_config,
+    get_blockdeviceapi_with_cleanup,
+    get_device_allocation_unit,
+    get_ec2_client_for_test,
+    get_minimum_allocatable_size,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
     make_iprofiledblockdeviceapi_tests,
-)
-from ..test.blockdevicefactory import (
-    InvalidConfig, ProviderType, get_blockdevice_config,
-    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size, get_ec2_client_for_test,
 )
 
 TIMEOUT = 5

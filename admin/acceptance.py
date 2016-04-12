@@ -496,7 +496,7 @@ def get_default_volume_size(dataset_backend_configuration):
     :rtype: int
     """
     # XXX: There is duplication between the values here and those in
-    # f.node.agents.test.blockdevicefactory.MINIMUM_ALLOCATABLE_SIZES. We want
+    # f.node.agents.testtools.MINIMUM_ALLOCATABLE_SIZES. We want
     # the default volume size to be greater than or equal to the minimum
     # allocatable size.
     #
