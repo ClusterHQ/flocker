@@ -345,7 +345,7 @@ def wipe_yum_cache(repository):
 
 def install_commands_yum(package_name, distribution, package_source, base_url):
     """
-    Install Flocker package on CentOS.
+    Install Flocker package on CentOS and RHEL.
 
     The ClusterHQ repo is added for downloading latest releases.  If
     ``package_source`` contains a branch, then a BuildBot repo will also
@@ -538,9 +538,13 @@ def task_package_install(package_name, distribution,
     :return: a sequence of commands to run on the distribution
     """
     if package_source.branch:
-        # A development branch has been selected - add its Buildbot repo
+        # A development branch has been selected - add its Buildbot repo.
+        # Install CentOS packages.
+        package_distribution = distribution
+        if package_distribution == 'rhel-7.2':
+            package_distribution = 'centos-7'
         result_path = posixpath.join(
-            '/results/omnibus/', package_source.branch, distribution)
+            '/results/omnibus/', package_source.branch, package_distribution)
         base_url = urljoin(package_source.build_server, result_path)
     else:
         base_url = None
