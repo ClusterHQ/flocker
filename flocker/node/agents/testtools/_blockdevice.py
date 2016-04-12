@@ -884,8 +884,6 @@ def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
     return Tests
 
 
-
-
 class InvalidConfig(Exception):
     """
     The cloud configuration could not be found or is not compatible with the
