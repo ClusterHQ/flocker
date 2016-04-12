@@ -8,16 +8,6 @@ Automated Testing
 
 Flocker includes client installation tests and a tool for running them in Docker containers.
 
-.. note::
-
-   On OS X, use the system Python together with Homebrew's OpenSSL.
-
-   .. prompt:: bash $
-
-      brew install libffi openssl
-      env LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openssl)/include" pip install --process-dependency-links -e .[dev]
-      mkvirtualenv --python=/usr/bin/python new_virtualenv
-
 The client tests are called like this:
 
 .. prompt:: bash $
@@ -75,15 +65,14 @@ Sometimes it is useful to manually test CLIs and their installation instructions
 OS X
 ~~~~
 
-ClusterHQ has a Mac with the ability to start an OS X Virtual Machine.
-An internal document describing how to use this is available at "Infrastructure > OS X Development Machine".
+In order to test on OS X you must find someone who has a Mac computer and ask them to spin up an OS X Virtual Machine to manually test CLIs and their installation.
 
 Linux
 ~~~~~
 
 To test on various Linux distributions, it is possible to create a Docker container.
 
-For example. choose a Docker image from the `Docker Hub <https://hub.docker.com/>`_, and run either of the following commands to start it:
+For example, choose a Docker image from the `Docker Hub <https://hub.docker.com/>`_, and run either of the following commands to start it:
 
 .. prompt:: bash $
 
