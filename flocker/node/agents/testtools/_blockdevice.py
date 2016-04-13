@@ -917,41 +917,44 @@ def get_blockdevice_config():
 
     :return: XXX
     """
-    # ie cust0, rackspace, aws
-    platform_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if platform_name is None:
-        raise InvalidConfig(
-            'Supply the platform on which you are running tests using the '
-            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER environment variable.'
-        )
-
     config_file_path = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE')
     if config_file_path is None:
         raise InvalidConfig(
-            'Supply the path to a cloud credentials file '
+            'Supply the path to a backend configuration file '
             'using the FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE environment '
-            'variable. See: '
-            'https://docs.clusterhq.com/en/latest/gettinginvolved/acceptance-testing.html '  # noqa
-            'for details of the expected format.'
+            'variable.'
+        )
+
+    # ie storage-drivers.rackspace
+    config_section = environ.get(
+        'FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION',
+    )
+    if config_section is None:
+        raise InvalidConfig(
+            'Supply the section of the config file '
+            'containing the configuration for the driver under test '
+            'with the FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION '
+            'environment variable.'
         )
 
     with open(config_file_path) as config_file:
         config = yaml.safe_load(config_file.read())
 
-    # XXX fix this. Not everyone's config needs to have storage-drivers.
-    config = config.get('storage-drivers')
-    config = config.get(platform_name)
+    for section in config_section.split('.'):
+        config = config.get(section)
+
     if config is None:
         raise InvalidConfig(
-            "The requested cloud platform "
+            "The requested section "
             "was not found in the configuration file. "
-            "Platform: %s, "
-            "Configuration File: %s" % (platform_name, config_file_path)
+            "Section: %s, "
+            "Configuration File: %s" % (config_section, config_file_path)
         )
-    # XXX A hack to work around our acceptance.yml not having a backend key in
-    # all the storage-driver sections.
+
+    # XXX A hack to work around the fact that the sub-sections of
+    # storage-drivers in acceptance.yml do not all have a ``backend`` key.
     if "backend" not in config:
-        config["backend"] = platform_name
+        config["backend"] = section
 
     return config
 

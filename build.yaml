@@ -327,6 +327,7 @@ common_cli:
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=storage-drivers.aws
     FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE="`wget -q -O - \
         http://169.254.169.254/latest/meta-data/placement/availability-zone`"
     export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE
@@ -338,6 +339,7 @@ common_cli:
     # bootstrapping. These are copied from the Jenkins Master /etc/slave_config
     # directory.
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=storage-drivers.rackspace
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=rackspace
     export FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=dfw
 
@@ -347,6 +349,7 @@ common_cli:
     # bootstrapping. These are copied from the Jenkins Master /etc/slave_config
     # directory.
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=storage-drivers.gce
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=gce
 
   setup_coverage: &setup_coverage |
