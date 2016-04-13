@@ -978,7 +978,11 @@ def _openstack(cluster_id, config):
         necessary to authenticate a keystone session.
     :return: A CinderBlockDeviceAPI instance.
     """
-    region = get_openstack_region_for_test()
+    configured_region = config.pop('region', None)
+    # XXX Our build server sets a static region environment variable so this
+    # seems pretty pointless. I'll fix it in a followup.
+    override_region = get_openstack_region_for_test()
+    region = override_region or configured_region
     return cinder_from_configuration(region, cluster_id, **config)
 
 
