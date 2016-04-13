@@ -947,6 +947,7 @@ def get_blockdevice_config():
     with open(config_file_path) as config_file:
         config = yaml.safe_load(config_file.read())
 
+    section = None
     for section in config_section.split('.'):
         config = config.get(section)
 
