@@ -32,7 +32,6 @@ from flocker.ca import (
 
 from ..testtools import (
     InvalidConfig,
-    ProviderType,
     get_blockdevice_config,
     get_blockdeviceapi_with_cleanup,
     get_device_allocation_unit,
@@ -93,7 +92,7 @@ def cinderblockdeviceapi_for_test(test_case):
         be cleaned up at the end of the test (using ``test_case``\ 's cleanup
         features).
     """
-    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
+    return get_blockdeviceapi_with_cleanup(test_case)
 
 
 class CinderBlockDeviceAPIInterfaceTests(
@@ -116,7 +115,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         :return: A ``cinderclient.Cinder`` instance.
         """
         try:
-            config = get_blockdevice_config(ProviderType.openstack)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
         session = get_keystone_session(**config)
@@ -213,7 +212,7 @@ class CinderHttpsTests(TestCase):
         :returns: A Keystone Session instance.
         """
         try:
-            config = get_blockdevice_config(ProviderType.openstack)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 
@@ -378,7 +377,7 @@ class OpenStackFixture(object):
         self.setUp()
 
     def setUp(self):
-        config = get_blockdevice_config(ProviderType.openstack)
+        config = get_blockdevice_config()
         region = get_openstack_region_for_test()
         session = get_keystone_session(**config)
         self.cinder = get_cinder_v1_client(session, region)

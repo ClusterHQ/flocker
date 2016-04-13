@@ -50,7 +50,6 @@ from ..gce import (
 )
 from ....provision._gce import GCEInstanceBuilder
 from ..testtools import (
-    ProviderType,
     detach_destroy_volumes,
     get_blockdeviceapi_with_cleanup,
     get_device_allocation_unit,
@@ -115,7 +114,7 @@ def gceblockdeviceapi_for_test(test_case):
     """
     Create a ``GCEBlockDeviceAPI`` for use by tests.
     """
-    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.gce)
+    return get_blockdeviceapi_with_cleanup(test_case)
 
 
 class GCEBlockDeviceAPIInterfaceTests(

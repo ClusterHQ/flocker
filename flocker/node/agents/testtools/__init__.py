@@ -11,7 +11,6 @@ from ._cinder import (
 from ._blockdevice import (
     FakeCloudAPI,
     InvalidConfig,
-    ProviderType,
     detach_destroy_volumes,
     get_blockdevice_config,
     get_blockdeviceapi_with_cleanup,
@@ -33,7 +32,6 @@ from ._loopback import (
 __all__ = [
     'FakeCloudAPI',
     'InvalidConfig',
-    'ProviderType',
     'detach_destroy_volumes',
     'fakeprofiledloopbackblockdeviceapi_for_test',
     'get_blockdevice_config',

@@ -36,7 +36,6 @@ from .._logging import (
 )
 from ..testtools import (
     InvalidConfig,
-    ProviderType,
     get_blockdevice_config,
     get_blockdeviceapi_with_cleanup,
     get_device_allocation_unit,
@@ -55,7 +54,7 @@ def ebsblockdeviceapi_for_test(test_case):
     """
     Create an ``EBSBlockDeviceAPI`` for use by tests.
     """
-    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.aws)
+    return get_blockdeviceapi_with_cleanup(test_case)
 
 
 class EBSBlockDeviceAPIInterfaceTests(
@@ -102,7 +101,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         is made to detach a volume that has not been unmounted.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 
@@ -174,7 +173,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         assigned to volumes that have been attached outside of Flocker.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 
@@ -226,7 +225,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         belonging to the current Flocker cluster.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
         ec2_client = get_ec2_client_for_test(config)
@@ -262,7 +261,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         Newly created volumes get the "Name" tag set to a human-readable name.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 

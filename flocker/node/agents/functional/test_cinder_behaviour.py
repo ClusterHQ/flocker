@@ -14,7 +14,6 @@ from ..cinder import (
 )
 from ..testtools import (
     InvalidConfig,
-    ProviderType,
     get_blockdevice_config,
     get_minimum_allocatable_size,
     get_openstack_region_for_test,
@@ -31,7 +30,7 @@ def cinder_volume_manager():
     XXX: It will not automatically clean up after itself. See FLOC-1824.
     """
     try:
-        config = get_blockdevice_config(ProviderType.openstack)
+        config = get_blockdevice_config()
     except InvalidConfig as e:
         raise SkipTest(str(e))
     region = get_openstack_region_for_test()
