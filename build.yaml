@@ -338,7 +338,7 @@ common_cli:
     # bootstrapping. These are copied from the Jenkins Master /etc/slave_config
     # directory.
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
-    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=openstack
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=rackspace
     export FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=dfw
 
   setup_gce_env_vars: &setup_gce_env_vars |
