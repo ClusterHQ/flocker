@@ -26,7 +26,6 @@ from testtools.matchers import AllMatch, IsInstance
 from twisted.internet import reactor
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
-from twisted.python.constants import Names, NamedConstant
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
@@ -1096,8 +1095,7 @@ def get_device_allocation_unit():
 
 
 MINIMUM_ALLOCATABLE_SIZES = {
-    # This really means Rackspace
-    'openstack': RACKSPACE_MINIMUM_VOLUME_SIZE,
+    'rackspace': RACKSPACE_MINIMUM_VOLUME_SIZE,
     'devstack-openstack': GiB(1),
     'redhat-openstack': GiB(1),
     'aws': GiB(1),
