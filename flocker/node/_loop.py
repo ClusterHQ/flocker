@@ -47,6 +47,7 @@ from twisted.python.reflect import safe_repr
 from . import run_state_change, NoOp
 
 from ..common import gather_deferreds
+from ..common.logging import log_info
 from ..control import (
     NodeStateCommand, IConvergenceAgent, AgentAMP, SetNodeEraCommand,
     IStatePersister, SetBlockDeviceIdForDatasetId,
@@ -563,8 +564,9 @@ class ConvergenceLoop(object):
                     action.sleep.total_seconds())
             else:
                 # Log the Node configuration that we are converging upon:
-                Message.log(
-                    self.desired_configuration.get_node(self.node_uuid))
+                log_info(desired_config=self.desired_configuration.get_node(
+                    self.node_uuid
+                ))
                 # We're going to do some work, we should do another
                 # iteration, but chances are that if, for any reason,
                 # the backend is saturated, by looping too fast, we
