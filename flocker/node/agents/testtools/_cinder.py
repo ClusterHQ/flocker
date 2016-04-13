@@ -3,8 +3,6 @@
 """
 Test helpers for ``flocker.node.agents.cinder``.
 """
-from functools import wraps
-
 from zope.interface.verify import verifyObject
 
 from flocker.testtools import TestCase
@@ -15,18 +13,9 @@ from ..cinder import (
 from ._blockdevice import require_backend
 
 
-def require_backend_openstack(undecorated_object):
-    """
-    Raise SkipTest unless the functional test configuration has an openstack
-    backend.
-    """
-    @wraps(undecorated_object)
-    def decorator(*args, **kwargs):
-        skipper = require_backend('openstack')
-        decorated_object = skipper(undecorated_object)
-        result = decorated_object(*args, **kwargs)
-        return result
-    return decorator
+# Raise SkipTest unless the functional test configuration has an openstack
+# backend.
+require_backend_openstack = require_backend('openstack')
 
 
 class ICinderVolumeManagerTestsMixin(object):

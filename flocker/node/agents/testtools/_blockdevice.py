@@ -3,6 +3,7 @@
 """
 Test helpers for ``flocker.node.agents.blockdevice``.
 """
+from functools import wraps
 from os import environ
 from unittest import SkipTest, skipUnless
 from subprocess import check_output, Popen, PIPE, STDOUT
@@ -1126,13 +1127,28 @@ def get_minimum_allocatable_size():
 
 
 def require_backend(required_backend):
-    config = get_blockdevice_config()
-    configured_backend = config.pop('backend')
-    return skipUnless(
-        configured_backend == required_backend,
-        'The backend in the supplied configuration '
-        'is not suitable for this test. '
-        'Found: {!r}. Required: {!r}.'.format(
-            configured_backend, required_backend
-        )
-    )
+    """
+    Raise ``SkipTest`` unless the functional test configuration has
+    ``required_backend``.
+
+    :param unicode required_backend: The name of the required backend.
+    :returns: A function decorator.
+    """
+    def decorator(undecorated_object):
+        @wraps(undecorated_object)
+        def wrapper(*args, **kwargs):
+            config = get_blockdevice_config()
+            configured_backend = config.pop('backend')
+            skipper = skipUnless(
+                configured_backend == required_backend,
+                'The backend in the supplied configuration '
+                'is not suitable for this test. '
+                'Found: {!r}. Required: {!r}.'.format(
+                    configured_backend, required_backend
+                )
+            )
+            decorated_object = skipper(undecorated_object)
+            result = decorated_object(*args, **kwargs)
+            return result
+        return wrapper
+    return decorator
