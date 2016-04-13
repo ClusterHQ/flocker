@@ -891,59 +891,32 @@ class InvalidConfig(Exception):
     """
 
 
-# Highly duplicative of other constants.  FLOC-2584.
-class ProviderType(Names):
-    """
-    Kinds of compute/storage cloud providers for which this module is able to
-    build ``IBlockDeviceAPI`` providers.
-    """
-    openstack = NamedConstant()
-    aws = NamedConstant()
-    gce = NamedConstant()
-    rackspace = NamedConstant()
+# XXX Remember to comment on or close FLOC-2584.
 
 
-def get_blockdeviceapi(provider_type):
+def get_blockdeviceapi():
     """
     Validate and load cloud provider's yml config file.
     Default to ``~/acceptance.yml`` in the current user home directory, since
     that's where buildbot puts its acceptance test credentials file.
     """
-    config = get_blockdevice_config(provider_type)
-    provider = _provider_for_provider_type(provider_type)
+    config = get_blockdevice_config()
+    backend_name = config.pop('backend')
+    provider = Providers.lookupByName(backend_name.upper())
     factory = _BLOCKDEVICE_TYPES[provider]
     return factory(make_cluster_id(TestTypes.FUNCTIONAL, provider), config)
 
 
-def _provider_for_provider_type(provider_type):
-    """
-    Convert from ``ProviderType`` values to ``Providers`` values.
-    """
-    if provider_type in (ProviderType.openstack, ProviderType.rackspace):
-        return Providers.OPENSTACK
-    if provider_type is ProviderType.aws:
-        return Providers.AWS
-    if provider_type is ProviderType.gce:
-        return Providers.GCE
-    return Providers.UNSPECIFIED
-
-
-def get_blockdevice_config(provider_type):
+def get_blockdevice_config():
     """
     Get configuration dictionary suitable for use in the instantiation
-    of an ``IBlockDeviceAPI`` implementation compatible with the given
-    provider type.
-
-    :param provider_type: A provider type the ``IBlockDeviceAPI`` is to
-        be compatible with.  A value from ``ProviderType``.
+    of an ``IBlockDeviceAPI`` implementation.
 
     :raises: ``InvalidConfig`` if a
         ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
 
-    :return: A two-tuple of an ``IBlockDeviceAPI`` implementation and a
-        ``dict`` of keyword arguments that can be used instantiate that
-        implementation.
+    :return: XXX
     """
     # ie cust0, rackspace, aws
     platform_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
@@ -966,42 +939,22 @@ def get_blockdevice_config(provider_type):
     with open(config_file_path) as config_file:
         config = yaml.safe_load(config_file.read())
 
-    section = config.get(platform_name)
-    if section is None:
+    # XXX fix this. Not everyone's config needs to have storage-drivers.
+    config = config.get('storage-drivers')
+    config = config.get(platform_name)
+    if config is None:
         raise InvalidConfig(
             "The requested cloud platform "
             "was not found in the configuration file. "
             "Platform: %s, "
             "Configuration File: %s" % (platform_name, config_file_path)
         )
+    # XXX A hack to work around our acceptance.yml not having a backend key in
+    # all the storage-driver sections.
+    if "backend" not in config:
+        config["backend"] = platform_name
 
-    provider_name = section.get('provider', platform_name)
-    try:
-        provider_environment = ProviderType.lookupByName(provider_name)
-    except ValueError:
-        raise InvalidConfig(
-            "Unsupported provider. "
-            "Supplied provider: %s, "
-            "Available providers: %s" % (
-                provider_name,
-                ', '.join(p.name for p in ProviderType.iterconstants())
-            )
-        )
-
-    if provider_environment != provider_type:
-        raise InvalidConfig(
-            "The requested cloud provider (%s) is not the provider running "
-            "the tests (%s)." % (provider_type.name, provider_environment.name)
-        )
-
-    # XXX - If provider type is Rackspace, we add the auth_plugin config
-    # here.  The CI system should be configured to provide this
-    # parameter as part of the config, to match the documented way of
-    # configuring Rackspace.
-    if provider_environment == ProviderType.rackspace:
-        section['auth_plugin'] = 'rackspace'
-
-    return section
+    return config
 
 
 def get_openstack_region_for_test():
@@ -1085,17 +1038,13 @@ _BLOCKDEVICE_TYPES = {
 }
 
 
-def get_blockdeviceapi_with_cleanup(test_case, provider):
+def get_blockdeviceapi_with_cleanup(test_case):
     """
-    Instantiate an ``IBlockDeviceAPI`` implementation appropriate to the given
-    provider and configured to work in the current environment.  Arrange for
-    all volumes created by it to be cleaned up at the end of the current test
-    run.
+    Instantiate an ``IBlockDeviceAPI`` implementation configured to work in the
+    current environment.  Arrange for all volumes created by it to be cleaned
+    up at the end of the current test run.
 
     :param TestCase test_case: The running test.
-    :param provider: A provider type the ``IBlockDeviceAPI`` is to be
-        compatible with.  A value from ``ProviderType``.
-
     :raises: ``SkipTest`` if either:
         1) A ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
         was not set and the default config file could not be read, or,
@@ -1111,7 +1060,7 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
         )
 
     try:
-        api = get_blockdeviceapi(provider)
+        api = get_blockdeviceapi()
     except InvalidConfig as e:
         raise SkipTest(str(e))
     test_case.addCleanup(detach_destroy_volumes, api)
