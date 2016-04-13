@@ -917,9 +917,16 @@ def get_blockdevice_config():
 
     :return: XXX
     """
+    flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
+    if flocker_functional_test is None:
+        raise SkipTest(
+            'Please set FLOCKER_FUNCTIONAL_TEST environment variable to '
+            'run storage backend functional tests.'
+        )
+
     config_file_path = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE')
     if config_file_path is None:
-        raise InvalidConfig(
+        raise SkipTest(
             'Supply the path to a backend configuration file '
             'using the FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE environment '
             'variable.'
@@ -930,7 +937,7 @@ def get_blockdevice_config():
         'FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION',
     )
     if config_section is None:
-        raise InvalidConfig(
+        raise SkipTest(
             'Supply the section of the config file '
             'containing the configuration for the driver under test '
             'with the FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION '
@@ -1058,13 +1065,6 @@ def get_blockdeviceapi_with_cleanup(test_case):
 
     :return: The new ``IBlockDeviceAPI`` provider.
     """
-    flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
-    if flocker_functional_test is None:
-        raise SkipTest(
-            'Please set FLOCKER_FUNCTIONAL_TEST environment variable to '
-            'run storage backend functional tests.'
-        )
-
     try:
         api = get_blockdeviceapi()
     except InvalidConfig as e:
