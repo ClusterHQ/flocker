@@ -39,6 +39,7 @@ from ..testtools import (
     get_openstack_region_for_test,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
+    require_backend_openstack,
 )
 from ....testtools import TestCase, flaky, run_process
 
@@ -82,6 +83,7 @@ require_virtio = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
 
 
+@require_backend_openstack
 def cinderblockdeviceapi_for_test(test_case):
     """
     Create a ``CinderBlockDeviceAPI`` instance for use in tests.
@@ -203,6 +205,7 @@ class CinderHttpsTests(TestCase):
     has SSL and that supports the "password" auth_plugin.
     Which means that these tests are not run on any of our build servers.
     """
+    @require_backend_openstack
     def session_for_test(self, config_override):
         """
         Creates a new Keystone session and invalidates it.
@@ -404,6 +407,7 @@ class CinderAttachmentTests(TestCase):
     """
     Cinder volumes can be attached and return correct device path.
     """
+    @require_backend_openstack
     def setUp(self):
         super(CinderAttachmentTests, self).setUp()
         try:
@@ -454,6 +458,7 @@ class CinderAttachmentTests(TestCase):
 
 
 class VirtIOCinderAttachmentTests(TestCase):
+    @require_backend_openstack
     @require_virtio
     def setUp(self):
         super(VirtIOCinderAttachmentTests, self).setUp()

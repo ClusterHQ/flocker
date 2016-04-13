@@ -57,6 +57,7 @@ from ..testtools import (
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
     make_iprofiledblockdeviceapi_tests,
+    require_backend,
 )
 from ....testtools import TestCase
 
@@ -110,6 +111,7 @@ class GCEComputeTestObjects(Fixture):
         return instance
 
 
+@require_backend('gce')
 def gceblockdeviceapi_for_test(test_case):
     """
     Create a ``GCEBlockDeviceAPI`` for use by tests.

@@ -4,7 +4,7 @@
 Test helpers for ``flocker.node.agents.blockdevice``.
 """
 from os import environ
-from unittest import SkipTest
+from unittest import SkipTest, skipUnless
 from subprocess import check_output, Popen, PIPE, STDOUT
 import time
 from uuid import uuid4
@@ -1119,3 +1119,16 @@ def get_minimum_allocatable_size():
         return 1
     else:
         return int(MINIMUM_ALLOCATABLE_SIZES[cloud_provider].to_Byte().value)
+
+
+def require_backend(required_backend):
+    config = get_blockdevice_config()
+    configured_backend = config.pop('backend')
+    return skipUnless(
+        configured_backend == required_backend,
+        'The backend in the supplied configuration '
+        'is not suitable for this test. '
+        'Found: {!r}. Required: {!r}.'.format(
+            configured_backend, required_backend
+        )
+    )

@@ -17,12 +17,14 @@ from ..testtools import (
     get_blockdevice_config,
     get_minimum_allocatable_size,
     get_openstack_region_for_test,
+    require_backend_openstack,
 )
 from ....testtools import TestCase, random_name
 
 from .logging import CINDER_VOLUME
 
 
+@require_backend_openstack
 def cinder_volume_manager():
     """
     Get an ``ICinderVolumeManager`` configured to work on this environment.

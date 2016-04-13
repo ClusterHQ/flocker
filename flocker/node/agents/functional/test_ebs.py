@@ -44,12 +44,14 @@ from ..testtools import (
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
     make_iprofiledblockdeviceapi_tests,
+    require_backend,
 )
 
 TIMEOUT = 5
 ONE_GIB = 1073741824
 
 
+@require_backend('aws')
 def ebsblockdeviceapi_for_test(test_case):
     """
     Create an ``EBSBlockDeviceAPI`` for use by tests.
