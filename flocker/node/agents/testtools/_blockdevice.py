@@ -997,8 +997,8 @@ def get_ec2_client_for_test(config):
     return ec2_client(
         region=region,
         zone=zone,
-        access_key_id=config['access_key'],
-        secret_access_key=config['secret_access_token']
+        access_key_id=config['access_key_id'],
+        secret_access_key=config['secret_access_key']
     )
 
 
