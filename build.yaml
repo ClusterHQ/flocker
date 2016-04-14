@@ -349,7 +349,7 @@ common_cli:
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=storage-drivers.rackspace
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=rackspace
-    export FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=dfw
+    export FLOCKER_FUNCTIONAL_TEST_CONFIG_OVERRIDE_region="DFW"
 
   setup_gce_env_vars: &setup_gce_env_vars |
     # set vars and run tests

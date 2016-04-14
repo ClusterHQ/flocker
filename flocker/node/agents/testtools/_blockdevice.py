@@ -1033,16 +1033,9 @@ def get_ec2_client_for_test(config):
     """
     Get a simple EC2 client, configured for the test region.
     """
-
-    # We just get the credentials from the config file.
-    # We ignore the region specified in acceptance test configuration,
-    # and instead get the region from the zone of the host.
-    zone = environ['FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE']
-    # The region is the zone, without the trailing [abc].
-    region = zone[:-1]
     return ec2_client(
-        region=region,
-        zone=zone,
+        region=config['region'],
+        zone=config['zone'],
         access_key_id=config['access_key_id'],
         secret_access_key=config['secret_access_key']
     )
