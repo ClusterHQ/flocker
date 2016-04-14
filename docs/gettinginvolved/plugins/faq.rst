@@ -29,18 +29,22 @@ Does the Flocker node agent cache any state?
 No.
 The only state cached is in the Flocker control agent.
 
-Is there a script to cleanup volumes leftover from running functional tests?
------------------------------------------------------------------------------
+Is there a way to cleanup volumes leftover from running functional tests?
+-------------------------------------------------------------------------
 
 Yes.
-After each test case, ``flocker.node.agents.testtools.detach_destroy_volumes`` will cleanup volumes created by the test case.
-This cleanup function is registered for you if you load your API using ``flocker.node.agents.testtools.get_blockdeviceapi_with_cleanup``.
+``flocker.node.agents.testtools.detach_destroy_volumes`` can be registered as a cleanup function to cleanup volumes created by the test case.
+It is registered for you if you load your API using ``flocker.node.agents.testtools.get_blockdeviceapi_with_cleanup``.
 
 
-I get a lot of output in ``journactl`` and it’s very difficult to track what all is happening, is there an easy way to view the logs?
--------------------------------------------------------------------------------------------------------------------------------------
+I get a lot of output in ``journactl`` and it’s very difficult to track what is happening, is there an easy way to view the logs?
+---------------------------------------------------------------------------------------------------------------------------------
 
-`eliottree` is the preferred way, but it currently does not work due to `a known bug <https://github.com/jonathanj/eliottree/issues/28>`_ .
+You can use ``eliot-prettyprint`` or ``eliot-tree`` to filter and format the Flocker log messages.
+Both of those commands are Flocker dependencies and they are installed when you install Flocker.
+You will find them in your local development environment when you install Flocker using ``pip``
+or on any server where the ``clusterhq-flocker-node`` package has been installed; in which case they will be installed in ``/opt/flocker/bin``.
+
 
 Troubleshooting
 ===============
