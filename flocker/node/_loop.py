@@ -53,6 +53,10 @@ from ..control import (
 )
 from ..control._persistence import to_unserialized_json
 
+# The maximum number of seconds an agent will wait before attempting to
+# reconnect to the control service.
+MAXIMUM_RECONNECT_DELAY = 30
+
 
 class ClusterStatusInputs(Names):
     """
@@ -754,6 +758,7 @@ class AgentLoopService(MultiService, object):
         self.reconnecting_factory = ReconnectingClientFactory.forProtocol(
             lambda: AgentAMP(self.reactor, self)
         )
+        self.reconnecting_factory.maxDelay = MAXIMUM_RECONNECT_DELAY
         self.factory = TLSMemoryBIOFactory(context_factory, True,
                                            self.reconnecting_factory)
 
