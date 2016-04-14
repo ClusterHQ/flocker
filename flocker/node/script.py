@@ -34,7 +34,6 @@ from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service,
     enable_profiling, disable_profiling)
-from ..common.plugin import PluginLoader
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .exceptions import StorageInitializationError
@@ -52,7 +51,6 @@ from .backends import (
     BackendDescription,
     DeployerType,
     backend_and_api_args_from_configuration,
-    backend_loader,
 )
 
 __all__ = [
