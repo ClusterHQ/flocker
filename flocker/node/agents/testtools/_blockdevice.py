@@ -53,7 +53,8 @@ from ..loopback import check_allocatable_size
 from ..cinder import cinder_from_configuration
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..gce import gce_from_configuration
-
+from ...script import get_api
+from ...backends import backend_and_api_args_from_configuration
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach. So just use this global logger for now.
@@ -901,10 +902,27 @@ def get_blockdeviceapi():
     that's where buildbot puts its acceptance test credentials file.
     """
     config = get_blockdevice_config()
-    backend_name = config.pop('backend')
-    provider = Providers.lookupByName(backend_name.upper())
-    factory = _BLOCKDEVICE_TYPES[provider]
-    return factory(make_cluster_id(TestTypes.FUNCTIONAL, provider), config)
+    # backend_name = config.pop('backend')
+    # provider = Providers.lookupByName(backend_name.upper())
+    # factory = _BLOCKDEVICE_TYPES[provider]
+    # api =  factory(make_cluster_id(TestTypes.FUNCTIONAL, provider), config)
+    backend, api_args = backend_and_api_args_from_configuration(config)
+    api = get_api(
+        backend=backend,
+        api_args=api_args,
+        reactor=reactor,
+        cluster_id=make_cluster_id(
+            # XXX I assume that this function will only be used from functional
+            # tests.  Acceptance tests will load the API via the AgentService.
+            test_type=TestTypes.FUNCTIONAL,
+            # XXX This should match the backend, but Providers are
+            # ValueConstants rather than NamedConstants so we can't
+            # look them up and I'm not convinced whether they add any
+            # value.
+            provider=Providers.UNSPECIFIED,
+        ),
+    )
+    return api
 
 
 def get_blockdevice_config():
