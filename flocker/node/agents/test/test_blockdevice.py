@@ -124,11 +124,16 @@ from ..testtools import (
     detach_destroy_volumes,
     fakeprofiledloopbackblockdeviceapi_for_test,
     loopbackblockdeviceapi_for_test,
-    # NB: Think carefully before moving this.
-    # Backend driver docs used to instruct developers to import this from here.
+
+    # XXX: Many of the external Flocker backend driver plugins import
+    # flocker.node.agents.test.test_blockdevice.make_iblockdeviceapi_tests and
+    # make_iprofiledblockdeviceapi_tests because that's where they originally
+    # lived.  We've now moved it to a testtools package but we don't want to
+    # break external drivers. (FLOC-4308)
     make_iblockdeviceapi_tests,
     make_iprofiledblockdeviceapi_tests,
     make_icloudapi_tests,
+
     mountroot_for_test,
     umount,
     umount_all,

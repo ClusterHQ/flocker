@@ -31,11 +31,13 @@ from flocker.ca import (
 )
 
 from ..testtools import (
-    make_iblockdeviceapi_tests, make_icloudapi_tests,
+    dataset_agent_api_for_test,
+    make_iblockdeviceapi_tests,
+    make_icloudapi_tests,
 )
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
-    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
+    get_device_allocation_unit,
     get_minimum_allocatable_size, get_openstack_region_for_test,
 )
 from ....testtools import TestCase, flaky, run_process
@@ -90,7 +92,12 @@ def cinderblockdeviceapi_for_test(test_case):
         be cleaned up at the end of the test (using ``test_case``\ 's cleanup
         features).
     """
-    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
+    return dataset_agent_api_for_test(
+        test_case=test_case,
+        dataset_configuration=get_blockdevice_config(
+            ProviderType.openstack
+        )
+    )
 
 
 class CinderBlockDeviceAPIInterfaceTests(
@@ -108,33 +115,20 @@ class CinderBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``CinderBlockDeviceAPI``.
     """
-    def cinder_client(self):
-        """
-        :return: A ``cinderclient.Cinder`` instance.
-        """
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-        session = get_keystone_session(**config)
-        region = get_openstack_region_for_test()
-        return get_cinder_v1_client(session, region)
-
     def test_foreign_volume(self):
         """
         Non-Flocker Volumes are not listed.
         """
-        cinder_client = self.cinder_client()
-        requested_volume = cinder_client.volumes.create(
+        requested_volume = self.api.cinder_volume_manager.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
         CINDER_VOLUME(id=requested_volume.id).write()
         self.addCleanup(
-            cinder_client.volumes.delete,
+            self.api.cinder_volume_manager.delete,
             requested_volume.id,
         )
         wait_for_volume_state(
-            volume_manager=cinder_client.volumes,
+            volume_manager=self.api.cinder_volume_manager,
             expected_volume=requested_volume,
             desired_state=u'available',
             transient_states=(u'creating',),
@@ -160,7 +154,6 @@ class CinderBlockDeviceAPIInterfaceTests(
         """
         New volumes get a human-readable name.
         """
-        cinder_client = self.cinder_client()
         dataset_id = uuid4()
         flocker_volume = self.api.create_volume(
             dataset_id=dataset_id,
@@ -168,7 +161,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         )
         CINDER_VOLUME(id=flocker_volume.blockdevice_id).write()
         self.assertEqual(
-            cinder_client.volumes.get(
+            self.api.cinder_volume_manager.get(
                 flocker_volume.blockdevice_id).display_name,
             u"flocker-{}".format(dataset_id))
 

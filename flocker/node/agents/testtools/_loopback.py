@@ -9,18 +9,16 @@ from pyrsistent import pmap
 from twisted.python.components import proxyForInterface
 from zope.interface import implementer
 
-from ....testtools import random_name
-
 from ..blockdevice import IBlockDeviceAPI, IProfiledBlockDeviceAPI
-from ..loopback import LoopbackBlockDeviceAPI
 
-from . import detach_destroy_volumes
+from . import dataset_agent_api_for_test
 
 
 def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
     """
-    :returns: A ``LoopbackBlockDeviceAPI`` with a temporary root directory
-        created for the supplied ``test_case``.
+    Do some setup common to all of the ``AgentService`` test cases.
+
+    :param test: A ``TestCase`` instance.
     """
     user_id = getuid()
     if user_id != 0:
@@ -29,15 +27,15 @@ def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
             "which requires root privileges. "
             "Required UID: 0, Found UID: {!r}".format(user_id)
         )
-
-    root_path = test_case.mktemp()
-    loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
-        root_path=root_path,
-        compute_instance_id=random_name(test_case),
-        allocation_unit=allocation_unit,
+    api = dataset_agent_api_for_test(
+        test_case=test_case,
+        dataset_configuration={
+            u"backend": "loopback",
+            u"root_path": test_case.make_temporary_directory().path,
+            u"allocation_unit": allocation_unit,
+        }
     )
-    test_case.addCleanup(detach_destroy_volumes, loopback_blockdevice_api)
-    return loopback_blockdevice_api
+    return api
 
 
 @implementer(IProfiledBlockDeviceAPI)

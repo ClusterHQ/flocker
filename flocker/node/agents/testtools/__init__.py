@@ -10,6 +10,7 @@ from ._cinder import (
 )
 from ._blockdevice import (
     FakeCloudAPI,
+    dataset_agent_api_for_test,
     detach_destroy_volumes,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
@@ -24,6 +25,7 @@ from ._loopback import (
 )
 __all__ = [
     'FakeCloudAPI',
+    'dataset_agent_api_for_test',
     'detach_destroy_volumes',
     'fakeprofiledloopbackblockdeviceapi_for_test',
     'loopbackblockdeviceapi_for_test',
