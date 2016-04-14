@@ -328,10 +328,18 @@ common_cli:
     # set vars and run tests
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=storage-drivers.aws
-    FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE="`wget -q -O - \
-        http://169.254.169.254/latest/meta-data/placement/availability-zone`"
-    export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE
+    AWS_ZONE=$(\
+        wget -q -O - \
+        http://169.254.169.254/latest/meta-data/placement/availability-zone\
+    )
+    echo "AWS_ZONE=${AWS_ZONE}"
+    export FLOCKER_FUNCTIONAL_TEST_CONFIG_OVERRIDE_zone="${AWS_ZONE}"
+    # There isn't a separate meta-data endpoint to get the instance region.
+    # So assume that region is always ZONE without the trailing character.
+    export FLOCKER_FUNCTIONAL_TEST_CONFIG_OVERRIDE_region="${AWS_ZONE:0:-1}"
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
+    echo "FLOCKER_FUNCTIONAL_TEST_CONFIG_OVERRIDE_zone=${FLOCKER_FUNCTIONAL_TEST_CONFIG_OVERRIDE_zone}"
+    echo "FLOCKER_FUNCTIONAL_TEST_CONFIG_OVERRIDE_region=${FLOCKER_FUNCTIONAL_TEST_CONFIG_OVERRIDE_region}"
 
   setup_rackspace_env_vars: &setup_rackspace_env_vars |
     # set vars and run tests

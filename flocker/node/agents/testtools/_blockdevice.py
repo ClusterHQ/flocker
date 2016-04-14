@@ -925,6 +925,9 @@ def get_blockdeviceapi():
     return api
 
 
+CONFIG_OVERRIDE_PREFIX = 'FLOCKER_FUNCTIONAL_TEST_CONFIG_OVERRIDE_'
+
+
 def get_blockdevice_config():
     """
     Get configuration dictionary suitable for use in the instantiation
@@ -982,6 +985,16 @@ def get_blockdevice_config():
     # storage-drivers in acceptance.yml do not all have a ``backend`` key.
     if "backend" not in config:
         config["backend"] = section
+
+    # XXX Allow certain configuration to be overridden from environment
+    # variables.
+    # This allows us to dynamically use the zone where the functional test
+    # instance has been launched.
+    for key, value in environ.items():
+        if key.startswith(CONFIG_OVERRIDE_PREFIX):
+            key = key[len(CONFIG_OVERRIDE_PREFIX):]
+            if key:
+                config[key] = value.decode('ascii')
 
     return config
 
