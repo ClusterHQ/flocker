@@ -50,9 +50,7 @@ from ..blockdevice import (
 )
 
 from ..loopback import check_allocatable_size
-from ..cinder import cinder_from_configuration
-from ..ebs import EBSBlockDeviceAPI, ec2_client
-from ..gce import gce_from_configuration
+from ..ebs import ec2_client
 from ...script import get_api
 from ...backends import backend_and_api_args_from_configuration
 
@@ -902,10 +900,6 @@ def get_blockdeviceapi():
     that's where buildbot puts its acceptance test credentials file.
     """
     config = get_blockdevice_config()
-    # backend_name = config.pop('backend')
-    # provider = Providers.lookupByName(backend_name.upper())
-    # factory = _BLOCKDEVICE_TYPES[provider]
-    # api =  factory(make_cluster_id(TestTypes.FUNCTIONAL, provider), config)
     backend, api_args = backend_and_api_args_from_configuration(config)
     api = get_api(
         backend=backend,
@@ -1006,27 +1000,8 @@ def get_openstack_region_for_test():
     The default region comes from an environment variable.  Keystone
     uses case-sensitive regions, so ensure region is uppercase.
     """
-    region = environ.get('FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION')
-    if region is not None:
-        region = region.upper()
-    return region
-
-
-def _openstack(cluster_id, config):
-    """
-    Create an IBlockDeviceAPI provider configured to use the Openstack
-    region where the server that is running this code is running.
-
-    :param config: Any additional configuration (possibly provider-specific)
-        necessary to authenticate a keystone session.
-    :return: A CinderBlockDeviceAPI instance.
-    """
-    configured_region = config.pop('region', None)
-    # XXX Our build server sets a static region environment variable so this
-    # seems pretty pointless. I'll fix it in a followup.
-    override_region = get_openstack_region_for_test()
-    region = override_region or configured_region
-    return cinder_from_configuration(region, cluster_id, **config)
+    config = get_blockdevice_config()
+    return config['region']
 
 
 def get_ec2_client_for_test(config):
@@ -1039,42 +1014,6 @@ def get_ec2_client_for_test(config):
         access_key_id=config['access_key_id'],
         secret_access_key=config['secret_access_key']
     )
-
-
-def _aws(cluster_id, config):
-    """
-    Create an IBlockDeviceAPI provider configured to use the AWS EC2
-    region where the server that is running this code is running.
-
-    :param config: Any additional configuration (possibly provider-specific)
-        necessary to authenticate an EC2 session.
-    :return: An EBSBlockDeviceAPI instance.
-    """
-    return EBSBlockDeviceAPI(
-        cluster_id=cluster_id,
-        ec2_client=get_ec2_client_for_test(config),
-    )
-
-
-def _gce(cluster_id, config):
-    """
-    Create an IBlockDeviceAPI provider configured to use the GCE
-    persistent device region where the server that is running this
-    code is running. This function assumes it's running on a GCE node.
-
-    :param cluster_id: The flocker cluster id.
-    :param config: Unused.
-    :return: A GCEBlockDeviceAPI instance.
-    """
-    return gce_from_configuration(cluster_id=cluster_id)
-
-
-# Map provider labels to IBlockDeviceAPI factory.
-_BLOCKDEVICE_TYPES = {
-    Providers.OPENSTACK: _openstack,
-    Providers.AWS: _aws,
-    Providers.GCE: _gce,
-}
 
 
 def get_blockdeviceapi_with_cleanup(test_case):
