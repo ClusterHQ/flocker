@@ -31,12 +31,15 @@ from flocker.ca import (
 )
 
 from ..testtools import (
-    make_iblockdeviceapi_tests, make_icloudapi_tests,
-)
-from ..test.blockdevicefactory import (
-    InvalidConfig, ProviderType, get_blockdevice_config,
-    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size, get_openstack_region_for_test,
+    InvalidConfig,
+    ProviderType,
+    get_blockdevice_config,
+    get_blockdeviceapi_with_cleanup,
+    get_device_allocation_unit,
+    get_minimum_allocatable_size,
+    get_openstack_region_for_test,
+    make_iblockdeviceapi_tests,
+    make_icloudapi_tests,
 )
 from ....testtools import TestCase, flaky, run_process
 

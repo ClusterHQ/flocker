@@ -12,12 +12,12 @@ from bitmath import Byte
 from ..cinder import (
     get_keystone_session, get_cinder_v1_client, wait_for_volume_state
 )
-from ..test.blockdevicefactory import (
+from ..testtools import (
     InvalidConfig,
     ProviderType,
-    get_openstack_region_for_test,
     get_blockdevice_config,
     get_minimum_allocatable_size,
+    get_openstack_region_for_test,
 )
 from ....testtools import TestCase, random_name
 
