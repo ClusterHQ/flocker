@@ -11,7 +11,6 @@ from testtools.matchers import (
     AfterPreprocessing,
     AnyMatch,
     ContainsAll,
-    Contains,
     Equals,
     MatchesAll,
     MatchesSetwise,
@@ -50,8 +49,9 @@ class LoggingTests(TestCase):
         message_type, and passes other keyword arguments onto the message
         structure.
         """
-        frame = getframeinfo(currentframe()); log_info(key='VAL')  # noqa
-        line_no = frame.lineno
+        frame = getframeinfo(currentframe())
+        log_info(key='VAL')
+        line_no = frame.lineno + 1
 
         self.assertThat(
             logger.messages,
@@ -71,8 +71,9 @@ class LoggingTests(TestCase):
         message_type, and passes other keyword arguments onto the message
         structure.
         """
-        frame = getframeinfo(currentframe()); log_error(key='VAL')  # noqa
-        line_no = frame.lineno
+        frame = getframeinfo(currentframe())
+        log_error(key='VAL')
+        line_no = frame.lineno + 1
 
         self.assertThat(
             logger.messages,
