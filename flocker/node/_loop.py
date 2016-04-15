@@ -564,8 +564,8 @@ class ConvergenceLoop(object):
                     action.sleep.total_seconds())
             else:
                 # Log the Node configuration that we are converging upon:
-                log_info(desired_config=self.desired_configuration.get_node(
-                    self.node_uuid
+                log_info(desired_config=to_unserialized_json(
+                    self.configuration.get_node(self.deployer.node_uuid)
                 ))
                 # We're going to do some work, we should do another
                 # iteration, but chances are that if, for any reason,
