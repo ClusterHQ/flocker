@@ -6,19 +6,15 @@ Combine and retrieve current cluster state.
 
 from datetime import datetime, timedelta
 
-from twisted.python.versions import Version
-from twisted.python.deprecate import deprecated
 from twisted.application.service import MultiService
 from twisted.application.internet import TimerService
 
 from pyrsistent import PClass, field, pmap
 
-from . import DeploymentState, ChangeSource
+from . import DeploymentState
 
 # Allowed inactivity period before updates are expired
 EXPIRATION_TIME = timedelta(seconds=120)
-
-v1_0 = Version("flocker", 1, 0, 0)
 
 
 class _WiperAndSource(PClass):
@@ -123,12 +119,3 @@ class ClusterStateService(MultiService):
             self._information_wipers = self._information_wipers.set(
                 key, _WiperAndSource(wiper=wiper, source=source)
             )
-
-    @deprecated(v1_0, "ClusterStateService.apply_changes_from_source")
-    def apply_changes(self, changes):
-        """
-        Compatibility layer.  See and use ``apply_changes_from_source``.
-        """
-        source = ChangeSource()
-        source.set_last_activity(self._clock.seconds())
-        return self.apply_changes_from_source(source, changes)

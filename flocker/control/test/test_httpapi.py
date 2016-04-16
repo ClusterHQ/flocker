@@ -36,6 +36,7 @@ from .. import (
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
     RestartAlways, RestartNever, Link, same_node, DeploymentState,
     NonManifestDatasets, Leases, Lease, UpdateNodeStateEra,
+    ChangeSource,
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -2626,7 +2627,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
         ``primary`` and ``path`` values.
         """
         expected_dataset = Dataset(dataset_id=unicode(uuid4()))
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NonManifestDatasets(
                 datasets={
                     expected_dataset.dataset_id: expected_dataset
@@ -2652,7 +2653,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
         )
         expected_hostname = u"192.0.2.101"
         expected_uuid = uuid4()
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NodeState(
                 hostname=expected_hostname,
                 uuid=expected_uuid,
@@ -2707,7 +2708,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
         When the cluster state is ignorant about datasets on a node, the
         endpoint does not list information for that node.
         """
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NodeState(hostname=u"192.0.2.101", uuid=uuid4(),
                       manifestations=None, paths=None)])
         return self.assertResult(
@@ -2724,7 +2725,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
             dataset=expected_dataset, primary=True)
         expected_hostname = u"192.0.2.101"
         expected_uuid = uuid4()
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NodeState(
                 hostname=expected_hostname,
                 uuid=expected_uuid,
@@ -2760,7 +2761,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
             dataset=expected_dataset2, primary=True)
         expected_hostname2 = u"192.0.2.102"
         expected_uuid2 = uuid4()
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NodeState(
                 uuid=expected_uuid1,
                 hostname=expected_hostname1,
@@ -3062,7 +3063,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         When the cluster state is ignorant about containers on a node, the
         endpoint does not list information for that node.
         """
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NodeState(hostname=u"192.0.2.101", uuid=uuid4(),
                       applications=None)])
         return self.assertResult(
@@ -3089,7 +3090,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         )
         expected_hostname = u"192.0.2.101"
         expected_uuid = uuid4()
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NodeState(
                 hostname=expected_hostname,
                 uuid=expected_uuid,
@@ -3137,7 +3138,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         )
         expected_hostname = u"192.0.2.101"
         expected_uuid = uuid4()
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NodeState(
                 hostname=expected_hostname,
                 uuid=expected_uuid,
@@ -3171,7 +3172,7 @@ class ContainerStateTestsMixin(APITestsMixin):
             running=False)
         expected_hostname = u"192.0.2.101"
         expected_uuid = uuid4()
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NodeState(
                 uuid=expected_uuid,
                 hostname=expected_hostname,
@@ -3203,7 +3204,7 @@ class ContainerStateTestsMixin(APITestsMixin):
             name=u"myapp2", image=DockerImage.from_string(u"busybox2"))
         expected_hostname2 = u"192.0.2.102"
         expected_uuid2 = uuid4()
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NodeState(
                 hostname=expected_hostname1,
                 uuid=expected_uuid1,
@@ -3260,7 +3261,8 @@ class NodesStateTestsMixin(APITestsMixin):
         uuid1 = uuid4()
         hostname2 = u"192.0.2.102"
         uuid2 = uuid4()
-        self.cluster_state_service.apply_changes(
+        self.cluster_state_service.apply_changes_from_source(
+            ChangeSource(),
             [NodeState(uuid=uuid1, hostname=hostname1),
              NodeState(uuid=uuid2, hostname=hostname2)])
         return self.assertResultItems(
@@ -3293,7 +3295,8 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         parsing the given JSON in Flocker's custom configuration format
         and using it to replace the existing configuration.
         """
-        self.cluster_state_service.apply_changes(
+        self.cluster_state_service.apply_changes_from_source(
+            ChangeSource(),
             self.DEPLOYMENT_STATE.nodes)
 
         configuration = {u"applications": COMPLEX_APPLICATION_YAML,
@@ -3328,7 +3331,8 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         configuration format changes the deployment configuration
         appropriately.
         """
-        self.cluster_state_service.apply_changes(
+        self.cluster_state_service.apply_changes_from_source(
+            ChangeSource(),
             self.DEPLOYMENT_STATE.nodes)
 
         fig_config = {
@@ -3622,7 +3626,8 @@ class NodeByEraTestsMixin(APITestsMixin):
         """
         node_uuid = uuid4()
         era = uuid4()
-        self.cluster_state_service.apply_changes(
+        self.cluster_state_service.apply_changes_from_source(
+            ChangeSource(),
             [UpdateNodeStateEra(era=era, uuid=node_uuid)])
         return self.assertResultItems(
             b"GET", b"/state/nodes/by_era/" + bytes(era), None, OK,

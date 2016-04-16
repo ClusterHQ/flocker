@@ -770,7 +770,8 @@ class FlockerClientTests(make_clientv1_tests()):
                                         in node.manifestations.values()},
                                  devices={})
                        for node in deployment.nodes]
-        self.cluster_state_service.apply_changes(node_states)
+        self.cluster_state_service.apply_changes_from_source(
+            ChangeSource(), node_states)
 
     def get_configuration_tag(self):
         return self.persistence_service.configuration_hash()
@@ -840,7 +841,7 @@ class FlockerClientTests(make_clientv1_tests()):
         ``None`` it parses it correctly.
         """
         dataset_id = uuid4()
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             NonManifestDatasets(datasets={
                 unicode(dataset_id): ModelDataset(
                     dataset_id=unicode(dataset_id)),
@@ -861,15 +862,16 @@ class FlockerClientTests(make_clientv1_tests()):
         """
         # Pretend that the era for node 1 is something else; first try at
         # getting node UUID for real era will therefore fail:
-        self.cluster_state_service.apply_changes([
+        self.cluster_state_service.apply_changes_from_source(ChangeSource(), [
             UpdateNodeStateEra(era=uuid4(), uuid=self.node_1.uuid)])
 
         # When we lookup the DeploymentState the first time we'll set the
         # value to the correct one, so second try should succeed:
         def as_deployment(original=self.cluster_state_service.as_deployment):
             result = original()
-            self.cluster_state_service.apply_changes(changes=[
-                UpdateNodeStateEra(era=self.era, uuid=self.node_1.uuid)])
+            self.cluster_state_service.apply_changes_from_source(
+                ChangeSource(),
+                [UpdateNodeStateEra(era=self.era, uuid=self.node_1.uuid)])
             return result
         self.patch(self.cluster_state_service, "as_deployment", as_deployment)
 
