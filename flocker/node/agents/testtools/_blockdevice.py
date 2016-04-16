@@ -1103,27 +1103,18 @@ def get_device_allocation_unit():
             return int(device_allocation_unit.to_Byte().value)
 
 
-MINIMUM_ALLOCATABLE_SIZES = {
-    'rackspace': RACKSPACE_MINIMUM_VOLUME_SIZE,
-    'devstack-openstack': GiB(1),
-    'redhat-openstack': GiB(1),
-    'aws': GiB(1),
-    'gce': GiB(10),
-}
-
-
 def get_minimum_allocatable_size():
     """
-    Return a provider specific minimum_allocatable_size.
+    Return the minimum supported volume size, in bytes, defined as an
+    environment variable or 1GiB if the variable is not set.
 
     :returns: An ``int`` minimum_allocatable_size in bytes for a
-        particular platform. Default to ``1``.
+        particular platform.
     """
-    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if cloud_provider is None:
-        return 1
-    else:
-        return int(MINIMUM_ALLOCATABLE_SIZES[cloud_provider].to_Byte().value)
+    size = environ.get('FLOCKER_FUNCTIONAL_TEST_MINIMUM_ALLOCATABLE_SIZE')
+    if size is None:
+        size = GiB(1).to_Byte().value
+    return int(size)
 
 
 def require_backend(required_backend):
