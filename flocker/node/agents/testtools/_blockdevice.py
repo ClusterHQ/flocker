@@ -33,7 +33,6 @@ from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase, AsyncTestCase
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
-from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 
 from ..blockdevice import (
     AlreadyAttachedVolume,
