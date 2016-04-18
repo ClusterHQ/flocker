@@ -34,7 +34,6 @@ from ..testtools import (
     InvalidConfig,
     get_blockdevice_config,
     get_blockdeviceapi_with_cleanup,
-    get_device_allocation_unit,
     get_minimum_allocatable_size,
     get_openstack_region_for_test,
     make_iblockdeviceapi_tests,
@@ -104,8 +103,6 @@ class CinderBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
-            minimum_allocatable_size=get_minimum_allocatable_size(),
-            device_allocation_unit=get_device_allocation_unit(),
             unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
         )
 ):
