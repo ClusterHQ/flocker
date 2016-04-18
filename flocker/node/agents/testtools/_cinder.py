@@ -10,12 +10,6 @@ from ..cinder import (
     ICinderVolumeManager,
     INovaVolumeManager,
 )
-from ._blockdevice import require_backend
-
-
-# Raise SkipTest unless the functional test configuration has an openstack
-# backend.
-require_backend_openstack = require_backend('openstack')
 
 
 class ICinderVolumeManagerTestsMixin(object):
