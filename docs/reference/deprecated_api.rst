@@ -1,3 +1,5 @@
+.. _deprecated-endpoints:
+
 ====================
 Deprecated Endpoints
 ====================
