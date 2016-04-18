@@ -949,14 +949,16 @@ def get_blockdevice_config():
     section = None
     for section in config_section.split('.'):
         config = config.get(section)
-
-    if config is None:
-        raise InvalidConfig(
-            "The requested section "
-            "was not found in the configuration file. "
-            "Section: %s, "
-            "Configuration File: %s" % (config_section, config_file_path)
-        )
+        if config is None:
+            raise InvalidConfig(
+                "The requested section "
+                "was not found in the configuration file. "
+                "Missing subsection: %s, "
+                "Requested sections: %s, "
+                "Configuration file: %s" % (
+                    section, config_section, config_file_path
+                )
+            )
 
     # XXX A hack to work around the fact that the sub-sections of
     # storage-drivers in acceptance.yml do not all have a ``backend`` key.
