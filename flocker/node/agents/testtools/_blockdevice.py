@@ -892,9 +892,6 @@ class InvalidConfig(Exception):
     """
 
 
-# XXX Remember to comment on or close FLOC-2584.
-
-
 def get_blockdeviceapi():
     """
     Validate and load cloud provider's yml config file.
