@@ -3,8 +3,9 @@
 """
 Test helpers for ``flocker.node.agents.blockdevice``.
 """
+from functools import wraps
 from os import environ
-from unittest import SkipTest
+from unittest import SkipTest, skipUnless
 from subprocess import check_output, Popen, PIPE, STDOUT
 import time
 from uuid import uuid4
@@ -26,14 +27,12 @@ from testtools.matchers import AllMatch, IsInstance
 from twisted.internet import reactor
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
-from twisted.python.constants import Names, NamedConstant
 
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase, AsyncTestCase
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
-from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 
 from ..blockdevice import (
     AlreadyAttachedVolume,
@@ -154,13 +153,9 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=dataset_id,
             size=requested_size,
         )
-        if self.device_allocation_unit is None:
-            expected_device_size = expected_volume_size
-        else:
-            expected_device_size = allocated_size(
-                self.device_allocation_unit, expected_volume_size
-            )
-
+        expected_device_size = allocated_size(
+            self.device_allocation_unit, expected_volume_size
+        )
         # Attach it, so that we can measure its size, as reported by
         # the kernel of the machine to which it's attached.
         self.api.attach_volume(
@@ -686,9 +681,9 @@ class IBlockDeviceAPITestsMixin(object):
 
 def make_iblockdeviceapi_tests(
         blockdevice_api_factory,
-        minimum_allocatable_size,
-        device_allocation_unit,
-        unknown_blockdevice_id_factory
+        unknown_blockdevice_id_factory,
+        minimum_allocatable_size=None,
+        device_allocation_unit=None,
 ):
     """
     :param blockdevice_api_factory: A factory which will be called
@@ -698,19 +693,25 @@ def make_iblockdeviceapi_tests(
     :param int minimum_allocatable_size: The minumum block device size
         (in bytes) supported on the platform under test. This must be
         a multiple ``IBlockDeviceAPI.allocation_unit()``.
+    :param unknown_blockdevice_id_factory: A factory which will be called
+        with an an instance of the generated ``TestCase``, and should
+        return a ``blockdevice_id`` which is valid but unknown, i.e. does
+        not match any actual volume in the backend.
     :param int device_allocation_unit: A size interval (in ``bytes``)
         which the storage system is expected to allocate eg Cinder
         allows sizes to be supplied in GiB, but certain Cinder storage
         drivers may be constrained to create sizes with 8GiB
         intervals.
-    :param unknown_blockdevice_id_factory: A factory which will be called
-        with an an instance of the generated ``TestCase``, and should
-        return a ``blockdevice_id`` which is valid but unknown, i.e. does
-        not match any actual volume in the backend.
-
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
+    if minimum_allocatable_size is None:
+        minimum_allocatable_size = get_minimum_allocatable_size()
+    if device_allocation_unit is None:
+        device_allocation_unit = int(
+            environ.get('FLOCKER_FUNCTIONAL_TEST_DEVICE_ALLOCATION_UNIT', 1)
+        )
+
     class Tests(IBlockDeviceAPITestsMixin, TestCase):
         def setUp(self):
             super(Tests, self).setUp()
@@ -891,117 +892,80 @@ class InvalidConfig(Exception):
     """
 
 
-# Highly duplicative of other constants.  FLOC-2584.
-class ProviderType(Names):
-    """
-    Kinds of compute/storage cloud providers for which this module is able to
-    build ``IBlockDeviceAPI`` providers.
-    """
-    openstack = NamedConstant()
-    aws = NamedConstant()
-    gce = NamedConstant()
-    rackspace = NamedConstant()
-
-
-def get_blockdeviceapi(provider_type):
+def get_blockdeviceapi():
     """
     Validate and load cloud provider's yml config file.
     Default to ``~/acceptance.yml`` in the current user home directory, since
     that's where buildbot puts its acceptance test credentials file.
     """
-    config = get_blockdevice_config(provider_type)
-    provider = _provider_for_provider_type(provider_type)
+    config = get_blockdevice_config()
+    backend_name = config.pop('backend')
+    provider = Providers.lookupByName(backend_name.upper())
     factory = _BLOCKDEVICE_TYPES[provider]
     return factory(make_cluster_id(TestTypes.FUNCTIONAL, provider), config)
 
 
-def _provider_for_provider_type(provider_type):
-    """
-    Convert from ``ProviderType`` values to ``Providers`` values.
-    """
-    if provider_type in (ProviderType.openstack, ProviderType.rackspace):
-        return Providers.OPENSTACK
-    if provider_type is ProviderType.aws:
-        return Providers.AWS
-    if provider_type is ProviderType.gce:
-        return Providers.GCE
-    return Providers.UNSPECIFIED
-
-
-def get_blockdevice_config(provider_type):
+def get_blockdevice_config():
     """
     Get configuration dictionary suitable for use in the instantiation
-    of an ``IBlockDeviceAPI`` implementation compatible with the given
-    provider type.
-
-    :param provider_type: A provider type the ``IBlockDeviceAPI`` is to
-        be compatible with.  A value from ``ProviderType``.
+    of an ``IBlockDeviceAPI`` implementation.
 
     :raises: ``InvalidConfig`` if a
         ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
 
-    :return: A two-tuple of an ``IBlockDeviceAPI`` implementation and a
-        ``dict`` of keyword arguments that can be used instantiate that
-        implementation.
+    :return: A ``dict`` of backend configuration parameters.
     """
-    # ie cust0, rackspace, aws
-    platform_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if platform_name is None:
-        raise InvalidConfig(
-            'Supply the platform on which you are running tests using the '
-            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER environment variable.'
+    flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
+    if flocker_functional_test is None:
+        raise SkipTest(
+            'Please set FLOCKER_FUNCTIONAL_TEST environment variable to '
+            'run storage backend functional tests.'
         )
 
     config_file_path = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE')
     if config_file_path is None:
-        raise InvalidConfig(
-            'Supply the path to a cloud credentials file '
+        raise SkipTest(
+            'Supply the path to a backend configuration file '
             'using the FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE environment '
-            'variable. See: '
-            'https://docs.clusterhq.com/en/latest/gettinginvolved/acceptance-testing.html '  # noqa
-            'for details of the expected format.'
+            'variable.'
+        )
+
+    # ie storage-drivers.rackspace
+    config_section = environ.get(
+        'FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION',
+    )
+    if config_section is None:
+        raise SkipTest(
+            'Supply the section of the config file '
+            'containing the configuration for the driver under test '
+            'with the FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION '
+            'environment variable.'
         )
 
     with open(config_file_path) as config_file:
         config = yaml.safe_load(config_file.read())
 
-    section = config.get(platform_name)
-    if section is None:
-        raise InvalidConfig(
-            "The requested cloud platform "
-            "was not found in the configuration file. "
-            "Platform: %s, "
-            "Configuration File: %s" % (platform_name, config_file_path)
-        )
-
-    provider_name = section.get('provider', platform_name)
-    try:
-        provider_environment = ProviderType.lookupByName(provider_name)
-    except ValueError:
-        raise InvalidConfig(
-            "Unsupported provider. "
-            "Supplied provider: %s, "
-            "Available providers: %s" % (
-                provider_name,
-                ', '.join(p.name for p in ProviderType.iterconstants())
+    section = None
+    for section in config_section.split('.'):
+        config = config.get(section)
+        if config is None:
+            raise InvalidConfig(
+                "The requested section "
+                "was not found in the configuration file. "
+                "Missing subsection: %s, "
+                "Requested sections: %s, "
+                "Configuration file: %s" % (
+                    section, config_section, config_file_path
+                )
             )
-        )
 
-    if provider_environment != provider_type:
-        raise InvalidConfig(
-            "The requested cloud provider (%s) is not the provider running "
-            "the tests (%s)." % (provider_type.name, provider_environment.name)
-        )
+    # XXX A hack to work around the fact that the sub-sections of
+    # storage-drivers in acceptance.yml do not all have a ``backend`` key.
+    if "backend" not in config:
+        config["backend"] = section
 
-    # XXX - If provider type is Rackspace, we add the auth_plugin config
-    # here.  The CI system should be configured to provide this
-    # parameter as part of the config, to match the documented way of
-    # configuring Rackspace.
-    if provider_environment == ProviderType.rackspace:
-        section['auth_plugin'] = 'rackspace'
-
-    return section
+    return config
 
 
 def get_openstack_region_for_test():
@@ -1026,7 +990,11 @@ def _openstack(cluster_id, config):
         necessary to authenticate a keystone session.
     :return: A CinderBlockDeviceAPI instance.
     """
-    region = get_openstack_region_for_test()
+    configured_region = config.pop('region', None)
+    # XXX Our build server sets a static region environment variable so this
+    # seems pretty pointless. I'll fix it in a followup.
+    override_region = get_openstack_region_for_test()
+    region = override_region or configured_region
     return cinder_from_configuration(region, cluster_id, **config)
 
 
@@ -1044,8 +1012,8 @@ def get_ec2_client_for_test(config):
     return ec2_client(
         region=region,
         zone=zone,
-        access_key_id=config['access_key'],
-        secret_access_key=config['secret_access_token']
+        access_key_id=config['access_key_id'],
+        secret_access_key=config['secret_access_key']
     )
 
 
@@ -1085,17 +1053,13 @@ _BLOCKDEVICE_TYPES = {
 }
 
 
-def get_blockdeviceapi_with_cleanup(test_case, provider):
+def get_blockdeviceapi_with_cleanup(test_case):
     """
-    Instantiate an ``IBlockDeviceAPI`` implementation appropriate to the given
-    provider and configured to work in the current environment.  Arrange for
-    all volumes created by it to be cleaned up at the end of the current test
-    run.
+    Instantiate an ``IBlockDeviceAPI`` implementation configured to work in the
+    current environment.  Arrange for all volumes created by it to be cleaned
+    up at the end of the current test run.
 
     :param TestCase test_case: The running test.
-    :param provider: A provider type the ``IBlockDeviceAPI`` is to be
-        compatible with.  A value from ``ProviderType``.
-
     :raises: ``SkipTest`` if either:
         1) A ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
         was not set and the default config file could not be read, or,
@@ -1103,68 +1067,52 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
 
     :return: The new ``IBlockDeviceAPI`` provider.
     """
-    flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
-    if flocker_functional_test is None:
-        raise SkipTest(
-            'Please set FLOCKER_FUNCTIONAL_TEST environment variable to '
-            'run storage backend functional tests.'
-        )
-
     try:
-        api = get_blockdeviceapi(provider)
+        api = get_blockdeviceapi()
     except InvalidConfig as e:
         raise SkipTest(str(e))
     test_case.addCleanup(detach_destroy_volumes, api)
     return api
 
 
-DEVICE_ALLOCATION_UNITS = {
-    # Our redhat-openstack test platform uses a ScaleIO backend which
-    # allocates devices in 8GiB intervals
-    'redhat-openstack': GiB(8),
-}
-
-
-def get_device_allocation_unit():
-    """
-    Return a provider specific device allocation unit.
-
-    This is mostly OpenStack / Cinder specific and represents the
-    interval that will be used by Cinder storage provider i.e
-    You ask Cinder for a 1GiB or 7GiB volume.
-    The Cinder driver creates an 8GiB block device.
-    The operating system sees an 8GiB device when it is attached.
-    Cinder API reports a 1GiB or 7GiB volume.
-
-    :returns: An ``int`` allocation size in bytes for a
-        particular platform. Default to ``None``.
-    """
-    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if cloud_provider is not None:
-        device_allocation_unit = DEVICE_ALLOCATION_UNITS.get(cloud_provider)
-        if device_allocation_unit is not None:
-            return int(device_allocation_unit.to_Byte().value)
-
-
-MINIMUM_ALLOCATABLE_SIZES = {
-    # This really means Rackspace
-    'openstack': RACKSPACE_MINIMUM_VOLUME_SIZE,
-    'devstack-openstack': GiB(1),
-    'redhat-openstack': GiB(1),
-    'aws': GiB(1),
-    'gce': GiB(10),
-}
-
-
 def get_minimum_allocatable_size():
     """
-    Return a provider specific minimum_allocatable_size.
+    Return the minimum supported volume size, in bytes, defined as an
+    environment variable or 1GiB if the variable is not set.
 
-    :returns: An ``int`` minimum_allocatable_size in bytes for a
-        particular platform. Default to ``1``.
+    :returns: An ``int`` minimum_allocatable_size in bytes.
     """
-    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if cloud_provider is None:
-        return 1
-    else:
-        return int(MINIMUM_ALLOCATABLE_SIZES[cloud_provider].to_Byte().value)
+    return int(
+        environ.get(
+            'FLOCKER_FUNCTIONAL_TEST_MINIMUM_ALLOCATABLE_SIZE',
+            GiB(1).to_Byte().value,
+        )
+    )
+
+
+def require_backend(required_backend):
+    """
+    Raise ``SkipTest`` unless the functional test configuration has
+    ``required_backend``.
+
+    :param unicode required_backend: The name of the required backend.
+    :returns: A function decorator.
+    """
+    def decorator(undecorated_object):
+        @wraps(undecorated_object)
+        def wrapper(*args, **kwargs):
+            config = get_blockdevice_config()
+            configured_backend = config.pop('backend')
+            skipper = skipUnless(
+                configured_backend == required_backend,
+                'The backend in the supplied configuration '
+                'is not suitable for this test. '
+                'Found: {!r}. Required: {!r}.'.format(
+                    configured_backend, required_backend
+                )
+            )
+            decorated_object = skipper(undecorated_object)
+            result = decorated_object(*args, **kwargs)
+            return result
+        return wrapper
+    return decorator

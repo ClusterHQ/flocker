@@ -293,10 +293,12 @@ common_cli:
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=storage-drivers.aws
     FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE="`wget -q -O - \
         http://169.254.169.254/latest/meta-data/placement/availability-zone`"
     export FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE
-    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=aws
+    # The minimum size of an EBS volume is 1GiB.
+    export FLOCKER_FUNCTIONAL_TEST_MINIMUM_ALLOCATABLE_SIZE=$((1024 ** 3 * 1))
 
   setup_rackspace_env_vars: &setup_rackspace_env_vars |
     # set vars and run tests
@@ -304,8 +306,11 @@ common_cli:
     # bootstrapping. These are copied from the Jenkins Master /etc/slave_config
     # directory.
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
-    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=openstack
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=storage-drivers.rackspace
     export FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION=dfw
+    # The minimum size of a Rackspace SATA Cinder volume is 75GiB. See:
+    # * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
+    export FLOCKER_FUNCTIONAL_TEST_MINIMUM_ALLOCATABLE_SIZE=$((1024 ** 3 * 75))
 
   setup_gce_env_vars: &setup_gce_env_vars |
     # set vars and run tests
@@ -313,7 +318,9 @@ common_cli:
     # bootstrapping. These are copied from the Jenkins Master /etc/slave_config
     # directory.
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
-    export FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER=gce
+    export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=storage-drivers.gce
+    # The minimum size of a GCE PD volume is 10GiB.
+    export FLOCKER_FUNCTIONAL_TEST_MINIMUM_ALLOCATABLE_SIZE=$((1024 ** 3 * 10))
 
   setup_coverage: &setup_coverage |
     # we install the python coverage module so generate coverage.xml files
