@@ -31,12 +31,11 @@ from flocker.ca import (
 )
 
 from ..testtools import (
-    make_iblockdeviceapi_tests, make_icloudapi_tests,
-)
-from ..test.blockdevicefactory import (
-    InvalidConfig, ProviderType, get_blockdevice_config,
-    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
+    get_blockdevice_config,
+    get_blockdeviceapi_with_cleanup,
     get_minimum_allocatable_size,
+    make_iblockdeviceapi_tests,
+    make_icloudapi_tests,
     require_backend,
 )
 from ....testtools import TestCase, flaky, run_process
@@ -209,15 +208,9 @@ class CinderHttpsTests(TestCase):
             before creating the test session.
         :returns: A Keystone Session instance.
         """
-        try:
-            config = get_blockdevice_config()
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-
+        config = get_blockdevice_config()
         config.update(config_override)
-
         auth_url = config['auth_url']
-
         if not urlsplit(auth_url).scheme == u"https":
             self.skipTest(
                 "Tests require a TLS auth_url endpoint "
@@ -272,7 +265,7 @@ class CinderHttpsTests(TestCase):
                 ).path
             }
         )
-        self.assertRaises(Unauthorized, session.get_token)
+        self.assertRaises(BadRequest, session.get_token)
 
 
 class VirtIOClient:
@@ -405,10 +398,7 @@ class CinderAttachmentTests(TestCase):
     @require_backend('openstack')
     def setUp(self):
         super(CinderAttachmentTests, self).setUp()
-        try:
-            self.openstack = OpenStackFixture(self.addCleanup)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
+        self.openstack = OpenStackFixture(self.addCleanup)
         self.cinder = self.openstack.cinder
         self.nova = self.openstack.nova
         self.blockdevice_api = self.openstack.blockdevice_api
@@ -457,10 +447,7 @@ class VirtIOCinderAttachmentTests(TestCase):
     @require_virtio
     def setUp(self):
         super(VirtIOCinderAttachmentTests, self).setUp()
-        try:
-            self.openstack = OpenStackFixture(self.addCleanup)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
+        self.openstack = OpenStackFixture(self.addCleanup)
         self.cinder = self.openstack.cinder
         self.nova = self.openstack.nova
         self.blockdevice_api = self.openstack.blockdevice_api
