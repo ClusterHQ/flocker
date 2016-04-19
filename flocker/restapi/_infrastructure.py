@@ -22,7 +22,7 @@ from eliot.twisted import DeferredContext
 from pyrsistent import pmap
 
 from ._error import DECODING_ERROR, BadRequest, InvalidRequestJSON
-from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
+from ._logging import LOG_SYSTEM, REQUEST
 from ._schema import getValidator
 
 _ASCENDING = b"ascending"
@@ -254,26 +254,14 @@ def structured(inputSchema, outputSchema, schema_store=None,
                 if errors:
                     raise InvalidRequestJSON(errors=errors, schema=inputSchema)
 
-            eliot_action = JSON_REQUEST(_get_logger(self), json=objects.copy())
-            with eliot_action.context():
-                # Just assume there are no conflicts between these collections
-                # of arguments right now.  When there is a schema for the JSON
-                # hopefully we can do some static verification that no routing
-                # arguments conflict with any top-level keys in the request
-                # body and then we can be sure there are no conflicts here.
-                objects.update(routeArguments)
+            # Just assume there are no conflicts between these collections
+            # of arguments right now.  When there is a schema for the JSON
+            # hopefully we can do some static verification that no routing
+            # arguments conflict with any top-level keys in the request
+            # body and then we can be sure there are no conflicts here.
+            objects.update(routeArguments)
 
-                d = DeferredContext(maybeDeferred(original, self, **objects))
-
-                def got_result(result):
-                    code = OK
-                    if isinstance(result, EndpointResponse):
-                        code = result.code
-                    eliot_action.add_success_fields(code=code)
-                    return result
-                d.addCallback(got_result)
-                d.addActionFinish()
-                return d.result
+            return maybeDeferred(original, self, **objects)
 
         loadAndDispatch.inputSchema = inputSchema
         loadAndDispatch.outputSchema = outputSchema

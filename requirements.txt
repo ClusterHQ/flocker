@@ -1,4 +1,4 @@
-git+https://github.com/ClusterHQ/pyrsistent@5b722c3ad75ed2da414a40e6d27af373a8610018#egg=pyrsistent-0.11.13chq
+git+https://github.com/ClusterHQ/pyrsistent@80ecd8da51ea3f7b4aff3451e6abe9a61fc1c44b#egg=pyrsistent-0.11.13chq
 argparse==1.3.0
 attrs==15.1.0
 Babel==2.2.0
@@ -17,7 +17,7 @@ effect==0.10
 eliot==0.11.0
 eliot-tree==15.3.0
 enum34==1.0.4
-funcsigs==0.4
+funcsigs==1.0.0
 futures==2.2.0
 google-api-python-client==1.4.2
 httplib2==0.9.2
@@ -28,7 +28,7 @@ ipaddress==1.0.7
 iso8601==0.1.11
 jmespath==0.9.0
 jsonschema==2.4.0
-keystoneauth1==2.3.0
+keystoneauth1==2.4.0
 klein==0.2.3
 machinist==0.2.0
 monotonic==1.0
@@ -37,10 +37,11 @@ ndg-httpsclient==0.4.0
 netaddr==0.7.18
 netifaces==0.10.4
 oauth2client==1.5.2
+ordereddict==1.1
 oslo.config==3.9.0
-oslo.i18n==3.4.0
+oslo.i18n==3.5.0
 oslo.serialization==2.4.0
-oslo.utils==3.7.0
+oslo.utils==3.8.0
 pbr==1.8.1
 positional==1.0.1
 prettytable==0.7.2
@@ -54,15 +55,15 @@ python-cinderclient==1.6.0
 python-dateutil==2.4.2
 python-keystoneclient==2.3.1
 python-keystoneclient-rackspace==0.1.3
-python-novaclient==3.3.0
-pytz==2015.7
+python-novaclient==3.3.1
+pytz==2016.3
 PyYAML==3.10
 repoze.lru==0.6
 requests==2.9.1
 rsa==3.3
 service-identity==14.0.0
 setuptools==18.0.1
-simplejson==3.7.3
+simplejson==3.8.2
 six==1.10.0
 stevedore==1.12.0
 toolz==0.7.4
@@ -73,5 +74,5 @@ uritemplate==0.6
 websocket-client==0.32.0
 Werkzeug==0.10.4
 wheel==0.24.0
-wrapt==1.10.6
+wrapt==1.10.7
 zope.interface==4.1.2

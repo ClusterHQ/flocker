@@ -117,6 +117,12 @@ These software defined storage options can be run on any infrastructure, includi
 			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
 	        <a href="../flocker-features/convergeio-configuration.html" class="button">Learn more</a>
 	    </div>
+	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
+			<img src="../_static/images/open-vstorage.png" alt="open-vstorage logo"/>
+			<span>Open vStorage</span>
+			<img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
+	        <a href="../flocker-features/open-vstorage-configuration.html" class="button">Learn more</a>
+	    </div>
 	</div>
 
 
@@ -182,16 +188,15 @@ Supported Operating Systems
 	        <a href="../index.html" class="button">Learn more</a>
 	    </div>
 	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
+			<img src="../_static/images/rhel72x.png" alt="RHEL 7 logo"/>
+			<span>RHEL 7</span>
+	        <a href="../index.html" class="button">Learn more</a>
+	    </div>
+	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
 			<img src="../_static/images/coreos2x.png" alt="CoreOS Logo"/>
 			<span>CoreOS</span>
 			<img class="icon-key-assign" src="../_static/images/icon-labs2x.png" aria-hidden="true" alt=""/>
 	        <a href="../flocker-standalone/installer.html#experimental-configurations" class="button">Learn more</a>
-	    </div>
-	    <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
-			<img src="../_static/images/rhel72x.png" alt="RHEL 7 logo"/>
-			<span>RHEL 7</span>
-			<img class="icon-key-assign" src="../_static/images/icon-soon2x.png" aria-hidden="true" alt=""/>
-	        <div class="button button--disabled">Coming soon</div>
 	    </div>
 	</div>
 

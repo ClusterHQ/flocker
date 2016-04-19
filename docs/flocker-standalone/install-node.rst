@@ -22,6 +22,12 @@ Installing the Flocker Node Services
 * :ref:`gce-install-standalone-flocker`
 * :ref:`rackspace-install-standalone-flocker`
 
+.. _rhel-7-install-standalone-flocker:
+
+.. include:: ../installation/install-node.rst
+   :start-after: .. begin-body-installing-node-rhel
+   :end-before: .. end-body-installing-node-rhel
+
 .. _centos-7-install-standalone-flocker:
 
 .. include:: ../installation/install-node.rst

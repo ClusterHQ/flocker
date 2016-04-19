@@ -8,10 +8,11 @@ basic assumptions/understandings of how Cinder works in the real world.
 from bitmath import Byte
 
 from ..cinder import wait_for_volume_state
-from ..test.blockdevicefactory import (
-    ProviderType,
-    get_minimum_allocatable_size,
+from ..testtools import (
     get_blockdeviceapi_with_cleanup,
+    get_minimum_allocatable_size,
+    require_backend,
+
 )
 from ....testtools import TestCase, random_name
 
@@ -21,7 +22,7 @@ from .logging import CINDER_VOLUME
 # All of the following tests could be part of the suite returned by
 # ``make_icindervolumemanager_tests`` instead.
 # https://clusterhq.atlassian.net/browse/FLOC-1846
-
+@require_backend('openstack')
 class VolumesCreateTests(TestCase):
     """
     Tests for ``cinder.Client.volumes.create``.
@@ -30,7 +31,6 @@ class VolumesCreateTests(TestCase):
         super(VolumesCreateTests, self).setUp()
         self.cinder_volumes = get_blockdeviceapi_with_cleanup(
             self,
-            ProviderType.openstack
         ).cinder_volume_manager
 
     def test_create_metadata_is_listed(self):
@@ -64,6 +64,7 @@ class VolumesCreateTests(TestCase):
         )
 
 
+@require_backend('openstack')
 class VolumesSetMetadataTests(TestCase):
     """
     Tests for ``cinder.Client.volumes.set_metadata``.
@@ -72,7 +73,6 @@ class VolumesSetMetadataTests(TestCase):
         super(VolumesSetMetadataTests, self).setUp()
         self.cinder_volumes = get_blockdeviceapi_with_cleanup(
             self,
-            ProviderType.openstack
         ).cinder_volume_manager
 
     def test_updated_metadata_is_listed(self):

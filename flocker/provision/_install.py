@@ -653,50 +653,6 @@ def cli_pip_test(venv_name='flocker-client', package_source=PackageSource()):
         ])
 
 
-def task_configure_brew_path():
-    """
-    Configure non-interactive shell to use all paths.
-
-    By default, OSX provides a minimal $PATH, for programs run via SSH. In
-    particular /usr/local/bin (which contains `brew`) isn't in the path. This
-    configures the path to have it there.
-    """
-    return put(
-        path='.bashrc',
-        content=dedent("""\
-            if [ -x /usr/libexec/path_helper ]; then
-                eval `/usr/libexec/path_helper -s`
-            fi
-            """))
-
-
-def task_test_homebrew(recipe):
-    """
-    The commands used to install a Homebrew recipe for Flocker and test it.
-
-    This taps the ClusterHQ/tap tap, which means that Homebrew looks in the
-    ClusterHQ/homebrew-tap GitHub repository for any recipe name given.
-
-    :param bytes recipe: The name of a recipe in a either the official Homebrew
-        tap or ClusterHQ/tap, or a URL pointing to a recipe.
-    :return Effect: Commands used to install a Homebrew recipe for Flocker and
-        test it.
-    """
-    # Arbitrarily selected value
-    timeout = 160.0
-
-    return sequence([
-        retry_effect_with_timeout(
-            run_from_args(['brew', 'tap', 'ClusterHQ/tap']), timeout,
-        ),
-        retry_effect_with_timeout(run("brew update"), timeout),
-        retry_effect_with_timeout(
-            run("brew install {recipe}".format(recipe=recipe)), timeout,
-        ),
-        run("brew test {recipe}".format(recipe=recipe)),
-    ])
-
-
 def task_install_ssh_key():
     """
     Install the authorized ssh keys of the current user for root as well.

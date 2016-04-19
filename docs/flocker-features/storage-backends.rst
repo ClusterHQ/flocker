@@ -37,6 +37,7 @@ Community supported drivers
 * :ref:`huawei-backend`
 * :ref:`netapp-backend`
 * :ref:`nexenta-backend`
+* :ref:`open-vstorage-backend`
 * :ref:`saratogaspeed-backend`
 * :ref:`vmware-backend`
 
@@ -50,6 +51,7 @@ Community supported drivers
    huawei-configuration
    netapp-configuration
    nexenta-configuration
+   open-vstorage-configuration
    saratogaspeed-configuration
    vmware-configuration
 

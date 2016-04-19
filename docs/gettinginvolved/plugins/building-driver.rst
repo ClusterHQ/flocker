@@ -31,11 +31,17 @@ Testing Your Driver
    .. code-block:: python
 
       from uuid import uuid4
-      from flocker.node.agents.testtools import make_iblockdeviceapi_tests
+      from flocker.node.agents.testtools import (
+          get_blockdeviceapi_with_cleanup,
+          make_iblockdeviceapi_tests,
+      )
 
       def api_factory(test):
-          # Return an instance of your IBlockDeviceAPI implementation class, given
-          # a twisted.trial.unittest.TestCase instance.
+          # Return an instance of your IBlockDeviceAPI implementation class,
+          # given a twisted.trial.unittest.TestCase instance or use
+          # ``get_blockdeviceapi_with_cleanup`` which will also take care of
+          # cleaning up any volumes that are created in your tests.
+          return get_blockdeviceapi_with_cleanup(test)
 
       # Smallest volume to create in tests, e.g. 1GiB:
       MIN_ALLOCATION_SIZE = 1024 * 1024 * 1024
@@ -52,12 +58,15 @@ Testing Your Driver
           """
 
    If you wish the tests to cleanup volumes after each run, please provide a cleanup version of ``IBlockDeviceAPI``.
-   For an example of a clean up script, see the `EBS API with cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py>`_ inside ``api_factory``.
+   For example, see ``flocker.node.agents.testtools.get_blockdeviceapi_with_cleanup``.
 
    You can run these tests with the ``trial`` test runner, provided by `Twisted <http://twistedmatrix.com/trac/wiki/TwistedTrial>`_, one of Flocker's dependencies:
 
    .. prompt:: bash $
 
+      FLOCKER_FUNCTIONAL_TEST=TRUE \
+      FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/path/to/agent.yml \
+      FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=dataset \
       trial yourstorage.test_yourstorage
 
 #. Additional functional tests:

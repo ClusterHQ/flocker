@@ -9,7 +9,7 @@ Enabling the Flocker Agent Service
    :end-before: .. end-body-enable-agent-intro
 
 .. include:: ../installation/enabling-agent-service.rst
-   :start-after: .. begin-body-enable-agent-kubernetes
-   :end-before: .. end-body-enable-agent-kubernetes
+   :start-after: .. begin-body-enable-agent-other
+   :end-before: .. end-body-enable-agent-other
 
 This completes the manual installation and configuration of Flocker.

@@ -37,6 +37,7 @@ from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdevice_config,
     get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
     get_minimum_allocatable_size,
+    require_backend,
 )
 from ....testtools import TestCase, flaky, run_process
 
@@ -79,6 +80,7 @@ require_virtio = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
 
 
+@require_backend('openstack')
 def cinderblockdeviceapi_for_test(test_case):
     """
     Create a ``CinderBlockDeviceAPI`` instance for use in tests.
@@ -89,7 +91,7 @@ def cinderblockdeviceapi_for_test(test_case):
         be cleaned up at the end of the test (using ``test_case``\ 's cleanup
         features).
     """
-    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
+    return get_blockdeviceapi_with_cleanup(test_case)
 
 
 class CinderBlockDeviceAPIInterfaceTests(
@@ -99,8 +101,6 @@ class CinderBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
-            minimum_allocatable_size=get_minimum_allocatable_size(),
-            device_allocation_unit=get_device_allocation_unit(),
             unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
         )
 ):
@@ -195,29 +195,65 @@ class CinderCloudAPIInterfaceTests(
 class CinderHttpsTests(TestCase):
     """
     Test connections to HTTPS-enabled OpenStack.
+
+    XXX: These tests can only be run against a keystone server endpoint that
+    has SSL and that supports the "password" auth_plugin.
+    Which means that these tests are not run on any of our build servers.
     """
-    def setUp(self):
-        super(CinderHttpsTests, self).setUp()
+    @require_backend('openstack')
+    def session_for_test(self, config_override):
+        """
+        Creates a new Keystone session and invalidates it.
+
+        :param dict config_override: Override certain configuration values
+            before creating the test session.
+        :returns: A Keystone Session instance.
+        """
         try:
-            self.config = get_blockdevice_config(ProviderType.openstack)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
-        auth_url = self.config['auth_url']
+
+        config.update(config_override)
+
+        auth_url = config['auth_url']
+
         if not urlsplit(auth_url).scheme == u"https":
             self.skipTest(
                 "Tests require a TLS auth_url endpoint "
                 "beginning with https://. "
                 "Found auth_url: {}".format(auth_url)
             )
+        session = get_keystone_session(**config)
+        expected_options = set(config_override)
+        supported_options = set(
+            option.dest for option in session.auth.get_options()
+        )
+        unsupported_options = expected_options.difference(supported_options)
+
+        if unsupported_options:
+            self.skipTest(
+                "Test requires a keystone authentication driver "
+                "with support for options {!r}. "
+                "These options were missing {!r}.".format(
+                    ', '.join(expected_options),
+                    ', '.join(unsupported_options),
+                )
+            )
+
+        session.invalidate()
+        return session
 
     def test_verify_false(self):
         """
         With the peer_verify field set to False, connection to the
         OpenStack servers always succeeds.
         """
-        self.config['peer_verify'] = False
-        session = get_keystone_session(**self.config)
-        session.invalidate()
+        session = self.session_for_test(
+            config_override={
+                'peer_verify': False,
+            }
+        )
         # This will fail if authentication fails.
         session.get_token()
 
@@ -228,16 +264,15 @@ class CinderHttpsTests(TestCase):
         """
         path = self.make_temporary_directory()
         RootCredential.initialize(path, b"mycluster")
-        self.config.update({
-            'backend': 'openstack',
-            'auth_plugin': 'password',
-            'peer_verify': True,
-            'peer_ca_path': path.child(
-                AUTHORITY_CERTIFICATE_FILENAME).path
-        })
-        session = get_keystone_session(**self.config)
-        session.invalidate()
-        self.assertRaises(BadRequest, session.get_token)
+        session = self.session_for_test(
+            config_override={
+                'peer_verify': True,
+                'peer_ca_path': path.child(
+                    AUTHORITY_CERTIFICATE_FILENAME
+                ).path
+            }
+        )
+        self.assertRaises(Unauthorized, session.get_token)
 
 
 class VirtIOClient:
@@ -367,6 +402,7 @@ class CinderAttachmentTests(TestCase):
     """
     Cinder volumes can be attached and return correct device path.
     """
+    @require_backend('openstack')
     def setUp(self):
         super(CinderAttachmentTests, self).setUp()
         try:
@@ -417,6 +453,7 @@ class CinderAttachmentTests(TestCase):
 
 
 class VirtIOCinderAttachmentTests(TestCase):
+    @require_backend('openstack')
     @require_virtio
     def setUp(self):
         super(VirtIOCinderAttachmentTests, self).setUp()
