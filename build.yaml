@@ -326,6 +326,8 @@ common_cli:
     # directory.
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/tmp/acceptance.yaml
     export FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=storage-drivers.gce
+    # Segredos has project set to clusterhq-acceptance so override it.
+    export FLOCKER_FUNCTIONAL_TEST_CONFIG_OVERRIDE_project="clusterhqjenkins"
     # The minimum size of a GCE PD volume is 10GiB.
     export FLOCKER_FUNCTIONAL_TEST_MINIMUM_ALLOCATABLE_SIZE=$((1024 ** 3 * 10))
 
