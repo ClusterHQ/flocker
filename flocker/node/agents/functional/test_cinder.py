@@ -32,14 +32,13 @@ from flocker.ca import (
 
 from ..testtools import (
     InvalidConfig,
-    ProviderType,
     get_blockdevice_config,
     get_blockdeviceapi_with_cleanup,
-    get_device_allocation_unit,
     get_minimum_allocatable_size,
     get_openstack_region_for_test,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
+    require_backend,
 )
 from ....testtools import TestCase, flaky, run_process
 
@@ -83,6 +82,7 @@ require_virtio = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
 
 
+@require_backend('openstack')
 def cinderblockdeviceapi_for_test(test_case):
     """
     Create a ``CinderBlockDeviceAPI`` instance for use in tests.
@@ -93,7 +93,7 @@ def cinderblockdeviceapi_for_test(test_case):
         be cleaned up at the end of the test (using ``test_case``\ 's cleanup
         features).
     """
-    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
+    return get_blockdeviceapi_with_cleanup(test_case)
 
 
 class CinderBlockDeviceAPIInterfaceTests(
@@ -103,8 +103,6 @@ class CinderBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
-            minimum_allocatable_size=get_minimum_allocatable_size(),
-            device_allocation_unit=get_device_allocation_unit(),
             unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
         )
 ):
@@ -116,7 +114,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         :return: A ``cinderclient.Cinder`` instance.
         """
         try:
-            config = get_blockdevice_config(ProviderType.openstack)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
         session = get_keystone_session(**config)
@@ -204,6 +202,7 @@ class CinderHttpsTests(TestCase):
     has SSL and that supports the "password" auth_plugin.
     Which means that these tests are not run on any of our build servers.
     """
+    @require_backend('openstack')
     def session_for_test(self, config_override):
         """
         Creates a new Keystone session and invalidates it.
@@ -213,7 +212,7 @@ class CinderHttpsTests(TestCase):
         :returns: A Keystone Session instance.
         """
         try:
-            config = get_blockdevice_config(ProviderType.openstack)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 
@@ -378,7 +377,7 @@ class OpenStackFixture(object):
         self.setUp()
 
     def setUp(self):
-        config = get_blockdevice_config(ProviderType.openstack)
+        config = get_blockdevice_config()
         region = get_openstack_region_for_test()
         session = get_keystone_session(**config)
         self.cinder = get_cinder_v1_client(session, region)
@@ -405,6 +404,7 @@ class CinderAttachmentTests(TestCase):
     """
     Cinder volumes can be attached and return correct device path.
     """
+    @require_backend('openstack')
     def setUp(self):
         super(CinderAttachmentTests, self).setUp()
         try:
@@ -455,6 +455,7 @@ class CinderAttachmentTests(TestCase):
 
 
 class VirtIOCinderAttachmentTests(TestCase):
+    @require_backend('openstack')
     @require_virtio
     def setUp(self):
         super(VirtIOCinderAttachmentTests, self).setUp()

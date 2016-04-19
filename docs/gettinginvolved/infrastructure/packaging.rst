@@ -63,9 +63,7 @@ Package Hosting
 
 New packages are hosted on Amazon S3 in directories in the ``clusterhq-archive`` bucket.
 
-The Homebrew installation script for OS X downloads packages from the ``python`` directory.
-
-CentOS and Ubuntu client and node packages are hosted on Amazon S3.
+CentOS, Ubuntu, and python client packages as well as node packages are hosted on Amazon S3.
 
 ``clusterhq-archive``
 ---------------------

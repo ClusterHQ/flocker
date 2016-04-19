@@ -19,7 +19,6 @@ By the end of the release process we will have:
 - Ubuntu 14.04 DEBs for software on the node and client,
 - Ubuntu 15.10 DEBs for software on the node and client,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_, and
-- an updated Homebrew recipe.
 
 For a maintenance or documentation release, we will have:
 
@@ -47,7 +46,7 @@ Software
 .. prompt:: bash $
 
    brew tap stepanstipl/noop
-   brew install createrepo dpkg libffi openssl
+   brew install createrepo dpkg
 
 **Ubuntu**
 

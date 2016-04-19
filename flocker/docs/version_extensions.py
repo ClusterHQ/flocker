@@ -108,7 +108,8 @@ class VersionPrompt(sphinx_prompt.PromptDirective):
 
     .. version-prompt:: bash $
 
-       $ brew install flocker-|latest-installable|
+       $ flocker-ca --version
+       |latest-installable|
     """
     def run(self):
         latest = get_installable_version(version)

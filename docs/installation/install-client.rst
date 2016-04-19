@@ -109,7 +109,7 @@ Whenever you need to run Flocker CLI commands, ensure you are in the virtualenv:
 .. version-prompt:: bash alice@mercury:~$ auto
 
    alice@mercury:~$ source flocker-client/bin/activate
-   alice@mercury:~$ flocker-deploy --version
+   alice@mercury:~$ flocker-ca --version
    |latest-installable|
 
 .. end-body-installing-client-linux
@@ -119,38 +119,29 @@ Whenever you need to run Flocker CLI commands, ensure you are in the virtualenv:
 Installing on OS X
 ==================
 
-Install the `Homebrew`_ package manager.
-
-Make sure Homebrew has no issues:
+Install ``pip`` and ``virtualenv`` on your machine at the system level:
 
 .. prompt:: bash alice@mercury:~$
 
-   brew doctor
+   sudo python -m ensurepip
+   sudo pip install virtualenv
 
-Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
+To install ``flocker-cli`` in a Python virtualenv, run:
 
-If you have a previous version of Flocker tapped, you can run the following to remove it:
-
-.. prompt:: bash alice@mercury:~$
-
-   brew uninstall flocker-<old version>
-
-Add the ``ClusterHQ/tap`` tap to Homebrew and install ``flocker``:
-
-.. task:: test_homebrew flocker-|latest-installable|
+.. task:: cli_pip_install flocker-client
    :prompt: alice@mercury:~$
 
-You can see the Homebrew recipe in the `homebrew-tap`_ repository.
+If you are prompted to install command line developer tools at any point,
+please install the tools and then re-run whatever command failed in the
+background.
 
-The ``flocker-deploy`` command line program will now be available:
+Whenever you need to run Flocker CLI commands, ensure you are in the virtualenv:
 
 .. version-prompt:: bash alice@mercury:~$ auto
 
-   alice@mercury:~$ flocker-deploy --version
+   alice@mercury:~$ source flocker-client/bin/activate
+   alice@mercury:~$ flocker-ca --version
    |latest-installable|
-
-.. _Homebrew: http://brew.sh
-.. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 
 .. end-body-installing-client-OSX
 

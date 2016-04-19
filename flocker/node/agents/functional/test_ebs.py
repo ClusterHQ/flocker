@@ -36,26 +36,25 @@ from .._logging import (
 )
 from ..testtools import (
     InvalidConfig,
-    ProviderType,
     get_blockdevice_config,
     get_blockdeviceapi_with_cleanup,
-    get_device_allocation_unit,
     get_ec2_client_for_test,
-    get_minimum_allocatable_size,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
     make_iprofiledblockdeviceapi_tests,
+    require_backend,
 )
 
 TIMEOUT = 5
 ONE_GIB = 1073741824
 
 
+@require_backend('aws')
 def ebsblockdeviceapi_for_test(test_case):
     """
     Create an ``EBSBlockDeviceAPI`` for use by tests.
     """
-    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.aws)
+    return get_blockdeviceapi_with_cleanup(test_case)
 
 
 class EBSBlockDeviceAPIInterfaceTests(
@@ -65,8 +64,6 @@ class EBSBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
-            minimum_allocatable_size=get_minimum_allocatable_size(),
-            device_allocation_unit=get_device_allocation_unit(),
             unknown_blockdevice_id_factory=lambda test: u"vol-00000000",
         )
 ):
@@ -102,7 +99,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         is made to detach a volume that has not been unmounted.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 
@@ -174,7 +171,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         assigned to volumes that have been attached outside of Flocker.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 
@@ -226,7 +223,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         belonging to the current Flocker cluster.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
         ec2_client = get_ec2_client_for_test(config)
@@ -262,7 +259,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         Newly created volumes get the "Name" tag set to a human-readable name.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 
