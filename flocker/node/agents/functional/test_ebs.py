@@ -38,9 +38,7 @@ from ..testtools import (
     InvalidConfig,
     get_blockdevice_config,
     get_blockdeviceapi_with_cleanup,
-    get_device_allocation_unit,
     get_ec2_client_for_test,
-    get_minimum_allocatable_size,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
     make_iprofiledblockdeviceapi_tests,
@@ -66,8 +64,6 @@ class EBSBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
-            minimum_allocatable_size=get_minimum_allocatable_size(),
-            device_allocation_unit=get_device_allocation_unit(),
             unknown_blockdevice_id_factory=lambda test: u"vol-00000000",
         )
 ):

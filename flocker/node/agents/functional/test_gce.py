@@ -52,7 +52,6 @@ from ....provision._gce import GCEInstanceBuilder
 from ..testtools import (
     detach_destroy_volumes,
     get_blockdeviceapi_with_cleanup,
-    get_device_allocation_unit,
     get_minimum_allocatable_size,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
@@ -122,8 +121,6 @@ def gceblockdeviceapi_for_test(test_case):
 class GCEBlockDeviceAPIInterfaceTests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=gceblockdeviceapi_for_test,
-            minimum_allocatable_size=get_minimum_allocatable_size(),
-            device_allocation_unit=get_device_allocation_unit(),
             unknown_blockdevice_id_factory=lambda test: u"a1234678",
         )
 ):

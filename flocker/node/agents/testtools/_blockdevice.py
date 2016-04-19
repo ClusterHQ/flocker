@@ -33,7 +33,6 @@ from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase, AsyncTestCase
 from ....testtools.cluster_utils import make_cluster_id, TestTypes, Providers
-from ....common import RACKSPACE_MINIMUM_VOLUME_SIZE
 
 from ..blockdevice import (
     AlreadyAttachedVolume,
@@ -153,13 +152,9 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=dataset_id,
             size=requested_size,
         )
-        if self.device_allocation_unit is None:
-            expected_device_size = expected_volume_size
-        else:
-            expected_device_size = allocated_size(
-                self.device_allocation_unit, expected_volume_size
-            )
-
+        expected_device_size = allocated_size(
+            self.device_allocation_unit, expected_volume_size
+        )
         # Attach it, so that we can measure its size, as reported by
         # the kernel of the machine to which it's attached.
         self.api.attach_volume(
@@ -685,9 +680,9 @@ class IBlockDeviceAPITestsMixin(object):
 
 def make_iblockdeviceapi_tests(
         blockdevice_api_factory,
-        minimum_allocatable_size,
-        device_allocation_unit,
-        unknown_blockdevice_id_factory
+        unknown_blockdevice_id_factory,
+        minimum_allocatable_size=None,
+        device_allocation_unit=None,
 ):
     """
     :param blockdevice_api_factory: A factory which will be called
@@ -697,19 +692,25 @@ def make_iblockdeviceapi_tests(
     :param int minimum_allocatable_size: The minumum block device size
         (in bytes) supported on the platform under test. This must be
         a multiple ``IBlockDeviceAPI.allocation_unit()``.
+    :param unknown_blockdevice_id_factory: A factory which will be called
+        with an an instance of the generated ``TestCase``, and should
+        return a ``blockdevice_id`` which is valid but unknown, i.e. does
+        not match any actual volume in the backend.
     :param int device_allocation_unit: A size interval (in ``bytes``)
         which the storage system is expected to allocate eg Cinder
         allows sizes to be supplied in GiB, but certain Cinder storage
         drivers may be constrained to create sizes with 8GiB
         intervals.
-    :param unknown_blockdevice_id_factory: A factory which will be called
-        with an an instance of the generated ``TestCase``, and should
-        return a ``blockdevice_id`` which is valid but unknown, i.e. does
-        not match any actual volume in the backend.
-
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
+    if minimum_allocatable_size is None:
+        minimum_allocatable_size = get_minimum_allocatable_size()
+    if device_allocation_unit is None:
+        device_allocation_unit = int(
+            environ.get('FLOCKER_FUNCTIONAL_TEST_DEVICE_ALLOCATION_UNIT', 1)
+        )
+
     class Tests(IBlockDeviceAPITestsMixin, TestCase):
         def setUp(self):
             super(Tests, self).setUp()
@@ -890,9 +891,6 @@ class InvalidConfig(Exception):
     """
 
 
-# XXX Remember to comment on or close FLOC-2584.
-
-
 def get_blockdeviceapi():
     """
     Validate and load cloud provider's yml config file.
@@ -931,7 +929,7 @@ def get_blockdevice_config():
         ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
 
-    :return: XXX
+    :return: A ``dict`` of backend configuration parameters.
     """
     flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
     if flocker_functional_test is None:
@@ -966,14 +964,16 @@ def get_blockdevice_config():
     section = None
     for section in config_section.split('.'):
         config = config.get(section)
-
-    if config is None:
-        raise InvalidConfig(
-            "The requested section "
-            "was not found in the configuration file. "
-            "Section: %s, "
-            "Configuration File: %s" % (config_section, config_file_path)
-        )
+        if config is None:
+            raise InvalidConfig(
+                "The requested section "
+                "was not found in the configuration file. "
+                "Missing subsection: %s, "
+                "Requested sections: %s, "
+                "Configuration file: %s" % (
+                    section, config_section, config_file_path
+                )
+            )
 
     # XXX A hack to work around the fact that the sub-sections of
     # storage-drivers in acceptance.yml do not all have a ``backend`` key.
@@ -1038,55 +1038,19 @@ def get_blockdeviceapi_with_cleanup(test_case):
     return api
 
 
-DEVICE_ALLOCATION_UNITS = {
-    # Our redhat-openstack test platform uses a ScaleIO backend which
-    # allocates devices in 8GiB intervals
-    'redhat-openstack': GiB(8),
-}
-
-
-def get_device_allocation_unit():
-    """
-    Return a provider specific device allocation unit.
-
-    This is mostly OpenStack / Cinder specific and represents the
-    interval that will be used by Cinder storage provider i.e
-    You ask Cinder for a 1GiB or 7GiB volume.
-    The Cinder driver creates an 8GiB block device.
-    The operating system sees an 8GiB device when it is attached.
-    Cinder API reports a 1GiB or 7GiB volume.
-
-    :returns: An ``int`` allocation size in bytes for a
-        particular platform. Default to ``None``.
-    """
-    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if cloud_provider is not None:
-        device_allocation_unit = DEVICE_ALLOCATION_UNITS.get(cloud_provider)
-        if device_allocation_unit is not None:
-            return int(device_allocation_unit.to_Byte().value)
-
-
-MINIMUM_ALLOCATABLE_SIZES = {
-    'rackspace': RACKSPACE_MINIMUM_VOLUME_SIZE,
-    'devstack-openstack': GiB(1),
-    'redhat-openstack': GiB(1),
-    'aws': GiB(1),
-    'gce': GiB(10),
-}
-
-
 def get_minimum_allocatable_size():
     """
-    Return a provider specific minimum_allocatable_size.
+    Return the minimum supported volume size, in bytes, defined as an
+    environment variable or 1GiB if the variable is not set.
 
-    :returns: An ``int`` minimum_allocatable_size in bytes for a
-        particular platform. Default to ``1``.
+    :returns: An ``int`` minimum_allocatable_size in bytes.
     """
-    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if cloud_provider is None:
-        return 1
-    else:
-        return int(MINIMUM_ALLOCATABLE_SIZES[cloud_provider].to_Byte().value)
+    return int(
+        environ.get(
+            'FLOCKER_FUNCTIONAL_TEST_MINIMUM_ALLOCATABLE_SIZE',
+            GiB(1).to_Byte().value,
+        )
+    )
 
 
 def require_backend(required_backend):

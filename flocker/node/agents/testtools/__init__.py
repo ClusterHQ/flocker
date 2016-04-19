@@ -7,7 +7,6 @@ Test helpers for ``flocker.node.agents``.
 from ._cinder import (
     make_icindervolumemanager_tests,
     make_inovavolumemanager_tests,
-    require_backend_openstack,
 )
 from ._blockdevice import (
     FakeCloudAPI,
@@ -15,7 +14,6 @@ from ._blockdevice import (
     detach_destroy_volumes,
     get_blockdevice_config,
     get_blockdeviceapi_with_cleanup,
-    get_device_allocation_unit,
     get_ec2_client_for_test,
     get_minimum_allocatable_size,
     get_openstack_region_for_test,
@@ -38,7 +36,6 @@ __all__ = [
     'fakeprofiledloopbackblockdeviceapi_for_test',
     'get_blockdevice_config',
     'get_blockdeviceapi_with_cleanup',
-    'get_device_allocation_unit',
     'get_ec2_client_for_test',
     'get_minimum_allocatable_size',
     'get_openstack_region_for_test',
@@ -50,7 +47,6 @@ __all__ = [
     'make_iprofiledblockdeviceapi_tests',
     'mountroot_for_test',
     'require_backend',
-    'require_backend_openstack',
     'umount',
     'umount_all',
 ]

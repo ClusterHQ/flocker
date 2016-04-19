@@ -495,11 +495,6 @@ def get_default_volume_size(dataset_backend_configuration):
     :return: The default size in bytes.
     :rtype: int
     """
-    # XXX: There is duplication between the values here and those in
-    # f.node.agents.testtools.MINIMUM_ALLOCATABLE_SIZES. We want
-    # the default volume size to be greater than or equal to the minimum
-    # allocatable size.
-    #
     # Ideally, the minimum allocatable size (and perhaps the default volume
     # size) would be something known by an object that represents the dataset
     # backend. Unfortunately:

@@ -104,8 +104,6 @@ Those trade-offs include the ability to test new or changed Python dependencies.
 The following instructions replace just some of the code used by Flocker, but enough that can be useful.
 
 On each node, run the following commands.
-There are tools which allow you to run commands in multiple consoles simultaneously,
-such as ``iTerm2`` for Mac OS X:
 
 #. Install ``git``:
 
