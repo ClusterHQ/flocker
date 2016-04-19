@@ -914,7 +914,7 @@ def get_blockdevice_config():
         ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
 
-    :return: XXX
+    :return: A ``dict`` of backend configuration parameters.
     """
     flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
     if flocker_functional_test is None:
