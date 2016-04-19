@@ -431,7 +431,8 @@ class AgentService(PClass):
     :ivar node_credential: Credentials with which to configure this agent.
     :ivar ca_certificate: The root certificate to use to validate the control
         service certificate.
-    :ivar backend_description: XXX
+    :ivar BackendDescription backend_description: The backend to load when
+        starting the service.
     :ivar api_args: Extra arguments to pass to the factory from ``backends``.
     :ivar get_external_ip: Typically ``_get_external_ip``, but
         overrideable for tests.

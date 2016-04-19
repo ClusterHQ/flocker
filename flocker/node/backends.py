@@ -163,6 +163,13 @@ GCE = backend_loader.get('gce')
 
 def backend_and_api_args_from_configuration(configuration):
     """
+    Parse the ``dataset`` section of ``agent.yml``, extracting the ``backend``
+    value and looking up and returning the corresponging ``BackendDescription``
+    and the arguments which will be supplied to the backend API factory.
+
+    :param dict configuration: The dataset agent configuration which includes a
+        ``backend`` key.
+    :returns: 2-tuple(BackendDescription, dict) of backend and api arguments.
     """
     configuration = freeze(configuration)
     backend_name = configuration['backend'].decode("ascii")
