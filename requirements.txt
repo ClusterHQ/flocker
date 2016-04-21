@@ -3,7 +3,7 @@ argparse==1.3.0
 attrs==15.1.0
 Babel==2.2.0
 backports.ssl-match-hostname==3.4.0.2
-bitmath==1.2.3-4
+bitmath==1.2.3.post4
 boto==2.38.0
 boto3==1.2.2
 botocore==1.3.17

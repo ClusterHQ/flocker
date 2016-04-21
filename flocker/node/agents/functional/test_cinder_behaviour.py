@@ -5,52 +5,33 @@ Test for real world behaviour of Cinder implementations to validate some of our
 basic assumptions/understandings of how Cinder works in the real world.
 """
 
-from unittest import SkipTest
-
 from bitmath import Byte
 
-from ..cinder import (
-    get_keystone_session, get_cinder_v1_client, wait_for_volume_state
-)
+from ..cinder import wait_for_volume_state
 from ..testtools import (
-    InvalidConfig,
-    get_blockdevice_config,
+    get_blockdeviceapi_with_cleanup,
     get_minimum_allocatable_size,
-    get_openstack_region_for_test,
     require_backend,
+
 )
 from ....testtools import TestCase, random_name
 
 from .logging import CINDER_VOLUME
 
 
-@require_backend('openstack')
-def cinder_volume_manager():
-    """
-    Get an ``ICinderVolumeManager`` configured to work on this environment.
-
-    XXX: It will not automatically clean up after itself. See FLOC-1824.
-    """
-    try:
-        config = get_blockdevice_config()
-    except InvalidConfig as e:
-        raise SkipTest(str(e))
-    region = get_openstack_region_for_test()
-    session = get_keystone_session(**config)
-    return get_cinder_v1_client(session, region).volumes
-
-
 # All of the following tests could be part of the suite returned by
 # ``make_icindervolumemanager_tests`` instead.
 # https://clusterhq.atlassian.net/browse/FLOC-1846
-
+@require_backend('openstack')
 class VolumesCreateTests(TestCase):
     """
     Tests for ``cinder.Client.volumes.create``.
     """
     def setUp(self):
         super(VolumesCreateTests, self).setUp()
-        self.cinder_volumes = cinder_volume_manager()
+        self.cinder_volumes = get_blockdeviceapi_with_cleanup(
+            self,
+        ).cinder_volume_manager
 
     def test_create_metadata_is_listed(self):
         """
@@ -83,13 +64,16 @@ class VolumesCreateTests(TestCase):
         )
 
 
+@require_backend('openstack')
 class VolumesSetMetadataTests(TestCase):
     """
     Tests for ``cinder.Client.volumes.set_metadata``.
     """
     def setUp(self):
         super(VolumesSetMetadataTests, self).setUp()
-        self.cinder_volumes = cinder_volume_manager()
+        self.cinder_volumes = get_blockdeviceapi_with_cleanup(
+            self,
+        ).cinder_volume_manager
 
     def test_updated_metadata_is_listed(self):
         """
