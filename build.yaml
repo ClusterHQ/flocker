@@ -587,8 +587,10 @@ common_cli:
           --assumeyes epel-release" >> Dockerfile
     echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes \
           git ruby-devel python-devel libffi-devel openssl-devel \
-          python-pip rpmlint" >> Dockerfile
+          rpmlint" >> Dockerfile
     echo "RUN env URLGRABBER_DEBUG=1 yum update --assumeyes" >> Dockerfile
+    echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
+    echo 'RUN ["/usr/bin/env", "python2.7", "/tmp/get-pip.py"]' >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     # Is this unused? --process-depency-links added but sort of untested.
     echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
@@ -603,8 +605,10 @@ common_cli:
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y git ruby-dev \
-          libffi-dev libssl-dev build-essential python-pip \
+          libffi-dev libssl-dev build-essential \
           python2.7-dev lintian" >> Dockerfile
+    echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
+    echo 'RUN ["/usr/bin/env", "python2.7", "/tmp/get-pip.py"]' >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     # Is this unused? --process-depency-links added but sort of untested.
     echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
@@ -619,8 +623,10 @@ common_cli:
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y \
-          git ruby-dev libffi-dev libssl-dev build-essential python-pip \
+          git ruby-dev libffi-dev libssl-dev build-essential \
           python2.7-dev lintian" >> Dockerfile
+    echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
+    echo 'RUN ["/usr/bin/env", "python2.7", "/tmp/get-pip.py"]' >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     # Is this unused? --process-depency-links added but sort of untested.
     echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
