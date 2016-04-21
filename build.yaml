@@ -590,7 +590,7 @@ common_cli:
           rpmlint" >> Dockerfile
     echo "RUN env URLGRABBER_DEBUG=1 yum update --assumeyes" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
-    echo 'RUN ["/usr/bin/env", "python2.7", "/tmp/get-pip.py"]' >> Dockerfile
+    echo 'RUN ["python", "/tmp/get-pip.py"]' >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     # Is this unused? --process-depency-links added but sort of untested.
     echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
@@ -606,9 +606,9 @@ common_cli:
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y git ruby-dev \
           libffi-dev libssl-dev build-essential \
-          python2.7-dev lintian" >> Dockerfile
+          python2.7-dev lintian python" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
-    echo 'RUN ["/usr/bin/env", "python2.7", "/tmp/get-pip.py"]' >> Dockerfile
+    echo 'RUN ["python", "/tmp/get-pip.py"]' >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     # Is this unused? --process-depency-links added but sort of untested.
     echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
@@ -624,9 +624,9 @@ common_cli:
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y \
           git ruby-dev libffi-dev libssl-dev build-essential \
-          python2.7-dev lintian" >> Dockerfile
+          python2.7-dev lintian python" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
-    echo 'RUN ["/usr/bin/env", "python2.7", "/tmp/get-pip.py"]' >> Dockerfile
+    echo 'RUN ["python", "/tmp/get-pip.py"]' >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
     # Is this unused? --process-depency-links added but sort of untested.
     echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
