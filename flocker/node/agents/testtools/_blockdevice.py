@@ -3,11 +3,17 @@
 """
 Test helpers for ``flocker.node.agents.blockdevice``.
 """
+from functools import wraps
+from os import environ
+from unittest import SkipTest, skipUnless
 from subprocess import check_output, Popen, PIPE, STDOUT
 import time
 from uuid import uuid4
 
 import psutil
+
+import yaml
+from bitmath import GiB
 
 from eliot import (
     Logger,
@@ -26,6 +32,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase, AsyncTestCase
+from ....testtools.cluster_utils import make_cluster_id, TestTypes
 
 from ..blockdevice import (
     AlreadyAttachedVolume,
@@ -40,7 +47,11 @@ from ..blockdevice import (
     allocated_size,
     get_blockdevice_volume,
 )
+
 from ..loopback import check_allocatable_size
+from ..ebs import ec2_client
+from ...script import get_api
+from ...backends import backend_and_api_args_from_configuration
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach. So just use this global logger for now.
@@ -141,13 +152,9 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=dataset_id,
             size=requested_size,
         )
-        if self.device_allocation_unit is None:
-            expected_device_size = expected_volume_size
-        else:
-            expected_device_size = allocated_size(
-                self.device_allocation_unit, expected_volume_size
-            )
-
+        expected_device_size = allocated_size(
+            self.device_allocation_unit, expected_volume_size
+        )
         # Attach it, so that we can measure its size, as reported by
         # the kernel of the machine to which it's attached.
         self.api.attach_volume(
@@ -673,9 +680,9 @@ class IBlockDeviceAPITestsMixin(object):
 
 def make_iblockdeviceapi_tests(
         blockdevice_api_factory,
-        minimum_allocatable_size,
-        device_allocation_unit,
-        unknown_blockdevice_id_factory
+        unknown_blockdevice_id_factory,
+        minimum_allocatable_size=None,
+        device_allocation_unit=None,
 ):
     """
     :param blockdevice_api_factory: A factory which will be called
@@ -685,19 +692,25 @@ def make_iblockdeviceapi_tests(
     :param int minimum_allocatable_size: The minumum block device size
         (in bytes) supported on the platform under test. This must be
         a multiple ``IBlockDeviceAPI.allocation_unit()``.
+    :param unknown_blockdevice_id_factory: A factory which will be called
+        with an an instance of the generated ``TestCase``, and should
+        return a ``blockdevice_id`` which is valid but unknown, i.e. does
+        not match any actual volume in the backend.
     :param int device_allocation_unit: A size interval (in ``bytes``)
         which the storage system is expected to allocate eg Cinder
         allows sizes to be supplied in GiB, but certain Cinder storage
         drivers may be constrained to create sizes with 8GiB
         intervals.
-    :param unknown_blockdevice_id_factory: A factory which will be called
-        with an an instance of the generated ``TestCase``, and should
-        return a ``blockdevice_id`` which is valid but unknown, i.e. does
-        not match any actual volume in the backend.
-
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
+    if minimum_allocatable_size is None:
+        minimum_allocatable_size = get_minimum_allocatable_size()
+    if device_allocation_unit is None:
+        device_allocation_unit = int(
+            environ.get('FLOCKER_FUNCTIONAL_TEST_DEVICE_ALLOCATION_UNIT', 1)
+        )
+
     class Tests(IBlockDeviceAPITestsMixin, TestCase):
         def setUp(self):
             super(Tests, self).setUp()
@@ -869,3 +882,191 @@ def make_iprofiledblockdeviceapi_tests(profiled_blockdevice_api_factory,
             self.dataset_size = dataset_size
 
     return Tests
+
+
+class InvalidConfig(Exception):
+    """
+    The cloud configuration could not be found or is not compatible with the
+    running environment.
+    """
+
+
+def get_blockdeviceapi():
+    """
+    Validate and load cloud provider's yml config file.
+    Default to ``~/acceptance.yml`` in the current user home directory, since
+    that's where buildbot puts its acceptance test credentials file.
+    """
+    config = get_blockdevice_config()
+    backend, api_args = backend_and_api_args_from_configuration(config)
+    api = get_api(
+        backend=backend,
+        api_args=api_args,
+        reactor=reactor,
+        cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+    )
+    return api
+
+
+CONFIG_OVERRIDE_PREFIX = 'FLOCKER_FUNCTIONAL_TEST_CONFIG_OVERRIDE_'
+
+
+def get_blockdevice_config():
+    """
+    Get configuration dictionary suitable for use in the instantiation
+    of an ``IBlockDeviceAPI`` implementation.
+
+    :raises: ``InvalidConfig`` if a
+        ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
+        default config file could not be read.
+
+    :return: A ``dict`` of backend configuration parameters.
+    """
+    flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
+    if flocker_functional_test is None:
+        raise SkipTest(
+            'Please set FLOCKER_FUNCTIONAL_TEST environment variable to '
+            'run storage backend functional tests.'
+        )
+
+    config_file_path = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE')
+    if config_file_path is None:
+        raise SkipTest(
+            'Supply the path to a backend configuration file '
+            'using the FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE environment '
+            'variable.'
+        )
+
+    # ie storage-drivers.rackspace
+    config_section = environ.get(
+        'FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION',
+    )
+    if config_section is None:
+        raise SkipTest(
+            'Supply the section of the config file '
+            'containing the configuration for the driver under test '
+            'with the FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION '
+            'environment variable.'
+        )
+
+    with open(config_file_path) as config_file:
+        config = yaml.safe_load(config_file.read())
+
+    section = None
+    for section in config_section.split('.'):
+        config = config.get(section)
+        if config is None:
+            raise InvalidConfig(
+                "The requested section "
+                "was not found in the configuration file. "
+                "Missing subsection: %s, "
+                "Requested sections: %s, "
+                "Configuration file: %s" % (
+                    section, config_section, config_file_path
+                )
+            )
+
+    # XXX A hack to work around the fact that the sub-sections of
+    # storage-drivers in acceptance.yml do not all have a ``backend`` key.
+    if "backend" not in config:
+        config["backend"] = section
+
+    # XXX Allow certain configuration to be overridden from environment
+    # variables.
+    # This allows us to dynamically use the zone where the functional test
+    # instance has been launched.
+    for key, value in environ.items():
+        if key.startswith(CONFIG_OVERRIDE_PREFIX):
+            key = key[len(CONFIG_OVERRIDE_PREFIX):]
+            if key:
+                config[key] = value.decode('ascii')
+
+    return config
+
+
+def get_openstack_region_for_test():
+    """
+    Return a default Openstack region for testing.
+
+    The default region comes from an environment variable.  Keystone
+    uses case-sensitive regions, so ensure region is uppercase.
+    """
+    config = get_blockdevice_config()
+    return config['region']
+
+
+def get_ec2_client_for_test(config):
+    """
+    Get a simple EC2 client, configured for the test region.
+    """
+    return ec2_client(
+        region=config['region'],
+        zone=config['zone'],
+        access_key_id=config['access_key_id'],
+        secret_access_key=config['secret_access_key']
+    )
+
+
+def get_blockdeviceapi_with_cleanup(test_case):
+    """
+    Instantiate an ``IBlockDeviceAPI`` implementation configured to work in the
+    current environment.  Arrange for all volumes created by it to be cleaned
+    up at the end of the current test run.
+
+    :param TestCase test_case: The running test.
+    :raises: ``SkipTest`` if either:
+        1) A ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
+        was not set and the default config file could not be read, or,
+        2) ``FLOCKER_FUNCTIONAL_TEST`` environment variable was unset.
+
+    :return: The new ``IBlockDeviceAPI`` provider.
+    """
+    try:
+        api = get_blockdeviceapi()
+    except InvalidConfig as e:
+        raise SkipTest(str(e))
+    test_case.addCleanup(detach_destroy_volumes, api)
+    return api
+
+
+def get_minimum_allocatable_size():
+    """
+    Return the minimum supported volume size, in bytes, defined as an
+    environment variable or 1GiB if the variable is not set.
+
+    :returns: An ``int`` minimum_allocatable_size in bytes.
+    """
+    return int(
+        environ.get(
+            'FLOCKER_FUNCTIONAL_TEST_MINIMUM_ALLOCATABLE_SIZE',
+            GiB(1).to_Byte().value,
+        )
+    )
+
+
+def require_backend(required_backend):
+    """
+    Raise ``SkipTest`` unless the functional test configuration has
+    ``required_backend``.
+
+    :param unicode required_backend: The name of the required backend.
+    :returns: A function decorator.
+    """
+    def decorator(undecorated_object):
+        @wraps(undecorated_object)
+        def wrapper(*args, **kwargs):
+            config = get_blockdevice_config()
+            configured_backend = config.pop('backend')
+            skipper = skipUnless(
+                configured_backend == required_backend,
+                'The backend in the supplied configuration '
+                'is not suitable for this test. '
+                'Found: {!r}. Required: {!r}.'.format(
+                    configured_backend, required_backend
+                )
+            )
+            decorated_object = skipper(undecorated_object)
+            result = decorated_object(*args, **kwargs)
+            return result
+        return wrapper
+    return decorator

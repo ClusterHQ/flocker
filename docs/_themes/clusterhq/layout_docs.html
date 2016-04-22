@@ -67,6 +67,8 @@
     {% endif %}
 
     <link rel="shortcut icon" href="https://clusterhq.com/assets/favicon.ico"/>
+    <!-- Algolia doc search -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css" />
 </head>
 <body>
     <!-- Menu area -->
@@ -284,5 +286,14 @@
     </script>
     <!-- Javascript include for form feedback submit -->
     <script type="text/javascript" src="{{ pathto('_static/js/feedback.js', 1) }}"></script>
+
+    <!-- Algolia doc search -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script> 
+    <script type="text/javascript"> docsearch({
+    apiKey: 'b86b6835a1d01a8df4634f4b78bdfe2b',
+    indexName: 'clusterhq',
+    inputSelector: 'input#search'
+    }); 
+    </script>
   </body>
 </html>

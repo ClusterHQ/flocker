@@ -34,7 +34,6 @@ from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service,
     enable_profiling, disable_profiling)
-from ..common.plugin import PluginLoader
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .exceptions import StorageInitializationError
@@ -48,7 +47,11 @@ from .agents.blockdevice import (
 from ..ca import ControlServicePolicy, NodeCredential
 from ..common._era import get_era
 
-from .backends import DeployerType, backend_loader
+from .backends import (
+    BackendDescription,
+    DeployerType,
+    backend_and_api_args_from_configuration,
+)
 
 __all__ = [
     "flocker_dataset_agent_main",
@@ -428,16 +431,15 @@ class AgentService(PClass):
     :ivar node_credential: Credentials with which to configure this agent.
     :ivar ca_certificate: The root certificate to use to validate the control
         service certificate.
-    :ivar backend_name: The name of the storage driver to instantiate.  This
-        must name one of the items in ``backends``.
+    :ivar BackendDescription backend_description: The backend to load when
+        starting the service.
     :ivar api_args: Extra arguments to pass to the factory from ``backends``.
     :ivar get_external_ip: Typically ``_get_external_ip``, but
         overrideable for tests.
     """
-    backends = field(
-        PluginLoader,
+    backend_description = field(
+        BackendDescription,
         mandatory=True,
-        initial=(lambda: backend_loader),
     )
     deployers = field(factory=pmap, initial=_DEFAULT_DEPLOYERS, mandatory=True)
     reactor = field(initial=reactor, mandatory=True)
@@ -453,18 +455,18 @@ class AgentService(PClass):
     # Cannot use type=Certificate; pyrsistent rejects classic classes.
     ca_certificate = field(mandatory=True)
 
-    backend_name = field(type=unicode, mandatory=True)
     api_args = field(type=PMap, factory=pmap, mandatory=True)
 
     @classmethod
-    def from_configuration(cls, configuration):
+    def from_configuration(cls, configuration, reactor=None):
         """
         Load configuration from a data structure loaded from the configuration
         file and only minimally processed.
 
         :param dict configuration: Agent configuration as returned by
             ``get_configuration``.
-
+        :param IReactorCore reactor: A provider of IReactorCore and
+            IReactorTime or None to use the global reactor.
         :return: A new instance of ``cls`` with values loaded from the
             configuration.
         """
@@ -478,29 +480,23 @@ class AgentService(PClass):
         node_credential = configuration['node-credential']
         ca_certificate = configuration['ca-certificate']
 
-        api_args = configuration['dataset']
-        backend_name = api_args.pop('backend')
-
-        return cls(
+        (backend_description,
+         api_args) = backend_and_api_args_from_configuration(
+            configuration['dataset']
+        )
+        kwargs = dict(
             control_service_host=host,
             control_service_port=port,
 
             node_credential=node_credential,
             ca_certificate=ca_certificate,
 
-            backend_name=backend_name.decode("ascii"),
+            backend_description=backend_description,
             api_args=api_args,
         )
-
-    def get_backend(self):
-        """
-        Find the backend in ``self.backends`` that matches the one named by
-        ``self.backend_name``.
-
-        :raise ValueError: If ``backend_name`` doesn't match any known backend.
-        :return: The matching ``BackendDescription``.
-        """
-        return self.backends.get(self.backend_name)
+        if reactor is not None:
+            kwargs['reactor'] = reactor
+        return cls(**kwargs)
 
     # Needs tests: FLOC-1964.
     def get_tls_context(self):
@@ -527,12 +523,15 @@ class AgentService(PClass):
             using the configuration from ``self.api_args`` and other useful
             state on ``self``.
         """
-        backend = self.get_backend()
         cluster_id = None
-        if backend.needs_cluster_id:
+        if self.backend_description.needs_cluster_id:
             cluster_id = self.node_credential.cluster_uuid
-
-        return get_api(backend, self.api_args, self.reactor, cluster_id)
+        return get_api(
+            self.backend_description,
+            self.api_args,
+            self.reactor,
+            cluster_id
+        )
 
     def get_deployer(self, api):
         """
@@ -544,9 +543,9 @@ class AgentService(PClass):
 
         :return: The ``IDeployer`` provider.
         """
-        backend = self.get_backend()
-        deployer_factory = self.deployers[backend.deployer_type]
-
+        deployer_factory = self.deployers[
+            self.backend_description.deployer_type
+        ]
         address = self.get_external_ip(
             self.control_service_host, self.control_service_port,
         )
