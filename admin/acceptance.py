@@ -828,6 +828,7 @@ class LibcloudRunner(object):
                     distribution=self.distribution,
                     metadata=self.metadata,
                 )
+                print "Created node %d: %s" % (index, name)
             except:
                 print "Error creating node %d: %s" % (index, name)
                 print "It may have leaked into the cloud."
@@ -1466,7 +1467,7 @@ def main(reactor, args, base_path, top_level):
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
-        if options['distribution'] in ('centos-7',):
+        if options['distribution'] in ('centos-7', 'rhel-7.2'):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
                 results.append(capture_journal(reactor,
