@@ -213,6 +213,8 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
         timeout(reactor, connection, 30)
         return connection
 
+    Message.new(
+        username=intent.username, address=intent.address, port=intent.port)
     connection = yield loop_until(reactor, connect)
 
     dispatcher = ComposedDispatcher([
