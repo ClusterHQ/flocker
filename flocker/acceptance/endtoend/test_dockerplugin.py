@@ -215,7 +215,9 @@ class DockerPluginTests(AsyncTestCase):
         Docker can run a container with a provisioned volumes with a
         specific size.
         """
-        self.require_docker('1.9.0', cluster)
+        # Requires docker volume list which was introduced in 1.10.0.
+        # https://github.com/docker/docker/blob/master/CHANGELOG.md#volumes-3
+        self.require_docker('1.10.0', cluster)
         return self._test_sized_vol_container(cluster, cluster.nodes[0])
 
     def _test_create_container(self, cluster, volume_name=None):
