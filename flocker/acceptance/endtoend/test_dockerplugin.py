@@ -15,7 +15,7 @@ from bitmath import GiB
 
 from eliot import Message
 
-from ...common import loop_until
+from ...common import loop_until, poll_until
 from ...common.runner import run_ssh
 
 from ...dockerplugin.test.test_api import volume_expression
@@ -145,6 +145,17 @@ class DockerPluginTests(AsyncTestCase):
         """
         result = client.create_volume(name, u'flocker', driver_opts)
         self.addCleanup(client.remove_volume, name)
+
+        # The docker volume API doesn't block.
+        # Wait until the volume has been mounted.
+        poll_until(
+            predicate=lambda: list(
+                v for v in client.volumes()["Volumes"]
+                if v["Name"] == name and v["Mountpoint"]
+            ),
+            steps=[1]*60
+        )
+
         return result
 
     def _test_sized_vol_container(self, cluster, node):
