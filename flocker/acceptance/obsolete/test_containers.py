@@ -344,6 +344,7 @@ class ContainerAPITests(AsyncTestCase):
             lambda _: assert_http_server(self, origin.public_address, port))
         return running
 
+    @run_test_with(async_runner(timeout=timedelta(minutes=20)))
     @require_cluster(2, require_container_agent=True)
     def test_reboot(self, cluster):
         """
