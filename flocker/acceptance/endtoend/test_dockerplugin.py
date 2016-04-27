@@ -135,13 +135,14 @@ class DockerPluginTests(AsyncTestCase):
     def _create_volume(self, client, name, driver_opts):
         """
         Create a volume with the given name and driver options on the passed in
-        docker client.
+        docker client and block until the ``docker volume ls`` API reports that
+        the volume has been mounted.
 
         :param client: The docker.Client object to use.
         :param name: The name of the volume to create.
         :param opts: The options to pass through to the Flocker Plugin for
             Docker.
-        :returns: The result of the API call.
+        :returns: The result of the API call when the volume has been mounted.
         """
         result = client.create_volume(name, u'flocker', driver_opts)
         self.addCleanup(client.remove_volume, name)
