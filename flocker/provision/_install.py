@@ -1007,7 +1007,7 @@ def open_firewall_for_docker_api(distribution):
     """
     Open the firewall for remote access to Docker API.
     """
-    if is_centos(distribution):
+    if is_centos(distribution) or is_rhel(distribution):
         upload = put(path="/usr/lib/firewalld/services/docker.xml",
                      content=dedent(
                          """\
