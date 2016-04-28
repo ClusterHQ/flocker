@@ -59,7 +59,7 @@ from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
 from flocker.provision._common import Cluster
 from flocker.testtools.cluster_utils import (
-    make_cluster_id, Providers, TestTypes
+    make_cluster_id, TestTypes
 )
 from flocker.common import parse_version, UnparseableVersion
 from flocker.common.runner import run, run_ssh
@@ -389,25 +389,6 @@ class ManagedRunner(object):
                          "is not implemented yet.")
 
 
-def _provider_for_cluster_id(dataset_backend):
-    """
-    Get the ``Providers`` value that probably corresponds to the
-    ``BackendDescription``.
-
-    .. note::
-
-       This function will ignore the case of a managed provider,
-       as this information cannot be known by just knowing the backend.
-    """
-    if dataset_backend is backends.AWS:
-        return Providers.AWS
-    if dataset_backend is backends.OPENSTACK:
-        return Providers.OPENSTACK
-    if dataset_backend is backends.GCE:
-        return Providers.GCE
-    return Providers.UNSPECIFIED
-
-
 def generate_certificates(cluster_name, cluster_id, nodes, cert_path):
     """
     Generate a new set of certificates for the given nodes.
@@ -495,11 +476,6 @@ def get_default_volume_size(dataset_backend_configuration):
     :return: The default size in bytes.
     :rtype: int
     """
-    # XXX: There is duplication between the values here and those in
-    # f.node.agents.test.blockdevicefactory.MINIMUM_ALLOCATABLE_SIZES. We want
-    # the default volume size to be greater than or equal to the minimum
-    # allocatable size.
-    #
     # Ideally, the minimum allocatable size (and perhaps the default volume
     # size) would be something known by an object that represents the dataset
     # backend. Unfortunately:
@@ -1063,10 +1039,7 @@ class CommonOptions(Options):
         """
         Build a cluster identity based on the parameters.
         """
-        cluster_id = make_cluster_id(
-            TestTypes.ACCEPTANCE,
-            _provider_for_cluster_id(dataset_backend),
-        )
+        cluster_id = make_cluster_id(TestTypes.ACCEPTANCE)
         return ClusterIdentity(
             purpose=u'acceptance-testing',
             prefix=u'acceptance-test',

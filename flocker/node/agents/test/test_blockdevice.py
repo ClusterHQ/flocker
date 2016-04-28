@@ -3530,7 +3530,6 @@ class LoopbackBlockDeviceAPITests(
                 allocation_unit=LOOPBACK_ALLOCATION_UNIT
             ),
             minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-            device_allocation_unit=None,
             unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
         )
 ):
@@ -4786,7 +4785,6 @@ class ProcessLifetimeCacheIBlockDeviceAPITests(
                     test_case, allocation_unit=LOOPBACK_ALLOCATION_UNIT
                 )),
             minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
-            device_allocation_unit=None,
             unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
         )
 ):

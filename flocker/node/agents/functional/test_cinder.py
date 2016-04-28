@@ -21,7 +21,7 @@ from bitmath import Byte
 import netifaces
 import psutil
 
-from keystoneclient.openstack.common.apiclient.exceptions import Unauthorized
+from keystoneauth1.exceptions.http import BadRequest
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
@@ -31,19 +31,18 @@ from flocker.ca import (
 )
 
 from ..testtools import (
-    make_iblockdeviceapi_tests, make_icloudapi_tests,
-)
-from ..test.blockdevicefactory import (
-    InvalidConfig, ProviderType, get_blockdevice_config,
-    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size, get_openstack_region_for_test,
+    get_blockdevice_config,
+    get_blockdeviceapi_with_cleanup,
+    get_minimum_allocatable_size,
+    make_iblockdeviceapi_tests,
+    make_icloudapi_tests,
+    require_backend,
 )
 from ....testtools import TestCase, flaky, run_process
 
 from ..cinder import (
-    get_keystone_session, get_cinder_v1_client, get_nova_v2_client,
-    wait_for_volume_state, UnexpectedStateException, UnattachedVolume,
-    TimeoutException
+    get_keystone_session, wait_for_volume_state, UnexpectedStateException,
+    UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
 )
 
 from .logging import CINDER_VOLUME
@@ -80,6 +79,7 @@ require_virtio = skipIf(
     not which('virsh'), "Tests require the ``virsh`` command.")
 
 
+@require_backend('openstack')
 def cinderblockdeviceapi_for_test(test_case):
     """
     Create a ``CinderBlockDeviceAPI`` instance for use in tests.
@@ -90,7 +90,7 @@ def cinderblockdeviceapi_for_test(test_case):
         be cleaned up at the end of the test (using ``test_case``\ 's cleanup
         features).
     """
-    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
+    return get_blockdeviceapi_with_cleanup(test_case)
 
 
 class CinderBlockDeviceAPIInterfaceTests(
@@ -100,8 +100,6 @@ class CinderBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
-            minimum_allocatable_size=get_minimum_allocatable_size(),
-            device_allocation_unit=get_device_allocation_unit(),
             unknown_blockdevice_id_factory=lambda test: unicode(uuid4()),
         )
 ):
@@ -112,29 +110,23 @@ class CinderBlockDeviceAPIInterfaceTests(
         """
         :return: A ``cinderclient.Cinder`` instance.
         """
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-        session = get_keystone_session(**config)
-        region = get_openstack_region_for_test()
-        return get_cinder_v1_client(session, region)
+        return self.api.cinder_volume_manager
 
     def test_foreign_volume(self):
         """
         Non-Flocker Volumes are not listed.
         """
         cinder_client = self.cinder_client()
-        requested_volume = cinder_client.volumes.create(
+        requested_volume = cinder_client.create(
             size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
         CINDER_VOLUME(id=requested_volume.id).write()
         self.addCleanup(
-            cinder_client.volumes.delete,
+            cinder_client.delete,
             requested_volume.id,
         )
         wait_for_volume_state(
-            volume_manager=cinder_client.volumes,
+            volume_manager=cinder_client,
             expected_volume=requested_volume,
             desired_state=u'available',
             transient_states=(u'creating',),
@@ -167,10 +159,16 @@ class CinderBlockDeviceAPIInterfaceTests(
             size=self.minimum_allocatable_size,
         )
         CINDER_VOLUME(id=flocker_volume.blockdevice_id).write()
+
+        volume = cinder_client.get(
+            flocker_volume.blockdevice_id
+        )
         self.assertEqual(
-            cinder_client.volumes.get(
-                flocker_volume.blockdevice_id).display_name,
-            u"flocker-{}".format(dataset_id))
+            # Why? Because v1 calls it display_name and v2 calls it
+            # name.
+            getattr(volume, volume.NAME_ATTR),
+            u"flocker-{}".format(dataset_id)
+        )
 
     @flaky(u'FLOC-3347')
     def test_get_device_path_device(self):
@@ -201,6 +199,7 @@ class CinderHttpsTests(TestCase):
     has SSL and that supports the "password" auth_plugin.
     Which means that these tests are not run on any of our build servers.
     """
+    @require_backend('openstack')
     def session_for_test(self, config_override):
         """
         Creates a new Keystone session and invalidates it.
@@ -209,13 +208,8 @@ class CinderHttpsTests(TestCase):
             before creating the test session.
         :returns: A Keystone Session instance.
         """
-        try:
-            config = get_blockdevice_config(ProviderType.openstack)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
-
+        config = get_blockdevice_config()
         config.update(config_override)
-
         auth_url = config['auth_url']
         if not urlsplit(auth_url).scheme == u"https":
             self.skipTest(
@@ -271,7 +265,7 @@ class CinderHttpsTests(TestCase):
                 ).path
             }
         )
-        self.assertRaises(Unauthorized, session.get_token)
+        self.assertRaises(BadRequest, session.get_token)
 
 
 class VirtIOClient:
@@ -375,39 +369,36 @@ class OpenStackFixture(object):
         self.setUp()
 
     def setUp(self):
-        config = get_blockdevice_config(ProviderType.openstack)
-        region = get_openstack_region_for_test()
-        session = get_keystone_session(**config)
-        self.cinder = get_cinder_v1_client(session, region)
-        self.nova = get_nova_v2_client(session, region)
         self.blockdevice_api = cinderblockdeviceapi_for_test(test_case=self)
-
-    def _detach(self, instance_id, volume):
-        self.nova.volumes.delete_server_volume(instance_id, volume.id)
-        return wait_for_volume_state(
-            volume_manager=self.cinder.volumes,
-            expected_volume=volume,
-            desired_state=u'available',
-            transient_states=(u'in-use', u'detaching'),
-        )
+        self.cinder = self.blockdevice_api.cinder_volume_manager
+        self.nova = self.blockdevice_api.nova_volume_manager
 
     def cleanup(self, instance_id, volume):
-        volume.get()
-        if volume.attachments:
-            self._detach(instance_id, volume)
-        self.cinder.volumes.delete(volume.id)
+        try:
+            # Can't use self.blockdevice_api.detach_volume here because it
+            # expects all volumes to be ``flocker-`` volumes.
+            _nova_detach(
+                nova_volume_manager=self.nova,
+                cinder_volume_manager=self.cinder,
+                server_id=instance_id,
+                cinder_volume=volume
+            )
+        except UnattachedVolume:
+            pass
+        try:
+            self.blockdevice_api.destroy_volume(volume.id)
+        except UnknownVolume:
+            pass
 
 
 class CinderAttachmentTests(TestCase):
     """
     Cinder volumes can be attached and return correct device path.
     """
+    @require_backend('openstack')
     def setUp(self):
         super(CinderAttachmentTests, self).setUp()
-        try:
-            self.openstack = OpenStackFixture(self.addCleanup)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
+        self.openstack = OpenStackFixture(self.addCleanup)
         self.cinder = self.openstack.cinder
         self.nova = self.openstack.nova
         self.blockdevice_api = self.openstack.blockdevice_api
@@ -419,24 +410,24 @@ class CinderAttachmentTests(TestCase):
         """
         instance_id = self.blockdevice_api.compute_instance_id()
 
-        cinder_volume = self.cinder.volumes.create(
+        cinder_volume = self.cinder.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
-            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            volume_manager=self.cinder, expected_volume=cinder_volume,
             desired_state=u'available', transient_states=(u'creating',))
 
         devices_before = set(FilePath('/dev').children())
 
-        attached_volume = self.nova.volumes.create_server_volume(
+        attached_volume = self.nova.create_server_volume(
             server_id=instance_id,
             volume_id=volume.id,
             device=None,
         )
         volume = wait_for_volume_state(
-            volume_manager=self.cinder.volumes,
+            volume_manager=self.cinder,
             expected_volume=attached_volume,
             desired_state=u'in-use',
             transient_states=(u'available', u'attaching',),
@@ -452,13 +443,11 @@ class CinderAttachmentTests(TestCase):
 
 
 class VirtIOCinderAttachmentTests(TestCase):
+    @require_backend('openstack')
     @require_virtio
     def setUp(self):
         super(VirtIOCinderAttachmentTests, self).setUp()
-        try:
-            self.openstack = OpenStackFixture(self.addCleanup)
-        except InvalidConfig as e:
-            self.skipTest(str(e))
+        self.openstack = OpenStackFixture(self.addCleanup)
         self.cinder = self.openstack.cinder
         self.nova = self.openstack.nova
         self.blockdevice_api = self.openstack.blockdevice_api
@@ -478,24 +467,24 @@ class VirtIOCinderAttachmentTests(TestCase):
         virtio.attach_disk(host_device, "vdc")
         self.addCleanup(virtio.detach_disk, host_device)
 
-        cinder_volume = self.cinder.volumes.create(
+        cinder_volume = self.cinder.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
-            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            volume_manager=self.cinder, expected_volume=cinder_volume,
             desired_state=u'available', transient_states=(u'creating',))
 
         devices_before = set(FilePath('/dev').children())
 
-        attached_volume = self.nova.volumes.create_server_volume(
+        attached_volume = self.nova.create_server_volume(
             server_id=instance_id,
             volume_id=volume.id,
             device=None,
         )
         volume = wait_for_volume_state(
-            volume_manager=self.cinder.volumes,
+            volume_manager=self.cinder,
             expected_volume=attached_volume,
             desired_state=u'in-use',
             transient_states=(u'available', u'attaching',),
@@ -523,16 +512,16 @@ class VirtIOCinderAttachmentTests(TestCase):
         virtio.attach_disk(host_device, "vdb")
         self.addCleanup(virtio.detach_disk, host_device)
 
-        cinder_volume = self.cinder.volumes.create(
+        cinder_volume = self.cinder.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
-            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            volume_manager=self.cinder, expected_volume=cinder_volume,
             desired_state=u'available', transient_states=(u'creating',))
 
-        attached_volume = self.nova.volumes.create_server_volume(
+        attached_volume = self.nova.create_server_volume(
             server_id=instance_id,
             volume_id=volume.id,
             device=None,
@@ -540,7 +529,7 @@ class VirtIOCinderAttachmentTests(TestCase):
 
         with self.assertRaises(UnexpectedStateException) as e:
             wait_for_volume_state(
-                volume_manager=self.cinder.volumes,
+                volume_manager=self.cinder,
                 expected_volume=attached_volume,
                 desired_state=u'in-use',
                 transient_states=(u'available', u'attaching',),
@@ -554,13 +543,13 @@ class VirtIOCinderAttachmentTests(TestCase):
         """
         instance_id = self.blockdevice_api.compute_instance_id()
         # Create volume
-        cinder_volume = self.cinder.volumes.create(
+        cinder_volume = self.cinder.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
-            volume_manager=self.cinder.volumes, expected_volume=cinder_volume,
+            volume_manager=self.cinder, expected_volume=cinder_volume,
             desired_state=u'available', transient_states=(u'creating',))
 
         # Suspend udevd before attaching the disk
@@ -574,13 +563,13 @@ class VirtIOCinderAttachmentTests(TestCase):
         self.addCleanup(udev_process.resume)
 
         # Attach volume
-        attached_volume = self.nova.volumes.create_server_volume(
+        attached_volume = self.nova.create_server_volume(
             server_id=instance_id,
             volume_id=volume.id,
             device=None,
         )
         volume = wait_for_volume_state(
-            volume_manager=self.cinder.volumes,
+            volume_manager=self.cinder,
             expected_volume=attached_volume,
             desired_state=u'in-use',
             transient_states=(u'available', u'attaching',),
@@ -600,25 +589,25 @@ class VirtIOCinderAttachmentTests(TestCase):
         """
         instance_id = self.blockdevice_api.compute_instance_id()
         # Create volume
-        cinder_volume = self.cinder.volumes.create(
+        cinder_volume = self.cinder.create(
             size=int(Byte(get_minimum_allocatable_size()).to_GiB().value)
         )
         CINDER_VOLUME(id=cinder_volume.id).write()
         self.addCleanup(self._cleanup, instance_id, cinder_volume)
         volume = wait_for_volume_state(
-            volume_manager=self.cinder.volumes,
+            volume_manager=self.cinder,
             expected_volume=cinder_volume,
             desired_state=u'available',
             transient_states=(u'creating',))
 
         # Attach volume
-        attached_volume = self.nova.volumes.create_server_volume(
+        attached_volume = self.nova.create_server_volume(
             server_id=instance_id,
             volume_id=volume.id,
             device=None,
         )
         volume = wait_for_volume_state(
-            volume_manager=self.cinder.volumes,
+            volume_manager=self.cinder,
             expected_volume=attached_volume,
             desired_state=u'in-use',
             transient_states=(u'available', u'attaching',),

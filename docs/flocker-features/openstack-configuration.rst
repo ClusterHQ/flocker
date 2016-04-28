@@ -22,7 +22,7 @@ Make sure that the ``region`` specified matches the region where the Flocker nod
 OpenStack must be able to attach volumes created in that region to your Flocker agent nodes.
 
 .. note::
-	For the Flocker OpenStack integration to be able to identify the virtual machines where you run the Flocker agents, and to attach volumes to them, those virtual machines **must be provisioned through OpenStack** (via Nova).
+        For the Flocker OpenStack integration to be able to identify the virtual machines where you run the Flocker agents, and to attach volumes to them, those virtual machines **must be provisioned through OpenStack** (via Nova).
 
 .. XXX FLOC-2091 - Fix up this section.
 
@@ -52,6 +52,13 @@ For testing purposes, it is possible to turn off certificate verification, by se
        auth_plugin: "password"
        ...
 
+The OpenStack backend will automatically detect the best (most recent) available version of the Cinder API.
+`Cinder API V2`_  and  `Cinder API V1`_ are both supported.
+
+.. note:: At the time of writing Rackspace only supports `Cinder API V1`_.
+          Cinder API V1 does not support paging of responses, so responses are limited to ``<= 1000`` items.
+          Therefore Flocker will be limited to managing ``<= 1000`` volumes.
+
 Other items are typically required but vary depending on the `OpenStack authentication plugin selected`_
 (Flocker relies on these plugins; it does not provide them itself).
 
@@ -73,5 +80,6 @@ For example:
 To find the requirements for other plugins, see the appropriate documentation in the OpenStack project or provided with the plugin.
 
 .. _OpenStack authentication plugin selected: http://docs.openstack.org/developer/python-keystoneclient/authentication-plugins.html#loading-plugins-by-name
-
+.. _Cinder API V1: http://developer.openstack.org/api-ref-blockstorage-v1.html
+.. _Cinder API V2: http://developer.openstack.org/api-ref-blockstorage-v2.html
 .. end-body
