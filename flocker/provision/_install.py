@@ -899,7 +899,7 @@ def task_enable_flocker_control(distribution, action="start"):
     """
     validate_start_action(action)
 
-    if is_centos(distribution):
+    if is_centos(distribution) or is_rhel(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', action.lower(), 'flocker-control']),
