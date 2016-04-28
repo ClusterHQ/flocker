@@ -989,7 +989,7 @@ def if_firewall_available(distribution, commands):
     Open the firewall for remote access to control service if firewall command
     is available.
     """
-    if is_centos(distribution):
+    if is_centos(distribution) or is_rhel(distribution):
         firewall_command = b'firewall-cmd'
     elif distribution == 'ubuntu-14.04':
         firewall_command = b'ufw'
