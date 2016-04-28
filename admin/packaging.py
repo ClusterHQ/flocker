@@ -678,7 +678,14 @@ IGNORED_WARNINGS = {
         "systemd-service-file-outside-lib",
 
         # The binaries in ManyLinux wheel files are not compiled using Debian
-        # compile flags (dpkg-buildflags  --export).
+        # compile flags especially those related to hardening:
+        # https://wiki.debian.org/Hardening
+        # These are important security precautions which we should enforce in
+        # our packages.
+        # Remove this once binary wheel files have been hardened upstream or
+        # alternatively consider compiling from source rather than installing
+        # wheels from PyPI:
+        # https://github.com/pypa/manylinux/issues/59
         "hardening-no-relro",
     ),
 }
