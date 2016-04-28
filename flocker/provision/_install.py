@@ -400,10 +400,12 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
             'cp', '/tmp/clusterhq-build.repo',
             '/etc/yum.repos.d/clusterhq-build.repo']))
         if is_rhel(distribution):
-            # Update RHEL 7 with CentOS 7 in clusterhq build repo.
+            # Update RHEL releaseversion with CentOS 7 in clusterhq build repo.
             commands.append(run_from_args([
-                            'sed', '-i', '\'s/7Server/7/g\'',
+                            'sed', '-i', 's/$releasever/7/g',
                             '/etc/yum.repos.d/clusterhq.repo']))
+            commands.append(run_from_args([
+                            'cat', '/etc/yum.repos.d/clusterhq.repo']))
         repo_options = ['--enablerepo=clusterhq-build']
     else:
         repo_options = get_repo_options(

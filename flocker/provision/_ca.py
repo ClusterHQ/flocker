@@ -77,7 +77,8 @@ class Certificates(object):
         )
 
         def run(*arguments):
-            check_call([b"flocker-ca"] + list(arguments), cwd=directory.path)
+            check_call([b"/opt/flocker/bin/flocker-ca"] + list(arguments),
+                       cwd=directory.path)
 
         run(b"create-control-certificate", control_hostname)
         run(b"create-api-certificate", b"allison")
