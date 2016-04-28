@@ -938,7 +938,7 @@ def task_enable_docker_plugin(distribution):
 
     :param bytes distribution: The distribution name.
     """
-    if is_centos(distribution):
+    if is_centos(distribution) or is_rhel(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
             run_from_args(['systemctl', START, 'flocker-docker-plugin']),
