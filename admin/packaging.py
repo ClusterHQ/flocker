@@ -676,6 +676,10 @@ IGNORED_WARNINGS = {
         "netaddr/eui/oui.txt",
         "package-contains-timestamped-gzip",
         "systemd-service-file-outside-lib",
+
+        # The binaries in ManyLinux wheel files are not compiled using Debian
+        # compile flags (dpkg-buildflags  --export).
+        "hardening-no-relro",
     ),
 }
 
