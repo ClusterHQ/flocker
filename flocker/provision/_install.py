@@ -957,7 +957,7 @@ def task_open_control_firewall(distribution):
     """
     Open the firewall for flocker-control.
     """
-    if is_centos(distribution):
+    if is_centos(distribution) or is_rhel(distribution):
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
         open_firewall = open_ufw
