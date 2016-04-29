@@ -15,7 +15,7 @@ from bitmath import GiB
 
 from eliot import Message
 
-from ...common import loop_until
+from ...common import loop_until, poll_until
 from ...common.runner import run_ssh
 
 from ...dockerplugin.test.test_api import volume_expression
@@ -135,16 +135,28 @@ class DockerPluginTests(AsyncTestCase):
     def _create_volume(self, client, name, driver_opts):
         """
         Create a volume with the given name and driver options on the passed in
-        docker client.
+        docker client and block until the ``docker volume ls`` API reports that
+        the volume has been mounted.
 
         :param client: The docker.Client object to use.
         :param name: The name of the volume to create.
         :param opts: The options to pass through to the Flocker Plugin for
             Docker.
-        :returns: The result of the API call.
+        :returns: The result of the API call when the volume has been mounted.
         """
         result = client.create_volume(name, u'flocker', driver_opts)
         self.addCleanup(client.remove_volume, name)
+
+        # The docker volume API doesn't block.
+        # Wait until the volume has been mounted.
+        poll_until(
+            predicate=lambda: list(
+                v for v in client.volumes()["Volumes"]
+                if v["Name"] == name and v["Mountpoint"]
+            ),
+            steps=[1]*60
+        )
+
         return result
 
     def _test_sized_vol_container(self, cluster, node):
@@ -204,7 +216,9 @@ class DockerPluginTests(AsyncTestCase):
         Docker can run a container with a provisioned volumes with a
         specific size.
         """
-        self.require_docker('1.9.0', cluster)
+        # Requires docker volume list which was introduced in 1.10.0.
+        # https://github.com/docker/docker/blob/master/CHANGELOG.md#volumes-3
+        self.require_docker('1.10.0', cluster)
         return self._test_sized_vol_container(cluster, cluster.nodes[0])
 
     def _test_create_container(self, cluster, volume_name=None):
