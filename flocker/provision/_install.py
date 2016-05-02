@@ -1243,7 +1243,7 @@ def _uninstall_flocker_ubuntu1404():
 def _uninstall_flocker_centos7():
     """
     Return an ``Effect`` for uninstalling the Flocker package from a CentOS 7
-    machine.
+    or RHEL 7.2 machine.
     """
     def maybe_disable(unit):
         return run(
@@ -1280,6 +1280,7 @@ def _uninstall_flocker_centos7():
 _flocker_uninstallers = {
     "ubuntu-14.04": _uninstall_flocker_ubuntu1404,
     "centos-7": _uninstall_flocker_centos7,
+    "rhel-7.2": _uninstall_flocker_centos7,
 }
 
 
