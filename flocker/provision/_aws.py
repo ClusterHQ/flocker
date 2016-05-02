@@ -301,10 +301,7 @@ class AWSProvisioner(PClass):
 
     def create_node(self, name, distribution, metadata={}):
         size = self._default_size
-        disk_size = 8
-        if distribution == 'rhel-7.2':
-            # RHEL 7.2 official image snapshot is 10GB
-            disk_size = 10
+        disk_size = 10
 
         with start_action(
             action_type=u"flocker:provision:aws:create_node",
