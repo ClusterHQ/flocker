@@ -213,10 +213,6 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
         timeout(reactor, connection, 30)
         return connection
 
-    # TODO: myechuri - remove
-    print "Connection params: %s %s %s" % (intent.username,
-                                           intent.address,
-                                           intent.port)
     Message.new(
         username=intent.username, address=intent.address, port=intent.port)
     connection = yield loop_until(reactor, connect)

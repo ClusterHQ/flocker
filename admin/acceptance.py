@@ -828,7 +828,6 @@ class LibcloudRunner(object):
                     distribution=self.distribution,
                     metadata=self.metadata,
                 )
-                print "Created node %d: %s" % (index, name)
             except:
                 print "Error creating node %d: %s" % (index, name)
                 print "It may have leaked into the cloud."
