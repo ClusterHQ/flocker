@@ -107,16 +107,17 @@ def is_rhel(distribution):
     return distribution.startswith("rhel-")
 
 
-def is_centos(distribution):
+def is_centos_or_rhel(distribution):
     """
-    Determine whether the named distribution is a version of CentOS.
+    Determine whether the named distribution is a version of CentOS or RHEL.
 
     :param bytes distribution: The name of the distribution to inspect.
 
-    :return: ``True`` if the distribution named is a version of CentOS,
+    :return: ``True`` if the distribution named is a version of CentOS or RHEL,
         ``False`` otherwise.
     """
-    return distribution.startswith("centos-")
+    return (distribution.startswith("centos-") or
+            distribution.startswith("rhel-"))
 
 
 def _from_args(sudo):
@@ -556,7 +557,7 @@ def task_package_install(package_name, distribution,
     else:
         base_url = None
 
-    if is_centos(distribution) or is_rhel(distribution):
+    if is_centos_or_rhel(distribution):
         installer = install_commands_yum
     elif is_ubuntu(distribution):
         installer = install_commands_ubuntu
@@ -697,7 +698,7 @@ def task_upgrade_kernel(distribution):
     """
     Upgrade kernel.
     """
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         return sequence([
             yum_install(["kernel-devel", "kernel"]),
             run_from_args(['sync']),
@@ -815,7 +816,7 @@ def task_enable_docker(distribution):
         ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
         ' -H=0.0.0.0:2376')
 
-    if is_centos(distribution) or is_rhel(distribution):
+    if is_centos_or_rhel(distribution):
         conf_path = (
             "/etc/systemd/system/docker.service.d/01-TimeoutStartSec.conf"
         )
@@ -899,7 +900,7 @@ def task_enable_flocker_control(distribution, action="start"):
     """
     validate_start_action(action)
 
-    if is_centos(distribution) or is_rhel(distribution):
+    if is_centos_or_rhel(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', action.lower(), 'flocker-control']),
@@ -938,7 +939,7 @@ def task_enable_docker_plugin(distribution):
 
     :param bytes distribution: The distribution name.
     """
-    if is_centos(distribution) or is_rhel(distribution):
+    if is_centos_or_rhel(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
             run_from_args(['systemctl', START, 'flocker-docker-plugin']),
@@ -957,7 +958,7 @@ def task_open_control_firewall(distribution):
     """
     Open the firewall for flocker-control.
     """
-    if is_centos(distribution) or is_rhel(distribution):
+    if is_centos_or_rhel(distribution):
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
         open_firewall = open_ufw
@@ -989,7 +990,7 @@ def if_firewall_available(distribution, commands):
     Open the firewall for remote access to control service if firewall command
     is available.
     """
-    if is_centos(distribution) or is_rhel(distribution):
+    if is_centos_or_rhel(distribution):
         firewall_command = b'firewall-cmd'
     elif distribution == 'ubuntu-14.04':
         firewall_command = b'ufw'
@@ -1007,7 +1008,7 @@ def open_firewall_for_docker_api(distribution):
     """
     Open the firewall for remote access to Docker API.
     """
-    if is_centos(distribution) or is_rhel(distribution):
+    if is_centos_or_rhel(distribution):
         upload = put(path="/usr/lib/firewalld/services/docker.xml",
                      content=dedent(
                          """\
@@ -1113,7 +1114,7 @@ def task_enable_flocker_agent(distribution, action="start"):
     """
     validate_start_action(action)
 
-    if is_centos(distribution) or is_rhel(distribution):
+    if is_centos_or_rhel(distribution):
         return sequence([
             run_from_args(['systemctl',
                            'enable',
@@ -1178,7 +1179,7 @@ def task_install_zfs(distribution, variants=set()):
             apt_get_install(["zfsutils"]),
             ]
 
-    elif is_centos(distribution):
+    elif is_centos_or_rhel(distribution):
         commands += [
             yum_install([ZFS_REPO[distribution]]),
         ]
@@ -1331,7 +1332,7 @@ def task_install_docker(distribution):
     Docker is already installed, no matter what version it is, the requirement
     is considered satisfied (we treat the user as knowing what they're doing).
     """
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         # The Docker packages don't declare all of their dependencies.  They
         # seem to work on an up-to-date system, though, so make sure the system
         # is up to date.
@@ -1425,7 +1426,7 @@ def task_enable_docker_head_repository(distribution):
 
     :param bytes distribution: See func:`task_install_flocker`
     """
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         return sequence([
             put(content=dedent("""\
                 [virt7-testing]
