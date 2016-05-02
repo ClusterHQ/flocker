@@ -528,6 +528,29 @@ def install_commands_ubuntu(package_name, distribution, package_source,
     return sequence(commands)
 
 
+def _get_base_url_and_installer_for_distro(distribution, build_server, branch):
+    """
+    """
+    package = distribution
+    if is_centos_or_rhel(distribution):
+        package = 'centos-7'
+        installer = install_commands_yum
+    elif is_ubuntu(distribution):
+        installer = install_commands_ubuntu
+    else:
+        raise UnsupportedDistribution()
+
+    if branch:
+        # A development branch has been selected - add its Buildbot repo.
+        # Install CentOS packages.
+        result_path = posixpath.join(
+            '/results/omnibus/', branch, package)
+        base_url = urljoin(build_server, result_path)
+    else:
+        base_url = None
+    return (base_url, installer)
+
+
 def task_package_install(package_name, distribution,
                          package_source=PackageSource()):
     """
@@ -545,17 +568,8 @@ def task_package_install(package_name, distribution,
 
     :return: a sequence of commands to run on the distribution
     """
-    if package_source.branch:
-        # A development branch has been selected - add its Buildbot repo.
-        # Install CentOS packages.
-        package_distribution = distribution
-        if package_distribution == 'rhel-7.2':
-            package_distribution = 'centos-7'
-        result_path = posixpath.join(
-            '/results/omnibus/', package_source.branch, package_distribution)
-        base_url = urljoin(package_source.build_server, result_path)
-    else:
-        base_url = None
+    (base_url, installer) = _get_base_url_and_installer_for_distro(
+        distribution, package_source.build_server, package_source.branch)
 
     if is_centos_or_rhel(distribution):
         installer = install_commands_yum
@@ -563,6 +577,7 @@ def task_package_install(package_name, distribution,
         installer = install_commands_ubuntu
     else:
         raise UnsupportedDistribution()
+
     return installer(package_name, distribution, package_source,
                      base_url)
 
