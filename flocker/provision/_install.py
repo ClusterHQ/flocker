@@ -95,16 +95,28 @@ def tag_as_test_install(flocker_version, distribution, package_name):
     return http_get(tag_url)
 
 
-def is_centos(distribution):
+def is_rhel(distribution):
     """
-    Determine whether the named distribution is a version of CentOS.
+    Determine whether the named distribution is a version of RHEL.
 
     :param bytes distribution: The name of the distribution to inspect.
 
-    :return: ``True`` if the distribution named is a version of CentOS,
+    :return: ``True`` if the distribution named is a version of RHEL,
         ``False`` otherwise.
     """
-    return distribution.startswith("centos-")
+    return distribution.startswith("rhel-")
+
+
+def is_centos_or_rhel(distribution):
+    """
+    Determine whether the named distribution is a version of CentOS or RHEL.
+
+    :param bytes distribution: The name of the distribution to inspect.
+
+    :return: ``True`` if the distribution named is a version of CentOS or RHEL,
+        ``False`` otherwise.
+    """
+    return (distribution.startswith(("centos-", "rhel-")))
 
 
 def _from_args(sudo):
@@ -179,6 +191,13 @@ def get_repository_url(distribution, flocker_version):
         # and then choose the name
         'centos-7': "https://{archive_bucket}.s3.amazonaws.com/"
                     "{key}/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                        archive_bucket=ARCHIVE_BUCKET,
+                        key='centos',
+                        ),
+        # Use CentOS packages for RHEL
+        'rhel-7.2': "https://{archive_bucket}.s3.amazonaws.com/"
+                    "{key}/clusterhq-release$(rpm -E %dist).centos."
+                    "noarch.rpm".format(
                         archive_bucket=ARCHIVE_BUCKET,
                         key='centos',
                         ),
@@ -326,7 +345,7 @@ def wipe_yum_cache(repository):
 
 def install_commands_yum(package_name, distribution, package_source, base_url):
     """
-    Install Flocker package on CentOS.
+    Install Flocker package on CentOS and RHEL.
 
     The ClusterHQ repo is added for downloading latest releases.  If
     ``package_source`` contains a branch, then a BuildBot repo will also
@@ -380,6 +399,13 @@ def install_commands_yum(package_name, distribution, package_source, base_url):
         commands.append(run_from_args([
             'cp', '/tmp/clusterhq-build.repo',
             '/etc/yum.repos.d/clusterhq-build.repo']))
+        if is_rhel(distribution):
+            # Update RHEL releaseversion with CentOS 7 in clusterhq build repo.
+            commands.append(run_from_args([
+                            'sed', '-i', 's/$releasever/7/g',
+                            '/etc/yum.repos.d/clusterhq.repo']))
+            commands.append(run_from_args([
+                            'cat', '/etc/yum.repos.d/clusterhq.repo']))
         repo_options = ['--enablerepo=clusterhq-build']
     else:
         repo_options = get_repo_options(
@@ -501,6 +527,40 @@ def install_commands_ubuntu(package_name, distribution, package_source,
     return sequence(commands)
 
 
+def _get_base_url_and_installer_for_distro(distribution, build_server, branch):
+    """
+    Get Built artifact base URL and installer for a given distribution.
+
+    :param bytes distribution: The distribution the node is running.
+    :param bytes build_server: The url prefix of build server where artifacts
+                               reside.
+    :param bytes branch: Optional development branch fetch artifacts for.
+
+    :returns: A tuple of build artifact base url and custom installer for given
+              distribution.
+    :rytpe: (string, sequence)
+    """
+    package = distribution
+    if is_centos_or_rhel(distribution):
+        # Use CentOS 7 packages on RHEL.
+        package = 'centos-7'
+        installer = install_commands_yum
+    elif is_ubuntu(distribution):
+        installer = install_commands_ubuntu
+    else:
+        raise UnsupportedDistribution()
+
+    if branch:
+        # A development branch has been selected - add its Buildbot repo.
+        # Install CentOS packages.
+        result_path = posixpath.join(
+            '/results/omnibus/', branch, package)
+        base_url = urljoin(build_server, result_path)
+    else:
+        base_url = None
+    return (base_url, installer)
+
+
 def task_package_install(package_name, distribution,
                          package_source=PackageSource()):
     """
@@ -518,20 +578,9 @@ def task_package_install(package_name, distribution,
 
     :return: a sequence of commands to run on the distribution
     """
-    if package_source.branch:
-        # A development branch has been selected - add its Buildbot repo
-        result_path = posixpath.join(
-            '/results/omnibus/', package_source.branch, distribution)
-        base_url = urljoin(package_source.build_server, result_path)
-    else:
-        base_url = None
+    (base_url, installer) = _get_base_url_and_installer_for_distro(
+        distribution, package_source.build_server, package_source.branch)
 
-    if is_centos(distribution):
-        installer = install_commands_yum
-    elif is_ubuntu(distribution):
-        installer = install_commands_ubuntu
-    else:
-        raise UnsupportedDistribution()
     return installer(package_name, distribution, package_source,
                      base_url)
 
@@ -667,7 +716,7 @@ def task_upgrade_kernel(distribution):
     """
     Upgrade kernel.
     """
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         return sequence([
             yum_install(["kernel-devel", "kernel"]),
             run_from_args(['sync']),
@@ -785,7 +834,7 @@ def task_enable_docker(distribution):
         ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
         ' -H=0.0.0.0:2376')
 
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         conf_path = (
             "/etc/systemd/system/docker.service.d/01-TimeoutStartSec.conf"
         )
@@ -869,7 +918,7 @@ def task_enable_flocker_control(distribution, action="start"):
     """
     validate_start_action(action)
 
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', action.lower(), 'flocker-control']),
@@ -908,7 +957,7 @@ def task_enable_docker_plugin(distribution):
 
     :param bytes distribution: The distribution name.
     """
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
             run_from_args(['systemctl', START, 'flocker-docker-plugin']),
@@ -927,7 +976,7 @@ def task_open_control_firewall(distribution):
     """
     Open the firewall for flocker-control.
     """
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
         open_firewall = open_ufw
@@ -959,7 +1008,7 @@ def if_firewall_available(distribution, commands):
     Open the firewall for remote access to control service if firewall command
     is available.
     """
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         firewall_command = b'firewall-cmd'
     elif distribution == 'ubuntu-14.04':
         firewall_command = b'ufw'
@@ -977,7 +1026,7 @@ def open_firewall_for_docker_api(distribution):
     """
     Open the firewall for remote access to Docker API.
     """
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         upload = put(path="/usr/lib/firewalld/services/docker.xml",
                      content=dedent(
                          """\
@@ -1083,7 +1132,7 @@ def task_enable_flocker_agent(distribution, action="start"):
     """
     validate_start_action(action)
 
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         return sequence([
             run_from_args(['systemctl',
                            'enable',
@@ -1148,7 +1197,7 @@ def task_install_zfs(distribution, variants=set()):
             apt_get_install(["zfsutils"]),
             ]
 
-    elif is_centos(distribution):
+    elif is_centos_or_rhel(distribution):
         commands += [
             yum_install([ZFS_REPO[distribution]]),
         ]
@@ -1213,7 +1262,7 @@ def _uninstall_flocker_ubuntu1404():
 def _uninstall_flocker_centos7():
     """
     Return an ``Effect`` for uninstalling the Flocker package from a CentOS 7
-    machine.
+    or RHEL 7.2 machine.
     """
     def maybe_disable(unit):
         return run(
@@ -1250,6 +1299,7 @@ def _uninstall_flocker_centos7():
 _flocker_uninstallers = {
     "ubuntu-14.04": _uninstall_flocker_ubuntu1404,
     "centos-7": _uninstall_flocker_centos7,
+    "rhel-7.2": _uninstall_flocker_centos7,
 }
 
 
@@ -1300,7 +1350,7 @@ def task_install_docker(distribution):
     Docker is already installed, no matter what version it is, the requirement
     is considered satisfied (we treat the user as knowing what they're doing).
     """
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         # The Docker packages don't declare all of their dependencies.  They
         # seem to work on an up-to-date system, though, so make sure the system
         # is up to date.
@@ -1394,7 +1444,7 @@ def task_enable_docker_head_repository(distribution):
 
     :param bytes distribution: See func:`task_install_flocker`
     """
-    if is_centos(distribution):
+    if is_centos_or_rhel(distribution):
         return sequence([
             put(content=dedent("""\
                 [virt7-testing]

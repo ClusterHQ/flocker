@@ -36,6 +36,7 @@ _usernames = {
     'centos-7': 'centos',
     'ubuntu-14.04': 'ubuntu',
     'ubuntu-15.10': 'ubuntu',
+    'rhel-7.2': 'ec2-user',
 }
 
 
@@ -48,6 +49,8 @@ IMAGE_NAMES = {
     # https://cloud-images.ubuntu.com/locator/ec2/
     'ubuntu-14.04': 'ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-20160222',  # noqa
     'ubuntu-15.10': 'ubuntu/images/hvm-ssd/ubuntu-wily-15.10-amd64-server-20160226',  # noqa
+    # RHEL 7.2 HVM GA image
+    'rhel-7.2': 'RHEL-7.2_HVM_GA-20151112-x86_64-1-Hourly2-GP2',  # noqa
 }
 
 BOTO_INSTANCE_NOT_FOUND = u'InvalidInstanceID.NotFound'
@@ -298,7 +301,7 @@ class AWSProvisioner(PClass):
 
     def create_node(self, name, distribution, metadata={}):
         size = self._default_size
-        disk_size = 8
+        disk_size = 10
 
         with start_action(
             action_type=u"flocker:provision:aws:create_node",
