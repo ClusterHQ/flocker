@@ -530,9 +530,20 @@ def install_commands_ubuntu(package_name, distribution, package_source,
 
 def _get_base_url_and_installer_for_distro(distribution, build_server, branch):
     """
+    Get Built artifact base URL and installer for a given distribution.
+
+    :param bytes distribution: The distribution the node is running.
+    :param bytes build_server: The url prefix of build server where artifacts
+                               reside.
+    :param bytes branch: Optional development branch fetch artifacts for.
+
+    :returns: A tuple of build artifact base url and custom installer for given
+              distribution.
+    :rytpe: (string, sequence)
     """
     package = distribution
     if is_centos_or_rhel(distribution):
+        # Use CentOS 7 packages on RHEL.
         package = 'centos-7'
         installer = install_commands_yum
     elif is_ubuntu(distribution):
