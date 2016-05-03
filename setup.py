@@ -12,7 +12,7 @@ with open("README.rst") as readme:
     description = readme.read()
 
 with open("requirements.txt") as requirements:
-    install_requires = [req for req in requirements.readlines() if 'git+https' not in req]
+    install_requires = [req for req in requirements.readlines() if 'git+https' not in req]  # noqa
 with open("dev-requirements.txt") as dev_requirements:
     dev_requires = dev_requirements.readlines()
 
@@ -85,6 +85,7 @@ setup(
             'flocker-benchmark = ' +
             'flocker.node.benchmark:flocker_benchmark_main',
             'flocker-node-era = flocker.common._era:era_main',
+            'flocker-migrator = flocker.cli.script:flocker_migrator_main',
         ],
     },
 

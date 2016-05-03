@@ -1302,6 +1302,73 @@ class ProfiledBlockDeviceAPIAdapter(PClass):
                                                    size=size)
 
 
+class BlockDeviceClusterID(Names):
+    """
+    States that a ``Dataset`` can be in.
+    """
+    # It is unknown if this blockdevice
+    UNKNOWN = NamedConstant()
+    # Existing volume not recorded as owning a dataset
+    NOT_IN_CLUSTER = NamedConstant()
+
+
+class BlockDevice(PClass):
+    """
+    A block device that may be attached to a host.
+
+    :ivar unicode blockdevice_id: An identifier for the block device which is
+        unique across the entire cluster.  For example, an EBS volume
+        identifier (``vol-4282672b``).
+    :ivar int size: The size, in bytes, of the block device.
+    :ivar unicode attached_to: An opaque identifier for the node to which the
+        volume is attached or ``None`` if it is currently unattached.  The
+        identifier is supplied by the ``IBlockDeviceAPI.compute_instance_id``
+        method based on the underlying infrastructure services (for example, if
+        the cluster runs on AWS, this is very likely an EC2 instance id).
+    :ivar UUID cluster_id: The cluster that the blockdevice belongs to 
+    """
+    blockdevice_id = field(type=unicode, mandatory=True)
+    size = field(type=int, mandatory=True)
+    attached_to = field(
+        type=(unicode, type(None)), initial=None, mandatory=True
+    )
+    cluster_id = field(
+        invariant=lambda x: (
+            (type(x) == UUID or x in BlockDeviceClusterID.iterconstants()),
+             'Not a UUID or known BlockDeviceClusterID constant.'
+        ),
+        initial=BlockDeviceClusterID.UNKNOWN,
+        mandatory=True
+    )
+
+
+class IListBlockDevices(Interface):
+    """
+    An interface for drivers that are capable of listing all blockdevices in
+    the storage layer, not just the flocker volumes.
+
+    This might be useful in using flocker to manage more than just the volumes
+    it created
+    """
+
+    def create_volume_with_profile(dataset_id, size, profile_name):
+        """
+        Create a new volume with the specified profile.
+
+        When called by ``IDeployer``, the supplied size will be
+        rounded up to the nearest ``IBlockDeviceAPI.allocation_unit()``.
+
+
+        :param UUID dataset_id: The Flocker dataset ID of the dataset on this
+            volume.
+        :param int size: The size of the new volume in bytes.
+        :param unicode profile_name: The name of the storage profile for this
+            volume.
+
+        :returns: A ``BlockDeviceVolume`` of the newly created volume.
+        """
+
+
 @implementer(IBlockDeviceAsyncAPI)
 @auto_threaded(IBlockDeviceAPI, "_reactor", "_sync", "_threadpool")
 class _SyncToThreadedAsyncAPIAdapter(PClass):

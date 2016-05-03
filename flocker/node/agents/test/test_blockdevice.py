@@ -21,7 +21,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    PClass, field, discard, pmap, pvector,
+    InvariantException, PClass, field, discard, pmap, pvector,
 )
 
 from characteristic import attributes
@@ -32,13 +32,16 @@ from hypothesis.strategies import (
     dictionaries, tuples, booleans,
 )
 
-from testtools.matchers import Equals
+from testtools.matchers import Equals, raises
 from testtools.deferredruntest import SynchronousDeferredRunTest
 
 from twisted.internet import reactor
 from twisted.internet.defer import succeed
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
+from twisted.python.constants import (
+    Names, NamedConstant,
+)
 
 from eliot import Logger
 from eliot.testing import (
@@ -83,6 +86,9 @@ from ..blockdevice import (
     FilesystemExists,
     UnknownInstanceID,
     log_list_volumes, CALL_LIST_VOLUMES,
+
+    BlockDevice,
+    BlockDeviceClusterID,
 )
 
 from ..loopback import (
@@ -5005,3 +5011,55 @@ class LogListVolumesTest(TestCase):
 
         result = wrapped(3, 5, z=7)
         self.assertEqual(result, (3, 5, 7))
+
+
+class BlockDeviceTestCase(TestCase):
+    """
+    Tests for ``BlockDevice``.
+    """
+
+    def _get_blockdevice(self):
+        """
+        Generates a blockdevice for testing.
+        """
+        return BlockDevice(
+            blockdevice_id=u'thingy',
+            size=1234
+        )
+
+    def test_cluster_id_invariant_uuid(self):
+        """
+        ``cluster_id`` can be a UUID.
+        """
+        u = uuid4()
+        bd = self._get_blockdevice().set("cluster_id", u)
+        self.assertThat(bd.cluster_id, Equals(u))
+
+    def test_cluster_id_constants(self):
+        """
+        ``cluster_id`` can be any of the ``BlockDeviceClusterID`` constants.
+        """
+        for c in BlockDeviceClusterID.iterconstants():
+            bd = self._get_blockdevice().set("cluster_id", c)
+            self.assertThat(bd.cluster_id, Equals(c))
+
+    def test_cluster_id_unicode(self):
+        """
+        ``cluster_id`` cannot be a unicode.
+        """
+        self.assertThat(
+            lambda: self._get_blockdevice().set("cluster_id", u"an-id"),
+            raises(InvariantException)
+        )
+
+    def test_cluster_id_other_constant(self):
+        """
+        ``cluster_id`` cannot be a different NamedConstant
+        """
+        class TestEnum(Names):
+            VALUE = NamedConstant()
+        
+        self.assertThat(
+            lambda: self._get_blockdevice().set("cluster_id", TestEnum.VALUE),
+            raises(InvariantException)
+        )

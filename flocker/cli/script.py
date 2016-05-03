@@ -6,9 +6,11 @@ The command-line ``flocker-deploy`` tool.
 
 import os
 import sys
+import yaml
 from json import dumps
+from uuid import UUID
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, maybeDeferred
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.web.http import OK
@@ -26,6 +28,11 @@ from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from .. import REST_API_PORT
 from ..ca import treq_with_authentication
+
+from ..node.backends import backend_loader
+from ..common.configuration import (
+    extract_substructure, MissingConfigError, Optional
+)
 
 
 FEEDBACK_CLI_TEXT = (
@@ -228,6 +235,108 @@ class CLIScript(object):
         """
         return succeed(None)
 
+@flocker_standard_options
+class AddExistingVolumeOptions(Options):
+    """
+    Command line options for ``flocker-migrator add-existing-volume``.
+    """
+
+    longdesc = """\
+    Add an existing volume to your flocker cluster. On storage providers that
+    enable this sort of volume metadata manipulation, this enables you to move
+    a volume into 
+
+    Parameters:
+
+    * volume blockdevice-id: The unique identifier that identifies a volume
+      within your storage provider.
+
+    * cluster-id: The identifier of the cluster to add the volume to.
+    """
+
+    synopsis = ("--blockdevice=<volume blockdevice-id> "
+                "--cluster=<flocker-cluster-id")
+
+
+@flocker_standard_options
+class ListAllVolumesOptions(Options):
+    """
+    Command line options for ``flocker-migrator list-all-volumes``.
+    """
+
+    longdesc = """\
+    Lists all volumes that can be found, not just the ones managed by flocker.
+    """
+
+    synopsis = ""
+
+    def run(self):
+        """
+        Run the action for this sub-command.
+        """
+        with open('test.yml') as f:
+            a = yaml.load(f)
+        ss = dict(
+            region="<Openstack Region>",
+            cluster_id="<Cluster ID>",
+            auth_plugin='<Auth plugin: "rackpace" "password" etc.>',
+            username='<OpenStack Username>',
+            api_key='<OpenStack api key>',
+            auth_url='<OpenStack authentication url>',
+        )
+        try:
+            config = extract_substructure(
+                a, ss
+            )
+        except MissingConfigError as e:
+            yaml.add_representer(
+                Optional,
+                lambda d, x: d.represent_scalar(u'tag:yaml.org,2002:str', repr(x)))
+            raise SystemExit(
+                'Could not get configuration: {}\n\n'
+                'In order to run this test, add ensure file at test.yml '
+                'has structure like:\n\n{}'.format(
+                    e.message,
+                    yaml.dump(ss, default_flow_style=False))
+            )
+        config['cluster_id'] = UUID(config['cluster_id'])
+        backend_description = backend_loader.get('openstack')
+        bdapi = backend_description.api_factory(
+            **config
+        )
+        print bdapi.list_volumes()
+
+
+@flocker_standard_options
+class FlockerMigratorOptions(Options):
+    """
+    Command line options for ``flocker-migrator`` CLI.
+    """
+    subCommands =[
+        ['add-existing-volume', None, AddExistingVolumeOptions,
+         'Add an existing volume'],
+        ['list-all-volumes', None, ListAllVolumesOptions, 'List all volumes '
+         'that the backend can see, not just the flocker volumes.']
+    ]
+
+
+@implementer(ICommandLineScript)
+class FlockerMigratorScript(object):
+    """
+    A command-line script to interact with a cluster via the API.
+    """
+    def main(self, reactor, options):
+        """
+        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+
+        :return: A ``Deferred`` which fires when the deployment is complete or
+                 has encountered an error.
+        """
+        if options.subCommand is not None:
+            return maybeDeferred(options.subOptions.run)
+        else:
+            return succeed(None)
+
 
 def flocker_deploy_main():
     return FlockerScriptRunner(
@@ -242,5 +351,13 @@ def flocker_cli_main():
     return FlockerScriptRunner(
         script=CLIScript(),
         options=CLIOptions(),
+        logging=False,
+    ).main()
+
+
+def flocker_migrator_main():
+    return FlockerScriptRunner(
+        script=FlockerMigratorScript(),
+        options=FlockerMigratorOptions(),
         logging=False,
     ).main()
