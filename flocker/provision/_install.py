@@ -116,8 +116,7 @@ def is_centos_or_rhel(distribution):
     :return: ``True`` if the distribution named is a version of CentOS or RHEL,
         ``False`` otherwise.
     """
-    return (distribution.startswith("centos-") or
-            distribution.startswith("rhel-"))
+    return (distribution.startswith(("centos-", "rhel-")))
 
 
 def _from_args(sudo):
