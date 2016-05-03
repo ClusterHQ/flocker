@@ -582,13 +582,6 @@ def task_package_install(package_name, distribution,
     (base_url, installer) = _get_base_url_and_installer_for_distro(
         distribution, package_source.build_server, package_source.branch)
 
-    if is_centos_or_rhel(distribution):
-        installer = install_commands_yum
-    elif is_ubuntu(distribution):
-        installer = install_commands_ubuntu
-    else:
-        raise UnsupportedDistribution()
-
     return installer(package_name, distribution, package_source,
                      base_url)
 
