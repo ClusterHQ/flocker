@@ -1306,9 +1306,9 @@ class BlockDeviceClusterID(Names):
     """
     States that a ``Dataset`` can be in.
     """
-    # It is unknown if this blockdevice
+    # It is unknown if this blockdevice belongs to a flocker cluster.
     UNKNOWN = NamedConstant()
-    # Existing volume not recorded as owning a dataset
+    # This blockdevice is known to not belong to any flocker cluster.
     NOT_IN_CLUSTER = NamedConstant()
 
 
@@ -1325,7 +1325,10 @@ class BlockDevice(PClass):
         identifier is supplied by the ``IBlockDeviceAPI.compute_instance_id``
         method based on the underlying infrastructure services (for example, if
         the cluster runs on AWS, this is very likely an EC2 instance id).
-    :ivar UUID cluster_id: The cluster that the blockdevice belongs to 
+    :ivar UUID cluster_id: The cluster that the blockdevice belongs to or a
+        ``BlockDeviceClusterID`` to indicate either that it cannot be
+        determined which cluster the volume belongs to, or that the volume is
+        not in any cluster.
     """
     blockdevice_id = field(type=unicode, mandatory=True)
     size = field(type=int, mandatory=True)
@@ -1335,7 +1338,7 @@ class BlockDevice(PClass):
     cluster_id = field(
         invariant=lambda x: (
             (type(x) == UUID or x in BlockDeviceClusterID.iterconstants()),
-             'Not a UUID or known BlockDeviceClusterID constant.'
+            'Not a UUID or known BlockDeviceClusterID constant.'
         ),
         initial=BlockDeviceClusterID.UNKNOWN,
         mandatory=True
@@ -1348,24 +1351,18 @@ class IListBlockDevices(Interface):
     the storage layer, not just the flocker volumes.
 
     This might be useful in using flocker to manage more than just the volumes
-    it created
+    it created or allowing flocker to adopt non-flocker volumes.
     """
 
-    def create_volume_with_profile(dataset_id, size, profile_name):
+    def list_all_blockdevices():
         """
-        Create a new volume with the specified profile.
+        List all blockdevices that can be discovered by this backend.
 
-        When called by ``IDeployer``, the supplied size will be
-        rounded up to the nearest ``IBlockDeviceAPI.allocation_unit()``.
+        Do not filter the results only to blockdevices that are in Flocker
+        cluster.
 
-
-        :param UUID dataset_id: The Flocker dataset ID of the dataset on this
-            volume.
-        :param int size: The size of the new volume in bytes.
-        :param unicode profile_name: The name of the storage profile for this
-            volume.
-
-        :returns: A ``BlockDeviceVolume`` of the newly created volume.
+        :returns: A ``list`` of ``BlockDevice``s for every blockdevice
+            available from the storage backend.
         """
 
 

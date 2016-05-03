@@ -304,7 +304,10 @@ class ListAllVolumesOptions(Options):
         bdapi = backend_description.api_factory(
             **config
         )
-        print bdapi.list_volumes()
+        if provides(bdapi, IListBlockDevices):
+            print bdapi.list_all_blockdevices()
+        else:
+            print "Your backend does not provide list_all_blockdevices."
 
 
 @flocker_standard_options
