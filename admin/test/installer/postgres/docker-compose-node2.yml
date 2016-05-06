@@ -1,12 +1,22 @@
-postgres:
-  image: postgres
-  ports:
-     -  "5432:5432"
-  environment:
-     - "constraint:flocker-node==2"
-     - "POSTGRES_USER=flocker"
-     - "POSTGRES_PASSWORD=flocker"
-     - "PGDATA=/var/lib/postgresql/data"
-  volume_driver: flocker
-  volumes:
-     - 'postgres:/var/lib/postgresql/data'
+version: "2"
+
+volumes:
+  postgres:
+    driver: "flocker"
+    driver_opts:
+      size: "10GiB"
+      profile: "bronze"
+
+services:
+  postgres:
+    image: "postgres:9.5"
+    ports:
+       -  "5432:5432"
+    environment:
+       - "constraint:flocker-node==2"
+       - "POSTGRES_USER=flocker"
+       - "POSTGRES_PASSWORD=flocker"
+       - "PGDATA=/var/lib/postgresql/data"
+    network_mode: "bridge"
+    volumes:
+       - "postgres:/var/lib/postgresql/data"

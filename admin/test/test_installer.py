@@ -19,7 +19,7 @@ from twisted.python.filepath import FilePath
 from eliot import Message
 
 from flocker.common.runner import run_ssh, upload, download, SCPConnectionError
-from flocker.common import gather_deferreds, loop_until, retry_failure
+from flocker.common import loop_until, retry_failure
 from flocker.testtools import AsyncTestCase, async_runner, random_name
 from flocker.acceptance.testtools import (
     connected_cluster, acceptance_yaml_for_test, extract_substructure_for_test
@@ -348,7 +348,6 @@ class DockerComposeTests(AsyncTestCase):
         def stack_ready(ignored):
             self.docker_host = 'tcp://' + self.control_node_ip + ':2376'
             self.addCleanup(self._cleanup_flocker)
-            self.addCleanup(self._cleanup_compose)
         d.addCallback(stack_ready)
 
         return d
@@ -386,49 +385,6 @@ class DockerComposeTests(AsyncTestCase):
             )
         )
         return d
-
-    def _cleanup_compose(self):
-        """
-        Run docker-compose stop and rm -f for both demo templates to stop and
-        remove all the containers that were created during the test.
-        Run serially because docker-compose + swarm sometimes fail when
-        commands are run in parallel.
-        """
-        d_node1_compose = remote_docker_compose(
-            self.client_node_ip,
-            self.docker_host,
-            self.compose_node1.path, 'stop'
-        )
-        d_node1_compose.addCallback(
-            lambda ignored: remote_docker_compose(
-                self.client_node_ip,
-                self.docker_host,
-                self.compose_node1.path, 'rm', '-f'
-            ).addErrback(
-                # This sometimes fails with exit code 255
-                # and a message ValueError: No JSON object could be decoded
-                lambda failure: failure.trap(ProcessTerminated)
-            )
-        )
-        d_node2_compose = remote_docker_compose(
-            self.client_node_ip,
-            self.docker_host,
-            self.compose_node2.path,
-            'stop',
-        )
-        d_node2_compose.addCallback(
-            lambda ignored: remote_docker_compose(
-                self.client_node_ip,
-                self.docker_host,
-                self.compose_node2.path,
-                'rm', '-f'
-            ).addErrback(
-                # This sometimes fails with exit code 255
-                # and a message ValueError: No JSON object could be decoded
-                lambda failure: failure.trap(ProcessTerminated)
-            )
-        )
-        return gather_deferreds([d_node1_compose, d_node2_compose])
 
     def _wait_for_postgres(self, server_ip):
         """
@@ -502,13 +458,23 @@ class DockerComposeTests(AsyncTestCase):
             steps=repeat(1, 60)
         )
 
-        # This isn't in the tutorial, but docker-compose doesn't retry failed
-        # pulls and pulls fail all the time.
-        def pull_postgres():
-            return remote_docker(
+        def cleanup_container(ignored):
+            self.addCleanup(
+                remote_docker_compose,
                 self.client_node_ip,
                 self.docker_host,
-                'pull', 'postgres:latest'
+                self.compose_node1.path,
+                'down'
+            )
+        d.addCallback(cleanup_container)
+
+        # docker-compose doesn't retry failed pulls and pulls fail all the
+        # time.
+        def pull_postgres():
+            return remote_docker_compose(
+                self.client_node_ip,
+                self.docker_host,
+                self.compose_node1.path, 'pull'
             )
         d.addCallback(
             lambda ignored: retry_failure(
@@ -527,11 +493,13 @@ class DockerComposeTests(AsyncTestCase):
                 self.compose_node1.path, 'up', '-d'
             )
         )
+
         # Docker-compose blocks until the container is running but the the
         # PostgreSQL server may not be ready to receive connections.
         d.addCallback(
             lambda ignored: self._wait_for_postgres(self.agent_node1_ip)
         )
+
         # Create a database and insert a record.
         d.addCallback(
             lambda ignored: remote_postgres(
@@ -539,23 +507,17 @@ class DockerComposeTests(AsyncTestCase):
                 RECREATE_STATEMENT + INSERT_STATEMENT
             )
         )
+
         # Stop and then remove the container
         d.addCallback(
             lambda ignored: remote_docker_compose(
                 self.client_node_ip,
                 self.docker_host,
                 self.compose_node1.path,
-                'stop'
+                'down'
             )
         )
-        # Unless you remove the container, Swarm will refuse to start a new
-        # container on the other node.
-        d.addCallback(
-            lambda ignored: remote_docker_compose(
-                self.client_node_ip, self.docker_host,
-                self.compose_node1.path, 'rm', '--force'
-            )
-        )
+
         # Start the container on the other node.
         d.addCallback(
             lambda ignored: remote_docker_compose(
@@ -563,11 +525,13 @@ class DockerComposeTests(AsyncTestCase):
                 self.compose_node2.path, 'up', '-d'
             )
         )
+
         # The database server won't be immediately ready to receive
         # connections.
         d.addCallback(
             lambda ignored: self._wait_for_postgres(self.agent_node2_ip)
         )
+
         # Select the record
         d.addCallback(
             lambda ignored: remote_postgres(
@@ -575,6 +539,7 @@ class DockerComposeTests(AsyncTestCase):
                 self.agent_node2_ip, SELECT_STATEMENT
             )
         )
+
         # There should be a record and the value should be 1.
         d.addCallback(
             lambda (process_status, process_output): self.assertEqual(
