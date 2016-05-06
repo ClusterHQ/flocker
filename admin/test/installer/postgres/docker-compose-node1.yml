@@ -5,7 +5,7 @@ volumes:
     driver: "flocker"
     driver_opts:
       size: "10GiB"
-      profile: "silver"
+      profile: "bronze"
 
 services:
   postgres:
