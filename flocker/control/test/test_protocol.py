@@ -774,7 +774,7 @@ class ControlAMPServiceTests(ControlTestCase):
 
     def test_coalesced_sends_within_time(self):
         """
-        Sending updates multiple times within a second only actually causes 1
+        Updating config multiple times within a second only actually causes 1
         update to be sent to the agent.
         """
         agent = FakeAgent()
@@ -796,6 +796,65 @@ class ControlAMPServiceTests(ControlTestCase):
         service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         self.assertEqual(
             agent.cluster_updated_count - initial_updates_count, 1
+        )
+
+    def test_coalesce_delayed_updates(self):
+        """
+        If multiple clients still haven't acknowledged an update when a
+        broadcast is done
+        """
+        agents = list(FakeAgent() for _ in xrange(10))
+        clients = list(AgentAMP(Clock(), agent) for agent in agents)
+        service_clock = Clock()
+        service = build_control_amp_service(self, service_clock)
+        service.startService()
+
+        servers = list(LoopbackAMPClient(client.locator) for client in clients)
+        delayed_servers = list(
+            DelayedAMPClient(server) for server in servers)
+
+        for server in delayed_servers:
+            service.connected(server)
+        service_clock.advance(10.0)
+        (server.respond() for server in delayed_servers)
+
+        configuration = service.configuration_service.get()
+
+        # Update configuration:
+        service.configuration_service.save(
+            arbitrary_transformation(configuration))
+        service_clock.advance(10.0)
+
+        # Before any of the nodes respond, update configuration again
+        service.configuration_service.save(
+            arbitrary_transformation(configuration))
+        service_clock.advance(10.0)
+
+        initial_update_counts = list(
+            agent.cluster_updated_count for agent in agents
+        )
+
+        for server in delayed_servers:
+            server.respond()
+            # Let some negligible amount of time pass
+            service_clock.advance(0.001)
+
+        # Each agent should have the original delayed response, but they should
+        # not get the second response until a second has passed.
+        self.assertEqual(
+            [1] * len(agents),
+            list(
+                agent.cluster_updated_count - c
+                for agent, c in zip(agents, initial_update_counts)
+            )
+        )
+        service_clock.advance(10.0)
+        self.assertEqual(
+            [2] * len(agents),
+            list(
+                agent.cluster_updated_count - c
+                for agent, c in zip(agents, initial_update_counts)
+            )
         )
 
     def test_second_configuration_change_waits_for_first_acknowledgement(self):
