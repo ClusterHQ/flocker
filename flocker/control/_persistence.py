@@ -248,8 +248,9 @@ def _cached_dfs_serialize(input_object):
     else:
         if _is_pyrsistent(input_object):
             is_pyrsistent = True
-            if input_object in _cached_dfs_serialize_cache:
-                return _cached_dfs_serialize_cache[input_object]
+            cached_value = _cached_dfs_serialize_cache.get(input_object)
+            if cached_value is not None:
+                return cached_value
         obj = _to_serializables(input_object)
 
     result = obj
