@@ -829,8 +829,8 @@ class ControlAMPServiceTests(ControlTestCase):
         service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         # Before any of the nodes respond, update configuration again
-        service.configuration_service.save(
-            arbitrary_transformation(configuration))
+        final_configuration = arbitrary_transformation(configuration)
+        service.configuration_service.save(final_configuration)
         service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         initial_update_counts = list(
@@ -842,8 +842,8 @@ class ControlAMPServiceTests(ControlTestCase):
             # Let some negligible amount of time pass
             service_clock.advance(0.001)
 
-        # Each agent should have the original delayed response, but they should
-        # not get the second response until a second has passed.
+        # Agents should not get any update until CONTROL_SERVICE_BATCHING_DELAY
+        # has passed, even for these delayed updates.
         self.assertEqual(
             [0] * len(agents),
             list(
@@ -851,13 +851,17 @@ class ControlAMPServiceTests(ControlTestCase):
                 for agent, c in zip(agents, initial_update_counts)
             )
         )
-        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+        service_clock.pump([CONTROL_SERVICE_BATCHING_DELAY*2]*10)
         self.assertEqual(
             [1] * len(agents),
             list(
                 agent.cluster_updated_count - c
                 for agent, c in zip(agents, initial_update_counts)
             )
+        )
+        self.assertEqual(
+            [final_configuration] * len(agents),
+            list(agent.desired for agent in agents)
         )
 
     def test_second_configuration_change_waits_for_first_acknowledgement(self):
