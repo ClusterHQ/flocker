@@ -815,7 +815,7 @@ class ControlAMPServiceTests(ControlTestCase):
 
         for server in delayed_servers:
             service.connected(server)
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         (server.respond() for server in delayed_servers)
 
         configuration = service.configuration_service.get()
@@ -823,12 +823,12 @@ class ControlAMPServiceTests(ControlTestCase):
         # Update configuration:
         service.configuration_service.save(
             arbitrary_transformation(configuration))
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         # Before any of the nodes respond, update configuration again
         service.configuration_service.save(
             arbitrary_transformation(configuration))
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         initial_update_counts = list(
             agent.cluster_updated_count for agent in agents
@@ -848,7 +848,7 @@ class ControlAMPServiceTests(ControlTestCase):
                 for agent, c in zip(agents, initial_update_counts)
             )
         )
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         self.assertEqual(
             [2] * len(agents),
             list(
