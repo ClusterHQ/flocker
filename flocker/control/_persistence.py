@@ -4,11 +4,12 @@
 Persistence of cluster configuration.
 """
 
-from json import dumps, loads
-from uuid import UUID
+from base64 import b16encode
 from calendar import timegm
 from datetime import datetime
-from hashlib import sha256
+from json import dumps, loads
+from mmh3 import hash_bytes
+from uuid import UUID
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
@@ -515,7 +516,7 @@ class ConfigurationPersistenceService(MultiService):
         """
         config = Configuration(version=_CONFIG_VERSION, deployment=deployment)
         data = wire_encode(config)
-        self._hash = sha256(data).hexdigest()
+        self._hash = b16encode(hash_bytes(data)).lower()
         self._config_path.setContent(data)
 
     def save(self, deployment):
