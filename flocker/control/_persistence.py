@@ -8,7 +8,7 @@ from base64 import b16encode
 from calendar import timegm
 from datetime import datetime
 from json import dumps, loads
-from mmh3 import mmh3_hash_bytes
+from mmh3 import hash_bytes as mmh3_hash_bytes
 from uuid import UUID
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
