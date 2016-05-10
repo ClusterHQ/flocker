@@ -31,6 +31,7 @@ jsonschema==2.4.0
 keystoneauth1==2.4.0
 klein==0.2.3
 machinist==0.2.0
+mmh3==2.3.1
 monotonic==1.0
 msgpack-python==0.4.7
 ndg-httpsclient==0.4.0
