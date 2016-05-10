@@ -10,15 +10,26 @@ You can learn more about where we might be going with future releases by:
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
 
-Next Release
-============
-
-* The :ref:`OpenStack block device backend <openstack-dataset-backend>` will now use Cinder API V2 if it is available.
-  This allows Flocker to manage larger numbers of volumes (> 1000) on OpenStack.
-
-
 This Release
 ============
+
+v1.12.0
+-------
+
+* The OpenStack Cinder backend for Flocker will now use the Cinder version 2 API if it is available. 
+  This allows Flocker to work in OpenStack clusters where there are more than 1000 Cinder volumes.
+* Flocker can now be :ref:`installed on Redhat Enterprise Linux 7 <rhel-7-install-standalone-flocker>`.
+* The Flocker control service and dataset agents now use less CPU and network bandwidth whilst converging on configuration changes.
+* The Flocker dataset agent will now reconnect to the control service within 30 seconds, even after an extended disconnection.
+* The Flocker documentation search engine is now faster and generates more relevant results.
+
+Previous Releases
+=================
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
 
 v1.11.0
 -------
@@ -27,7 +38,6 @@ v1.11.0
 * Flocker is now significantly more efficient.
   The control and agent services use far less CPU time when idle and far less CPU time when converging on a configuration change.
   This allows larger clusters containing more datasets and supporting more frequent configuration changes.
-* Flocker can now be :ref:`installed on Redhat Enterprise Linux 7 <rhel-7-install-standalone-flocker>`.
 * The container agent is now optional and can be safely disabled if you don't expect to be using Flocker's deprecated container API or ``flocker-deploy``.
   The :ref:`Flocker plugin for Docker<plugin>` allows you to use Flocker from Docker without using Flocker's container API.
 * The dataset agent now has backend support for :ref:`Open vStorage <open-vstorage-backend>`.
@@ -37,15 +47,6 @@ v1.11.0
   This was particularly likely to occur on AWS.
 * The Flocker client tools can once again be installed on OS X 10.10.
   A regression in the Flocker Homebrew tap file has been fixed.
-
-
-Previous Releases
-=================
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
 
 v1.10.2
 -------
