@@ -42,7 +42,7 @@ from .._protocol import (
     NoOp, AgentAMP, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
     AGENT_CONNECTED, caching_wire_encode, SetNodeEraCommand,
-    timeout_for_protocol,
+    timeout_for_protocol, CONTROL_SERVICE_BATCHING_DELAY
 )
 from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
@@ -563,7 +563,7 @@ class ControlAMPTests(ControlTestCase):
             self.client.callRemote(NodeStateCommand,
                                    state_changes=(NODE_STATE,),
                                    eliot_context=TEST_ACTION))
-        self.reactor.advance(10.0)
+        self.reactor.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         expected = dict(configuration=TEST_DEPLOYMENT, state=cluster_state)
@@ -608,6 +608,9 @@ class ControlAMPTests(ControlTestCase):
                 )
             )
 
+        # We expect no updates to have occurred since right before the sent
+        # states, since we expect all updates to wait at least
+        # CONTROL_SERVICE_BATCHING_DELAY before they are sent out.
         self.assertEqual(
             [0] * len(agents),
             list(
@@ -615,7 +618,9 @@ class ControlAMPTests(ControlTestCase):
                 for agent, c in zip(agents, initial_update_counts)
             ),
         )
-        self.reactor.advance(10.0)
+        self.reactor.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+
+        # Now we expect only 1 update to be sent to each of the agents.
         self.assertEqual(
             [1] * len(agents),
             list(
@@ -706,6 +711,30 @@ class ControlAMPServiceTests(ControlTestCase):
              [c.transport.disconnecting for c in connections]),
             ([False] * 3, [True] * 3))
 
+    def test_stop_service_delayed(self):
+        """
+        Stopping the service cancels any delayed updates
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service_clock = Clock()
+        service = build_control_amp_service(self, service_clock)
+        service.startService()
+        server = LoopbackAMPClient(client.locator)
+        service.connected(server)
+
+        initial_update_counts = agent.cluster_updated_count
+        service.configuration_service.save(TEST_DEPLOYMENT)
+        service.stopService()
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+
+        # Even though we waited the delay, the stopping of the service should
+        # have cancelled the callback.
+        self.assertEqual(
+            0,
+            agent.cluster_updated_count - initial_update_counts
+        )
+
     def assertArgsEqual(self, expected, actual):
         """
         Utility method to assert that two sets of arguments are equal.
@@ -736,7 +765,7 @@ class ControlAMPServiceTests(ControlTestCase):
         service.connected(server)
 
         service.configuration_service.save(TEST_DEPLOYMENT)
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         self.assertEqual(
             dict(configuration=TEST_DEPLOYMENT, state=DeploymentState()),
@@ -757,19 +786,14 @@ class ControlAMPServiceTests(ControlTestCase):
         service.connected(server)
 
         initial_updates_count = agent.cluster_updated_count
-        for i in xrange(10):
+        for _ in xrange(10):
             service.configuration_service.save(
-                TEST_DEPLOYMENT.transform(
-                    ['nodes'],
-                    lambda nodes: nodes.union(frozenset([
-                        Node(hostname='%d.example.com' % i)
-                    ]))
-                )
+                arbitrary_transformation(TEST_DEPLOYMENT)
             )
         self.assertEqual(
             agent.cluster_updated_count - initial_updates_count, 0
         )
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         self.assertEqual(
             agent.cluster_updated_count - initial_updates_count, 1
         )
@@ -799,12 +823,12 @@ class ControlAMPServiceTests(ControlTestCase):
         delayed_server = DelayedAMPClient(server)
         # Send first update
         service.connected(delayed_server)
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         first_agent_desired = agent.desired
 
         # Send second update
         service.configuration_service.save(modified_configuration)
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         second_agent_desired = agent.desired
 
         delayed_server.respond()
@@ -863,11 +887,11 @@ class ControlAMPServiceTests(ControlTestCase):
         delayed_server = DelayedAMPClient(server)
         # Send first update
         service.connected(delayed_server)
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         # Send second update
         service.configuration_service.save(modified_configuration)
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         second_agent_desired = agent.desired
 
         delayed_server.respond()
@@ -916,15 +940,15 @@ class ControlAMPServiceTests(ControlTestCase):
 
         # Send first update
         service.connected(delayed_server)
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         # Send second update
         service.configuration_service.save(modified_configuration)
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         # Send third update
         service.configuration_service.save(more_modified_configuration)
-        service_clock.advance(10.0)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         first_agent_desired = agent.desired
         delayed_server.respond()
