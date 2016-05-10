@@ -127,7 +127,8 @@ class BenchmarkCluster(object):
             port=4523,
             ca_cluster_path=certs.child('cluster.crt'),
             cert_path=certs.child('user.crt'),
-            key_path=certs.child('user.key')
+            key_path=certs.child('user.key'),
+            persistent_connections=True
         )
         try:
             control_node_ip = IPAddress(control_node_address)
@@ -173,7 +174,8 @@ class BenchmarkCluster(object):
             port=4523,
             ca_cluster_path=path.child('cluster.crt'),
             cert_path=path.child('user.crt'),
-            key_path=path.child('user.key')
+            key_path=path.child('user.key'),
+            persistent_connections=True
         )
         return cls(
             IPAddress(control_node_address), control_service, public_addresses,

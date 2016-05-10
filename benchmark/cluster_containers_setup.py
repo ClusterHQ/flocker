@@ -225,7 +225,8 @@ class ClusterContainerDeployment(object):
             REST_API_PORT,
             cluster_cert,
             user_cert,
-            user_key
+            user_key,
+            persistent_connections=True
         )
 
         return cls(
