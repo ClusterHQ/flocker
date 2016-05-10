@@ -10,13 +10,6 @@ You can learn more about where we might be going with future releases by:
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
 
-Next Release
-============
-
-* The :ref:`OpenStack block device backend <openstack-dataset-backend>` will now use Cinder API V2 if it is available.
-  This allows Flocker to manage larger numbers of volumes (> 1000) on OpenStack.
-
-
 This Release
 ============
 
