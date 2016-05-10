@@ -531,7 +531,7 @@ class ControlAMPService(Service):
     :ivar set _connections_pending_update: A ``set`` of connections that are
         currently pending getting an update of state and configuration. An
         empty set indicates that there is no update pending.
-    :ivar IDelayedCall _current_pending_broadcast_delayed_call: The
+    :ivar IDelayedCall _current_pending_update_delayed_call: The
         ``IDelayedCall`` provider for the currently pending call to broadcast a
         state/configuration update.
     """
@@ -551,7 +551,7 @@ class ControlAMPService(Service):
         self.connections = set()
         self._reactor = reactor
         self._connections_pending_update = set()
-        self._current_pending_broadcast_delayed_call = None
+        self._current_pending_update_delayed_call = None
         self._current_command = {}
         self.cluster_state = cluster_state
         self.configuration_service = configuration_service
@@ -570,9 +570,9 @@ class ControlAMPService(Service):
         self.endpoint_service.startService()
 
     def stopService(self):
-        if self._current_pending_broadcast_delayed_call:
-            self._current_pending_broadcast_delayed_call.cancel()
-            self._current_pending_broadcast_delayed_call = None
+        if self._current_pending_update_delayed_call:
+            self._current_pending_update_delayed_call.cancel()
+            self._current_pending_update_delayed_call = None
         self.endpoint_service.stopService()
         for connection in self.connections:
             connection.transport.loseConnection()
@@ -735,7 +735,7 @@ class ControlAMPService(Service):
         """
         connections_to_update = self._connections_pending_update
         self._connections_pending_update = set()
-        self._current_pending_broadcast_delayed_call = None
+        self._current_pending_update_delayed_call = None
         self._send_state_to_connections(connections_to_update)
 
     def _schedule_update(self, connections):
@@ -748,15 +748,14 @@ class ControlAMPService(Service):
         :param connections: An iterable of connections that will be passed to
             ``_send_state_to_connections``.
         """
-        existing_call = bool(self._connections_pending_update)
-
         self._connections_pending_update.update(set(connections))
 
-        # If we are on a transition from a state where there is no existing
-        # call, but there are now connections that are pending an update, we
-        # must schedule the delayed call to update connections.
-        if not existing_call and self._connections_pending_update:
-            self._current_pending_broadcast_delayed_call = (
+        # If there is no current pending update and there are connections
+        # pending an update, we must schedule the delayed call to update
+        # connections.
+        if (self._current_pending_update_delayed_call is None
+            and self._connections_pending_update):
+            self._current_pending_update_delayed_call = (
                 self._reactor.callLater(
                     CONTROL_SERVICE_BATCHING_DELAY,
                     self._execute_update_connections
