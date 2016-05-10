@@ -28,7 +28,7 @@ v1.12.0
 * Flocker can now be :ref:`installed on Redhat Enterprise Linux 7 <rhel-7-install-standalone-flocker>`.
 * The Flocker control service and dataset agents now use less CPU and network bandwidth whilst converging on configuration changes.
 * The Flocker dataset agent will now reconnect to the control service within 30 seconds, even after an extended disconnection.
-* The Flocker documentation search engine is now faster and more generates more relevant results.
+* The Flocker documentation search engine is now faster and generates more relevant results.
 
 Previous Releases
 =================
