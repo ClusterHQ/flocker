@@ -528,8 +528,9 @@ class ControlAMPService(Service):
         are protocol instances.  The values are ``_UpdateState`` instances.
     :ivar IReactorTime _reactor: An ``IReactorTime`` provider to be used to
         schedule delays in sending updates.
-    :ivar bool _broadcast_scheduled: Whether there is a currently pending
-        broadcast of state to all connections.
+    :ivar set _connections_pending_update: A ``set`` of connections that are
+        currently pending getting an update of state and configuration. An
+        empty set indicates that there is no update pending.
     :ivar IDelayedCall _current_pending_broadcast_delayed_call: The
         ``IDelayedCall`` provider for the currently pending call to broadcast a
         state/configuration update.
@@ -549,7 +550,7 @@ class ControlAMPService(Service):
         """
         self.connections = set()
         self._reactor = reactor
-        self._broadcast_scheduled = False
+        self._connections_pending_update = set()
         self._current_pending_broadcast_delayed_call = None
         self._current_command = {}
         self.cluster_state = cluster_state
@@ -706,7 +707,7 @@ class ControlAMPService(Service):
         AGENT_UPDATE_DELAYED(agent=connection).write()
         update = self._current_command[connection]
         update.response.addCallback(
-            lambda ignored: self._send_state_to_connections([connection]),
+            lambda ignored: self._schedule_update([connection]),
         )
         self._current_command[connection] = update.set(next_scheduled=True)
 
@@ -718,7 +719,7 @@ class ControlAMPService(Service):
         """
         with AGENT_CONNECTED(agent=connection):
             self.connections.add(connection)
-            self._send_state_to_connections([connection])
+            self._schedule_update([connection])
 
     def disconnected(self, connection):
         """
@@ -728,13 +729,39 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
-    def _execute_broadcast_update(self):
+    def _execute_update_connections(self):
         """
         Actually executes a broadcast update to all current connections.
         """
-        self._broadcast_scheduled = False
+        connections_to_update = self._connections_pending_update
+        self._connections_pending_update = set()
         self._current_pending_broadcast_delayed_call = None
-        self._send_state_to_connections(self.connections)
+        self._send_state_to_connections(connections_to_update)
+
+    def _schedule_update(self, connections):
+        """
+        Schedule a call to send_state_to_connections.
+
+        This function adds a delay in the hopes that additional updates will be
+        scheduled and they can all be called at once in a batch.
+
+        :param connections: An iterable of connections that will be passed to
+            ``_send_state_to_connections``.
+        """
+        existing_call = bool(self._connections_pending_update)
+
+        self._connections_pending_update.update(set(connections))
+
+        # If we are on a transition from a state where there is no existing
+        # call, but there are now connections that are pending an update, we
+        # must schedule the delayed call to update connections.
+        if not existing_call and self._connections_pending_update:
+            self._current_pending_broadcast_delayed_call = (
+                self._reactor.callLater(
+                    CONTROL_SERVICE_BATCHING_DELAY,
+                    self._execute_update_connections
+                )
+            )
 
     def _schedule_broadcast_update(self):
         """
@@ -747,14 +774,7 @@ class ControlAMPService(Service):
         so that if we receive multiple updates within that second they are
         coalesced down to a single update.
         """
-        if not self._broadcast_scheduled:
-            self._broadcast_scheduled = True
-            self._current_pending_broadcast_delayed_call = (
-                self._reactor.callLater(
-                    CONTROL_SERVICE_BATCHING_DELAY,
-                    self._execute_broadcast_update
-                )
-            )
+        self._schedule_update(self.connections)
 
     def node_changed(self, source, state_changes):
         """
