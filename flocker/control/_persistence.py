@@ -217,6 +217,7 @@ _BASIC_JSON_COLLECTIONS = frozenset([dict, list, tuple])
 
 
 _cached_dfs_serialize_cache = WeakKeyDictionary()
+_UNCACHED_SENTINEL = object()
 
 
 def _cached_dfs_serialize(input_object):
@@ -248,8 +249,15 @@ def _cached_dfs_serialize(input_object):
     else:
         if _is_pyrsistent(input_object):
             is_pyrsistent = True
-            cached_value = _cached_dfs_serialize_cache.get(input_object)
-            if cached_value is not None:
+            # Using ``dict.get`` and a sentinel rather than the more pythonic
+            # try/except KeyError for performance. This function is highly
+            # recursive and the KeyError is guaranteed to happen the first
+            # time every object is serialized. We do not want to incur the cost
+            # of a caught exception for every pyrsistent object ever
+            # serialized.
+            cached_value = _cached_dfs_serialize_cache.get(input_object,
+                                                           _UNCACHED_SENTINEL)
+            if cached_value is not _UNCACHED_SENTINEL:
                 return cached_value
         obj = _to_serializables(input_object)
 
