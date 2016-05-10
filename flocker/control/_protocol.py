@@ -532,8 +532,8 @@ class ControlAMPService(Service):
         currently pending getting an update of state and configuration. An
         empty set indicates that there is no update pending.
     :ivar IDelayedCall _current_pending_update_delayed_call: The
-        ``IDelayedCall`` provider for the currently pending call to broadcast a
-        state/configuration update.
+        ``IDelayedCall`` provider for the currently pending call to update
+        state/configuration on connected nodes.
     """
     logger = Logger()
 
@@ -731,7 +731,7 @@ class ControlAMPService(Service):
 
     def _execute_update_connections(self):
         """
-        Actually executes a broadcast update to all current connections.
+        Actually executes an update to all pending connections.
         """
         connections_to_update = self._connections_pending_update
         self._connections_pending_update = set()
@@ -754,7 +754,7 @@ class ControlAMPService(Service):
         # pending an update, we must schedule the delayed call to update
         # connections.
         if (self._current_pending_update_delayed_call is None
-            and self._connections_pending_update):
+                and self._connections_pending_update):
             self._current_pending_update_delayed_call = (
                 self._reactor.callLater(
                     CONTROL_SERVICE_BATCHING_DELAY,
