@@ -510,6 +510,13 @@ class _UpdateState(PClass):
     next_scheduled = field()
 
 
+# The control service waits this long before sending any update to an agent.
+# This allows for a batch of updates to build up, and effectively puts a cap on
+# the maximum number of updates the control node will have to send over any
+# fixed period of time.
+CONTROL_SERVICE_BATCHING_DELAY = 1.0
+
+
 class ControlAMPService(Service):
     """
     Control Service AMP server.
@@ -519,6 +526,13 @@ class ControlAMPService(Service):
     :ivar dict _current_command: A dictionary containing information about
         connections to which state updates are currently in progress.  The keys
         are protocol instances.  The values are ``_UpdateState`` instances.
+    :ivar IReactorTime _reactor: An ``IReactorTime`` provider to be used to
+        schedule delays in sending updates.
+    :ivar bool _broadcast_scheduled: Whether there is a currently pending
+        broadcast of state to all connections.
+    :ivar IDelayedCall _current_pending_broadcast_delayed_call: The
+        ``IDelayedCall`` provider for the currently pending call to broadcast a
+        state/configuration update.
     """
     logger = Logger()
 
@@ -534,6 +548,9 @@ class ControlAMPService(Service):
         :param context_factory: TLS context factory.
         """
         self.connections = set()
+        self._reactor = reactor
+        self._broadcast_scheduled = False
+        self._current_pending_broadcast_delayed_call = None
         self._current_command = {}
         self.cluster_state = cluster_state
         self.configuration_service = configuration_service
@@ -546,13 +563,15 @@ class ControlAMPService(Service):
             )
         )
         # When configuration changes, notify all connected clients:
-        self.configuration_service.register(
-            lambda: self._send_state_to_connections(self.connections))
+        self.configuration_service.register(self._schedule_broadcast_update)
 
     def startService(self):
         self.endpoint_service.startService()
 
     def stopService(self):
+        if self._current_pending_broadcast_delayed_call:
+            self._current_pending_broadcast_delayed_call.cancel()
+            self._current_pending_broadcast_delayed_call = None
         self.endpoint_service.stopService()
         for connection in self.connections:
             connection.transport.loseConnection()
@@ -709,6 +728,34 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
+    def _execute_broadcast_update(self):
+        """
+        Actually executes a broadcast update to all current connections.
+        """
+        self._broadcast_scheduled = False
+        self._current_pending_broadcast_delayed_call = None
+        self._send_state_to_connections(self.connections)
+
+    def _schedule_broadcast_update(self):
+        """
+        Ensure that there is a pending broadcast update call.
+
+        This is called when the state or configuration is updated, to trigger
+        a broadcast of the current state and configuration to all nodes.
+
+        In general, it only schedules an update to be broadcast 1 second later
+        so that if we receive multiple updates within that second they are
+        coalesced down to a single update.
+        """
+        if not self._broadcast_scheduled:
+            self._broadcast_scheduled = True
+            self._current_pending_broadcast_delayed_call = (
+                self._reactor.callLater(
+                    CONTROL_SERVICE_BATCHING_DELAY,
+                    self._execute_broadcast_update
+                )
+            )
+
     def node_changed(self, source, state_changes):
         """
         We've received a node state update from a connected client.
@@ -719,7 +766,7 @@ class ControlAMPService(Service):
             providers representing the state change which has taken place.
         """
         self.cluster_state.apply_changes_from_source(source, state_changes)
-        self._send_state_to_connections(self.connections)
+        self._schedule_broadcast_update()
 
 
 class IConvergenceAgent(Interface):

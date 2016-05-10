@@ -42,7 +42,7 @@ from .._protocol import (
     NoOp, AgentAMP, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
     AGENT_CONNECTED, caching_wire_encode, SetNodeEraCommand,
-    timeout_for_protocol,
+    timeout_for_protocol, CONTROL_SERVICE_BATCHING_DELAY
 )
 from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
@@ -563,6 +563,7 @@ class ControlAMPTests(ControlTestCase):
             self.client.callRemote(NodeStateCommand,
                                    state_changes=(NODE_STATE,),
                                    eliot_context=TEST_ACTION))
+        self.reactor.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         expected = dict(configuration=TEST_DEPLOYMENT, state=cluster_state)
@@ -571,6 +572,60 @@ class ControlAMPTests(ControlTestCase):
             list(
                 dict(configuration=agent.desired, state=agent.actual)
                 for agent in agents
+            ),
+        )
+
+    def test_nodestate_coalesces_multiple_quick(self):
+        """
+        Multiple ``NodeStateCommands`` are coalesced into a single state update
+        broadcast to all the nodes.
+        """
+        self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
+
+        agents = [FakeAgent(), FakeAgent()]
+        clients = list(AgentAMP(Clock(), agent) for agent in agents)
+        servers = list(LoopbackAMPClient(client.locator) for client in clients)
+
+        for server in servers:
+            self.control_amp_service.connected(server)
+
+        initial_update_counts = list(
+            agent.cluster_updated_count for agent in agents)
+
+        for i in xrange(10):
+            new_state = NODE_STATE.set(
+                'applications',
+                NODE_STATE.applications.add(
+                    Application(name=('app-%d' % i),
+                                image=DockerImage.from_string('image-%d' % i))
+                )
+            )
+            self.successResultOf(
+                self.client.callRemote(
+                    NodeStateCommand,
+                    state_changes=(new_state,),
+                    eliot_context=TEST_ACTION
+                )
+            )
+
+        # We expect no updates to have occurred since right before the sent
+        # states, since we expect all updates to wait at least
+        # CONTROL_SERVICE_BATCHING_DELAY before they are sent out.
+        self.assertEqual(
+            [0] * len(agents),
+            list(
+                agent.cluster_updated_count - c
+                for agent, c in zip(agents, initial_update_counts)
+            ),
+        )
+        self.reactor.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+
+        # Now we expect only 1 update to be sent to each of the agents.
+        self.assertEqual(
+            [1] * len(agents),
+            list(
+                agent.cluster_updated_count - c
+                for agent, c in zip(agents, initial_update_counts)
             ),
         )
 
@@ -656,6 +711,30 @@ class ControlAMPServiceTests(ControlTestCase):
              [c.transport.disconnecting for c in connections]),
             ([False] * 3, [True] * 3))
 
+    def test_stop_service_delayed(self):
+        """
+        Stopping the service cancels any delayed updates
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service_clock = Clock()
+        service = build_control_amp_service(self, service_clock)
+        service.startService()
+        server = LoopbackAMPClient(client.locator)
+        service.connected(server)
+
+        initial_update_counts = agent.cluster_updated_count
+        service.configuration_service.save(TEST_DEPLOYMENT)
+        service.stopService()
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+
+        # Even though we waited the delay, the stopping of the service should
+        # have cancelled the callback.
+        self.assertEqual(
+            0,
+            agent.cluster_updated_count - initial_update_counts
+        )
+
     def assertArgsEqual(self, expected, actual):
         """
         Utility method to assert that two sets of arguments are equal.
@@ -679,16 +758,44 @@ class ControlAMPServiceTests(ControlTestCase):
         """
         agent = FakeAgent()
         client = AgentAMP(Clock(), agent)
-        service = build_control_amp_service(self)
+        service_clock = Clock()
+        service = build_control_amp_service(self, service_clock)
         service.startService()
         server = LoopbackAMPClient(client.locator)
         service.connected(server)
 
         service.configuration_service.save(TEST_DEPLOYMENT)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         self.assertEqual(
             dict(configuration=TEST_DEPLOYMENT, state=DeploymentState()),
             dict(configuration=agent.desired, state=agent.actual),
+        )
+
+    def test_coalesced_sends_within_time(self):
+        """
+        Sending updates multiple times within a second only actually causes 1
+        update to be sent to the agent.
+        """
+        agent = FakeAgent()
+        client = AgentAMP(Clock(), agent)
+        service_clock = Clock()
+        service = build_control_amp_service(self, service_clock)
+        service.startService()
+        server = LoopbackAMPClient(client.locator)
+        service.connected(server)
+
+        initial_updates_count = agent.cluster_updated_count
+        for _ in xrange(10):
+            service.configuration_service.save(
+                arbitrary_transformation(TEST_DEPLOYMENT)
+            )
+        self.assertEqual(
+            agent.cluster_updated_count - initial_updates_count, 0
+        )
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+        self.assertEqual(
+            agent.cluster_updated_count - initial_updates_count, 1
         )
 
     def test_second_configuration_change_waits_for_first_acknowledgement(self):
@@ -698,7 +805,8 @@ class ControlAMPServiceTests(ControlTestCase):
         """
         agent = FakeAgent()
         client = AgentAMP(Clock(), agent)
-        service = build_control_amp_service(self)
+        service_clock = Clock()
+        service = build_control_amp_service(self, service_clock)
         service.startService()
 
         # Add a second agent, to ensure that the delayed logic interacts with
@@ -715,10 +823,12 @@ class ControlAMPServiceTests(ControlTestCase):
         delayed_server = DelayedAMPClient(server)
         # Send first update
         service.connected(delayed_server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         first_agent_desired = agent.desired
 
         # Send second update
         service.configuration_service.save(modified_configuration)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         second_agent_desired = agent.desired
 
         delayed_server.respond()
@@ -744,7 +854,8 @@ class ControlAMPServiceTests(ControlTestCase):
         """
         agent = FakeAgent()
         client = AgentAMP(Clock(), agent)
-        service = build_control_amp_service(self)
+        service_clock = Clock()
+        service = build_control_amp_service(self, service_clock)
         service.startService()
 
         # Add a second agent, to ensure that the delayed logic interacts with
@@ -776,9 +887,11 @@ class ControlAMPServiceTests(ControlTestCase):
         delayed_server = DelayedAMPClient(server)
         # Send first update
         service.connected(delayed_server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         # Send second update
         service.configuration_service.save(modified_configuration)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         second_agent_desired = agent.desired
 
         delayed_server.respond()
@@ -805,7 +918,8 @@ class ControlAMPServiceTests(ControlTestCase):
         """
         agent = FakeAgent()
         client = AgentAMP(Clock(), agent)
-        service = build_control_amp_service(self)
+        service_clock = Clock()
+        service = build_control_amp_service(self, service_clock)
         service.startService()
 
         # Add a second agent, to ensure that the delayed logic interacts with
@@ -823,12 +937,18 @@ class ControlAMPServiceTests(ControlTestCase):
 
         server = LoopbackAMPClient(client.locator)
         delayed_server = DelayedAMPClient(server)
+
         # Send first update
         service.connected(delayed_server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+
         # Send second update
         service.configuration_service.save(modified_configuration)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+
         # Send third update
         service.configuration_service.save(more_modified_configuration)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         first_agent_desired = agent.desired
         delayed_server.respond()
@@ -853,6 +973,7 @@ class ControlAMPServiceTests(ControlTestCase):
 @implementer(IConvergenceAgent)
 @attributes([Attribute("is_connected", default_value=False),
              Attribute("is_disconnected", default_value=False),
+             Attribute("cluster_updated_count", default_value=0),
              Attribute("desired", default_value=None),
              Attribute("actual", default_value=None),
              Attribute("client", default_value=None)])
@@ -873,6 +994,7 @@ class FakeAgent(object):
     def cluster_updated(self, configuration, cluster_state):
         self.desired = configuration
         self.actual = cluster_state
+        self.cluster_updated_count += 1
 
 
 TEST_ACTION = start_action(MemoryLogger(), 'test:action')
@@ -989,6 +1111,7 @@ class AgentClientTests(TestCase):
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client,
                                                desired=TEST_DEPLOYMENT,
+                                               cluster_updated_count=1,
                                                actual=actual))
 
 
