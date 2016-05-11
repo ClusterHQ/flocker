@@ -457,6 +457,7 @@ class ControlAMPTests(ControlTestCase):
         self.control_amp_service.cluster_state.apply_changes([NODE_STATE])
 
         self.protocol.makeConnection(StringTransportWithAbort())
+        self.reactor.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertEqual(
             sent[0],
@@ -557,6 +558,7 @@ class ControlAMPTests(ControlTestCase):
         for server in servers:
             delayed = DelayedAMPClient(server)
             self.control_amp_service.connected(delayed)
+            self.reactor.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
             delayed.respond()
 
         self.successResultOf(
@@ -774,7 +776,7 @@ class ControlAMPServiceTests(ControlTestCase):
 
     def test_coalesced_sends_within_time(self):
         """
-        Sending updates multiple times within a second only actually causes 1
+        Updating config multiple times within a second only actually causes 1
         update to be sent to the agent.
         """
         agent = FakeAgent()
@@ -798,6 +800,70 @@ class ControlAMPServiceTests(ControlTestCase):
             agent.cluster_updated_count - initial_updates_count, 1
         )
 
+    def test_coalesce_delayed_updates(self):
+        """
+        If multiple clients still haven't acknowledged an update when a
+        broadcast is done, then they should just queue their update for the
+        next batch rather than immediately sending a response.
+        """
+        agents = list(FakeAgent() for _ in xrange(10))
+        clients = list(AgentAMP(Clock(), agent) for agent in agents)
+        service_clock = Clock()
+        service = build_control_amp_service(self, service_clock)
+        service.startService()
+
+        servers = list(LoopbackAMPClient(client.locator) for client in clients)
+        delayed_servers = list(
+            DelayedAMPClient(server) for server in servers)
+
+        for server in delayed_servers:
+            service.connected(server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+        (server.respond() for server in delayed_servers)
+
+        configuration = service.configuration_service.get()
+
+        # Update configuration:
+        service.configuration_service.save(
+            arbitrary_transformation(configuration))
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+
+        # Before any of the nodes respond, update configuration again
+        final_configuration = arbitrary_transformation(configuration)
+        service.configuration_service.save(final_configuration)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+
+        initial_update_counts = list(
+            agent.cluster_updated_count for agent in agents
+        )
+
+        for server in delayed_servers:
+            server.respond()
+            # Let some negligible amount of time pass
+            service_clock.advance(0.001)
+
+        # Agents should not get any update until CONTROL_SERVICE_BATCHING_DELAY
+        # has passed, even for these delayed updates.
+        self.assertEqual(
+            [0] * len(agents),
+            list(
+                agent.cluster_updated_count - c
+                for agent, c in zip(agents, initial_update_counts)
+            )
+        )
+        service_clock.pump([CONTROL_SERVICE_BATCHING_DELAY*2]*10)
+        self.assertEqual(
+            [1] * len(agents),
+            list(
+                agent.cluster_updated_count - c
+                for agent, c in zip(agents, initial_update_counts)
+            )
+        )
+        self.assertEqual(
+            [final_configuration] * len(agents),
+            list(agent.desired for agent in agents)
+        )
+
     def test_second_configuration_change_waits_for_first_acknowledgement(self):
         """
         A second configuration change is only transmitted after acknowledgement
@@ -815,6 +881,7 @@ class ControlAMPServiceTests(ControlTestCase):
         confounding_client = AgentAMP(Clock(), confounding_agent)
         confounding_server = LoopbackAMPClient(confounding_client.locator)
         service.connected(confounding_server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         configuration = service.configuration_service.get()
         modified_configuration = arbitrary_transformation(configuration)
@@ -832,6 +899,7 @@ class ControlAMPServiceTests(ControlTestCase):
         second_agent_desired = agent.desired
 
         delayed_server.respond()
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         third_agent_desired = agent.desired
 
         self.assertEqual(
@@ -879,6 +947,7 @@ class ControlAMPServiceTests(ControlTestCase):
         # The connection will fail, but it shouldn't prevent following
         # commnads (from ``delayed_server``) to be properly executed
         service.connected(failing_server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         configuration = service.configuration_service.get()
         modified_configuration = arbitrary_transformation(configuration)
@@ -895,6 +964,7 @@ class ControlAMPServiceTests(ControlTestCase):
         second_agent_desired = agent.desired
 
         delayed_server.respond()
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         third_agent_desired = agent.desired
 
         # Now we verify that the updates following the failure
@@ -928,6 +998,7 @@ class ControlAMPServiceTests(ControlTestCase):
         confounding_client = AgentAMP(Clock(), confounding_agent)
         confounding_server = LoopbackAMPClient(confounding_client.locator)
         service.connected(confounding_server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         configuration = service.configuration_service.get()
         modified_configuration = arbitrary_transformation(configuration)
@@ -952,6 +1023,7 @@ class ControlAMPServiceTests(ControlTestCase):
 
         first_agent_desired = agent.desired
         delayed_server.respond()
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         second_agent_desired = agent.desired
         delayed_server.respond()
         third_agent_desired = agent.desired
