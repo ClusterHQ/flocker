@@ -32,7 +32,7 @@ from hypothesis.strategies import (
     dictionaries, tuples, booleans,
 )
 
-from testtools.matchers import Equals, raises
+from testtools.matchers import Equals, Is, Not, raises
 from testtools.deferredruntest import SynchronousDeferredRunTest
 
 from twisted.internet import reactor
@@ -88,7 +88,7 @@ from ..blockdevice import (
     log_list_volumes, CALL_LIST_VOLUMES,
 
     BlockDevice,
-    BlockDeviceClusterID,
+    IdEnumarations,
 )
 
 from ..loopback import (
@@ -5024,8 +5024,29 @@ class BlockDeviceTestCase(TestCase):
         """
         return BlockDevice(
             blockdevice_id=u'thingy',
-            size=1234
+            size=1234,
+            creation_datetime=datetime(2016, 3, 19, 1, 2, 3, 4)
         )
+
+    def test_blockdevice_serializable(self):
+        """
+        Deserializing a serialized BlockDevice returns the same object.
+        """
+        b = self._get_blockdevice().set('cluster_id', uuid4())
+        self.assertThat(
+            BlockDevice.create(b.serialize()),
+            Equals(b)
+        )
+        for c in IdEnumarations.iterconstants():
+            b2 = b.set('cluster_id', c)
+            self.assertThat(
+                BlockDevice.create(b2.serialize()),
+                Equals(b2)
+            )
+            self.assertThat(
+                b,
+                Not(Equals(b2))
+            )
 
     def test_cluster_id_invariant_uuid(self):
         """
@@ -5035,11 +5056,18 @@ class BlockDeviceTestCase(TestCase):
         bd = self._get_blockdevice().set("cluster_id", u)
         self.assertThat(bd.cluster_id, Equals(u))
 
+    def test_unknown_creation_time(self):
+        """
+        ``creation_datetime`` can be a ``None``.
+        """
+        bd = self._get_blockdevice().set("creation_datetime", None)
+        self.assertThat(bd.creation_datetime, Is(None))
+
     def test_cluster_id_constants(self):
         """
-        ``cluster_id`` can be any of the ``BlockDeviceClusterID`` constants.
+        ``cluster_id`` can be any of the ``IdEnumarations`` constants.
         """
-        for c in BlockDeviceClusterID.iterconstants():
+        for c in IdEnumarations.iterconstants():
             bd = self._get_blockdevice().set("cluster_id", c)
             self.assertThat(bd.cluster_id, Equals(c))
 
@@ -5058,7 +5086,7 @@ class BlockDeviceTestCase(TestCase):
         """
         class TestEnum(Names):
             VALUE = NamedConstant()
-        
+
         self.assertThat(
             lambda: self._get_blockdevice().set("cluster_id", TestEnum.VALUE),
             raises(InvariantException)

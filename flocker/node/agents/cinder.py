@@ -4,6 +4,7 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
+from datetime import datetime
 from itertools import repeat
 import time
 from uuid import UUID
@@ -39,6 +40,7 @@ from ...common import (
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, UnknownInstanceID, get_blockdevice_volume, ICloudAPI,
+    IListBlockDevices, IdEnumarations, BlockDevice
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
@@ -412,6 +414,7 @@ def _nova_detach(nova_volume_manager, cinder_volume_manager,
 
 @implementer(IBlockDeviceAPI)
 @implementer(ICloudAPI)
+@implementer(IListBlockDevices)
 class CinderBlockDeviceAPI(object):
     """
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
@@ -536,6 +539,21 @@ class CinderBlockDeviceAPI(object):
                 )
                 flocker_volumes.append(flocker_volume)
         return flocker_volumes
+
+    def list_all_blockdevices(self):
+        """
+        Return ``BlockDevice`` instances for all the Cinder Volumes.
+
+        See:
+
+        http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html
+        """
+        block_devices = []
+        for cinder_volume in self.cinder_volume_manager.list():
+            block_devices.append(
+                _blockdevice_from_cinder_volume(cinder_volume)
+            )
+        return block_devices
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
@@ -750,12 +768,18 @@ def _is_cluster_volume(cluster_id, cinder_volume):
     return False
 
 
-def _blockdevicevolume_from_cinder_volume(cinder_volume):
+class _BlockDeviceInfo(PClass):
     """
-    :param Volume cinder_volume: The ``cinderclient.v1.volumes.Volume`` to
-        convert.
-    :returns: A ``BlockDeviceVolume`` based on values found in the supplied
-        cinder Volume.
+    Helper class for ``_raw_blockdevice_info_for_cinder_volume``.
+    """
+    blockdevice_id = field(type=unicode, mandatory=True)
+    size = field(type=int, mandatory=True)
+    attached_to = field(type=(unicode, type(None)), mandatory=True)
+
+
+def _raw_blockdevice_info_for_cinder_volume(cinder_volume):
+    """
+    Helper function for _*_from_cinder_volume methods.
     """
     if cinder_volume.attachments:
         # There should only be one.  FLOC-1854.
@@ -765,11 +789,53 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     else:
         server_id = None
 
-    return BlockDeviceVolume(
+    return _BlockDeviceInfo(
         blockdevice_id=unicode(cinder_volume.id),
         size=int(GiB(cinder_volume.size).to_Byte().value),
         attached_to=server_id,
+    )
+
+
+def _blockdevicevolume_from_cinder_volume(cinder_volume):
+    """
+    :param Volume cinder_volume: The ``cinderclient.v1.volumes.Volume`` to
+        convert.
+    :returns: A ``BlockDeviceVolume`` based on values found in the supplied
+        cinder Volume.
+    """
+    blockdevice_info = _raw_blockdevice_info_for_cinder_volume(cinder_volume)
+
+    return BlockDeviceVolume(
+        blockdevice_id=blockdevice_info.blockdevice_id,
+        size=blockdevice_info.size,
+        attached_to=blockdevice_info.attached_to,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
+    )
+
+
+def _blockdevice_from_cinder_volume(cinder_volume):
+    """
+    :param Volume cinder_volume: The ``cinderclient.v1.volumes.Volume`` to
+        convert.
+    :returns: A ``BlockDevice`` based on values found in the supplied
+        cinder Volume.
+    """
+    blockdevice_info = _raw_blockdevice_info_for_cinder_volume(cinder_volume)
+    cluster_id = cinder_volume.metadata.get(CLUSTER_ID_LABEL)
+    if cluster_id is not None:
+        cluster_id = UUID(cluster_id)
+    else:
+        cluster_id = IdEnumarations.NOT_IN_CLUSTER
+
+    return BlockDevice(
+        blockdevice_id=blockdevice_info.blockdevice_id,
+        size=blockdevice_info.size,
+        attached_to=blockdevice_info.attached_to,
+        cluster_id=cluster_id,
+        creation_datetime=datetime.strptime(cinder_volume.created_at,
+                                            u"%Y-%m-%dT%H:%M:%S.%f"),
+        display_name=cinder_volume.display_name,
+        metadata=cinder_volume.metadata,
     )
 
 

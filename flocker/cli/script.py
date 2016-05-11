@@ -30,6 +30,7 @@ from .. import REST_API_PORT
 from ..ca import treq_with_authentication
 
 from ..node.backends import backend_loader
+from ..node.agents.blockdevice import IListBlockDevices, BlockDevice
 from ..common.configuration import (
     extract_substructure, MissingConfigError, Optional
 )
@@ -258,6 +259,54 @@ class AddExistingVolumeOptions(Options):
                 "--cluster=<flocker-cluster-id")
 
 
+def _format_blockdevices_for_table(blockdevices):
+    _FIELDS = [
+            'blockdevice_id',
+            'dataset_id',
+            'cluster_id',
+            'attached_to',
+            'size',
+            'creation_datetime',
+            'metadata',
+    ]
+
+    columns_to_print = dict()
+    column_width = dict()
+
+    for f in _FIELDS:
+        columns_to_print[f] = [f, ''.join('=' for x in f)]
+    
+    for bd in blockdevices:
+        for f in _FIELDS:
+            val = getattr(bd, f)
+            if f == 'creation_datetime':
+                val = unicode(val)
+            if f == 'size':
+                val = unicode(val/1024.0/1024.0/1024.0) + u'GiB'
+            if type(val) not in (unicode, str):
+                val = bd.serialize()[f]
+            if type(val) not in (unicode, str):
+                val = dumps(val)
+            columns_to_print[f].append(val)
+
+    for f in _FIELDS:
+        column_width[f] = min([55, max([len(x) for x in columns_to_print[f]])])
+
+    rows = []
+    for i in xrange(len(columns_to_print[_FIELDS[0]])):
+        row = []
+        for f in _FIELDS:
+            width = column_width[f]
+            text = columns_to_print[f][i]
+            if len(text) > width:
+                text = text[:width-3] + '...'
+            else:
+                text = (text + (' '*width))[:width]
+            row.append(text)
+        rows.append(' | '.join(row))
+    return '\n'.join(rows)
+
+
 @flocker_standard_options
 class ListAllVolumesOptions(Options):
     """
@@ -269,6 +318,8 @@ class ListAllVolumesOptions(Options):
     """
 
     synopsis = ""
+
+    optFlags = [['json', 'j', 'Have the output be JSON instead of a table']]
 
     def run(self):
         """
@@ -304,8 +355,12 @@ class ListAllVolumesOptions(Options):
         bdapi = backend_description.api_factory(
             **config
         )
-        if provides(bdapi, IListBlockDevices):
-            print bdapi.list_all_blockdevices()
+        if IListBlockDevices.providedBy(bdapi):
+            bds = bdapi.list_all_blockdevices()
+            if self['json']:
+                print dumps([x.serialize() for x in bds])
+            else:
+                print _format_blockdevices_for_table(bds)
         else:
             print "Your backend does not provide list_all_blockdevices."
 

@@ -11,7 +11,7 @@ import itertools
 from uuid import UUID
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from eliot import MessageType, ActionType, Field, Logger
 from eliot.serializers import identity
@@ -1302,14 +1302,41 @@ class ProfiledBlockDeviceAPIAdapter(PClass):
                                                    size=size)
 
 
-class BlockDeviceClusterID(Names):
+class IdEnumarations(Names):
     """
     States that a ``Dataset`` can be in.
     """
-    # It is unknown if this blockdevice belongs to a flocker cluster.
+    # It is unknown if this volume is a volume managed by flocker or not.
     UNKNOWN = NamedConstant()
     # This blockdevice is known to not belong to any flocker cluster.
     NOT_IN_CLUSTER = NamedConstant()
+
+
+def _valid_id_or_enumeration(x):
+    """
+    Determine if x is a valid ``BlockDevice.cluster_id``.
+
+    :param x: Candidate parameter to be a UUID or an ``IdEnumarations`` for a
+        ``BlockDevice``.
+    """
+    return (type(x) == UUID or x in IdEnumarations.iterconstants())
+
+
+def _id_or_enumeration_factory(x):
+    """
+    Create either a UUID or an ``IdEnumarations`` from an argument of unknown
+    type.
+
+    :param x: Candidate parameter to be a UUID or an ``IdEnumarations`` for a
+        ``BlockDevice``.
+    """
+    if _valid_id_or_enumeration(x):
+        return x
+    if (type(x) in (unicode, str) and len(x) == len(str(UUID(int=0)))):
+        return UUID(x)
+    if x in (c.name for c in IdEnumarations.iterconstants()):
+        return IdEnumarations.lookupByName(x) 
+    return None
 
 
 class BlockDevice(PClass):
@@ -1326,7 +1353,7 @@ class BlockDevice(PClass):
         method based on the underlying infrastructure services (for example, if
         the cluster runs on AWS, this is very likely an EC2 instance id).
     :ivar UUID cluster_id: The cluster that the blockdevice belongs to or a
-        ``BlockDeviceClusterID`` to indicate either that it cannot be
+        ``IdEnumarations`` to indicate either that it cannot be
         determined which cluster the volume belongs to, or that the volume is
         not in any cluster.
     """
@@ -1335,13 +1362,44 @@ class BlockDevice(PClass):
     attached_to = field(
         type=(unicode, type(None)), initial=None, mandatory=True
     )
+    dataset_id = field(
+        invariant=lambda x: (
+            _valid_id_or_enumeration(x),
+            'Not a UUID or known IdEnumarations constant.'
+        ),
+        initial=IdEnumarations.UNKNOWN,
+        mandatory=True,
+        serializer=lambda _, x: (unicode(x) if type(x) == UUID else x.name),
+        factory=_id_or_enumeration_factory
+    )
     cluster_id = field(
         invariant=lambda x: (
-            (type(x) == UUID or x in BlockDeviceClusterID.iterconstants()),
-            'Not a UUID or known BlockDeviceClusterID constant.'
+            _valid_id_or_enumeration(x),
+            'Not a UUID or known IdEnumarations constant.'
         ),
-        initial=BlockDeviceClusterID.UNKNOWN,
-        mandatory=True
+        initial=IdEnumarations.UNKNOWN,
+        mandatory=True,
+        serializer=lambda _, x: (unicode(x) if type(x) == UUID else x.name),
+        factory=_id_or_enumeration_factory
+    )
+    creation_datetime = field(
+        type=(datetime, type(None)),
+        initial=None,
+        mandatory=True,
+        serializer=(lambda _, x: x if x is None
+                    else (x - datetime.utcfromtimestamp(0)).total_seconds()),
+        factory=(lambda x: datetime.utcfromtimestamp(x) if type(x) is float
+                 else x)
+    )
+    display_name = field(
+        type=(unicode, type(None)),
+        mandatory=True,
+        initial=None
+    )
+    metadata = field(
+        type=(dict, type(None)),
+        mandatory=True,
+        initial=None
     )
 
 
