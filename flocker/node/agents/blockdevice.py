@@ -1423,6 +1423,23 @@ class IListBlockDevices(Interface):
             available from the storage backend.
         """
 
+class ISetBlockDeviceCluster(Interface):
+    """
+    An interface for drivers that are capable of setting the Flocker cluster
+    for an existing volume. This allows an existing volume to be added to the
+    specified flocker cluster.
+    """
+
+    def set_blockdevice_cluster(blockdevice_id, dataset_id, cluster_id):
+        """
+        Set the dataset id and cluster id for a given blockdevice_id.
+
+        :param unicode blockdevice_id: The unique identifier for a blockdevice
+            in the backing storage platform.
+        :param UUID dataset_id: The new dataset_id for the blockdevice.
+        :param UUID cluster_id: The new cluster_id for the blockdevice.
+        """
+
 
 @implementer(IBlockDeviceAsyncAPI)
 @auto_threaded(IBlockDeviceAPI, "_reactor", "_sync", "_threadpool")

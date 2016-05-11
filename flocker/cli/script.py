@@ -8,7 +8,7 @@ import os
 import sys
 import yaml
 from json import dumps
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from twisted.internet.defer import succeed, maybeDeferred
 from twisted.python.filepath import FilePath
@@ -30,7 +30,7 @@ from .. import REST_API_PORT
 from ..ca import treq_with_authentication
 
 from ..node.backends import backend_loader
-from ..node.agents.blockdevice import IListBlockDevices, BlockDevice
+from ..node.agents.blockdevice import IListBlockDevices, ISetBlockDeviceCluster
 from ..common.configuration import (
     extract_substructure, MissingConfigError, Optional
 )
@@ -236,6 +236,37 @@ class CLIScript(object):
         """
         return succeed(None)
 
+
+def _load_migration_confg():
+    with open('test.yml') as f:
+        a = yaml.load(f)
+    ss = dict(
+        region="<Openstack Region>",
+        cluster_id="<Cluster ID>",
+        auth_plugin='<Auth plugin: "rackpace" "password" etc.>',
+        username='<OpenStack Username>',
+        api_key='<OpenStack api key>',
+        auth_url='<OpenStack authentication url>',
+    )
+    try:
+        config = extract_substructure(
+            a, ss
+        )
+    except MissingConfigError as e:
+        yaml.add_representer(
+            Optional,
+            lambda d, x: d.represent_scalar(u'tag:yaml.org,2002:str', repr(x)))
+        raise SystemExit(
+            'Could not get configuration: {}\n\n'
+            'In order to run this test, add ensure file at test.yml '
+            'has structure like:\n\n{}'.format(
+                e.message,
+                yaml.dump(ss, default_flow_style=False))
+        )
+    config['cluster_id'] = UUID(config['cluster_id'])
+    return config
+
+
 @flocker_standard_options
 class AddExistingVolumeOptions(Options):
     """
@@ -245,7 +276,7 @@ class AddExistingVolumeOptions(Options):
     longdesc = """\
     Add an existing volume to your flocker cluster. On storage providers that
     enable this sort of volume metadata manipulation, this enables you to move
-    a volume into 
+    a volume that is not part of the cluster into the flocker cluster.
 
     Parameters:
 
@@ -258,16 +289,51 @@ class AddExistingVolumeOptions(Options):
     synopsis = ("--blockdevice=<volume blockdevice-id> "
                 "--cluster=<flocker-cluster-id")
 
+    optParameters = [
+        ['blockdevice', None, None,
+         'The blockdevice id of the volume to add to the cluster'],
+        ['cluster', None, None,
+         'The cluster id of the cluster you want to add the volume to'],
+    ]
+
+    def run(self):
+        config = _load_migration_confg()
+        blockdevice_id = self['blockdevice']
+        cluster_id = UUID(self['cluster'])
+        dataset_id = uuid4()
+        backend_description = backend_loader.get('openstack')
+        bdapi = backend_description.api_factory(
+            **config
+        )
+        if ISetBlockDeviceCluster.providedBy(bdapi):
+            if blockdevice_id and dataset_id and cluster_id:
+                bdapi.set_blockdevice_cluster(blockdevice_id,
+                                              dataset_id,
+                                              cluster_id)
+                print "Successfully added %s to %s as %s" % (
+                    blockdevice_id,
+                    unicode(cluster_id),
+                    unicode(dataset_id)
+                )
+            else:
+                print "Missing parameter"
+        else:
+            print (
+                "Your backend does not support adopting flocker volumes into "
+                "the cluster"
+            )
+
 
 def _format_blockdevices_for_table(blockdevices):
     _FIELDS = [
-            'blockdevice_id',
-            'dataset_id',
-            'cluster_id',
-            'attached_to',
-            'size',
-            'creation_datetime',
-            'metadata',
+        'display_name',
+        'blockdevice_id',
+        'dataset_id',
+        'cluster_id',
+        'attached_to',
+        'size',
+        'creation_datetime',
+        'metadata',
     ]
 
     columns_to_print = dict()
@@ -275,7 +341,7 @@ def _format_blockdevices_for_table(blockdevices):
 
     for f in _FIELDS:
         columns_to_print[f] = [f, ''.join('=' for x in f)]
-    
+
     for bd in blockdevices:
         for f in _FIELDS:
             val = getattr(bd, f)
@@ -325,32 +391,7 @@ class ListAllVolumesOptions(Options):
         """
         Run the action for this sub-command.
         """
-        with open('test.yml') as f:
-            a = yaml.load(f)
-        ss = dict(
-            region="<Openstack Region>",
-            cluster_id="<Cluster ID>",
-            auth_plugin='<Auth plugin: "rackpace" "password" etc.>',
-            username='<OpenStack Username>',
-            api_key='<OpenStack api key>',
-            auth_url='<OpenStack authentication url>',
-        )
-        try:
-            config = extract_substructure(
-                a, ss
-            )
-        except MissingConfigError as e:
-            yaml.add_representer(
-                Optional,
-                lambda d, x: d.represent_scalar(u'tag:yaml.org,2002:str', repr(x)))
-            raise SystemExit(
-                'Could not get configuration: {}\n\n'
-                'In order to run this test, add ensure file at test.yml '
-                'has structure like:\n\n{}'.format(
-                    e.message,
-                    yaml.dump(ss, default_flow_style=False))
-            )
-        config['cluster_id'] = UUID(config['cluster_id'])
+        config = _load_migration_confg()
         backend_description = backend_loader.get('openstack')
         bdapi = backend_description.api_factory(
             **config
@@ -370,7 +411,7 @@ class FlockerMigratorOptions(Options):
     """
     Command line options for ``flocker-migrator`` CLI.
     """
-    subCommands =[
+    subCommands = [
         ['add-existing-volume', None, AddExistingVolumeOptions,
          'Add an existing volume'],
         ['list-all-volumes', None, ListAllVolumesOptions, 'List all volumes '

@@ -40,7 +40,7 @@ from ...common import (
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, UnknownInstanceID, get_blockdevice_volume, ICloudAPI,
-    IListBlockDevices, IdEnumarations, BlockDevice
+    IListBlockDevices, ISetBlockDeviceCluster, IdEnumarations, BlockDevice
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
@@ -415,6 +415,7 @@ def _nova_detach(nova_volume_manager, cinder_volume_manager,
 @implementer(IBlockDeviceAPI)
 @implementer(ICloudAPI)
 @implementer(IListBlockDevices)
+@implementer(ISetBlockDeviceCluster)
 class CinderBlockDeviceAPI(object):
     """
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
@@ -554,6 +555,14 @@ class CinderBlockDeviceAPI(object):
                 _blockdevice_from_cinder_volume(cinder_volume)
             )
         return block_devices
+
+    def set_blockdevice_cluster(self, blockdevice_id, dataset_id, cluster_id):
+        metadata = {
+            CLUSTER_ID_LABEL: unicode(cluster_id),
+            DATASET_ID_LABEL: unicode(dataset_id),
+        }
+        cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
+        self.cinder_volume_manager.set_metadata(cinder_volume, metadata)
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
@@ -827,11 +836,18 @@ def _blockdevice_from_cinder_volume(cinder_volume):
     else:
         cluster_id = IdEnumarations.NOT_IN_CLUSTER
 
+    dataset_id = cinder_volume.metadata.get(DATASET_ID_LABEL)
+    if dataset_id is not None:
+        dataset_id = UUID(dataset_id)
+    else:
+        dataset_id = IdEnumarations.NOT_IN_CLUSTER
+
     return BlockDevice(
         blockdevice_id=blockdevice_info.blockdevice_id,
         size=blockdevice_info.size,
         attached_to=blockdevice_info.attached_to,
         cluster_id=cluster_id,
+        dataset_id=dataset_id,
         creation_datetime=datetime.strptime(cinder_volume.created_at,
                                             u"%Y-%m-%dT%H:%M:%S.%f"),
         display_name=cinder_volume.display_name,
