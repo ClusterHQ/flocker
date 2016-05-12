@@ -6,6 +6,10 @@ scenarios:
     type: read-request-load
     request_rate: 5
 
+  - name: read-request-10
+    type: read-request-load
+    request_rate: 10
+
   - name: list-container-state-1
     type: read-request-load
     method: list_containers_state
@@ -26,6 +30,26 @@ scenarios:
     method: list_containers_state
     request_rate: 4
 
+  - name: list-container-state-6
+    type: read-request-load
+    method: list_containers_state
+    request_rate: 6
+
+  - name: list-container-state-8
+    type: read-request-load
+    method: list_containers_state
+    request_rate: 8
+
+  - name: list-container-state-9
+    type: read-request-load
+    method: list_containers_state
+    request_rate: 9
+
+  - name: list-container-state-10
+    type: read-request-load
+    method: list_containers_state
+    request_rate: 10
+
   - name: write-request-1
     type: write-request-load
     request_rate: 1
@@ -41,6 +65,10 @@ scenarios:
   - name: write-request-4
     type: write-request-load
     request_rate: 4
+
+  - name: write-request-10
+    type: write-request-load
+    request_rate: 10
 
 operations:
   - name: default
