@@ -23,6 +23,7 @@ lazy-object-proxy==1.2.1
 MarkupSafe==0.23
 mccabe==0.3.1
 ndg-httpsclient==0.4.0
+nomenclature == 0.1.1; sys_platform == 'linux2'
 packaging==15.2
 paramiko==1.15.2
 pep8==1.5.7
@@ -51,4 +52,4 @@ troposphere==1.3.0
 six==1.10.0
 versioneer==0.15
 virtualenv==13.1.0
-wrapt==1.10.6
+wrapt==1.10.7

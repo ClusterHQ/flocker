@@ -49,7 +49,7 @@ To install this environment on CentOS, run the following commands:
    mkvirtualenv flocker
    git clone https://github.com/ClusterHQ/flocker
    cd flocker/
-   pip install --process-dependency-links -e .[dev]
+   pip install --requirement requirements.txt  --requirement dev-requirements.txt --editable .
 
 Or for Ubuntu:
 
@@ -61,7 +61,7 @@ Or for Ubuntu:
    mkvirtualenv flocker
    git clone https://github.com/ClusterHQ/flocker
    cd flocker/
-   pip install --process-dependency-links -e .[dev]
+   pip install --requirement requirements.txt  --requirement dev-requirements.txt --editable .
 
 AWS
 ===

@@ -4,24 +4,11 @@
 Generate a Flocker package that can be deployed onto cluster nodes.
 """
 
-import platform
 from setuptools import setup, find_packages
 import versioneer
 
 with open("README.rst") as readme:
     description = readme.read()
-
-with open("requirements.txt") as requirements:
-    install_requires = [req for req in requirements.readlines() if 'git+https' not in req]
-with open("dev-requirements.txt") as dev_requirements:
-    dev_requires = dev_requirements.readlines()
-
-# The test suite uses network namespaces
-# nomenclature can only be installed on Linux
-if platform.system() == 'Linux':
-    dev_requires.extend([
-        "nomenclature >= 0.1.0",
-    ])
 
 setup(
     # This is the human-targetted name of the software being packaged.
@@ -88,17 +75,7 @@ setup(
         ],
     },
 
-    install_requires=install_requires,
-
-    extras_require={
-        # This extra is for developers who need to work on Flocker itself.
-        "dev": dev_requires,
-        },
-
     cmdclass=versioneer.get_cmdclass(),
-
-    dependency_links = [
-    ],
 
     # Some "trove classifiers" which are relevant.
     classifiers=[

@@ -62,7 +62,7 @@ Install Flocker's development dependencies in a ``virtualenv`` by running the fo
 .. prompt:: bash $
 
    mkvirtualenv flocker
-   pip install --editable .[dev]
+   pip install --requirement requirements.txt --requirement dev-requirements.txt --editable .
 
 .. _Docker: https://www.docker.com/
 

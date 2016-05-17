@@ -1,4 +1,5 @@
-git+https://github.com/ClusterHQ/pyrsistent@f881840273db5292c64289d9bccab162ad41dfec#egg=pyrsistent-0.11.13chq
+--find-link https://github.com/ClusterHQ/pyrsistent/archive/v0.11.13+chq1.zip#egg=pyrsistent-0.11.13+chq1
+pyrsistent==0.11.13+chq1
 argparse==1.3.0
 attrs==15.1.0
 Babel==2.2.0

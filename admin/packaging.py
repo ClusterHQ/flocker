@@ -687,6 +687,9 @@ IGNORED_WARNINGS = {
         # wheels from PyPI:
         # https://github.com/pypa/manylinux/issues/59
         "hardening-no-relro",
+
+        # changelogs are elsewhere
+        "debian-changelog-file-missing-or-wrong-name",
     ),
 }
 

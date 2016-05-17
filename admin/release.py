@@ -799,6 +799,19 @@ def initialize_release(version, path, top_level):
         site_packages=False
     )
 
+    sys.stdout.write("Upgrading pip...\n")
+    environment = {
+        "PATH": os.environ["PATH"]
+    }
+    check_call(
+        [virtualenv_path.descendant(["bin", "python"]).path,
+         virtualenv_path.descendant(["bin", "pip"]).path,
+         "install", "--upgrade", "pip"],
+        stdout=open(os.devnull, 'w'),
+        env=environment,
+        cwd=release_path.path,
+    )
+
     sys.stdout.write("Installing dependencies...\n")
     environment = {
         "PATH": os.environ["PATH"]
@@ -806,7 +819,10 @@ def initialize_release(version, path, top_level):
     check_call(
         [virtualenv_path.descendant(["bin", "python"]).path,
          virtualenv_path.descendant(["bin", "pip"]).path,
-         "install", "-e", ".[dev]"],
+         "install",
+         "--requirement", "requirements.txt",
+         "--requirement", "dev-requirements.txt",
+         "--editable", "."],
         stdout=open(os.devnull, 'w'),
         env=environment,
         cwd=release_path.path,
