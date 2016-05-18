@@ -596,6 +596,16 @@ IGNORED_WARNINGS = {
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
+
+        # /opt/flocker/lib/python2.7/site-packages/sphinx/locale/.tx
+        'hidden-file-or-dir',
+
+        # /opt/flocker/lib/python2.7/site-packages/pbr/tests/testpackage/doc/source/conf.py
+        'script-without-shebang',
+
+        # E.g.
+        # /opt/flocker/lib/python2.7/site-packages/sphinx/locale/bn/LC_MESSAGES/sphinx.mo
+        'file-not-in-%lang',
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
@@ -695,6 +705,10 @@ IGNORED_WARNINGS = {
         # The alabaster package contains some Google AdSense bugs.
         # https://lintian.debian.org/tags/privacy-breach-google-adsense.html
         "privacy-breach-google-adsense",
+
+        # Only occurs when building locally
+        "non-standard-dir-perm",
+        "non-standard-file-perm",
     ),
 }
 
