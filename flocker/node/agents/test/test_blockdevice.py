@@ -1718,7 +1718,7 @@ class CalculateDesiredStateTests(TestCase):
         )
 
     @given(
-        expected_size=integers(min_value=0),
+        expected_size=integers(min_value=0, max_value=sys.maxint),
     )
     def test_leased_mounted_manifestation(self, expected_size):
         """
@@ -1814,7 +1814,7 @@ class CalculateDesiredStateTests(TestCase):
         )
 
     @given(
-        expected_size=integers(min_value=0),
+        expected_size=integers(min_value=0, max_value=sys.maxint),
     )
     def test_leased_manifestation(self, expected_size):
         """

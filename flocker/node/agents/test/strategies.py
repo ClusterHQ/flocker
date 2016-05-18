@@ -19,8 +19,7 @@ from ..blockdevice import BlockDeviceVolume
 blockdevice_volumes = builds(
     BlockDeviceVolume,
     blockdevice_id=text(),
-    # XXX: Probably should be positive integers
-    size=integers(max_value=maxint),
+    size=integers(min_value=1, max_value=maxint),
     attached_to=text() | none(),
     dataset_id=uuids(),
 )
