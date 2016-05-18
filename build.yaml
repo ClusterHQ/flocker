@@ -284,9 +284,7 @@ common_cli:
 
     # using the caching-layer, install all the dependencies
     pip install --upgrade pip
-    # Use --process-dependency-links so we can use the pyrsistent fork.
-    pip install --process-dependency-links . ${PIP_ADDITIONAL_OPTIONS}
-    pip install --process-dependency-links ".[dev]" ${PIP_ADDITIONAL_OPTIONS}
+    pip install --requirement dev-requirements.txt ${PIP_ADDITIONAL_OPTIONS}
     # install junix for our coverage report
     pip install python-subunit junitxml ${PIP_ADDITIONAL_OPTIONS}
 
@@ -574,7 +572,7 @@ common_cli:
   build_dockerfile_centos7: &build_dockerfile_centos7 |
     # Download the latest pip requirements file from flocker
     wget -c \
-    https://raw.githubusercontent.com/ClusterHQ/flocker/${TRIGGERED_BRANCH}/requirements.txt
+    https://raw.githubusercontent.com/ClusterHQ/flocker/${TRIGGERED_BRANCH}/requirements/admin.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-centos-7:latest" > Dockerfile
@@ -592,13 +590,12 @@ common_cli:
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
     echo 'RUN ["python", "/tmp/get-pip.py"]' >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
-    # Is this unused? --process-depency-links added but sort of untested.
-    echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
+    echo "RUN pip install --requirement /tmp/requirements.txt" >> Dockerfile
 
   build_dockerfile_ubuntu_trusty: &build_dockerfile_ubuntu_trusty |
     # Download the latest pip requirements file from flocker
     wget -c \
-    https://raw.githubusercontent.com/ClusterHQ/flocker/${TRIGGERED_BRANCH}/requirements.txt
+    https://raw.githubusercontent.com/ClusterHQ/flocker/${TRIGGERED_BRANCH}/requirements/admin.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-trusty:latest" > Dockerfile
@@ -610,13 +607,12 @@ common_cli:
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
     echo 'RUN ["python", "/tmp/get-pip.py"]' >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
-    # Is this unused? --process-depency-links added but sort of untested.
-    echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
+    echo "RUN pip install --requirement /tmp/requirements.txt" >> Dockerfile
 
   build_dockerfile_ubuntu_wily: &build_dockerfile_ubuntu_wily |
     # Download the latest pip requirements file from flocker
     wget -c \
-    https://raw.githubusercontent.com/ClusterHQ/flocker/${TRIGGERED_BRANCH}/requirements.txt
+    https://raw.githubusercontent.com/ClusterHQ/flocker/${TRIGGERED_BRANCH}/requirements/admin.txt
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-wily:latest" > Dockerfile
@@ -628,8 +624,7 @@ common_cli:
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
     echo 'RUN ["python", "/tmp/get-pip.py"]' >> Dockerfile
     echo "COPY requirements.txt /tmp/" >> Dockerfile
-    # Is this unused? --process-depency-links added but sort of untested.
-    echo "RUN pip install --process-dependency-links -r /tmp/requirements.txt" >> Dockerfile
+    echo "RUN pip install --requirement /tmp/requirements.txt" >> Dockerfile
 
   do_not_abort_on_errors: &do_not_abort_on_errors |
     # make sure we don't abort the job on the first error we find.

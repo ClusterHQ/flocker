@@ -12,8 +12,7 @@ To build omnibus packages, create a VirtualEnv and install Flocker then its rele
 
    cd /path/to/flocker
    mkvirtualenv flocker-packaging
-   pip install --process-dependency-links .
-   pip install --process-dependency-links .[dev]
+   pip install --requirement requirements/admin.txt
 
 Then run the following command from a clean checkout of the Flocker repository:
 
@@ -74,17 +73,17 @@ Each contains sub-folders for the distribution version and architecture, which f
 To make the entire bucket public, this bucket has the following policy::
 
    {
-   	"Version": "2008-10-17",
-   	"Id": "PolicyForPublicAccess",
-   	"Statement": [
-   		{
-   			"Sid": "1",
-   			"Effect": "Allow",
-   			"Principal": "*",
-   			"Action": "s3:GetObject",
-   			"Resource": "arn:aws:s3:::clusterhq-archive/*"
-   		}
-   	]
+        "Version": "2008-10-17",
+        "Id": "PolicyForPublicAccess",
+        "Statement": [
+                {
+                        "Sid": "1",
+                        "Effect": "Allow",
+                        "Principal": "*",
+                        "Action": "s3:GetObject",
+                        "Resource": "arn:aws:s3:::clusterhq-archive/*"
+                }
+        ]
    }
 
 A policy can be set by going to a bucket's "Properties", "Permissions", then "Add bucket policy".
