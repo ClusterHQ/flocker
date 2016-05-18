@@ -94,7 +94,10 @@ class URLTests(TestCase):
 
 
 # The max here corresponds to the latest date that datetime supports
-datetimes = integers(max_value=253402300799).map(datetime.fromtimestamp)
+datetimes = integers(
+    min_value=0,
+    max_value=253402300799
+).map(datetime.utcfromtimestamp)
 """Strategy for generating `datetime` objects."""
 
 
