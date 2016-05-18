@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from subprocess import check_output, check_call
 from stat import S_IRWXU
 from datetime import datetime, timedelta
+import sys
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -149,7 +150,10 @@ DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
     DiscoveredDataset,
     {
         'dataset_id': uuids(),
-        'maximum_size': integers(min_value=1),
+        'maximum_size': integers(
+            min_value=1,
+            max_value=sys.maxint,
+        ),
         'mount_point': builds(FilePath, sampled_from([
             '/flocker/abc', '/flocker/xyz',
         ])),
@@ -169,7 +173,10 @@ _METADATA_STRATEGY = text(average_size=3, min_size=1, alphabet="CGAT")
 
 DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
     'dataset_id': uuids(),
-    'maximum_size': integers(min_value=0).map(
+    'maximum_size': integers(
+        min_value=0,
+        max_value=sys.maxint
+    ).map(
         lambda n: (
             LOOPBACK_MINIMUM_ALLOCATABLE_SIZE +
             n * LOOPBACK_ALLOCATION_UNIT
