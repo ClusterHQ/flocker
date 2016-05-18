@@ -27,3 +27,8 @@
 # nomenclature can only be installed on Linux
 nomenclature >= 0.1.0; 'linux' in sys_platform
 pycrypto
+# Sphinx docs dependencies
+# enchant.tokenize is not detected by snakefood
+pyenchant
+sphinx-prompt
+sphinxcontrib-spelling
