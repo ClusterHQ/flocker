@@ -687,6 +687,14 @@ IGNORED_WARNINGS = {
         # wheels from PyPI:
         # https://github.com/pypa/manylinux/issues/59
         "hardening-no-relro",
+
+        # Ubuntu Wily lintian complains about missing changelog.
+        # https://lintian.debian.org/tags/debian-changelog-file-missing-or-wrong-name.html
+        "debian-changelog-file-missing-or-wrong-name",
+
+        # The alabaster package contains some Google AdSense bugs.
+        # https://lintian.debian.org/tags/privacy-breach-google-adsense.html
+        "privacy-breach-google-adsense",
     ),
 }
 
