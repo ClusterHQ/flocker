@@ -175,7 +175,9 @@ DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
     'dataset_id': uuids(),
     'maximum_size': integers(
         min_value=0,
-        max_value=sys.maxint
+        max_value=(
+            sys.maxint - LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+        ) // LOOPBACK_ALLOCATION_UNIT,
     ).map(
         lambda n: (
             LOOPBACK_MINIMUM_ALLOCATABLE_SIZE +
