@@ -15,19 +15,19 @@
 #
 # pip install snakefood
 #
-# sfood-imports --unified
-#               --ignore acceptance
-#               --ignore test
-#               --ignore functional
-#               flocker/
-# | cut --delimiter '.'
-#       --fields 1
-# | sort
-# | uniq
-# | egrep --file std_packages
-#         --line-regexp
-#         --invert-match > requirements/flocker.txt.in
-
+# sfood-imports --unified \
+#               --ignore acceptance \
+#               --ignore test \
+#               --ignore functional \
+#               flocker \
+# | cut --delimiter '.' \
+#       --fields 1 \
+# | sort \
+# | uniq \
+# | egrep --file std_packages \
+#         --line-regexp \
+#         --invert-match
+#
 # Then inspect the list by hand. Remove any false positives and replace package
 # names with the PyPI package name where necessary
 #

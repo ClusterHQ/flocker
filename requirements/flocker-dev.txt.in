@@ -18,12 +18,10 @@
 # Then create the pinned dependency file.
 #
 # pip install --requirement requirements/flocker-dev.txt.in
-# pip freeze
-# | egrep --file requirements/flocker.txt
-#         --invert-match
-#         --line-regexp > requirements/flocker-dev.txt
-# --requirement flocker.txt
-# --editable .
+# pip freeze \
+# | egrep --file requirements/flocker.txt \
+#         --invert-match \
+#         --line-regexp
 #
 # The test suite uses network namespaces
 # nomenclature can only be installed on Linux
