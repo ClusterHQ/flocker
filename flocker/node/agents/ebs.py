@@ -15,9 +15,9 @@ import itertools
 import boto3
 
 from botocore.exceptions import ClientError, EndpointConnectionError
-from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
-    extract_from_urllib3,
-)
+# from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
+#     extract_from_urllib3,
+# )
 
 # There is no boto3 equivalent of this yet.
 # See https://github.com/boto/boto3/issues/313
@@ -59,7 +59,8 @@ from ._logging import (
 # Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
 # exception when we try an API call on an idled persistent connection.
 # See https://github.com/boto/boto3/issues/220
-extract_from_urllib3()
+# New version of botocore fixes this.
+# extract_from_urllib3()
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'

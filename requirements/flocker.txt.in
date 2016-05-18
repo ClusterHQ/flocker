@@ -1,0 +1,82 @@
+# The following list of immediate dependencies can be produced by install
+# snakefood and then running the following command line.
+#
+# Get a list of standard library packages so that we can omit those from our
+# requirements list.
+#
+# pip install stdlib-list
+#
+# python -c <<EOF  | cut --delimiter '.' --fields 1 | sort | uniq > std_packages
+#     from stdlib_list import stdlib_list
+#     print "\n".join(stdlib_list("2.7"))
+# EOF
+#
+# Install snakefood and use it to extract the non-dynamic Flocker imports.
+#
+# pip install snakefood
+#
+# sfood-imports --unified
+#               --ignore acceptance
+#               --ignore test
+#               --ignore functional
+#               flocker/
+# | cut --delimiter '.'
+#       --fields 1
+# | sort
+# | uniq
+# | egrep --file std_packages
+#         --line-regexp
+#         --invert-match > requirements/flocker.txt.in
+
+# Then inspect the list by hand. Remove any false positives and replace package
+# names with the PyPI package name where necessary
+#
+# Then create the pinned dependency file as follows:
+#
+# mkvirtualenv $RANDOM
+# pip install --requirement requirements/flocker.txt.in
+# pip freeze > requirements/flocker.txt
+#
+# Libcloud is not detected by snakefood
+apache-libcloud
+bitmath
+boto
+boto3
+botocore
+characteristic
+python-cinderclient
+docker-py
+docutils
+effect
+eliot
+google-api-python-client
+hypothesis
+ipaddr
+# FLOC-4409 jsonschema 2.5.0 introduces some readonly attributes
+jsonschema < 2.5.0
+keystoneauth1
+# FLOC-4410 keystoneclient 3.0.0 moves some exceptions around.
+python-keystoneclient < 3.0.0
+python-keystoneclient-rackspace
+klein
+machinist
+mmh3
+netifaces
+python-novaclient
+# FLOC-4411 oauth2client 2 no longer exports SignedJwtAssertionCredentials
+oauth2client < 2.0.0
+pyOpenSSL
+psutil
+pyrsistent
+pytz
+repoze.lru
+requests
+six
+sphinx
+sphinxcontrib-httpdomain
+testtools
+treq
+twisted
+txeffect
+pyyaml
+zope.interface

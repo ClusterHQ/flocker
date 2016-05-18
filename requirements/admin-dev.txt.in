@@ -1,0 +1,26 @@
+# Run the command again, but include the test packages and omit any packages
+# which are already included via Flocker.
+#
+# sfood-imports --unified admin \
+# | cut --delimiter '.' \
+#       --fields 1 \
+# | sort \
+# | uniq \
+# | egrep --file std_packages \
+#         --line-regexp \
+#         --invert-match \
+# | egrep --file requirements/admin.txt.in \
+#         --line-regexp \
+#         --invert-match
+#
+# Inspect and fix the list by hand.
+#
+# Then create the pinned dependency file.
+#
+# pip install --requirement requirements/admin-dev.txt.in
+# pip freeze \
+# | egrep --file requirements/admin.txt \
+#         --invert-match \
+#         --line-regexp
+#
+hypothesis
