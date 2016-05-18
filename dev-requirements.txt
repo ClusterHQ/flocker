@@ -1,0 +1,6 @@
+# Install everything required for local development.
+--requirement requirements/flocker.txt
+--requirement requirements/flocker-dev.txt
+--requirement requirements/admin.txt
+--requirement requirements/admin-dev.txt
+--editable .
