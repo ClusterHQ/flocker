@@ -29,7 +29,7 @@ from characteristic import attributes
 from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
-    dictionaries, tuples, booleans,
+    dictionaries, tuples, booleans, random_module,
 )
 
 from testtools.matchers import Equals
@@ -1473,9 +1473,10 @@ class BlockDeviceCalculatorTests(TestCase):
     @given(
         two_dataset_states=TWO_DESIRED_DATASET_STRATEGY,
         eventually_consistent=booleans(),
+        random=random_module(),
     )
     def test_simple_transitions(self, two_dataset_states,
-                                eventually_consistent):
+                                eventually_consistent, random):
         """
         Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
