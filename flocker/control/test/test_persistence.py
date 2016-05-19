@@ -637,7 +637,7 @@ NODES = st.lists(
     APPLICATIONS,
     # If we add this hint on the number of applications, Hypothesis is able to
     # run many more tests.
-    average_size=3,
+    average_size=2,
     unique_by=lambda app:
     app if not app.volume else app.volume.manifestation.dataset_id).map(
         pset).flatmap(_build_node)
@@ -655,10 +655,11 @@ PERSISTENT_STATES = st.builds(
 
 DEPLOYMENTS = st.builds(
     # If we leave the number of nodes unbounded, Hypothesis will take too long
-    # to build examples, causing intermittent timeouts. Making it roughly 3
+    # to build examples, causing intermittent timeouts. Making it roughly 2
     # should give us adequate test coverage.
-    Deployment, nodes=st.sets(NODES, average_size=3),
-    leases=st.sets(LEASES, average_size=3).map(
+    Deployment,
+    nodes=st.sets(NODES, average_size=2),
+    leases=st.sets(LEASES, average_size=2).map(
         lambda ls: dict((l.dataset_id, l) for l in ls)),
     persistent_state=PERSISTENT_STATES,
 )
