@@ -169,12 +169,10 @@ _METADATA_STRATEGY = text(average_size=3, min_size=1, alphabet="CGAT")
 
 DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
     'dataset_id': uuids(),
-    'maximum_size': integers(min_value=0).map(
-        lambda n: (
-            LOOPBACK_MINIMUM_ALLOCATABLE_SIZE +
-            n * LOOPBACK_ALLOCATION_UNIT
-        )
-    ),
+    'maximum_size': integers(
+        min_value=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+        max_value=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE*10,
+    ).map(lambda size: size - size % LOOPBACK_ALLOCATION_UNIT),
     'metadata': dictionaries(keys=_METADATA_STRATEGY,
                              values=_METADATA_STRATEGY),
     'mount_point': builds(FilePath, sampled_from([
