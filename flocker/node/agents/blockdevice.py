@@ -144,7 +144,7 @@ class DesiredDataset(PClass):
         mandatory=True,
     )
     dataset_id = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int)
+    maximum_size = field(type=(long, int))
     metadata = pmap_field(
         key_type=unicode,
         value_type=unicode,

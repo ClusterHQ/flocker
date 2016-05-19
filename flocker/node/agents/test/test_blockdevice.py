@@ -149,7 +149,7 @@ DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
     DiscoveredDataset,
     {
         'dataset_id': uuids(),
-        'maximum_size': integers(min_value=1),
+        'maximum_size': integers(min_value=512),
         'mount_point': builds(FilePath, sampled_from([
             '/flocker/abc', '/flocker/xyz',
         ])),
@@ -1404,6 +1404,9 @@ class BlockDeviceCalculatorTests(TestCase):
         """
         Cleanup after running a hypothesis example.
         """
+        deployer = getattr(self, 'deployer', None)
+        if deployer is None:
+            return
         umount_all(self.deployer.mountroot)
         detach_destroy_volumes(self.deployer.block_device_api)
 
