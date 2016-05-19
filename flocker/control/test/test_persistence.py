@@ -768,11 +768,51 @@ class ConfigurationMigrationTests(TestCase):
         """
         source_version, target_version = versions
         configs_dir = FilePath(__file__).sibling('configurations')
-        source_json_file = b"configuration_v%d.json" % source_version
-        target_json_file = b"configuration_v%d.json" % versions[1]
+
+        # Choose the latest configuration number available for the given
+        # version of the config. The configuration has increased in complexity
+        # over time, so we have added additional configurations to verify that
+        # the new fields can be correctly upgraded.
+        source_json_glob = b"configuration_*_v%d.json" % source_version
+        source_jsons = sorted(configs_dir.globChildren(source_json_glob),
+                              key=lambda x: x.basename())
+        config_num = int(source_jsons[-1].basename().split('_')[1])
+
+        source_json_file = b"configuration_%d_v%d.json" % (config_num,
+                                                           versions[0])
+        target_json_file = b"configuration_%d_v%d.json" % (config_num,
+                                                           versions[1])
         source_json = configs_dir.child(source_json_file).getContent()
         target_json = configs_dir.child(target_json_file).getContent()
         upgraded_json = migrate_configuration(
             source_version, target_version,
             source_json, ConfigurationMigration)
         self.assertEqual(json.loads(upgraded_json), json.loads(target_json))
+
+
+class LatestGoldenFilesValid(TestCase):
+    """
+    Tests for the latest golden files to ensure they have not regressed.
+    """
+
+    def test_can_create_latest_golden(self):
+        """
+        The latest golden files should be identical to ones generated from
+        HEAD.
+        """
+        configs_dir = FilePath(__file__).sibling('configurations')
+        for i, deployment in enumerate(TEST_DEPLOYMENTS, start=1):
+            encoding = wire_encode(
+                Configuration(version=_CONFIG_VERSION, deployment=deployment)
+            )
+            path = configs_dir.child(
+                b"configuration_%d_v%d.json" % (i, _CONFIG_VERSION)
+            )
+            self.assertEqual(
+                encoding, path.getContent(),
+                "Golden test file %s can not be generated from HEAD. Please "
+                "review the python files in that directory to re-generate "
+                "that file if you have intentionally changed the backing test "
+                "data. You might need to rev the model if you are "
+                "intentionally changing the model."
+            )
