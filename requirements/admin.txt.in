@@ -38,16 +38,17 @@ deb_pkg_tools
 docker-py
 effect
 eliot
-gitpython
-pyrsistent
+GitPython
+--find-links https://github.com/ClusterHQ/pyrsistent/archive/v0.11.13+chq1.zip#egg=pyrsistent-0.11.13+chq1
+pyrsistent==0.11.13+chq1
 python-dateutil
 pytz
-pyyaml
+PyYAML
 requests
 requests_file
 testtools
 troposphere
-twisted
+Twisted
 txeffect
 virtualenv
 zope.interface
