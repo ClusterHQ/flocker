@@ -18,7 +18,7 @@
 # Then create the pinned dependency file.
 #
 # pip install --requirement requirements/flocker-dev.txt.in
-# pip freeze \
+# pip freeze --requirement requirements/flocker-dev.txt.in \
 # | egrep --file requirements/flocker.txt \
 #         --invert-match \
 #         --line-regexp

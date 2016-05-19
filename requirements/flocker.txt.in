@@ -35,7 +35,7 @@
 #
 # mkvirtualenv $RANDOM
 # pip install --requirement requirements/flocker.txt.in
-# pip freeze > requirements/flocker.txt
+# pip freeze --requirement requirements/flocker.txt.in > requirements/flocker.txt
 #
 # Libcloud is not detected by snakefood
 apache-libcloud
@@ -67,16 +67,17 @@ python-novaclient
 oauth2client < 2.0.0
 pyOpenSSL
 psutil
-pyrsistent
+--find-links https://github.com/ClusterHQ/pyrsistent/archive/v0.11.13+chq1.zip#egg=pyrsistent-0.11.13+chq1
+pyrsistent==0.11.13+chq1
 pytz
 repoze.lru
 requests
 six
-sphinx
+Sphinx
 sphinxcontrib-httpdomain
 testtools
 treq
-twisted
+Twisted
 txeffect
-pyyaml
+PyYAML
 zope.interface
