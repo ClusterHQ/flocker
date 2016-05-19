@@ -258,10 +258,9 @@ common_cli:
 
   setup_flocker_modules: &setup_flocker_modules |
     # installs all the required python modules as well as the flocker code.
-    # using the caching-layer, install all the dependencies
-    pip install --requirement dev-requirements.txt ${PIP_ADDITIONAL_OPTIONS}
+    pip install --requirement dev-requirements.txt
     # install junix for our coverage report
-    pip install python-subunit junitxml ${PIP_ADDITIONAL_OPTIONS}
+    pip install python-subunit junitxml
 
   setup_aws_env_vars: &setup_aws_env_vars |
     # set vars and run tests
@@ -314,7 +313,7 @@ common_cli:
     # downstream child jobs to the parent job and processing those files
     # one last time through the cobertura plugin.
     # The resulting report wil contain stats from every single job.
-    pip install coverage  ${PIP_ADDITIONAL_OPTIONS}
+    pip install coverage
 
   run_coverage: &run_coverage |
     # run coverage and produce a report
@@ -671,7 +670,7 @@ common_cli:
   install_aws_cli: &install_aws_cli |
     # installs the AWS python based cli
     # we use the aws cli to upload the docs files to S3
-    pip install awscli ${PIP_ADDITIONAL_OPTIONS}
+    pip install awscli
 
   get_s3_creds_for_bucket_staging_docs: &get_s3_creds_for_bucket_staging_docs |
     # collects the S3 credentials that allows us to upload files to the S3
