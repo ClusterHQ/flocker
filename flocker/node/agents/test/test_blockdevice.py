@@ -1517,7 +1517,7 @@ class BlockDeviceCalculatorTests(TestCase):
                       e.iteration_count)
 
 
-class TranistionTests(TestCase):
+class TransitionTests(TestCase):
     """
     Tests for ``DATASET_TRANSITIONS``.
     """
