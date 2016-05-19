@@ -52,8 +52,7 @@ eliot
 google-api-python-client
 hypothesis
 ipaddr
-# FLOC-4409 jsonschema 2.5.0 introduces some readonly attributes
-jsonschema < 2.5.0
+jsonschema
 keystoneauth1
 # FLOC-4410 keystoneclient 3.0.0 moves some exceptions around.
 python-keystoneclient < 3.0.0

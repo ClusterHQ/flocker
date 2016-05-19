@@ -48,12 +48,6 @@ def getValidator(schema, schema_store):
     resolver = LocalRefResolver(
         base_uri=b'',
         referrer=schema, store=schema_store)
-    # XXX This breaks with the performance improvements in jsonschema 2.5.0
-    # where ``resolution_scope`` becomes a readonly property. Perhaps this
-    # isn't necessary any more?  See:
-    # https://github.com/Julian/jsonschema/pull/203
-    # FLOC-4409
-    resolver.resolution_scope = b''
     return validator_for(schema)(
         schema, resolver=resolver, format_checker=draft4_format_checker)
 
