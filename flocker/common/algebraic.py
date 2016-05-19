@@ -41,7 +41,7 @@ appropriate attributes are set in each state.
 
 from pyrsistent import PClass, field, pmap_field, CheckedPSet, pset
 
-from hypothesis.strategies import composite, sampled_from, fixed_dictionaries, just
+from hypothesis.strategies import composite, sampled_from
 
 from twisted.python.constants import NamedConstant
 
@@ -144,7 +144,9 @@ def tagged_union_strategy(draw, type_, attr_strategies):
     tag = draw(sampled_from(invariant._allowed_tags))
     attributes = {invariant.tag_attribute: tag}
     for name, strategy in attr_strategies.items():
-        if (name in invariant.attributes_for_tag[tag] or
-            name not in invariant._all_attributes):
+        if (
+                name in invariant.attributes_for_tag[tag]
+                or name not in invariant._all_attributes
+        ):
             attributes[name] = draw(strategy)
     return type_(**attributes)
