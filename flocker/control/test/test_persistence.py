@@ -14,7 +14,7 @@ from pytz import UTC
 from eliot.testing import (
     validate_logging, assertHasMessage, assertHasAction, capture_logging)
 
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.datetime import datetimes
 
@@ -637,7 +637,7 @@ NODES = st.lists(
     APPLICATIONS,
     # If we add this hint on the number of applications, Hypothesis is able to
     # run many more tests.
-    average_size=2,
+    average_size=3,
     unique_by=lambda app:
     app if not app.volume else app.volume.manifestation.dataset_id).map(
         pset).flatmap(_build_node)
@@ -655,11 +655,11 @@ PERSISTENT_STATES = st.builds(
 
 DEPLOYMENTS = st.builds(
     # If we leave the number of nodes unbounded, Hypothesis will take too long
-    # to build examples, causing intermittent timeouts. Making it roughly 2
+    # to build examples, causing intermittent timeouts. Making it roughly 3
     # should give us adequate test coverage.
     Deployment,
-    nodes=st.sets(NODES, average_size=2),
-    leases=st.sets(LEASES, average_size=2).map(
+    nodes=st.sets(NODES, average_size=3),
+    leases=st.sets(LEASES, average_size=3).map(
         lambda ls: dict((l.dataset_id, l) for l in ls)),
     persistent_state=PERSISTENT_STATES,
 )
@@ -678,6 +678,7 @@ class WireEncodeDecodeTests(TestCase):
         """
         self.assertIsInstance(wire_encode(TEST_DEPLOYMENT), bytes)
 
+    @settings(perform_health_check=False)
     @given(DEPLOYMENTS)
     def test_roundtrip(self, deployment):
         """
