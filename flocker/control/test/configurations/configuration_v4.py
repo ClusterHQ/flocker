@@ -1,7 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 # Generate a v4 configuration.
-# Hash to recreate: TODO(mewert): Fill this in after you push.
+# Hash to recreate: 90c95c82febaceda87aed770923b284fc71f0e3f
 
 from twisted.python.filepath import FilePath
 
