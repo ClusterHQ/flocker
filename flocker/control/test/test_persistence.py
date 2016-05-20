@@ -558,11 +558,17 @@ DATASETS = st.builds(
     maximum_size=st.integers(),
 )
 
-# `datetime`s accurate to seconds
-DATETIMES_TO_SECONDS = datetimes().map(lambda d: d.replace(microsecond=0))
+# UTC `datetime`s accurate to seconds
+DATETIMES_TO_SECONDS = datetimes(
+    timezones=['UTC']
+).map(
+    lambda d: d.replace(microsecond=0)
+)
 
 LEASES = st.builds(
-    Lease, dataset_id=st.uuids(), node_id=st.uuids(),
+    Lease,
+    dataset_id=st.uuids(),
+    node_id=st.uuids(),
     expiration=st.one_of(
         st.none(),
         DATETIMES_TO_SECONDS
