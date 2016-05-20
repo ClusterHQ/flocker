@@ -179,15 +179,18 @@ class ConfigurationMigration(object):
         except KeyError:
             pass
         else:
-            new_nodes = []
+            new_node_values = []
             for n in nodes:
                 new_node = n
                 new_node[u"applications"] = {
                     u"values": [(a[u"name"], a) for a in n[u"applications"]],
                     _CLASS_MARKER: "PMap"
                 }
-                new_nodes.append(new_node)
-            decoded_config[u"deployment"][u"nodes"] = new_nodes
+                new_node_values.append((new_node["uuid"], new_node))
+            decoded_config[u"deployment"][u"nodes"] = {
+                u"values": new_node_values,
+                _CLASS_MARKER: "PMap"
+            }
         return dumps(decoded_config)
 
 
