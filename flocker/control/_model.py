@@ -14,6 +14,7 @@ from uuid import UUID
 from warnings import warn
 from hashlib import md5
 from datetime import datetime, timedelta
+from collections import Mapping
 
 from characteristic import attributes
 from twisted.python.filepath import FilePath
@@ -97,7 +98,7 @@ _UNDEFINED = object()
 
 def pmap_field(
     key_type, value_type, optional=False, invariant=_valid,
-    initial=_UNDEFINED
+    initial=_UNDEFINED, factory=None
 ):
     """
     Create a checked ``PMap`` field.
@@ -113,6 +114,8 @@ def pmap_field(
 
     :return: A ``field`` containing a ``CheckedPMap``.
     """
+    fact = factory
+
     class TheMap(CheckedPMap):
         __key_type__ = key_type
         __value_type__ = value_type
@@ -120,13 +123,19 @@ def pmap_field(
                        value_type.__name__.capitalize() + "PMap")
 
     if optional:
-        def factory(argument):
+        def factory(argument, fact=fact):
             if argument is None:
                 return None
             else:
-                return TheMap(argument)
+                if fact:
+                    return TheMap(fact(argument))
+                else:
+                    return TheMap(argument)
     else:
-        factory = TheMap
+        if fact:
+            factory = lambda x, fact=fact: TheMap(fact(x))
+        else:
+            factory = TheMap
 
     if initial is _UNDEFINED:
         initial = TheMap()
@@ -414,6 +423,12 @@ def _keys_match(attribute):
 _keys_match_dataset_id = _keys_match("dataset_id")
 
 
+def _turn_lists_to_mapping_from_attribute(attribute, obj):
+    if isinstance(obj, Mapping):
+        return obj
+    return {getattr(a, attribute): a for a in obj}
+
+
 class Node(PClass):
     """
     Configuration for a single node on which applications will be managed
@@ -451,8 +466,10 @@ class Node(PClass):
         return PClass.__new__(cls, **kwargs)
 
     uuid = field(type=UUID, mandatory=True)
-    applications = pmap_field(unicode, Application,
-                              invariant=_keys_match("name"))
+    applications = pmap_field(
+        unicode, Application, invariant=_keys_match("name"),
+        factory=lambda x: _turn_lists_to_mapping_from_attribute('name', x)
+    )
     manifestations = pmap_field(
         unicode, Manifestation, invariant=_keys_match_dataset_id
     )
@@ -986,7 +1003,9 @@ class NodeState(PRecord):
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     applications = pmap_field(
         unicode, Application, optional=True, initial=None,
-        invariant=_keys_match("name"))
+        invariant=_keys_match("name"),
+        factory=lambda x: _turn_lists_to_mapping_from_attribute('name', x)
+    )
     manifestations = pmap_field(unicode, Manifestation, optional=True,
                                 initial=None, invariant=_keys_match_dataset_id)
     paths = pmap_field(unicode, FilePath, optional=True, initial=None)
