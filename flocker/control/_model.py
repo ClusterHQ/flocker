@@ -424,8 +424,8 @@ class Node(PClass):
 
     :ivar UUID uuid: The unique identifier for the node.
 
-    :ivar applications: A ``PSet`` of ``Application`` instances describing
-        the applications which are to run on this ``Node``.
+    :ivar PMap applications: Mapping from application name to ``Application``
+        describing the applications which are to run on this ``Node``.
 
     :ivar PMap manifestations: Mapping between dataset IDs and
         corresponding ``Manifestation`` instances that are present on the
@@ -435,7 +435,7 @@ class Node(PClass):
     """
     def __invariant__(self):
         manifestations = self.manifestations.values()
-        for app in self.applications:
+        for app in self.applications.values():
             if app.volume is not None:
                 if app.volume.manifestation not in manifestations:
                     return (False, '%r manifestation is not on node' % (app,))
@@ -451,7 +451,8 @@ class Node(PClass):
         return PClass.__new__(cls, **kwargs)
 
     uuid = field(type=UUID, mandatory=True)
-    applications = pset_field(Application)
+    applications = pmap_field(unicode, Application,
+                              invariant=_keys_match("name"))
     manifestations = pmap_field(
         unicode, Manifestation, invariant=_keys_match_dataset_id
     )
@@ -690,7 +691,7 @@ class Deployment(PClass):
         :return: Iterable returning all applications.
         """
         for node in self.nodes:
-            for application in node.applications:
+            for application in node.applications.values():
                 yield application
 
     def update_node(self, node):
@@ -723,35 +724,35 @@ class Deployment(PClass):
         """
         deployment = self
         for node in deployment.nodes:
-            for container in node.applications:
-                if container.name == application.name:
-                    # We only need to perform a move if the node currently
-                    # hosting the container is not the node it's moving to.
-                    if not same_node(node, target_node):
-                        # If the container has a volume, we need to add the
-                        # manifestation to the new host first.
-                        if application.volume is not None:
-                            dataset_id = application.volume.dataset.dataset_id
-                            target_node = target_node.transform(
-                                ("manifestations", dataset_id),
-                                application.volume.manifestation
-                            )
-                        # Now we can add the application to the new host.
+            container = node.applications.get(application.name)
+            if container:
+                # We only need to perform a move if the node currently
+                # hosting the container is not the node it's moving to.
+                if not same_node(node, target_node):
+                    # If the container has a volume, we need to add the
+                    # manifestation to the new host first.
+                    if application.volume is not None:
+                        dataset_id = application.volume.dataset.dataset_id
                         target_node = target_node.transform(
-                            ["applications"], lambda s: s.add(application))
-                        # And remove it from the current host.
+                            ("manifestations", dataset_id),
+                            application.volume.manifestation
+                        )
+                    # Now we can remove it from the current host.
+                    node = node.transform(
+                        ["applications", application.name], discard)
+                    # current host too.
+                    if application.volume is not None:
+                        dataset_id = application.volume.dataset.dataset_id
                         node = node.transform(
-                            ["applications"], lambda s: s.remove(application))
-                        # Finally we can now remove the manifestation from the
-                        # current host too.
-                        if application.volume is not None:
-                            dataset_id = application.volume.dataset.dataset_id
-                            node = node.transform(
-                                ("manifestations", dataset_id), discard
-                            )
-                        # Before updating the deployment instance.
-                        deployment = deployment.update_node(node)
-                        deployment = deployment.update_node(target_node)
+                            ("manifestations", dataset_id), discard
+                        )
+                    # Finally we can now remove the manifestation from the
+                    # Now we can add the application to the new host.
+                    target_node = target_node.transform(
+                        ["applications", application.name], application)
+                    # Before updating the deployment instance.
+                    deployment = deployment.update_node(node)
+                    deployment = deployment.update_node(target_node)
         return deployment
 
 
@@ -939,8 +940,8 @@ class NodeState(PRecord):
 
     :ivar UUID uuid: The node's UUID.
     :ivar unicode hostname: The IP of the node.
-    :ivar applications: A ``PSet`` of ``Application`` instances on this node,
-        or ``None`` if the information is not known.
+    :ivar PMap applications: A ``PMap`` of application name to ``Application``
+        instances on this node, or ``None`` if the information is not known.
     :ivar PMap manifestations: Mapping between dataset IDs and corresponding
         ``Manifestation`` instances that are present on the node.  Includes
         both those attached as volumes to any applications, and those that are
@@ -983,7 +984,9 @@ class NodeState(PRecord):
 
     uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    applications = pset_field(Application, optional=True, initial=None)
+    applications = pmap_field(
+        unicode, Application, optional=True, initial=None,
+        invariant=_keys_match("name"))
     manifestations = pmap_field(unicode, Manifestation, optional=True,
                                 initial=None, invariant=_keys_match_dataset_id)
     paths = pmap_field(unicode, FilePath, optional=True, initial=None)

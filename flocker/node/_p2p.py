@@ -278,7 +278,7 @@ class P2PManifestationDeployer(object):
 
         not_in_use_datasets = NotInUseDatasets(
             node_uuid=self.node_uuid,
-            local_applications=local_state.applications,
+            local_applications=local_state.applications.values(),
             leases=configuration.leases,
         )
 

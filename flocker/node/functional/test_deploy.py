@@ -351,7 +351,8 @@ class DeployerTests(AsyncTestCase):
         d.addCallback(
             lambda results: self.assertIn(
                 pset([link]),
-                [app.links for app in results.node_state.applications]))
+                [app.links for app in results.node_state.applications.values()]
+            ))
         return d
 
     @if_docker_configured
@@ -365,7 +366,8 @@ class DeployerTests(AsyncTestCase):
         d.addCallback(
             lambda results: self.assertIn(
                 command_line,
-                [app.command_line for app in results.node_state.applications]))
+                [app.command_line for app in
+                 results.node_state.applications.values()]))
         return d
 
     @if_docker_configured

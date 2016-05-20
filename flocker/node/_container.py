@@ -640,12 +640,12 @@ class ApplicationNodeDeployer(object):
         for node in desired_configuration.nodes:
             if node.uuid == self.node_uuid:
                 desired_node_applications = node.applications
-                for application in node.applications:
+                for application in node.applications.values():
                     for port in application.ports:
                         desired_open_ports.add(
                             OpenPort(port=port.external_port))
             else:
-                for application in node.applications:
+                for application in node.applications.values():
                     for port in application.ports:
                         # XXX: also need to do DNS resolution. See
                         # https://clusterhq.atlassian.net/browse/FLOC-322
@@ -660,7 +660,7 @@ class ApplicationNodeDeployer(object):
         if desired_open_ports != set(self.network.enumerate_open_ports()):
             phases.append(OpenPorts(ports=desired_open_ports))
 
-        all_applications = current_node_state.applications
+        all_applications = current_node_state.applications.values()
 
         # Compare the applications being changed by name only.  Other
         # configuration changes aren't important at this point.

@@ -1990,7 +1990,7 @@ class BlockDeviceDeployer(PClass):
 
         desired_datasets = self._calculate_desired_state(
             configuration=configuration,
-            local_applications=local_node_state.applications,
+            local_applications=local_node_state.applications.values(),
             local_datasets=local_state.datasets,
         )
 
