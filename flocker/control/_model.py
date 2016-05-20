@@ -504,12 +504,10 @@ def _get_node(default_factory):
              is found.
     """
     def get_node(deployment, uuid, **defaults):
-        nodes = list(
-            node for node in deployment.nodes if node.uuid == uuid
-        )
-        if len(nodes) == 0:
+        node = deployment.nodes.get(uuid)
+        if node is None:
             return default_factory(uuid=uuid, **defaults)
-        return nodes[0]
+        return node
     return get_node
 
 
@@ -695,7 +693,11 @@ class Deployment(PClass):
         refactoring doesn't seem worth it currently, and can be done later if
         ever).
     """
-    nodes = pset_field(Node)
+    nodes = pmap_field(
+        UUID, Node,
+        invariant=_keys_match("uuid"),
+        factory=lambda x: _turn_lists_to_mapping_from_attribute('uuid', x)
+    )
     leases = field(type=Leases, mandatory=True, initial=Leases())
     persistent_state = field(type=PersistentState, initial=PersistentState())
 
@@ -707,7 +709,7 @@ class Deployment(PClass):
 
         :return: Iterable returning all applications.
         """
-        for node in self.nodes:
+        for node in self.nodes.values():
             for application in node.applications.values():
                 yield application
 
@@ -722,9 +724,8 @@ class Deployment(PClass):
 
         :return Deployment: Updated with new ``Node``.
         """
-        return self.set(
-            'nodes',
-            [n for n in self.nodes if not same_node(n, node)] + [node]
+        return self.transform(
+            ['nodes', node.uuid], node
         )
 
     def move_application(self, application, target_node):
@@ -740,7 +741,7 @@ class Deployment(PClass):
         :return Deployment: Updated to reflect the new desired state.
         """
         deployment = self
-        for node in deployment.nodes:
+        for node in deployment.nodes.values():
             container = node.applications.get(application.name)
             if container:
                 # We only need to perform a move if the node currently
@@ -1081,18 +1082,16 @@ class _WipeNodeState(PClass):
     attributes = pset_field(str)
 
     def update_cluster_state(self, cluster_state):
-        nodes = {n for n in cluster_state.nodes
-                 if n.uuid == self.node_uuid}
-        if not nodes:
+        original_node = cluster_state.nodes.get(self.node_uuid)
+        if original_node is None:
             return cluster_state
-        [original_node] = nodes
         updated_node = original_node.evolver()
         for attribute in self.attributes:
             updated_node = updated_node.set(attribute, None)
         updated_node = updated_node.persistent()
-        final_nodes = cluster_state.nodes.discard(original_node)
+        final_nodes = cluster_state.nodes.discard(original_node.uuid)
         if updated_node._provides_information():
-            final_nodes = final_nodes.add(updated_node)
+            final_nodes = final_nodes.set(updated_node.uuid, updated_node)
         return cluster_state.set("nodes", final_nodes)
 
     def key(self):
@@ -1120,7 +1119,11 @@ class DeploymentState(PClass):
         initialized to meaningful values (see
         https://clusterhq.atlassian.net/browse/FLOC-1247).
     """
-    nodes = pset_field(NodeState)
+    nodes = pmap_field(
+        UUID, NodeState,
+        invariant=_keys_match("uuid"),
+        factory=lambda x: _turn_lists_to_mapping_from_attribute('uuid', x)
+    )
     node_uuid_to_era = pmap_field(UUID, UUID)
     nonmanifest_datasets = pmap_field(
         unicode, Dataset, invariant=_keys_match_dataset_id
@@ -1144,26 +1147,15 @@ class DeploymentState(PClass):
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
-        nodes = {n for n in self.nodes if same_node(n, node_state)}
-        if not nodes:
-            return self.transform(["nodes"], lambda s: s.add(node_state))
-        [original_node] = nodes
+        original_node = self.nodes.get(node_state.uuid)
+        if original_node is None:
+            return self.transform(["nodes", node_state.uuid], node_state)
         updated_node = original_node.evolver()
         for key, value in node_state.items():
-            # XXX This is an optimization to avoid calling ``set`` unless the
-            # value has changed. ``set`` is slow.
-            if value is not None and value != updated_node[key]:
+            if value is not None:
                 updated_node = updated_node.set(key, value)
         updated_node = updated_node.persistent()
-
-        # XXX This is an optimization to avoid calling ``set``
-        # unless the value has changed. ``set`` is slow.
-        if updated_node != original_node:
-            return self.set(
-                "nodes", self.nodes.discard(original_node).add(
-                    updated_node))
-        else:
-            return self
+        return self.transform(["nodes", updated_node.uuid], updated_node)
 
     def remove_node(self, node_uuid):
         """
@@ -1173,8 +1165,7 @@ class DeploymentState(PClass):
 
         :return: Updated ``DeploymentState``.
         """
-        return self.set(nodes={node for node in self.nodes
-                               if node.uuid != node_uuid})
+        return self.transform(['nodes'], lambda x: x.discard(node_uuid))
 
     def all_datasets(self):
         """
@@ -1182,7 +1173,7 @@ class DeploymentState(PClass):
             ``None``) for all the primary manifest datasets and non-manifest
             datasets in the ``DeploymentState``.
         """
-        for node in self.nodes:
+        for node in self.nodes.values():
             if node.manifestations is None:
                 continue
             for manifestation in node.manifestations.values():

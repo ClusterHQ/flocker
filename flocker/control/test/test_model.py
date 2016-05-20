@@ -20,6 +20,8 @@ from hypothesis.strategies import sampled_from
 
 from zope.interface.verify import verifyObject
 
+from testtools.matchers import Equals
+
 from ...testtools import make_with_init_tests, TestCase
 from .._model import pset_field, pmap_field, pvector_field, ip_to_uuid
 
@@ -458,10 +460,10 @@ class NonManifestDatasetsTests(TestCase):
 
 class DeploymentInitTests(make_with_init_tests(
         record_type=Deployment,
-        kwargs=dict(nodes=pset([
+        kwargs=dict(nodes={n.uuid: n for n in [
             Node(hostname=u'node1.example.com', applications={}),
             Node(hostname=u'node2.example.com', applications={})
-        ]))
+        ]})
 )):
     """
     Tests for ``Deployment.__init__``.
@@ -1285,7 +1287,7 @@ class DeploymentStateTests(TestCase):
             nodes=[NodeState(hostname=u"node1.example.com")])
         updated = original.update_node(update_applications).update_node(
             update_manifestations)
-        self.assertEqual(updated, DeploymentState(nodes=[end_node]))
+        self.assertThat(updated, Equals(DeploymentState(nodes=[end_node])))
 
     def test_nonmanifest_datasets_keys_are_their_ids(self):
         """
