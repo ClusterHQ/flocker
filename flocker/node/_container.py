@@ -378,7 +378,7 @@ class ApplicationNodeDeployer(object):
             ports = self._ports_for_container(container)
             links, environment = self._environment_for_container(container)
             applications.append(Application(
-                name=container.name,
+                name=unicode(container.name),
                 image=image,
                 ports=frozenset(ports),
                 volume=volume,
@@ -634,7 +634,7 @@ class ApplicationNodeDeployer(object):
 
         desired_proxies = set()
         desired_open_ports = set()
-        desired_node_applications = []
+        desired_node_applications = {}
         node_states = {node.uuid: node for node in current_cluster_state.nodes}
 
         for node in desired_configuration.nodes:
@@ -665,8 +665,7 @@ class ApplicationNodeDeployer(object):
         # Compare the applications being changed by name only.  Other
         # configuration changes aren't important at this point.
         local_application_names = {app.name for app in all_applications}
-        desired_local_state = {app.name for app in
-                               desired_node_applications}
+        desired_local_state = frozenset(desired_node_applications.keys())
         # Don't start applications that exist on this node but aren't running;
         # Docker is in charge of restarts (and restarts aren't supported yet
         # anyway; see FLOC-2449):
@@ -676,7 +675,7 @@ class ApplicationNodeDeployer(object):
 
         start_containers = [
             StartApplication(application=app, node_state=current_node_state)
-            for app in desired_node_applications
+            for app in desired_node_applications.values()
             if ((app.name in start_names) and
                 # If manifestation isn't available yet, don't start:
                 # XXX in FLOC-1240 non-primaries should be checked.
@@ -696,10 +695,7 @@ class ApplicationNodeDeployer(object):
         current_applications_dict = dict(zip(
             [a.name for a in all_applications], all_applications
         ))
-        desired_applications_dict = dict(zip(
-            [a.name for a in desired_node_applications],
-            desired_node_applications
-        ))
+        desired_applications_dict = desired_node_applications
         for application_name in applications_to_inspect:
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
