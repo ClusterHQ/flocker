@@ -19,14 +19,19 @@ from ._protocol import (
     ControlAMPService, ControlAMP,
 )
 from ._registry import IStatePersister, InMemoryStatePersister
-from ._model import DatasetAlreadyOwned
+from ._model import (
+    DatasetAlreadyOwned, Lease, PersistentState, Node,
+    Deployment
+)
 
 from ..testtools.amp import (
     LoopbackAMPClient,
 )
 
 from hypothesis import given, assume
-from hypothesis.strategies import uuids, text
+import hypothesis.strategies as st
+from hypothesis.strategies import uuids, text, composite
+from hypothesis.extra.datetime import datetimes
 
 __all__ = [
     'build_control_amp_service',
@@ -144,3 +149,64 @@ def make_loopback_control_client(test_case, reactor):
         command_locator=ControlAMP(reactor, control_amp_service).locator,
     )
     return control_amp_service, client
+
+
+@composite
+def persistent_state_strategy(draw):
+    return PersistentState()
+
+
+@composite
+def lease_strategy(draw, dataset_id=st.uuids(), node_id=st.uuids()):
+    return Lease(
+        dataset_id=draw(dataset_id),
+        node_id=draw(node_id),
+        expiration=draw(datetimes())
+    )
+
+
+@composite
+def node_strategy(draw):
+    return Node(
+        uuid=draw(st.uuids())
+    )
+
+
+@composite
+def deployment_strategy(draw, min_number_of_nodes=1):
+    nodes = draw(
+        st.lists(
+            node_strategy(),
+            min_size=min_number_of_nodes,
+            average_size=max(min_number_of_nodes, 5),
+            max_size=max(min_number_of_nodes, 1000)
+        )
+    )
+    dataset_id_node_mapping = {}
+    for node in nodes:
+        for dataset_id in node.manifestations:
+            dataset_id_node_mapping[dataset_id] = node.uuid
+
+    lease_indexes = []
+    if len(dataset_id_node_mapping) > 0:
+        lease_indexes = draw(st.sets(
+            st.integers(
+                min_value=0, max_value=(len(dataset_id_node_mapping)-1)
+            )
+        ))
+    leases = [
+        draw(
+            lease_strategy(
+                dataset_id=st.just(dataset_id),
+                node_uuid=st.just(node_uuid)
+            )
+        ) for dataset_id, node_uuid in (
+            dataset_id_node_mapping.items()[i] for i in lease_indexes
+        )
+    ]
+    persistent_state = draw(persistent_state_strategy())
+    return Deployment(
+        nodes={n.uuid: n for n in nodes},
+        leases={l.dataset_id: l for l in leases},
+        persistent_state=persistent_state
+    )

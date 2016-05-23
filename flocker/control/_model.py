@@ -26,6 +26,8 @@ from pyrsistent import (
 
 from zope.interface import Interface, implementer
 
+from ._diffing import DIFF_SERIALIZABLE_CLASSES
+
 
 def _sequence_field(checked_class, suffix, item_type, optional, initial):
     """
@@ -1208,5 +1210,5 @@ SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
     NodeState, DeploymentState, NonManifestDatasets, Configuration,
-    Lease, Leases, PersistentState,
-]
+    Lease, Leases, PersistentState
+] + DIFF_SERIALIZABLE_CLASSES
