@@ -813,6 +813,7 @@ class LatestGoldenFilesValid(TestCase):
                 "Golden test file %s can not be generated from HEAD. Please "
                 "review the python files in that directory to re-generate "
                 "that file if you have intentionally changed the backing test "
-                "data. You might need to rev the model if you are "
-                "intentionally changing the model." % path.path
+                "data. You might need to update the model version and write "
+                "an upgrade test if you are intentionally changing the "
+                "model." % (path.path,)
             )
