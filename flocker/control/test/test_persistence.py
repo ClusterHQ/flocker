@@ -38,17 +38,17 @@ from .._model import (
     Port, Link, Leases, Lease, BlockDeviceOwnership, PersistentState,
     )
 
-# The UUID values for the Dataset and Node in TEST_DEPLOYMENT match
-# those in the versioned JSON configuration files used by tests in this
-# module. If these values are changed, you will also need to regenerate
-# the test JSON files using the scripts provided in the
-# flocker/control/test/configurations/ directory, using the correct
-# commit checkout to generate JSON appropriate to each config version.
+# The UUID values for the Dataset and Node in the following TEST_DEPLOYMENTs
+# match those in the versioned JSON configuration files used by tests in this
+# module.  If these values are changed, you will also need to regenerate the
+# test JSON files using the scripts provided in the
+# flocker/control/test/configurations/ directory, using the correct commit
+# checkout to generate JSON appropriate to each config version.
 DATASET = Dataset(dataset_id=u'4e7e3241-0ec3-4df6-9e7c-3f7e75e08855',
                   metadata={u"name": u"myapp"})
 NODE_UUID = UUID(u'ab294ce4-a6c3-40cb-a0a2-484a1f09521c')
 MANIFESTATION = Manifestation(dataset=DATASET, primary=True)
-TEST_DEPLOYMENT = Deployment(
+TEST_DEPLOYMENT_1 = Deployment(
     leases=Leases(),
     nodes=[Node(uuid=NODE_UUID,
                 applications=[
@@ -59,17 +59,24 @@ TEST_DEPLOYMENT = Deployment(
                             manifestation=MANIFESTATION,
                             mountpoint=FilePath(b"/xxx/yyy"))
                     )],
-                manifestations={DATASET.dataset_id: MANIFESTATION})],
-    persistent_state=PersistentState(
+                manifestations={DATASET.dataset_id: MANIFESTATION})]
+)
+TEST_DEPLOYMENT_2 = TEST_DEPLOYMENT_1.set(
+    'persistent_state', PersistentState(
         blockdevice_ownership=BlockDeviceOwnership({
             UUID(u'b229d949-0856-4011-96e5-3dd0a5586180'): u'block-device-id',
         })
     )
 )
+TEST_DEPLOYMENTS = [
+    TEST_DEPLOYMENT_1,
+    TEST_DEPLOYMENT_2
+]
+LATEST_TEST_DEPLOYMENT = TEST_DEPLOYMENTS[-1]
 
 
 V1_TEST_DEPLOYMENT_JSON = FilePath(__file__).sibling(
-    'configurations').child(b"configuration_v1.json").getContent()
+    'configurations').child(b"configuration_1_v1.json").getContent()
 
 
 class LeasesTests(AsyncTestCase):
@@ -99,14 +106,14 @@ class LeasesTests(AsyncTestCase):
                 datetime.fromtimestamp(1000, UTC), dataset_id, node_id)
 
         d = self.persistence_service.save(
-            TEST_DEPLOYMENT.set(leases=original_leases))
+            LATEST_TEST_DEPLOYMENT.set(leases=original_leases))
         d.addCallback(
             lambda _: update_leases(update, self.persistence_service))
 
         def updated(_):
             self.assertEqual(
                 self.persistence_service.get(),
-                TEST_DEPLOYMENT.set(leases=update(original_leases)))
+                LATEST_TEST_DEPLOYMENT.set(leases=update(original_leases)))
         d.addCallback(updated)
         return d
 
@@ -296,27 +303,27 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         path.makedirs()
         config_path = path.child(b"current_configuration.json")
         persisted_configuration = Configuration(
-            version=_CONFIG_VERSION, deployment=TEST_DEPLOYMENT)
+            version=_CONFIG_VERSION, deployment=LATEST_TEST_DEPLOYMENT)
         config_path.setContent(wire_encode(persisted_configuration))
         self.service(path)
         loaded_configuration = wire_decode(config_path.getContent())
         self.assertEqual(loaded_configuration, persisted_configuration)
 
     @validate_logging(assertHasAction, _LOG_SAVE, succeeded=True,
-                      startFields=dict(configuration=TEST_DEPLOYMENT))
+                      startFields=dict(configuration=LATEST_TEST_DEPLOYMENT))
     def test_save_then_get(self, logger):
         """
         A configuration that was saved can subsequently retrieved.
         """
         service = self.service(FilePath(self.mktemp()), logger)
         logger.reset()
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
         d.addCallback(lambda _: service.get())
-        d.addCallback(self.assertEqual, TEST_DEPLOYMENT)
+        d.addCallback(self.assertEqual, LATEST_TEST_DEPLOYMENT)
         return d
 
     @validate_logging(assertHasMessage, _LOG_STARTUP,
-                      fields=dict(configuration=TEST_DEPLOYMENT))
+                      fields=dict(configuration=LATEST_TEST_DEPLOYMENT))
     def test_persist_across_restarts(self, logger):
         """
         A configuration that was saved can be loaded from a new service.
@@ -324,12 +331,12 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         path = FilePath(self.mktemp())
         service = ConfigurationPersistenceService(reactor, path)
         service.startService()
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
         d.addCallback(lambda _: service.stopService())
 
         def retrieve_in_new_service(_):
             new_service = self.service(path, logger)
-            self.assertEqual(new_service.get(), TEST_DEPLOYMENT)
+            self.assertEqual(new_service.get(), LATEST_TEST_DEPLOYMENT)
         d.addCallback(retrieve_in_new_service)
         return d
 
@@ -342,11 +349,11 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         callbacks = []
         callbacks2 = []
         service.register(lambda: callbacks.append(1))
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved(_):
             service.register(lambda: callbacks2.append(1))
-            changed = TEST_DEPLOYMENT.transform(
+            changed = LATEST_TEST_DEPLOYMENT.transform(
                 ("nodes",), lambda nodes: nodes.add(Node(uuid=uuid4())),
             )
             return service.save(changed)
@@ -368,7 +375,7 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         callbacks = []
         service.register(lambda: 1/0)
         service.register(lambda: callbacks.append(1))
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved(_):
             self.assertEqual(callbacks, [1])
@@ -388,11 +395,11 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         def callback():
             state.append(None)
 
-        saving = service.save(TEST_DEPLOYMENT)
+        saving = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved_old(ignored):
             service.register(callback)
-            return service.save(TEST_DEPLOYMENT)
+            return service.save(LATEST_TEST_DEPLOYMENT)
 
         saving.addCallback(saved_old)
 
@@ -412,10 +419,10 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         """
         service = self.service(FilePath(self.mktemp()), None)
 
-        old_saving = service.save(TEST_DEPLOYMENT)
+        old_saving = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved_old(ignored):
-            new_saving = service.save(TEST_DEPLOYMENT)
+            new_saving = service.save(LATEST_TEST_DEPLOYMENT)
             new_saving.addCallback(self.assertEqual, None)
             return new_saving
 
@@ -458,7 +465,7 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         service.startService()
         self.addCleanup(service.stopService)
         original = self.get_hash(service)
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved(_):
             updated = self.get_hash(service)
@@ -474,7 +481,7 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         service = ConfigurationPersistenceService(reactor, path)
         service.startService()
         self.addCleanup(service.stopService)
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved(_):
             original = self.get_hash(service)
@@ -681,7 +688,7 @@ class WireEncodeDecodeTests(TestCase):
         """
         ``wire_encode`` converts the given object to ``bytes``.
         """
-        self.assertIsInstance(wire_encode(TEST_DEPLOYMENT), bytes)
+        self.assertIsInstance(wire_encode(LATEST_TEST_DEPLOYMENT), bytes)
 
     @given(DEPLOYMENTS)
     def test_roundtrip(self, deployment):
@@ -767,11 +774,52 @@ class ConfigurationMigrationTests(TestCase):
         """
         source_version, target_version = versions
         configs_dir = FilePath(__file__).sibling('configurations')
-        source_json_file = b"configuration_v%d.json" % source_version
-        target_json_file = b"configuration_v%d.json" % versions[1]
+
+        # Choose the latest configuration number available for the given
+        # version of the config. The configuration has increased in complexity
+        # over time, so we have added additional configurations to verify that
+        # the new fields can be correctly upgraded.
+        source_json_glob = b"configuration_*_v%d.json" % source_version
+        source_jsons = sorted(configs_dir.globChildren(source_json_glob),
+                              key=lambda x: x.basename())
+        config_num = int(source_jsons[-1].basename().split('_')[1])
+
+        source_json_file = b"configuration_%d_v%d.json" % (config_num,
+                                                           versions[0])
+        target_json_file = b"configuration_%d_v%d.json" % (config_num,
+                                                           versions[1])
         source_json = configs_dir.child(source_json_file).getContent()
         target_json = configs_dir.child(target_json_file).getContent()
         upgraded_json = migrate_configuration(
             source_version, target_version,
             source_json, ConfigurationMigration)
         self.assertEqual(json.loads(upgraded_json), json.loads(target_json))
+
+
+class LatestGoldenFilesValid(TestCase):
+    """
+    Tests for the latest golden files to ensure they have not regressed.
+    """
+
+    def test_can_create_latest_golden(self):
+        """
+        The latest golden files should be identical to ones generated from
+        HEAD.
+        """
+        configs_dir = FilePath(__file__).sibling('configurations')
+        for i, deployment in enumerate(TEST_DEPLOYMENTS, start=1):
+            encoding = wire_encode(
+                Configuration(version=_CONFIG_VERSION, deployment=deployment)
+            )
+            path = configs_dir.child(
+                b"configuration_%d_v%d.json" % (i, _CONFIG_VERSION)
+            )
+            self.assertEqual(
+                encoding, path.getContent(),
+                "Golden test file %s can not be generated from HEAD. Please "
+                "review the python files in that directory to re-generate "
+                "that file if you have intentionally changed the backing test "
+                "data. You might need to update the model version and write "
+                "an upgrade test if you are intentionally changing the "
+                "model." % (path.path,)
+            )
