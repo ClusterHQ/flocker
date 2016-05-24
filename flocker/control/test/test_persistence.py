@@ -38,12 +38,12 @@ from .._model import (
     Port, Link, Leases, Lease, BlockDeviceOwnership, PersistentState,
     )
 
-# The UUID values for the Dataset and Node in the follow TEST_DEPLOYMENTs match
-# those in the versioned JSON configuration files used by tests in this module.
-# If these values are changed, you will also need to regenerate the test JSON
-# files using the scripts provided in the flocker/control/test/configurations/
-# directory, using the correct commit checkout to generate JSON appropriate to
-# each config version.
+# The UUID values for the Dataset and Node in the following TEST_DEPLOYMENTs
+# match those in the versioned JSON configuration files used by tests in this
+# module.  If these values are changed, you will also need to regenerate the
+# test JSON files using the scripts provided in the
+# flocker/control/test/configurations/ directory, using the correct commit
+# checkout to generate JSON appropriate to each config version.
 DATASET = Dataset(dataset_id=u'4e7e3241-0ec3-4df6-9e7c-3f7e75e08855',
                   metadata={u"name": u"myapp"})
 NODE_UUID = UUID(u'ab294ce4-a6c3-40cb-a0a2-484a1f09521c')
@@ -568,11 +568,17 @@ DATASETS = st.builds(
     maximum_size=st.integers(),
 )
 
-# `datetime`s accurate to seconds
-DATETIMES_TO_SECONDS = datetimes().map(lambda d: d.replace(microsecond=0))
+# UTC `datetime`s accurate to seconds
+DATETIMES_TO_SECONDS = datetimes(
+    timezones=['UTC']
+).map(
+    lambda d: d.replace(microsecond=0)
+)
 
 LEASES = st.builds(
-    Lease, dataset_id=st.uuids(), node_id=st.uuids(),
+    Lease,
+    dataset_id=st.uuids(),
+    node_id=st.uuids(),
     expiration=st.one_of(
         st.none(),
         DATETIMES_TO_SECONDS
@@ -647,7 +653,7 @@ NODES = st.lists(
     APPLICATIONS,
     # If we add this hint on the number of applications, Hypothesis is able to
     # run many more tests.
-    average_size=3,
+    average_size=2,
     unique_by=lambda app:
     app if not app.volume else app.volume.manifestation.dataset_id).map(
         pset).flatmap(_build_node)
@@ -665,10 +671,10 @@ PERSISTENT_STATES = st.builds(
 
 DEPLOYMENTS = st.builds(
     # If we leave the number of nodes unbounded, Hypothesis will take too long
-    # to build examples, causing intermittent timeouts. Making it roughly 3
+    # to build examples, causing intermittent timeouts. Making it roughly 2
     # should give us adequate test coverage.
-    Deployment, nodes=st.sets(NODES, average_size=3),
-    leases=st.sets(LEASES, average_size=3).map(
+    Deployment, nodes=st.sets(NODES, average_size=2),
+    leases=st.sets(LEASES, average_size=2).map(
         lambda ls: dict((l.dataset_id, l) for l in ls)),
     persistent_state=PERSISTENT_STATES,
 )
@@ -816,6 +822,7 @@ class LatestGoldenFilesValid(TestCase):
                 "Golden test file %s can not be generated from HEAD. Please "
                 "review the python files in that directory to re-generate "
                 "that file if you have intentionally changed the backing test "
-                "data. You might need to rev the model if you are "
-                "intentionally changing the model."
+                "data. You might need to update the model version and write "
+                "an upgrade test if you are intentionally changing the "
+                "model." % (path.path,)
             )

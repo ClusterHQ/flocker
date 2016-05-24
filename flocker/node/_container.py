@@ -635,9 +635,9 @@ class ApplicationNodeDeployer(object):
         desired_proxies = set()
         desired_open_ports = set()
         desired_node_applications = {}
-        node_states = {node.uuid: node for node in current_cluster_state.nodes}
+        node_states = current_cluster_state.nodes
 
-        for node in desired_configuration.nodes:
+        for node in desired_configuration.nodes.values():
             if node.uuid == self.node_uuid:
                 desired_node_applications = node.applications
                 for application in node.applications.values():

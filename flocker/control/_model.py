@@ -113,10 +113,13 @@ def pmap_field(
     :param initial: An initial value for the field.  This will first be coerced
         using the field's factory.  If not given, the initial value is an empty
         map.
+    :param factory: A factory used to convert input arguments to the stored
+        value whenever it is set. Note that this will be composed with the
+        constructor for the ``CheckedPMap`` class constructed for this field.
 
     :return: A ``field`` containing a ``CheckedPMap``.
     """
-    fact = factory
+    input_factory = factory
 
     class TheMap(CheckedPMap):
         __key_type__ = key_type
@@ -125,19 +128,18 @@ def pmap_field(
                        value_type.__name__.capitalize() + "PMap")
 
     if optional:
-        def factory(argument, fact=fact):
+        def mapping_factory(argument):
             if argument is None:
                 return None
             else:
-                if fact:
-                    return TheMap(fact(argument))
-                else:
-                    return TheMap(argument)
+                return TheMap(argument)
     else:
-        if fact:
-            factory = lambda x, fact=fact: TheMap(fact(x))
-        else:
-            factory = TheMap
+        mapping_factory = TheMap
+
+    if input_factory:
+        factory = lambda x: mapping_factory(input_factory(x))
+    else:
+        factory = mapping_factory
 
     if initial is _UNDEFINED:
         initial = TheMap()
@@ -425,7 +427,21 @@ def _keys_match(attribute):
 _keys_match_dataset_id = _keys_match("dataset_id")
 
 
-def _turn_lists_to_mapping_from_attribute(attribute, obj):
+def _turn_iterable_to_mapping_from_attribute(attribute, obj):
+    """
+    Given ``obj`` which is either something that is an instance of ``Mapping``
+    or an iterable, return something that implements ``Mapping`` from
+    ``getattr(o, attribute)`` to the value of the items in the iterable. This
+    funky signature is required to be a valid field factory function.
+
+    :param attribute: The name of the attribute that should be the key in the
+        resulting Mapping.
+    :param obj: Either something that is a Mapping (which is immediately
+        returned), or an iterable to be converted into a Mapping.
+
+    :returns: A Mapping of the items in ``obj`` from
+        ``getattr(o, attribute)`` to the items in obj (``o`` in ``obj``).
+    """
     if isinstance(obj, Mapping):
         return obj
     return {getattr(a, attribute): a for a in obj}
@@ -470,7 +486,7 @@ class Node(PClass):
     uuid = field(type=UUID, mandatory=True)
     applications = pmap_field(
         unicode, Application, invariant=_keys_match("name"),
-        factory=lambda x: _turn_lists_to_mapping_from_attribute('name', x)
+        factory=lambda x: _turn_iterable_to_mapping_from_attribute('name', x)
     )
     manifestations = pmap_field(
         unicode, Manifestation, invariant=_keys_match_dataset_id
@@ -698,7 +714,7 @@ class Deployment(PClass):
     nodes = pmap_field(
         UUID, Node,
         invariant=_keys_match("uuid"),
-        factory=lambda x: _turn_lists_to_mapping_from_attribute('uuid', x)
+        factory=lambda x: _turn_iterable_to_mapping_from_attribute('uuid', x)
     )
     leases = field(type=Leases, mandatory=True, initial=Leases())
     persistent_state = field(type=PersistentState, initial=PersistentState())
@@ -1007,7 +1023,12 @@ class NodeState(PRecord):
     applications = pmap_field(
         unicode, Application, optional=True, initial=None,
         invariant=_keys_match("name"),
-        factory=lambda x: _turn_lists_to_mapping_from_attribute('name', x)
+        factory=(
+            lambda x: (
+                x if x is None
+                else _turn_iterable_to_mapping_from_attribute('name', x)
+            )
+        )
     )
     manifestations = pmap_field(unicode, Manifestation, optional=True,
                                 initial=None, invariant=_keys_match_dataset_id)
@@ -1124,7 +1145,7 @@ class DeploymentState(PClass):
     nodes = pmap_field(
         UUID, NodeState,
         invariant=_keys_match("uuid"),
-        factory=lambda x: _turn_lists_to_mapping_from_attribute('uuid', x)
+        factory=lambda x: _turn_iterable_to_mapping_from_attribute('uuid', x)
     )
     node_uuid_to_era = pmap_field(UUID, UUID)
     nonmanifest_datasets = pmap_field(

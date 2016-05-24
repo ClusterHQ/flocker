@@ -13,14 +13,14 @@ from pyrsistent import (
     pvector, PRecord
 )
 
+from testtools.matchers import Equals, IsInstance
+
 from twisted.python.filepath import FilePath
 
 from hypothesis import given, assume
 from hypothesis.strategies import sampled_from
 
 from zope.interface.verify import verifyObject
-
-from testtools.matchers import Equals
 
 from ...testtools import make_with_init_tests, TestCase
 from .._model import pset_field, pmap_field, pvector_field, ip_to_uuid
@@ -1118,6 +1118,36 @@ class PMapFieldTests(TestCase):
             value = pmap_field(int, int)
         record = Record(value={1:  1234})
         assert isinstance(record.value, PMap)
+
+    @given(PYRSISTENT_STRUCT)
+    def test_factory_arg(self, klass):
+        """
+        ``pmap_field`` has a factory that composes with an arg.
+        """
+        def ext_factory(count):
+            if isinstance(count, int):
+                return {u'X'*i: i for i in xrange(count)}
+            return count
+
+        class Record(klass):
+            value = pmap_field(unicode, int, factory=ext_factory)
+            value2 = pmap_field(unicode, int, initial=2, factory=ext_factory)
+
+        self.assertThat(
+            Record(value=3).value,
+            Equals({u'': 0,
+                    u'X': 1,
+                    u'XX': 2})
+        )
+        self.assertThat(
+            Record(value=1).value2,
+            Equals({u'': 0,
+                    u'X': 1})
+        )
+        self.assertThat(
+            Record(value=3).value,
+            IsInstance(PMap)
+        )
 
     @given(PYRSISTENT_STRUCT)
     def test_checked_map_key(self, klass):
