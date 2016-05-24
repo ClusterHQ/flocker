@@ -38,12 +38,12 @@ from .._model import (
     Port, Link, Leases, Lease, BlockDeviceOwnership, PersistentState,
     )
 
-# The UUID values for the Dataset and Node in the follow TEST_DEPLOYMENTs match
-# those in the versioned JSON configuration files used by tests in this module.
-# If these values are changed, you will also need to regenerate the test JSON
-# files using the scripts provided in the flocker/control/test/configurations/
-# directory, using the correct commit checkout to generate JSON appropriate to
-# each config version.
+# The UUID values for the Dataset and Node in the following TEST_DEPLOYMENTs
+# match those in the versioned JSON configuration files used by tests in this
+# module.  If these values are changed, you will also need to regenerate the
+# test JSON files using the scripts provided in the
+# flocker/control/test/configurations/ directory, using the correct commit
+# checkout to generate JSON appropriate to each config version.
 DATASET = Dataset(dataset_id=u'4e7e3241-0ec3-4df6-9e7c-3f7e75e08855',
                   metadata={u"name": u"myapp"})
 NODE_UUID = UUID(u'ab294ce4-a6c3-40cb-a0a2-484a1f09521c')
@@ -821,6 +821,7 @@ class LatestGoldenFilesValid(TestCase):
                 "Golden test file %s can not be generated from HEAD. Please "
                 "review the python files in that directory to re-generate "
                 "that file if you have intentionally changed the backing test "
-                "data. You might need to rev the model if you are "
-                "intentionally changing the model."
+                "data. You might need to update the model version and write "
+                "an upgrade test if you are intentionally changing the "
+                "model." % (path.path,)
             )
