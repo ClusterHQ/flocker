@@ -10,7 +10,6 @@ from uuid import UUID, uuid4
 from subprocess import check_output, check_call
 from stat import S_IRWXU
 from datetime import datetime, timedelta
-import sys
 
 from bitmath import Byte, MB, MiB, GB, GiB
 
@@ -1709,7 +1708,7 @@ class CalculateDesiredStateTests(TestCase):
         )
 
     @given(
-        expected_size=integers(min_value=0, max_value=sys.maxint),
+        expected_size=integers(min_value=0),
     )
     def test_leased_mounted_manifestation(self, expected_size):
         """
@@ -1805,7 +1804,7 @@ class CalculateDesiredStateTests(TestCase):
         )
 
     @given(
-        expected_size=integers(min_value=0, max_value=sys.maxint),
+        expected_size=integers(min_value=0),
     )
     def test_leased_manifestation(self, expected_size):
         """
