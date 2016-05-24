@@ -3,7 +3,6 @@
 Tests for :module:`admin.merge_pr`.
 """
 
-from datetime import datetime
 import os
 import subprocess
 
@@ -12,13 +11,13 @@ from hypothesis.strategies import (
     booleans,
     dictionaries,
     fixed_dictionaries,
-    integers,
     just,
     lists,
     one_of,
     sampled_from,
     text,
     )
+from hypothesis.extra.datetime import datetimes
 from pyrsistent import pmap, plist
 
 from flocker.testtools import TestCase
@@ -93,11 +92,6 @@ class URLTests(TestCase):
                 'https://github.com/ClusterHQ/flocker/pull/1717'))
 
 
-# The max here corresponds to the latest date that datetime supports
-datetimes = integers(max_value=253402300799).map(datetime.fromtimestamp)
-"""Strategy for generating `datetime` objects."""
-
-
 def commit_statuses(**kwargs):
     """
     Create a strategy for GitHub commit status dicts.
@@ -107,7 +101,7 @@ def commit_statuses(**kwargs):
         will fix the state key of the dict to that string.
     :return strategy: a strategy.
     """
-    base = {'updated_at': datetimes,
+    base = {'updated_at': datetimes(timezones=['UTC']),
             'state': text(),
             'context': text(average_size=2),
             'target_url': text(average_size=2),

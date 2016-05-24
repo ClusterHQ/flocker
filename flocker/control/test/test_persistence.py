@@ -558,11 +558,17 @@ DATASETS = st.builds(
     maximum_size=st.integers(),
 )
 
-# `datetime`s accurate to seconds
-DATETIMES_TO_SECONDS = datetimes().map(lambda d: d.replace(microsecond=0))
+# UTC `datetime`s accurate to seconds
+DATETIMES_TO_SECONDS = datetimes(
+    timezones=['UTC']
+).map(
+    lambda d: d.replace(microsecond=0)
+)
 
 LEASES = st.builds(
-    Lease, dataset_id=st.uuids(), node_id=st.uuids(),
+    Lease,
+    dataset_id=st.uuids(),
+    node_id=st.uuids(),
     expiration=st.one_of(
         st.none(),
         DATETIMES_TO_SECONDS
@@ -637,7 +643,7 @@ NODES = st.lists(
     APPLICATIONS,
     # If we add this hint on the number of applications, Hypothesis is able to
     # run many more tests.
-    average_size=3,
+    average_size=2,
     unique_by=lambda app:
     app if not app.volume else app.volume.manifestation.dataset_id).map(
         pset).flatmap(_build_node)
@@ -655,10 +661,10 @@ PERSISTENT_STATES = st.builds(
 
 DEPLOYMENTS = st.builds(
     # If we leave the number of nodes unbounded, Hypothesis will take too long
-    # to build examples, causing intermittent timeouts. Making it roughly 3
+    # to build examples, causing intermittent timeouts. Making it roughly 2
     # should give us adequate test coverage.
-    Deployment, nodes=st.sets(NODES, average_size=3),
-    leases=st.sets(LEASES, average_size=3).map(
+    Deployment, nodes=st.sets(NODES, average_size=2),
+    leases=st.sets(LEASES, average_size=2).map(
         lambda ls: dict((l.dataset_id, l) for l in ls)),
     persistent_state=PERSISTENT_STATES,
 )
