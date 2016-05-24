@@ -13,7 +13,7 @@ from pyrsistent import (
     pvector, PRecord
 )
 
-from testtools.matchers import Equals
+from testtools.matchers import Equals, IsInstance
 
 from twisted.python.filepath import FilePath
 
@@ -1143,6 +1143,10 @@ class PMapFieldTests(TestCase):
             Record(value=1).value2,
             Equals({u'': 0,
                     u'X': 1})
+        )
+        self.assertThat(
+            Record(value=3).value,
+            IsInstance(PMap)
         )
 
     @given(PYRSISTENT_STRUCT)
