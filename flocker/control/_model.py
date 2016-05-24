@@ -112,8 +112,8 @@ def pmap_field(
         using the field's factory.  If not given, the initial value is an empty
         map.
     :param factory: A factory used to convert input arguments to the stored
-        value. Note that this will be composed with the constructor for the
-        ``CheckedPMap`` class constructed for this field.
+        value whenever it is set. Note that this will be composed with the
+        constructor for the ``CheckedPMap`` class constructed for this field.
 
     :return: A ``field`` containing a ``CheckedPMap``.
     """
@@ -1006,7 +1006,12 @@ class NodeState(PRecord):
     applications = pmap_field(
         unicode, Application, optional=True, initial=None,
         invariant=_keys_match("name"),
-        factory=lambda x: _turn_lists_to_mapping_from_attribute('name', x)
+        factory=(
+            lambda x: (
+                x if x is None
+                else _turn_lists_to_mapping_from_attribute('name', x)
+            )
+        )
     )
     manifestations = pmap_field(unicode, Manifestation, optional=True,
                                 initial=None, invariant=_keys_match_dataset_id)
