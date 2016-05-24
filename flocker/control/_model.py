@@ -425,7 +425,21 @@ def _keys_match(attribute):
 _keys_match_dataset_id = _keys_match("dataset_id")
 
 
-def _turn_lists_to_mapping_from_attribute(attribute, obj):
+def _turn_iterable_to_mapping_from_attribute(attribute, obj):
+    """
+    Given ``obj`` which is either something that is an instance of ``Mapping``
+    or an iterable, return something that implements ``Mapping`` from
+    ``getattr(o, attribute)`` to the value of the items in the iterable. This
+    funky signature is required to be a valid field factory function.
+
+    :param attribute: The name of the attribute that should be the key in the
+        resulting Mapping.
+    :param obj: Either something that is a Mapping (which is immediately
+        returned), or an iterable to be converted into a Mapping.
+
+    :returns: A Mapping of the items in ``obj`` from
+        ``getattr(o, attribute)`` to the items in obj (``o`` in ``obj``).
+    """
     if isinstance(obj, Mapping):
         return obj
     return {getattr(a, attribute): a for a in obj}
@@ -470,7 +484,7 @@ class Node(PClass):
     uuid = field(type=UUID, mandatory=True)
     applications = pmap_field(
         unicode, Application, invariant=_keys_match("name"),
-        factory=lambda x: _turn_lists_to_mapping_from_attribute('name', x)
+        factory=lambda x: _turn_iterable_to_mapping_from_attribute('name', x)
     )
     manifestations = pmap_field(
         unicode, Manifestation, invariant=_keys_match_dataset_id
@@ -1009,7 +1023,7 @@ class NodeState(PRecord):
         factory=(
             lambda x: (
                 x if x is None
-                else _turn_lists_to_mapping_from_attribute('name', x)
+                else _turn_iterable_to_mapping_from_attribute('name', x)
             )
         )
     )
