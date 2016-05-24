@@ -1,4 +1,4 @@
-# The following list of immediate dependencies can be produced by install
+# The following list of immediate dependencies can be produced by installing
 # snakefood and then running the following command line.
 #
 # Get a list of standard library packages so that we can omit those from our
