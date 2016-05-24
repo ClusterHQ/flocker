@@ -347,17 +347,17 @@ def find_dataset_changes(uuid, current_state, desired_state):
          order to match desired configuration.
     """
     uuid_to_hostnames = {node.uuid: node.hostname
-                         for node in current_state.nodes}
+                         for node in current_state.nodes.values()}
     desired_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             in node.manifestations.values())
-                        for node in desired_state.nodes}
+                        for node in desired_state.nodes.values()}
     current_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             # We pretend ignorance is equivalent to no
                             # datasets; this is wrong. See FLOC-2060.
                             in (node.manifestations or {}).values())
-                        for node in current_state.nodes}
+                        for node in current_state.nodes.values()}
 
     local_desired_datasets = set(
         dataset for dataset in desired_datasets.get(uuid, set())

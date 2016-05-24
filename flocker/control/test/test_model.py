@@ -22,8 +22,6 @@ from hypothesis.strategies import sampled_from
 
 from zope.interface.verify import verifyObject
 
-from testtools.matchers import Equals
-
 from ...testtools import make_with_init_tests, TestCase
 from .._model import pset_field, pmap_field, pvector_field, ip_to_uuid
 
