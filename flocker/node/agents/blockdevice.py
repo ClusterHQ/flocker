@@ -1988,9 +1988,12 @@ class BlockDeviceDeployer(PClass):
         local_node_state = cluster_state.get_node(self.node_uuid,
                                                   hostname=self.hostname)
 
+        local_applications = None
+        if local_node_state.applications is not None:
+            local_applications = local_node_state.applications.values()
         desired_datasets = self._calculate_desired_state(
             configuration=configuration,
-            local_applications=local_node_state.applications,
+            local_applications=local_applications,
             local_datasets=local_state.datasets,
         )
 

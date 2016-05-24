@@ -276,9 +276,13 @@ class P2PManifestationDeployer(object):
         local_state = cluster_state.get_node(self.node_uuid)
         phases = []
 
+        local_applications_vector = None
+        if local_state.applications:
+            local_applications_vector = local_state.applications.values()
+
         not_in_use_datasets = NotInUseDatasets(
             node_uuid=self.node_uuid,
-            local_applications=local_state.applications,
+            local_applications=local_applications_vector,
             leases=configuration.leases,
         )
 

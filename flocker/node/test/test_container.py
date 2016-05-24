@@ -235,7 +235,7 @@ class StartApplicationTests(TestCase):
         api = ApplicationNodeDeployer(u'example.com',
                                       docker_client=FakeDockerClient())
         application = Application(
-            name=b'site-example.com',
+            name=u'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0'),
             links=frozenset(),
@@ -536,7 +536,7 @@ class StopApplicationTests(TestCase):
         api = ApplicationNodeDeployer(u'example.com',
                                       docker_client=fake_docker)
         application = Application(
-            name=b'site-example.com',
+            name=u'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0'),
             links=frozenset(),
@@ -567,7 +567,7 @@ class StopApplicationTests(TestCase):
         api = ApplicationNodeDeployer(u'example.com',
                                       docker_client=FakeDockerClient())
         application = Application(
-            name=b'site-example.com',
+            name=u'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0'),
             links=frozenset(),
@@ -1154,7 +1154,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
             internal_port=3306, external_port=1001,
         )
         application = Application(
-            name=b'mysql-hybridcluster',
+            name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/mysql',
                               tag=u'release-14.0'),
             ports=frozenset([port]),
@@ -1196,7 +1196,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         port = Port(internal_port=3306,
                     external_port=expected_destination_port)
         application = Application(
-            name=b'mysql-hybridcluster',
+            name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/mysql',
                               tag=u'release-14.0'),
             ports=frozenset([port]),
@@ -1243,7 +1243,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         port = Port(internal_port=3306,
                     external_port=expected_destination_port)
         application = Application(
-            name=b'mysql-hybridcluster',
+            name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/mysql',
                               tag=u'release-14.0'),
             ports=[port],
@@ -1324,7 +1324,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
                                       network=make_memory_network(),
                                       node_uuid=uuid4())
         application = Application(
-            name=b'mysql-hybridcluster',
+            name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0')
         )
@@ -1360,7 +1360,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
                                       docker_client=FakeDockerClient(),
                                       network=make_memory_network())
         application = Application(
-            name=b'mysql-hybridcluster',
+            name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0')
         )
@@ -1451,7 +1451,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
                                       network=make_memory_network(),
                                       node_uuid=uuid4())
         application_desired = Application(
-            name=b'mysql-hybridcluster',
+            name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0'),
         )
@@ -1764,7 +1764,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
             primary=True,
         )
         application = Application(
-            name=b'mysql-hybridcluster',
+            name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0'),
             volume=AttachedVolume(

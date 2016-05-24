@@ -144,12 +144,12 @@ class ApplicationInitTests(make_with_init_tests(
 
 class NodeInitTests(make_with_init_tests(
         record_type=Node,
-        kwargs=dict(uuid=uuid4(), applications=pset([
+        kwargs=dict(uuid=uuid4(), applications={a.name: a for a in [
             Application(name=u'mysql-clusterhq', image=DockerImage.from_string(
                 u"image")),
             Application(name=u'site-clusterhq.com',
                         image=DockerImage.from_string(u"another")),
-        ]))
+        ]})
 )):
     """
     Tests for ``Node.__init__``.
@@ -201,14 +201,14 @@ class NodeTests(TestCase):
         self.assertRaises(
             InvariantException, Node,
             hostname=u'node1.example.com',
-            applications=[
+            applications={a.name: a for a in [
                 APP1,
                 Application(name=u'a',
                             image=DockerImage.from_string(u'x'),
                             volume=AttachedVolume(
                                 manifestation=m1,
                                 mountpoint=FilePath(b"/xxx"))),
-            ])
+            ]})
 
     def test_manifestations_non_applications(self):
         """
@@ -220,12 +220,14 @@ class NodeTests(TestCase):
         m2 = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                            primary=True)
         node = Node(hostname=u'node1.example.com',
-                    applications=frozenset([
-                        Application(name=u'a',
-                                    image=DockerImage.from_string(u'x'),
-                                    volume=AttachedVolume(
-                                        manifestation=m1,
-                                        mountpoint=FilePath(b"/xxx")))]),
+                    applications={
+                        u'a': Application(
+                            name=u'a',
+                            image=DockerImage.from_string(u'x'),
+                            volume=AttachedVolume(
+                                manifestation=m1,
+                                mountpoint=FilePath(b"/xxx")))
+                    },
                     manifestations={m1.dataset_id: m1,
                                     m2.dataset_id: m2})
 
@@ -237,7 +239,17 @@ class NodeTests(TestCase):
         ``Node.applications`` must be ``Application`` instances.
         """
         self.assertRaises(TypeError,
-                          Node, hostname=u"xxx", applications=[None])
+                          Node, hostname=u"xxx", applications={u'': None})
+        self.assertRaises(TypeError,
+                          Node, hostname=u"xxx", applications={'': APP1})
+
+    def test_application_keys_are_their_names(self):
+        """
+        ``Node.applications`` keys are the name of the application
+        """
+        self.assertRaises(InvariantException,
+                          Node, hostname=u"xxx", applications={
+                              APP1.name + '.post': APP1})
 
     def test_manifestations_keys_are_their_ids(self):
         """
@@ -286,7 +298,7 @@ class NodeStateTests(TestCase):
         replaced with its own state.
         """
         hostname = u"1.2.3.4"
-        apps = {APP1}
+        apps = {APP1.name: APP1}
         manifestations = {MANIFESTATION.dataset_id: MANIFESTATION}
         node = NodeState(
             hostname=hostname,
@@ -309,6 +321,15 @@ class NodeStateTests(TestCase):
             }),
             changed_cluster
         )
+
+    def test_application_keys_are_their_names(self):
+        """
+        The keys of the ``applications`` attribute must match the value's
+        ``name`` attribute.
+        """
+        self.assertRaises(InvariantException,
+                          NodeState, hostname=u"xxx",
+                          applications={APP1.name + '.post': APP1})
 
     def test_manifestations_keys_are_their_ids(self):
         """
@@ -438,8 +459,8 @@ class NonManifestDatasetsTests(TestCase):
 class DeploymentInitTests(make_with_init_tests(
         record_type=Deployment,
         kwargs=dict(nodes=pset([
-            Node(hostname=u'node1.example.com', applications=frozenset()),
-            Node(hostname=u'node2.example.com', applications=frozenset())
+            Node(hostname=u'node1.example.com', applications={}),
+            Node(hostname=u'node2.example.com', applications={})
         ]))
 )):
     """
@@ -458,7 +479,8 @@ class GetNodeTests(TestCase):
         """
         ip = u"127.0.0.1"
         identifier = uuid4()
-        node = Node(uuid=identifier, hostname=ip, applications={APP1})
+        node = Node(uuid=identifier, hostname=ip,
+                    applications={APP1.name: APP1})
         trap = Node(uuid=uuid4(), hostname=u"192.168.1.1")
         config = Deployment(nodes={node, trap})
         self.assertEqual(node, config.get_node(identifier))
@@ -513,22 +535,24 @@ class DeploymentTests(TestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({
+            applications={a.name: a for a in [
                 Application(name=u'mysql-clusterhq',
                             image=DockerImage.from_string(u"image")),
                 Application(name=u'site-clusterhq.com',
-                            image=DockerImage.from_string(u"image"))}),
+                            image=DockerImage.from_string(u"image"))
+            ]},
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(
+            applications={u'site-clusterhq.com': Application(
                 name=u'site-clusterhq.com',
-                image=DockerImage.from_string(u"image"))}),
+                image=DockerImage.from_string(u"image"))},
         )
         deployment = Deployment(nodes=frozenset([node, another_node]))
         self.assertEqual(
             set(deployment.applications()),
-            set(node.applications) | set(another_node.applications))
+            set(node.applications.values()) |
+            set(another_node.applications.values()))
 
     def test_update_node_retains_leases(self):
         """
@@ -537,14 +561,19 @@ class DeploymentTests(TestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(
-                name=u'postgresql-clusterhq',
-                image=DockerImage.from_string(u"image"))}))
+            applications={
+                u'postgresql-clusterhq': Application(
+                    name=u'postgresql-clusterhq',
+                    image=DockerImage.from_string(u"image"))
+            }
+        )
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(
-                name=u'site-clusterhq.com',
-                image=DockerImage.from_string(u"image"))}),
+            applications={
+                u'site-clusterhq.com': Application(
+                    name=u'site-clusterhq.com',
+                    image=DockerImage.from_string(u"image"))
+            },
         )
         dataset_id = uuid4()
         leases = Leases()
@@ -563,14 +592,16 @@ class DeploymentTests(TestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(
-                name=u'postgresql-clusterhq',
-                image=DockerImage.from_string(u"image"))}))
+            applications={
+                u'postgresql-clusterhq': Application(
+                    name=u'postgresql-clusterhq',
+                    image=DockerImage.from_string(u"image"))})
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(
-                name=u'site-clusterhq.com',
-                image=DockerImage.from_string(u"image"))}),
+            applications={
+                u'site-clusterhq.com': Application(
+                    name=u'site-clusterhq.com',
+                    image=DockerImage.from_string(u"image"))},
         )
         original = Deployment(nodes=frozenset([node]))
         updated = original.update_node(another_node)
@@ -586,18 +617,20 @@ class DeploymentTests(TestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(
-                name=u'postgresql-clusterhq',
-                image=DockerImage.from_string(u"image"))}))
+            applications={
+                u'postgresql-clusterhq': Application(
+                    name=u'postgresql-clusterhq',
+                    image=DockerImage.from_string(u"image"))})
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(
-                name=u'site-clusterhq.com',
-                image=DockerImage.from_string(u"image"))}),
+            applications={
+                u'site-clusterhq.com': Application(
+                    name=u'site-clusterhq.com',
+                    image=DockerImage.from_string(u"image"))},
         )
         updated_node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset())
+            applications={})
 
         original = Deployment(nodes=frozenset([node, another_node]))
         updated = original.update_node(updated_node)
@@ -618,21 +651,21 @@ class DeploymentTests(TestCase):
         original_nodes = [
             Node(
                 hostname=u"192.0.2.1",
-                applications=[application]
+                applications={application.name: application}
             ),
             Node(
                 hostname=u"192.0.2.2",
-                applications=[]
+                applications={}
             ),
         ]
         updated_nodes = [
             Node(
                 hostname=u"192.0.2.1",
-                applications=[]
+                applications={}
             ),
             Node(
                 hostname=u"192.0.2.2",
-                applications=[application]
+                applications={application.name: application}
             ),
         ]
         original = Deployment(nodes=original_nodes)
@@ -657,11 +690,11 @@ class DeploymentTests(TestCase):
         nodes = [
             Node(
                 hostname=u"192.0.2.1",
-                applications=[existing_application]
+                applications={existing_application.name: existing_application}
             ),
             Node(
                 hostname=u"192.0.2.2",
-                applications=[]
+                applications={}
             ),
         ]
         original = Deployment(nodes=nodes)
@@ -681,25 +714,25 @@ class DeploymentTests(TestCase):
         original_nodes = [
             Node(
                 hostname=u"192.0.2.1",
-                applications=[application]
+                applications={application.name: application}
             ),
             Node(
                 hostname=u"192.0.2.2",
-                applications=[]
+                applications={}
             ),
         ]
         updated_nodes = [
             Node(
                 hostname=u"192.0.2.1",
-                applications=[]
+                applications={}
             ),
             Node(
                 hostname=u"192.0.2.2",
-                applications=[]
+                applications={}
             ),
             Node(
                 hostname=u"192.0.2.3",
-                applications=[application]
+                applications={application.name: application}
             ),
         ]
         original = Deployment(nodes=original_nodes)
@@ -723,11 +756,11 @@ class DeploymentTests(TestCase):
         nodes = [
             Node(
                 hostname=u"192.0.2.1",
-                applications=[application]
+                applications={application.name: application}
             ),
             Node(
                 hostname=u"192.0.2.2",
-                applications=[]
+                applications={}
             ),
         ]
         original = Deployment(nodes=nodes)
@@ -1202,16 +1235,18 @@ class DeploymentStateTests(TestCase):
                                       primary=True)
         node = NodeState(
             hostname=u"node1.example.com",
-            applications={Application(
-                name=u'postgresql-clusterhq',
-                image=DockerImage.from_string(u"image"))},
+            applications={
+                u'postgresql-clusterhq': Application(
+                    name=u'postgresql-clusterhq',
+                    image=DockerImage.from_string(u"image"))},
             manifestations={dataset_id: manifestation},
             devices={}, paths={})
         another_node = NodeState(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(
-                name=u'site-clusterhq.com',
-                image=DockerImage.from_string(u"image"))}),
+            applications={
+                u'site-clusterhq.com': Application(
+                    name=u'site-clusterhq.com',
+                    image=DockerImage.from_string(u"image"))},
         )
         original = DeploymentState(nodes=[node])
         updated = original.update_node(another_node)
@@ -1230,9 +1265,10 @@ class DeploymentStateTests(TestCase):
                                       primary=True)
         end_node = NodeState(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(
-                name=u'site-clusterhq.com',
-                image=DockerImage.from_string(u"image"))}),
+            applications={
+                u'site-clusterhq.com': Application(
+                    name=u'site-clusterhq.com',
+                    image=DockerImage.from_string(u"image"))},
             paths={dataset_id: FilePath(b"/xxx")},
             devices={},
             manifestations={dataset_id: manifestation})
@@ -1398,7 +1434,7 @@ class NodeStateWipingTests(TestCase):
     Tests for ``NodeState.get_information_wipe``.
     """
     NODE_FROM_APP_AGENT = NodeState(hostname=u"1.2.3.4", uuid=uuid4(),
-                                    applications={APP1},
+                                    applications={APP1.name: APP1},
                                     manifestations=None,
                                     paths=None,
                                     devices=None)
@@ -1440,7 +1476,8 @@ class NodeStateWipingTests(TestCase):
         The ``IClusterStateWipe`` has the same key if it is wiping same
         attributes on same node.
         """
-        different_apps_node = self.NODE_FROM_APP_AGENT.set(applications={APP2})
+        different_apps_node = self.NODE_FROM_APP_AGENT.set(applications={
+            APP2.name: APP2})
 
         self.assertEqual(self.APP_WIPE.key(),
                          different_apps_node.get_information_wipe().key())

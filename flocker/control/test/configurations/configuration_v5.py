@@ -1,7 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
-# Generate a v4 configuration.
-# Hash to recreate: 90c95c82febaceda87aed770923b284fc71f0e3f
+# Generate a v5 configuration.
+# Hash to recreate: XXX: Put the hash of the commit here.
 
 from twisted.python.filepath import FilePath
 
@@ -9,7 +9,7 @@ from flocker.control._model import Configuration
 from flocker.control._persistence import wire_encode
 from flocker.control.test.test_persistence import TEST_DEPLOYMENTS
 
-_VERSION = 4
+_VERSION = 5
 
 if __name__ == "__main__":
     myfile = FilePath(__file__)

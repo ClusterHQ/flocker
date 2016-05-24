@@ -1296,7 +1296,7 @@ def deployment_from_configuration(deployment_state, deployment_configuration,
             raise ConfigurationError("No known node with address {}.".format(
                 hostname))
         node = Node(uuid=node_states[hostname].uuid,
-                    applications=frozenset(node_applications),
+                    applications={app.name: app for app in node_applications},
                     manifestations={app.volume.manifestation.dataset_id:
                                     app.volume.manifestation
                                     for app in node_applications

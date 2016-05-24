@@ -35,12 +35,6 @@
                     "volume": []
                 }
             },
-            "flocker.control._model.ApplicationPSet": {
-                "category": "set",
-                "type": [
-                    "flocker.control._model.Application"
-                ]
-            },
             "flocker.control._model.BlockDeviceOwnership": {
                 "category": "map",
                 "fields": {
@@ -147,7 +141,7 @@
                 "category": "record",
                 "fields": {
                     "applications": [
-                        "flocker.control._model.ApplicationPSet"
+                        "flocker.control._model.UnicodeApplicationPMap"
                     ],
                     "manifestations": [
                         "flocker.control._model.UnicodeManifestationPMap"
@@ -188,6 +182,17 @@
                     "flocker.control._model.Port"
                 ]
             },
+            "flocker.control._model.UnicodeApplicationPMap": {
+                "category": "map",
+                "fields": {
+                    "key": [
+                        "__builtin__.unicode"
+                    ],
+                    "value": [
+                        "flocker.control._model.Application"
+                    ]
+                }
+            },
             "flocker.control._model.UnicodeManifestationPMap": {
                 "category": "map",
                 "fields": {
@@ -210,5 +215,5 @@
         },
         "root": "flocker.control._model.Deployment"
     },
-    "version": "1.9.0.dev1+1180.ged9e3c5.dirty"
+    "version": "1.12.0+28.gfea2f5e"
 }
