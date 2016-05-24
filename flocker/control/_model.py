@@ -712,7 +712,7 @@ class Deployment(PClass):
     nodes = pmap_field(
         UUID, Node,
         invariant=_keys_match("uuid"),
-        factory=lambda x: _turn_lists_to_mapping_from_attribute('uuid', x)
+        factory=lambda x: _turn_iterable_to_mapping_from_attribute('uuid', x)
     )
     leases = field(type=Leases, mandatory=True, initial=Leases())
     persistent_state = field(type=PersistentState, initial=PersistentState())
@@ -1143,7 +1143,7 @@ class DeploymentState(PClass):
     nodes = pmap_field(
         UUID, NodeState,
         invariant=_keys_match("uuid"),
-        factory=lambda x: _turn_lists_to_mapping_from_attribute('uuid', x)
+        factory=lambda x: _turn_iterable_to_mapping_from_attribute('uuid', x)
     )
     node_uuid_to_era = pmap_field(UUID, UUID)
     nonmanifest_datasets = pmap_field(
