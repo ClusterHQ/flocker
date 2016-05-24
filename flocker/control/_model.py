@@ -111,10 +111,13 @@ def pmap_field(
     :param initial: An initial value for the field.  This will first be coerced
         using the field's factory.  If not given, the initial value is an empty
         map.
+    :param factory: A factory used to convert input arguments to the stored
+        value. Note that this will be composed with the constructor for the
+        ``CheckedPMap`` class constructed for this field.
 
     :return: A ``field`` containing a ``CheckedPMap``.
     """
-    fact = factory
+    input_factory = factory
 
     class TheMap(CheckedPMap):
         __key_type__ = key_type
@@ -123,19 +126,18 @@ def pmap_field(
                        value_type.__name__.capitalize() + "PMap")
 
     if optional:
-        def factory(argument, fact=fact):
+        def mapping_factory(argument):
             if argument is None:
                 return None
             else:
-                if fact:
-                    return TheMap(fact(argument))
-                else:
-                    return TheMap(argument)
+                return TheMap(argument)
     else:
-        if fact:
-            factory = lambda x, fact=fact: TheMap(fact(x))
-        else:
-            factory = TheMap
+        mapping_factory = TheMap
+
+    if input_factory:
+        factory = lambda x: mapping_factory(input_factory(x))
+    else:
+        factory = mapping_factory
 
     if initial is _UNDEFINED:
         initial = TheMap()
