@@ -39,8 +39,8 @@ docker-py
 effect
 eliot
 GitPython
---find-links https://github.com/ClusterHQ/pyrsistent/archive/v0.11.13+chq3.zip#egg=pyrsistent
-pyrsistent==0.11.13+chq3
+--find-links https://github.com/ClusterHQ/pyrsistent/archive/v0.11.13+chq4.zip#egg=pyrsistent-0.11.13+chq4
+pyrsistent==0.11.13+chq4
 python-dateutil
 pytz
 PyYAML
