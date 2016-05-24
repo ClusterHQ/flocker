@@ -66,8 +66,8 @@ python-novaclient
 oauth2client < 2.0.0
 pyOpenSSL
 psutil
---find-links https://github.com/ClusterHQ/pyrsistent/archive/v0.11.13+chq1.zip#egg=pyrsistent-0.11.13+chq1
-pyrsistent==0.11.13+chq1
+--find-links https://github.com/ClusterHQ/pyrsistent/archive/v0.11.13+chq3.zip#egg=pyrsistent
+pyrsistent==0.11.13+chq3
 pytz
 repoze.lru
 requests
