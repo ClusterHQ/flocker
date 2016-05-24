@@ -1325,7 +1325,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                     image=DockerImage.from_string(u"busybox"),
                 )
                 real_expected = expected
-                for node in expected.nodes:
+                for node in expected.nodes.values():
                     if node.uuid == self.NODE_B_UUID:
                         node = node.transform(
                             ["applications"], lambda s: s.set(
@@ -1426,7 +1426,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                 node = Node(uuid=new_uuid,
                             applications={application.name: application})
                 real_expected = expected.update_node(node)
-                for node in expected.nodes:
+                for node in expected.nodes.values():
                     if node.uuid == self.NODE_A_UUID:
                         node = node.transform(
                             ["applications"], lambda s: s.remove(
@@ -1534,7 +1534,7 @@ class DeleteContainerTestsMixin(APITestsMixin):
 
         def deleted(_):
             deployment = self.persistence_service.get()
-            origin = next(iter(deployment.nodes))
+            origin = next(iter(deployment.nodes.values()))
             self.assertEqual(list(origin.applications.values()), [])
         d.addCallback(deleted)
         return d
@@ -1554,7 +1554,7 @@ class DeleteContainerTestsMixin(APITestsMixin):
 
         def deleted(_):
             deployment = self.persistence_service.get()
-            origin = next(iter(deployment.nodes))
+            origin = next(iter(deployment.nodes.values()))
             self.assertEqual(
                 origin.applications,
                 pmap({
@@ -1653,7 +1653,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def failed(reason):
             deployment = self.persistence_service.get()
-            (node_a, node_b) = deployment.nodes
+            (node_a, node_b) = deployment.nodes.values()
             if node_a.uuid != self.NODE_A_UUID:
                 # They came out of the set backwards.
                 node_a, node_b = node_b, node_a
@@ -1759,12 +1759,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def created(ignored):
             deployment = self.persistence_service.get()
-            (node_a,) = (
-                node
-                for node
-                in deployment.nodes
-                if node.uuid == self.NODE_A_UUID
-            )
+            node_a = deployment.nodes[self.NODE_A_UUID]
             self.assertEqual(
                 # No state, just like it started.
                 Node(uuid=self.NODE_A_UUID),
@@ -2028,7 +2023,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
             def got_result(result):
                 deployment = self.persistence_service.get()
-                for node in deployment.nodes:
+                for node in deployment.nodes.values():
                     if node.uuid == target:
                         dataset_ids = [
                             (m.primary, m.dataset.dataset_id)
@@ -2245,7 +2240,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         deployment = self.persistence_service.get()
         expected_dataset_id = dataset.dataset_id
         # There's only one node:
-        origin = next(iter(deployment.nodes))
+        origin = next(iter(deployment.nodes.values()))
 
         expected_dataset = {
             u"dataset_id": expected_dataset_id,
@@ -2268,7 +2263,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
 
         def got_result(result):
             deployment = self.persistence_service.get()
-            for node in deployment.nodes:
+            for node in deployment.nodes.values():
                 if same_node(node, origin):
                     dataset_ids = [
                         (m.dataset.deleted, m.dataset.dataset_id)
@@ -2399,7 +2394,7 @@ def get_dataset_ids(deployment):
     :return: An iterator of ``unicode`` giving the unique identifiers of all of
         the datasets.
     """
-    for node in deployment.nodes:
+    for node in deployment.nodes.values():
         for manifestation in node.manifestations.values():
             yield manifestation.dataset.dataset_id
 
@@ -3290,7 +3285,7 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         and using it to replace the existing configuration.
         """
         self.cluster_state_service.apply_changes(
-            self.DEPLOYMENT_STATE.nodes)
+            self.DEPLOYMENT_STATE.nodes.values())
 
         configuration = {u"applications": COMPLEX_APPLICATION_YAML,
                          u"deployment": COMPLEX_DEPLOYMENT_YAML}
@@ -3325,7 +3320,7 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         appropriately.
         """
         self.cluster_state_service.apply_changes(
-            self.DEPLOYMENT_STATE.nodes)
+            self.DEPLOYMENT_STATE.nodes.values())
 
         fig_config = {
             u'wordpress': {
