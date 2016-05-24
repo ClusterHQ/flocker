@@ -4,8 +4,6 @@
 Hypothesis strategies for testing ``flocker.node.agents``.
 """
 
-from sys import maxint
-
 from hypothesis.strategies import (
     builds,
     integers,
@@ -19,7 +17,7 @@ from ..blockdevice import BlockDeviceVolume
 blockdevice_volumes = builds(
     BlockDeviceVolume,
     blockdevice_id=text(),
-    size=integers(min_value=1, max_value=maxint),
+    size=integers(min_value=0),
     attached_to=text() | none(),
     dataset_id=uuids(),
 )
