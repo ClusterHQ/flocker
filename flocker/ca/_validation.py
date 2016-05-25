@@ -14,7 +14,7 @@ from zope.interface import implementer
 
 from twisted.web.iweb import IPolicyForHTTPS
 from twisted.internet.ssl import optionsForClientTLS, Certificate
-from twisted.web.client import Agent, HTTPConnectionPool
+from twisted.web.client import Agent
 
 from treq.client import HTTPClient
 
@@ -118,9 +118,7 @@ def rest_api_context_factory(ca_certificate, control_credential):
         ca_certificate, control_credential, b"user-")
 
 
-def treq_with_authentication(
-        reactor, ca_path, user_cert_path, user_key_path,
-        persistent_connections=False):
+def treq_with_authentication(reactor, ca_path, user_cert_path, user_key_path):
     """
     Create a ``treq``-API object that implements the REST API TLS
     authentication.
@@ -132,8 +130,6 @@ def treq_with_authentication(
     :param FilePath ca_path: Absolute path to the public cluster certificate.
     :param FilePath user_cert_path: Absolute path to the user certificate.
     :param FilePath user_key_path: Absolute path to the user private key.
-    :param bool persistent_connections: Whether to use persistent connections
-        in the treq client that is created.
 
     :return: ``treq`` compatible object.
     """
@@ -141,7 +137,4 @@ def treq_with_authentication(
     user_credential = UserCredential.from_files(user_cert_path, user_key_path)
     policy = ControlServicePolicy(
         ca_certificate=ca, client_credential=user_credential.credential)
-    pool = None
-    if persistent_connections:
-        pool = HTTPConnectionPool(reactor, persistent_connections)
-    return HTTPClient(Agent(reactor, contextFactory=policy, pool=pool))
+    return HTTPClient(Agent(reactor, contextFactory=policy))

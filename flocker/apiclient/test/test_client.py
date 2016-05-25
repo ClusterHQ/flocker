@@ -28,8 +28,6 @@ from twisted.internet.defer import gatherResults
 from twisted.python.runtime import platform
 from twisted.python.procutils import which
 
-from testtools.matchers import Is, Not, Equals
-
 from .._client import (
     IFlockerAPIV1Client, FakeFlockerClient, Dataset, DatasetAlreadyExists,
     DatasetState, FlockerClient, ResponseError, _LOG_HTTP_REQUEST,
@@ -705,29 +703,11 @@ class FlockerClientTests(make_clientv1_tests()):
     """
     Interface tests for ``FlockerClient``.
     """
-
-    def _create_flocker_client(self, persistent_connections):
-        """
-        Create a new ``FlockerClient`` instance pointing at the REST API that
-        was set up during test setup.
-
-        :param bool persistent_connections: Whether to use persistent
-            connections in the Flocker client.
-
-        :return: ``FlockerClient`` instance.
-        """
-        self.assertThat(self.port, Not(Is(None)))
-        return FlockerClient(reactor, b"127.0.0.1", self.port,
-                             self.credentials_path.child(b"cluster.crt"),
-                             self.credentials_path.child(b"user.crt"),
-                             self.credentials_path.child(b"user.key"),
-                             persistent_connections=persistent_connections)
-
     @skipUnless(platform.isLinux(),
                 "flocker-node-era currently requires Linux.")
     @skipUnless(which("flocker-node-era"),
                 "flocker-node-era needs to be in $PATH.")
-    def create_client(self, persistent_connections=False):
+    def create_client(self):
         """
         Create a new ``FlockerClient`` instance pointing at a running control
         service REST API.
@@ -756,8 +736,8 @@ class FlockerClientTests(make_clientv1_tests()):
         self.addCleanup(self.cluster_state_service.stopService)
         self.addCleanup(self.persistence_service.stopService)
         credential_set, _ = get_credential_sets()
-        self.credentials_path = FilePath(self.mktemp())
-        self.credentials_path.makedirs()
+        credentials_path = FilePath(self.mktemp())
+        credentials_path.makedirs()
 
         api_service = create_api_service(
             self.persistence_service,
@@ -771,8 +751,11 @@ class FlockerClientTests(make_clientv1_tests()):
         api_service.startService()
         self.addCleanup(api_service.stopService)
 
-        credential_set.copy_to(self.credentials_path, user=True)
-        return self._create_flocker_client(False)
+        credential_set.copy_to(credentials_path, user=True)
+        return FlockerClient(reactor, b"127.0.0.1", self.port,
+                             credentials_path.child(b"cluster.crt"),
+                             credentials_path.child(b"user.crt"),
+                             credentials_path.child(b"user.key"))
 
     def synchronize_state(self):
         deployment = self.persistence_service.get()
@@ -813,21 +796,6 @@ class FlockerClientTests(make_clientv1_tests()):
                                     deleted=False,
                                     dataset_id=unicode(dataset_id)))))
         return d
-
-    @capture_logging(None)
-    def test_persistent_connections(self, logger):
-        """
-        ``FlockerClient`` can use a pool with persistent connections when
-        specified.
-        """
-        non_persistent = self._create_flocker_client(False)
-        persistent = self._create_flocker_client(True)
-        # This reaches a bit deep to determine if the correct bit is set, but
-        # it suffices to verify the plumbing is in place.
-        self.assertThat(non_persistent._treq._agent._pool.persistent,
-                        Equals(False))
-        self.assertThat(persistent._treq._agent._pool.persistent,
-                        Equals(True))
 
     @capture_logging(None)
     def test_cross_process_logging(self, logger):

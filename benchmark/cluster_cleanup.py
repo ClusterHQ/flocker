@@ -53,8 +53,7 @@ def main(reactor, args):
     user_cert = certificates_path.child(b"user.crt")
     user_key = certificates_path.child(b"user.key")
     client = FlockerClient(reactor, options['control-node'], REST_API_PORT,
-                           cluster_cert, user_cert, user_key,
-                           persistent_connections=True)
+                           cluster_cert, user_cert, user_key)
     return cleanup_cluster(client, options['wait'])
 
 

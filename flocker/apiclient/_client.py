@@ -578,8 +578,7 @@ class FlockerClient(object):
     A client for the Flocker V1 REST API.
     """
     def __init__(self, reactor, host, port,
-                 ca_cluster_path, cert_path, key_path,
-                 persistent_connections=False):
+                 ca_cluster_path, cert_path, key_path):
         """
         :param reactor: Reactor to use for connections.
         :param bytes host: Host to connect to.
@@ -589,10 +588,8 @@ class FlockerClient(object):
         :param FilePath key_path: Path to user private key.
         """
         self._reactor = reactor
-        self._treq = treq_with_authentication(
-            reactor, ca_cluster_path, cert_path, key_path,
-            persistent_connections=persistent_connections
-        )
+        self._treq = treq_with_authentication(reactor, ca_cluster_path,
+                                              cert_path, key_path)
         self._base_url = b"https://%s:%d/v1" % (host, port)
 
     def _request_with_headers(
