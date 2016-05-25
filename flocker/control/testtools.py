@@ -189,11 +189,11 @@ def docker_image_strategy(
 
 
 @composite
-def application_strategy(draw, min_num_ports=0):
+def application_strategy(draw, min_number_of_ports=0):
     num_ports = draw(
         st.integers(
-            min_value=min_num_ports,
-            max_value=3000
+            min_value=min_number_of_ports,
+            max_value=max(30, min_number_of_ports+1)
         )
     )
     return Application(
