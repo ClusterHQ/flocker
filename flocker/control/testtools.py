@@ -20,8 +20,14 @@ from ._protocol import (
 )
 from ._registry import IStatePersister, InMemoryStatePersister
 from ._model import (
-    DatasetAlreadyOwned, Lease, PersistentState, Node,
-    Deployment
+    Application,
+    DatasetAlreadyOwned,
+    Deployment,
+    DockerImage,
+    Lease,
+    Node,
+    PersistentState,
+    Port,
 )
 
 from ..testtools.amp import (
@@ -152,6 +158,11 @@ def make_loopback_control_client(test_case, reactor):
 
 
 @composite
+def unique_name_strategy(draw):
+    return unicode(draw(st.uuids()))
+
+
+@composite
 def persistent_state_strategy(draw):
     return PersistentState()
 
@@ -166,9 +177,55 @@ def lease_strategy(draw, dataset_id=st.uuids(), node_id=st.uuids()):
 
 
 @composite
-def node_strategy(draw):
+def docker_image_strategy(
+        draw,
+        repository_strategy=unique_name_strategy(),
+        tag_strategy=unique_name_strategy(),
+):
+    return DockerImage(
+        repository=draw(repository_strategy),
+        tag=draw(tag_strategy)
+    )
+
+
+@composite
+def application_strategy(draw, min_num_ports=0):
+    num_ports = draw(
+        st.integers(
+            min_value=min_num_ports,
+            max_value=3000
+        )
+    )
+    return Application(
+        name=draw(unique_name_strategy()),
+        image=draw(docker_image_strategy()),
+        ports=frozenset(
+            Port(
+                internal_port=8000+i,
+                external_port=8000+i+1
+            ) for i in xrange(num_ports)
+        )
+    )
+
+
+@composite
+def node_strategy(
+        draw,
+        uuid=st.uuids(),
+        applications=application_strategy()
+):
+    applications = draw(st.lists(
+        application_strategy(),
+        min_size=0,
+        average_size=2,
+        max_size=50
+    ))
     return Node(
-        uuid=draw(st.uuids())
+        uuid=draw(uuid),
+        applications={
+            a.name: a
+            for a in applications
+        }
     )
 
 
