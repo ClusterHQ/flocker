@@ -1,28 +1,3 @@
-# Run the command again, but include the test packages and omit any packages
-# which are already included via Flocker.
-#
-# sfood-imports --unified flocker \
-# | cut --delimiter '.' \
-#       --fields 1 \
-# | sort \
-# | uniq \
-# | egrep --file std_packages \
-#         --line-regexp \
-#         --invert-match \
-# | egrep --file requirements/flocker.txt.in \
-#         --line-regexp \
-#         --invert-match
-#
-# Inspect and fix the list by hand.
-#
-# Then create the pinned dependency file.
-#
-# pip install --requirement requirements/flocker-dev.txt.in
-# pip freeze --requirement requirements/flocker-dev.txt.in \
-# | egrep --file requirements/flocker.txt \
-#         --invert-match \
-#         --line-regexp
-#
 # The test suite uses network namespaces
 # nomenclature can only be installed on Linux
 nomenclature >= 0.1.0; 'linux' in sys_platform
