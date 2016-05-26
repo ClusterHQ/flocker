@@ -1,4 +1,6 @@
 apache-libcloud
+# The `aws` command is required by `admin.test.test_installer`.
+aws
 bitmath
 boto
 characteristic
