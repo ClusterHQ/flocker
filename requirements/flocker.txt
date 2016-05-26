@@ -1,42 +1,3 @@
-# The following list of immediate dependencies can be produced by install
-# snakefood and then running the following command line.
-#
-# Get a list of standard library packages so that we can omit those from our
-# requirements list.
-#
-# pip install stdlib-list
-#
-# python -c <<EOF  | cut --delimiter '.' --fields 1 | sort | uniq > std_packages
-#     from stdlib_list import stdlib_list
-#     print "\n".join(stdlib_list("2.7"))
-# EOF
-#
-# Install snakefood and use it to extract the non-dynamic Flocker imports.
-#
-# pip install snakefood
-#
-# sfood-imports --unified \
-#               --ignore acceptance \
-#               --ignore test \
-#               --ignore functional \
-#               flocker \
-# | cut --delimiter '.' \
-#       --fields 1 \
-# | sort \
-# | uniq \
-# | egrep --file std_packages \
-#         --line-regexp \
-#         --invert-match
-#
-# Then inspect the list by hand. Remove any false positives and replace package
-# names with the PyPI package name where necessary
-#
-# Then create the pinned dependency file as follows:
-#
-# mkvirtualenv $RANDOM
-# pip install --requirement requirements/flocker.txt.in
-# pip freeze --requirement requirements/flocker.txt.in > requirements/flocker.txt
-#
 # Libcloud is not detected by snakefood
 apache-libcloud==0.20.1
 bitmath==1.3.0.2
@@ -66,7 +27,7 @@ python-novaclient==4.0.0
 oauth2client==1.5.2
 pyOpenSSL==16.0.0
 psutil==4.2.0
---find-links https://github.com/ClusterHQ/pyrsistent/archive/v0.11.13+chq4.zip#egg=pyrsistent-0.11.13+chq4
+--find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq4#egg=pyrsistent-0.11.13+chq4
 pyrsistent==0.11.13+chq4
 pytz==2016.4
 repoze.lru==0.6
