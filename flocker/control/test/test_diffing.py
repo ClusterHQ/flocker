@@ -10,7 +10,7 @@ from cProfile import Profile
 
 from hypothesis import given
 
-from .._diffing import create_deployment_diff
+from .._diffing import create_diff
 from .._persistence import wire_encode, wire_decode
 from .._model import Node, Port
 from ..testtools import (
@@ -71,7 +71,7 @@ class DeploymentDiffTest(TestCase):
         Diffing two arbitrary deployments, then applying the diff to the first
         deployment yields the second.
         """
-        diff = create_deployment_diff(deployment_a, deployment_b)
+        diff = create_diff(deployment_a, deployment_b)
         serialized_diff = wire_encode(diff)
         newdiff = wire_decode(serialized_diff)
         should_b_b = newdiff.apply(deployment_a)
@@ -93,18 +93,26 @@ class DeploymentDiffTest(TestCase):
         d = reduce(lambda x, y: x.update_node(y), new_nodes, deployment)
         encoded_deployment = wire_encode(deployment)
 
-        diff = create_deployment_diff(deployment, d)
+        diff = create_diff(deployment, d)
         encoded_diff = wire_encode(diff)
         self.assertThat(
             len(encoded_diff),
             LessThan(len(encoded_deployment)/2)
         )
+        self.assertThat(
+            wire_decode(encoded_diff).apply(deployment),
+            Equals(d)
+        )
 
-        removal_diff = create_deployment_diff(d, deployment)
+        removal_diff = create_diff(d, deployment)
         encoded_removal_diff = wire_encode(removal_diff)
         self.assertThat(
             len(encoded_removal_diff),
             LessThan(len(encoded_deployment)/2)
+        )
+        self.assertThat(
+            wire_decode(encoded_removal_diff).apply(d),
+            Equals(deployment)
         )
         disable_profiling(p)
 
@@ -113,7 +121,8 @@ class DeploymentDiffTest(TestCase):
         Small modifications to a sets have diffs that are small.
         """
         # Any Application with a large set of ports will do, just use
-        # hypothesis for convenience of generating a large number of ports.
+        # hypothesis for convenience of generating a large number of ports on
+        # an application.
         application = application_strategy(min_number_of_ports=1000).example()
 
         new_ports = list(
@@ -126,16 +135,24 @@ class DeploymentDiffTest(TestCase):
         )
         encoded_application = wire_encode(application)
 
-        diff = create_deployment_diff(application, a)
+        diff = create_diff(application, a)
         encoded_diff = wire_encode(diff)
         self.assertThat(
             len(encoded_diff),
             LessThan(len(encoded_application)/2)
         )
+        self.assertThat(
+            wire_decode(encoded_diff).apply(application),
+            Equals(a)
+        )
 
-        removal_diff = create_deployment_diff(a, application)
+        removal_diff = create_diff(a, application)
         encoded_removal_diff = wire_encode(removal_diff)
         self.assertThat(
             len(encoded_removal_diff),
             LessThan(len(encoded_application)/2)
+        )
+        self.assertThat(
+            wire_decode(encoded_removal_diff).apply(a),
+            Equals(application)
         )
