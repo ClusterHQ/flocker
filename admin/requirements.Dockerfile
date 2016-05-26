@@ -9,6 +9,7 @@
 FROM quay.io/pypa/manylinux1_x86_64:latest
 MAINTAINER ClusterHQ <contact@clusterhq.com>
 COPY entrypoint /entrypoint
+RUN ["chmod", "+x", "/entrypoint"]
 # Some packages for compiling CFFI and cryptography
 RUN ["yum", "install", "-y", "libffi-devel", "openssl-devel"]
 RUN ["/opt/python/cp27-cp27m/bin/pip", "install", "pip==8.1.2"]
