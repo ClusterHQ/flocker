@@ -14,7 +14,7 @@ from pytz import UTC
 from eliot.testing import (
     validate_logging, assertHasMessage, assertHasAction, capture_logging)
 
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.extra.datetime import datetimes
 
@@ -683,7 +683,6 @@ class WireEncodeDecodeTests(TestCase):
         """
         self.assertIsInstance(wire_encode(TEST_DEPLOYMENT), bytes)
 
-    @settings(perform_health_check=False)
     @given(DEPLOYMENTS)
     def test_roundtrip(self, deployment):
         """
