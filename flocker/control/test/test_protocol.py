@@ -445,10 +445,10 @@ class ControlAMPTests(ControlTestCase):
         set of connections.
         """
         marker = object()
-        self.control_amp_service.connections.add(marker)
-        current = self.control_amp_service.connections.copy()
+        self.control_amp_service._connections.add(marker)
+        current = self.control_amp_service._connections.copy()
         self.protocol.makeConnection(StringTransportWithAbort())
-        self.assertEqual((current, self.control_amp_service.connections),
+        self.assertEqual((current, self.control_amp_service._connections),
                          ({marker}, {marker, self.protocol}))
 
     @capture_logging(assertHasAction, AGENT_CONNECTED, succeeded=True)
@@ -476,14 +476,14 @@ class ControlAMPTests(ControlTestCase):
         service's set of connections.
         """
         marker = object()
-        self.control_amp_service.connections.add(marker)
+        self.control_amp_service._connections.add(marker)
         # Patching is bad.
         # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(self.protocol, "callRemote",
                    lambda *args, **kwargs: succeed(None))
         self.protocol.makeConnection(StringTransportWithAbort())
         self.protocol.connectionLost(Failure(ConnectionLost()))
-        self.assertEqual(self.control_amp_service.connections, {marker})
+        self.assertEqual(self.control_amp_service._connections, {marker})
 
     def test_version(self):
         """

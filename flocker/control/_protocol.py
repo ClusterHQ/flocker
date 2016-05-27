@@ -517,6 +517,17 @@ class _UpdateState(PClass):
 CONTROL_SERVICE_BATCHING_DELAY = 1.0
 
 
+class _ConfigAndStateGeneration(PClass):
+    config_hash = field()
+    state_hash = field()
+
+
+class _Connection(PClass):
+    control_amp = field(type=ControlAMP)
+    last_recieved_generation = field(
+        type=(_ConfigAndStateGeneration, type(None)), initial=None)
+
+
 class ControlAMPService(Service):
     """
     Control Service AMP server.
@@ -548,7 +559,7 @@ class ControlAMPService(Service):
         :param endpoint: Endpoint to listen on.
         :param context_factory: TLS context factory.
         """
-        self.connections = set()
+        self._connections = set()
         self._reactor = reactor
         self._connections_pending_update = set()
         self._current_pending_update_delayed_call = None
@@ -574,7 +585,7 @@ class ControlAMPService(Service):
             self._current_pending_update_delayed_call.cancel()
             self._current_pending_update_delayed_call = None
         self.endpoint_service.stopService()
-        for connection in self.connections:
+        for connection in self._connections:
             connection.transport.loseConnection()
 
     def _send_state_to_connections(self, connections):
@@ -718,7 +729,7 @@ class ControlAMPService(Service):
         :param ControlAMP connection: The new connection.
         """
         with AGENT_CONNECTED(agent=connection):
-            self.connections.add(connection)
+            self._connections.add(connection)
             self._schedule_update([connection])
 
     def disconnected(self, connection):
@@ -727,7 +738,7 @@ class ControlAMPService(Service):
 
         :param ControlAMP connection: The lost connection.
         """
-        self.connections.remove(connection)
+        self._connections.remove(connection)
 
     def _execute_update_connections(self):
         """
@@ -773,7 +784,7 @@ class ControlAMPService(Service):
         so that if we receive multiple updates within that second they are
         coalesced down to a single update.
         """
-        self._schedule_update(self.connections)
+        self._schedule_update(self._connections)
 
     def node_changed(self, source, state_changes):
         """
