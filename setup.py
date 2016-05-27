@@ -36,7 +36,7 @@ def parse_requirements(requirements_file, dependency_links):
                 dependency_links.append(link)
             else:
                 (req,) = list(pkg_resources.parse_requirements(line))
-                if req.marker and not req.marker.evaluate():
+                if getattr(req, "marker") and not req.marker.evaluate():
                     continue
                 requirements.append(unicode(req))
     return requirements
