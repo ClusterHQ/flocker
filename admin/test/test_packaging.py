@@ -1434,32 +1434,6 @@ class BuildInDockerFunctionTests(TestCase):
             )
         )
 
-    def test_copies_requirements(self):
-        """
-        A requirements file is copied into the build directory.
-        """
-        supplied_distribution = 'Foo'
-        supplied_top_level = FilePath(self.mktemp())
-        expected_build_directory = supplied_top_level.descendant(
-            ['admin', 'build_targets', supplied_distribution])
-        expected_build_directory.makedirs()
-        requirements = 'some_requirement'
-        expected_build_directory.sibling('requirements.txt').setContent(
-            requirements)
-        supplied_destination_path = FilePath('/baz/qux')
-        expected_package_uri = 'http://www.example.com/foo/bar/whl'
-        build_in_docker(
-            destination_path=supplied_destination_path,
-            distribution=supplied_distribution,
-            top_level=supplied_top_level,
-            package_uri=expected_package_uri
-        )
-
-        self.assertEqual(
-            requirements,
-            expected_build_directory.child('requirements.txt').getContent()
-        )
-
 
 class MakeDependenciesTests(TestCase):
     """
