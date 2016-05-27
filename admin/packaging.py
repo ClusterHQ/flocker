@@ -1189,9 +1189,10 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
     # send the context directory (and subdirectories) to the docker daemon.
     # To work around this, we copy a shared requirements file into the build
     # directory.
-    requirements_file = build_targets_directory.child('requirements.txt')
-    tmp_requirements = build_directory.child('requirements.txt')
-    requirements_file.copyTo(tmp_requirements)
+    requirements_directory = top_level.child('requirements')
+    requirements_directory.copyTo(
+        build_directory.child('requirements')
+    )
 
     return BuildSequence(
         steps=[
