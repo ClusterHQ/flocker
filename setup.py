@@ -4,11 +4,58 @@
 Generate a Flocker package that can be deployed onto cluster nodes.
 """
 
+import pkg_resources
 from setuptools import setup, find_packages
 import versioneer
 
 with open("README.rst") as readme:
     description = readme.read()
+
+
+def parse_requirements(requirements_file, dependency_links):
+    """
+    Parse a requirements file.
+
+    Requirements that have an environment marker will only be included
+    in the list if the marker evaluates True.
+
+    ``--find-links`` lines will be added to the supplied ``dependency_links``
+    list.
+
+    XXX There's a package called ``pbr`` which is also supposed to do this
+    job. I couldn't get it to work --RichardW.
+    """
+    requirements = []
+    with open(requirements_file) as f:
+        for line in f:
+            line = line.rstrip()
+            if line.startswith('#'):
+                continue
+            elif line.startswith('--find-links'):
+                link = line.split(None, 1)[1]
+                print "DEPENDENCY LINK", link
+                dependency_links.append(link)
+            else:
+                (req,) = list(pkg_resources.parse_requirements(line))
+                if req.marker and not req.marker.evaluate():
+                    continue
+                requirements.append(unicode(req))
+    return requirements
+
+# Parse the ``.in`` files. This will allow the dependencies to float when
+# Flocker is installed using ``pip install .``.
+# It also allows Flocker to be imported as a package alongside other Python
+# libraries that may require different versions than those specified in
+# Flocker's pinned dependency files.
+dependency_links = []
+install_requires = parse_requirements(
+    "requirements/flocker.txt.in",
+    dependency_links,
+)
+dev_requires = parse_requirements(
+    "requirements/flocker-dev.txt.in",
+    dependency_links,
+)
 
 setup(
     # This is the human-targetted name of the software being packaged.
@@ -75,7 +122,18 @@ setup(
         ],
     },
 
+    install_requires=install_requires,
+
+    extras_require={
+        # This extra is for developers who need to work on Flocker itself.
+        "dev": dev_requires,
+    },
+
     cmdclass=versioneer.get_cmdclass(),
+
+    # Duplicate dependency links may have been added from different
+    # requirements files.
+    dependency_links=list(set(dependency_links)),
 
     # Some "trove classifiers" which are relevant.
     classifiers=[
