@@ -50,12 +50,6 @@ def requirements_list_from_file(requirements_file, dependency_links):
                         raise
                     if ";" not in line:
                         raise
-                    # Try and log some useful information before moving on.
-                    sys.stderr.write(
-                        u"WARNING: Skipping requirement on buildbot. "
-                        u"Line: {!r}, "
-                        u"Error: {}\n".format(line, message).encode("utf8")
-                    )
                     continue
                 if getattr(req, "marker", None) and not req.marker.evaluate():
                     continue
