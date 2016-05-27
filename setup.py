@@ -33,7 +33,6 @@ def parse_requirements(requirements_file, dependency_links):
                 continue
             elif line.startswith('--find-links'):
                 link = line.split(None, 1)[1]
-                print "DEPENDENCY LINK", link
                 dependency_links.append(link)
             else:
                 (req,) = list(pkg_resources.parse_requirements(line))
