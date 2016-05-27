@@ -4,7 +4,7 @@
 Generate a Flocker package that can be deployed onto cluster nodes.
 """
 
-import pkg_resources
+from pkg_resources import parse_requirements, RequirementParseError
 from setuptools import setup, find_packages
 import versioneer
 
@@ -12,7 +12,7 @@ with open("README.rst") as readme:
     description = readme.read()
 
 
-def parse_requirements(requirements_file, dependency_links):
+def requirements_list_from_file(requirements_file, dependency_links):
     """
     Parse a requirements file.
 
@@ -35,7 +35,22 @@ def parse_requirements(requirements_file, dependency_links):
                 link = line.split(None, 1)[1]
                 dependency_links.append(link)
             else:
-                (req,) = list(pkg_resources.parse_requirements(line))
+                try:
+                    parsed_requirements = parse_requirements(line)
+                except RequirementParseError as original_error:
+                    # XXX Buildbot has an old version of setuptools /
+                    # pkg_resources which can't parse environment markers.
+                    message = unicode(original_error)
+                    if not message.startswith("Expected version spec in "):
+                        raise
+                    if ";" not in line:
+                        raise
+                    simpler_requirement, marker = line.split(";", 1)
+                    # Try parsing just the package and version.
+                    parsed_requirements = parse_requirements(
+                        simpler_requirement
+                    )
+                (req,) = list(parsed_requirements)
                 if getattr(req, "marker", None) and not req.marker.evaluate():
                     continue
                 requirements.append(unicode(req))
@@ -47,11 +62,11 @@ def parse_requirements(requirements_file, dependency_links):
 # libraries that may require different versions than those specified in
 # Flocker's pinned dependency files.
 dependency_links = []
-install_requires = parse_requirements(
+install_requires = requirements_list_from_file(
     "requirements/flocker.txt.in",
     dependency_links,
 )
-dev_requires = parse_requirements(
+dev_requires = requirements_list_from_file(
     "requirements/flocker-dev.txt.in",
     dependency_links,
 )
