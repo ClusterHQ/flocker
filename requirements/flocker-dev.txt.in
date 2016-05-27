@@ -11,3 +11,6 @@ pyenchant
 pylint
 sphinx-prompt
 sphinxcontrib-spelling
+# XXX: This shouldn't be here. It's only needed by admin.packaging module but
+# buildbot doesn't install the admin dependencies
+virtualenv
