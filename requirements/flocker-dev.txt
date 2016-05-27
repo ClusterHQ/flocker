@@ -1,5 +1,8 @@
 # The test suite uses network namespaces
 # nomenclature can only be installed on Linux
+# The "linux2" marker value is specific to Python2
+# We can't use the "in" marker comparison because it isn't recognised by
+# setuptools, only by pkg_resources.
 nomenclature==0.1.1
 pycrypto==2.6.1
 # Sphinx docs dependencies
