@@ -4,6 +4,7 @@
 Generate a Flocker package that can be deployed onto cluster nodes.
 """
 
+import sys
 from os import environ
 from pkg_resources import parse_requirements, RequirementParseError
 from setuptools import setup, find_packages
@@ -49,12 +50,13 @@ def requirements_list_from_file(requirements_file, dependency_links):
                         raise
                     if ";" not in line:
                         raise
-                    simpler_requirement, marker = line.split(";", 1)
-                    # Try parsing just the package and version.
-                    parsed_requirements = parse_requirements(
-                        simpler_requirement
+                    # Try and log some useful information before moving on.
+                    sys.stderr.write(
+                        u"WARNING: Skipping requirement on buildbot. "
+                        u"Line: {!r}, "
+                        u"Error: {}\n".format(line, message).encode("utf8")
                     )
-                    (req,) = list(parsed_requirements)
+                    continue
                 if getattr(req, "marker", None) and not req.marker.evaluate():
                     continue
                 requirements.append(unicode(req))
