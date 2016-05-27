@@ -7,6 +7,6 @@
 FROM clusterhqci/fpm-ubuntu-wily
 MAINTAINER ClusterHQ <contact@clusterhq.com>
 COPY requirements/*.txt /requirements/
-RUN ["pip", "install", "-r", "/requirements/admin.txt"]
+RUN ["pip", "install", "-r", "/requirements/all.txt"]
 VOLUME /flocker
 ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]
