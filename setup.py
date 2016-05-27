@@ -4,6 +4,7 @@
 Generate a Flocker package that can be deployed onto cluster nodes.
 """
 
+from os import environ
 from pkg_resources import parse_requirements, RequirementParseError
 from setuptools import setup, find_packages
 import versioneer
@@ -41,6 +42,8 @@ def requirements_list_from_file(requirements_file, dependency_links):
                     # XXX Buildbot has an old version of setuptools /
                     # pkg_resources which can't parse environment markers.
                     message = unicode(original_error)
+                    if environ['HOME'] != "/srv/buildslave":
+                        raise
                     if not message.startswith("Expected version spec in "):
                         raise
                     if ";" not in line:
