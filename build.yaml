@@ -251,10 +251,13 @@ common_cli:
     # Set up the new venv.
     virtualenv -p python2.7 --clear ${venv}
     . ${venv}/bin/activate
-    # Report the version of Python and pip we're using, to aid debugging.
+    # Upgrade Python packaging tools.
+    ${venv}/bin/pip install pip==8.1.2 setuptools==21.2.1
+    # Report the versions to aid debugging.
     ${venv}/bin/python --version
-    ${venv}/bin/pip install --upgrade pip
     ${venv}/bin/pip --version
+    ${venv}/bin/python \
+        -c 'import setuptools; print "SETUPTOOLS_VERSION:", setuptools.__version__'
 
   setup_flocker_modules: &setup_flocker_modules |
     # installs all the required python modules as well as the flocker code.
