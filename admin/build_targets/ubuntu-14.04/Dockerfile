@@ -8,6 +8,9 @@ FROM clusterhqci/fpm-ubuntu-trusty
 MAINTAINER ClusterHQ <contact@clusterhq.com>
 COPY requirements/*.txt /requirements/
 RUN echo UMASK 022 >> /etc/logins.defs
-RUN ["pip", "install", "-r", "/requirements/all.txt"]
+RUN ["pip", "install", "--upgrade", "pip==8.1.2", "setuptools==21.2.1"]
+RUN ["pip", "install",\
+     "--requirement", "/requirements/all.txt",\
+     "--constraint", "/requirements/constraints.txt"]
 VOLUME /flocker
 ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]
