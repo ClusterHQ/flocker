@@ -24,13 +24,17 @@ from twisted.python.filepath import FilePath
 
 from pyrsistent import PClass, pset
 
+from testtools.matchers import Is, Equals, Not
+
+from ..testtools import deployment_strategy
+
 from ...testtools import AsyncTestCase, TestCase
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
     _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE,
-    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED, to_unserialized_json,
+    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED, to_unserialized_json, generation_hash
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -826,3 +830,57 @@ class LatestGoldenFilesValid(TestCase):
                 "an upgrade test if you are intentionally changing the "
                 "model." % (path.path,)
             )
+
+
+class GenerationHashTests(TestCase):
+    """
+    Tests for generation_hash.
+    """
+
+    @given(st.data())
+    def test_no_hash_collisions(self, data):
+        deployment_a = data.draw(deployment_strategy())
+        simple_comparison = data.draw(st.booleans())
+        if simple_comparison:
+            deployment_b = wire_decode(wire_encode(deployment_a))
+        else:
+            deployment_b = data.draw(deployment_strategy())
+
+        should_be_equal = (deployment_a == deployment_b)
+        if simple_comparison:
+            self.assertThat(
+                should_be_equal,
+                Is(True)
+            )
+
+        hash_a = generation_hash(deployment_a)
+        hash_b = generation_hash(deployment_b)
+
+        if should_be_equal:
+            self.assertThat(
+                hash_a,
+                Equals(hash_b)
+            )
+        else:
+            self.assertThat(
+                hash_a,
+                Not(Equals(hash_b))
+            )
+
+    def test_consistent_hash(self):
+        TEST_DEPLOYMENT_1_HASH = ''.join(chr(x) for x in [
+            113, 50, 104, 132, 238, 89, 183, 111,
+            80, 28, 220, 0, 143, 40, 196, 4
+        ])
+        TEST_DEPLOYMENT_2_HASH = ''.join(chr(x) for x in [
+            254, 239, 3, 230, 236, 90, 182, 30,
+            172, 61, 229, 95, 224, 47, 230, 148
+        ])
+        self.assertThat(
+            generation_hash(TEST_DEPLOYMENT_1),
+            Equals(TEST_DEPLOYMENT_1_HASH)
+        )
+        self.assertThat(
+            generation_hash(TEST_DEPLOYMENT_2),
+            Equals(TEST_DEPLOYMENT_2_HASH)
+        )

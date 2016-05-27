@@ -10,6 +10,8 @@ from datetime import datetime
 from json import dumps, loads
 from mmh3 import hash_bytes as mmh3_hash_bytes
 from uuid import UUID
+from collections import Set, Mapping, Iterable
+from itertools import repeat
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
@@ -243,11 +245,14 @@ def _is_pyrsistent(obj):
 
 
 _BASIC_JSON_TYPES = frozenset([str, unicode, int, long, float, bool])
-_BASIC_JSON_COLLECTIONS = frozenset([dict, list, tuple])
+_BASIC_JSON_LISTS = frozenset([list, tuple])
+_BASIC_JSON_COLLECTIONS = frozenset([dict]).union(_BASIC_JSON_LISTS)
+
+
+_UNCACHED_SENTINEL = object()
 
 
 _cached_dfs_serialize_cache = WeakKeyDictionary()
-_UNCACHED_SENTINEL = object()
 
 
 def _cached_dfs_serialize(input_object):
@@ -305,6 +310,55 @@ def _cached_dfs_serialize(input_object):
         _cached_dfs_serialize_cache[input_object] = result
 
     return result
+
+
+def generation_hash(input_object):
+    """
+    This computes the mmh3 hash for an input object, providing a consistent
+    hash of deeply persistent objects across python nodes and implementations.
+
+    :returns: An mm3 hash of input_object.
+    """
+    # Ensure this is a quick function for basic types:
+    # Note that ``type(x) in frozenset([str, int])`` is faster than
+    # ``isinstance(x, (str, int))``.
+    input_type = type(input_object)
+    if (
+            input_object is None or
+            input_type in _BASIC_JSON_TYPES
+    ):
+        return mmh3_hash_bytes(dumps(input_object))
+
+    object_to_process = input_object
+
+    if isinstance(input_object, PClass):
+        object_to_process = input_object._to_dict()
+
+    if isinstance(object_to_process, Mapping):
+        object_to_process = frozenset(object_to_process.iteritems())
+
+    if isinstance(object_to_process, Set):
+        def xor_bytes(a, b):
+            if a is None and b is None:
+                return None
+            if a is None:
+                a = repeat(b'\0')
+            if b is None:
+                b = repeat(b'\0')
+            return b''.join(chr(ord(a) ^ ord(b)) for (a, b) in zip(a, b))
+
+        if len(object_to_process) == 0:
+            return mmh3_hash_bytes('NULLSET')
+
+        sub_hashes = (generation_hash(x) for x in object_to_process)
+        return reduce(xor_bytes, sub_hashes)
+
+    if isinstance(object_to_process, Iterable):
+        return mmh3_hash_bytes(''.join(
+            generation_hash(x) for x in object_to_process
+        ))
+
+    return mmh3_hash_bytes(wire_encode(object_to_process))
 
 
 def wire_encode(obj):
