@@ -18,7 +18,9 @@ parser = argparse.ArgumentParser()
 args = parser.parse_args()
 
 check_call(
-    [PIP, "install", "--requirement", "/requirements.txt"],
+    [PIP, "install",
+     "--requirement", "/requirements.txt",
+     "--constraint", "/requirements/constraints.txt"],
     stdout=sys.stderr
 )
 

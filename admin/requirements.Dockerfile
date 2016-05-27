@@ -13,8 +13,9 @@ RUN ["chmod", "+x", "/entrypoint"]
 # Some packages for compiling CFFI and cryptography
 RUN ["yum", "install", "-y", "libffi-devel", "openssl-devel"]
 RUN ["/opt/python/cp27-cp27m/bin/pip", "install", "pip==8.1.2"]
-COPY requirements/*.txt /tmp/requirements/
+COPY requirements/*.txt /requirements/
 RUN ["/opt/python/cp27-cp27m/bin/pip", "download",\
-     "--dest", "/tmp/downloads",\
-     "--requirement", "/tmp/requirements/all.txt"]
+     "--dest", "/downloads",\
+     "--constraint", "/requirements/constraints.txt",\
+     "--requirement", "/requirements/all.txt"]
 ENTRYPOINT ["/entrypoint"]
