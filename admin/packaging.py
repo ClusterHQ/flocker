@@ -1109,7 +1109,9 @@ class DockerBuild(object):
     """
     def run(self):
         check_call(
-            ['docker', 'build', '--tag', self.tag, self.build_directory.path])
+            ['docker', 'build',
+             '--pull', '--tag', self.tag,
+             self.build_directory.path])
 
 
 @attributes(['tag', 'volumes', 'command'])
