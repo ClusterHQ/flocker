@@ -16,7 +16,7 @@ alabaster==0.7.8
 astroid==1.4.5
 Babel==2.3.4
 cffi==1.6.0
-colorama==0.3.7
+colorama==0.3.3
 docutils==0.12
 imagesize==0.7.1
 Jinja2==2.8

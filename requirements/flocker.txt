@@ -11,7 +11,7 @@ docutils==0.12
 effect==0.10.1
 eliot==0.11.0
 google-api-python-client==1.5.1
-hypothesis==3.2.0
+hypothesis==3.4.0
 ipaddr==2.1.11
 jsonschema==2.5.1
 keystoneauth1==2.7.0
