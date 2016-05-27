@@ -36,8 +36,9 @@ def requirements_list_from_file(requirements_file, dependency_links):
                 link = line.split(None, 1)[1]
                 dependency_links.append(link)
             else:
+                parsed_requirements = parse_requirements(line)
                 try:
-                    parsed_requirements = parse_requirements(line)
+                    (req,) = list(parsed_requirements)
                 except RequirementParseError as original_error:
                     # XXX Buildbot has an old version of setuptools /
                     # pkg_resources which can't parse environment markers.
@@ -53,7 +54,7 @@ def requirements_list_from_file(requirements_file, dependency_links):
                     parsed_requirements = parse_requirements(
                         simpler_requirement
                     )
-                (req,) = list(parsed_requirements)
+                    (req,) = list(parsed_requirements)
                 if getattr(req, "marker", None) and not req.marker.evaluate():
                     continue
                 requirements.append(unicode(req))
