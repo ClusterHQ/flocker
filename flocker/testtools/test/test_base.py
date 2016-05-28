@@ -332,18 +332,6 @@ def match_text_content(matcher):
     return AfterPreprocessing(lambda content: content.as_text(), matcher)
 
 
-def data_ends_with_separator(data, separator):
-    buffer = ''
-    for data_part in reversed(data):
-        buffer = data_part + buffer
-        if buffer.endswith(separator):
-            return True
-        else:
-            if len(buffer) >= len(separator):
-                return False
-    return False
-
-
 class IterLinesTests(TesttoolsTestCase):
     """
     Tests for ``_iter_lines``.
@@ -373,7 +361,9 @@ class IterLinesTests(TesttoolsTestCase):
         If the input data does not end with a separator, then every line ends
         with a separator *except* the last line.
         """
-        assume(not data_ends_with_separator(data, separator))
+        # Except when the data *ends* with the separator
+        # E.g. data = '\x00'; separator = '\x00'
+        assume(not b''.join(data).endswith(separator))
         observed = list(_iter_lines(iter(data), separator))
         self.expectThat(observed[:-1], AllMatch(EndsWith(separator)))
         self.assertThat(observed[-1], Not(EndsWith(separator)))
