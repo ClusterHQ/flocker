@@ -11,6 +11,8 @@ effect==0.10.1
 eliot==0.11.0
 GitPython==2.0.3
 ipaddr==2.1.11
+# Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL
+ndg-httpsclient==0.4.0
 --find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq4#egg=pyrsistent-0.11.13+chq4
 pyrsistent==0.11.13+chq4
 python-dateutil==2.5.3
@@ -29,10 +31,13 @@ attrs==16.0.0
 backports.ssl-match-hostname==3.5.0.1
 botocore==1.4.24
 cached-property==1.3.0
+cffi==1.6.0
 chardet==2.3.0
 colorama==0.3.3
 coloredlogs==5.0
+cryptography==1.3.2
 docutils==0.12
+enum34==1.1.6
 executor==9.11
 extras==1.0.0
 fasteners==0.14.1
@@ -40,6 +45,7 @@ fixtures==3.0.0
 futures==3.0.5
 gitdb==0.6.4
 humanfriendly==1.44.7
+idna==2.1
 ipaddress==1.0.16
 jmespath==0.9.0
 linecache2==1.0.0
@@ -47,6 +53,8 @@ monotonic==1.1
 pbr==1.10.0
 property-manager==1.3
 pyasn1==0.1.9
+pycparser==2.14
+pyOpenSSL==16.0.0
 python-debian==0.1.23
 python-mimeparse==1.5.2
 rsa==3.4.2
