@@ -562,7 +562,7 @@ class MigrateConfigurationTests(TestCase):
 DATASETS = st.builds(
     Dataset,
     dataset_id=st.uuids(),
-    maximum_size=st.integers(),
+    maximum_size=st.integers(min_value=1),
 )
 
 # UTC `datetime`s accurate to seconds
@@ -586,10 +586,14 @@ LEASES = st.builds(
 # due to having two differing manifestations of the same dataset id.
 MANIFESTATIONS = st.builds(
     Manifestation, primary=st.just(True), dataset=DATASETS)
-IMAGES = st.builds(DockerImage, tag=st.text(), repository=st.text())
+IMAGES = st.builds(
+    DockerImage,
+    tag=st.text(alphabet=string.letters, min_size=1),
+    repository=st.text(alphabet=string.letters, min_size=1),
+)
 NONE_OR_INT = st.one_of(
     st.none(),
-    st.integers()
+    st.integers(min_value=0)
 )
 ST_PORTS = st.integers(min_value=1, max_value=65535)
 PORTS = st.builds(
@@ -610,11 +614,11 @@ APPLICATIONS = st.builds(
     Application, name=st.text(), image=IMAGES,
     # A MemoryError will likely occur without the max_size limits on
     # Ports and Links. The max_size value that will trigger memory errors
-    # will vary system to system. 10 is a reasonable test range for realistic
+    # will vary system to system. 5 is a reasonable test range for realistic
     # container usage that should also not run out of memory on most modern
     # systems.
-    ports=st.sets(PORTS, max_size=10),
-    links=st.sets(LINKS, max_size=10),
+    ports=st.sets(PORTS, max_size=5),
+    links=st.sets(LINKS, max_size=5),
     volume=st.none() | VOLUMES,
     environment=st.dictionaries(keys=st.text(), values=st.text()),
     memory_limit=NONE_OR_INT,
