@@ -11,6 +11,8 @@ effect
 eliot
 GitPython
 ipaddr
+# Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL
+ndg-httpsclient
 --find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq4#egg=pyrsistent-0.11.13+chq4
 pyrsistent
 python-dateutil

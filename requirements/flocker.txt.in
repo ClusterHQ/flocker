@@ -21,6 +21,8 @@ python-keystoneclient-rackspace
 klein
 machinist
 mmh3
+# Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL
+ndg-httpsclient
 netifaces
 python-novaclient
 # FLOC-4411 oauth2client 2 no longer exports SignedJwtAssertionCredentials
