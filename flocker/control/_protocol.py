@@ -61,7 +61,7 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
-from ._persistence import wire_encode, wire_decode, generation_hash
+from ._persistence import wire_encode, wire_decode, make_generation_hash
 from ._model import (
     Deployment, DeploymentState, ChangeSource, UpdateNodeStateEra,
     BlockDeviceOwnership, DatasetAlreadyOwned, GenerationHash,
@@ -729,7 +729,9 @@ class ControlAMPService(Service):
                 connection.callRemote,
                 ClusterStatusCommand,
                 configuration=configuration,
+                configuration_generation=make_generation_hash(configuration),
                 state=state,
+                state_generation=make_generation_hash(state),
                 eliot_context=action
             ))
             d.addActionFinish()
@@ -920,14 +922,14 @@ class _AgentLocator(CommandLocator):
         return self.agent.logger
 
     def _set_configuration(self, configuration, verify_hash):
-        candidate_hash = generation_hash(configuration)
+        candidate_hash = make_generation_hash(configuration)
         if candidate_hash != verify_hash:
             raise ValueError('Bad hash value')
         self._current_configuration = configuration
         self._current_configuration_generation = candidate_hash
 
     def _set_state(self, state, verify_hash):
-        candidate_hash = generation_hash(state)
+        candidate_hash = make_generation_hash(state)
         if candidate_hash != verify_hash:
             raise ValueError('Bad hash value %s is not %s' % (candidate_hash,
                                                               verify_hash))
