@@ -118,6 +118,16 @@ def create_diff(object_a, object_b):
     return _Diff(changes=changes)
 
 
+def compose_diffs(iterable_of_diffs):
+    return _Diff(
+        changes=reduce(
+            lambda x, y: x.extend(y.changes),
+            iterable_of_diffs,
+            pvector().evolver()
+        ).persistent()
+    )
+
+
 DIFF_SERIALIZABLE_CLASSES = [
     _Set, _Remove, _Add, _Diff
 ]

@@ -9,8 +9,9 @@ from uuid import uuid4
 from cProfile import Profile
 
 from hypothesis import given
+import hypothesis.strategies as st
 
-from .._diffing import create_diff
+from .._diffing import create_diff, compose_diffs
 from .._persistence import wire_encode, wire_decode
 from .._model import Node, Port
 from ..testtools import (
@@ -78,6 +79,24 @@ class DeploymentDiffTest(TestCase):
         self.assertThat(
             should_b_b,
             Equals(deployment_b)
+        )
+
+    @given(
+        st.lists(deployment_strategy(), min_size=3, max_size=10)
+    )
+    def test_deployment_diffing_composable(self, deployments):
+        """
+        Diffs should compose to create an aggregate diff.
+        """
+        reserialize = lambda x: wire_decode(wire_encode(x))
+        deployment_diffs = list(
+            reserialize(create_diff(a, b))
+            for a, b in zip(deployments[:-1], deployments[1:])
+        )
+        full_diff = reserialize(compose_diffs(deployment_diffs))
+        self.assertThat(
+            full_diff.apply(deployments[0]),
+            Equals(deployments[-1])
         )
 
     def test_deployment_diffing_smart(self):
