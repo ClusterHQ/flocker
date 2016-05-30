@@ -138,10 +138,6 @@ class ClusterStatus(object):
         """
         self.convergence_loop_fsm = convergence_loop_fsm
         self.client = None
-        self._current_configuration = None
-        self._current_configuration_hash = None
-        self._current_state = None
-        self._current_state_hash = None
 
     def output_STORE_CLIENT(self, context):
         self.client = context.client
