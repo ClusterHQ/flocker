@@ -61,10 +61,13 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
-from ._persistence import wire_encode, wire_decode
+from ._persistence import wire_encode, wire_decode, generation_hash
 from ._model import (
     Deployment, DeploymentState, ChangeSource, UpdateNodeStateEra,
     BlockDeviceOwnership, DatasetAlreadyOwned, GenerationHash,
+)
+from ._diffing import (
+    Diff
 )
 
 PING_INTERVAL = timedelta(seconds=30)
@@ -229,11 +232,12 @@ class ClusterStatusCommand(Command):
                   Big(SerializableArgument(GenerationHash))),
                  ('eliot_context', _EliotActionArgument())]
     response = [
-         ('current_configuration_generation',
-          Big(SerializableArgument(GenerationHash))),
-         ('current_state_generation',
-          Big(SerializableArgument(GenerationHash))),
+        ('current_configuration_generation',
+         Big(SerializableArgument(GenerationHash))),
+        ('current_state_generation',
+         Big(SerializableArgument(GenerationHash))),
     ]
+
 
 class ClusterStatusDiffCommand(Command):
     """
@@ -255,10 +259,10 @@ class ClusterStatusDiffCommand(Command):
                   Big(SerializableArgument(GenerationHash))),
                  ('eliot_context', _EliotActionArgument())]
     response = [
-         ('current_configuration_generation',
-          Big(SerializableArgument(GenerationHash))),
-         ('current_state_generation',
-          Big(SerializableArgument(GenerationHash))),
+        ('current_configuration_generation',
+         Big(SerializableArgument(GenerationHash))),
+        ('current_state_generation',
+         Big(SerializableArgument(GenerationHash))),
     ]
 
 
@@ -861,26 +865,17 @@ class IConvergenceAgent(Interface):
         The client has disconnected from the control service.
         """
 
-    def cluster_updated(configuration, configuration_generation,
-                        cluster_state, state_generation):
+    def cluster_updated(configuration, cluster_state):
         """
         The cluster's desired configuration or actual state have changed.
 
         :param Deployment configuration: The desired configuration for the
             cluster.
 
-        :param GenerationHash configuration_generation: The expected hash value
-            of the configuration.
-
         :param Deployment cluster_state: The current state of the
             cluster. Mostly useful for what it tells the agent about
             non-local state, since the agent's knowledge of local state is
             canonical.
-
-        :param GenerationHash state_generation: The expected hash value of the
-            cluster_state.
-
-        :returns GenerationPair: The current generation of both the
         """
 
 
@@ -898,10 +893,10 @@ class _AgentLocator(CommandLocator):
         CommandLocator.__init__(self)
         self.agent = agent
         self._timeout = timeout
-        self._current_configuration=None
-        self._current_configuration_generation=None
-        self._current_state=None
-        self._current_state_generation=None
+        self._current_configuration = None
+        self._current_configuration_generation = None
+        self._current_state = None
+        self._current_state_generation = None
 
     def locateResponder(self, name):
         """
@@ -932,14 +927,34 @@ class _AgentLocator(CommandLocator):
         self._current_configuration_generation = candidate_hash
 
     def _set_state(self, state, verify_hash):
-        candidate_hash = generation_hash(stsate)
+        candidate_hash = generation_hash(state)
         if candidate_hash != verify_hash:
-            raise ValueError('Bad hash value %s is not %s', % (candidate_hash,
-                                                               verify_hash))
+            raise ValueError('Bad hash value %s is not %s' % (candidate_hash,
+                                                              verify_hash))
         self._current_state = state
         self._current_state_generation = candidate_hash
 
-    def _current_generations(self)
+    def _current_generations_response(self):
+        return {
+            'current_configuration_generation': (
+                self._current_configuration_generation
+            ),
+            'current_state_generation': (
+                self._current_state_generation
+            ),
+        }
+
+    def _update_agent(self):
+            self.agent.cluster_updated(
+                self._current_configuration,
+                self._current_state
+            )
+
+    def _update_cluster(self, configuration, configuration_generation,
+                        state, state_generation):
+        self._set_configuration(configuration, configuration_generation)
+        self._set_state(state, state_generation)
+        self._update_agent()
 
     @ClusterStatusCommand.responder
     def cluster_updated(
@@ -947,21 +962,41 @@ class _AgentLocator(CommandLocator):
             state, state_generation
     ):
         with eliot_context:
-            self._set_configuration(configuration, configuration_generation)
-            self._set_state(state, state_generation)
-            self.agent.cluster_updated(
-                configuration,
-                state
-            )
-            return {
-                'current_configuration_generation': (
-                    current_generations.configuration
-                ),
-                'current_state_generation': (
-                    current_generations.state
-                ),
-            }
+            self._update_cluster(configuration, configuration_generation,
+                                 state, state_generation)
+            return self._current_generations_response()
 
+    @ClusterStatusDiffCommand.responder
+    def cluster_updated_diff(
+            self, eliot_context,
+            configuration_diff,
+            start_configuration_generation,
+            end_configuration_generation,
+            state_diff,
+            start_state_generation,
+            end_state_generation,
+    ):
+        with eliot_context:
+            if (start_configuration_generation !=
+                    self._current_configuration_generation):
+                return self._current_generations_response()
+            if (start_state_generation !=
+                    self._current_state_generation):
+                return self._current_generations_response()
+
+            new_configuration = configuration_diff.apply(
+                self._current_configuration
+            )
+            new_state = state_diff.apply(
+                self._current_state
+            )
+            self._update_cluster(
+                new_configuration,
+                end_configuration_generation,
+                new_state,
+                end_state_generation
+            )
+            return self._current_generations_response()
 
 
 class AgentAMP(AMP):
