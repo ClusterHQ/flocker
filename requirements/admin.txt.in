@@ -1,0 +1,28 @@
+apache-libcloud
+# The `aws` command is required by the ``admin.installer``,
+# `admin.test.test_installer` and in the release process.
+awscli
+bitmath
+boto
+characteristic
+deb_pkg_tools
+docker-py
+effect
+eliot
+GitPython
+ipaddr
+# Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL
+ndg-httpsclient
+--find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq4#egg=pyrsistent-0.11.13+chq4
+pyrsistent
+python-dateutil
+pytz
+PyYAML
+requests
+requests_file
+testtools
+troposphere
+Twisted
+txeffect
+virtualenv
+zope.interface
