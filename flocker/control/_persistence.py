@@ -335,11 +335,11 @@ def generation_hash(input_object):
     ):
         if input_type == unicode or input_type == bytes:
             # Add a token to identify this as a string.
-            input_object = b''.join([_STR_TOKEN, bytes(input_object)])
+            object_to_process = b''.join([_STR_TOKEN, bytes(input_object)])
         else:
             # For non-string objects, just hash the JSON encoding.
-            input_object = dumps(input_object)
-        return mmh3_hash_bytes(input_object)
+            object_to_process = dumps(input_object)
+        return mmh3_hash_bytes(object_to_process)
 
     is_pyrsistent = _is_pyrsistent(input_object)
     if is_pyrsistent:
@@ -349,8 +349,8 @@ def generation_hash(input_object):
 
     object_to_process = input_object
 
-    if isinstance(input_object, PClass):
-        object_to_process = input_object._to_dict()
+    if isinstance(object_to_process, PClass):
+        object_to_process = object_to_process._to_dict()
 
     if isinstance(object_to_process, Mapping):
         object_to_process = frozenset(object_to_process.iteritems()).union(
@@ -369,6 +369,9 @@ def generation_hash(input_object):
         ))
     else:
         result = mmh3_hash_bytes(wire_encode(object_to_process))
+
+    if is_pyrsistent:
+        _generation_hash_cache[input_object] = result
 
     return result
 
