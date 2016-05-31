@@ -315,6 +315,8 @@ _NULLSET_TOKEN = mmh3_hash_bytes(b'NULLSET')
 _MAPPING_TOKEN = mmh3_hash_bytes(b'MAPPING')
 _STR_TOKEN = mmh3_hash_bytes(b'STRING')
 
+_generation_hash_cache = WeakKeyDictionary()
+
 
 def generation_hash(input_object):
     """
@@ -338,6 +340,12 @@ def generation_hash(input_object):
             # For non-string objects, just hash the JSON encoding.
             input_object = dumps(input_object)
         return mmh3_hash_bytes(input_object)
+
+    is_pyrsistent = _is_pyrsistent(input_object)
+    if is_pyrsistent:
+        cached = _generation_hash_cache.get(input_object, _UNCACHED_SENTINEL)
+        if cached is not _UNCACHED_SENTINEL:
+            return cached
 
     object_to_process = input_object
 
