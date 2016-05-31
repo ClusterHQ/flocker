@@ -2544,7 +2544,7 @@ class DeploymentFromConfigurationTests(TestCase):
             primary=True)
 
         applications = {
-            'mysql-hybridcluster': Application(
+            u'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
                 image=DockerImage.from_string('flocker/mysql'),
                 volume=AttachedVolume(
@@ -2566,7 +2566,7 @@ class DeploymentFromConfigurationTests(TestCase):
         expected = set([
             Node(
                 uuid=node_uuid,
-                applications=frozenset(applications.values()),
+                applications=applications,
                 manifestations={manifestation.dataset_id: manifestation},
             )
         ])
@@ -2623,9 +2623,9 @@ class ModelFromConfigurationTests(TestCase):
             nodes=frozenset([
                 Node(
                     uuid=node1_uuid,
-                    applications=frozenset([
-                        Application(
-                            name='mysql-hybridcluster',
+                    applications={
+                        u'mysql-hybridcluster': Application(
+                            name=u'mysql-hybridcluster',
                             image=DockerImage(
                                 repository='flocker/mysql',
                                 tag='v1.2.3'
@@ -2633,12 +2633,12 @@ class ModelFromConfigurationTests(TestCase):
                             ports=frozenset(),
                             links=frozenset(),
                         ),
-                    ])
+                    }
                 ),
                 Node(
                     uuid=node2_uuid,
-                    applications=frozenset([
-                        Application(
+                    applications={
+                        u'site-hybridcluster': Application(
                             name='site-hybridcluster',
                             image=DockerImage(
                                 repository='flocker/nginx',
@@ -2647,7 +2647,7 @@ class ModelFromConfigurationTests(TestCase):
                             ports=frozenset(),
                             links=frozenset(),
                         ),
-                    ])
+                    }
                 )
             ])
         )

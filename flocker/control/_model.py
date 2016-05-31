@@ -14,6 +14,7 @@ from uuid import UUID
 from warnings import warn
 from hashlib import md5
 from datetime import datetime, timedelta
+from collections import Mapping
 
 from characteristic import attributes
 from twisted.python.filepath import FilePath
@@ -97,7 +98,7 @@ _UNDEFINED = object()
 
 def pmap_field(
     key_type, value_type, optional=False, invariant=_valid,
-    initial=_UNDEFINED
+    initial=_UNDEFINED, factory=None
 ):
     """
     Create a checked ``PMap`` field.
@@ -110,9 +111,14 @@ def pmap_field(
     :param initial: An initial value for the field.  This will first be coerced
         using the field's factory.  If not given, the initial value is an empty
         map.
+    :param factory: A factory used to convert input arguments to the stored
+        value whenever it is set. Note that this will be composed with the
+        constructor for the ``CheckedPMap`` class constructed for this field.
 
     :return: A ``field`` containing a ``CheckedPMap``.
     """
+    input_factory = factory
+
     class TheMap(CheckedPMap):
         __key_type__ = key_type
         __value_type__ = value_type
@@ -120,13 +126,18 @@ def pmap_field(
                        value_type.__name__.capitalize() + "PMap")
 
     if optional:
-        def factory(argument):
+        def mapping_factory(argument):
             if argument is None:
                 return None
             else:
                 return TheMap(argument)
     else:
-        factory = TheMap
+        mapping_factory = TheMap
+
+    if input_factory:
+        factory = lambda x: mapping_factory(input_factory(x))
+    else:
+        factory = mapping_factory
 
     if initial is _UNDEFINED:
         initial = TheMap()
@@ -303,7 +314,7 @@ class Application(PClass):
 
     :ivar bool running: Whether or not the application is running.
     """
-    name = field(mandatory=True)
+    name = field(mandatory=True, type=unicode)
     image = field(mandatory=True, type=DockerImage)
     ports = pset_field(Port)
     volume = field(mandatory=True, initial=None)
@@ -414,6 +425,33 @@ def _keys_match(attribute):
 _keys_match_dataset_id = _keys_match("dataset_id")
 
 
+def _turn_iterable_to_mapping_from_attribute(attribute, obj, optional=False):
+    """
+    Given ``obj`` which is either something that is an instance of ``Mapping``
+    or an iterable, return something that implements ``Mapping`` from
+    ``getattr(o, attribute)`` to the value of the items in the iterable. This
+    funky signature is required to be a valid field factory function.
+
+    :param attribute: The name of the attribute that should be the key in the
+        resulting Mapping.
+    :param obj: Either something that is a Mapping (which is immediately
+        returned), or an iterable to be converted into a Mapping. If this is an
+        iterable, then all of the objects in the iterable must have an
+        attribute named ``attribute``.
+    :param optional bool: If True, pass None through this function. This allows
+        the underlying field to be optional
+
+    :returns: A Mapping of the items in ``obj`` from
+        ``getattr(o, attribute)`` to the items in obj (``o`` in ``obj``).
+    """
+    if optional:
+        if obj is None:
+            return None
+    if isinstance(obj, Mapping):
+        return obj
+    return {getattr(a, attribute): a for a in obj}
+
+
 class Node(PClass):
     """
     Configuration for a single node on which applications will be managed
@@ -424,8 +462,8 @@ class Node(PClass):
 
     :ivar UUID uuid: The unique identifier for the node.
 
-    :ivar applications: A ``PSet`` of ``Application`` instances describing
-        the applications which are to run on this ``Node``.
+    :ivar PMap applications: Mapping from application name to ``Application``
+        describing the applications which are to run on this ``Node``.
 
     :ivar PMap manifestations: Mapping between dataset IDs and
         corresponding ``Manifestation`` instances that are present on the
@@ -435,7 +473,7 @@ class Node(PClass):
     """
     def __invariant__(self):
         manifestations = self.manifestations.values()
-        for app in self.applications:
+        for app in self.applications.values():
             if app.volume is not None:
                 if app.volume.manifestation not in manifestations:
                     return (False, '%r manifestation is not on node' % (app,))
@@ -451,7 +489,10 @@ class Node(PClass):
         return PClass.__new__(cls, **kwargs)
 
     uuid = field(type=UUID, mandatory=True)
-    applications = pset_field(Application)
+    applications = pmap_field(
+        unicode, Application, invariant=_keys_match("name"),
+        factory=lambda x: _turn_iterable_to_mapping_from_attribute('name', x)
+    )
     manifestations = pmap_field(
         unicode, Manifestation, invariant=_keys_match_dataset_id
     )
@@ -690,7 +731,7 @@ class Deployment(PClass):
         :return: Iterable returning all applications.
         """
         for node in self.nodes:
-            for application in node.applications:
+            for application in node.applications.values():
                 yield application
 
     def update_node(self, node):
@@ -723,35 +764,35 @@ class Deployment(PClass):
         """
         deployment = self
         for node in deployment.nodes:
-            for container in node.applications:
-                if container.name == application.name:
-                    # We only need to perform a move if the node currently
-                    # hosting the container is not the node it's moving to.
-                    if not same_node(node, target_node):
-                        # If the container has a volume, we need to add the
-                        # manifestation to the new host first.
-                        if application.volume is not None:
-                            dataset_id = application.volume.dataset.dataset_id
-                            target_node = target_node.transform(
-                                ("manifestations", dataset_id),
-                                application.volume.manifestation
-                            )
-                        # Now we can add the application to the new host.
+            container = node.applications.get(application.name)
+            if container:
+                # We only need to perform a move if the node currently
+                # hosting the container is not the node it's moving to.
+                if not same_node(node, target_node):
+                    # If the container has a volume, we need to add the
+                    # manifestation to the new host first.
+                    if application.volume is not None:
+                        dataset_id = application.volume.dataset.dataset_id
                         target_node = target_node.transform(
-                            ["applications"], lambda s: s.add(application))
-                        # And remove it from the current host.
+                            ("manifestations", dataset_id),
+                            application.volume.manifestation
+                        )
+                    # Now we can remove it from the current host.
+                    node = node.transform(
+                        ["applications", application.name], discard)
+                    # Finally we can now remove the manifestation from the
+                    # current host too.
+                    if application.volume is not None:
+                        dataset_id = application.volume.dataset.dataset_id
                         node = node.transform(
-                            ["applications"], lambda s: s.remove(application))
-                        # Finally we can now remove the manifestation from the
-                        # current host too.
-                        if application.volume is not None:
-                            dataset_id = application.volume.dataset.dataset_id
-                            node = node.transform(
-                                ("manifestations", dataset_id), discard
-                            )
-                        # Before updating the deployment instance.
-                        deployment = deployment.update_node(node)
-                        deployment = deployment.update_node(target_node)
+                            ("manifestations", dataset_id), discard
+                        )
+                    # Now we can add the application to the new host.
+                    target_node = target_node.transform(
+                        ["applications", application.name], application)
+                    # Before updating the deployment instance.
+                    deployment = deployment.update_node(node)
+                    deployment = deployment.update_node(target_node)
         return deployment
 
 
@@ -939,8 +980,8 @@ class NodeState(PRecord):
 
     :ivar UUID uuid: The node's UUID.
     :ivar unicode hostname: The IP of the node.
-    :ivar applications: A ``PSet`` of ``Application`` instances on this node,
-        or ``None`` if the information is not known.
+    :ivar PMap applications: A ``PMap`` of application name to ``Application``
+        instances on this node, or ``None`` if the information is not known.
     :ivar PMap manifestations: Mapping between dataset IDs and corresponding
         ``Manifestation`` instances that are present on the node.  Includes
         both those attached as volumes to any applications, and those that are
@@ -983,7 +1024,15 @@ class NodeState(PRecord):
 
     uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    applications = pset_field(Application, optional=True, initial=None)
+    applications = pmap_field(
+        unicode, Application, optional=True, initial=None,
+        invariant=_keys_match("name"),
+        factory=(
+            lambda x: _turn_iterable_to_mapping_from_attribute(
+                'name', x, optional=True
+            )
+        )
+    )
     manifestations = pmap_field(unicode, Manifestation, optional=True,
                                 initial=None, invariant=_keys_match_dataset_id)
     paths = pmap_field(unicode, FilePath, optional=True, initial=None)

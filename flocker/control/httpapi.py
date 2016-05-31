@@ -152,7 +152,10 @@ def _extract_containers_state(deployment_state):
     """
     result = []
     for node in deployment_state.nodes:
-        for application in (node.applications or ()):
+        applications = ()
+        if node.applications is not None:
+            applications = node.applications.values()
+        for application in applications:
             container = container_configuration_response(
                 application, node.uuid)
             container[u"running"] = application.running
@@ -698,9 +701,8 @@ class ConfigurationAPIUserV1(object):
         # Check if container by this name already exists, if it does
         # return error.
         for node in deployment.nodes:
-            for application in node.applications:
-                if application.name == name:
-                    raise CONTAINER_NAME_COLLISION
+            if name in node.applications:
+                raise CONTAINER_NAME_COLLISION
 
         # Find the volume, if any; currently we only support one volume
         # https://clusterhq.atlassian.net/browse/FLOC-49
@@ -716,7 +718,7 @@ class ConfigurationAPIUserV1(object):
         # conflict, return an error.
         for port in ports:
             for current_node in deployment.nodes:
-                for application in current_node.applications:
+                for application in current_node.applications.values():
                     for application_port in application.ports:
                         if application_port.external_port == port['external']:
                             raise CONTAINER_PORT_COLLISION
@@ -774,7 +776,7 @@ class ConfigurationAPIUserV1(object):
 
         new_node_config = node.transform(
             ["applications"],
-            lambda s: s.add(application)
+            lambda s: s.set(application.name, application)
         )
 
         new_deployment = deployment.update_node(new_node_config)
@@ -826,21 +828,21 @@ class ConfigurationAPIUserV1(object):
         node_uuid = UUID(hex=node_uuid)
         target_node = deployment.get_node(node_uuid)
         for node in deployment.nodes:
-            for application in node.applications:
-                if application.name == name:
-                    deployment = deployment.move_application(
-                        application, target_node
+            application = node.applications.get(name)
+            if application:
+                deployment = deployment.move_application(
+                    application, target_node
+                )
+                saving = self.persistence_service.save(deployment)
+
+                def saved(_, application=application):
+                    result = container_configuration_response(
+                        application, node_uuid
                     )
-                    saving = self.persistence_service.save(deployment)
+                    return EndpointResponse(OK, result)
 
-                    def saved(_, application=application):
-                        result = container_configuration_response(
-                            application, node_uuid
-                        )
-                        return EndpointResponse(OK, result)
-
-                    saving.addCallback(saved)
-                    return saving
+                saving.addCallback(saved)
+                return saving
 
         # Didn't find the application:
         raise CONTAINER_NOT_FOUND
@@ -876,16 +878,16 @@ class ConfigurationAPIUserV1(object):
         deployment = self.persistence_service.get()
 
         for node in deployment.nodes:
-            for application in node.applications:
-                if application.name == name:
-                    updated_node = node.transform(
-                        ["applications"],
-                        lambda s, application=application: s.remove(
-                            application))
-                    d = self.persistence_service.save(
-                        deployment.update_node(updated_node))
-                    d.addCallback(lambda _: None)
-                    return d
+            application = node.applications.get(name)
+            if application:
+                updated_node = node.transform(
+                    ["applications"],
+                    lambda s, application=application: s.discard(
+                        application.name))
+                d = self.persistence_service.save(
+                    deployment.update_node(updated_node))
+                d.addCallback(lambda _: None)
+                return d
 
         # Didn't find the application:
         raise CONTAINER_NOT_FOUND
@@ -1264,7 +1266,7 @@ def _containers_from_deployment(deployment):
     """
     results = []
     for node in deployment.nodes:
-        for application in node.applications:
+        for application in node.applications.values():
             results.append(
                 container_configuration_response(application, node.uuid)
             )

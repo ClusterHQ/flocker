@@ -78,7 +78,7 @@ APP2 = Application(
     running=False)
 _TEST_DEPLOYMENT = Deployment(nodes=frozenset([
     Node(hostname=u'node1.example.com',
-         applications=frozenset([APP1, APP2]))]))
+         applications={a.name: a for a in [APP1, APP2]})]))
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 
@@ -102,10 +102,13 @@ def huge_node(node_prototype):
         replaced by a large collection of applications.
     """
     image = DockerImage.from_string(u'postgresql')
-    applications = [
-        Application(name=u'postgres-{}'.format(i), image=image)
-        for i in range(_MANY_CONTAINERS)
-    ]
+    applications = {
+        a.name: a
+        for a in [
+            Application(name=u'postgres-{}'.format(i), image=image)
+            for i in range(_MANY_CONTAINERS)
+        ]
+    }
     return node_prototype.set(applications=applications)
 
 
@@ -143,7 +146,7 @@ def huge_state():
     """
     return _huge(
         DeploymentState(),
-        NodeState(hostname=u'192.0.2.31', applications=[]),
+        NodeState(hostname=u'192.0.2.31', applications={}),
     )
 
 
@@ -151,11 +154,11 @@ def huge_state():
 # test failures.  It arbitrarily supplies only ports because integers have a
 # very simple representation.
 SIMPLE_NODE_STATE = NodeState(
-    hostname=u"192.0.2.17", uuid=uuid4(), applications=[],
+    hostname=u"192.0.2.17", uuid=uuid4(), applications={},
 )
 
 NODE_STATE = NodeState(hostname=u'node1.example.com',
-                       applications=[APP1, APP2],
+                       applications={a.name: a for a in [APP1, APP2]},
                        devices={}, paths={},
                        manifestations={MANIFESTATION.dataset_id:
                                        MANIFESTATION})
@@ -595,10 +598,12 @@ class ControlAMPTests(ControlTestCase):
             agent.cluster_updated_count for agent in agents)
 
         for i in xrange(10):
+            new_application_name = u'app-%d' % i
             new_state = NODE_STATE.set(
                 'applications',
-                NODE_STATE.applications.add(
-                    Application(name=('app-%d' % i),
+                NODE_STATE.applications.set(
+                    new_application_name,
+                    Application(name=new_application_name,
                                 image=DockerImage.from_string('image-%d' % i))
                 )
             )
@@ -636,7 +641,7 @@ class ControlAMPTests(ControlTestCase):
         AMP protocol can transmit node states with 800 applications.
         """
         node_prototype = NodeState(
-            hostname=u"192.0.3.13", uuid=uuid4(), applications=[],
+            hostname=u"192.0.3.13", uuid=uuid4(), applications={},
         )
         node = huge_node(node_prototype)
         d = self.client.callRemote(

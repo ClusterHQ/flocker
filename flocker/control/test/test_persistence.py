@@ -51,15 +51,17 @@ MANIFESTATION = Manifestation(dataset=DATASET, primary=True)
 TEST_DEPLOYMENT_1 = Deployment(
     leases=Leases(),
     nodes=[Node(uuid=NODE_UUID,
-                applications=[
+                applications={
+                    u'myapp':
                     Application(
                         name=u'myapp',
                         image=DockerImage.from_string(u'postgresql:7.6'),
                         volume=AttachedVolume(
                             manifestation=MANIFESTATION,
                             mountpoint=FilePath(b"/xxx/yyy"))
-                    )],
-                manifestations={DATASET.dataset_id: MANIFESTATION})]
+                    )
+                },
+                manifestations={DATASET.dataset_id: MANIFESTATION})],
 )
 TEST_DEPLOYMENT_2 = TEST_DEPLOYMENT_1.set(
     'persistent_state', PersistentState(
@@ -646,7 +648,7 @@ def _build_node(applications):
         .map(lambda ms: dict((m.dataset.dataset_id, m) for m in ms)))
     return st.builds(
         Node, uuid=st.uuids(),
-        applications=st.just(applications),
+        applications=st.just({a.name: a for a in applications}),
         manifestations=manifestations)
 
 
