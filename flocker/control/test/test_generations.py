@@ -47,7 +47,6 @@ class GenerationTrackerTests(TestCase):
         for d in deployments:
             tracker_under_test.insert_latest(d)
 
-
         missing_diff = tracker_under_test.get_diff_from_hash_to_latest(
             make_generation_hash(deployments[0]),)
         self.assertThat(
