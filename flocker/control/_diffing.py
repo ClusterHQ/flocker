@@ -119,7 +119,7 @@ def create_diff(object_a, object_b):
 
 
 def compose_diffs(iterable_of_diffs):
-    return _Diff(
+    return Diff(
         changes=reduce(
             lambda x, y: x.extend(y.changes),
             iterable_of_diffs,
