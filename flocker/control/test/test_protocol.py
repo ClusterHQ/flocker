@@ -50,7 +50,7 @@ from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset, DeploymentState, NonManifestDatasets,
 )
-from .._persistence import wire_encode
+from .._persistence import wire_encode, make_generation_hash
 from .clusterstatetools import advance_some, advance_rest
 
 
@@ -445,10 +445,10 @@ class ControlAMPTests(ControlTestCase):
         set of connections.
         """
         marker = object()
-        self.control_amp_service.connections.add(marker)
-        current = self.control_amp_service.connections.copy()
+        self.control_amp_service._connections.add(marker)
+        current = self.control_amp_service._connections.copy()
         self.protocol.makeConnection(StringTransportWithAbort())
-        self.assertEqual((current, self.control_amp_service.connections),
+        self.assertEqual((current, self.control_amp_service._connections),
                          ({marker}, {marker, self.protocol}))
 
     @capture_logging(assertHasAction, AGENT_CONNECTED, succeeded=True)
@@ -468,7 +468,11 @@ class ControlAMPTests(ControlTestCase):
             sent[0],
             (((ClusterStatusCommand,),
               dict(configuration=_TEST_DEPLOYMENT,
-                   state=cluster_state))))
+                   configuration_generation=make_generation_hash(
+                       _TEST_DEPLOYMENT
+                   ),
+                   state=cluster_state,
+                   state_generation=make_generation_hash(cluster_state)))))
 
     def test_connection_lost(self):
         """
@@ -476,14 +480,14 @@ class ControlAMPTests(ControlTestCase):
         service's set of connections.
         """
         marker = object()
-        self.control_amp_service.connections.add(marker)
+        self.control_amp_service._connections.add(marker)
         # Patching is bad.
         # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(self.protocol, "callRemote",
                    lambda *args, **kwargs: succeed(None))
         self.protocol.makeConnection(StringTransportWithAbort())
         self.protocol.connectionLost(Failure(ConnectionLost()))
-        self.assertEqual(self.control_amp_service.connections, {marker})
+        self.assertEqual(self.control_amp_service._connections, {marker})
 
     def test_version(self):
         """
@@ -1155,7 +1159,9 @@ class AgentClientTests(TestCase):
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=configuration,
+            configuration_generation=make_generation_hash(configuration),
             state=actual,
+            state_generation=make_generation_hash(actual),
             eliot_context=TEST_ACTION
         )
 
@@ -1170,7 +1176,9 @@ class AgentClientTests(TestCase):
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=Deployment(),
+            configuration_generation=make_generation_hash(Deployment()),
             state=state,
+            state_generation=make_generation_hash(state),
             eliot_context=TEST_ACTION,
         )
         self.successResultOf(d)
@@ -1185,7 +1193,9 @@ class AgentClientTests(TestCase):
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=_TEST_DEPLOYMENT,
+            configuration_generation=make_generation_hash(_TEST_DEPLOYMENT),
             state=actual,
+            state_generation=make_generation_hash(actual),
             eliot_context=TEST_ACTION
         )
 
@@ -1286,7 +1296,8 @@ class ClusterStatusCommandTests(TestCase):
         ClusterStatusCommand requires the following arguments.
         """
         self.assertItemsEqual(
-            ['configuration', 'state', 'eliot_context'],
+            ['configuration', 'configuration_generation', 'state',
+             'state_generation', 'eliot_context'],
             (v[0] for v in ClusterStatusCommand.arguments))
 
 

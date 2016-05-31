@@ -26,7 +26,9 @@ from twisted.internet.task import LoopingCall
 
 from weakref import WeakKeyDictionary
 
-from ._model import SERIALIZABLE_CLASSES, Deployment, Configuration
+from ._model import (
+    SERIALIZABLE_CLASSES, Deployment, Configuration, GenerationHash
+)
 
 # The class at the root of the configuration tree.
 ROOT_CLASS = Deployment
@@ -359,6 +361,12 @@ def generation_hash(input_object):
         ))
 
     return mmh3_hash_bytes(wire_encode(object_to_process))
+
+
+def make_generation_hash(x):
+    return GenerationHash(
+        hash_value=generation_hash(x)
+    )
 
 
 def wire_encode(obj):

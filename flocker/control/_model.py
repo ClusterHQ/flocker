@@ -1226,10 +1226,32 @@ class NonManifestDatasets(PClass):
         return NoWipe()
 
 
+def _generation_hash_value_factory(x):
+    if x is None:
+        return x
+    transform = lambda y: y
+    if isinstance(x, bytes):
+        transform = ord
+    return tuple(transform(i) for i in x)
+
+
+class GenerationHash(PClass):
+    """
+    Generation hash uniquely defines a configuration or state. A value of None
+    indicates that there is no configuration or state known.
+    """
+
+    hash_value = field(
+        type=(tuple, type(None)),
+        mandatory=True,
+        factory=_generation_hash_value_factory
+    )
+
+
 # Classes that can be serialized to disk or sent over the network:
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
     NodeState, DeploymentState, NonManifestDatasets, Configuration,
-    Lease, Leases, PersistentState
+    Lease, Leases, PersistentState, GenerationHash
 ] + DIFF_SERIALIZABLE_CLASSES

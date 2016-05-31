@@ -46,7 +46,7 @@ class _Add(PClass):
         return obj.transform(self.path, lambda x: x.add(self.item))
 
 
-class _Diff(PClass):
+class Diff(PClass):
     changes = field(
         type=PVector,
         factory=freeze
@@ -115,7 +115,7 @@ def _create_diffs_for(current_path, subobj_a, subobj_b):
 
 def create_diff(object_a, object_b):
     changes = _create_diffs_for(pvector([]), object_a, object_b)
-    return _Diff(changes=changes)
+    return Diff(changes=changes)
 
 
 def compose_diffs(iterable_of_diffs):
@@ -129,5 +129,5 @@ def compose_diffs(iterable_of_diffs):
 
 
 DIFF_SERIALIZABLE_CLASSES = [
-    _Set, _Remove, _Add, _Diff
+    _Set, _Remove, _Add, Diff
 ]

@@ -773,7 +773,7 @@ class ConfigurationMigrationTests(TestCase):
     def test_upgrade_configuration_versions(self, versions):
         """
         A range of versions can be upgraded and the configuration
-        blob after upgrade will matche that which is expected for the
+        blob after upgrade will match that which is expected for the
         particular version.
 
         See flocker/control/test/configurations for individual
