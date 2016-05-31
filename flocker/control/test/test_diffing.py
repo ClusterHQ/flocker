@@ -16,7 +16,8 @@ from .._persistence import wire_encode, wire_decode
 from .._model import Node, Port
 from ..testtools import (
     application_strategy,
-    deployment_strategy
+    deployment_strategy,
+    related_deployments_strategy
 )
 
 from ...testtools import TestCase
@@ -64,14 +65,14 @@ class DeploymentDiffTest(TestCase):
     """
 
     @given(
-        deployment_strategy(),
-        deployment_strategy(),
+        related_deployments_strategy(2)
     )
-    def test_deployment_diffing(self, deployment_a, deployment_b):
+    def test_deployment_diffing(self, deployments):
         """
         Diffing two arbitrary deployments, then applying the diff to the first
         deployment yields the second.
         """
+        deployment_a, deployment_b = deployments
         diff = create_diff(deployment_a, deployment_b)
         serialized_diff = wire_encode(diff)
         newdiff = wire_decode(serialized_diff)

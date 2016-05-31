@@ -193,7 +193,7 @@ def application_strategy(draw, min_number_of_ports=0):
     num_ports = draw(
         st.integers(
             min_value=min_number_of_ports,
-            max_value=max(30, min_number_of_ports+1)
+            max_value=max(8, min_number_of_ports+1)
         )
     )
     return Application(
@@ -218,7 +218,7 @@ def node_strategy(
         application_strategy(),
         min_size=0,
         average_size=2,
-        max_size=50
+        max_size=10
     ))
     return Node(
         uuid=draw(uuid),
@@ -230,15 +230,47 @@ def node_strategy(
 
 
 @composite
-def deployment_strategy(draw, min_number_of_nodes=1):
-    nodes = draw(
+def node_uuid_pool_strategy(draw, min_number_of_nodes=1):
+    max_number_of_nodes = max(min_number_of_nodes, 50)
+    return draw(
         st.lists(
-            node_strategy(),
+            uuids(),
             min_size=min_number_of_nodes,
-            average_size=max(min_number_of_nodes, 5),
-            max_size=max(min_number_of_nodes, 1000)
+            max_size=max_number_of_nodes
         )
     )
+
+
+@composite
+def deployment_strategy(
+        draw,
+        min_number_of_nodes=1,
+        node_uuid_pool=None,
+        application_name_pool=None,
+):
+    if node_uuid_pool is None:
+        node_uuid_pool = draw(
+            node_uuid_pool_strategy(min_number_of_nodes)
+        )
+
+    max_number_of_nodes = len(node_uuid_pool)
+    node_uuids = list(
+        node_uuid_pool[i]
+        for i in draw(
+            st.sets(
+                st.integers(min_value=0, max_value=(max_number_of_nodes-1)),
+                min_size=min_number_of_nodes,
+                average_size=max(min_number_of_nodes,
+                                 int(0.9*max_number_of_nodes)),
+                max_size=max_number_of_nodes
+            )
+        )
+    )
+
+    nodes = list(
+        draw(node_strategy(uuid=st.just(uuid))) for uuid in node_uuids
+    )
+
     dataset_id_node_mapping = {}
     for node in nodes:
         for dataset_id in node.manifestations:
@@ -266,4 +298,13 @@ def deployment_strategy(draw, min_number_of_nodes=1):
         nodes={n.uuid: n for n in nodes},
         leases={l.dataset_id: l for l in leases},
         persistent_state=persistent_state
+    )
+
+
+@composite
+def related_deployments_strategy(draw, number_of_deployments):
+    node_uuid_pool = draw(node_uuid_pool_strategy())
+    return tuple(
+        draw(deployment_strategy(node_uuid_pool=node_uuid_pool))
+        for _ in xrange(number_of_deployments)
     )
