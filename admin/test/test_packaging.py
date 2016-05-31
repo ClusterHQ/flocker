@@ -25,7 +25,7 @@ from ..packaging import (
     BuildPackage, BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
-    Dependency, build_in_docker, DockerBuild, DockerRun,
+    Dependency, build_in_docker,
     PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE, PACKAGE_DOCKER_PLUGIN,
     make_dependencies, available_distributions,
     LintPackage,
@@ -898,10 +898,10 @@ class OmnibusPackageBuilderTests(TestCase):
             steps=(
                 # clusterhq-python-flocker steps
                 InstallVirtualEnv(virtualenv=virtualenv),
-                InstallApplication(virtualenv=virtualenv,
-                                   package_uri='pip==8.1.1'),
-                InstallApplication(virtualenv=virtualenv,
-                                   package_uri='-r/flocker/requirements.txt'),
+                InstallApplication(
+                    virtualenv=virtualenv,
+                    package_uri='-r/flocker/requirements/flocker.txt'
+                ),
                 InstallApplication(
                     virtualenv=VirtualEnv(root=expected_virtualenv_path),
                     package_uri=b'https://www.example.com/foo/Bar-1.2.3.whl',
@@ -1386,79 +1386,6 @@ class BuildScriptTests(TestCase):
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)
-
-
-class BuildInDockerFunctionTests(TestCase):
-    """
-    Tests for ``build_in_docker``.
-    """
-    def test_steps(self):
-        """
-        ``build_in_docker`` returns a ``BuildSequence`` comprising
-        ``DockerBuild`` and ``DockerRun`` instances.
-        """
-        supplied_distribution = 'Foo'
-        expected_tag = 'clusterhq/build-%s' % (supplied_distribution,)
-        supplied_top_level = FilePath(self.mktemp())
-        expected_build_directory = supplied_top_level.descendant(
-            ['admin', 'build_targets', supplied_distribution])
-        expected_build_directory.makedirs()
-        expected_build_directory.sibling('requirements.txt').setContent('')
-        supplied_destination_path = FilePath('/baz/qux')
-        expected_volumes = {
-            FilePath('/output'): supplied_destination_path,
-            FilePath('/flocker'): supplied_top_level,
-        }
-        expected_package_uri = 'http://www.example.com/foo/bar/whl'
-
-        assert_equal_steps(
-            test_case=self,
-            expected=BuildSequence(
-                steps=[
-                    DockerBuild(
-                        tag=expected_tag,
-                        build_directory=expected_build_directory
-                    ),
-                    DockerRun(
-                        tag=expected_tag,
-                        volumes=expected_volumes,
-                        command=[expected_package_uri]
-                    ),
-                ]
-            ),
-            actual=build_in_docker(
-                destination_path=supplied_destination_path,
-                distribution=supplied_distribution,
-                top_level=supplied_top_level,
-                package_uri=expected_package_uri,
-            )
-        )
-
-    def test_copies_requirements(self):
-        """
-        A requirements file is copied into the build directory.
-        """
-        supplied_distribution = 'Foo'
-        supplied_top_level = FilePath(self.mktemp())
-        expected_build_directory = supplied_top_level.descendant(
-            ['admin', 'build_targets', supplied_distribution])
-        expected_build_directory.makedirs()
-        requirements = 'some_requirement'
-        expected_build_directory.sibling('requirements.txt').setContent(
-            requirements)
-        supplied_destination_path = FilePath('/baz/qux')
-        expected_package_uri = 'http://www.example.com/foo/bar/whl'
-        build_in_docker(
-            destination_path=supplied_destination_path,
-            distribution=supplied_distribution,
-            top_level=supplied_top_level,
-            package_uri=expected_package_uri
-        )
-
-        self.assertEqual(
-            requirements,
-            expected_build_directory.child('requirements.txt').getContent()
-        )
 
 
 class MakeDependenciesTests(TestCase):

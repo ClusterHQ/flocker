@@ -29,7 +29,7 @@ from characteristic import attributes
 from hypothesis import given, note, assume
 from hypothesis.strategies import (
     uuids, text, lists, just, integers, builds, sampled_from,
-    dictionaries, tuples, booleans,
+    dictionaries, tuples, booleans, random_module,
 )
 
 from testtools.matchers import Equals
@@ -149,7 +149,7 @@ DISCOVERED_DATASET_STRATEGY = tagged_union_strategy(
     DiscoveredDataset,
     {
         'dataset_id': uuids(),
-        'maximum_size': integers(min_value=1),
+        'maximum_size': integers(min_value=512),
         'mount_point': builds(FilePath, sampled_from([
             '/flocker/abc', '/flocker/xyz',
         ])),
@@ -169,12 +169,7 @@ _METADATA_STRATEGY = text(average_size=3, min_size=1, alphabet="CGAT")
 
 DESIRED_DATASET_ATTRIBUTE_STRATEGIES = {
     'dataset_id': uuids(),
-    'maximum_size': integers(min_value=0).map(
-        lambda n: (
-            LOOPBACK_MINIMUM_ALLOCATABLE_SIZE +
-            n * LOOPBACK_ALLOCATION_UNIT
-        )
-    ),
+    'maximum_size': just(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE),
     'metadata': dictionaries(keys=_METADATA_STRATEGY,
                              values=_METADATA_STRATEGY),
     'mount_point': builds(FilePath, sampled_from([
@@ -1404,6 +1399,9 @@ class BlockDeviceCalculatorTests(TestCase):
         """
         Cleanup after running a hypothesis example.
         """
+        deployer = getattr(self, 'deployer', None)
+        if deployer is None:
+            return
         umount_all(self.deployer.mountroot)
         detach_destroy_volumes(self.deployer.block_device_api)
 
@@ -1470,9 +1468,10 @@ class BlockDeviceCalculatorTests(TestCase):
     @given(
         two_dataset_states=TWO_DESIRED_DATASET_STRATEGY,
         eventually_consistent=booleans(),
+        random=random_module(),
     )
     def test_simple_transitions(self, two_dataset_states,
-                                eventually_consistent):
+                                eventually_consistent, random):
         """
         Given an initial empty state, ``BlockDeviceCalculator`` will converge
         to any ``DesiredDataset``, followed by any other state of the same
@@ -1515,7 +1514,7 @@ class BlockDeviceCalculatorTests(TestCase):
                       e.iteration_count)
 
 
-class TranistionTests(TestCase):
+class TransitionTests(TestCase):
     """
     Tests for ``DATASET_TRANSITIONS``.
     """

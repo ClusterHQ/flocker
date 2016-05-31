@@ -76,7 +76,7 @@ APP2 = Application(
     name=u'myapp2',
     image=DockerImage.from_string(u'mysql'),
     running=False)
-TEST_DEPLOYMENT = Deployment(nodes=frozenset([
+_TEST_DEPLOYMENT = Deployment(nodes=frozenset([
     Node(hostname=u'node1.example.com',
          applications=frozenset([APP1, APP2]))]))
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
@@ -289,9 +289,9 @@ class SerializationTests(TestCase):
         ``SerializableArgument`` can round-trip a ``Deployment`` instance.
         """
         argument = SerializableArgument(Deployment)
-        as_bytes = argument.toString(TEST_DEPLOYMENT)
+        as_bytes = argument.toString(_TEST_DEPLOYMENT)
         deserialized = argument.fromString(as_bytes)
-        self.assertEqual([bytes, TEST_DEPLOYMENT],
+        self.assertEqual([bytes, _TEST_DEPLOYMENT],
                          [type(as_bytes), deserialized])
 
     def test_nonmanifestdatasets(self):
@@ -313,7 +313,7 @@ class SerializationTests(TestCase):
         of any of those types to be serialized and deserialized.
         """
         argument = SerializableArgument(NodeState, Deployment)
-        objects = [TEST_DEPLOYMENT, NODE_STATE]
+        objects = [_TEST_DEPLOYMENT, NODE_STATE]
         serialized = list(
             argument.toString(o)
             for o in objects
@@ -338,7 +338,7 @@ class SerializationTests(TestCase):
         deserialize an object of the wrong type.
         """
         argument = SerializableArgument(Deployment)
-        as_bytes = argument.toString(TEST_DEPLOYMENT)
+        as_bytes = argument.toString(_TEST_DEPLOYMENT)
         self.assertRaises(
             TypeError, SerializableArgument(NodeState).fromString, as_bytes)
 
@@ -352,8 +352,8 @@ class SerializationTests(TestCase):
         # choose to reuse string objects separately from our use of a
         # cache. On CPython 2.7 it fails when caching is disabled, at
         # least.
-        self.assertIs(argument.toString(TEST_DEPLOYMENT),
-                      argument.toString(TEST_DEPLOYMENT))
+        self.assertIs(argument.toString(_TEST_DEPLOYMENT),
+                      argument.toString(_TEST_DEPLOYMENT))
 
 
 class ControlTestCase(TestCase):
@@ -453,15 +453,16 @@ class ControlAMPTests(ControlTestCase):
         """
         sent = []
         self.patch_call_remote(sent, self.protocol)
-        self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
+        self.control_amp_service.configuration_service.save(_TEST_DEPLOYMENT)
         self.control_amp_service.cluster_state.apply_changes([NODE_STATE])
 
         self.protocol.makeConnection(StringTransportWithAbort())
+        self.reactor.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertEqual(
             sent[0],
             (((ClusterStatusCommand,),
-              dict(configuration=TEST_DEPLOYMENT,
+              dict(configuration=_TEST_DEPLOYMENT,
                    state=cluster_state))))
 
     def test_connection_lost(self):
@@ -548,7 +549,7 @@ class ControlAMPTests(ControlTestCase):
         connections getting the updated cluster state along with the
         desired configuration.
         """
-        self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
+        self.control_amp_service.configuration_service.save(_TEST_DEPLOYMENT)
 
         agents = [FakeAgent(), FakeAgent()]
         clients = list(AgentAMP(Clock(), agent) for agent in agents)
@@ -557,6 +558,7 @@ class ControlAMPTests(ControlTestCase):
         for server in servers:
             delayed = DelayedAMPClient(server)
             self.control_amp_service.connected(delayed)
+            self.reactor.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
             delayed.respond()
 
         self.successResultOf(
@@ -566,7 +568,7 @@ class ControlAMPTests(ControlTestCase):
         self.reactor.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
-        expected = dict(configuration=TEST_DEPLOYMENT, state=cluster_state)
+        expected = dict(configuration=_TEST_DEPLOYMENT, state=cluster_state)
         self.assertEqual(
             [expected] * len(agents),
             list(
@@ -580,7 +582,7 @@ class ControlAMPTests(ControlTestCase):
         Multiple ``NodeStateCommands`` are coalesced into a single state update
         broadcast to all the nodes.
         """
-        self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
+        self.control_amp_service.configuration_service.save(_TEST_DEPLOYMENT)
 
         agents = [FakeAgent(), FakeAgent()]
         clients = list(AgentAMP(Clock(), agent) for agent in agents)
@@ -724,7 +726,7 @@ class ControlAMPServiceTests(ControlTestCase):
         service.connected(server)
 
         initial_update_counts = agent.cluster_updated_count
-        service.configuration_service.save(TEST_DEPLOYMENT)
+        service.configuration_service.save(_TEST_DEPLOYMENT)
         service.stopService()
         service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
@@ -764,17 +766,17 @@ class ControlAMPServiceTests(ControlTestCase):
         server = LoopbackAMPClient(client.locator)
         service.connected(server)
 
-        service.configuration_service.save(TEST_DEPLOYMENT)
+        service.configuration_service.save(_TEST_DEPLOYMENT)
         service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         self.assertEqual(
-            dict(configuration=TEST_DEPLOYMENT, state=DeploymentState()),
+            dict(configuration=_TEST_DEPLOYMENT, state=DeploymentState()),
             dict(configuration=agent.desired, state=agent.actual),
         )
 
     def test_coalesced_sends_within_time(self):
         """
-        Sending updates multiple times within a second only actually causes 1
+        Updating config multiple times within a second only actually causes 1
         update to be sent to the agent.
         """
         agent = FakeAgent()
@@ -788,7 +790,7 @@ class ControlAMPServiceTests(ControlTestCase):
         initial_updates_count = agent.cluster_updated_count
         for _ in xrange(10):
             service.configuration_service.save(
-                arbitrary_transformation(TEST_DEPLOYMENT)
+                arbitrary_transformation(_TEST_DEPLOYMENT)
             )
         self.assertEqual(
             agent.cluster_updated_count - initial_updates_count, 0
@@ -796,6 +798,70 @@ class ControlAMPServiceTests(ControlTestCase):
         service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         self.assertEqual(
             agent.cluster_updated_count - initial_updates_count, 1
+        )
+
+    def test_coalesce_delayed_updates(self):
+        """
+        If multiple clients still haven't acknowledged an update when a
+        broadcast is done, then they should just queue their update for the
+        next batch rather than immediately sending a response.
+        """
+        agents = list(FakeAgent() for _ in xrange(10))
+        clients = list(AgentAMP(Clock(), agent) for agent in agents)
+        service_clock = Clock()
+        service = build_control_amp_service(self, service_clock)
+        service.startService()
+
+        servers = list(LoopbackAMPClient(client.locator) for client in clients)
+        delayed_servers = list(
+            DelayedAMPClient(server) for server in servers)
+
+        for server in delayed_servers:
+            service.connected(server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+        (server.respond() for server in delayed_servers)
+
+        configuration = service.configuration_service.get()
+
+        # Update configuration:
+        service.configuration_service.save(
+            arbitrary_transformation(configuration))
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+
+        # Before any of the nodes respond, update configuration again
+        final_configuration = arbitrary_transformation(configuration)
+        service.configuration_service.save(final_configuration)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
+
+        initial_update_counts = list(
+            agent.cluster_updated_count for agent in agents
+        )
+
+        for server in delayed_servers:
+            server.respond()
+            # Let some negligible amount of time pass
+            service_clock.advance(0.001)
+
+        # Agents should not get any update until CONTROL_SERVICE_BATCHING_DELAY
+        # has passed, even for these delayed updates.
+        self.assertEqual(
+            [0] * len(agents),
+            list(
+                agent.cluster_updated_count - c
+                for agent, c in zip(agents, initial_update_counts)
+            )
+        )
+        service_clock.pump([CONTROL_SERVICE_BATCHING_DELAY*2]*10)
+        self.assertEqual(
+            [1] * len(agents),
+            list(
+                agent.cluster_updated_count - c
+                for agent, c in zip(agents, initial_update_counts)
+            )
+        )
+        self.assertEqual(
+            [final_configuration] * len(agents),
+            list(agent.desired for agent in agents)
         )
 
     def test_second_configuration_change_waits_for_first_acknowledgement(self):
@@ -815,6 +881,7 @@ class ControlAMPServiceTests(ControlTestCase):
         confounding_client = AgentAMP(Clock(), confounding_agent)
         confounding_server = LoopbackAMPClient(confounding_client.locator)
         service.connected(confounding_server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         configuration = service.configuration_service.get()
         modified_configuration = arbitrary_transformation(configuration)
@@ -832,6 +899,7 @@ class ControlAMPServiceTests(ControlTestCase):
         second_agent_desired = agent.desired
 
         delayed_server.respond()
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         third_agent_desired = agent.desired
 
         self.assertEqual(
@@ -879,6 +947,7 @@ class ControlAMPServiceTests(ControlTestCase):
         # The connection will fail, but it shouldn't prevent following
         # commnads (from ``delayed_server``) to be properly executed
         service.connected(failing_server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         configuration = service.configuration_service.get()
         modified_configuration = arbitrary_transformation(configuration)
@@ -895,6 +964,7 @@ class ControlAMPServiceTests(ControlTestCase):
         second_agent_desired = agent.desired
 
         delayed_server.respond()
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         third_agent_desired = agent.desired
 
         # Now we verify that the updates following the failure
@@ -928,6 +998,7 @@ class ControlAMPServiceTests(ControlTestCase):
         confounding_client = AgentAMP(Clock(), confounding_agent)
         confounding_server = LoopbackAMPClient(confounding_client.locator)
         service.connected(confounding_server)
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
 
         configuration = service.configuration_service.get()
         modified_configuration = arbitrary_transformation(configuration)
@@ -952,6 +1023,7 @@ class ControlAMPServiceTests(ControlTestCase):
 
         first_agent_desired = agent.desired
         delayed_server.respond()
+        service_clock.advance(CONTROL_SERVICE_BATCHING_DELAY*2)
         second_agent_desired = agent.desired
         delayed_server.respond()
         third_agent_desired = agent.desired
@@ -1102,7 +1174,7 @@ class AgentClientTests(TestCase):
         actual = DeploymentState(nodes=[])
         d = self.server.callRemote(
             ClusterStatusCommand,
-            configuration=TEST_DEPLOYMENT,
+            configuration=_TEST_DEPLOYMENT,
             state=actual,
             eliot_context=TEST_ACTION
         )
@@ -1110,7 +1182,7 @@ class AgentClientTests(TestCase):
         self.successResultOf(d)
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client,
-                                               desired=TEST_DEPLOYMENT,
+                                               desired=_TEST_DEPLOYMENT,
                                                cluster_updated_count=1,
                                                actual=actual))
 
@@ -1367,9 +1439,9 @@ class CachingWireEncodeTests(TestCase):
         object.
         """
         self.assertEqual(
-            [loads(caching_wire_encode(TEST_DEPLOYMENT)),
+            [loads(caching_wire_encode(_TEST_DEPLOYMENT)),
              loads(caching_wire_encode(NODE_STATE))],
-            [loads(wire_encode(TEST_DEPLOYMENT)),
+            [loads(wire_encode(_TEST_DEPLOYMENT)),
              loads(wire_encode(NODE_STATE))])
 
     def test_caches(self):
@@ -1378,12 +1450,12 @@ class CachingWireEncodeTests(TestCase):
         particular object if used in context of ``cache()``.
         """
         # Warm up cache:
-        result1 = caching_wire_encode(TEST_DEPLOYMENT)
+        result1 = caching_wire_encode(_TEST_DEPLOYMENT)
         result2 = caching_wire_encode(NODE_STATE)
 
         self.assertEqual(
-            [loads(result1) == loads(wire_encode(TEST_DEPLOYMENT)),
+            [loads(result1) == loads(wire_encode(_TEST_DEPLOYMENT)),
              loads(result2) == loads(wire_encode(NODE_STATE)),
-             caching_wire_encode(TEST_DEPLOYMENT) is result1,
+             caching_wire_encode(_TEST_DEPLOYMENT) is result1,
              caching_wire_encode(NODE_STATE) is result2],
             [True, True, True, True])
