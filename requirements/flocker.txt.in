@@ -1,0 +1,49 @@
+# Libcloud is not detected by snakefood
+apache-libcloud
+bitmath
+boto
+boto3
+botocore
+characteristic
+python-cinderclient
+docker-py
+docutils
+effect
+eliot
+google-api-python-client
+hypothesis
+ipaddr
+jsonschema
+keystoneauth1
+# FLOC-4410 keystoneclient 3.0.0 moves some exceptions around.
+python-keystoneclient < 3.0.0
+python-keystoneclient-rackspace
+klein
+machinist
+mmh3
+# Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL
+ndg-httpsclient
+netifaces
+python-novaclient
+# FLOC-4411 oauth2client 2 no longer exports SignedJwtAssertionCredentials
+oauth2client < 2.0.0
+pyOpenSSL
+psutil
+--find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq4#egg=pyrsistent-0.11.13+chq4
+pyrsistent
+pytz
+repoze.lru
+requests
+# Add a setuptools dependency to ensure that `pip` installs the latest version
+# instead of settling for the OS packaged version.
+# See: https://github.com/pyca/cryptography/issues/2838#issuecomment-221838467
+setuptools
+six
+Sphinx
+sphinxcontrib-httpdomain
+testtools
+treq
+Twisted
+txeffect
+PyYAML
+zope.interface
