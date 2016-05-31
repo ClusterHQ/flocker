@@ -218,6 +218,14 @@ class NoOp(Command):
     requiresAnswer = False
 
 
+CLUSTER_UPDATE_RESPONSE = [
+    ('current_configuration_generation',
+     Big(SerializableArgument(GenerationHash))),
+    ('current_state_generation',
+     Big(SerializableArgument(GenerationHash))),
+]
+
+
 class ClusterStatusCommand(Command):
     """
     Used by the control service to inform a convergence agent of the
@@ -233,12 +241,7 @@ class ClusterStatusCommand(Command):
                  ('state_generation',
                   Big(SerializableArgument(GenerationHash))),
                  ('eliot_context', _EliotActionArgument())]
-    response = [
-        ('current_configuration_generation',
-         Big(SerializableArgument(GenerationHash))),
-        ('current_state_generation',
-         Big(SerializableArgument(GenerationHash))),
-    ]
+    response = CLUSTER_UPDATE_RESPONSE
 
 
 class ClusterStatusDiffCommand(Command):
@@ -254,18 +257,13 @@ class ClusterStatusDiffCommand(Command):
                   Big(SerializableArgument(GenerationHash))),
                  ('end_configuration_generation',
                   Big(SerializableArgument(GenerationHash))),
-                 ('state', Big(SerializableArgument(Diff))),
+                 ('state_diff', Big(SerializableArgument(Diff))),
                  ('start_state_generation',
                   Big(SerializableArgument(GenerationHash))),
                  ('end_state_generation',
                   Big(SerializableArgument(GenerationHash))),
                  ('eliot_context', _EliotActionArgument())]
-    response = [
-        ('current_configuration_generation',
-         Big(SerializableArgument(GenerationHash))),
-        ('current_state_generation',
-         Big(SerializableArgument(GenerationHash))),
-    ]
+    response = CLUSTER_UPDATE_RESPONSE
 
 
 class SetNodeEraCommand(Command):
@@ -723,28 +721,67 @@ class ControlAMPService(Service):
 
     def _update_connection(self, connection, configuration, state):
         """
-        Send a ``ClusterStatusCommand`` to an agent.
+        Send the latest cluster configuration and state to ``connection``.
 
         :param ControlAMP connection: The connection to use to send the
             command.
-
-        :param Deployment configuration: The cluster configuration to send.
-        :param DeploymentState state: The current cluster state to send.
         """
+        self._state_generation_tracker.insert_latest(configuration)
+        self._state_generation_tracker.insert_latest(state)
         action = LOG_SEND_TO_AGENT(agent=connection)
         with action.context():
-            # Use ``maybeDeferred`` so if an exception happens,
-            # it will be wrapped in a ``Failure`` - see FLOC-3221
-            d = DeferredContext(maybeDeferred(
-                connection.callRemote,
-                ClusterStatusCommand,
-                configuration=configuration,
-                configuration_generation=make_generation_hash(configuration),
-                state=state,
-                state_generation=make_generation_hash(state),
-                eliot_context=action
-            ))
-            d.addActionFinish()
+            config_gen_tracker = self._configuration_generation_tracker
+            start_config_gen = (
+                self._last_recieved_generation[connection].config_hash
+            )
+            configuration_diff = (
+                config_gen_tracker.get_diff_from_hash_to_latest(
+                    start_config_gen
+                )
+            )
+
+            state_gen_tracker = self._state_generation_tracker
+            start_state_gen = (
+                self._last_recieved_generation[connection].state_hash
+            )
+            state_diff = (
+                state_gen_tracker.get_diff_from_hash_to_latest(
+                    start_state_gen
+                )
+            )
+
+            if configuration_diff is not None and state_diff is not None:
+                d = DeferredContext(maybeDeferred(
+                    connection.callRemote,
+                    ClusterStatusDiffCommand,
+                    configuration_diff=configuration_diff,
+                    start_configuration_generation=start_config_gen,
+                    end_configuration_generation=(
+                        config_gen_tracker.get_latest_hash()
+                    ),
+                    state_diff=state_diff,
+                    start_state_generation=start_state_gen,
+                    end_state_generation=state_gen_tracker.get_latest_hash(),
+                    eliot_context=action
+                ))
+                d.addActionFinish()
+            else:
+                configuration = config_gen_tracker.get_latest()
+                state = state_gen_tracker.get_latest()
+                # Use ``maybeDeferred`` so if an exception happens,
+                # it will be wrapped in a ``Failure`` - see FLOC-3221
+                d = DeferredContext(maybeDeferred(
+                    connection.callRemote,
+                    ClusterStatusCommand,
+                    configuration=configuration,
+                    configuration_generation=(
+                        config_gen_tracker.get_latest_hash()
+                    ),
+                    state=state,
+                    state_generation=state_gen_tracker.get_latest_hash(),
+                    eliot_context=action
+                ))
+                d.addActionFinish()
             d.result.addErrback(lambda _: None)
 
         update = self._current_command[connection] = _UpdateState(
@@ -752,8 +789,23 @@ class ControlAMPService(Service):
             next_scheduled=False,
         )
 
-        def finished_update(ignored):
+        def finished_update(response):
             del self._current_command[connection]
+            if response:
+                config_gen = response['current_configuration_generation']
+                state_gen = response['current_state_generation']
+                self._last_recieved_generation[connection] = (
+                    _ConfigAndStateGeneration(
+                        config_hash=config_gen,
+                        state_hash=state_gen
+                    )
+                )
+                #  If the latest hash was not returned, schedule an update.
+                if (self._configuration_generation_tracker.get_latest_hash() !=
+                        config_gen or
+                        self._state_generation_tracker.get_latest_hash() !=
+                        state_gen):
+                    self._schedule_update([connection])
         update.response.addCallback(finished_update)
 
     def _delayed_update_connection(self, connection):
@@ -938,7 +990,8 @@ class _AgentLocator(CommandLocator):
     def _set_configuration(self, configuration, verify_hash):
         candidate_hash = make_generation_hash(configuration)
         if candidate_hash != verify_hash:
-            raise ValueError('Bad hash value')
+            raise ValueError('Bad hash value %s is not %s' % (candidate_hash,
+                                                              verify_hash))
         self._current_configuration = configuration
         self._current_configuration_generation = candidate_hash
 

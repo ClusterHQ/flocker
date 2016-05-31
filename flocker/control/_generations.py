@@ -24,6 +24,12 @@ class GenerationTracker(object):
     def _append_hash(self, obj_hash):
         self._latest_hash = obj_hash
 
+    def get_latest(self):
+        return self._latest_object
+
+    def get_latest_hash(self):
+        return self._latest_hash
+
     def insert_latest(self, latest):
         latest_hash = make_generation_hash(latest)
 
