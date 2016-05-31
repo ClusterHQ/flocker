@@ -905,12 +905,12 @@ class GenerationHashTests(TestCase):
 
     def test_consistent_hash(self):
         TEST_DEPLOYMENT_1_HASH = ''.join(chr(x) for x in [
-            113, 50, 104, 132, 238, 89, 183, 111,
-            80, 28, 220, 0, 143, 40, 196, 4
-        ])
+			0x4e, 0x35, 0x2b, 0xa2, 0x68, 0xde, 0x10, 0x0a,
+			0xa5, 0xbc, 0x8a, 0x7e, 0x75, 0xc7, 0xf4, 0xe6
+		])
         TEST_DEPLOYMENT_2_HASH = ''.join(chr(x) for x in [
-            254, 239, 3, 230, 236, 90, 182, 30,
-            172, 61, 229, 95, 224, 47, 230, 148
+            0x96, 0xe6, 0xcb, 0xa9, 0x5f, 0x7c, 0x8e, 0xfa,
+            0xf8, 0x76, 0x8a, 0xc6, 0x89, 0x1a, 0xec, 0xc5
         ])
         self.assertThat(
             generation_hash(TEST_DEPLOYMENT_1),
