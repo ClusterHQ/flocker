@@ -769,7 +769,7 @@ class FlockerClientTests(make_clientv1_tests()):
                                         for manifestation
                                         in node.manifestations.values()},
                                  devices={})
-                       for node in deployment.nodes]
+                       for node in deployment.nodes.values()]
         self.cluster_state_service.apply_changes(node_states)
 
     def get_configuration_tag(self):

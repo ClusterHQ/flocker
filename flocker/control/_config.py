@@ -1256,7 +1256,8 @@ def deployment_from_configuration(deployment_state, deployment_configuration,
         raise ConfigurationError("Deployment configuration has an error. "
                                  "Incorrect version specified.")
 
-    node_states = {node.hostname: node for node in deployment_state.nodes}
+    node_states = {node.hostname: node for node in
+                   deployment_state.nodes.itervalues()}
     nodes = []
     seen_applications = set()
     for hostname, application_names in (

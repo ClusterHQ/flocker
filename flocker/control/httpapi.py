@@ -151,7 +151,7 @@ def _extract_containers_state(deployment_state):
     :returns: The states of the containers in simple types.
     """
     result = []
-    for node in deployment_state.nodes:
+    for node in deployment_state.nodes.itervalues():
         applications = ()
         if node.applications is not None:
             applications = node.applications.values()
@@ -310,7 +310,7 @@ class ConfigurationAPIUserV1(object):
         # Use persistence_service to get a Deployment for the cluster
         # configuration.
         deployment = self.persistence_service.get()
-        for node in deployment.nodes:
+        for node in deployment.nodes.itervalues():
             for manifestation in node.manifestations.values():
                 if manifestation.dataset.dataset_id == dataset_id:
                     raise DATASET_ID_COLLISION
@@ -700,7 +700,7 @@ class ConfigurationAPIUserV1(object):
 
         # Check if container by this name already exists, if it does
         # return error.
-        for node in deployment.nodes:
+        for node in deployment.nodes.itervalues():
             if name in node.applications:
                 raise CONTAINER_NAME_COLLISION
 
@@ -717,7 +717,7 @@ class ConfigurationAPIUserV1(object):
         # external ports exposed to ensure there is no conflict. If there is a
         # conflict, return an error.
         for port in ports:
-            for current_node in deployment.nodes:
+            for current_node in deployment.nodes.itervalues():
                 for application in current_node.applications.values():
                     for application_port in application.ports:
                         if application_port.external_port == port['external']:
@@ -827,7 +827,7 @@ class ConfigurationAPIUserV1(object):
         deployment = self.persistence_service.get()
         node_uuid = UUID(hex=node_uuid)
         target_node = deployment.get_node(node_uuid)
-        for node in deployment.nodes:
+        for node in deployment.nodes.itervalues():
             application = node.applications.get(name)
             if application:
                 deployment = deployment.move_application(
@@ -877,7 +877,7 @@ class ConfigurationAPIUserV1(object):
         """
         deployment = self.persistence_service.get()
 
-        for node in deployment.nodes:
+        for node in deployment.nodes.itervalues():
             application = node.applications.get(name)
             if application:
                 updated_node = node.transform(
@@ -914,7 +914,7 @@ class ConfigurationAPIUserV1(object):
     def list_current_nodes(self):
         return [{u"host": node.hostname, u"uuid": unicode(node.uuid)}
                 for node in
-                self.cluster_state_service.as_deployment().nodes]
+                self.cluster_state_service.as_deployment().nodes.itervalues()]
 
     @app.route("/state/nodes/by_era/<era>", methods=['GET'])
     @user_documentation(
@@ -1219,7 +1219,7 @@ def manifestations_from_deployment(deployment, dataset_id):
     :return: Iterable returning all manifestations of the supplied
         ``dataset_id``.
     """
-    for node in deployment.nodes:
+    for node in deployment.nodes.itervalues():
         if dataset_id in node.manifestations:
             yield node.manifestations[dataset_id], node
 
@@ -1237,7 +1237,7 @@ def datasets_from_deployment(deployment):
 
     :return: Iterable returning all datasets.
     """
-    for node in deployment.nodes:
+    for node in deployment.nodes.itervalues():
         if node.manifestations is None:
             continue
         for manifestation in node.manifestations.values():
@@ -1265,7 +1265,7 @@ def _containers_from_deployment(deployment):
     :return: List of all containers.
     """
     results = []
-    for node in deployment.nodes:
+    for node in deployment.nodes.itervalues():
         for application in node.applications.values():
             results.append(
                 container_configuration_response(application, node.uuid)

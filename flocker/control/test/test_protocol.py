@@ -29,6 +29,8 @@ from twisted.internet.defer import succeed
 from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.task import Clock
 
+from testtools.matchers import Equals
+
 from ..testtools import build_control_amp_service
 from ...testtools import TestCase
 from ...testtools.amp import (
@@ -63,9 +65,9 @@ def arbitrary_transformation(deployment):
 
     :return: A ``Deployment`` similar but not exactly equal to the given.
     """
+    uuid = uuid4()
     return deployment.transform(
-        ["nodes"],
-        lambda nodes: nodes.add(Node(uuid=uuid4())),
+        ["nodes", uuid], Node(uuid=uuid)
     )
 
 
@@ -541,9 +543,12 @@ class ControlAMPTests(ControlTestCase):
 
         # The state from T1 should not have been wiped at T3 but it should have
         # been wiped at T4.
-        self.assertEqual(
+        self.assertThat(
             (before_wipe_state, after_wipe_state),
-            (DeploymentState(nodes={SIMPLE_NODE_STATE}), DeploymentState()),
+            Equals(
+                (DeploymentState(nodes={SIMPLE_NODE_STATE}),
+                 DeploymentState()),
+            )
         )
 
     def test_nodestate_notifies_all_connected(self):
