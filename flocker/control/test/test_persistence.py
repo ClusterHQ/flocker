@@ -355,8 +355,9 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
 
         def saved(_):
             service.register(lambda: callbacks2.append(1))
+            uuid = uuid4()
             changed = LATEST_TEST_DEPLOYMENT.transform(
-                ("nodes",), lambda nodes: nodes.add(Node(uuid=uuid4())),
+                ("nodes", uuid), Node(uuid=uuid),
             )
             return service.save(changed)
         d.addCallback(saved)
