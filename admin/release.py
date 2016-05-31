@@ -806,7 +806,7 @@ def initialize_release(version, path, top_level):
     check_call(
         [virtualenv_path.descendant(["bin", "python"]).path,
          virtualenv_path.descendant(["bin", "pip"]).path,
-         "install", "-e", ".[dev]"],
+         "install", "--requirement", "dev-requirements.txt"],
         stdout=open(os.devnull, 'w'),
         env=environment,
         cwd=release_path.path,

@@ -596,6 +596,16 @@ IGNORED_WARNINGS = {
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
+
+        # /opt/flocker/lib/python2.7/site-packages/sphinx/locale/.tx
+        'hidden-file-or-dir',
+
+        # /opt/flocker/lib/python2.7/site-packages/pbr/tests/testpackage/doc/source/conf.py
+        'script-without-shebang',
+
+        # E.g.
+        # /opt/flocker/lib/python2.7/site-packages/sphinx/locale/bn/LC_MESSAGES/sphinx.mo
+        'file-not-in-%lang',
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
@@ -687,6 +697,18 @@ IGNORED_WARNINGS = {
         # wheels from PyPI:
         # https://github.com/pypa/manylinux/issues/59
         "hardening-no-relro",
+
+        # Ubuntu Wily lintian complains about missing changelog.
+        # https://lintian.debian.org/tags/debian-changelog-file-missing-or-wrong-name.html
+        "debian-changelog-file-missing-or-wrong-name",
+
+        # The alabaster package contains some Google AdSense bugs.
+        # https://lintian.debian.org/tags/privacy-breach-google-adsense.html
+        "privacy-breach-google-adsense",
+
+        # Only occurs when building locally
+        "non-standard-dir-perm",
+        "non-standard-file-perm",
     ),
 }
 
@@ -867,10 +889,10 @@ def omnibus_package_builder(
     return BuildSequence(
         steps=(
             InstallVirtualEnv(virtualenv=virtualenv),
-            InstallApplication(virtualenv=virtualenv,
-                               package_uri='pip==8.1.1'),
-            InstallApplication(virtualenv=virtualenv,
-                               package_uri='-r/flocker/requirements.txt'),
+            InstallApplication(
+                virtualenv=virtualenv,
+                package_uri='-r/flocker/requirements/flocker.txt'
+            ),
             InstallApplication(virtualenv=virtualenv,
                                package_uri=package_uri),
             # get_package_version_step must be run before steps that reference
@@ -1087,7 +1109,9 @@ class DockerBuild(object):
     """
     def run(self):
         check_call(
-            ['docker', 'build', '--tag', self.tag, self.build_directory.path])
+            ['docker', 'build',
+             '--pull', '--tag', self.tag,
+             self.build_directory.path])
 
 
 @attributes(['tag', 'volumes', 'command'])
@@ -1167,9 +1191,10 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
     # send the context directory (and subdirectories) to the docker daemon.
     # To work around this, we copy a shared requirements file into the build
     # directory.
-    requirements_file = build_targets_directory.child('requirements.txt')
-    tmp_requirements = build_directory.child('requirements.txt')
-    requirements_file.copyTo(tmp_requirements)
+    requirements_directory = top_level.child('requirements')
+    requirements_directory.copyTo(
+        build_directory.child('requirements')
+    )
 
     return BuildSequence(
         steps=[
