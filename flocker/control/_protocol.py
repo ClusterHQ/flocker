@@ -31,6 +31,7 @@ http://eliot.readthedocs.org/en/0.6.0/threads.html).
     their ``wire_encode`` output.
 """
 
+from collections import defaultdict
 from datetime import timedelta
 from io import BytesIO
 from itertools import count
@@ -562,13 +563,6 @@ class _ConfigAndStateGeneration(PClass):
     state_hash = field(type=(GenerationHash, type(None)), initial=None)
 
 
-class _Connection(PClass):
-    control_amp = field(type=ControlAMP)
-    last_recieved_generation = field(
-        type=(_ConfigAndStateGeneration), initial=_ConfigAndStateGeneration()
-    )
-
-
 class ControlAMPService(Service):
     """
     Control Service AMP server.
@@ -605,6 +599,9 @@ class ControlAMPService(Service):
         self._connections_pending_update = set()
         self._current_pending_update_delayed_call = None
         self._current_command = {}
+        self._last_recieved_generation = defaultdict(
+            lambda: _ConfigAndStateGeneration()
+        )
         self._configuration_generation_tracker = GenerationTracker(100)
         self._state_generation_tracker = GenerationTracker(100)
         self.cluster_state = cluster_state
@@ -629,7 +626,7 @@ class ControlAMPService(Service):
             self._current_pending_update_delayed_call = None
         self.endpoint_service.stopService()
         for connection in self._connections:
-            connection.control_amp.transport.loseConnection()
+            connection.transport.loseConnection()
         self._connections = set()
 
     def _send_state_to_connections(self, connections):
@@ -719,7 +716,7 @@ class ControlAMPService(Service):
                 self._update_connection(connection, configuration, state)
 
             for connection in elided_update:
-                AGENT_UPDATE_ELIDED(agent=connection.control_amp).write()
+                AGENT_UPDATE_ELIDED(agent=connection).write()
 
             for connection in delayed_update:
                 self._delayed_update_connection(connection)
@@ -739,7 +736,7 @@ class ControlAMPService(Service):
             # Use ``maybeDeferred`` so if an exception happens,
             # it will be wrapped in a ``Failure`` - see FLOC-3221
             d = DeferredContext(maybeDeferred(
-                connection.control_amp.callRemote,
+                connection.callRemote,
                 ClusterStatusCommand,
                 configuration=configuration,
                 configuration_generation=make_generation_hash(configuration),
@@ -769,7 +766,7 @@ class ControlAMPService(Service):
             such a command and to not yet have acknowledged it.  Internal state
             related to this will be used and then updated.
         """
-        AGENT_UPDATE_DELAYED(agent=connection.control_amp).write()
+        AGENT_UPDATE_DELAYED(agent=connection).write()
         update = self._current_command[connection]
         update.response.addCallback(
             lambda ignored: self._schedule_update([connection]),
@@ -783,23 +780,20 @@ class ControlAMPService(Service):
         :param ControlAMP connection: The new connection.
         """
         with AGENT_CONNECTED(agent=connection):
-            new_connection = _Connection(control_amp=connection)
-            self._connections.add(
-                new_connection
-            )
-            self._schedule_update([new_connection])
+            self._connections.add(connection)
+            self._schedule_update([connection])
 
-    def disconnected(self, control_amp):
+    def disconnected(self, connection):
         """
         An existing connection has been disconnected.
 
         :param ControlAMP connection: The lost connection.
         """
-        connection = next(x for x in self._connections
-                          if x.control_amp == control_amp)
         self._connections.remove(connection)
         if connection in self._connections_pending_update:
             self._connections_pending_update.remove(connection)
+        if connection in self._last_recieved_generation:
+            del self._last_recieved_generation[connection]
 
     def _execute_update_connections(self):
         """
