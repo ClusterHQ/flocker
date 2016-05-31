@@ -11,7 +11,6 @@ from json import dumps, loads
 from mmh3 import hash_bytes as mmh3_hash_bytes
 from uuid import UUID
 from collections import Set, Mapping, Iterable
-from itertools import repeat
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
@@ -311,6 +310,11 @@ def _cached_dfs_serialize(input_object):
 
     return result
 
+# A couple tokens that are used below in the generation hash.
+_NULLSET_TOKEN = mmh3_hash_bytes(b'NULLSET')
+_MAPPING_TOKEN = mmh3_hash_bytes(b'MAPPING')
+_STR_TOKEN = mmh3_hash_bytes(b'STRING')
+
 
 def generation_hash(input_object):
     """
@@ -327,7 +331,13 @@ def generation_hash(input_object):
             input_object is None or
             input_type in _BASIC_JSON_TYPES
     ):
-        return mmh3_hash_bytes(dumps(input_object))
+        if input_type == unicode or input_type == bytes:
+            # Add a token to identify this as a string.
+            input_object = b''.join([_STR_TOKEN, bytes(input_object)])
+        else:
+            # For non-string objects, just hash the JSON encoding.
+            input_object = dumps(input_object)
+        return mmh3_hash_bytes(input_object)
 
     object_to_process = input_object
 
@@ -335,30 +345,24 @@ def generation_hash(input_object):
         object_to_process = input_object._to_dict()
 
     if isinstance(object_to_process, Mapping):
-        object_to_process = frozenset(object_to_process.iteritems())
+        object_to_process = frozenset(object_to_process.iteritems()).union(
+            [_MAPPING_TOKEN]
+        )
 
     if isinstance(object_to_process, Set):
         def xor_bytes(a, b):
-            if a is None and b is None:
-                return None
-            if a is None:
-                a = repeat(b'\0')
-            if b is None:
-                b = repeat(b'\0')
             return b''.join(chr(ord(a) ^ ord(b)) for (a, b) in zip(a, b))
 
-        if len(object_to_process) == 0:
-            return mmh3_hash_bytes('NULLSET')
-
         sub_hashes = (generation_hash(x) for x in object_to_process)
-        return reduce(xor_bytes, sub_hashes)
-
-    if isinstance(object_to_process, Iterable):
-        return mmh3_hash_bytes(''.join(
+        result = reduce(xor_bytes, sub_hashes, _NULLSET_TOKEN)
+    elif isinstance(object_to_process, Iterable):
+        result = mmh3_hash_bytes(b''.join(
             generation_hash(x) for x in object_to_process
         ))
+    else:
+        result = mmh3_hash_bytes(wire_encode(object_to_process))
 
-    return mmh3_hash_bytes(wire_encode(object_to_process))
+    return result
 
 
 def wire_encode(obj):
