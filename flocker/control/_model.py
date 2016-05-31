@@ -314,7 +314,7 @@ class Application(PClass):
 
     :ivar bool running: Whether or not the application is running.
     """
-    name = field(mandatory=True)
+    name = field(mandatory=True, type=unicode)
     image = field(mandatory=True, type=DockerImage)
     ports = pset_field(Port)
     volume = field(mandatory=True, initial=None)
@@ -425,7 +425,7 @@ def _keys_match(attribute):
 _keys_match_dataset_id = _keys_match("dataset_id")
 
 
-def _turn_iterable_to_mapping_from_attribute(attribute, obj):
+def _turn_iterable_to_mapping_from_attribute(attribute, obj, optional=False):
     """
     Given ``obj`` which is either something that is an instance of ``Mapping``
     or an iterable, return something that implements ``Mapping`` from
@@ -435,11 +435,18 @@ def _turn_iterable_to_mapping_from_attribute(attribute, obj):
     :param attribute: The name of the attribute that should be the key in the
         resulting Mapping.
     :param obj: Either something that is a Mapping (which is immediately
-        returned), or an iterable to be converted into a Mapping.
+        returned), or an iterable to be converted into a Mapping. If this is an
+        iterable, then all of the objects in the iterable must have an
+        attribute named ``attribute``.
+    :param optional bool: If True, pass None through this function. This allows
+        the underlying field to be optional
 
     :returns: A Mapping of the items in ``obj`` from
         ``getattr(o, attribute)`` to the items in obj (``o`` in ``obj``).
     """
+    if optional:
+        if obj is None:
+            return None
     if isinstance(obj, Mapping):
         return obj
     return {getattr(a, attribute): a for a in obj}
@@ -774,13 +781,13 @@ class Deployment(PClass):
                     # Now we can remove it from the current host.
                     node = node.transform(
                         ["applications", application.name], discard)
+                    # Finally we can now remove the manifestation from the
                     # current host too.
                     if application.volume is not None:
                         dataset_id = application.volume.dataset.dataset_id
                         node = node.transform(
                             ("manifestations", dataset_id), discard
                         )
-                    # Finally we can now remove the manifestation from the
                     # Now we can add the application to the new host.
                     target_node = target_node.transform(
                         ["applications", application.name], application)
@@ -1022,9 +1029,8 @@ class NodeState(PRecord):
         unicode, Application, optional=True, initial=None,
         invariant=_keys_match("name"),
         factory=(
-            lambda x: (
-                x if x is None
-                else _turn_iterable_to_mapping_from_attribute('name', x)
+            lambda x: _turn_iterable_to_mapping_from_attribute(
+                'name', x, optional=True
             )
         )
     )

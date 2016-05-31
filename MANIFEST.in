@@ -1,7 +1,7 @@
 include README.rst
 include versioneer.py
 include flocker/_version.py
-include requirements.txt
+graft requirements
 include dev-requirements.txt
 recursive-include admin *.py
 
