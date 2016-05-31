@@ -1,7 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 # Generate a v5 configuration.
-# Hash to recreate: XXX: Put the hash of the commit here.
+# Hash to recreate: 1ce62d2dc43d631954d7583c574259e89997829e
 
 from twisted.python.filepath import FilePath
 
