@@ -178,7 +178,6 @@ class DeployScript(object):
         posted = treq_client.post(
             options["url"], data=body,
             headers={b"content-type": b"application/json"},
-            persistent=False
         )
 
         def fail(msg):
