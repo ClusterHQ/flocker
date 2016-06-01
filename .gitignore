@@ -73,3 +73,7 @@ docs/_build/
 ehthumbs.db
 Thumbs.db
 jobs.groovy
+
+# Vagrant
+.vagrant
+Vagrantfile

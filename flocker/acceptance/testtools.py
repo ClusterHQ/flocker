@@ -609,7 +609,6 @@ class Cluster(PClass):
             self.base_url + b"/configuration/containers",
             data=dumps(properties),
             headers={b"content-type": b"application/json"},
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, CREATED)
@@ -631,7 +630,6 @@ class Cluster(PClass):
             name.encode("ascii"),
             data=dumps({u"node_uuid": node_uuid}),
             headers={b"content-type": b"application/json"},
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, OK)
@@ -650,7 +648,6 @@ class Cluster(PClass):
         request = self.treq.delete(
             self.base_url + b"/configuration/containers/" +
             name.encode("ascii"),
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, OK)
@@ -666,7 +663,6 @@ class Cluster(PClass):
         """
         request = self.treq.get(
             self.base_url + b"/configuration/containers",
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, OK)
@@ -682,7 +678,6 @@ class Cluster(PClass):
         """
         request = self.treq.get(
             self.base_url + b"/state/containers",
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, OK)
@@ -733,7 +728,6 @@ class Cluster(PClass):
         """
         request = self.treq.get(
             self.base_url + b"/state/nodes",
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, OK)
