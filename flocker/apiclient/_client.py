@@ -648,11 +648,8 @@ class FlockerClient(object):
 
         with action.context():
             request = DeferredContext(self._treq.request(
-                method, url,
-                data=data, headers=headers,
-                # Keep tests from having dirty reactor problems:
-                persistent=False
-                ))
+                method, url, data=data, headers=headers,
+            ))
         request.addCallback(got_response)
 
         def got_body(result):
