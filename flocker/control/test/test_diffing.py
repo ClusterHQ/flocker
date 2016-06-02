@@ -4,9 +4,11 @@
 Tests for ``flocker.node._diffing``.
 """
 
+from json import dumps
 from uuid import uuid4
 
 from hypothesis import given
+from pyrsistent import PClass, field, pmap, pset
 
 from .._diffing import create_diff
 from .._persistence import wire_encode, wire_decode
@@ -19,6 +21,13 @@ from ..testtools import (
 from ...testtools import TestCase
 
 from testtools.matchers import Equals, LessThan
+
+
+class DiffTestObj(PClass):
+    """
+    Simple pyrsistent object for testing.
+    """
+    a = field()
 
 
 class DeploymentDiffTest(TestCase):
@@ -120,4 +129,50 @@ class DeploymentDiffTest(TestCase):
         self.assertThat(
             wire_decode(encoded_removal_diff).apply(a),
             Equals(application)
+        )
+
+    def test_equal_objects(self):
+        """
+        Diffing objects that are equal results in an object that serial
+        """
+        baseobj = frozenset(xrange(1000))
+        object_a = DiffTestObj(a=baseobj)
+        object_b = DiffTestObj(a=baseobj)
+        diff = create_diff(object_a, object_b)
+        serialized_diff = wire_encode(diff)
+        self.assertThat(
+            len(serialized_diff),
+            LessThan(len(dumps(list(baseobj))))
+        )
+        self.assertThat(
+            wire_decode(serialized_diff).apply(object_a),
+            Equals(object_b)
+        )
+
+    def test_different_objects(self):
+        """
+        Diffing objects that are entirely different turns the diff into a
+        replacement.
+        """
+        object_a = DiffTestObj(a=pset(xrange(1000)))
+        object_b = pmap({'1': 34})
+        diff = create_diff(object_a, object_b)
+
+        self.assertThat(
+            wire_decode(wire_encode(diff)).apply(object_a),
+            Equals(object_b)
+        )
+
+    def test_different_uuids(self):
+        """
+        Diffing objects that are entirely different turns the diff into a
+        replacement.
+        """
+        object_a = DiffTestObj(a=uuid4())
+        object_b = DiffTestObj(a=uuid4())
+        diff = create_diff(object_a, object_b)
+
+        self.assertThat(
+            wire_decode(wire_encode(diff)).apply(object_a),
+            Equals(object_b)
         )

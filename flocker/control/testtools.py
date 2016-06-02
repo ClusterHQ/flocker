@@ -224,7 +224,7 @@ def application_strategy(draw, min_number_of_ports=0):
     num_ports = draw(
         st.integers(
             min_value=min_number_of_ports,
-            max_value=max(30, min_number_of_ports+1)
+            max_value=max(10, min_number_of_ports+1)
         )
     )
     return Application(
@@ -257,7 +257,7 @@ def node_strategy(
         application_strategy(),
         min_size=0,
         average_size=2,
-        max_size=50
+        max_size=5
     ))
     return Node(
         uuid=draw(uuid),
@@ -281,7 +281,7 @@ def deployment_strategy(draw, min_number_of_nodes=1):
             node_strategy(),
             min_size=min_number_of_nodes,
             average_size=max(min_number_of_nodes, 5),
-            max_size=max(min_number_of_nodes, 1000)
+            max_size=max(min_number_of_nodes, 10)
         )
     )
     dataset_id_node_mapping = {}
