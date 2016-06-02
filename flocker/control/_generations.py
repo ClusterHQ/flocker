@@ -31,6 +31,8 @@ class GenerationTracker(object):
         return self._latest_hash
 
     def insert_latest(self, latest):
+        if latest == self._latest_object:
+            return
         latest_hash = make_generation_hash(latest)
 
         if (self._latest_object is not None and

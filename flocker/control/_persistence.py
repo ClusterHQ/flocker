@@ -9,7 +9,7 @@ from calendar import timegm
 from datetime import datetime
 from json import dumps, loads
 from mmh3 import hash_bytes as mmh3_hash_bytes
-from uuid import UUID
+from uuid import UUID, uuid4
 from collections import Set, Mapping, Iterable
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
@@ -20,7 +20,7 @@ from pytz import UTC
 
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service, MultiService
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, Deferred
 from twisted.internet.task import LoopingCall
 
 from weakref import WeakKeyDictionary
@@ -361,10 +361,12 @@ def generation_hash(input_object):
 
     if isinstance(object_to_process, Set):
         def xor_bytes(a, b):
-            return b''.join(chr(ord(a) ^ ord(b)) for (a, b) in zip(a, b))
+            for i in xrange(len(a)):
+                a[i] ^= ord(b[i])
+            return a
 
         sub_hashes = (generation_hash(x) for x in object_to_process)
-        result = reduce(xor_bytes, sub_hashes, _NULLSET_TOKEN)
+        result = bytes(reduce(xor_bytes, sub_hashes, bytearray(_NULLSET_TOKEN)))
     elif isinstance(object_to_process, Iterable):
         result = mmh3_hash_bytes(b''.join(
             generation_hash(x) for x in object_to_process
@@ -535,6 +537,9 @@ class ConfigurationPersistenceService(MultiService):
         self._path = path
         self._config_path = self._path.child(b"current_configuration.json")
         self._change_callbacks = []
+        self._reactor = reactor
+        self._save_scheduled = False
+        self._save_deferred = Deferred()
         LeaseService(reactor, self).setServiceParent(self)
 
     def startService(self):
@@ -631,8 +636,26 @@ class ConfigurationPersistenceService(MultiService):
         """
         config = Configuration(version=_CONFIG_VERSION, deployment=deployment)
         data = wire_encode(config)
-        self._hash = b16encode(mmh3_hash_bytes(data)).lower()
+        self._hash = b16encode(generation_hash(self._deployment)).lower()
         self._config_path.setContent(data)
+
+    def _delayed_save(self):
+        self._save_scheduled = False
+        deferred_to_fire = self._save_deferred
+        self._save_deferred = Deferred()
+
+        with _LOG_SAVE(self.logger, configuration=self._deployment):
+            self._sync_save(self._deployment)
+        deferred_to_fire.callback(None)
+
+    def _schedule_save(self):
+        d = Deferred()
+        if not self._save_scheduled:
+            self._save_scheduled = True
+            self._reactor.callLater(2.0, self._delayed_save)
+
+        self._save_deferred.addCallback(lambda x: ((d.callback(None) and False) or x))
+        return d
 
     def save(self, deployment):
         """
@@ -644,20 +667,24 @@ class ConfigurationPersistenceService(MultiService):
             _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED().write(self.logger)
             return succeed(None)
 
-        with _LOG_SAVE(self.logger, configuration=deployment):
-            self._sync_save(deployment)
-            self._deployment = deployment
-            # At some future point this will likely involve talking to a
-            # distributed system (e.g. ZooKeeper or etcd), so the API doesn't
-            # guarantee immediate saving of the data.
-            for callback in self._change_callbacks:
-                try:
-                    callback()
-                except:
-                    # Second argument will be ignored in next Eliot release, so
-                    # not bothering with particular value.
-                    write_traceback(self.logger, u"")
-            return succeed(None)
+        self._deployment = deployment
+        # This hash is a lie. That's okay, it will be corrected next scheduled save.
+        self._hash = b16encode(
+            generation_hash(
+                self._hash + bytes(uuid4())
+            )
+        ).lower()
+        # At some future point this will likely involve talking to a
+        # distributed system (e.g. ZooKeeper or etcd), so the API doesn't
+        # guarantee immediate saving of the data.
+        for callback in self._change_callbacks:
+            try:
+                callback()
+            except:
+                # Second argument will be ignored in next Eliot release, so
+                # not bothering with particular value.
+                write_traceback(self.logger, u"")
+        return self._schedule_save()
 
     def get(self):
         """

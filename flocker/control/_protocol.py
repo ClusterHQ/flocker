@@ -419,16 +419,17 @@ class ControlServiceLocator(CommandLocator):
     @SetBlockDeviceIdForDatasetId.responder
     def set_blockdevice_id(self, dataset_id, blockdevice_id):
         deployment = self.control_amp_service.configuration_service.get()
-        self.control_amp_service.configuration_service.save(
-            deployment.transform(
-                ["persistent_state", "blockdevice_ownership"],
-                partial(
-                    BlockDeviceOwnership.record_ownership,
-                    dataset_id=UUID(dataset_id),
-                    blockdevice_id=blockdevice_id,
-                ),
+        if deployment.persistent_state.blockdevice_ownership.get(dataset_id) != blockdevice_id:
+            self.control_amp_service.configuration_service.save(
+                deployment.transform(
+                    ["persistent_state", "blockdevice_ownership"],
+                    partial(
+                        BlockDeviceOwnership.record_ownership,
+                        dataset_id=UUID(dataset_id),
+                        blockdevice_id=blockdevice_id,
+                    ),
+                )
             )
-        )
         return {}
 
 
@@ -726,7 +727,7 @@ class ControlAMPService(Service):
         :param ControlAMP connection: The connection to use to send the
             command.
         """
-        self._state_generation_tracker.insert_latest(configuration)
+        self._configuration_generation_tracker.insert_latest(configuration)
         self._state_generation_tracker.insert_latest(state)
         action = LOG_SEND_TO_AGENT(agent=connection)
         with action.context():
