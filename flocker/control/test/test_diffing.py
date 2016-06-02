@@ -91,7 +91,7 @@ class DeploymentDiffTest(TestCase):
 
     def test_set_diffing_smart(self):
         """
-        Small modifications to a sets have diffs that are small. Their reverse
+        Small modifications to sets have diffs that are small. Their reverse
         is also small.
         """
         # Any Application with a large set of ports will do, just use
@@ -133,7 +133,8 @@ class DeploymentDiffTest(TestCase):
 
     def test_equal_objects(self):
         """
-        Diffing objects that are equal results in an object that serial
+        Diffing objects that are equal results in an object that is smaller
+        than the object.
         """
         baseobj = frozenset(xrange(1000))
         object_a = DiffTestObj(a=baseobj)
@@ -151,8 +152,8 @@ class DeploymentDiffTest(TestCase):
 
     def test_different_objects(self):
         """
-        Diffing objects that are entirely different turns the diff into a
-        replacement.
+        Diffing objects that are entirely different results in a diff that can
+        be applied.
         """
         object_a = DiffTestObj(a=pset(xrange(1000)))
         object_b = pmap({'1': 34})
@@ -165,8 +166,8 @@ class DeploymentDiffTest(TestCase):
 
     def test_different_uuids(self):
         """
-        Diffing objects that are entirely different turns the diff into a
-        replacement.
+        Diffing objects that have parts that are simply not equal can be
+        applied to turn the first object into the second.
         """
         object_a = DiffTestObj(a=uuid4())
         object_b = DiffTestObj(a=uuid4())
