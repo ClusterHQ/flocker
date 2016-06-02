@@ -159,16 +159,32 @@ def make_loopback_control_client(test_case, reactor):
 
 @composite
 def unique_name_strategy(draw):
+    """
+    A hypothesis strategy to generate an always unique name.
+    """
     return unicode(draw(st.uuids()))
 
 
 @composite
 def persistent_state_strategy(draw):
+    """
+    A hypothesis strategy to generate a ``PersistentState``
+
+    Presently just returns and empty ``PersistentState``
+    """
     return PersistentState()
 
 
 @composite
 def lease_strategy(draw, dataset_id=st.uuids(), node_id=st.uuids()):
+    """
+    A hypothesis strategy to generate a ``Lease``
+
+    :param dataset_id: A strategy to use to create the dataset_id for the
+        Lease.
+
+    :param node_id: A strategy to use to create the node_id for the Lease.
+    """
     return Lease(
         dataset_id=draw(dataset_id),
         node_id=draw(node_id),
@@ -182,6 +198,15 @@ def docker_image_strategy(
         repository_strategy=unique_name_strategy(),
         tag_strategy=unique_name_strategy(),
 ):
+    """
+    A hypothesis strategy to generate a ``DockerImage``
+
+    :param repository_strategy: A strategy to use to create the repository for
+        the ``DockerImage``
+
+    :param tag: A strategy to use to create the repository for the
+        ``DockerImage``
+    """
     return DockerImage(
         repository=draw(repository_strategy),
         tag=draw(tag_strategy)
@@ -190,10 +215,16 @@ def docker_image_strategy(
 
 @composite
 def application_strategy(draw, min_number_of_ports=0):
+    """
+    A hypothesis strategy to generate an ``Application``
+
+    :param int min_number_of_ports: The minimum number of ports that the
+        Application should have.
+    """
     num_ports = draw(
         st.integers(
             min_value=min_number_of_ports,
-            max_value=max(30, min_number_of_ports+1)
+            max_value=max(10, min_number_of_ports+1)
         )
     )
     return Application(
@@ -214,11 +245,19 @@ def node_strategy(
         uuid=st.uuids(),
         applications=application_strategy()
 ):
+    """
+    A hypothesis strategy to generate a ``Node``
+
+    :param uuid: The strategy to use to generate the Node's uuid.
+
+    :param applications: The strategy to use to generate the applications on
+        the Node.
+    """
     applications = draw(st.lists(
         application_strategy(),
         min_size=0,
         average_size=2,
-        max_size=50
+        max_size=5
     ))
     return Node(
         uuid=draw(uuid),
@@ -231,12 +270,18 @@ def node_strategy(
 
 @composite
 def deployment_strategy(draw, min_number_of_nodes=1):
+    """
+    A hypothesis strategy to generate a ``Deployment``.
+
+    :param int min_number_of_nodes: The minimum number of nodes to have in the
+        deployment.
+    """
     nodes = draw(
         st.lists(
             node_strategy(),
             min_size=min_number_of_nodes,
             average_size=max(min_number_of_nodes, 5),
-            max_size=max(min_number_of_nodes, 1000)
+            max_size=max(min_number_of_nodes, 10)
         )
     )
     dataset_id_node_mapping = {}

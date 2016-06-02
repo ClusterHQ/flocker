@@ -4,11 +4,11 @@
 Tests for ``flocker.node._diffing``.
 """
 
-from os import getcwd
+from json import dumps
 from uuid import uuid4
-from cProfile import Profile
 
 from hypothesis import given
+from pyrsistent import PClass, field, pmap, pset
 
 from .._diffing import create_diff
 from .._persistence import wire_encode, wire_decode
@@ -20,41 +20,14 @@ from ..testtools import (
 
 from ...testtools import TestCase
 
-from twisted.python.filepath import FilePath
-
 from testtools.matchers import Equals, LessThan
 
 
-def enable_profiling(profile=None):
+class DiffTestObj(PClass):
     """
-    Enable profiling of a Flocker service.
-
-    :param profile: A ``cProfile.Profile`` object for a Flocker service.
-    :param int signal: See ``signal.signal``.
-    :param frame: None or frame object. See ``signal.signal``.
+    Simple pyrsistent object for testing.
     """
-    if profile is None:
-        profile = Profile()
-    profile.enable()
-    return profile
-
-
-def disable_profiling(profile):
-    """
-    Disable profiling of a Flocker service.
-    Dump profiling statistics to a file.
-
-    :param profile: A ``cProfile.Profile`` object for a Flocker service.
-    :param str service: Name of or identifier for a Flocker service.
-    :param int signal: See ``signal.signal``.
-    :param frame: None or frame object. See ``signal.signal``.
-    """
-    path = FilePath(getcwd())
-    path = path.child('profile')
-    # This dumps the current profiling statistics and disables the
-    # collection of profiling data. When the profiler is next enabled
-    # the new statistics are added to existing data.
-    profile.dump_stats(path.path)
+    a = field()
 
 
 class DeploymentDiffTest(TestCase):
@@ -69,7 +42,8 @@ class DeploymentDiffTest(TestCase):
     def test_deployment_diffing(self, deployment_a, deployment_b):
         """
         Diffing two arbitrary deployments, then applying the diff to the first
-        deployment yields the second.
+        deployment yields the second even after the diff has been serialized
+        and re-created.
         """
         diff = create_diff(deployment_a, deployment_b)
         serialized_diff = wire_encode(diff)
@@ -82,11 +56,11 @@ class DeploymentDiffTest(TestCase):
 
     def test_deployment_diffing_smart(self):
         """
-        Small modifications to a deployment have diffs that are small.
+        Small modifications to a deployment have diffs that are small. Their
+        reverse is also small.
         """
         # Any large deployment will do, just use hypothesis for convenience of
         # generating a large deployment.
-        p = enable_profiling()
         deployment = deployment_strategy(min_number_of_nodes=90).example()
 
         new_nodes = list(Node(uuid=uuid4()) for _ in xrange(4))
@@ -114,11 +88,11 @@ class DeploymentDiffTest(TestCase):
             wire_decode(encoded_removal_diff).apply(d),
             Equals(deployment)
         )
-        disable_profiling(p)
 
     def test_set_diffing_smart(self):
         """
-        Small modifications to a sets have diffs that are small.
+        Small modifications to sets have diffs that are small. Their reverse
+        is also small.
         """
         # Any Application with a large set of ports will do, just use
         # hypothesis for convenience of generating a large number of ports on
@@ -155,4 +129,51 @@ class DeploymentDiffTest(TestCase):
         self.assertThat(
             wire_decode(encoded_removal_diff).apply(a),
             Equals(application)
+        )
+
+    def test_equal_objects(self):
+        """
+        Diffing objects that are equal results in an object that is smaller
+        than the object.
+        """
+        baseobj = frozenset(xrange(1000))
+        object_a = DiffTestObj(a=baseobj)
+        object_b = DiffTestObj(a=baseobj)
+        diff = create_diff(object_a, object_b)
+        serialized_diff = wire_encode(diff)
+        self.assertThat(
+            len(serialized_diff),
+            LessThan(len(dumps(list(baseobj))))
+        )
+        self.assertThat(
+            wire_decode(serialized_diff).apply(object_a),
+            Equals(object_b)
+        )
+
+    def test_different_objects(self):
+        """
+        Diffing objects that are entirely different results in a diff that can
+        be applied.
+        """
+        object_a = DiffTestObj(a=pset(xrange(1000)))
+        object_b = pmap({'1': 34})
+        diff = create_diff(object_a, object_b)
+
+        self.assertThat(
+            wire_decode(wire_encode(diff)).apply(object_a),
+            Equals(object_b)
+        )
+
+    def test_different_uuids(self):
+        """
+        Diffing objects that have parts that are simply not equal can be
+        applied to turn the first object into the second.
+        """
+        object_a = DiffTestObj(a=uuid4())
+        object_b = DiffTestObj(a=uuid4())
+        diff = create_diff(object_a, object_b)
+
+        self.assertThat(
+            wire_decode(wire_encode(diff)).apply(object_a),
+            Equals(object_b)
         )
