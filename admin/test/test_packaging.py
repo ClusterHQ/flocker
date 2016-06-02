@@ -26,7 +26,7 @@ from ..packaging import (
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
     Dependency, build_in_docker,
-    PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE, PACKAGE_DOCKER_PLUGIN,
+    PACKAGE, PACKAGE_PYTHON, PACKAGE_NODE, PACKAGE_DOCKER_PLUGIN,
     make_dependencies, available_distributions,
     LintPackage,
 )
@@ -869,7 +869,6 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_destination_path = FilePath(self.mktemp())
 
         target_path = FilePath(self.mktemp())
-        flocker_cli_path = target_path.child('flocker-cli')
         flocker_node_path = target_path.child('flocker-node')
         flocker_docker_plugin_path = target_path.child('flocker-docker-plugin')
         flocker_shared_path = target_path.child('flocker-shared')
@@ -943,41 +942,6 @@ class OmnibusPackageBuilderTests(TestCase):
                     rpm_version=expected_version,
                     package='clusterhq-python-flocker',
                     architecture="native",
-                ),
-
-                # clusterhq-flocker-cli steps
-                CreateLinks(
-                    links=[
-                        (FilePath('/opt/flocker/bin/flocker'),
-                         flocker_cli_path),
-                        (FilePath('/opt/flocker/bin/flocker-ca'),
-                         flocker_cli_path),
-                    ]
-                ),
-                BuildPackage(
-                    package_type=expected_package_type,
-                    destination_path=expected_destination_path,
-                    source_paths={flocker_cli_path: FilePath("/usr/bin")},
-                    name='clusterhq-flocker-cli',
-                    prefix=expected_prefix,
-                    epoch=expected_epoch,
-                    rpm_version=expected_version,
-                    license=expected_license,
-                    url=expected_url,
-                    vendor=expected_vendor,
-                    maintainer=expected_maintainer,
-                    architecture='all',
-                    description=PACKAGE_CLI.DESCRIPTION.value,
-                    category=expected_category,
-                    dependencies=[Dependency(package='cli-dep')],
-                ),
-                LintPackage(
-                    package_type=expected_package_type,
-                    destination_path=expected_destination_path,
-                    epoch=expected_epoch,
-                    rpm_version=expected_version,
-                    package='clusterhq-flocker-cli',
-                    architecture="all",
                 ),
 
                 # clusterhq-flocker-node steps
