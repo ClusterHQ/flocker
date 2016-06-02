@@ -11,8 +11,43 @@ from pyrsistent import (
     pvector,
 )
 
+from zope.interface import Interface, implementer
 
+
+class _DiffChange(Interface):
+    """
+    Interface for a diff change.
+
+    This is simply something that can be applied to an object to create a new
+    object.
+
+    This interface is created more to simply documentation than for any of the
+    actual zope.interface mechanisms.
+    """
+
+    def apply(obj):
+        """
+        Apply this diff change to the passed in object and return a new object
+        that is obj with the ``self`` diff applied.
+
+        :param object obj: The object to apply the diff to.
+
+        :returns: A new object that is the passed in object with the diff
+            applied.
+        """
+        pass
+
+
+@implementer(_DiffChange)
 class _Remove(PClass):
+    """
+    A ``_DiffChange`` that removes an object from a ``PSet`` or a key from a
+    ``PMap`` inside a nested object tree.
+
+    :ivar path: The path in the nested object tree of the object to be removed
+        from the import set.
+    """
+
     path = field(
         type=PVector,
         factory=freeze
@@ -24,7 +59,17 @@ class _Remove(PClass):
         return obj.transform(obj_path, lambda o: o.remove(removal_path))
 
 
+@implementer(_DiffChange)
 class _Set(PClass):
+    """
+    A ``_DiffChange`` that sets a field in a ``PClass`` or sets a key in a
+    ``PMap``.
+
+    :ivar path: The path in the nested object to the field/key to be set to a
+        new value.
+
+    :ivar val: The value to set the field/key to.
+    """
     path = field(
         type=PVector,
         factory=freeze
@@ -35,7 +80,15 @@ class _Set(PClass):
         return obj.transform(self.path, self.val)
 
 
+@implementer(_DiffChange)
 class _Add(PClass):
+    """
+    A ``_DiffChange`` that adds an item to a ``PSet``.
+
+    :ivar path: The path to the set to which the item will be added.
+
+    :ivar item: The item to be added to the set.
+    """
     path = field(
         type=PVector,
         factory=freeze
@@ -46,7 +99,19 @@ class _Add(PClass):
         return obj.transform(self.path, lambda x: x.add(self.item))
 
 
+@implementer(_DiffChange)
 class _Diff(PClass):
+    """
+    A ``_DiffChange`` that is simply the serial application of other diff
+    changes.
+
+    This is the object that external modules get and use to apply diffs to
+    objects.
+
+    :ivar changes: A vector of ``_DiffChange`` s that represent a diff between
+        two objects.
+    """
+
     changes = field(
         type=PVector,
         factory=freeze
@@ -59,6 +124,22 @@ class _Diff(PClass):
 
 
 def _create_diffs_for_sets(current_path, set_a, set_b):
+    """
+    Computes a series of ``_DiffChange`` s to turn ``set_a`` into ``set_b``
+    assuming that these sets are at ``current_path`` inside a nested pyrsistent
+    object.
+
+    :param current_path: And iterable of pyrsistent object describing the path
+        inside the root pyrsistent object where the other arguments are
+        located.  See ``PMap.transform`` for the format of this sort of path.
+
+    :param set_a: The desired input set.
+
+    :param set_b: The desired output set.
+
+    :returns: An iterable of ``_DiffChange`` s that will turn ``set_a`` into
+        ``set_b``.
+    """
     resulting_diffs = pvector([]).evolver()
     for item in set_a.difference(set_b):
         resulting_diffs.append(
@@ -72,6 +153,22 @@ def _create_diffs_for_sets(current_path, set_a, set_b):
 
 
 def _create_diffs_for_mappings(current_path, mapping_a, mapping_b):
+    """
+    Computes a series of ``_DiffChange`` s to turn ``mapping_a`` into
+    ``mapping_b`` assuming that these mappings are at ``current_path`` inside a
+    nested pyrsistent object.
+
+    :param current_path: And iterable of pyrsistent object describing the path
+        inside the root pyrsistent object where the other arguments are
+        located.  See ``PMap.transform`` for the format of this sort of path.
+
+    :param mapping_a: The desired input mapping.
+
+    :param mapping_b: The desired output mapping.
+
+    :returns: An iterable of ``_DiffChange`` s that will turn ``mapping_a``
+        into ``mapping_b``.
+    """
     resulting_diffs = pvector([]).evolver()
     a_keys = frozenset(x for x in mapping_a.iterkeys())
     b_keys = frozenset(x for x in mapping_b.iterkeys())
@@ -96,6 +193,22 @@ def _create_diffs_for_mappings(current_path, mapping_a, mapping_b):
 
 
 def _create_diffs_for(current_path, subobj_a, subobj_b):
+    """
+    Computes a series of ``_DiffChange`` s to turn ``subobj_a`` into
+    ``subobj_b`` assuming that these subobjs are at ``current_path`` inside a
+    nested pyrsistent object.
+
+    :param current_path: And iterable of pyrsistent object describing the path
+        inside the root pyrsistent object where the other arguments are
+        located.  See ``PMap.transform`` for the format of this sort of path.
+
+    :param subobj_a: The desired input sub object.
+
+    :param subobj_b: The desired output sub object.
+
+    :returns: An iterable of ``_DiffChange`` s that will turn ``subobj_a``
+        into ``subobj_b``.
+    """
     if subobj_a == subobj_b:
         return pvector([])
     elif type(subobj_a) != type(subobj_b):
@@ -114,10 +227,21 @@ def _create_diffs_for(current_path, subobj_a, subobj_b):
 
 
 def create_diff(object_a, object_b):
+    """
+    Constructs a diff from ``object_a`` to ``object_b``
+
+    :param object_a: The desired input object.
+
+    :param object_b: The desired output object.
+
+    :returns:  A ``_Diff`` that will convert ``object_a`` into ``object_b``
+        when applied.
+    """
     changes = _create_diffs_for(pvector([]), object_a, object_b)
     return _Diff(changes=changes)
 
 
+# Ensure that the representation of a ``_Diff`` is entirely serializable:
 DIFF_SERIALIZABLE_CLASSES = [
     _Set, _Remove, _Add, _Diff
 ]
