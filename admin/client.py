@@ -18,7 +18,6 @@ from flocker.provision._effect import Sequence, perform_sequence
 from flocker.provision._install import (
     ensure_minimal_setup,
     task_cli_pkg_install,
-    cli_pkg_test,
     task_cli_pip_prereqs,
     task_cli_pip_install,
     cli_pip_test,
@@ -280,7 +279,6 @@ def get_steps_pkg(distribution, package_source=PackageSource()):
     steps = [
         ensure_minimal_setup(package_manager),
         task_cli_pkg_install(distribution, package_source),
-        cli_pkg_test(package_source),
     ]
     return steps
 

@@ -102,7 +102,6 @@ class OpenSSHConfiguration(object):
             u"if ! grep --quiet '{public_key}' .ssh/authorized_keys; then"
             u"  ("
             u"    echo; "
-            u"    echo '# flocker-deploy access'; "
             u"    echo '{public_key}'; "
             u"  ) >> .ssh/authorized_keys; "
             u"fi; ".format(

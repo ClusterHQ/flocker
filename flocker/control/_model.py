@@ -671,8 +671,8 @@ class BlockDeviceOwnership(CheckedPMap):
         Once a record is made no other entry can overwrite the existing
         one; the relationship is hardcoded and permanent. XXX this may
         interact badly with deletion of dataset where dataset_id is
-        auto-generated from name, e.g. flocker-deploy or Docker
-        plugin. That is pre-existing issue, though.
+        auto-generated from name, e.g. Docker plugin.
+        That is pre-existing issue, though.
 
         :param UUID dataset_id: The dataset being associated with a
             blockdevice.

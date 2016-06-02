@@ -192,25 +192,6 @@ definitions:
         - dataset_id
       additionalProperties: false
 
-  configuration_compose:
-    description: "Private endpoint for flocker-deploy."
-    type: object
-    properties:
-      applications:
-        type: object
-        title: Application configuration
-        description: |
-          Application configuration in Flocker or Fig/Compose format.
-      deployment:
-        type: object
-        title: Application location configuration
-        description: |
-          Configuration of application locations within the cluster.
-    required:
-      - applications
-      - deployment
-    additionalProperties: false
-
   list_leases:
     decription: "An array of dataset leases in the cluster."
     type: array

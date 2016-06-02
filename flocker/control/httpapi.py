@@ -19,7 +19,7 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
 from twisted.web.http import (
     CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
-    BAD_REQUEST, PRECONDITION_FAILED,
+    PRECONDITION_FAILED,
 )
 from twisted.web.server import Site
 from twisted.web.resource import Resource
@@ -34,7 +34,6 @@ from repoze.lru import lru_cache
 
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request,
-    private_api
 )
 from . import (
     Dataset, Manifestation, Application, DockerImage, Port,
@@ -42,8 +41,6 @@ from . import (
 )
 from ._config import (
     ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY,
-    model_from_configuration, FigConfiguration, FlockerConfiguration,
-    ConfigurationError
 )
 from ._persistence import update_leases
 from ._model import LeaseError
@@ -954,38 +951,6 @@ class ConfigurationAPIUserV1(object):
         except KeyError:
             raise NODE_BY_ERA_NOT_FOUND
         return {u"uuid": unicode(node_uuid)}
-
-    @app.route("/configuration/_compose", methods=['POST'])
-    @private_api
-    @structured(
-        inputSchema={
-            '$ref':
-            '/v1/endpoints.json#/definitions/configuration_compose'
-        },
-        outputSchema={},
-        schema_store=SCHEMAS
-    )
-    def replace_configuration(self, applications, deployment):
-        """
-        Replace the existing configuration with one given by flocker-deploy
-        command line tool.
-
-        :param applications: Configuration in Flocker-native or
-            Fig/Compose format.
-
-        :param deployment: Configuration of which applications run on
-            which nodes.
-        """
-        try:
-            configuration = FigConfiguration(applications)
-            if not configuration.is_valid_format():
-                configuration = FlockerConfiguration(applications)
-            return self.persistence_service.save(model_from_configuration(
-                deployment_state=self.cluster_state_service.as_deployment(),
-                applications=configuration.applications(),
-                deployment_configuration=deployment))
-        except ConfigurationError as e:
-            raise make_bad_request(code=BAD_REQUEST, description=unicode(e))
 
     @app.route("/configuration/leases", methods=['GET'])
     @user_documentation(
