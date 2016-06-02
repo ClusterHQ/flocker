@@ -74,6 +74,6 @@ ehthumbs.db
 Thumbs.db
 jobs.groovy
 
-# Vagrant
-.vagrant
+# Vagrant dev items
 Vagrantfile
+.vagrant/

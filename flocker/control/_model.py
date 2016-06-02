@@ -14,6 +14,7 @@ from uuid import UUID
 from warnings import warn
 from hashlib import md5
 from datetime import datetime, timedelta
+from collections import Mapping
 
 from characteristic import attributes
 from twisted.python.filepath import FilePath
@@ -97,7 +98,7 @@ _UNDEFINED = object()
 
 def pmap_field(
     key_type, value_type, optional=False, invariant=_valid,
-    initial=_UNDEFINED
+    initial=_UNDEFINED, factory=None
 ):
     """
     Create a checked ``PMap`` field.
@@ -110,9 +111,14 @@ def pmap_field(
     :param initial: An initial value for the field.  This will first be coerced
         using the field's factory.  If not given, the initial value is an empty
         map.
+    :param factory: A factory used to convert input arguments to the stored
+        value whenever it is set. Note that this will be composed with the
+        constructor for the ``CheckedPMap`` class constructed for this field.
 
     :return: A ``field`` containing a ``CheckedPMap``.
     """
+    input_factory = factory
+
     class TheMap(CheckedPMap):
         __key_type__ = key_type
         __value_type__ = value_type
@@ -120,13 +126,18 @@ def pmap_field(
                        value_type.__name__.capitalize() + "PMap")
 
     if optional:
-        def factory(argument):
+        def mapping_factory(argument):
             if argument is None:
                 return None
             else:
                 return TheMap(argument)
     else:
-        factory = TheMap
+        mapping_factory = TheMap
+
+    if input_factory:
+        factory = lambda x: mapping_factory(input_factory(x))
+    else:
+        factory = mapping_factory
 
     if initial is _UNDEFINED:
         initial = TheMap()
@@ -303,7 +314,7 @@ class Application(PClass):
 
     :ivar bool running: Whether or not the application is running.
     """
-    name = field(mandatory=True)
+    name = field(mandatory=True, type=unicode)
     image = field(mandatory=True, type=DockerImage)
     ports = pset_field(Port)
     volume = field(mandatory=True, initial=None)
@@ -414,6 +425,33 @@ def _keys_match(attribute):
 _keys_match_dataset_id = _keys_match("dataset_id")
 
 
+def _turn_iterable_to_mapping_from_attribute(attribute, obj, optional=False):
+    """
+    Given ``obj`` which is either something that is an instance of ``Mapping``
+    or an iterable, return something that implements ``Mapping`` from
+    ``getattr(o, attribute)`` to the value of the items in the iterable. This
+    funky signature is required to be a valid field factory function.
+
+    :param attribute: The name of the attribute that should be the key in the
+        resulting Mapping.
+    :param obj: Either something that is a Mapping (which is immediately
+        returned), or an iterable to be converted into a Mapping. If this is an
+        iterable, then all of the objects in the iterable must have an
+        attribute named ``attribute``.
+    :param optional bool: If True, pass None through this function. This allows
+        the underlying field to be optional
+
+    :returns: A Mapping of the items in ``obj`` from
+        ``getattr(o, attribute)`` to the items in obj (``o`` in ``obj``).
+    """
+    if optional:
+        if obj is None:
+            return None
+    if isinstance(obj, Mapping):
+        return obj
+    return {getattr(a, attribute): a for a in obj}
+
+
 class Node(PClass):
     """
     Configuration for a single node on which applications will be managed
@@ -424,8 +462,8 @@ class Node(PClass):
 
     :ivar UUID uuid: The unique identifier for the node.
 
-    :ivar applications: A ``PSet`` of ``Application`` instances describing
-        the applications which are to run on this ``Node``.
+    :ivar PMap applications: Mapping from application name to ``Application``
+        describing the applications which are to run on this ``Node``.
 
     :ivar PMap manifestations: Mapping between dataset IDs and
         corresponding ``Manifestation`` instances that are present on the
@@ -435,7 +473,7 @@ class Node(PClass):
     """
     def __invariant__(self):
         manifestations = self.manifestations.values()
-        for app in self.applications:
+        for app in self.applications.values():
             if app.volume is not None:
                 if app.volume.manifestation not in manifestations:
                     return (False, '%r manifestation is not on node' % (app,))
@@ -451,7 +489,10 @@ class Node(PClass):
         return PClass.__new__(cls, **kwargs)
 
     uuid = field(type=UUID, mandatory=True)
-    applications = pset_field(Application)
+    applications = pmap_field(
+        unicode, Application, invariant=_keys_match("name"),
+        factory=lambda x: _turn_iterable_to_mapping_from_attribute('name', x)
+    )
     manifestations = pmap_field(
         unicode, Manifestation, invariant=_keys_match_dataset_id
     )
@@ -486,12 +527,10 @@ def _get_node(default_factory):
              is found.
     """
     def get_node(deployment, uuid, **defaults):
-        nodes = list(
-            node for node in deployment.nodes if node.uuid == uuid
-        )
-        if len(nodes) == 0:
+        node = deployment.nodes.get(uuid)
+        if node is None:
             return default_factory(uuid=uuid, **defaults)
-        return nodes[0]
+        return node
     return get_node
 
 
@@ -677,7 +716,11 @@ class Deployment(PClass):
         refactoring doesn't seem worth it currently, and can be done later if
         ever).
     """
-    nodes = pset_field(Node)
+    nodes = pmap_field(
+        UUID, Node,
+        invariant=_keys_match("uuid"),
+        factory=lambda x: _turn_iterable_to_mapping_from_attribute('uuid', x)
+    )
     leases = field(type=Leases, mandatory=True, initial=Leases())
     persistent_state = field(type=PersistentState, initial=PersistentState())
 
@@ -689,8 +732,8 @@ class Deployment(PClass):
 
         :return: Iterable returning all applications.
         """
-        for node in self.nodes:
-            for application in node.applications:
+        for node in self.nodes.values():
+            for application in node.applications.values():
                 yield application
 
     def update_node(self, node):
@@ -704,9 +747,8 @@ class Deployment(PClass):
 
         :return Deployment: Updated with new ``Node``.
         """
-        return self.set(
-            'nodes',
-            [n for n in self.nodes if not same_node(n, node)] + [node]
+        return self.transform(
+            ['nodes', node.uuid], node
         )
 
     def move_application(self, application, target_node):
@@ -722,36 +764,36 @@ class Deployment(PClass):
         :return Deployment: Updated to reflect the new desired state.
         """
         deployment = self
-        for node in deployment.nodes:
-            for container in node.applications:
-                if container.name == application.name:
-                    # We only need to perform a move if the node currently
-                    # hosting the container is not the node it's moving to.
-                    if not same_node(node, target_node):
-                        # If the container has a volume, we need to add the
-                        # manifestation to the new host first.
-                        if application.volume is not None:
-                            dataset_id = application.volume.dataset.dataset_id
-                            target_node = target_node.transform(
-                                ("manifestations", dataset_id),
-                                application.volume.manifestation
-                            )
-                        # Now we can add the application to the new host.
+        for node in deployment.nodes.values():
+            container = node.applications.get(application.name)
+            if container:
+                # We only need to perform a move if the node currently
+                # hosting the container is not the node it's moving to.
+                if not same_node(node, target_node):
+                    # If the container has a volume, we need to add the
+                    # manifestation to the new host first.
+                    if application.volume is not None:
+                        dataset_id = application.volume.dataset.dataset_id
                         target_node = target_node.transform(
-                            ["applications"], lambda s: s.add(application))
-                        # And remove it from the current host.
+                            ("manifestations", dataset_id),
+                            application.volume.manifestation
+                        )
+                    # Now we can remove it from the current host.
+                    node = node.transform(
+                        ["applications", application.name], discard)
+                    # Finally we can now remove the manifestation from the
+                    # current host too.
+                    if application.volume is not None:
+                        dataset_id = application.volume.dataset.dataset_id
                         node = node.transform(
-                            ["applications"], lambda s: s.remove(application))
-                        # Finally we can now remove the manifestation from the
-                        # current host too.
-                        if application.volume is not None:
-                            dataset_id = application.volume.dataset.dataset_id
-                            node = node.transform(
-                                ("manifestations", dataset_id), discard
-                            )
-                        # Before updating the deployment instance.
-                        deployment = deployment.update_node(node)
-                        deployment = deployment.update_node(target_node)
+                            ("manifestations", dataset_id), discard
+                        )
+                    # Now we can add the application to the new host.
+                    target_node = target_node.transform(
+                        ["applications", application.name], application)
+                    # Before updating the deployment instance.
+                    deployment = deployment.update_node(node)
+                    deployment = deployment.update_node(target_node)
         return deployment
 
 
@@ -939,8 +981,8 @@ class NodeState(PRecord):
 
     :ivar UUID uuid: The node's UUID.
     :ivar unicode hostname: The IP of the node.
-    :ivar applications: A ``PSet`` of ``Application`` instances on this node,
-        or ``None`` if the information is not known.
+    :ivar PMap applications: A ``PMap`` of application name to ``Application``
+        instances on this node, or ``None`` if the information is not known.
     :ivar PMap manifestations: Mapping between dataset IDs and corresponding
         ``Manifestation`` instances that are present on the node.  Includes
         both those attached as volumes to any applications, and those that are
@@ -983,7 +1025,15 @@ class NodeState(PRecord):
 
     uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    applications = pset_field(Application, optional=True, initial=None)
+    applications = pmap_field(
+        unicode, Application, optional=True, initial=None,
+        invariant=_keys_match("name"),
+        factory=(
+            lambda x: _turn_iterable_to_mapping_from_attribute(
+                'name', x, optional=True
+            )
+        )
+    )
     manifestations = pmap_field(unicode, Manifestation, optional=True,
                                 initial=None, invariant=_keys_match_dataset_id)
     paths = pmap_field(unicode, FilePath, optional=True, initial=None)
@@ -1059,18 +1109,16 @@ class _WipeNodeState(PClass):
     attributes = pset_field(str)
 
     def update_cluster_state(self, cluster_state):
-        nodes = {n for n in cluster_state.nodes
-                 if n.uuid == self.node_uuid}
-        if not nodes:
+        original_node = cluster_state.nodes.get(self.node_uuid)
+        if original_node is None:
             return cluster_state
-        [original_node] = nodes
         updated_node = original_node.evolver()
         for attribute in self.attributes:
             updated_node = updated_node.set(attribute, None)
         updated_node = updated_node.persistent()
-        final_nodes = cluster_state.nodes.discard(original_node)
+        final_nodes = cluster_state.nodes.discard(original_node.uuid)
         if updated_node._provides_information():
-            final_nodes = final_nodes.add(updated_node)
+            final_nodes = final_nodes.set(updated_node.uuid, updated_node)
         return cluster_state.set("nodes", final_nodes)
 
     def key(self):
@@ -1098,7 +1146,11 @@ class DeploymentState(PClass):
         initialized to meaningful values (see
         https://clusterhq.atlassian.net/browse/FLOC-1247).
     """
-    nodes = pset_field(NodeState)
+    nodes = pmap_field(
+        UUID, NodeState,
+        invariant=_keys_match("uuid"),
+        factory=lambda x: _turn_iterable_to_mapping_from_attribute('uuid', x)
+    )
     node_uuid_to_era = pmap_field(UUID, UUID)
     nonmanifest_datasets = pmap_field(
         unicode, Dataset, invariant=_keys_match_dataset_id
@@ -1122,26 +1174,15 @@ class DeploymentState(PClass):
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
-        nodes = {n for n in self.nodes if same_node(n, node_state)}
-        if not nodes:
-            return self.transform(["nodes"], lambda s: s.add(node_state))
-        [original_node] = nodes
+        original_node = self.nodes.get(node_state.uuid)
+        if original_node is None:
+            return self.transform(["nodes", node_state.uuid], node_state)
         updated_node = original_node.evolver()
         for key, value in node_state.items():
-            # XXX This is an optimization to avoid calling ``set`` unless the
-            # value has changed. ``set`` is slow.
-            if value is not None and value != updated_node[key]:
+            if value is not None:
                 updated_node = updated_node.set(key, value)
         updated_node = updated_node.persistent()
-
-        # XXX This is an optimization to avoid calling ``set``
-        # unless the value has changed. ``set`` is slow.
-        if updated_node != original_node:
-            return self.set(
-                "nodes", self.nodes.discard(original_node).add(
-                    updated_node))
-        else:
-            return self
+        return self.transform(["nodes", updated_node.uuid], updated_node)
 
     def remove_node(self, node_uuid):
         """
@@ -1151,8 +1192,7 @@ class DeploymentState(PClass):
 
         :return: Updated ``DeploymentState``.
         """
-        return self.set(nodes={node for node in self.nodes
-                               if node.uuid != node_uuid})
+        return self.transform(['nodes'], lambda x: x.discard(node_uuid))
 
     def all_datasets(self):
         """
@@ -1160,7 +1200,7 @@ class DeploymentState(PClass):
             ``None``) for all the primary manifest datasets and non-manifest
             datasets in the ``DeploymentState``.
         """
-        for node in self.nodes:
+        for node in self.nodes.values():
             if node.manifestations is None:
                 continue
             for manifestation in node.manifestations.values():

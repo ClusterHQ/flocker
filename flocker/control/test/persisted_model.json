@@ -24,7 +24,9 @@
                         "flocker.control._model.LinkPSet"
                     ],
                     "memory_limit": [],
-                    "name": [],
+                    "name": [
+                        "__builtin__.unicode"
+                    ],
                     "ports": [
                         "flocker.control._model.PortPSet"
                     ],
@@ -34,12 +36,6 @@
                     ],
                     "volume": []
                 }
-            },
-            "flocker.control._model.ApplicationPSet": {
-                "category": "set",
-                "type": [
-                    "flocker.control._model.Application"
-                ]
             },
             "flocker.control._model.BlockDeviceOwnership": {
                 "category": "map",
@@ -74,7 +70,7 @@
                         "flocker.control._model.Leases"
                     ],
                     "nodes": [
-                        "flocker.control._model.NodePSet"
+                        "flocker.control._model.UuidNodePMap"
                     ],
                     "persistent_state": [
                         "flocker.control._model.PersistentState"
@@ -147,7 +143,7 @@
                 "category": "record",
                 "fields": {
                     "applications": [
-                        "flocker.control._model.ApplicationPSet"
+                        "flocker.control._model.UnicodeApplicationPMap"
                     ],
                     "manifestations": [
                         "flocker.control._model.UnicodeManifestationPMap"
@@ -156,12 +152,6 @@
                         "uuid.UUID"
                     ]
                 }
-            },
-            "flocker.control._model.NodePSet": {
-                "category": "set",
-                "type": [
-                    "flocker.control._model.Node"
-                ]
             },
             "flocker.control._model.PersistentState": {
                 "category": "record",
@@ -188,6 +178,17 @@
                     "flocker.control._model.Port"
                 ]
             },
+            "flocker.control._model.UnicodeApplicationPMap": {
+                "category": "map",
+                "fields": {
+                    "key": [
+                        "__builtin__.unicode"
+                    ],
+                    "value": [
+                        "flocker.control._model.Application"
+                    ]
+                }
+            },
             "flocker.control._model.UnicodeManifestationPMap": {
                 "category": "map",
                 "fields": {
@@ -205,10 +206,21 @@
                     "__builtin__.unicode"
                 ]
             },
+            "flocker.control._model.UuidNodePMap": {
+                "category": "map",
+                "fields": {
+                    "key": [
+                        "uuid.UUID"
+                    ],
+                    "value": [
+                        "flocker.control._model.Node"
+                    ]
+                }
+            },
             "pyrsistent._pmap.PMap": null,
             "uuid.UUID": null
         },
         "root": "flocker.control._model.Deployment"
     },
-    "version": "1.9.0.dev1+1180.ged9e3c5.dirty"
+    "version": "1.12.0+147.gff7220d"
 }

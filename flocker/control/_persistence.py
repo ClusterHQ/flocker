@@ -35,7 +35,7 @@ _CLASS_MARKER = u"$__class__$"
 
 # The latest configuration version. Configuration versions are
 # always integers.
-_CONFIG_VERSION = 4
+_CONFIG_VERSION = 5
 
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
@@ -162,6 +162,35 @@ class ConfigurationMigration(object):
                 u"values": [], _CLASS_MARKER: "PMap",
             },
         }
+        return dumps(decoded_config)
+
+    @classmethod
+    def upgrade_from_v4(cls, config):
+        """
+        Migrate a v4 JSON configuration to v5.
+
+        :param bytes config: The v4 JSON data.
+        :return bytes: The v5 JSON data.
+        """
+        decoded_config = loads(config)
+        decoded_config[u"version"] = 5
+        try:
+            nodes = decoded_config[u"deployment"][u"nodes"]
+        except KeyError:
+            pass
+        else:
+            new_node_values = []
+            for n in nodes:
+                new_node = n
+                new_node[u"applications"] = {
+                    u"values": [(a[u"name"], a) for a in n[u"applications"]],
+                    _CLASS_MARKER: "PMap"
+                }
+                new_node_values.append((new_node["uuid"], new_node))
+            decoded_config[u"deployment"][u"nodes"] = {
+                u"values": new_node_values,
+                _CLASS_MARKER: "PMap"
+            }
         return dumps(decoded_config)
 
 
