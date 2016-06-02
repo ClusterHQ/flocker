@@ -844,11 +844,17 @@ class GenerationHashTests(TestCase):
     @given(st.data())
     def test_no_hash_collisions(self, data):
         """
-        Hashes of different deployments do not have hash collisions.
+        Hashes of different deployments do not have hash collisions, hashes of
+        the same object have the same hash.
         """
         # With 128 bits of hash, a collision here indicates a fault in the
         # algorithm.
+
+        # Generate the first deployment.
         deployment_a = data.draw(deployment_strategy())
+
+        # Decide if we want to generate a second deployment, or just compare
+        # the first deployment to a re-serialized version of itself:
         simple_comparison = data.draw(st.booleans())
         if simple_comparison:
             deployment_b = wire_decode(wire_encode(deployment_a))
@@ -930,6 +936,16 @@ class GenerationHashTests(TestCase):
         self.assertThat(
             generation_hash(frozenset()),
             Not(Equals(generation_hash(b'NULLSET')))
+        )
+
+    def test_unicode_hash(self):
+        """
+        Unicode strings can be hashed, and are hashed to the same value as
+        their bytes equivalent.
+        """
+        self.assertThat(
+            generation_hash(unicode(u'abcde')),
+            Equals(generation_hash(bytes(b'abcde')))
         )
 
     def test_consistent_hash(self):

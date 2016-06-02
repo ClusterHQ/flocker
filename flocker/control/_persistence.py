@@ -318,6 +318,28 @@ _STR_TOKEN = mmh3_hash_bytes(b'STRING')
 _generation_hash_cache = WeakKeyDictionary()
 
 
+def _xor_bytes(aggregating_bytearray, updating_bytes):
+    """
+    Aggregate bytes into a bytearray using XOR.
+
+    This function has a somewhat particular function signature in order for it
+    to be compatible with a call to `reduce`
+
+    :param bytearray aggregating_bytearray: Resulting bytearray to aggregate
+        the XOR of both input arguments byte-by-byte.
+
+    :param bytes updating_bytes: Additional bytes to be aggregated into the
+        other argument. It is assumed that this has the same size as
+        aggregating_bytearray.
+
+    :returns: aggregating_bytearray, after it has been modified by XORing all
+        of the bytes in the input bytearray with ``updating_bytes``.
+    """
+    for i in xrange(len(aggregating_bytearray)):
+        aggregating_bytearray[i] ^= ord(updating_bytes[i])
+    return aggregating_bytearray
+
+
 def generation_hash(input_object):
     """
     This computes the mmh3 hash for an input object, providing a consistent
@@ -333,8 +355,14 @@ def generation_hash(input_object):
             input_object is None or
             input_type in _BASIC_JSON_TYPES
     ):
-        if input_type == unicode or input_type == bytes:
-            # Add a token to identify this as a string.
+        if input_type == unicode:
+            input_type = bytes
+            input_object = input_object.encode('utf8')
+
+        if input_type == bytes:
+            # Add a token to identify this as a string. This ensures that
+            # strings like str('5') are hashed to different values than values
+            # who have an identical JSON representation like int(5).
             object_to_process = b''.join([_STR_TOKEN, bytes(input_object)])
         else:
             # For non-string objects, just hash the JSON encoding.
@@ -360,14 +388,9 @@ def generation_hash(input_object):
         )
 
     if isinstance(object_to_process, Set):
-        def xor_bytes(a, b):
-            for i in xrange(len(a)):
-                a[i] ^= ord(b[i])
-            return a
-
         sub_hashes = (generation_hash(x) for x in object_to_process)
         result = bytes(
-            reduce(xor_bytes, sub_hashes, bytearray(_NULLSET_TOKEN))
+            reduce(_xor_bytes, sub_hashes, bytearray(_NULLSET_TOKEN))
         )
     elif isinstance(object_to_process, Iterable):
         result = mmh3_hash_bytes(b''.join(
