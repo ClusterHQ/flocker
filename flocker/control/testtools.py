@@ -19,14 +19,25 @@ from ._protocol import (
     ControlAMPService, ControlAMP,
 )
 from ._registry import IStatePersister, InMemoryStatePersister
-from ._model import DatasetAlreadyOwned
+from ._model import (
+    Application,
+    DatasetAlreadyOwned,
+    Deployment,
+    DockerImage,
+    Lease,
+    Node,
+    PersistentState,
+    Port,
+)
 
 from ..testtools.amp import (
     LoopbackAMPClient,
 )
 
 from hypothesis import given, assume
-from hypothesis.strategies import uuids, text
+import hypothesis.strategies as st
+from hypothesis.strategies import uuids, text, composite
+from hypothesis.extra.datetime import datetimes
 
 __all__ = [
     'build_control_amp_service',
@@ -144,3 +155,160 @@ def make_loopback_control_client(test_case, reactor):
         command_locator=ControlAMP(reactor, control_amp_service).locator,
     )
     return control_amp_service, client
+
+
+@composite
+def unique_name_strategy(draw):
+    """
+    A hypothesis strategy to generate an always unique name.
+    """
+    return unicode(draw(st.uuids()))
+
+
+@composite
+def persistent_state_strategy(draw):
+    """
+    A hypothesis strategy to generate a ``PersistentState``
+
+    Presently just returns and empty ``PersistentState``
+    """
+    return PersistentState()
+
+
+@composite
+def lease_strategy(draw, dataset_id=st.uuids(), node_id=st.uuids()):
+    """
+    A hypothesis strategy to generate a ``Lease``
+
+    :param dataset_id: A strategy to use to create the dataset_id for the
+        Lease.
+
+    :param node_id: A strategy to use to create the node_id for the Lease.
+    """
+    return Lease(
+        dataset_id=draw(dataset_id),
+        node_id=draw(node_id),
+        expiration=draw(datetimes())
+    )
+
+
+@composite
+def docker_image_strategy(
+        draw,
+        repository_strategy=unique_name_strategy(),
+        tag_strategy=unique_name_strategy(),
+):
+    """
+    A hypothesis strategy to generate a ``DockerImage``
+
+    :param repository_strategy: A strategy to use to create the repository for
+        the ``DockerImage``
+
+    :param tag: A strategy to use to create the repository for the
+        ``DockerImage``
+    """
+    return DockerImage(
+        repository=draw(repository_strategy),
+        tag=draw(tag_strategy)
+    )
+
+
+@composite
+def application_strategy(draw, min_number_of_ports=0):
+    """
+    A hypothesis strategy to generate an ``Application``
+
+    :param int min_number_of_ports: The minimum number of ports that the
+        Application should have.
+    """
+    num_ports = draw(
+        st.integers(
+            min_value=min_number_of_ports,
+            max_value=max(10, min_number_of_ports+1)
+        )
+    )
+    return Application(
+        name=draw(unique_name_strategy()),
+        image=draw(docker_image_strategy()),
+        ports=frozenset(
+            Port(
+                internal_port=8000+i,
+                external_port=8000+i+1
+            ) for i in xrange(num_ports)
+        )
+    )
+
+
+@composite
+def node_strategy(
+        draw,
+        uuid=st.uuids(),
+        applications=application_strategy()
+):
+    """
+    A hypothesis strategy to generate a ``Node``
+
+    :param uuid: The strategy to use to generate the Node's uuid.
+
+    :param applications: The strategy to use to generate the applications on
+        the Node.
+    """
+    applications = draw(st.lists(
+        application_strategy(),
+        min_size=0,
+        average_size=2,
+        max_size=5
+    ))
+    return Node(
+        uuid=draw(uuid),
+        applications={
+            a.name: a
+            for a in applications
+        }
+    )
+
+
+@composite
+def deployment_strategy(draw, min_number_of_nodes=1):
+    """
+    A hypothesis strategy to generate a ``Deployment``.
+
+    :param int min_number_of_nodes: The minimum number of nodes to have in the
+        deployment.
+    """
+    nodes = draw(
+        st.lists(
+            node_strategy(),
+            min_size=min_number_of_nodes,
+            average_size=max(min_number_of_nodes, 5),
+            max_size=max(min_number_of_nodes, 10)
+        )
+    )
+    dataset_id_node_mapping = {}
+    for node in nodes:
+        for dataset_id in node.manifestations:
+            dataset_id_node_mapping[dataset_id] = node.uuid
+
+    lease_indexes = []
+    if len(dataset_id_node_mapping) > 0:
+        lease_indexes = draw(st.sets(
+            st.integers(
+                min_value=0, max_value=(len(dataset_id_node_mapping)-1)
+            )
+        ))
+    leases = [
+        draw(
+            lease_strategy(
+                dataset_id=st.just(dataset_id),
+                node_uuid=st.just(node_uuid)
+            )
+        ) for dataset_id, node_uuid in (
+            dataset_id_node_mapping.items()[i] for i in lease_indexes
+        )
+    ]
+    persistent_state = draw(persistent_state_strategy())
+    return Deployment(
+        nodes={n.uuid: n for n in nodes},
+        leases={l.dataset_id: l for l in leases},
+        persistent_state=persistent_state
+    )
