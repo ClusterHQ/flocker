@@ -4,9 +4,7 @@
 Tests for ``flocker.node._diffing``.
 """
 
-from os import getcwd
 from uuid import uuid4
-from cProfile import Profile
 
 from hypothesis import given
 
@@ -20,41 +18,7 @@ from ..testtools import (
 
 from ...testtools import TestCase
 
-from twisted.python.filepath import FilePath
-
 from testtools.matchers import Equals, LessThan
-
-
-def enable_profiling(profile=None):
-    """
-    Enable profiling of a Flocker service.
-
-    :param profile: A ``cProfile.Profile`` object for a Flocker service.
-    :param int signal: See ``signal.signal``.
-    :param frame: None or frame object. See ``signal.signal``.
-    """
-    if profile is None:
-        profile = Profile()
-    profile.enable()
-    return profile
-
-
-def disable_profiling(profile):
-    """
-    Disable profiling of a Flocker service.
-    Dump profiling statistics to a file.
-
-    :param profile: A ``cProfile.Profile`` object for a Flocker service.
-    :param str service: Name of or identifier for a Flocker service.
-    :param int signal: See ``signal.signal``.
-    :param frame: None or frame object. See ``signal.signal``.
-    """
-    path = FilePath(getcwd())
-    path = path.child('profile')
-    # This dumps the current profiling statistics and disables the
-    # collection of profiling data. When the profiler is next enabled
-    # the new statistics are added to existing data.
-    profile.dump_stats(path.path)
 
 
 class DeploymentDiffTest(TestCase):
@@ -69,7 +33,8 @@ class DeploymentDiffTest(TestCase):
     def test_deployment_diffing(self, deployment_a, deployment_b):
         """
         Diffing two arbitrary deployments, then applying the diff to the first
-        deployment yields the second.
+        deployment yields the second even after the diff has been serialized
+        and re-created.
         """
         diff = create_diff(deployment_a, deployment_b)
         serialized_diff = wire_encode(diff)
@@ -82,11 +47,11 @@ class DeploymentDiffTest(TestCase):
 
     def test_deployment_diffing_smart(self):
         """
-        Small modifications to a deployment have diffs that are small.
+        Small modifications to a deployment have diffs that are small. Their
+        reverse is also small.
         """
         # Any large deployment will do, just use hypothesis for convenience of
         # generating a large deployment.
-        p = enable_profiling()
         deployment = deployment_strategy(min_number_of_nodes=90).example()
 
         new_nodes = list(Node(uuid=uuid4()) for _ in xrange(4))
@@ -114,11 +79,11 @@ class DeploymentDiffTest(TestCase):
             wire_decode(encoded_removal_diff).apply(d),
             Equals(deployment)
         )
-        disable_profiling(p)
 
     def test_set_diffing_smart(self):
         """
-        Small modifications to a sets have diffs that are small.
+        Small modifications to a sets have diffs that are small. Their reverse
+        is also small.
         """
         # Any Application with a large set of ports will do, just use
         # hypothesis for convenience of generating a large number of ports on
