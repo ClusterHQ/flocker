@@ -73,7 +73,7 @@ class GenerationTrackerTests(TestCase):
         generation_hashes for older versions of the object start returning
         ``None`` from ``get_diff_from_hash_to_latest``.
         """
-        deployments = related_deployments_strategy(6)
+        deployments = related_deployments_strategy(6).example()
         tracker_under_test = GenerationTracker(4)
         for d in deployments:
             tracker_under_test.insert_latest(d)
