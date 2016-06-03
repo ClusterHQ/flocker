@@ -218,6 +218,8 @@ class NoOp(Command):
     requiresAnswer = False
 
 
+# Both cluster update commands are expected to have responses with a similar
+# signature:
 CLUSTER_UPDATE_RESPONSE = [
     ('current_configuration_generation',
      Big(SerializableArgument(GenerationHash))),
@@ -247,7 +249,9 @@ class ClusterStatusCommand(Command):
 class ClusterStatusDiffCommand(Command):
     """
     Used by the control service to inform a convergence agent of the
-    latest cluster state and desired configuration.
+    latest cluster state and desired configuration, but only sends the diff
+    from the last configuration and state to the latest configuration and
+    state.
 
     Having both as a single command simplifies the decision making process
     in the convergence agent during startup.
@@ -557,6 +561,14 @@ CONTROL_SERVICE_BATCHING_DELAY = 1.0
 
 
 class _ConfigAndStateGeneration(PClass):
+    """
+    Helper object to store a pair of hashes representing a generation of the
+    configuration and a generation of the state.
+
+    :ivar config_hash: The configuration generation hash.
+
+    :ivar state_hash: The state generation hash.
+    """
     config_hash = field(type=(GenerationHash, type(None)), initial=None)
     state_hash = field(type=(GenerationHash, type(None)), initial=None)
 
@@ -702,14 +714,6 @@ class ControlAMPService(Service):
                 # Eliot wants those fields though.
                 action.add_success_fields(configuration=None, state=None)
 
-            if can_update:
-                self._configuration_generation_tracker.insert_latest(
-                    configuration
-                )
-                self._state_generation_tracker.insert_latest(
-                    state
-                )
-
             for connection in can_update:
                 self._update_connection(connection, configuration, state)
 
@@ -726,46 +730,60 @@ class ControlAMPService(Service):
         :param ControlAMP connection: The connection to use to send the
             command.
         """
-        self._state_generation_tracker.insert_latest(configuration)
+
+        # Set the configuration and the state to the latest versions. It is
+        # okay to call this even if the latest configuration is the same
+        # object.
+        self._configuration_generation_tracker.insert_latest(configuration)
         self._state_generation_tracker.insert_latest(state)
+
         action = LOG_SEND_TO_AGENT(agent=connection)
         with action.context():
-            config_gen_tracker = self._configuration_generation_tracker
-            start_config_gen = (
-                self._last_recieved_generation[connection].config_hash
+
+            # Attempt to compute a diff to send to the connection
+            last_received_generations = (
+                self._last_recieved_generation[connection]
             )
+
+            config_gen_tracker = self._configuration_generation_tracker
             configuration_diff = (
                 config_gen_tracker.get_diff_from_hash_to_latest(
-                    start_config_gen
+                    last_received_generations.config_hash
                 )
             )
 
             state_gen_tracker = self._state_generation_tracker
-            start_state_gen = (
-                self._last_recieved_generation[connection].state_hash
-            )
             state_diff = (
                 state_gen_tracker.get_diff_from_hash_to_latest(
-                    start_state_gen
+                    last_received_generations.state_hash
                 )
             )
 
             if configuration_diff is not None and state_diff is not None:
+                # If both diffs were successfully computed, send a command to
+                # send the diffs along with before and after hashes so the
+                # nodes can verify the application of the diffs.
                 d = DeferredContext(maybeDeferred(
                     connection.callRemote,
                     ClusterStatusDiffCommand,
                     configuration_diff=configuration_diff,
-                    start_configuration_generation=start_config_gen,
+                    start_configuration_generation=(
+                        last_received_generations.config_hash
+                    ),
                     end_configuration_generation=(
                         config_gen_tracker.get_latest_hash()
                     ),
                     state_diff=state_diff,
-                    start_state_generation=start_state_gen,
+                    start_state_generation=(
+                        last_received_generations.state_hash
+                    ),
                     end_state_generation=state_gen_tracker.get_latest_hash(),
                     eliot_context=action
                 ))
                 d.addActionFinish()
             else:
+                # Otherwise, just send the lastest configuration and state to
+                # the node.
                 configuration = config_gen_tracker.get_latest()
                 state = state_gen_tracker.get_latest()
                 # Use ``maybeDeferred`` so if an exception happens,
