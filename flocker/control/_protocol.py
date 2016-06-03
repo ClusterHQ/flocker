@@ -924,15 +924,6 @@ class ControlAMPService(Service):
         self._schedule_broadcast_update()
 
 
-class GenerationPair(PClass):
-    """
-    A pair of generation hashes, one for the configuration and one for the
-    state.
-    """
-    configuration = field(type=GenerationHash)
-    state = field(type=GenerationHash)
-
-
 class IConvergenceAgent(Interface):
     """
     The agent that will receive notifications from control service.
@@ -969,6 +960,13 @@ class IConvergenceAgent(Interface):
 class _AgentLocator(CommandLocator):
     """
     Command locator for convergence agent.
+
+    :ivar _current_configuration: The current configuration of the cluster.
+    :ivar GenerationHash _current_configuration_generation: The current
+        generation hash of the configuration.
+    :ivar _current_state: The current state of the cluster.
+    :ivar GenerationHash _current_state_generation: The current generation hash
+        of the state.
     """
     def __init__(self, agent, timeout):
         """
@@ -1006,6 +1004,17 @@ class _AgentLocator(CommandLocator):
         return self.agent.logger
 
     def _set_configuration(self, configuration, verify_hash):
+        """
+        Set the configuration, and verify that the hash of the configuration is
+        correct.
+
+        :param configuration: The new configuration.
+        :param verify_hash: The expected generation hash of the new
+            configuration.
+
+        :raises: ValueError if the new configuration does not have the
+            specified hash.
+        """
         candidate_hash = make_generation_hash(configuration)
         if candidate_hash != verify_hash:
             raise ValueError('Bad hash value %s is not %s' % (candidate_hash,
@@ -1014,6 +1023,14 @@ class _AgentLocator(CommandLocator):
         self._current_configuration_generation = candidate_hash
 
     def _set_state(self, state, verify_hash):
+        """
+        Set the state, and verify that the hash of the state is correct.
+
+        :param state: The new state.
+        :param verify_hash: The expected generation hash of the new state.
+
+        :raises: ValueError if the new state does not have the specified hash.
+        """
         candidate_hash = make_generation_hash(state)
         if candidate_hash != verify_hash:
             raise ValueError('Bad hash value %s is not %s' % (candidate_hash,
@@ -1022,6 +1039,14 @@ class _AgentLocator(CommandLocator):
         self._current_state_generation = candidate_hash
 
     def _current_generations_response(self):
+        """
+        Constructs a response dict appropriate for sending back to the control
+        agent.
+
+        :returns: A dict that has the current hash generations of the
+            configuration and state, in the form expected for communication
+            back to the control node.
+        """
         return {
             'current_configuration_generation': (
                 self._current_configuration_generation
@@ -1032,13 +1057,28 @@ class _AgentLocator(CommandLocator):
         }
 
     def _update_agent(self):
-            self.agent.cluster_updated(
-                self._current_configuration,
-                self._current_state
-            )
+        """
+        Send an update to the agent on this node with the computed current
+        configuration and state.
+        """
+        self.agent.cluster_updated(
+            self._current_configuration,
+            self._current_state
+        )
 
     def _update_cluster(self, configuration, configuration_generation,
                         state, state_generation):
+        """
+        Set the local configuration and state variables, and notify the agent
+        of the update.
+
+        :param configuration: The new configuration.
+        :param configuration_generation: The expected resulting generation hash
+            of the new configuration.
+        :param state: The new state.
+        :param state_generation: The expected resulting generation hash of the
+            new state.
+        """
         self._set_configuration(configuration, configuration_generation)
         self._set_state(state, state_generation)
         self._update_agent()
@@ -1048,6 +1088,17 @@ class _AgentLocator(CommandLocator):
             self, eliot_context, configuration, configuration_generation,
             state, state_generation
     ):
+        """
+        Responder to ``ClusterStatusCommand``. Updates the configuration and
+        state to the passed in values, and validates the hashes.
+
+        :param eliot_context: The eliot context this is called under.
+        :param configuration: The new configuration.
+        :param configuration_generation: The expected generation hash of the
+            new configuration.
+        :param state: The new state.
+        :param state_generation: The expected generation hash of the new state.
+        """
         with eliot_context:
             self._update_cluster(configuration, configuration_generation,
                                  state, state_generation)
@@ -1063,6 +1114,24 @@ class _AgentLocator(CommandLocator):
             start_state_generation,
             end_state_generation,
     ):
+        """
+        Responder to ``ClusterStatusDiffCommand``. Updates the configuration
+        and state by applying diffs to the current values, and verifies the
+        hash of the resulting objects.
+
+        :param eliot_context: The eliot context this is called under.
+        :param configuration_diff: The diff from the current configuration to
+            the next one.
+        :param start_configuration_generation: The expected generation hash of
+            former configuration known by this node.
+        :param end_configuration_generation: The expected generation hash of
+            the new configuration after the diff is applied.
+        :param state: The new state.
+        :param start_state_generation: The expected generation hash of former
+            state known by this node.
+        :param end_state_generation: The expected generation hash of the new
+            state after the diff is applied.
+        """
         with eliot_context:
             if (start_configuration_generation !=
                     self._current_configuration_generation):
