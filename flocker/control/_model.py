@@ -1233,6 +1233,17 @@ class NonManifestDatasets(PClass):
 
 
 def _generation_hash_value_factory(x):
+    """
+    Factory method to create a generation hash.
+
+    This is specifically designed to be able to turn a ``bytes`` string into a
+    tuple of ints. See ``GenerationHash`` for why this is required.
+
+    :param x: The input value to be turned into a proper hash value in a
+        ``GenerationHash``.
+
+    :returns: A tuple of ints.
+    """
     if x is None:
         return x
     transform = lambda y: y
@@ -1245,6 +1256,13 @@ class GenerationHash(PClass):
     """
     Generation hash uniquely defines a configuration or state. A value of None
     indicates that there is no configuration or state known.
+
+    Note that this is a tuple of ints rather than ``bytes`` because the flocker
+    ``wire_encode`` function assumes that ``bytes`` can be encoded as JSON
+    strings, which is not true of generation hashes.
+
+    :ivar hash_value: A tuple of ints each less than 256 that corresponds to a
+        byte string generation hash.
     """
 
     hash_value = field(

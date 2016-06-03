@@ -16,6 +16,12 @@ from .._persistence import make_generation_hash
 class GenerationTrackerTests(TestCase):
 
     def test_basic_use_works(self):
+        """
+        After inserting a bunch of deployments into a ``GenerationTracker`` in
+        sequence, the ``Diff`` returned from ``get_diff_from_hash_to_latest``
+        can be applied to convert each of the deployments to the latest
+        deployment.
+        """
         deployments = list(deployment_strategy().example() for _ in xrange(5))
         deployments[3] = deployments[1]
         tracker_under_test = GenerationTracker(10)
@@ -42,6 +48,12 @@ class GenerationTrackerTests(TestCase):
                 last = diff
 
     def test_cache_runout(self):
+        """
+        When the cache is smaller than the number of objects that have been
+        inserted into a ``GenerationTracker``, the cache runs out, and
+        generation_hashes for older versions of the object start returning
+        ``None`` from ``get_diff_from_hash_to_latest``.
+        """
         deployments = list(deployment_strategy().example() for _ in xrange(6))
         tracker_under_test = GenerationTracker(4)
         for d in deployments:
