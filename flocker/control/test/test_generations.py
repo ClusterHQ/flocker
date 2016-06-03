@@ -22,7 +22,7 @@ class GenerationTrackerTests(TestCase):
         can be applied to convert each of the deployments to the latest
         deployment.
         """
-        deployments = related_deployments_strategy(5).example()
+        deployments = list(related_deployments_strategy(5).example())
 
         # The diffing algorithm is potentially a little more interesting if
         # there are repeat deployments in the queue of deployments being
@@ -58,7 +58,7 @@ class GenerationTrackerTests(TestCase):
                     diff.apply(d),
                     Equals(last_deployment)
                 )
-                computed_diffs.append(diff)
+                computed_diffs.add(diff)
 
             # Verify that all of the diffs that we computed were the same.
             self.assertThat(
