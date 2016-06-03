@@ -5,6 +5,7 @@ Utilities to perform Flocker operations.
 
 from functools import partial
 from datetime import timedelta
+from itertools import repeat
 
 from flocker.common import loop_until, timeout as _timeout
 
@@ -35,7 +36,7 @@ def loop_until_state_found(reactor, get_states, state_matches, timeout):
 
         return d
 
-    d = loop_until(reactor, state_reached)
+    d = loop_until(reactor, state_reached, repeat(10.0))
     _timeout(reactor, d, timeout.total_seconds())
     return d
 

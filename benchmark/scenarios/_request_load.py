@@ -93,7 +93,7 @@ class RequestLoadScenario(object):
         self.timeout = timeout
         self._maintained = Deferred()
         self.rate_measurer = RateMeasurer(sample_size)
-        self.max_outstanding = 10 * request_rate
+        self.max_outstanding = 40 * request_rate
         self.tolerated_errors = 5 * request_rate
         # Send requests per second
         self.loop = LoopingCall.withCount(self._request_and_measure)

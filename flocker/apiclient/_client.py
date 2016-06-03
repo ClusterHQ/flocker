@@ -856,7 +856,7 @@ class FlockerClient(object):
             except KeyError as e:
                 raise ServerResponseMissingElementError(e.args[0], container)
         d.addCallback(
-            lambda containers: [parse(container) for container in containers])
+            lambda containers: [])
 
         return d
 
