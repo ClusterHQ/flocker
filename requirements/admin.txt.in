@@ -13,7 +13,7 @@ GitPython
 ipaddr
 # Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL
 ndg-httpsclient
---find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq4#egg=pyrsistent-0.11.13+chq4
+--find-links git+https://github.com/ClusterHQ/pyrsistent@9172c5561b8396edd29c3f965efe050112fc217b#egg=pyrsistent-0.11.13+chq4
 pyrsistent
 python-dateutil
 pytz
