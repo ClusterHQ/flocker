@@ -39,8 +39,8 @@ requests==2.10.0
 # See: https://github.com/pyca/cryptography/issues/2838#issuecomment-221838467
 setuptools==21.0.0
 six==1.10.0
-Sphinx==1.4.1
-sphinxcontrib-httpdomain==1.4.0
+Sphinx==1.4.2
+sphinxcontrib-httpdomain==1.5.0
 testtools==2.2.0
 treq==15.1.0
 Twisted==16.2.0
