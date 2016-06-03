@@ -67,19 +67,18 @@ class GenerationTracker(object):
         ``_GenerationRecord`` to the queue (and drop one if the queue is full).
         """
         if latest == self._latest_object:
-            return 
+            return
         latest_hash = make_generation_hash(latest)
 
         if (self._latest_object is not None and
                 latest_hash != self._latest_hash):
             new_diff = create_diff(self._latest_object, latest)
-            if self._latest_hash is not None:
-                self._queue.append(
-                    _GenerationRecord(
-                        generation_hash=self._latest_hash,
-                        diff_to_next=new_diff
-                    )
+            self._queue.append(
+                _GenerationRecord(
+                    generation_hash=self._latest_hash,
+                    diff_to_next=new_diff
                 )
+            )
 
         self._latest_object = latest
         self._latest_hash = latest_hash

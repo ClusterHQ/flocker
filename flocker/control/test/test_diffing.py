@@ -62,6 +62,11 @@ class DeploymentDiffTest(TestCase):
     def test_deployment_diffing_composable(self, deployments):
         """
         Diffs should compose to create an aggregate diff.
+
+        Create a bunch of deployments and compute the incremental diffs from
+        one to the next. Compose all diffs together and apply the resulting
+        diff to the first deployment. Verify that the final deployment is the
+        result.
         """
         reserialize = lambda x: wire_decode(wire_encode(x))
         deployment_diffs = list(
