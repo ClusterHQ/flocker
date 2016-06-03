@@ -8,14 +8,16 @@ from json import dumps
 from uuid import uuid4
 
 from hypothesis import given
+import hypothesis.strategies as st
 from pyrsistent import PClass, field, pmap, pset
 
-from .._diffing import create_diff
+from .._diffing import create_diff, compose_diffs
 from .._persistence import wire_encode, wire_decode
 from .._model import Node, Port
 from ..testtools import (
     application_strategy,
-    deployment_strategy
+    deployment_strategy,
+    related_deployments_strategy
 )
 
 from ...testtools import TestCase
@@ -36,15 +38,15 @@ class DeploymentDiffTest(TestCase):
     """
 
     @given(
-        deployment_strategy(),
-        deployment_strategy(),
+        related_deployments_strategy(2)
     )
-    def test_deployment_diffing(self, deployment_a, deployment_b):
+    def test_deployment_diffing(self, deployments):
         """
         Diffing two arbitrary deployments, then applying the diff to the first
         deployment yields the second even after the diff has been serialized
         and re-created.
         """
+        deployment_a, deployment_b = deployments
         diff = create_diff(deployment_a, deployment_b)
         serialized_diff = wire_encode(diff)
         newdiff = wire_decode(serialized_diff)
@@ -52,6 +54,29 @@ class DeploymentDiffTest(TestCase):
         self.assertThat(
             should_b_b,
             Equals(deployment_b)
+        )
+
+    @given(
+        st.lists(deployment_strategy(), min_size=3, max_size=10)
+    )
+    def test_deployment_diffing_composable(self, deployments):
+        """
+        Diffs should compose to create an aggregate diff.
+
+        Create a bunch of deployments and compute the incremental diffs from
+        one to the next. Compose all diffs together and apply the resulting
+        diff to the first deployment. Verify that the final deployment is the
+        result.
+        """
+        reserialize = lambda x: wire_decode(wire_encode(x))
+        deployment_diffs = list(
+            reserialize(create_diff(a, b))
+            for a, b in zip(deployments[:-1], deployments[1:])
+        )
+        full_diff = reserialize(compose_diffs(deployment_diffs))
+        self.assertThat(
+            full_diff.apply(deployments[0]),
+            Equals(deployments[-1])
         )
 
     def test_deployment_diffing_smart(self):
