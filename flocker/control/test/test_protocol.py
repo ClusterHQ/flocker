@@ -72,6 +72,22 @@ def arbitrary_transformation(deployment):
     )
 
 
+def arbitrary_state_transformation(deployment_state):
+    """
+    Make some change to a deployment state.  Any change.
+
+    The exact change made is unspecified but the resulting ``DeploymentState``
+    will be different from the given ``DeploymentState``.
+
+    :param DeploymentState deployment_state: A deployment state to change.
+
+    :return: A ``DeploymentState`` similar but not exactly equal to the given.
+    """
+    uuid = uuid4()
+    return deployment_state.transform(
+        ["nodes", uuid], NodeState(uuid=uuid, hostname=u'catcatdog')
+    )
+
 APP1 = Application(
     name=u'myapp',
     image=DockerImage.from_string(u'postgresql'))
@@ -1264,7 +1280,87 @@ class AgentClientTests(TestCase):
         d = self._send_cluster_status(_TEST_DEPLOYMENT, actual)
         self.successResultOf(d)
         next_deployment = arbitrary_transformation(_TEST_DEPLOYMENT)
-        next_state = actual
+        next_state = arbitrary_state_transformation(actual)
+        d = self._send_cluster_status_diff(
+            _TEST_DEPLOYMENT, actual, next_deployment, next_state
+        )
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    next_deployment
+                ),
+                current_state_generation=make_generation_hash(
+                    next_state
+                ),
+            )
+        )
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=next_deployment,
+                                               cluster_updated_count=2,
+                                               actual=next_state))
+
+    def test_cluster_updated_diff_wrong_initial(self):
+        """
+        ``ClusterStatusDiffCommand`` sent to the ``AgentClient`` result in
+        the agent returning its latest hash if the initial object sent by the
+        control agent was not the version the agent had.
+        """
+        actual = DeploymentState(nodes=[])
+        d = self._send_cluster_status(_TEST_DEPLOYMENT, actual)
+        self.successResultOf(d)
+        next_deployment = arbitrary_transformation(_TEST_DEPLOYMENT)
+        wrong_initial_deployment = arbitrary_transformation(next_deployment)
+        next_state = arbitrary_state_transformation(actual)
+        wrong_initial_state = arbitrary_transformation(next_deployment)
+        d = self._send_cluster_status_diff(
+            wrong_initial_deployment, actual, next_deployment, next_state
+        )
+
+        # Agent detects mismatch in initial hashes, and reports what its
+        # actual hash is.
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    _TEST_DEPLOYMENT
+                ),
+                current_state_generation=make_generation_hash(
+                    actual
+                ),
+            )
+        )
+        # Agent still has the initial configuration.
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=_TEST_DEPLOYMENT,
+                                               cluster_updated_count=1,
+                                               actual=actual))
+
+        d = self._send_cluster_status_diff(
+            _TEST_DEPLOYMENT, wrong_initial_state, next_deployment, next_state
+        )
+        # Agent detects mismatch in initial hashes, and reports what its
+        # actual hash is.
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    _TEST_DEPLOYMENT
+                ),
+                current_state_generation=make_generation_hash(
+                    actual
+                ),
+            )
+        )
+        # Agent still has the initial configuration.
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=_TEST_DEPLOYMENT,
+                                               cluster_updated_count=1,
+                                               actual=actual))
+
         d = self._send_cluster_status_diff(
             _TEST_DEPLOYMENT, actual, next_deployment, next_state
         )
