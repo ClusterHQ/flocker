@@ -238,6 +238,18 @@ def create_diff(object_a, object_b):
 
 
 def compose_diffs(iterable_of_diffs):
+    """
+    Compose multiple ``Diff`` objects into a single diff.
+
+    Assuming you have 3 objects, A, B, and C and you compute diff AB and BC.
+    If you pass [AB, BC] into this function it will return AC, a diff that when
+    applied to object A, will return C.
+
+    :param iterable_of_diffs: An iterable of diffs to be composed.
+
+    :returns: A new diff such that applying this diff is equivalent to applying
+        each of the input diffs in serial.
+    """
     return Diff(
         changes=reduce(
             lambda x, y: x.extend(y.changes),

@@ -408,6 +408,16 @@ def generation_hash(input_object):
 
 
 def make_generation_hash(x):
+    """
+    Creates a ``GenerationHash`` for a given argument.
+
+    Simple helper to call ``generation_hash`` and wrap it in the
+    ``GenerationHash`` ``PClass``.
+
+    :param x: The object to hash.
+
+    :returns: The ``GenerationHash`` for the object.
+    """
     return GenerationHash(
         hash_value=generation_hash(x)
     )
