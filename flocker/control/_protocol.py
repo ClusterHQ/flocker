@@ -609,7 +609,7 @@ class ControlAMPService(Service):
         self._connections_pending_update = set()
         self._current_pending_update_delayed_call = None
         self._current_command = {}
-        self._last_recieved_generation = defaultdict(
+        self._last_received_generation = defaultdict(
             lambda: _ConfigAndStateGeneration()
         )
         self._configuration_generation_tracker = GenerationTracker(100)
@@ -742,7 +742,7 @@ class ControlAMPService(Service):
 
             # Attempt to compute a diff to send to the connection
             last_received_generations = (
-                self._last_recieved_generation[connection]
+                self._last_received_generation[connection]
             )
 
             config_gen_tracker = self._configuration_generation_tracker
@@ -812,7 +812,7 @@ class ControlAMPService(Service):
             if response:
                 config_gen = response['current_configuration_generation']
                 state_gen = response['current_state_generation']
-                self._last_recieved_generation[connection] = (
+                self._last_received_generation[connection] = (
                     _ConfigAndStateGeneration(
                         config_hash=config_gen,
                         state_hash=state_gen
@@ -862,8 +862,8 @@ class ControlAMPService(Service):
         self._connections.remove(connection)
         if connection in self._connections_pending_update:
             self._connections_pending_update.remove(connection)
-        if connection in self._last_recieved_generation:
-            del self._last_recieved_generation[connection]
+        if connection in self._last_received_generation:
+            del self._last_received_generation[connection]
 
     def _execute_update_connections(self):
         """
