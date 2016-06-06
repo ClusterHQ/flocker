@@ -58,6 +58,23 @@ class GenerationTracker(object):
         self._latest_object = None
         self._latest_hash = None
 
+    def get_latest(self):
+        """
+        Getter for the most up-to-date object
+
+        :returns: The latest object tracked by this ``GenerationTracker``.
+        """
+        return self._latest_object
+
+    def get_latest_hash(self):
+        """
+        Getter for the hash value of the most up-to-date object.
+
+        :returns: The generation hash of the latest object tracked by this
+            ``GenerationTracker``.
+        """
+        return self._latest_hash
+
     def insert_latest(self, latest):
         """
         Insert a new version of the object to be the object.
@@ -95,6 +112,9 @@ class GenerationTracker(object):
             being tracked. Or ``None`` if this object is no longer tracking any
             previous version object with the passed in ``generation_hash``.
         """
+        if generation_hash is None:
+            return None
+
         if self._latest_hash == generation_hash:
             return compose_diffs([])
 

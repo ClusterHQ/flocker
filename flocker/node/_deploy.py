@@ -97,7 +97,7 @@ class IDeployer(Interface):
 
         Returning ``flocker.node.NoOp`` will result in the convergence
         loop sleeping for the duration of the specified sleep. If a new
-        cluster state or configuration are recieved by the loop then it
+        cluster state or configuration are received by the loop then it
         runs ``calculate_changes`` with cached local state and new
         configuration and cluster state in order to figure out whether it
         should interrupt the sleep. If this results in a ``IStateChange``
