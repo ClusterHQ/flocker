@@ -358,17 +358,21 @@ def deployment_strategy(
 @composite
 def related_deployments_strategy(draw, number_of_deployments):
     """
-    A strategy to generate more than 1 deployments that are related.
+    A strategy to generate more than 1 unique deployments that are related.
 
-    Specifically, this ensures that all node uuids are drawn from a common pool
-    for all of the deployments.
+    Specifically, this ensures that:
+    * all node uuids are drawn from a common pool for all of the deployments.
+    * deployments contains unique deployements
 
     :param int number_of_deployments: The number of deployments to create.
 
     :returns: A strategy to create ``number_of_deployments`` ``Deployment`` s.
     """
     node_uuid_pool = draw(node_uuid_pool_strategy())
-    return tuple(
-        draw(deployment_strategy(node_uuid_pool=node_uuid_pool))
-        for _ in xrange(number_of_deployments)
-    )
+    deployments = set()
+    while True:
+        deployments.add(
+            draw(deployment_strategy(node_uuid_pool=node_uuid_pool))
+        )
+        if len(deployments) == number_of_deployments:
+            return tuple(deployments)
