@@ -3,9 +3,9 @@ apache-libcloud==0.20.1
 bitmath==1.3.0.2
 boto==2.40.0
 boto3==1.3.1
-botocore==1.4.24
+botocore==1.4.25
 characteristic==14.3.0
-python-cinderclient==1.7.1
+python-cinderclient==1.8.0
 docker-py==1.8.1
 docutils==0.12
 effect==0.10.1
@@ -14,7 +14,7 @@ google-api-python-client==1.5.1
 hypothesis==3.4.0
 ipaddr==2.1.11
 jsonschema==2.5.1
-keystoneauth1==2.7.0
+keystoneauth1==2.8.0
 # FLOC-4410 keystoneclient 3.0.0 moves some exceptions around.
 python-keystoneclient==2.3.1
 python-keystoneclient-rackspace==0.1.3
@@ -22,24 +22,24 @@ klein==15.3.1
 machinist==0.2.0
 mmh3==2.3.1
 # Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL
-ndg-httpsclient==0.4.0
+ndg-httpsclient==0.4.1
 netifaces==0.10.4
 python-novaclient==4.0.0
 # FLOC-4411 oauth2client 2 no longer exports SignedJwtAssertionCredentials
 oauth2client==1.5.2
 pyOpenSSL==16.0.0
 psutil==4.2.0
---find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq4#egg=pyrsistent-0.11.13+chq4
-pyrsistent==0.11.13+chq4
+--find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq5#egg=pyrsistent-0.11.13+chq5
+pyrsistent==0.11.13+chq5
 pytz==2016.4
 repoze.lru==0.6
 requests==2.10.0
 # Add a setuptools dependency to ensure that `pip` installs the latest version
 # instead of settling for the OS packaged version.
 # See: https://github.com/pyca/cryptography/issues/2838#issuecomment-221838467
-setuptools==21.0.0
+setuptools==22.0.0
 six==1.10.0
-Sphinx==1.4.2
+Sphinx==1.4.3
 sphinxcontrib-httpdomain==1.5.0
 testtools==2.2.0
 treq==15.1.0
@@ -53,7 +53,7 @@ attrs==16.0.0
 Babel==2.3.4
 backports.ssl-match-hostname==3.5.0.1
 cffi==1.6.0
-cryptography==1.3.2
+cryptography==1.3.4
 debtcollector==1.4.0
 enum34==1.1.6
 extras==1.0.0
