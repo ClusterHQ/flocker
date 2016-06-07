@@ -37,7 +37,7 @@ requests
 # Add a setuptools dependency to ensure that `pip` installs the latest version
 # instead of settling for the OS packaged version.
 # See: https://github.com/pyca/cryptography/issues/2838#issuecomment-221838467
-setuptools
+setuptools == 22.0.0
 six
 Sphinx
 sphinxcontrib-httpdomain
