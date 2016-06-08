@@ -679,7 +679,8 @@ class DockerClient(object):
 
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
-            restart_policy=RestartNever(), command_line=None):
+            restart_policy=RestartNever(), command_line=None,
+            swappiness=0):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:
@@ -725,6 +726,7 @@ class DockerClient(object):
                 mem_limit=mem_limit,
                 cpu_shares=cpu_shares,
                 host_config=host_config,
+                swappiness=swappiness,
             )
 
         def _add():

@@ -630,6 +630,7 @@ class ConfigurationAPIUserV1(object):
             u"create container with memory limit",
             u"create container with links",
             u"create container with command line",
+            u"create container with swappiness",
             # No example of creating a container with a different restart
             # policy because only the "never" policy is supported.  See
             # FLOC-2449.
@@ -646,7 +647,7 @@ class ConfigurationAPIUserV1(object):
     def create_container_configuration(
         self, node_uuid, name, image, ports=(), environment=None,
         restart_policy=None, cpu_shares=None, memory_limit=None,
-        links=(), volumes=(), command_line=None,
+        links=(), volumes=(), command_line=None, swappiness=0,
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -690,6 +691,9 @@ class ConfigurationAPIUserV1(object):
 
         :param command_line: If not ``None``, the command line to use when
             running the Docker image's entry point.
+
+        :param swappiness: Tune container's memory swappiness
+            (default of 0 is no swap).
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -772,6 +776,7 @@ class ConfigurationAPIUserV1(object):
             memory_limit=memory_limit,
             links=application_links,
             command_line=command_line,
+            swappiness=swappiness,
         )
 
         new_node_config = node.transform(
