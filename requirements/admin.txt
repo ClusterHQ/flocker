@@ -1,7 +1,7 @@
 apache-libcloud==0.20.1
 # The `aws` command is required by the ``admin.installer``,
 # `admin.test.test_installer` and in the release process.
-awscli==1.10.35
+awscli==1.10.36
 bitmath==1.3.0.2
 boto==2.40.0
 characteristic==14.3.0
@@ -29,7 +29,7 @@ zope.interface==4.1.3
 ## The following requirements were added by pip freeze:
 attrs==16.0.0
 backports.ssl-match-hostname==3.5.0.1
-botocore==1.4.25
+botocore==1.4.26
 cached-property==1.3.0
 cffi==1.6.0
 chardet==2.3.0
