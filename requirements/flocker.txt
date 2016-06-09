@@ -27,6 +27,9 @@ netifaces==0.10.4
 python-novaclient==4.0.0
 # FLOC-4411 oauth2client 2 no longer exports SignedJwtAssertionCredentials
 oauth2client==1.5.2
+# XXX This is here to ensure that buildbot installs a version of pip and
+# setuptools capable of parsing pkg_resources environment markers
+# e.g. nomenclature; sys_platform==linux2 (FLOC-4429)
 pip==8.1.2
 pyOpenSSL==16.0.0
 psutil==4.2.0
@@ -38,7 +41,7 @@ requests==2.10.0
 # Add a setuptools dependency to ensure that `pip` installs the latest version
 # instead of settling for the OS packaged version.
 # See: https://github.com/pyca/cryptography/issues/2838#issuecomment-221838467
-setuptools==22.0.0
+setuptools==22.0.5
 six==1.10.0
 Sphinx==1.4.3
 sphinxcontrib-httpdomain==1.5.0
