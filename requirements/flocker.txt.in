@@ -27,6 +27,7 @@ netifaces
 python-novaclient
 # FLOC-4411 oauth2client 2 no longer exports SignedJwtAssertionCredentials
 oauth2client < 2.0.0
+pip
 pyOpenSSL
 psutil
 --find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq5#egg=pyrsistent-0.11.13+chq5
