@@ -1,2 +1,5 @@
 # awscli has very specific colarama requirements while pylint doesn't
 colorama<=0.3.3,>=0.2.5
+# Cryptography won't install on manylinux right now:
+# https://github.com/pyca/cryptography/blob/master/src/cryptography/hazmat/bindings/openssl/binding.py#L229
+cryptography<1.4
