@@ -13,6 +13,19 @@ You can learn more about where we might be going with future releases by:
 This Release
 ============
 
+v1.13.0
+-------
+
+* ``flocker-deploy`` command line utility is now deprecated.
+
+Previous Releases
+=================
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
+
 v1.12.0
 -------
 
@@ -22,14 +35,6 @@ v1.12.0
 * The Flocker control service and dataset agents now use less CPU and network bandwidth whilst converging on configuration changes.
 * The Flocker dataset agent will now reconnect to the control service within 30 seconds, even after an extended disconnection.
 * The Flocker documentation search engine is now faster and generates more relevant results.
-
-Previous Releases
-=================
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
 
 v1.11.0
 -------
