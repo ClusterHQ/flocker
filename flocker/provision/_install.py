@@ -673,7 +673,7 @@ def cli_pip_test(venv_name='flocker-client', package_source=PackageSource()):
     """
     return sequence([
         run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
-        run('test `flocker-deploy --version` = {}'.format(
+        run('test `flocker-ca --version` = {}'.format(
             quote(_get_wheel_version(package_source))))
         ])
 
