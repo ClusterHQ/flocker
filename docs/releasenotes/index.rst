@@ -14,7 +14,7 @@ Next Release
 ============
 
 * The dataset agent now has backend support for :ref:`Pure Storage <pure-storage-backend>`.
-
+* The dataset agent now has backend support for :ref:`CoprHD <coprhd-backend>`.
 
 This Release
 ============
