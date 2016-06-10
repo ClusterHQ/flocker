@@ -13,7 +13,7 @@ You can learn more about where we might be going with future releases by:
 Next Release
 ============
 
-* The dataset agent now has backend support for :ref:`EMC CoprHD <emc-coprhd-backend>`.
+* The dataset agent now has backend support for :ref:`CoprHD <coprhd-backend>`.
 
 This Release
 ============
