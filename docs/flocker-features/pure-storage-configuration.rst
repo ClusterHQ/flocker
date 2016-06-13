@@ -8,6 +8,6 @@ Pure Storage Block Device Backend
 
 Pure Storage provides a Flocker backend plugin.
 
-For more information, including installation, testing and usage instructions, visit the `Pure Storage Flocker Driver on GitHub <https://github.com/sdodsley/purestorage-flocker-driver>`_
+For more information, including installation, testing and usage instructions, visit the `Pure Storage Flocker Driver on GitHub <https://github.com/PureStorage-OpenConnect/purestorage-flocker-driver>`_
 
 .. end-body
