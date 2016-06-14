@@ -170,6 +170,12 @@ These hardware storage options require specific physical hardware in your data c
                         <img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
                 <a href="../flocker-features/huawei-configuration.html" class="button">Learn more</a>
             </div>
+            <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
+                        <img src="../_static/images/pure-storage.png" alt="Pure Storage logo"/>
+                        <span>Pure Storage</span>
+                        <img class="icon-key-assign" src="../_static/images/icon-community2x.png" aria-hidden="true" alt=""/>
+                <a href="../flocker-features/pure-storage-configuration.html" class="button">Learn more</a>
+            </div>
         </div>
 
 .. note:: If you wish to use a storage device that is not supported by Flocker or an existing plugin, you can implement this support yourself.
