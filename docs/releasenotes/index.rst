@@ -10,12 +10,18 @@ You can learn more about where we might be going with future releases by:
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
 
-Next Release
+This Release
 ============
 
+v1.13.0
+-------
+
+* The control service and now uses a diffing algorithm when exchanging configuration changes and state changes with convergence agents.
+  This significantly reduces the CPU and network bandwidth whilst converging on configuration changes.
 * The dataset agent now has backend support for :ref:`Pure Storage <pure-storage-backend>`.
 * The dataset agent now has backend support for :ref:`CoprHD <coprhd-backend>`.
 * The ``flocker-deploy`` command line utility, which was deprecated in 1.11.0, has now been removed.
+* All the Flocker Python library requirements have been updated to the latest stable versions.
 
 Previous Releases
 =================
