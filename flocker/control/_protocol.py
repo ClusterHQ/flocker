@@ -31,6 +31,7 @@ http://eliot.readthedocs.org/en/0.6.0/threads.html).
     their ``wire_encode`` output.
 """
 
+from collections import defaultdict
 from datetime import timedelta
 from io import BytesIO
 from itertools import count
@@ -61,11 +62,15 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
-from ._persistence import wire_encode, wire_decode
+from ._persistence import wire_encode, wire_decode, make_generation_hash
 from ._model import (
     Deployment, DeploymentState, ChangeSource, UpdateNodeStateEra,
-    BlockDeviceOwnership, DatasetAlreadyOwned,
+    BlockDeviceOwnership, DatasetAlreadyOwned, GenerationHash,
 )
+from ._diffing import (
+    Diff
+)
+from ._generations import GenerationTracker
 
 PING_INTERVAL = timedelta(seconds=30)
 
@@ -213,6 +218,16 @@ class NoOp(Command):
     requiresAnswer = False
 
 
+# Both cluster update commands are expected to have responses with a similar
+# signature:
+CLUSTER_UPDATE_RESPONSE = [
+    ('current_configuration_generation',
+     Big(SerializableArgument(GenerationHash))),
+    ('current_state_generation',
+     Big(SerializableArgument(GenerationHash))),
+]
+
+
 class ClusterStatusCommand(Command):
     """
     Used by the control service to inform a convergence agent of the
@@ -222,9 +237,37 @@ class ClusterStatusCommand(Command):
     in the convergence agent during startup.
     """
     arguments = [('configuration', Big(SerializableArgument(Deployment))),
+                 ('configuration_generation',
+                  Big(SerializableArgument(GenerationHash))),
                  ('state', Big(SerializableArgument(DeploymentState))),
+                 ('state_generation',
+                  Big(SerializableArgument(GenerationHash))),
                  ('eliot_context', _EliotActionArgument())]
-    response = []
+    response = CLUSTER_UPDATE_RESPONSE
+
+
+class ClusterStatusDiffCommand(Command):
+    """
+    Used by the control service to inform a convergence agent of the
+    latest cluster state and desired configuration, but only sends the diff
+    from the last configuration and state to the latest configuration and
+    state.
+
+    Having both as a single command simplifies the decision making process
+    in the convergence agent during startup.
+    """
+    arguments = [('configuration_diff', Big(SerializableArgument(Diff))),
+                 ('start_configuration_generation',
+                  Big(SerializableArgument(GenerationHash))),
+                 ('end_configuration_generation',
+                  Big(SerializableArgument(GenerationHash))),
+                 ('state_diff', Big(SerializableArgument(Diff))),
+                 ('start_state_generation',
+                  Big(SerializableArgument(GenerationHash))),
+                 ('end_state_generation',
+                  Big(SerializableArgument(GenerationHash))),
+                 ('eliot_context', _EliotActionArgument())]
+    response = CLUSTER_UPDATE_RESPONSE
 
 
 class SetNodeEraCommand(Command):
@@ -380,16 +423,21 @@ class ControlServiceLocator(CommandLocator):
     @SetBlockDeviceIdForDatasetId.responder
     def set_blockdevice_id(self, dataset_id, blockdevice_id):
         deployment = self.control_amp_service.configuration_service.get()
-        self.control_amp_service.configuration_service.save(
-            deployment.transform(
-                ["persistent_state", "blockdevice_ownership"],
-                partial(
-                    BlockDeviceOwnership.record_ownership,
-                    dataset_id=UUID(dataset_id),
-                    blockdevice_id=blockdevice_id,
-                ),
-            )
+        dataset_uuid = UUID(dataset_id)
+        current_val = deployment.persistent_state.blockdevice_ownership.get(
+            dataset_uuid
         )
+        if current_val != blockdevice_id:
+            self.control_amp_service.configuration_service.save(
+                deployment.transform(
+                    ["persistent_state", "blockdevice_ownership"],
+                    partial(
+                        BlockDeviceOwnership.record_ownership,
+                        dataset_id=dataset_uuid,
+                        blockdevice_id=blockdevice_id,
+                    ),
+                )
+            )
         return {}
 
 
@@ -517,6 +565,19 @@ class _UpdateState(PClass):
 CONTROL_SERVICE_BATCHING_DELAY = 1.0
 
 
+class _ConfigAndStateGeneration(PClass):
+    """
+    Helper object to store a pair of hashes representing a generation of the
+    configuration and a generation of the state.
+
+    :ivar config_hash: The configuration generation hash.
+
+    :ivar state_hash: The state generation hash.
+    """
+    config_hash = field(type=(GenerationHash, type(None)), initial=None)
+    state_hash = field(type=(GenerationHash, type(None)), initial=None)
+
+
 class ControlAMPService(Service):
     """
     Control Service AMP server.
@@ -548,11 +609,16 @@ class ControlAMPService(Service):
         :param endpoint: Endpoint to listen on.
         :param context_factory: TLS context factory.
         """
-        self.connections = set()
+        self._connections = set()
         self._reactor = reactor
         self._connections_pending_update = set()
         self._current_pending_update_delayed_call = None
         self._current_command = {}
+        self._last_received_generation = defaultdict(
+            lambda: _ConfigAndStateGeneration()
+        )
+        self._configuration_generation_tracker = GenerationTracker(100)
+        self._state_generation_tracker = GenerationTracker(100)
         self.cluster_state = cluster_state
         self.configuration_service = configuration_service
         self.endpoint_service = StreamServerEndpointService(
@@ -574,8 +640,9 @@ class ControlAMPService(Service):
             self._current_pending_update_delayed_call.cancel()
             self._current_pending_update_delayed_call = None
         self.endpoint_service.stopService()
-        for connection in self.connections:
+        for connection in self._connections:
             connection.transport.loseConnection()
+        self._connections = set()
 
     def _send_state_to_connections(self, connections):
         """
@@ -663,26 +730,81 @@ class ControlAMPService(Service):
 
     def _update_connection(self, connection, configuration, state):
         """
-        Send a ``ClusterStatusCommand`` to an agent.
+        Send the latest cluster configuration and state to ``connection``.
 
         :param ControlAMP connection: The connection to use to send the
             command.
-
-        :param Deployment configuration: The cluster configuration to send.
-        :param DeploymentState state: The current cluster state to send.
         """
+
+        # Set the configuration and the state to the latest versions. It is
+        # okay to call this even if the latest configuration is the same
+        # object.
+        self._configuration_generation_tracker.insert_latest(configuration)
+        self._state_generation_tracker.insert_latest(state)
+
         action = LOG_SEND_TO_AGENT(agent=connection)
         with action.context():
-            # Use ``maybeDeferred`` so if an exception happens,
-            # it will be wrapped in a ``Failure`` - see FLOC-3221
-            d = DeferredContext(maybeDeferred(
-                connection.callRemote,
-                ClusterStatusCommand,
-                configuration=configuration,
-                state=state,
-                eliot_context=action
-            ))
-            d.addActionFinish()
+
+            # Attempt to compute a diff to send to the connection
+            last_received_generations = (
+                self._last_received_generation[connection]
+            )
+
+            config_gen_tracker = self._configuration_generation_tracker
+            configuration_diff = (
+                config_gen_tracker.get_diff_from_hash_to_latest(
+                    last_received_generations.config_hash
+                )
+            )
+
+            state_gen_tracker = self._state_generation_tracker
+            state_diff = (
+                state_gen_tracker.get_diff_from_hash_to_latest(
+                    last_received_generations.state_hash
+                )
+            )
+
+            if configuration_diff is not None and state_diff is not None:
+                # If both diffs were successfully computed, send a command to
+                # send the diffs along with before and after hashes so the
+                # nodes can verify the application of the diffs.
+                d = DeferredContext(maybeDeferred(
+                    connection.callRemote,
+                    ClusterStatusDiffCommand,
+                    configuration_diff=configuration_diff,
+                    start_configuration_generation=(
+                        last_received_generations.config_hash
+                    ),
+                    end_configuration_generation=(
+                        config_gen_tracker.get_latest_hash()
+                    ),
+                    state_diff=state_diff,
+                    start_state_generation=(
+                        last_received_generations.state_hash
+                    ),
+                    end_state_generation=state_gen_tracker.get_latest_hash(),
+                    eliot_context=action
+                ))
+                d.addActionFinish()
+            else:
+                # Otherwise, just send the lastest configuration and state to
+                # the node.
+                configuration = config_gen_tracker.get_latest()
+                state = state_gen_tracker.get_latest()
+                # Use ``maybeDeferred`` so if an exception happens,
+                # it will be wrapped in a ``Failure`` - see FLOC-3221
+                d = DeferredContext(maybeDeferred(
+                    connection.callRemote,
+                    ClusterStatusCommand,
+                    configuration=configuration,
+                    configuration_generation=(
+                        config_gen_tracker.get_latest_hash()
+                    ),
+                    state=state,
+                    state_generation=state_gen_tracker.get_latest_hash(),
+                    eliot_context=action
+                ))
+                d.addActionFinish()
             d.result.addErrback(lambda _: None)
 
         update = self._current_command[connection] = _UpdateState(
@@ -690,8 +812,23 @@ class ControlAMPService(Service):
             next_scheduled=False,
         )
 
-        def finished_update(ignored):
+        def finished_update(response):
             del self._current_command[connection]
+            if response:
+                config_gen = response['current_configuration_generation']
+                state_gen = response['current_state_generation']
+                self._last_received_generation[connection] = (
+                    _ConfigAndStateGeneration(
+                        config_hash=config_gen,
+                        state_hash=state_gen
+                    )
+                )
+                #  If the latest hash was not returned, schedule an update.
+                if (self._configuration_generation_tracker.get_latest_hash() !=
+                        config_gen or
+                        self._state_generation_tracker.get_latest_hash() !=
+                        state_gen):
+                    self._schedule_update([connection])
         update.response.addCallback(finished_update)
 
     def _delayed_update_connection(self, connection):
@@ -718,7 +855,7 @@ class ControlAMPService(Service):
         :param ControlAMP connection: The new connection.
         """
         with AGENT_CONNECTED(agent=connection):
-            self.connections.add(connection)
+            self._connections.add(connection)
             self._schedule_update([connection])
 
     def disconnected(self, connection):
@@ -727,7 +864,11 @@ class ControlAMPService(Service):
 
         :param ControlAMP connection: The lost connection.
         """
-        self.connections.remove(connection)
+        self._connections.remove(connection)
+        if connection in self._connections_pending_update:
+            self._connections_pending_update.remove(connection)
+        if connection in self._last_received_generation:
+            del self._last_received_generation[connection]
 
     def _execute_update_connections(self):
         """
@@ -773,7 +914,7 @@ class ControlAMPService(Service):
         so that if we receive multiple updates within that second they are
         coalesced down to a single update.
         """
-        self._schedule_update(self.connections)
+        self._schedule_update(self._connections)
 
     def node_changed(self, source, state_changes):
         """
@@ -824,6 +965,13 @@ class IConvergenceAgent(Interface):
 class _AgentLocator(CommandLocator):
     """
     Command locator for convergence agent.
+
+    :ivar _current_configuration: The current configuration of the cluster.
+    :ivar GenerationHash _current_configuration_generation: The current
+        generation hash of the configuration.
+    :ivar _current_state: The current state of the cluster.
+    :ivar GenerationHash _current_state_generation: The current generation hash
+        of the state.
     """
     def __init__(self, agent, timeout):
         """
@@ -834,6 +982,10 @@ class _AgentLocator(CommandLocator):
         CommandLocator.__init__(self)
         self.agent = agent
         self._timeout = timeout
+        self._current_configuration = None
+        self._current_configuration_generation = None
+        self._current_state = None
+        self._current_state_generation = None
 
     def locateResponder(self, name):
         """
@@ -856,11 +1008,156 @@ class _AgentLocator(CommandLocator):
         """
         return self.agent.logger
 
+    def _set_configuration(self, configuration, verify_hash):
+        """
+        Set the configuration, and verify that the hash of the configuration is
+        correct.
+
+        :param configuration: The new configuration.
+        :param verify_hash: The expected generation hash of the new
+            configuration.
+
+        :raises: ValueError if the new configuration does not have the
+            specified hash.
+        """
+        candidate_hash = make_generation_hash(configuration)
+        if candidate_hash != verify_hash:
+            raise ValueError('Bad hash value %s is not %s' % (candidate_hash,
+                                                              verify_hash))
+        self._current_configuration = configuration
+        self._current_configuration_generation = candidate_hash
+
+    def _set_state(self, state, verify_hash):
+        """
+        Set the state, and verify that the hash of the state is correct.
+
+        :param state: The new state.
+        :param verify_hash: The expected generation hash of the new state.
+
+        :raises: ValueError if the new state does not have the specified hash.
+        """
+        candidate_hash = make_generation_hash(state)
+        if candidate_hash != verify_hash:
+            raise ValueError('Bad hash value %s is not %s' % (candidate_hash,
+                                                              verify_hash))
+        self._current_state = state
+        self._current_state_generation = candidate_hash
+
+    def _current_generations_response(self):
+        """
+        Constructs a response dict appropriate for sending back to the control
+        agent.
+
+        :returns: A dict that has the current hash generations of the
+            configuration and state, in the form expected for communication
+            back to the control node.
+        """
+        return {
+            'current_configuration_generation': (
+                self._current_configuration_generation
+            ),
+            'current_state_generation': (
+                self._current_state_generation
+            ),
+        }
+
+    def _update_agent(self):
+        """
+        Send an update to the agent on this node with the computed current
+        configuration and state.
+        """
+        self.agent.cluster_updated(
+            self._current_configuration,
+            self._current_state
+        )
+
+    def _update_cluster(self, configuration, configuration_generation,
+                        state, state_generation):
+        """
+        Set the local configuration and state variables, and notify the agent
+        of the update.
+
+        :param configuration: The new configuration.
+        :param configuration_generation: The expected resulting generation hash
+            of the new configuration.
+        :param state: The new state.
+        :param state_generation: The expected resulting generation hash of the
+            new state.
+        """
+        self._set_configuration(configuration, configuration_generation)
+        self._set_state(state, state_generation)
+        self._update_agent()
+
     @ClusterStatusCommand.responder
-    def cluster_updated(self, eliot_context, configuration, state):
+    def cluster_updated(
+            self, eliot_context, configuration, configuration_generation,
+            state, state_generation
+    ):
+        """
+        Responder to ``ClusterStatusCommand``. Updates the configuration and
+        state to the passed in values, and validates the hashes.
+
+        :param eliot_context: The eliot context this is called under.
+        :param configuration: The new configuration.
+        :param configuration_generation: The expected generation hash of the
+            new configuration.
+        :param state: The new state.
+        :param state_generation: The expected generation hash of the new state.
+        """
         with eliot_context:
-            self.agent.cluster_updated(configuration, state)
-            return {}
+            self._update_cluster(configuration, configuration_generation,
+                                 state, state_generation)
+            return self._current_generations_response()
+
+    @ClusterStatusDiffCommand.responder
+    def cluster_updated_diff(
+            self, eliot_context,
+            configuration_diff,
+            start_configuration_generation,
+            end_configuration_generation,
+            state_diff,
+            start_state_generation,
+            end_state_generation,
+    ):
+        """
+        Responder to ``ClusterStatusDiffCommand``. Updates the configuration
+        and state by applying diffs to the current values, and verifies the
+        hash of the resulting objects.
+
+        :param eliot_context: The eliot context this is called under.
+        :param configuration_diff: The diff from the current configuration to
+            the next one.
+        :param start_configuration_generation: The expected generation hash of
+            former configuration known by this node.
+        :param end_configuration_generation: The expected generation hash of
+            the new configuration after the diff is applied.
+        :param state: The new state.
+        :param start_state_generation: The expected generation hash of former
+            state known by this node.
+        :param end_state_generation: The expected generation hash of the new
+            state after the diff is applied.
+        """
+        with eliot_context:
+            if (start_configuration_generation !=
+                    self._current_configuration_generation):
+                return self._current_generations_response()
+            if (start_state_generation !=
+                    self._current_state_generation):
+                return self._current_generations_response()
+
+            new_configuration = configuration_diff.apply(
+                self._current_configuration
+            )
+            new_state = state_diff.apply(
+                self._current_state
+            )
+            self._update_cluster(
+                new_configuration,
+                end_configuration_generation,
+                new_state,
+                end_state_generation
+            )
+            return self._current_generations_response()
 
 
 class AgentAMP(AMP):

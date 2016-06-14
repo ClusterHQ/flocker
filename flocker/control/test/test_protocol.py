@@ -40,17 +40,18 @@ from ...testtools.amp import (
 
 from .._protocol import (
     PING_INTERVAL, Big, SerializableArgument,
-    VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    NoOp, AgentAMP, ControlAMP, _AgentLocator,
-    ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
-    AGENT_CONNECTED, caching_wire_encode, SetNodeEraCommand,
+    VersionCommand, ClusterStatusCommand, ClusterStatusDiffCommand,
+    NodeStateCommand, IConvergenceAgent, NoOp, AgentAMP, ControlAMP,
+    _AgentLocator, ControlServiceLocator, LOG_SEND_CLUSTER_STATE,
+    LOG_SEND_TO_AGENT, AGENT_CONNECTED, caching_wire_encode, SetNodeEraCommand,
     timeout_for_protocol, CONTROL_SERVICE_BATCHING_DELAY
 )
 from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset, DeploymentState, NonManifestDatasets,
 )
-from .._persistence import wire_encode
+from .._persistence import wire_encode, make_generation_hash
+from .._diffing import create_diff
 from .clusterstatetools import advance_some, advance_rest
 
 
@@ -70,6 +71,22 @@ def arbitrary_transformation(deployment):
         ["nodes", uuid], Node(uuid=uuid)
     )
 
+
+def arbitrary_state_transformation(deployment_state):
+    """
+    Make some change to a deployment state.  Any change.
+
+    The exact change made is unspecified but the resulting ``DeploymentState``
+    will be different from the given ``DeploymentState``.
+
+    :param DeploymentState deployment_state: A deployment state to change.
+
+    :return: A ``DeploymentState`` similar but not exactly equal to the given.
+    """
+    uuid = uuid4()
+    return deployment_state.transform(
+        ["nodes", uuid], NodeState(uuid=uuid, hostname=u'catcatdog')
+    )
 
 APP1 = Application(
     name=u'myapp',
@@ -445,10 +462,10 @@ class ControlAMPTests(ControlTestCase):
         set of connections.
         """
         marker = object()
-        self.control_amp_service.connections.add(marker)
-        current = self.control_amp_service.connections.copy()
+        self.control_amp_service._connections.add(marker)
+        current = self.control_amp_service._connections.copy()
         self.protocol.makeConnection(StringTransportWithAbort())
-        self.assertEqual((current, self.control_amp_service.connections),
+        self.assertEqual((current, self.control_amp_service._connections),
                          ({marker}, {marker, self.protocol}))
 
     @capture_logging(assertHasAction, AGENT_CONNECTED, succeeded=True)
@@ -468,7 +485,11 @@ class ControlAMPTests(ControlTestCase):
             sent[0],
             (((ClusterStatusCommand,),
               dict(configuration=_TEST_DEPLOYMENT,
-                   state=cluster_state))))
+                   configuration_generation=make_generation_hash(
+                       _TEST_DEPLOYMENT
+                   ),
+                   state=cluster_state,
+                   state_generation=make_generation_hash(cluster_state)))))
 
     def test_connection_lost(self):
         """
@@ -476,14 +497,14 @@ class ControlAMPTests(ControlTestCase):
         service's set of connections.
         """
         marker = object()
-        self.control_amp_service.connections.add(marker)
+        self.control_amp_service._connections.add(marker)
         # Patching is bad.
         # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(self.protocol, "callRemote",
                    lambda *args, **kwargs: succeed(None))
         self.protocol.makeConnection(StringTransportWithAbort())
         self.protocol.connectionLost(Failure(ConnectionLost()))
-        self.assertEqual(self.control_amp_service.connections, {marker})
+        self.assertEqual(self.control_amp_service._connections, {marker})
 
     def test_version(self):
         """
@@ -1155,7 +1176,9 @@ class AgentClientTests(TestCase):
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=configuration,
+            configuration_generation=make_generation_hash(configuration),
             state=actual,
+            state_generation=make_generation_hash(actual),
             eliot_context=TEST_ACTION
         )
 
@@ -1170,11 +1193,59 @@ class AgentClientTests(TestCase):
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=Deployment(),
+            configuration_generation=make_generation_hash(Deployment()),
             state=state,
+            state_generation=make_generation_hash(state),
             eliot_context=TEST_ACTION,
         )
         self.successResultOf(d)
         self.assertEqual(state, self.agent.actual)
+
+    def _send_cluster_status(self, configuration, state):
+        """
+        Send a ``ClusterStatusCommand``.
+
+        :param configuration: The configuration to send to the agent.
+        :param state: The state to send to the agent.
+
+        :returns: The ``Deferred`` returned from the ``callRemote`` call.
+        """
+        return self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=configuration,
+            configuration_generation=make_generation_hash(configuration),
+            state=state,
+            state_generation=make_generation_hash(state),
+            eliot_context=TEST_ACTION
+        )
+
+    def _send_cluster_status_diff(self, initial_config, initial_state,
+                                  after_config, after_state):
+        """
+        Send a ``ClusterStatusCommand``.
+
+        :param initial_config: The expected configuration that the agent
+            already has.
+        :param initial_state: The expected state that the agent already has.
+        :param after_config: The desired resulting configuration.
+        :param after_state: The desired resulting state.
+
+        :returns: The ``Deferred`` returned from the ``callRemote`` call.
+        """
+        configuration_diff = create_diff(initial_config, after_config)
+        state_diff = create_diff(initial_state, after_state)
+        return self.server.callRemote(
+            ClusterStatusDiffCommand,
+            configuration_diff=configuration_diff,
+            start_configuration_generation=make_generation_hash(
+                initial_config
+            ),
+            end_configuration_generation=make_generation_hash(after_config),
+            state_diff=state_diff,
+            start_state_generation=make_generation_hash(initial_state),
+            end_state_generation=make_generation_hash(after_state),
+            eliot_context=TEST_ACTION
+        )
 
     def test_cluster_updated(self):
         """
@@ -1182,19 +1253,133 @@ class AgentClientTests(TestCase):
         having cluster state updated.
         """
         actual = DeploymentState(nodes=[])
-        d = self.server.callRemote(
-            ClusterStatusCommand,
-            configuration=_TEST_DEPLOYMENT,
-            state=actual,
-            eliot_context=TEST_ACTION
+        d = self._send_cluster_status(_TEST_DEPLOYMENT, actual)
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    _TEST_DEPLOYMENT
+                ),
+                current_state_generation=make_generation_hash(
+                    actual
+                ),
+            )
         )
-
-        self.successResultOf(d)
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client,
                                                desired=_TEST_DEPLOYMENT,
                                                cluster_updated_count=1,
                                                actual=actual))
+
+    def test_cluster_updated_diff(self):
+        """
+        ``ClusterStatusDiffCommand`` sent to the ``AgentClient`` result in
+        agent having cluster state updated.
+        """
+        actual = DeploymentState(nodes=[])
+        d = self._send_cluster_status(_TEST_DEPLOYMENT, actual)
+        self.successResultOf(d)
+        next_deployment = arbitrary_transformation(_TEST_DEPLOYMENT)
+        next_state = arbitrary_state_transformation(actual)
+        d = self._send_cluster_status_diff(
+            _TEST_DEPLOYMENT, actual, next_deployment, next_state
+        )
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    next_deployment
+                ),
+                current_state_generation=make_generation_hash(
+                    next_state
+                ),
+            )
+        )
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=next_deployment,
+                                               cluster_updated_count=2,
+                                               actual=next_state))
+
+    def test_cluster_updated_diff_wrong_initial(self):
+        """
+        ``ClusterStatusDiffCommand`` sent to the ``AgentClient`` result in
+        the agent returning its latest hash if the initial object sent by the
+        control agent was not the version the agent had.
+        """
+        actual = DeploymentState(nodes=[])
+        d = self._send_cluster_status(_TEST_DEPLOYMENT, actual)
+        self.successResultOf(d)
+        next_deployment = arbitrary_transformation(_TEST_DEPLOYMENT)
+        wrong_initial_deployment = arbitrary_transformation(next_deployment)
+        next_state = arbitrary_state_transformation(actual)
+        wrong_initial_state = arbitrary_transformation(next_deployment)
+        d = self._send_cluster_status_diff(
+            wrong_initial_deployment, actual, next_deployment, next_state
+        )
+
+        # Agent detects mismatch in initial hashes, and reports what its
+        # actual hash is.
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    _TEST_DEPLOYMENT
+                ),
+                current_state_generation=make_generation_hash(
+                    actual
+                ),
+            )
+        )
+        # Agent still has the initial configuration.
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=_TEST_DEPLOYMENT,
+                                               cluster_updated_count=1,
+                                               actual=actual))
+
+        d = self._send_cluster_status_diff(
+            _TEST_DEPLOYMENT, wrong_initial_state, next_deployment, next_state
+        )
+        # Agent detects mismatch in initial hashes, and reports what its
+        # actual hash is.
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    _TEST_DEPLOYMENT
+                ),
+                current_state_generation=make_generation_hash(
+                    actual
+                ),
+            )
+        )
+        # Agent still has the initial configuration.
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=_TEST_DEPLOYMENT,
+                                               cluster_updated_count=1,
+                                               actual=actual))
+
+        d = self._send_cluster_status_diff(
+            _TEST_DEPLOYMENT, actual, next_deployment, next_state
+        )
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    next_deployment
+                ),
+                current_state_generation=make_generation_hash(
+                    next_state
+                ),
+            )
+        )
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=next_deployment,
+                                               cluster_updated_count=2,
+                                               actual=next_state))
 
 
 def iconvergence_agent_tests_factory(fixture):
@@ -1286,8 +1471,25 @@ class ClusterStatusCommandTests(TestCase):
         ClusterStatusCommand requires the following arguments.
         """
         self.assertItemsEqual(
-            ['configuration', 'state', 'eliot_context'],
+            ['configuration', 'configuration_generation', 'state',
+             'state_generation', 'eliot_context'],
             (v[0] for v in ClusterStatusCommand.arguments))
+
+
+class ClusterStatusDiffCommandTests(TestCase):
+    """
+    Tests for ``ClusterStatusDiffCommand``.
+    """
+    def test_command_arguments(self):
+        """
+        ClusterStatusDiffCommand requires the following arguments.
+        """
+        self.assertItemsEqual(
+            ['configuration_diff', 'start_configuration_generation',
+             'end_configuration_generation', 'state_diff',
+             'start_state_generation', 'end_state_generation',
+             'eliot_context'],
+            (v[0] for v in ClusterStatusDiffCommand.arguments))
 
 
 class AgentLocatorTests(TestCase):

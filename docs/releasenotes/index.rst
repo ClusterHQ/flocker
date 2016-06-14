@@ -10,13 +10,11 @@ You can learn more about where we might be going with future releases by:
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
 
-This Release
+Next Release
 ============
 
-v1.13.0
--------
-
-* ``flocker-deploy`` command line utility is now deprecated.
+* The dataset agent now has backend support for :ref:`CoprHD <coprhd-backend>`.
+* The ``flocker-deploy`` command line utility, which was deprecated in 1.11.0, has now been removed.
 
 Previous Releases
 =================
@@ -29,7 +27,7 @@ Previous Releases
 v1.12.0
 -------
 
-* The OpenStack Cinder backend for Flocker will now use the Cinder version 2 API if it is available. 
+* The OpenStack Cinder backend for Flocker will now use the Cinder version 2 API if it is available.
   This allows Flocker to work in OpenStack clusters where there are more than 1000 Cinder volumes.
 * Flocker can now be :ref:`installed on Redhat Enterprise Linux 7 <rhel-7-install-standalone-flocker>`.
 * The Flocker control service and dataset agents now use less CPU and network bandwidth whilst converging on configuration changes.
