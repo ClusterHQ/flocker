@@ -3,6 +3,8 @@
 
 """
 APIs for parsing and validating configuration.
+
+XXX: This module can be deleted. (FLOC-4435)
 """
 
 from __future__ import unicode_literals, absolute_import

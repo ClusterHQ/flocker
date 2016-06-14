@@ -37,7 +37,6 @@ FirewallD
 Flocker
 flocker
 flocker-cli
-flocker-deploy
 flocker-node
 Freenode
 GlusterFS

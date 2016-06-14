@@ -304,30 +304,6 @@ def ensure_minimal_setup(package_manager):
         raise UnsupportedDistribution()
 
 
-def cli_pkg_test(package_source=PackageSource()):
-    """
-    Check that the Flocker CLI is working and has the expected version.
-
-    :param PackageSource package_source: The source from which to install the
-        package.
-
-    :return: An ``Effect`` to pass to a ``Dispatcher`` that supports
-        ``Sequence``, ``Run``, ``Sudo``, ``Comment``, and ``Put``.
-    """
-    expected = package_source.version
-    if not expected:
-        if package_source.branch:
-            # If branch is set but version isn't, we don't know the
-            # latest version. In this case, just check that the version
-            # can be displayed.
-            return run('flocker-deploy --version')
-        else:
-            # If neither branch nor version is set, the latest
-            # installable release will be installed.
-            expected = get_installable_version(version)
-    return run('test `flocker-deploy --version` = {}'.format(quote(expected)))
-
-
 def wipe_yum_cache(repository):
     """
     Force yum to update the metadata for a particular repository.
@@ -697,7 +673,7 @@ def cli_pip_test(venv_name='flocker-client', package_source=PackageSource()):
     """
     return sequence([
         run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
-        run('test `flocker-deploy --version` = {}'.format(
+        run('test `flocker-ca --version` = {}'.format(
             quote(_get_wheel_version(package_source))))
         ])
 

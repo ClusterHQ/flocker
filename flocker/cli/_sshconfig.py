@@ -7,6 +7,9 @@ each other.
 This code runs in the Flocker client - that is, in an administrator's
 environment, such as a laptop or desktop, not on Flocker nodes themselves (it
 may accidentally work on the Flocker nodes but this is not the expected use).
+
+XXX There's no entry point for this code. Create a CLI utility or delete the
+module and its tests. (FLOC-4436)
 """
 
 from os import devnull

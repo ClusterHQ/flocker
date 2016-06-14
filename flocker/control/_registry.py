@@ -22,8 +22,8 @@ class IStatePersister(Interface):
         Once a record is made no other entry can overwrite the existing
         one; the relationship is hardcoded and permanent. XXX this may
         interact badly with deletion of dataset where dataset_id is
-        auto-generated from name, e.g. flocker-deploy or Docker
-        plugin. That is pre-existing issue, though.
+        auto-generated from name, e.g. Docker plugin.
+        That is pre-existing issue, though.
 
         XXX having IBlockDeviceAPI specific method is kinda bogus. Some
         sort of generic method for storing data moving forward?

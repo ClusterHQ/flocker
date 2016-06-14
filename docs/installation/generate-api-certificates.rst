@@ -29,7 +29,6 @@ To send instructions to the :ref:`Flocker control service <control-service>`, wh
    * :file:`cluster.crt`
 
    .. note:: In this example ``<client_name>`` is a unique username for an API client.
-			 Please note though that ``flocker-deploy`` requires these files to be renamed :file:`user.crt` and :file:`user.key`.
 
 Using an API Certificate to Authenticate
 ========================================

@@ -15,9 +15,15 @@ Next Release
 
 * The dataset agent now has backend support for :ref:`Pure Storage <pure-storage-backend>`.
 * The dataset agent now has backend support for :ref:`CoprHD <coprhd-backend>`.
+* The ``flocker-deploy`` command line utility, which was deprecated in 1.11.0, has now been removed.
 
-This Release
-============
+Previous Releases
+=================
+
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
 
 v1.12.0
 -------
@@ -28,14 +34,6 @@ v1.12.0
 * The Flocker control service and dataset agents now use less CPU and network bandwidth whilst converging on configuration changes.
 * The Flocker dataset agent will now reconnect to the control service within 30 seconds, even after an extended disconnection.
 * The Flocker documentation search engine is now faster and generates more relevant results.
-
-Previous Releases
-=================
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
 
 v1.11.0
 -------

@@ -948,8 +948,6 @@ class OmnibusPackageBuilderTests(TestCase):
                 # clusterhq-flocker-cli steps
                 CreateLinks(
                     links=[
-                        (FilePath('/opt/flocker/bin/flocker-deploy'),
-                         flocker_cli_path),
                         (FilePath('/opt/flocker/bin/flocker'),
                          flocker_cli_path),
                         (FilePath('/opt/flocker/bin/flocker-ca'),
