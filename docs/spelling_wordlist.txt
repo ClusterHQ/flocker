@@ -26,6 +26,7 @@ deduplication
 Deis
 devel
 DevStack
+diff
 DigitalOcean
 Dockerized
 dropdown
