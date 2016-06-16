@@ -19,12 +19,6 @@
     "labs/docker-plugin.html": {replace_key: "docker-integration/"}
 "en/":
     # Redirects for obsolete versions of the documentation.
-    "0.0.0/": {replace_key: "latest/", http_redirect_code: '301'}
-    "0.0.1/": {replace_key: "latest/", http_redirect_code: '301'}
-    "0.0.4/": {replace_key: "latest/", http_redirect_code: '301'}
-    "0.0.5/": {replace_key: "latest/", http_redirect_code: '301'}
-    "0.0.6/": {replace_key: "latest/", http_redirect_code: '301'}
-    "0.0.7/": {replace_key: "latest/", http_redirect_code: '301'}
     "0.1.0/": {replace_key: "latest/", http_redirect_code: '301'}
     "0.1.1/": {replace_key: "latest/", http_redirect_code: '301'}
     "0.1.2/": {replace_key: "latest/", http_redirect_code: '301'}
