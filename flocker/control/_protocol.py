@@ -346,6 +346,12 @@ class Timeout(object):
         """
         self._delay_call.reset(self._timeout)
 
+    def cancel(self):
+        """
+        Cancel the delayed call to this ``Timeout``'s ``action``.
+        """
+        self._delay_call.cancel()
+
 
 class ControlServiceLocator(CommandLocator):
     """
@@ -468,8 +474,9 @@ class ControlAMP(AMP):
         :param ControlAMPService control_amp_service: The service managing AMP
             connections to the control service.
         """
+        self._ping_timeout = timeout_for_protocol(reactor, self)
         locator = ControlServiceLocator(reactor, control_amp_service,
-                                        timeout_for_protocol(reactor, self))
+                                        self._ping_timeout)
         AMP.__init__(self, locator=locator)
 
         self.control_amp_service = control_amp_service
@@ -484,6 +491,7 @@ class ControlAMP(AMP):
         AMP.connectionLost(self, reason)
         self.control_amp_service.disconnected(self)
         self._pinger.stop()
+        self._ping_timeout.cancel()
 
 
 # These two logging fields use caching_wire_encode as the serializer so
@@ -1175,7 +1183,8 @@ class AgentAMP(AMP):
             operations.root@52.28.55.192
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
-        locator = _AgentLocator(agent, timeout_for_protocol(reactor, self))
+        self._ping_timeout = timeout_for_protocol(reactor, self)
+        locator = _AgentLocator(agent, self._ping_timeout)
         AMP.__init__(self, locator=locator)
         self.agent = agent
         self._pinger = Pinger(reactor)
@@ -1189,6 +1198,7 @@ class AgentAMP(AMP):
         AMP.connectionLost(self, reason)
         self.agent.disconnected()
         self._pinger.stop()
+        self._ping_timeout.cancel()
 
 
 class Pinger(object):

@@ -1621,6 +1621,19 @@ class PingTestsMixin(object):
         reactor.advance(PING_INTERVAL.total_seconds())
         self.assertEqual(b"", transport.value())
 
+    def test_timeout_cancel(self):
+        """
+        The ping timeout is cancelled if the remote connection is lost.
+        """
+        reactor = Clock()
+        protocol = self.build_protocol(reactor)
+        transport = StringTransportWithAbort()
+        protocol.makeConnection(transport)
+        protocol.connectionLost(
+            Failure(ConnectionDone("test, simulated"))
+        )
+        reactor.advance(PING_INTERVAL.total_seconds() * 3)
+
 
 class ControlAMPPingTests(TestCase, PingTestsMixin):
     """
