@@ -202,3 +202,53 @@ class DeploymentDiffTest(TestCase):
             wire_decode(wire_encode(diff)).apply(object_a),
             Equals(object_b)
         )
+
+
+class DiffTestObjInvariant(PClass):
+    """
+    Simple pyrsistent object with an invariant.
+    """
+    a = field()
+    b = field()
+
+    def __invariant__(self):
+        if self.a == self.b:
+            return (False, "a must not equal b")
+        else:
+            return (True, "")
+
+
+class InvariantDiffTests(TestCase):
+    """
+    Tests for creating and applying diffs to objects with invariant checks.
+    """
+    def test_straight_swap(self):
+        o1 = DiffTestObjInvariant(
+            a=1,
+            b=2
+        )
+        o2 = DiffTestObjInvariant(
+            a=2,
+            b=1
+        )
+        diff = create_diff(o1, o2)
+        diff.apply(o1)
+
+    def test_deep_swap(self):
+        a = DiffTestObjInvariant(
+            a=1,
+            b=2
+        )
+        b = DiffTestObjInvariant(
+            a=3,
+            b=4
+        )
+        o1 = DiffTestObjInvariant(
+            a=a,
+            b=b
+        )
+        o2 = o1.transform(
+            ['a'], lambda o: o.evolver().set('a', 2).set('b', 1).persistent()
+        )
+        diff = create_diff(o1, o2)
+        diff.apply(o1)
