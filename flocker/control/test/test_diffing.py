@@ -183,7 +183,6 @@ class DeploymentDiffTest(TestCase):
         object_a = DiffTestObj(a=pset(xrange(1000)))
         object_b = pmap({'1': 34})
         diff = create_diff(object_a, object_b)
-
         self.assertThat(
             wire_decode(wire_encode(diff)).apply(object_a),
             Equals(object_b)
@@ -223,32 +222,49 @@ class InvariantDiffTests(TestCase):
     Tests for creating and applying diffs to objects with invariant checks.
     """
     def test_straight_swap(self):
+        """
+        A diff composed of two separate ``set`` operations can be applied to an
+        object without triggering an invariant exception.
+        """
         o1 = DiffTestObjInvariant(
             a=1,
-            b=2
+            b=2,
         )
         o2 = DiffTestObjInvariant(
             a=2,
-            b=1
+            b=1,
         )
         diff = create_diff(o1, o2)
-        diff.apply(o1)
+        self.assertEqual(2, len(diff.changes))
+        self.assertEqual(
+            o2,
+            diff.apply(o1)
+        )
 
     def test_deep_swap(self):
+        """
+        A diff composed of two separate ``set`` operations can be applied to a
+        nested object without triggering an invariant exception.
+        """
         a = DiffTestObjInvariant(
             a=1,
-            b=2
+            b=2,
         )
         b = DiffTestObjInvariant(
             a=3,
-            b=4
+            b=4,
         )
         o1 = DiffTestObjInvariant(
             a=a,
-            b=b
+            b=b,
         )
         o2 = o1.transform(
-            ['a'], lambda o: o.evolver().set('a', 2).set('b', 1).persistent()
+            ['a'],
+            lambda o: o.evolver().set('a', 2).set('b', 1).persistent()
         )
         diff = create_diff(o1, o2)
-        diff.apply(o1)
+
+        self.assertEqual(
+            o2,
+            diff.apply(o1)
+        )

@@ -15,6 +15,7 @@ from pyrsistent import (
     pvector,
     pvector_field,
 )
+from pyrsistent._transformations import _get
 
 from zope.interface import Interface, implementer
 
@@ -76,7 +77,9 @@ class _Set(PClass):
     value = field()
 
     def apply(self, obj):
-        return obj.transform(self.path, self.value)
+        return obj.transform(
+            self.path[:-1], lambda o: o.set(self.path[-1], self.value)
+        )
 
 
 @implementer(_IDiffChange)
@@ -95,6 +98,65 @@ class _Add(PClass):
         return obj.transform(self.path, lambda x: x.add(self.item))
 
 
+class _TransformProxy(object):
+    """
+    This attempts to bunch all the diff operations for a particular object into
+    a single transaction so that related attributes can be ``set`` without
+    triggering an in invariant error.
+    """
+    def __init__(self, original):
+        """
+        :param PClass original: The root object to which transformations will
+            be applied.
+        """
+        self._original_object = original
+        self._operations = []
+        self._current_path = None
+        self._current_object = original
+
+    def transform(self, path, operation):
+        """
+        Record an ``operation`` to be applied to ``original`` at ``path`` and
+        commit all outstanding operations when the ``path`` changes.
+
+        :param PVector path: The path relative to ``original`` which will be
+            operated on.
+        :param callable operation: A function to be applied to an evolver of
+             the object at ``path``
+        :returns: ``self``
+        """
+        if self._current_path is not None:
+            if path != self._current_path:
+                self.commit()
+        self._current_path = path
+        self._operations.append(operation)
+        return self
+
+    def commit(self):
+        """
+        Apply all outstanding operations, updating the current object and
+        return the result.
+
+        :returns: The transformed current object
+        """
+        if self._operations:
+            target = reduce(
+                lambda o, segment: _get(o, segment, None),
+                self._current_path,
+                self._current_object,
+            )
+            evolver = target.evolver()
+            for operation in self._operations:
+                operation(evolver)
+            target = evolver.persistent()
+            self._operations = []
+            self._current_object = self._current_object.transform(
+                self._current_path,
+                target,
+            )
+        return self._current_object
+
+
 @implementer(_IDiffChange)
 class Diff(PClass):
     """
@@ -111,9 +173,14 @@ class Diff(PClass):
     changes = pvector_field(object)
 
     def apply(self, obj):
+        proxy = _TransformProxy(original=obj)
         for c in self.changes:
-            obj = c.apply(obj)
-        return obj
+            if len(c.path) > 0:
+                proxy = c.apply(proxy)
+            else:
+                assert type(c) is _Set
+                proxy = _TransformProxy(original=c.value)
+        return proxy.commit()
 
 
 def _create_diffs_for_sets(current_path, set_a, set_b):
