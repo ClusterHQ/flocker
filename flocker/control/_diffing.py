@@ -7,6 +7,8 @@ for computing the difference between deeply pyrsisistent objects such as the
 flocker configuration or the flocker state.
 """
 
+from eliot import MessageType, Field
+
 from pyrsistent import (
     PClass,
     PMap,
@@ -157,6 +159,22 @@ class _TransformProxy(object):
         return self._current_object
 
 
+TARGET_OBJECT = Field(
+    u"target_object", repr,
+    u"The object to which the diff was applied."
+)
+CHANGES = Field(
+    u"changes", repr,
+    u"The changes being applied."
+)
+
+DIFF_COMMIT_ERROR = MessageType(
+    u"flocker:control:Diff:commit_error",
+    [TARGET_OBJECT, CHANGES],
+    u"The target and changes that failed to apply."
+)
+
+
 @implementer(_IDiffChange)
 class Diff(PClass):
     """
@@ -180,7 +198,15 @@ class Diff(PClass):
             else:
                 assert type(c) is _Set
                 proxy = _TransformProxy(original=c.value)
-        return proxy.commit()
+        try:
+            return proxy.commit()
+        except:
+            from ._persistence import wire_encode
+            DIFF_COMMIT_ERROR(
+                target_object=wire_encode(obj),
+                changes=wire_encode(self.changes),
+            ).write()
+            raise
 
 
 def _create_diffs_for_sets(current_path, set_a, set_b):

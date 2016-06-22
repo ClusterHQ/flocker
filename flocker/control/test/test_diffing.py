@@ -7,11 +7,12 @@ Tests for ``flocker.node._diffing``.
 from json import dumps
 from uuid import uuid4
 
+from eliot.testing import capture_logging, assertHasMessage
 from hypothesis import given
 import hypothesis.strategies as st
-from pyrsistent import PClass, field, pmap, pset
+from pyrsistent import PClass, field, pmap, pset, InvariantException
 
-from .._diffing import create_diff, compose_diffs
+from .._diffing import create_diff, compose_diffs, DIFF_COMMIT_ERROR
 from .._persistence import wire_encode, wire_decode
 from .._model import Node, Port
 from ..testtools import (
@@ -207,11 +208,12 @@ class DiffTestObjInvariant(PClass):
     """
     Simple pyrsistent object with an invariant.
     """
+    _perform_invariant_check = True
     a = field()
     b = field()
 
     def __invariant__(self):
-        if self.a == self.b:
+        if self._perform_invariant_check and self.a == self.b:
             return (False, "a must not equal b")
         else:
             return (True, "")
@@ -267,4 +269,24 @@ class InvariantDiffTests(TestCase):
         self.assertEqual(
             o2,
             diff.apply(o1)
+        )
+
+    @capture_logging(assertHasMessage, DIFF_COMMIT_ERROR)
+    def test_error_logging(self, logger):
+        """
+        Failures while applying a diff emit a log message containing the full
+        diff.
+        """
+        o1 = DiffTestObjInvariant(
+            a=1,
+            b=2,
+        )
+        DiffTestObjInvariant._perform_invariant_check = False
+        o2 = o1.set('b', 1)
+        DiffTestObjInvariant._perform_invariant_check = True
+        diff = create_diff(o1, o2)
+        self.assertRaises(
+            InvariantException,
+            diff.apply,
+            o1,
         )
