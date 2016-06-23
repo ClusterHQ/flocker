@@ -110,39 +110,56 @@ class _EvolverProxy(object):
         self._children = {}
         self._operations = []
 
-    def transform(self, path, operation):
-        def _child(parent, segment):
-            child = parent._children.get(segment, _sentinel)
-            if child is not _sentinel:
-                return child
-            child = _get(parent._original, segment, _sentinel)
-            if child is _sentinel:
-                raise KeyError(
-                    'Segment not found in path. '
-                    'Parent: {}, '
-                    'Segment: {}, '
-                    'Path: {}.'.format(parent, segment, path)
-                )
-            proxy_for_child = _EvolverProxy(child)
-            parent._children[segment] = proxy_for_child
-            return proxy_for_child
+    def _child(self, segment, default=_sentinel):
+        import pdb; pdb.set_trace()
+        child = self._children.get(segment)
+        if child is not None:
+            return child
+        child = _get(self._original, segment, default)
+        if child is _sentinel:
+            raise KeyError(
+                'Segment not found in path. '
+                'Parent: {}, '
+                'Segment: {}'.format(self, segment)
+            )
+        proxy_for_child = _EvolverProxy(child)
+        self._children[segment] = proxy_for_child
+        return proxy_for_child
 
+    def transform(self, path, operation):
         target = self
         for segment in path:
-            target = _child(target, segment)
-        operation(target._evolver)
+            target = target._child(segment)
+        operation(target)
         return self
 
     def add(self, item):
-        self._evolver.add(item)
+        if hasattr(item, 'evolver'):
+            raise ValueError(
+                'Cannot ``add`` pyrsistent items. '
+                'Item: {}, '
+                'Parent: {}.'.format(item, self)
+            )
+        else:
+            self._evolver.add(item)
         return self
 
     def set(self, key, item):
-        self._evolver.set(key, item)
+        if hasattr(item, 'evolver'):
+            self._child(key, default=item)
+        else:
+            self._evolver.set(key, item)
         return self
 
     def remove(self, item):
-        self._evolver.remove(item)
+        if hasattr(item, 'evolver'):
+            raise ValueError(
+                'Cannot ``remove`` pyrsistent items. '
+                'Item: {}, '
+                'Parent: {}.'.format(item, self)
+            )
+        else:
+            self._evolver.remove(item)
         return self
 
     def commit(self):
