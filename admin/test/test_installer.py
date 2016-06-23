@@ -548,3 +548,79 @@ class DockerComposeTests(AsyncTestCase):
         )
 
         return d
+
+    def test_docker_volume_status(self):
+        """
+        ``docker volume status`` returns the status of an existing volume.
+        """
+
+        # Create a volume
+        # docker volume create --driver flocker --name some random name
+        remote_docker(self.client_node_ip, ["volume", "create", "--driver", "flocker", ]
+        # Handle possiblbe failure
+
+        # Check status
+        # Call ``docker volume status``
+
+        # Parse output
+        # json.loads
+
+        # Check the map content
+        #
+
+
+        client_username = b"ubuntu"
+        client_home = FilePath('/home').child(client_username)
+        remote_compose_directory = client_home.child(random_name(self))
+        self.compose_node1 = (
+            remote_compose_directory.child("docker-compose-node1.yml")
+        )
+        self.compose_node2 = (
+            remote_compose_directory.child("docker-compose-node2.yml")
+        )
+
+        # Publish the compose files to the client.
+        def upload_docker_compose_files():
+            return upload(
+                reactor=reactor,
+                username=client_username,
+                host=self.client_node_ip.encode('ascii'),
+                local_path=FilePath(__file__).parent().descendant(
+                    ['installer', 'postgres']
+                ),
+                remote_path=remote_compose_directory,
+            )
+        d = retry_failure(
+            reactor=reactor,
+            function=upload_docker_compose_files,
+            expected=(SCPConnectionError,),
+            # Wait 60s for the client SSH server to accept connections.
+            steps=repeat(1, 60)
+        )
+
+        def cleanup_container(ignored):
+            self.addCleanup(
+                remote_docker_compose,
+                self.client_node_ip,
+                self.docker_host,
+                self.compose_node1.path,
+                'down'
+            )
+        d.addCallback(cleanup_container)
+
+        # docker-compose doesn't retry failed pulls and pulls fail all the
+        # time.
+        def pull_postgres():
+            return remote_docker_compose(
+                self.client_node_ip,
+                self.docker_host,
+                self.compose_node1.path, 'pull'
+            )
+        d.addCallback(
+            lambda ignored: retry_failure(
+                reactor=reactor,
+                function=pull_postgres,
+                expected=(ProcessTerminated,),
+                steps=repeat(1, 5)
+            )
+        )
