@@ -332,7 +332,7 @@ class Application(PClass):
                         type=PMap)
     running = field(mandatory=True, initial=True, type=bool)
     command_line = pvector_field(unicode, optional=True, initial=None)
-    swappiness = field(optional=True, initial=0)
+    swappiness = field(mandatory=False, initial=0)
 
 
 class Dataset(PClass):
