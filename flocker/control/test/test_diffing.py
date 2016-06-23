@@ -298,7 +298,10 @@ class InvariantDiffTests(TestCase):
         manifestation for the volume, can be applied without triggering an
         invariant error on the Node.
         """
-        node2 = node_strategy(min_number_of_applications=1).example()
+        node2 = node_strategy(
+            min_number_of_applications=1,
+            stateful_applications=True,
+        ).example()
         application = node2.applications.values()[0]
         node1 = node2.transform(
             ['applications'],
@@ -319,7 +322,10 @@ class InvariantDiffTests(TestCase):
         volume *and* the manifestation for the volume, can be applied without
         triggering an invariant error on the Node.
         """
-        node2 = node_strategy(min_number_of_applications=1).example()
+        node2 = node_strategy(
+            min_number_of_applications=1,
+            stateful_applications=True,
+        ).example()
         application = node2.applications.values()[0]
         volume = application.volume
         node1 = node2.transform(

@@ -100,63 +100,56 @@ class _Add(PClass):
         return obj.transform(self.path, lambda x: x.add(self.item))
 
 
-class _TransformProxy(object):
-    """
-    This attempts to bunch all the diff operations for a particular object into
-    a single transaction so that related attributes can be ``set`` without
-    triggering an in invariant error.
-    """
+_sentinel = object()
+
+
+class _EvolverProxy(object):
     def __init__(self, original):
-        """
-        :param PClass original: The root object to which transformations will
-            be applied.
-        """
-        self._original_object = original
+        self._original = original
+        self._evolver = original.evolver()
+        self._children = {}
         self._operations = []
-        self._current_path = None
-        self._current_object = original
 
     def transform(self, path, operation):
-        """
-        Record an ``operation`` to be applied to ``original`` at ``path`` and
-        commit all outstanding operations when the ``path`` changes.
+        def _child(parent, segment):
+            child = parent._children.get(segment, _sentinel)
+            if child is not _sentinel:
+                return child
+            child = _get(parent._original, segment, _sentinel)
+            if child is _sentinel:
+                raise KeyError(
+                    'Segment not found in path. '
+                    'Parent: {}, '
+                    'Segment: {}, '
+                    'Path: {}.'.format(parent, segment, path)
+                )
+            proxy_for_child = _EvolverProxy(child)
+            parent._children[segment] = proxy_for_child
+            return proxy_for_child
 
-        :param PVector path: The path relative to ``original`` which will be
-            operated on.
-        :param callable operation: A function to be applied to an evolver of
-             the object at ``path``
-        :returns: ``self``
-        """
-        if self._current_path is not None:
-            if path != self._current_path:
-                self.commit()
-        self._current_path = path
-        self._operations.append(operation)
+        target = self
+        for segment in path:
+            target = _child(target, segment)
+        operation(target._evolver)
+        return self
+
+    def add(self, item):
+        self._evolver.add(item)
+        return self
+
+    def set(self, key, item):
+        self._evolver.set(key, item)
+        return self
+
+    def remove(self, item):
+        self._evolver.remove(item)
         return self
 
     def commit(self):
-        """
-        Apply all outstanding operations, updating the current object and
-        return the result.
-
-        :returns: The transformed current object
-        """
-        if self._operations:
-            target = reduce(
-                lambda o, segment: _get(o, segment, None),
-                self._current_path,
-                self._current_object,
-            )
-            evolver = target.evolver()
-            for operation in self._operations:
-                operation(evolver)
-            target = evolver.persistent()
-            self._operations = []
-            self._current_object = self._current_object.transform(
-                self._current_path,
-                target,
-            )
-        return self._current_object
+        for segment, child_evolver_proxy in self._children.items():
+            child = child_evolver_proxy.commit()
+            self._evolver.set(segment, child)
+        return self._evolver.persistent()
 
 
 TARGET_OBJECT = Field(
@@ -191,13 +184,13 @@ class Diff(PClass):
     changes = pvector_field(object)
 
     def apply(self, obj):
-        proxy = _TransformProxy(original=obj)
+        proxy = _EvolverProxy(original=obj)
         for c in self.changes:
             if len(c.path) > 0:
                 proxy = c.apply(proxy)
             else:
                 assert type(c) is _Set
-                proxy = _TransformProxy(original=c.value)
+                proxy = _EvolverProxy(original=c.value)
         try:
             return proxy.commit()
         except:
