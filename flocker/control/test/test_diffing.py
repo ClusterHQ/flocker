@@ -18,6 +18,7 @@ from .._model import Node, Port
 from ..testtools import (
     application_strategy,
     deployment_strategy,
+    node_strategy,
     related_deployments_strategy
 )
 
@@ -289,4 +290,47 @@ class InvariantDiffTests(TestCase):
             InvariantException,
             diff.apply,
             o1,
+        )
+
+    def test_application_add(self):
+        """
+        A diff on a Node, which *adds* and application with a volume *and* the
+        manifestation for the volume, can be applied without triggering an
+        invariant error on the Node.
+        """
+        node2 = node_strategy(min_number_of_applications=1).example()
+        application = node2.applications.values()[0]
+        node1 = node2.transform(
+            ['applications'],
+            lambda o: o.remove(application.name)
+        ).transform(
+            ['manifestations'],
+            lambda o: o.remove(application.volume.manifestation.dataset_id)
+        )
+        diff = create_diff(node1, node2)
+        self.assertEqual(
+            node2,
+            diff.apply(node1),
+        )
+
+    def test_application_modify(self):
+        """
+        A diff on a Node, which adds a volume to an *existing* application
+        volume *and* the manifestation for the volume, can be applied without
+        triggering an invariant error on the Node.
+        """
+        node2 = node_strategy(min_number_of_applications=1).example()
+        application = node2.applications.values()[0]
+        volume = application.volume
+        node1 = node2.transform(
+            ['applications', application.name],
+            lambda o: o.set('volume', None)
+        ).transform(
+            ['manifestations'],
+            lambda o: o.remove(volume.manifestation.dataset_id)
+        )
+        diff = create_diff(node1, node2)
+        self.assertEqual(
+            node2,
+            diff.apply(node1),
         )
