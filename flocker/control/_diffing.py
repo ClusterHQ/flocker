@@ -148,10 +148,13 @@ class _EvolverProxy(object):
         return self
 
     def remove(self, item):
-        if item in self._children:
-            self._children.pop(item)
-        else:
+        self._children.pop(item, None)
+        # Attempt to remove the item from the evolver too.  It may be something
+        # that was replaced rather than added by a previous ``set`` operation.
+        try:
             self._evolver.remove(item)
+        except KeyError:
+            pass
         return self
 
     def commit(self):
