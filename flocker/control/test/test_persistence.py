@@ -626,7 +626,8 @@ APPLICATIONS = st.builds(
     environment=st.dictionaries(keys=st.text(), values=st.text()),
     memory_limit=NONE_OR_INT,
     cpu_shares=NONE_OR_INT,
-    running=st.booleans()
+    running=st.booleans(),
+    swappiness=NONE_OR_INT
 )
 
 
