@@ -157,7 +157,12 @@ class _EvolverProxy(object):
     def commit(self):
         for segment, child_evolver_proxy in self._children.items():
             child = child_evolver_proxy.commit()
-            self._evolver.set(segment, child)
+            # XXX this is ugly. Perhaps have a separate proxy for PClass, PMap
+            # and PSet collections
+            if hasattr(self._evolver, 'set'):
+                self._evolver.set(segment, child)
+            else:
+                self._evolver.add(child)
         return self._evolver.persistent()
 
 
