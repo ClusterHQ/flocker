@@ -10,6 +10,8 @@ docker-py
 docutils
 effect
 eliot
+# Included in the Flocker package to assist with debugging.
+eliot-tree
 google-api-python-client
 # Not used directly by Flocker, but allows boto GCE plugins to load.
 google-compute-engine
