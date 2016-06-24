@@ -11,6 +11,8 @@ docutils
 effect
 eliot
 google-api-python-client
+# Not used directly by Flocker, but allows boto GCE plugins to load.
+google-compute-engine
 hypothesis
 ipaddr
 jsonschema
