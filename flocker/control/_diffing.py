@@ -110,12 +110,11 @@ class _EvolverProxy(object):
         self._children = {}
         self._operations = []
 
-    def _child(self, segment, default=_sentinel):
-        import pdb; pdb.set_trace()
+    def _child(self, segment):
         child = self._children.get(segment)
         if child is not None:
             return child
-        child = _get(self._original, segment, default)
+        child = _get(self._original, segment, _sentinel)
         if child is _sentinel:
             raise KeyError(
                 'Segment not found in path. '
@@ -135,29 +134,22 @@ class _EvolverProxy(object):
 
     def add(self, item):
         if hasattr(item, 'evolver'):
-            raise ValueError(
-                'Cannot ``add`` pyrsistent items. '
-                'Item: {}, '
-                'Parent: {}.'.format(item, self)
-            )
+            self._children[item] = _EvolverProxy(item)
         else:
             self._evolver.add(item)
         return self
 
     def set(self, key, item):
         if hasattr(item, 'evolver'):
-            self._child(key, default=item)
+            # This will replace any existing proxy.
+            self._children[key] = _EvolverProxy(item)
         else:
             self._evolver.set(key, item)
         return self
 
     def remove(self, item):
-        if hasattr(item, 'evolver'):
-            raise ValueError(
-                'Cannot ``remove`` pyrsistent items. '
-                'Item: {}, '
-                'Parent: {}.'.format(item, self)
-            )
+        if item in self._children:
+            self._children.pop(item)
         else:
             self._evolver.remove(item)
         return self
