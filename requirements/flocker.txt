@@ -10,7 +10,10 @@ docker-py==1.8.1
 docutils==0.12
 effect==0.10.1
 eliot==0.11.0
+# Included in the Flocker package to assist with debugging.
+eliot-tree==15.3.0
 google-api-python-client==1.5.1
+# Not used directly by Flocker, but allows boto GCE plugins to load.
 google-compute-engine==2.0.0
 hypothesis==3.4.0
 ipaddr==2.1.11
@@ -25,7 +28,7 @@ mmh3==2.3.1
 # Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL
 ndg-httpsclient==0.4.1
 netifaces==0.10.4
-python-novaclient==4.0.0
+python-novaclient==4.1.0
 # FLOC-4411 oauth2client 2 no longer exports SignedJwtAssertionCredentials
 oauth2client==1.5.2
 # XXX This is here to ensure that buildbot installs a version of pip and
@@ -96,6 +99,7 @@ service-identity==16.0.0
 simplejson==3.8.2
 snowballstemmer==1.2.1
 stevedore==1.15.0
+toolz==0.8.0
 traceback2==1.4.0
 unittest2==1.1.0
 uritemplate==0.6
