@@ -3,6 +3,8 @@
 """
 Tools for testing :py:module:`flocker.control`.
 """
+from uuid import uuid4
+
 from zope.interface.verify import verifyObject
 
 from twisted.internet.endpoints import TCP4ServerEndpoint
