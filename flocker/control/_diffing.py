@@ -104,7 +104,18 @@ _sentinel = object()
 
 
 class _EvolverProxy(object):
+    """
+    This attempts to bunch all the diff operations for a particular object into
+    a single transaction so that related attributes can be ``set`` without
+    triggering an in invariant error.
+    Additionally, the leaf nodes are persisted first and in isolation, so as
+    not to trigger invariant errors in ancestor nodes.
+    """
     def __init__(self, original):
+        """
+        :param PClass original: The root object to which transformations will
+            be applied.
+        """
         self._original = original
         self._evolver = original.evolver()
         self._children = {}
@@ -126,6 +137,18 @@ class _EvolverProxy(object):
         return proxy_for_child
 
     def transform(self, path, operation):
+        """
+        Traverse each segment of ``path`` to create a hierarchy of
+        ``_EvolverProxy`` objects and perform the ``operation`` on the
+        resulting leaf proxy object. This will infact perform the operation on
+        an evolver of the original Pyrsistent object.
+
+        :param PVector path: The path relative to ``original`` which will be
+            operated on.
+        :param callable operation: A function to be applied to an evolver of
+             the object at ``path``
+        :returns: ``self``
+        """
         target = self
         for segment in path:
             target = target._child(segment)
@@ -133,6 +156,16 @@ class _EvolverProxy(object):
         return self
 
     def add(self, item):
+        """
+        Add ``item`` to the ``original`` ``Pset`` or if the item is itself a
+        Pyrsistent object, add a new proxy for that item so that further
+        operations can be performed on it without triggering invariant checks
+        until the tree is finally committed.
+
+        :param item: An object to be added to the ``PSet`` wrapped by this
+            proxy.
+        :returns: ``self``
+        """
         if hasattr(item, 'evolver'):
             self._children[item] = _EvolverProxy(item)
         else:
@@ -140,6 +173,17 @@ class _EvolverProxy(object):
         return self
 
     def set(self, key, item):
+        """
+        Set the ``item`` in an evolver of the ``original`` ``PMap`` or
+        ``PClass`` or if the item is itself a Pyrsistent object, add a new
+        proxy for that item so that further operations can be performed on it
+        without triggering invariant checks until the tree is finally
+        committed.
+
+        :param item: An object to be added or set on the ``PMap`` wrapped by
+            this proxy.
+        :returns: ``self``
+        """
         if hasattr(item, 'evolver'):
             # This will replace any existing proxy.
             self._children[key] = _EvolverProxy(item)
@@ -148,6 +192,16 @@ class _EvolverProxy(object):
         return self
 
     def remove(self, item):
+        """
+        Remove the ``item`` in an evolver of the ``original`` ``PMap``,
+        ``PClass``, or ``PSet`` and if the item is an uncommitted
+        ``_EvolverProxy`` remove it from the list of children so that the item
+        is not persisted when the structure is finally committed.
+
+        :param item: The object to be removed from the wrapped ``PSet`` or the
+            key to be removed from the wrapped ``PMap``
+        :returns: ``self``
+        """
         self._children.pop(item, None)
         # Attempt to remove the item from the evolver too.  It may be something
         # that was replaced rather than added by a previous ``set`` operation.
@@ -158,6 +212,13 @@ class _EvolverProxy(object):
         return self
 
     def commit(self):
+        """
+        Persist all the changes made to the descendants of this structure, then
+        persist the resulting sub-objects and local changes to this root object
+        and finally return the resulting immutable structure.
+
+        :returns: The updated and persisted version of ``original``.
+        """
         for segment, child_evolver_proxy in self._children.items():
             child = child_evolver_proxy.commit()
             # XXX this is ugly. Perhaps have a separate proxy for PClass, PMap
@@ -211,6 +272,7 @@ class Diff(PClass):
         try:
             return proxy.commit()
         except:
+            # Imported here to avoid circular dependencies.
             from ._persistence import wire_encode
             DIFF_COMMIT_ERROR(
                 target_object=wire_encode(obj),
