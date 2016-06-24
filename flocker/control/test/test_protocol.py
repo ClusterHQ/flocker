@@ -425,37 +425,6 @@ class ControlAMPTests(ControlTestCase):
         self.protocol = ControlAMP(self.reactor, self.control_amp_service)
         self.client = LoopbackAMPClient(self.protocol.locator)
 
-    def test_connection_stays_open_on_activity(self):
-        """
-        The AMP connection remains open when communication is received at
-        any time up to the timeout limit.
-        """
-        self.protocol.makeConnection(StringTransportWithAbort())
-        initially_aborted = self.protocol.transport.aborted
-        advance_some(self.reactor)
-        self.client.callRemote(NoOp)
-        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
-        # This NoOp will reset the timeout.
-        self.client.callRemote(NoOp)
-        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
-        later_aborted = self.protocol.transport.aborted
-        self.assertEqual(
-            dict(initially=initially_aborted, later=later_aborted),
-            dict(initially=False, later=False)
-        )
-
-    def test_connection_closed_on_no_activity(self):
-        """
-        If no communication has been received for long enough that we expire
-        cluster state, the silent connection is forcefully closed.
-        """
-        self.protocol.makeConnection(StringTransportWithAbort())
-        advance_some(self.reactor)
-        self.client.callRemote(NoOp)
-        self.assertFalse(self.protocol.transport.aborted)
-        self.reactor.advance(PING_INTERVAL.seconds * 2)
-        self.assertEqual(self.protocol.transport.aborted, True)
-
     def test_connection_made(self):
         """
         When a connection is made the ``ControlAMP`` is added to the services
@@ -1118,29 +1087,6 @@ class AgentClientTests(TestCase):
         # to access the passed in locator directly.
         self.server = LoopbackAMPClient(self.client.locator)
 
-    def test_connection_stays_open_on_activity(self):
-        """
-        The AMP connection remains open when communication is received at
-        any time up to the timeout limit.
-        """
-        advance_some(self.reactor)
-        self.server.callRemote(NoOp)
-        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
-        # This NoOp will reset the timeout.
-        self.server.callRemote(NoOp)
-        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
-        self.assertEqual(self.client.transport.aborted, False)
-
-    def test_connection_closed_on_no_activity(self):
-        """
-        If no communication has been received for long enough that we expire
-        cluster state, the silent connection is forcefully closed.
-        """
-        advance_some(self.reactor)
-        self.server.callRemote(NoOp)
-        self.reactor.advance(PING_INTERVAL.seconds * 2)
-        self.assertEqual(self.client.transport.aborted, True)
-
     def test_initially_not_connected(self):
         """
         The agent does not get told a connection was made or lost before it's
@@ -1620,6 +1566,55 @@ class PingTestsMixin(object):
         protocol.connectionLost(Failure(ConnectionDone("test, simulated")))
         reactor.advance(PING_INTERVAL.total_seconds())
         self.assertEqual(b"", transport.value())
+
+    def test_timeout_cancelled_on_lost_connection(self):
+        """
+        The ping timeout is cancelled if the remote connection is lost.
+        """
+        reactor = Clock()
+        protocol = self.build_protocol(reactor)
+        transport = StringTransportWithAbort()
+        protocol.makeConnection(transport)
+        protocol.connectionLost(
+            Failure(ConnectionDone("test, simulated"))
+        )
+        reactor.advance(PING_INTERVAL.total_seconds() * 3)
+
+    def test_timeout_reset_on_ping_activity(self):
+        """
+        The AMP connection remains open when communication is received at
+        any time up to the timeout limit.
+        """
+        reactor = Clock()
+        protocol = self.build_protocol(reactor)
+        locator = _NoOpCounter()
+        peer = AMP(locator=locator)
+        pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
+        # The timer started the moment the protocol was instantiated.
+        # A moment before the timer expires the protocol is still connected
+        # (not disconnecting).
+        reactor.advance(2 * PING_INTERVAL.total_seconds() - 0.1)
+        initially_aborted = protocol.transport.disconnecting
+        # If at this point the peer pings us, it resets the timer.
+        peer.callRemote(NoOp)
+        pump.flush()
+        # And we can advance to the original expiry time without triggering
+        # abortConnection.
+        reactor.advance(0.1)
+        later_aborted = protocol.transport.disconnecting
+        # But if we now advance to the expiry timeout (the ping occured at
+        # expiry - 0.1s, without a ping, then abortConnection is called and the
+        # connection begins disconnecting.
+        reactor.advance(2 * PING_INTERVAL.total_seconds() - 0.1)
+        finally_aborted = protocol.transport.disconnecting
+        self.assertEqual(
+            dict(initially=initially_aborted,
+                 later=later_aborted,
+                 final=finally_aborted),
+            dict(initially=False,
+                 later=False,
+                 final=True)
+        )
 
 
 class ControlAMPPingTests(TestCase, PingTestsMixin):
