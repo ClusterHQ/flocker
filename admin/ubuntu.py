@@ -162,6 +162,31 @@ class AMISearchUbuntuOptions(Options):
     ]
 
 
+def reduce_to_map(records, key_field, value_field):
+    map_fields = {key_field, value_field}
+    map = {}
+    first_record = None
+    for r in records:
+        r = r.serialize()
+        if first_record is None:
+            first_record = set(r.items())
+            continue
+        diff = dict(first_record.difference(r.items()))
+        unexpected_differences = set(
+            diff.keys()
+        ).difference(map_fields)
+        if unexpected_differences:
+            raise ValueError(
+                "Unexpected differences in record. "
+                "Record: {}, "
+                "Differences: {}".format(r, unexpected_differences)
+            )
+        key_value = r[key_field]
+        assert key_value not in map
+        map[key_value] = r[value_field]
+    return map
+
+
 def ami_search_ubuntu_main(args, top_level, base_path):
     options = AMISearchUbuntuOptions()
     try:
@@ -170,17 +195,19 @@ def ami_search_ubuntu_main(args, top_level, base_path):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    print json.dumps(
-        {
-            r.region: r.ami_id
-            for r in latest(
-                release_cycle=options["release-cycle"],
-                ubuntu_name=options["ubuntu-name"],
-                ubuntu_variant=u"server",
-                ec2_image_type=u'ebs',
-                architecture=u'amd64',
-                hypervisor=u'hvm',
-            )
-        },
-        sort_keys=True
+    latest_records = latest(
+        release_cycle=options["release-cycle"],
+        ubuntu_name=options["ubuntu-name"],
+        ubuntu_variant=u"server",
+        architecture=u'amd64',
+        hypervisor=u'hvm',
+        ec2_image_type=u'ebs',
     )
+
+    ami_map = reduce_to_map(
+        latest_records,
+        key_field="region",
+        value_field="ami_id",
+    )
+
+    print json.dumps(ami_map, sort_keys=True)
