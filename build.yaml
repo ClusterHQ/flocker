@@ -955,6 +955,25 @@ job_type:
       timeout: 45
       directories_to_delete: *run_trial_directories_to_delete
 
+    run_trial_for_ebs_storage_driver_on_Ubuntu_xenial:
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      with_modules: *run_trial_functional_agent_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_aws_env_vars,
+                   'export FLOCKER_FUNCTIONAL_TEST=TRUE',
+                   *run_trial_for_storage_drivers_with_coverage, *run_coverage,
+                   *convert_results_to_junit ]
+          }
+      archive_artifacts: *flocker_artifacts
+      publish_test_results: true
+      coverage_report: true
+      clean_repo: true
+      timeout: 45
+      directories_to_delete: *run_trial_directories_to_delete
+
     run_trial_for_cinder_storage_driver_on_CentOS_7:
       on_nodes_with_labels: 'rackspace-jenkins-slave-centos7-selinux-standard-4-dfw'
       with_modules: *run_trial_functional_agent_modules
@@ -979,6 +998,27 @@ job_type:
 
     run_trial_for_cinder_storage_driver_on_Ubuntu_trusty:
       on_nodes_with_labels: 'rackspace-jenkins-slave-ubuntu14-standard-4-dfw'
+      with_modules: *run_trial_functional_agent_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_rackspace_env_vars,
+                   'export FLOCKER_FUNCTIONAL_TEST=TRUE',
+                   *run_trial_for_storage_drivers_with_coverage, *run_coverage,
+                   *convert_results_to_junit ]
+          }
+      archive_artifacts: *flocker_artifacts
+      publish_test_results: true
+      coverage_report: true
+      clean_repo: true
+      # Reasoning for run_trial_for_cinder_storage_driver_on_CentOS_7's timeout
+      # applies here as well.
+      timeout: 90
+      directories_to_delete: *run_trial_directories_to_delete
+
+    run_trial_for_cinder_storage_driver_on_Ubuntu_xenial:
+      on_nodes_with_labels: 'rackspace-jenkins-slave-ubuntu16-standard-4-dfw'
       with_modules: *run_trial_functional_agent_modules
       with_steps:
         - { type: 'shell',
@@ -1199,6 +1239,26 @@ job_type:
     run_trial_for_gce_storage_driver_on_Ubuntu_trusty:
       at: '0 5 * * *'
       on_nodes_with_labels: 'gce-ubuntu14'
+      with_modules: *run_trial_functional_agent_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_coverage, *setup_gce_env_vars,
+                   'export FLOCKER_FUNCTIONAL_TEST=TRUE',
+                   *run_trial_for_storage_drivers_with_coverage, *run_coverage,
+                   *convert_results_to_junit ]
+          }
+      archive_artifacts: *flocker_artifacts
+      publish_test_results: true
+      coverage_report: true
+      clean_repo: true
+      timeout: 45
+      directories_to_delete: *run_trial_directories_to_delete
+
+    run_trial_for_gce_storage_driver_on_Ubuntu_xenial:
+      at: '0 5 * * *'
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_modules: *run_trial_functional_agent_modules
       with_steps:
         - { type: 'shell',
