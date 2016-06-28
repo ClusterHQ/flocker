@@ -150,6 +150,22 @@ def latest(**kwargs):
     )
 
 
+EC2_IMAGE_TYPES = (u"ebs", u"ebs-ssd", u"instance-store")
+
+
+def _validate_ec2_image_type(supplied_type):
+    supplied_type = supplied_type.decode('ascii')
+    if supplied_type not in EC2_IMAGE_TYPES:
+        raise UsageError(
+            "Unrecognized option value for --ec2-image-type: '{}'. "
+            "Must be one of: '{}'".format(
+                supplied_type,
+                "', '".join(EC2_IMAGE_TYPES),
+            )
+        )
+    return supplied_type
+
+
 class AMISearchUbuntuOptions(Options):
     """
     Options.
@@ -159,6 +175,9 @@ class AMISearchUbuntuOptions(Options):
          'One of `daily` or `release`.', unicode],
         ['ubuntu-name', None, u"trusty",
          'An Ubuntu release name.', unicode],
+        ['ec2-image-type', None, EC2_IMAGE_TYPES[0],
+         'One of {}.'.format(", ".join(EC2_IMAGE_TYPES)),
+         _validate_ec2_image_type],
     ]
 
 
@@ -201,7 +220,7 @@ def ami_search_ubuntu_main(args, top_level, base_path):
         ubuntu_variant=u"server",
         architecture=u'amd64',
         hypervisor=u'hvm',
-        ec2_image_type=u'ebs',
+        ec2_image_type=options["ec2-image-type"],
     )
 
     ami_map = reduce_to_map(
