@@ -182,6 +182,15 @@ class AMISearchUbuntuOptions(Options):
 
 
 def reduce_to_map(records, key_field, value_field):
+    """
+    Reduce the ``records`` to a ``dict`` of ``key_field``: ``value_field``
+    extracted from each record.
+    The ``key_field`` is expected to be unique amongst ``records`` and all
+    other fields are expected to be identical. If not, ValueError is raised
+    with details of the unexpected differences.
+    This is to ensure that the tool will fail if the format of the downloaded
+    text file changes or includes unexpected fields.
+    """
     map_fields = {key_field, value_field}
     map = {}
     first_record = None
