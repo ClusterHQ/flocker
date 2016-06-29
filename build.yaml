@@ -1054,6 +1054,24 @@ job_type:
       timeout: 30
       directories_to_delete: *run_acceptance_directories_to_delete
 
+    run_client_installation_on_Ubuntu_Xenial:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=ubuntu-16.04',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *run_client_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      timeout: 30
+      directories_to_delete: *run_acceptance_directories_to_delete
+
   run_lint:
     run_lint:
       on_nodes_with_labels: 'aws-centos-7-T2Medium'
