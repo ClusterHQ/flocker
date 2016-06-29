@@ -150,6 +150,22 @@ def latest(**kwargs):
     )
 
 
+EC2_IMAGE_TYPES = (u"ebs", u"ebs-ssd", u"instance-store")
+
+
+def _validate_ec2_image_type(supplied_type):
+    supplied_type = supplied_type.decode('ascii')
+    if supplied_type not in EC2_IMAGE_TYPES:
+        raise UsageError(
+            "Unrecognized option value for --ec2-image-type: '{}'. "
+            "Must be one of: '{}'".format(
+                supplied_type,
+                "', '".join(EC2_IMAGE_TYPES),
+            )
+        )
+    return supplied_type
+
+
 class AMISearchUbuntuOptions(Options):
     """
     Options.
@@ -159,7 +175,51 @@ class AMISearchUbuntuOptions(Options):
          'One of `daily` or `release`.', unicode],
         ['ubuntu-name', None, u"trusty",
          'An Ubuntu release name.', unicode],
+        ['ec2-image-type', None, EC2_IMAGE_TYPES[0],
+         'One of {}.'.format(", ".join(EC2_IMAGE_TYPES)),
+         _validate_ec2_image_type],
     ]
+
+
+def reduce_to_map(records, key_field, value_field):
+    """
+    Reduce the ``records`` to a ``dict`` of ``key_field``: ``value_field``
+    extracted from each record.
+    The ``key_field`` is expected to be unique amongst ``records`` and all
+    other fields are expected to be identical. If not, ValueError is raised
+    with details of the unexpected differences.
+    This is to ensure that the tool will fail if the format of the downloaded
+    text file changes or includes unexpected fields.
+    """
+    map_fields = {key_field, value_field}
+    result_map = {}
+    first_record = None
+    for record in records:
+        r = record.serialize()
+        if first_record is None:
+            first_record = record
+            first_record_items = set(r.items())
+            continue
+        diff = dict(first_record_items.difference(r.items()))
+        different_keys = set(
+            diff.keys()
+        ).difference(map_fields)
+        if different_keys:
+            raise ValueError(
+                "Unexpected related record found. \n"
+                "Reference Record: {}, \n"
+                "Different Record: {}, \n"
+                "Different Keys: {}".format(
+                    first_record,
+                    record,
+                    different_keys,
+                )
+            )
+        key = r[key_field]
+        value = r[value_field]
+        assert key not in result_map
+        result_map[key] = value
+    return result_map
 
 
 def ami_search_ubuntu_main(args, top_level, base_path):
@@ -170,17 +230,19 @@ def ami_search_ubuntu_main(args, top_level, base_path):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    print json.dumps(
-        {
-            r.region: r.ami_id
-            for r in latest(
-                release_cycle=options["release-cycle"],
-                ubuntu_name=options["ubuntu-name"],
-                ubuntu_variant=u"server",
-                ec2_image_type=u'ebs',
-                architecture=u'amd64',
-                hypervisor=u'hvm',
-            )
-        },
-        sort_keys=True
+    latest_records = latest(
+        release_cycle=options["release-cycle"],
+        ubuntu_name=options["ubuntu-name"],
+        ubuntu_variant=u"server",
+        architecture=u'amd64',
+        hypervisor=u'hvm',
+        ec2_image_type=options["ec2-image-type"],
     )
+
+    ami_map = reduce_to_map(
+        latest_records,
+        key_field="region",
+        value_field="ami_id",
+    )
+
+    print json.dumps(ami_map, sort_keys=True)
