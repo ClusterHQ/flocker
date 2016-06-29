@@ -588,6 +588,18 @@ common_cli:
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
     echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile
 
+  build_dockerfile_ubuntu_xenial: &build_dockerfile_ubuntu_xenial |
+    # don't waste time installing ruby or fpm, use an image containing fpm
+    # https://github.com/alanfranz/fpm-within-docker
+    echo "FROM alanfranz/fwd-ubuntu-xenial:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "RUN apt-get update" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y \
+          git ruby-dev libffi-dev libssl-dev build-essential \
+          python2.7-dev lintian python" >> Dockerfile
+    echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
+    echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile
+
   do_not_abort_on_errors: &do_not_abort_on_errors |
     # make sure we don't abort the job on the first error we find.
     #
@@ -1124,6 +1136,21 @@ job_type:
             cli: [ *hashbang, *add_shell_functions,
                    'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-wily',
                    *build_dockerfile_ubuntu_wily,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
+      timeout: 30
+      directories_to_delete: []
+      notify_slack: '#nightly-builds'
+
+    run_docker_build_ubuntu_xenial_fpm:
+      at: '0 3 * * *'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-xenial',
+                   *build_dockerfile_ubuntu_xenial,
                    *build_docker_image,
                    *push_image_to_dockerhub ]
           }
