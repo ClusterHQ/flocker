@@ -192,27 +192,34 @@ def reduce_to_map(records, key_field, value_field):
     text file changes or includes unexpected fields.
     """
     map_fields = {key_field, value_field}
-    map = {}
+    result_map = {}
     first_record = None
-    for r in records:
-        r = r.serialize()
+    for record in records:
+        r = record.serialize()
         if first_record is None:
-            first_record = set(r.items())
+            first_record = record
+            first_record_items = set(r.items())
             continue
-        diff = dict(first_record.difference(r.items()))
-        unexpected_differences = set(
+        diff = dict(first_record_items.difference(r.items()))
+        different_keys = set(
             diff.keys()
         ).difference(map_fields)
-        if unexpected_differences:
+        if different_keys:
             raise ValueError(
-                "Unexpected differences in record. "
-                "Record: {}, "
-                "Differences: {}".format(r, unexpected_differences)
+                "Unexpected related record found. \n"
+                "Reference Record: {}, \n"
+                "Different Record: {}, \n"
+                "Different Keys: {}".format(
+                    first_record,
+                    record,
+                    different_keys,
+                )
             )
-        key_value = r[key_field]
-        assert key_value not in map
-        map[key_value] = r[value_field]
-    return map
+        key = r[key_field]
+        value = r[value_field]
+        assert key not in result_map
+        result_map[key] = value
+    return result_map
 
 
 def ami_search_ubuntu_main(args, top_level, base_path):
