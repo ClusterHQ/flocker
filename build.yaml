@@ -1486,6 +1486,9 @@ views:
   Ubuntu_Wily_15_10:
     description: 'All Ubuntu Wily (15.10) jobs'
     regex: '.*_(?i)wily_.*.*'
+  Ubuntu_Xenial_16_04:
+    description: 'All Ubuntu Xenial (16.04) jobs'
+    regex: '.*_(?i)xenial_.*.*'
   cron:
     description: 'All Nightly Cron jobs'
     regex: '^_[^_](?i)[a-z]*.*'
