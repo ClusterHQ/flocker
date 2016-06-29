@@ -225,6 +225,13 @@ def get_repository_url(distribution, flocker_version):
                             key='ubuntu' + get_package_key_suffix(
                                 flocker_version),
                         ),
+
+        'ubuntu-16.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
+                        '$(lsb_release --release --short)/\\$(ARCH)'.format(
+                            archive_bucket=ARCHIVE_BUCKET,
+                            key='ubuntu' + get_package_key_suffix(
+                                flocker_version),
+                        ),
     }
 
     try:
