@@ -501,15 +501,18 @@ common_cli:
     sudo cp repo/* ${DOC_ROOT}/${REPO_PATH}
     cd ${DOC_ROOT}/${REPO_PATH}
     # create a repo on either centos or ubuntu
-    if [ "${DISTRIBUTION_NAME}" == "ubuntu-14.04" ]; then
-      sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
-    fi
-    if [ "${DISTRIBUTION_NAME}" == "ubuntu-15.10" ]; then
-      sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
-    fi
-    if [ "${DISTRIBUTION_NAME}" == "centos-7" ]; then
-      sudo createrepo .
-    fi
+    case "${DISTRIBUTION_NAME}" in
+        ubuntu*)
+            sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
+            ;;
+        centos*)
+            sudo createrepo .
+            ;;
+        *)
+            echo "ERROR: Unsupported distribution '${DISTRIBUTION_NAME}'." >&2
+            exit 1
+            ;;
+    esac
     cd -
 
   clean_packages: &clean_packages |
@@ -580,6 +583,18 @@ common_cli:
     # don't waste time installing ruby or fpm, use an image containing fpm
     # https://github.com/alanfranz/fpm-within-docker
     echo "FROM alanfranz/fwd-ubuntu-wily:latest" > Dockerfile
+    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
+    echo "RUN apt-get update" >> Dockerfile
+    echo "RUN apt-get install --no-install-recommends -y \
+          git ruby-dev libffi-dev libssl-dev build-essential \
+          python2.7-dev lintian python" >> Dockerfile
+    echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
+    echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile
+
+  build_dockerfile_ubuntu_xenial: &build_dockerfile_ubuntu_xenial |
+    # don't waste time installing ruby or fpm, use an image containing fpm
+    # https://github.com/alanfranz/fpm-within-docker
+    echo "FROM alanfranz/fwd-ubuntu-xenial:latest" > Dockerfile
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y \
@@ -1054,6 +1069,24 @@ job_type:
       timeout: 30
       directories_to_delete: *run_acceptance_directories_to_delete
 
+    run_client_installation_on_Ubuntu_Xenial:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=ubuntu-16.04',
+                   *setup_aws_env_vars, *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *run_client_tests,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      timeout: 30
+      directories_to_delete: *run_acceptance_directories_to_delete
+
   run_lint:
     run_lint:
       on_nodes_with_labels: 'aws-centos-7-T2Medium'
@@ -1106,6 +1139,21 @@ job_type:
             cli: [ *hashbang, *add_shell_functions,
                    'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-wily',
                    *build_dockerfile_ubuntu_wily,
+                   *build_docker_image,
+                   *push_image_to_dockerhub ]
+          }
+      timeout: 30
+      directories_to_delete: []
+      notify_slack: '#nightly-builds'
+
+    run_docker_build_ubuntu_xenial_fpm:
+      at: '0 3 * * *'
+      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-xenial',
+                   *build_dockerfile_ubuntu_xenial,
                    *build_docker_image,
                    *push_image_to_dockerhub ]
           }
@@ -1441,6 +1489,9 @@ views:
   Ubuntu_Wily_15_10:
     description: 'All Ubuntu Wily (15.10) jobs'
     regex: '.*_(?i)wily_.*.*'
+  Ubuntu_Xenial_16_04:
+    description: 'All Ubuntu Xenial (16.04) jobs'
+    regex: '.*_(?i)xenial_.*.*'
   cron:
     description: 'All Nightly Cron jobs'
     regex: '^_[^_](?i)[a-z]*.*'

@@ -111,6 +111,7 @@ DISTRIBUTION_NAME_MAP = {
     'centos-7': Distribution(name="centos", version="7"),
     'ubuntu-14.04': Distribution(name="ubuntu", version="14.04"),
     'ubuntu-15.10': Distribution(name="ubuntu", version="15.10"),
+    'ubuntu-16.04': Distribution(name="ubuntu", version="16.04"),
 }
 
 CURRENT_DISTRIBUTION = Distribution._get_current_distribution()
