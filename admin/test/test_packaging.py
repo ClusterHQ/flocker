@@ -766,7 +766,7 @@ class LintPackageTests(TestCase):
             vendor="Acme Corporation",
             maintainer='Someone <noreply@example.com>',
             architecture="all",
-            description="A Test Package\n\nThe description.",
+            description="Test Package\n\nThe description.",
             category="none",
             dependencies=[]
         ).run()
