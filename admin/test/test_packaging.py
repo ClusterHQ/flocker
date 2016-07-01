@@ -766,7 +766,7 @@ class LintPackageTests(TestCase):
             vendor="Acme Corporation",
             maintainer='Someone <noreply@example.com>',
             architecture="all",
-            description="Description\n\nExtended",
+            description="Description\n\n" + ("Lorum ipsum. " * 100),
             category="none",
             dependencies=[]
         ).run()
