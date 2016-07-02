@@ -1254,10 +1254,10 @@ def configure_zfs(node, variants):
     ])
 
 
-def _uninstall_flocker_ubuntu1404():
+def _uninstall_flocker_ubuntu():
     """
     Return an ``Effect`` for uninstalling the Flocker package from an Ubuntu
-    14.04 machine.
+    machine.
     """
     return run_from_args([
         b"apt-get", b"remove", b"-y", b"--purge", b"clusterhq-python-flocker",
@@ -1302,7 +1302,8 @@ def _uninstall_flocker_centos7():
 
 
 _flocker_uninstallers = {
-    "ubuntu-14.04": _uninstall_flocker_ubuntu1404,
+    "ubuntu-14.04": _uninstall_flocker_ubuntu,
+    "ubuntu-16.04": _uninstall_flocker_ubuntu,
     "centos-7": _uninstall_flocker_centos7,
     "rhel-7.2": _uninstall_flocker_centos7,
 }
