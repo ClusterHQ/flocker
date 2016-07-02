@@ -274,6 +274,34 @@ require_moving_backend = skip_backend(
     reason="doesn't support moving")
 
 
+def skip_distribution(unsupported, reason):
+    """
+    Create decorator that skips a test if the distribution doesn't support the
+    operations required by the test.
+
+    :param supported: List of supported volume backends for this test.
+    :param reason: The reason the backend isn't supported.
+    """
+    def decorator(test_method):
+        """
+        :param test_method: The test method that should be skipped.
+        """
+        @wraps(test_method)
+        def wrapper(test_case, *args, **kwargs):
+            distribution = environ.get("FLOCKER_ACCEPTANCE_DISTRIBUTION")
+            if distribution in unsupported:
+                raise SkipTest(
+                    "Distribution not supported: "
+                    "'{distribution}' ({reason}).".format(
+                        distribution=distribution,
+                        reason=reason,
+                    )
+                )
+            return test_method(test_case, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def get_default_volume_size():
     """
     :returns int: the default volume size (in bytes) supported by the
