@@ -75,7 +75,7 @@ class DockerPluginTests(AsyncTestCase):
         get_distro.addCallback(lambda _: distro[0].lower())
 
         def action_docker(distribution):
-            if 'ubuntu' in distribution:
+            if 'ubuntu-14.04' in distribution:
                 command = ["service", "docker", action]
             else:
                 command = ["systemctl", action, "docker"]
