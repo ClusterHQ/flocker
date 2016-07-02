@@ -119,6 +119,20 @@ def is_centos_or_rhel(distribution):
     return (distribution.startswith(("centos-", "rhel-")))
 
 
+def is_systemd_distribution(distribution):
+    """
+    Determine whether the named distribution uses systemd.
+
+    :param bytes distribution: The name of the distribution to inspect.
+
+    :return: ``True`` if the distribution uses systemd else ``False``.
+    """
+    return (
+        is_centos_or_rhel(distribution) or
+        distribution == "ubuntu-16.04"
+    )
+
+
 def _from_args(sudo):
     """
     Select a function for running a command, either using ``sudo(8)`` or not.
@@ -711,7 +725,7 @@ def task_upgrade_kernel(distribution):
             yum_install(["kernel-devel", "kernel"]),
             run_from_args(['sync']),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         # Not required.
         return sequence([])
     else:
@@ -824,7 +838,7 @@ def task_enable_docker(distribution):
         ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
         ' -H=0.0.0.0:2376')
 
-    if is_centos_or_rhel(distribution):
+    if is_systemd_distribution(distribution):
         conf_path = (
             "/etc/systemd/system/docker.service.d/01-TimeoutStartSec.conf"
         )
@@ -852,7 +866,7 @@ def task_enable_docker(distribution):
                     """.format(docker_tls_options))),
             run_from_args(["systemctl", "enable", "docker.service"]),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         return sequence([
             put(path="/etc/default/docker",
                 content=(
@@ -896,6 +910,7 @@ def task_enable_flocker_control(distribution, action="start"):
     :param bytes distribution: name of the distribution where the flocker
         controls currently runs. The supported distros are:
             - ubuntu-14.04
+            - ubuntu-16.04
             - centos-<centos version>
     :param bytes action: action to perform with the flocker control service.
         Currently, we support:
@@ -913,7 +928,7 @@ def task_enable_flocker_control(distribution, action="start"):
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', action.lower(), 'flocker-control']),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         return sequence([
             put(
                 path='/etc/init/flocker-control.override',
@@ -953,7 +968,7 @@ def task_enable_docker_plugin(distribution):
             run_from_args(['systemctl', START, 'flocker-docker-plugin']),
             run_from_args(['systemctl', START, 'docker']),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         return sequence([
             run_from_args(['service', 'flocker-docker-plugin', 'restart']),
             run_from_args(['service', 'docker', 'restart']),
@@ -968,7 +983,7 @@ def task_open_control_firewall(distribution):
     """
     if is_centos_or_rhel(distribution):
         open_firewall = open_firewalld
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         open_firewall = open_ufw
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1000,7 +1015,7 @@ def if_firewall_available(distribution, commands):
     """
     if is_centos_or_rhel(distribution):
         firewall_command = b'firewall-cmd'
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         firewall_command = b'ufw'
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1028,7 +1043,7 @@ def open_firewall_for_docker_api(distribution):
                          </service>
                          """))
         open_firewall = open_firewalld
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         upload = put(path="/etc/ufw/applications.d/docker",
                      content=dedent(
                          """
@@ -1137,7 +1152,7 @@ def task_enable_flocker_agent(distribution, action="start"):
                            action.lower(),
                            'flocker-container-agent']),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         return sequence([
             run_from_args(['service',
                            'flocker-dataset-agent',
@@ -1171,7 +1186,7 @@ def task_install_zfs(distribution, variants=set()):
     :param set variants: The set of variant configurations to use when
     """
     commands = []
-    if distribution == 'ubuntu-14.04':
+    if is_ubuntu(distribution):
         commands += [
             # ZFS not available in base Ubuntu - add ZFS repo
             run_network_interacting_from_args([
