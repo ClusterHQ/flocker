@@ -895,7 +895,7 @@ class LibcloudRunner(object):
             return succeed(None)
 
 
-DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04')
+DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-16.04')
 
 
 class CommonOptions(Options):
