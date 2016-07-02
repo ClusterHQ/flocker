@@ -408,7 +408,7 @@ class Node(PClass):
         :param argv: Additional arguments for the script.
         """
         script = NODE_SCRIPTS.child(python_script + ".py").getContent()
-        return self.run_as_root([b"python", b"-c", script] +
+        return self.run_as_root([b"python2.7", b"-c", script] +
                                 list(argv))
 
 
@@ -1297,7 +1297,7 @@ def create_python_container(test_case, cluster, parameters, script,
     """
     parameters = parameters.copy()
     parameters[u"image"] = u"python:2.7-slim"
-    parameters[u"command_line"] = [u"python", u"-c",
+    parameters[u"command_line"] = [u"python2.7", u"-c",
                                    script.getContent().decode("ascii")] + list(
                                        additional_arguments)
     if u"restart_policy" not in parameters:
