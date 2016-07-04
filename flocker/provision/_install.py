@@ -923,7 +923,7 @@ def task_enable_flocker_control(distribution, action="start"):
     """
     validate_start_action(action)
 
-    if is_centos_or_rhel(distribution):
+    if is_systemd_distribution(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', action.lower(), 'flocker-control']),
@@ -962,7 +962,7 @@ def task_enable_docker_plugin(distribution):
 
     :param bytes distribution: The distribution name.
     """
-    if is_centos_or_rhel(distribution):
+    if is_systemd_distribution(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
             run_from_args(['systemctl', START, 'flocker-docker-plugin']),
@@ -1137,7 +1137,7 @@ def task_enable_flocker_agent(distribution, action="start"):
     """
     validate_start_action(action)
 
-    if is_centos_or_rhel(distribution):
+    if is_systemd_distribution(distribution):
         return sequence([
             run_from_args(['systemctl',
                            'enable',
@@ -1254,6 +1254,26 @@ def configure_zfs(node, variants):
     ])
 
 
+def _maybe_disable(unit):
+    return run(
+        u"{{ "
+        u"systemctl is-enabled {unit} && "
+        u"systemctl stop {unit} && "
+        u"systemctl disable {unit} "
+        u"; }} || /bin/true".format(unit=unit).encode("ascii")
+    )
+
+
+def _disable_flocker_systemd():
+    return list(
+        # XXX There should be uninstall hooks for stopping services.
+        _maybe_disable(unit) for unit in [
+            u"flocker-control", u"flocker-dataset-agent",
+            u"flocker-container-agent", u"flocker-docker-plugin",
+        ]
+    )
+
+
 def _uninstall_flocker_ubuntu():
     """
     Return an ``Effect`` for uninstalling the Flocker package from an Ubuntu
@@ -1264,28 +1284,23 @@ def _uninstall_flocker_ubuntu():
     ])
 
 
+def _uninstall_flocker_ubuntu1604():
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from an Ubuntu
+    machine.
+    """
+    return sequence(
+        _disable_flocker_systemd() + [_uninstall_flocker_ubuntu()]
+    )
+
+
 def _uninstall_flocker_centos7():
     """
     Return an ``Effect`` for uninstalling the Flocker package from a CentOS 7
     or RHEL 7.2 machine.
     """
-    def maybe_disable(unit):
-        return run(
-            u"{{ "
-            u"systemctl is-enabled {unit} && "
-            u"systemctl stop {unit} && "
-            u"systemctl disable {unit} "
-            u"; }} || /bin/true".format(unit=unit).encode("ascii")
-        )
-
     return sequence(
-        list(
-            # XXX There should be uninstall hooks for stopping services.
-            maybe_disable(unit) for unit in [
-                u"flocker-control", u"flocker-dataset-agent",
-                u"flocker-container-agent", u"flocker-docker-plugin",
-            ]
-        ) + [
+        _disable_flocker_systemd() + [
             run_from_args([
                 b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
             ]),
@@ -1303,7 +1318,7 @@ def _uninstall_flocker_centos7():
 
 _flocker_uninstallers = {
     "ubuntu-14.04": _uninstall_flocker_ubuntu,
-    "ubuntu-16.04": _uninstall_flocker_ubuntu,
+    "ubuntu-16.04": _uninstall_flocker_ubuntu1604,
     "centos-7": _uninstall_flocker_centos7,
     "rhel-7.2": _uninstall_flocker_centos7,
 }
