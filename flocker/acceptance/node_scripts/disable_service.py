@@ -9,7 +9,7 @@ service = sys.argv[1]
 
 try:
     check_output(["systemctl", "--version"])
-except CalledProcessError, OSError:
+except (CalledProcessError, OSError):
     systemd_system = False
 else:
     systemd_system = True
