@@ -653,6 +653,11 @@ IGNORED_WARNINGS = {
         # Fixed upstream, but not released.
         'executable-not-elf-or-script',
 
+        # libffi installs shared libraries with executable bit setContent
+        # '14:59:26 E: clusterhq-python-flocker: shlib-with-executable-bit
+        # opt/flocker/lib/python2.7/site-packages/.libs_cffi_backend/libffi-72499c49.so.6.0.4
+        'shlib-with-executable-bit',
+
         # Our omnibus packages are never going to be used by upstream so
         # there's no bug to close.
         # https://lintian.debian.org/tags/new-package-should-close-itp-bug.html
