@@ -4,12 +4,18 @@ Start a service and enable across reboots.
 
 import os
 import sys
-from subprocess import check_call, check_output
+from subprocess import check_call, check_output, CalledProcessError
 
 service = sys.argv[1]
 
-if os.path.exists("/etc/redhat-release"):
-    # Redhat-based system:
+try:
+    check_output(["systemctl", "--version"])
+except CalledProcessError:
+    systemd_system = False
+else:
+    systemd_system = True
+
+if systemd_system:
     check_call(["systemctl", "enable", service])
     check_call(["systemctl", "start", service])
 else:

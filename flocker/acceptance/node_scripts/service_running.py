@@ -4,14 +4,19 @@ Check if a service is running
 
 # TODO: maybe check if it is enabled as well.
 
-import os
 import sys
-from subprocess import check_output
+from subprocess import check_output, CalledProcessError
 
 service = sys.argv[1]
 
-if os.path.exists("/etc/redhat-release"):
-    # Redhat-based system:
+try:
+    check_output(["systemctl", "--version"])
+except CalledProcessError:
+    systemd_system = False
+else:
+    systemd_system = True
+
+if systemd_system:
     if "active (running)" not in \
        check_output(["systemctl", "status", service]):
         sys.exit(1)
