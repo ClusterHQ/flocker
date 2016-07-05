@@ -238,7 +238,7 @@ class InvariantDiffTests(TestCase):
             b=1,
         )
         diff = create_diff(o1, o2)
-        self.assertEqual(2, len(diff.changes))
+        self.expectThat(len(diff.changes), Equals(2))
         self.assertEqual(
             o2,
             diff.apply(o1)
@@ -263,10 +263,13 @@ class InvariantDiffTests(TestCase):
         )
         o2 = o1.transform(
             ['a'],
-            lambda o: o.evolver().set('a', 2).set('b', 1).persistent()
+            DiffTestObjInvariant(
+                a=2,
+                b=1,
+            )
         )
         diff = create_diff(o1, o2)
-
+        self.expectThat(len(diff.changes), Equals(2))
         self.assertEqual(
             o2,
             diff.apply(o1)
