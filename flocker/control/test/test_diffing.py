@@ -208,7 +208,11 @@ class DeploymentDiffTest(TestCase):
 
 class DiffTestObjInvariant(PClass):
     """
-    Simple pyrsistent object with an invariant.
+    Simple pyrsistent object with an invariant that spans multiple fields.
+
+    Diffs which swap the values of the fields will trigger ``InvariantError`
+    unless ``_perform_invariant_check`` is set to ``False`` or the diff is
+    applied to an evolver object.
     """
     _perform_invariant_check = True
     a = field()
