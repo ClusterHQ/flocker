@@ -11,6 +11,7 @@ from eliot.testing import capture_logging, assertHasMessage
 from hypothesis import given
 import hypothesis.strategies as st
 from pyrsistent import PClass, field, pmap, pset, InvariantException
+from twisted.python.monkey import MonkeyPatcher
 
 from .._diffing import create_diff, compose_diffs, DIFF_COMMIT_ERROR
 from .._persistence import wire_encode, wire_decode
@@ -285,9 +286,17 @@ class InvariantDiffTests(TestCase):
             a=1,
             b=2,
         )
-        DiffTestObjInvariant._perform_invariant_check = False
-        o2 = o1.set('b', 1)
-        DiffTestObjInvariant._perform_invariant_check = True
+        patcher = MonkeyPatcher()
+        patcher.addPatch(
+            DiffTestObjInvariant,
+            '_perform_invariant_check',
+            False
+        )
+        patcher.patch()
+        try:
+            o2 = o1.set('b', 1)
+        finally:
+            patcher.restore()
         diff = create_diff(o1, o2)
         self.assertRaises(
             InvariantException,
