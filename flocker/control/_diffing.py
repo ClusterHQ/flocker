@@ -7,6 +7,8 @@ for computing the difference between deeply pyrsisistent objects such as the
 flocker configuration or the flocker state.
 """
 
+from eliot import MessageType, Field
+
 from pyrsistent import (
     PClass,
     PMap,
@@ -15,6 +17,7 @@ from pyrsistent import (
     pvector,
     pvector_field,
 )
+from pyrsistent._transformations import _get
 
 from zope.interface import Interface, implementer
 
@@ -76,7 +79,9 @@ class _Set(PClass):
     value = field()
 
     def apply(self, obj):
-        return obj.transform(self.path, self.value)
+        return obj.transform(
+            self.path[:-1], lambda o: o.set(self.path[-1], self.value)
+        )
 
 
 @implementer(_IDiffChange)
@@ -95,6 +100,152 @@ class _Add(PClass):
         return obj.transform(self.path, lambda x: x.add(self.item))
 
 
+_sentinel = object()
+
+
+class _EvolverProxy(object):
+    """
+    This attempts to bunch all the diff operations for a particular object into
+    a single transaction so that related attributes can be ``set`` without
+    triggering an in invariant error.
+    Additionally, the leaf nodes are persisted first and in isolation, so as
+    not to trigger invariant errors in ancestor nodes.
+    """
+    def __init__(self, original):
+        """
+        :param PClass original: The root object to which transformations will
+            be applied.
+        """
+        self._original = original
+        self._evolver = original.evolver()
+        self._children = {}
+        self._operations = []
+
+    def _child(self, segment):
+        child = self._children.get(segment)
+        if child is not None:
+            return child
+        child = _get(self._original, segment, _sentinel)
+        if child is _sentinel:
+            raise KeyError(
+                'Segment not found in path. '
+                'Parent: {}, '
+                'Segment: {}'.format(self, segment)
+            )
+        proxy_for_child = _EvolverProxy(child)
+        self._children[segment] = proxy_for_child
+        return proxy_for_child
+
+    def transform(self, path, operation):
+        """
+        Traverse each segment of ``path`` to create a hierarchy of
+        ``_EvolverProxy`` objects and perform the ``operation`` on the
+        resulting leaf proxy object. This will infact perform the operation on
+        an evolver of the original Pyrsistent object.
+
+        :param PVector path: The path relative to ``original`` which will be
+            operated on.
+        :param callable operation: A function to be applied to an evolver of
+             the object at ``path``
+        :returns: ``self``
+        """
+        target = self
+        for segment in path:
+            target = target._child(segment)
+        operation(target)
+        return self
+
+    def add(self, item):
+        """
+        Add ``item`` to the ``original`` ``Pset`` or if the item is itself a
+        Pyrsistent object, add a new proxy for that item so that further
+        operations can be performed on it without triggering invariant checks
+        until the tree is finally committed.
+
+        :param item: An object to be added to the ``PSet`` wrapped by this
+            proxy.
+        :returns: ``self``
+        """
+        if hasattr(item, 'evolver'):
+            self._children[item] = _EvolverProxy(item)
+        else:
+            self._evolver.add(item)
+        return self
+
+    def set(self, key, item):
+        """
+        Set the ``item`` in an evolver of the ``original`` ``PMap`` or
+        ``PClass`` or if the item is itself a Pyrsistent object, add a new
+        proxy for that item so that further operations can be performed on it
+        without triggering invariant checks until the tree is finally
+        committed.
+
+        :param item: An object to be added or set on the ``PMap`` wrapped by
+            this proxy.
+        :returns: ``self``
+        """
+        if hasattr(item, 'evolver'):
+            # This will replace any existing proxy.
+            self._children[key] = _EvolverProxy(item)
+        else:
+            self._evolver.set(key, item)
+        return self
+
+    def remove(self, item):
+        """
+        Remove the ``item`` in an evolver of the ``original`` ``PMap``,
+        ``PClass``, or ``PSet`` and if the item is an uncommitted
+        ``_EvolverProxy`` remove it from the list of children so that the item
+        is not persisted when the structure is finally committed.
+
+        :param item: The object to be removed from the wrapped ``PSet`` or the
+            key to be removed from the wrapped ``PMap``
+        :returns: ``self``
+        """
+        self._children.pop(item, None)
+        # Attempt to remove the item from the evolver too.  It may be something
+        # that was replaced rather than added by a previous ``set`` operation.
+        try:
+            self._evolver.remove(item)
+        except KeyError:
+            pass
+        return self
+
+    def commit(self):
+        """
+        Persist all the changes made to the descendants of this structure, then
+        persist the resulting sub-objects and local changes to this root object
+        and finally return the resulting immutable structure.
+
+        :returns: The updated and persisted version of ``original``.
+        """
+        for segment, child_evolver_proxy in self._children.items():
+            child = child_evolver_proxy.commit()
+            # XXX this is ugly. Perhaps have a separate proxy for PClass, PMap
+            # and PSet collections
+            if hasattr(self._evolver, 'set'):
+                self._evolver.set(segment, child)
+            else:
+                self._evolver.add(child)
+        return self._evolver.persistent()
+
+
+TARGET_OBJECT = Field(
+    u"target_object", repr,
+    u"The object to which the diff was applied."
+)
+CHANGES = Field(
+    u"changes", repr,
+    u"The changes being applied."
+)
+
+DIFF_COMMIT_ERROR = MessageType(
+    u"flocker:control:Diff:commit_error",
+    [TARGET_OBJECT, CHANGES],
+    u"The target and changes that failed to apply."
+)
+
+
 @implementer(_IDiffChange)
 class Diff(PClass):
     """
@@ -111,9 +262,23 @@ class Diff(PClass):
     changes = pvector_field(object)
 
     def apply(self, obj):
+        proxy = _EvolverProxy(original=obj)
         for c in self.changes:
-            obj = c.apply(obj)
-        return obj
+            if len(c.path) > 0:
+                proxy = c.apply(proxy)
+            else:
+                assert type(c) is _Set
+                proxy = _EvolverProxy(original=c.value)
+        try:
+            return proxy.commit()
+        except:
+            # Imported here to avoid circular dependencies.
+            from ._persistence import wire_encode
+            DIFF_COMMIT_ERROR(
+                target_object=wire_encode(obj),
+                changes=wire_encode(self.changes),
+            ).write()
+            raise
 
 
 def _create_diffs_for_sets(current_path, set_a, set_b):
