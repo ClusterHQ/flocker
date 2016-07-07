@@ -62,7 +62,7 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
-from ._persistence import wire_encode, wire_decode, make_generation_hash
+from ._serialization import wire_encode, wire_decode, make_generation_hash
 from ._model import (
     Deployment, DeploymentState, ChangeSource, UpdateNodeStateEra,
     BlockDeviceOwnership, DatasetAlreadyOwned, GenerationHash,

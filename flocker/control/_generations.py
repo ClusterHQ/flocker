@@ -10,7 +10,7 @@ from collections import deque
 from pyrsistent import PClass, field
 
 from ._model import GenerationHash
-from ._persistence import make_generation_hash
+from ._serialization import make_generation_hash
 from ._diffing import Diff, create_diff, compose_diffs
 
 

@@ -26,8 +26,6 @@ from pyrsistent import (
 
 from zope.interface import Interface, implementer
 
-from ._diffing import DIFF_SERIALIZABLE_CLASSES
-
 
 def _sequence_field(checked_class, suffix, item_type, optional, initial):
     """
@@ -1270,12 +1268,3 @@ class GenerationHash(PClass):
         mandatory=True,
         factory=_generation_hash_value_factory
     )
-
-
-# Classes that can be serialized to disk or sent over the network:
-SERIALIZABLE_CLASSES = [
-    Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
-    RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
-    NodeState, DeploymentState, NonManifestDatasets, Configuration,
-    Lease, Leases, PersistentState, GenerationHash
-] + DIFF_SERIALIZABLE_CLASSES
