@@ -17,6 +17,10 @@ from pyrsistent import (
     pvector,
     pvector_field,
 )
+
+# XXX The _EvolverProxy (or something similar) should be provided by
+# Pyrsistent, but meanwhile we'll import this useful private function.
+# https://github.com/tobgu/pyrsistent/issues/89
 from pyrsistent._transformations import _get
 
 from zope.interface import Interface, implementer
