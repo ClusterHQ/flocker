@@ -23,7 +23,7 @@ from pyrsistent import (
 # https://github.com/tobgu/pyrsistent/issues/89
 from pyrsistent._transformations import _get
 
-from zope.interface import Interface, implementer
+from zope.interface import Interface, implementer, classImplements
 
 
 class _IDiffChange(Interface):
@@ -120,6 +120,21 @@ class _Add(PClass):
 _sentinel = object()
 
 
+class _IEvolvable(Interface):
+    """
+    An interface to mark classes that provide a ``Pyrsistent`` style
+    ``evolver`` method.
+    """
+    def evolver():
+        """
+        :returns: A mutable version of the underlying object.
+        """
+
+classImplements(PMap, _IEvolvable)
+classImplements(PSet, _IEvolvable)
+classImplements(PClass, _IEvolvable)
+
+
 class _EvolverProxy(object):
     """
     This attempts to bunch all the diff operations for a particular object into
@@ -183,7 +198,7 @@ class _EvolverProxy(object):
             proxy.
         :returns: ``self``
         """
-        if hasattr(item, 'evolver'):
+        if _IEvolvable.providedBy(item):
             self._children[item] = _EvolverProxy(item)
         else:
             self._evolver.add(item)
@@ -201,7 +216,7 @@ class _EvolverProxy(object):
             this proxy.
         :returns: ``self``
         """
-        if hasattr(item, 'evolver'):
+        if _IEvolvable.providedBy(item):
             # This will replace any existing proxy.
             self._children[key] = _EvolverProxy(item)
         else:
