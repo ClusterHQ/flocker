@@ -199,7 +199,7 @@ def assert_deb_content(test_case, expected_paths, package_path):
             continue
         actual_paths.add(FilePath('/').descendant(f.segmentsFrom(output_dir)))
 
-    test_case.assertEqual(expected_paths, actual_paths)
+    test_case.assertEqual(set(), expected_paths.difference(actual_paths))
 
 
 def assert_deb_headers(test_case, expected_headers, package_path):
@@ -670,9 +670,6 @@ class BuildPackageTests(TestCase):
             expected_prefix.child('Foo'),
             expected_prefix.child('Bar'),
             FilePath('/other/file'),
-            # This is added automatically by fpm despite not supplying the
-            # --deb-changelog option
-            FilePath('/usr/share/doc/foobar/changelog.Debian.gz'),
         ])
         expected_name = 'FooBar'.lower()
         expected_epoch = b'3'
@@ -769,7 +766,7 @@ class LintPackageTests(TestCase):
             vendor="Acme Corporation",
             maintainer='Someone <noreply@example.com>',
             architecture="all",
-            description="Description\n\nExtended",
+            description="Test Package\n\nThe description.",
             category="none",
             dependencies=[]
         ).run()
