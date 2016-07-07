@@ -50,7 +50,7 @@ from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset, DeploymentState, NonManifestDatasets,
 )
-from .._persistence import wire_encode, make_generation_hash
+from .._serialization import wire_encode, make_generation_hash
 from .._diffing import create_diff
 from .clusterstatetools import advance_some, advance_rest
 

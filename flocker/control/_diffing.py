@@ -257,9 +257,3 @@ def compose_diffs(iterable_of_diffs):
             pvector().evolver()
         ).persistent()
     )
-
-
-# Ensure that the representation of a ``Diff`` is entirely serializable:
-DIFF_SERIALIZABLE_CLASSES = [
-    _Set, _Remove, _Add, Diff
-]

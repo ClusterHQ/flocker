@@ -10,7 +10,7 @@ from ...testtools import TestCase
 
 from ..testtools import related_deployments_strategy
 from .._generations import GenerationTracker
-from .._persistence import make_generation_hash
+from .._serialization import make_generation_hash
 
 
 class GenerationTrackerTests(TestCase):
