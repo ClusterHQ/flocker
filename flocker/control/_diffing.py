@@ -50,6 +50,19 @@ class _IDiffChange(Interface):
 
 
 @implementer(_IDiffChange)
+class _Replace(PClass):
+    """
+    A ``_IDiffChange`` that returns a new root object.
+
+    :ivar value: The item to be the new root object for subsequent operations.
+    """
+    value = field()
+
+    def apply(self, obj):
+        return _EvolverProxy(self.value)
+
+
+@implementer(_IDiffChange)
 class _Remove(PClass):
     """
     A ``_IDiffChange`` that removes an object from a ``PSet`` or a key from a
@@ -74,17 +87,17 @@ class _Set(PClass):
     A ``_IDiffChange`` that sets a field in a ``PClass`` or sets a key in a
     ``PMap``.
 
-    :ivar path: The path in the nested object to the field/key to be set to a
-        new value.
-
-    :ivar value: The value to set the field/key to.
+    :ivar path: The path in the nested object which supports `set` operations.
+    :ivar key: The key to set.
+    :ivar value: The value to set.
     """
     path = pvector_field(object)
+    key = field()
     value = field()
 
     def apply(self, obj):
         return obj.transform(
-            self.path[:-1], lambda o: o.set(self.path[-1], self.value)
+            self.path, lambda o: o.set(self.key, self.value)
         )
 
 
@@ -268,11 +281,7 @@ class Diff(PClass):
     def apply(self, obj):
         proxy = _EvolverProxy(original=obj)
         for c in self.changes:
-            if len(c.path) > 0:
-                proxy = c.apply(proxy)
-            else:
-                assert type(c) is _Set
-                proxy = _EvolverProxy(original=c.value)
+            proxy = c.apply(proxy)
         try:
             return proxy.commit()
         except:
@@ -345,7 +354,7 @@ def _create_diffs_for_mappings(current_path, mapping_a, mapping_b):
             )
     for key in b_keys.difference(a_keys):
         resulting_diffs.append(
-            _Set(path=current_path.append(key), value=mapping_b[key])
+            _Set(path=current_path, key=key, value=mapping_b[key])
         )
     for key in a_keys.difference(b_keys):
         resulting_diffs.append(
@@ -373,8 +382,6 @@ def _create_diffs_for(current_path, subobj_a, subobj_b):
     """
     if subobj_a == subobj_b:
         return pvector([])
-    elif type(subobj_a) != type(subobj_b):
-        return pvector([_Set(path=current_path, value=subobj_b)])
     elif isinstance(subobj_a, PClass) and isinstance(subobj_b, PClass):
         a_dict = subobj_a._to_dict()
         b_dict = subobj_b._to_dict()
@@ -388,7 +395,20 @@ def _create_diffs_for(current_path, subobj_a, subobj_b):
     # If the objects are not equal, and there is no intelligent way to recurse
     # inside the objects to make a smaller diff, simply set the current path
     # to the object in b.
-    return pvector([_Set(path=current_path, value=subobj_b)])
+    if len(current_path) > 0:
+        return pvector([
+            _Set(
+                path=current_path[:-1],
+                key=current_path[-1],
+                value=subobj_b
+            )
+        ])
+    # Or if there's no path we're replacing the root object to which subsequent
+    # ``_IDiffChange`` operations will be applied.
+    else:
+        return pvector([
+            _Replace(value=subobj_b)
+        ])
 
 
 def create_diff(object_a, object_b):
@@ -430,5 +450,5 @@ def compose_diffs(iterable_of_diffs):
 
 # Ensure that the representation of a ``Diff`` is entirely serializable:
 DIFF_SERIALIZABLE_CLASSES = [
-    _Set, _Remove, _Add, Diff
+    _Set, _Remove, _Add, Diff, _Replace
 ]
