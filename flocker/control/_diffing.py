@@ -148,6 +148,14 @@ class _EvolverProxy(object):
         :param PClass original: The root object to which transformations will
             be applied.
         """
+        if not _IEvolvable.providedBy(original):
+            raise TypeError(
+                "{!r} does not provide {}".format(
+                    original,
+                    _IEvolvable.__name__
+                )
+            )
+
         self._original = original
         self._evolver = original.evolver()
         self._children = {}
@@ -160,9 +168,9 @@ class _EvolverProxy(object):
         child = _get(self._original, segment, _sentinel)
         if child is _sentinel:
             raise KeyError(
-                'Segment not found in path. '
-                'Parent: {}, '
-                'Segment: {}'.format(self, segment)
+                "Attribute or key '{}' not found in {}".format(
+                    segment, self._original
+                )
             )
         proxy_for_child = _EvolverProxy(child)
         self._children[segment] = proxy_for_child

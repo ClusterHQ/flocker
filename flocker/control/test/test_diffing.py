@@ -13,7 +13,12 @@ import hypothesis.strategies as st
 from pyrsistent import PClass, field, pmap, pset, InvariantException
 from twisted.python.monkey import MonkeyPatcher
 
-from .._diffing import create_diff, compose_diffs, DIFF_COMMIT_ERROR
+from .._diffing import (
+    create_diff,
+    compose_diffs,
+    DIFF_COMMIT_ERROR,
+    _EvolverProxy,
+)
 from .._persistence import wire_encode, wire_decode
 from .._model import Node, Port
 from ..testtools import (
@@ -355,4 +360,135 @@ class InvariantDiffTests(TestCase):
         self.assertEqual(
             node2,
             diff.apply(node1),
+        )
+
+
+class EvolverProxyTests(TestCase):
+    """
+    Tests for ``_EvolverProxy``.
+    """
+    def test_type_error(self):
+        """
+        The wrapped object must provide _IEvolvable.
+        """
+        e = self.assertRaises(
+            TypeError,
+            _EvolverProxy,
+            1
+        )
+        self.assertEqual(
+            '1 does not provide _IEvolvable',
+            e.message,
+        )
+
+    def test_commit_no_change(self):
+        """
+        ``commit`` returns the original object if no changes have been
+        performed.
+        """
+        original = pmap()
+        self.assertIs(original, _EvolverProxy(original).commit())
+
+    def test_transform_keyerror(self):
+        """
+        ``transform`` raises ``KeyError`` if the supplied ``path`` is not
+        found.
+        """
+        e = self.assertRaises(
+            KeyError,
+            _EvolverProxy(pmap()).transform,
+            ['a'], 1
+        )
+        self.assertEqual(
+            "Attribute or key 'a' not found in pmap({})",
+            e.message,
+        )
+
+    def test_transform_typeerror(self):
+        """
+        ``transform`` raises ``TypeError`` if the object at the supplied
+        ``path`` does not provide ``_IEvolvable``.
+        """
+        proxy = _EvolverProxy(pmap({'a': 1}))
+
+        e = self.assertRaises(
+            TypeError,
+            proxy.transform,
+            ['a'], 2,
+        )
+        self.assertEqual(
+            "1 does not provide _IEvolvable",
+            e.message
+        )
+
+    def test_transform_empty_path(self):
+        """
+        If ``transform`` is supplied with an empty path, the operation is
+        performed on the root object.
+        """
+        proxy = _EvolverProxy(pmap({'a': 1}))
+        proxy.transform([], lambda o: o.set('a', 2))
+        self.assertEqual(
+            pmap({'a': 2}),
+            proxy.commit(),
+        )
+
+    def test_transform_deep_path(self):
+        """
+        If ``transform`` is supplied with a path containing multiple segments,
+        the operation is performed on the object corresponding to the last
+        segment.
+        """
+        proxy = _EvolverProxy(
+            pmap({
+                'a': pmap({
+                    'b': pmap({
+                        'c': 1
+                    })
+                })
+            })
+        )
+        proxy.transform(['a', 'b'], lambda o: o.set('c', 2))
+        self.assertEqual(
+            pmap({
+                'a': pmap({
+                    'b': pmap({
+                        'c': 2
+                    })
+                })
+            }),
+            proxy.commit(),
+        )
+
+    def test_transform_deep_evolver(self):
+        """
+        ``transform`` can perform operations on nested objects that have
+        invariant constraints, without triggering the InvariantException.
+        """
+        proxy = _EvolverProxy(
+            pmap({
+                'a': pmap({
+                    'b': pmap({
+                        'c': DiffTestObjInvariant(
+                            a=1, b=2
+                        )
+                    })
+                })
+            })
+        )
+        # If these operations were performed directly on the Pyrsistent
+        # structure it'd trigger InvariantException.
+        proxy.transform(['a', 'b', 'c'], lambda o: o.set('a', 2))
+        proxy.transform(['a', 'b', 'c'], lambda o: o.set('b', 1))
+        self.assertEqual(
+            pmap({
+                'a': pmap({
+                    'b': pmap({
+                        'c': DiffTestObjInvariant(
+                            a=2, b=1
+                        )
+                    })
+                })
+            }),
+            proxy.commit(),
         )
