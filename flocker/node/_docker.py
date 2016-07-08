@@ -719,10 +719,6 @@ class DockerClient(object):
             if command_line_values is not None:
                 command_line_values = list(command_line_values)
 
-            # Set default swappiness to 0.
-            if swappiness is None:
-                swappiness = 0
-
             self._client.create_container(
                 name=container_name,
                 image=image_name,
