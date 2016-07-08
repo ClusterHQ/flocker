@@ -183,6 +183,9 @@ class _EvolverProxy(object):
         resulting leaf proxy object. This will infact perform the operation on
         an evolver of the original Pyrsistent object.
 
+        The object corresponding to the last segment of ``path`` must provide
+        the ``_IEvolvable`` interface.
+
         :param PVector path: The path relative to ``original`` which will be
             operated on.
         :param callable operation: A function to be applied to an evolver of
