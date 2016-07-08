@@ -23,7 +23,7 @@ from pyrsistent import (
 # https://github.com/tobgu/pyrsistent/issues/89
 from pyrsistent._transformations import _get
 
-from zope.interface import Interface, implementer, classImplements
+from zope.interface import Attribute, Interface, implementer, classImplements
 
 
 class _IDiffChange(Interface):
@@ -59,7 +59,7 @@ class _Replace(PClass):
     value = field()
 
     def apply(self, obj):
-        return _EvolverProxy(self.value)
+        return _TransformProxy(self.value)
 
 
 @implementer(_IDiffChange)
@@ -130,51 +130,232 @@ class _IEvolvable(Interface):
         :returns: A mutable version of the underlying object.
         """
 
-classImplements(PMap, _IEvolvable)
 classImplements(PSet, _IEvolvable)
+classImplements(PMap, _IEvolvable)
 classImplements(PClass, _IEvolvable)
 
 
-class _EvolverProxy(object):
+class _ISetType(Interface):
+    def add(item):
+        """
+        """
+
+    def remove(item):
+        """
+        """
+classImplements(PSet, _ISetType)
+
+
+class _IRecordType(Interface):
+    def set(item):
+        """
+        """
+
+    def remove(item):
+        """
+        """
+classImplements(PMap, _IRecordType)
+classImplements(PClass, _IRecordType)
+
+
+class _IRecursiveEvolverProxy(Interface):
     """
-    This attempts to bunch all the diff operations for a particular object into
-    a single transaction so that related attributes can be ``set`` without
-    triggering an in invariant error.
-    Additionally, the leaf nodes are persisted first and in isolation, so as
-    not to trigger invariant errors in ancestor nodes.
+    An interface which allows a structure of nested ``PClass``, ``PMap``, and
+    ``PSet`` to be evolved recursively.
+    """
+    _original = Attribute(
+        "The root Pyrsistent object that is being evolved. "
+        "Must provide ``_IEvolvable``"
+    )
+    _children = Attribute(
+        "A collection of child ``_IRecursiveEvolverProxy`` objects."
+    )
+
+    def commit():
+        """
+        Recursively persist the structure rooted at ``_original`` starting with
+        leaf nodes.
+
+        :returns: The persisted immutable structure.
+        """
+
+
+@implementer(_IRecursiveEvolverProxy)
+@implementer(_ISetType)
+class _EvolverProxyForSet(object):
+    """
+    A proxy for recursively evolving a ``PSet``.
     """
     def __init__(self, original):
         """
-        :param PClass original: The root object to which transformations will
-            be applied.
+        :param _ISetType original: See ``_IRecursiveEvolverProxy._original``.
         """
-        if not _IEvolvable.providedBy(original):
-            raise TypeError(
-                "{!r} does not provide {}".format(
-                    original,
-                    _IEvolvable.__name__
-                )
-            )
-
         self._original = original
         self._evolver = original.evolver()
         self._children = {}
-        self._operations = []
 
-    def _child(self, segment):
-        child = self._children.get(segment)
-        if child is not None:
-            return child
-        child = _get(self._original, segment, _sentinel)
-        if child is _sentinel:
-            raise KeyError(
-                "Attribute or key '{}' not found in {}".format(
-                    segment, self._original
-                )
+    def add(self, item):
+        """
+        Add ``item`` to the ``original`` ``Pset`` or if the item is itself a
+        Pyrsistent object, add a new proxy for that item so that further
+        operations can be performed on it without triggering invariant checks
+        until the tree is finally committed.
+
+        :param item: An object to be added to the ``PSet`` wrapped by this
+            proxy.
+        :returns: ``self``
+        """
+        if _IEvolvable.providedBy(item):
+            self._children[item] = _proxy_for_evolvable_object(item)
+        else:
+            self._evolver.add(item)
+        return self
+
+    def remove(self, item):
+        """
+        Remove the ``item`` in an evolver of the ``original`` ``PSet``, and if
+        the item is an uncommitted ``_EvolverProxy`` remove it from the list of
+        children so that the item is not persisted when the structure is
+        finally committed.
+
+        :param item: The object to be removed from the wrapped ``PSet``
+        :returns: ``self``
+        """
+        self._children.pop(item, None)
+        # Attempt to remove the item from the evolver too.  It may be something
+        # that was replaced rather than added by a previous ``set`` operation.
+        try:
+            self._evolver.remove(item)
+        except KeyError:
+            pass
+        return self
+
+    def commit(self):
+        for segment, child_evolver_proxy in self._children.items():
+            child = child_evolver_proxy.commit()
+            self._evolver.add(child)
+        return self._evolver.persistent()
+
+
+@implementer(_IRecursiveEvolverProxy)
+@implementer(_IRecordType)
+class _EvolverProxyForRecord(object):
+    """
+    A proxy for recursively evolving a ``PMap`` or ``PClass``.
+    """
+    def __init__(self, original):
+        """
+        :param _IRecordType original: See
+            ``_IRecursiveEvolverProxy._original``.
+        """
+        self._original = original
+        self._evolver = original.evolver()
+        self._children = {}
+
+    def set(self, key, item):
+        """
+        Set the ``item`` in an evolver of the ``original`` ``PMap`` or
+        ``PClass`` or if the item is itself a Pyrsistent object, add a new
+        proxy for that item so that further operations can be performed on it
+        without triggering invariant checks until the tree is finally
+        committed.
+
+        :param item: An object to be added or set on the ``PMap`` wrapped by
+            this proxy.
+        :returns: ``self``
+        """
+        if _IEvolvable.providedBy(item):
+            # This will replace any existing proxy.
+            self._children[key] = _proxy_for_evolvable_object(item)
+        else:
+            self._evolver.set(key, item)
+        return self
+
+    def remove(self, key):
+        """
+        Remove the ``key`` in an evolver of the ``original`` ``PMap``, or
+        ``PClass`` and if the item is an uncommitted ``_EvolverProxy`` remove
+        it from the list of children so that the item is not persisted when the
+        structure is finally committed.
+
+        :param key: The key to be removed from the wrapped ``PMap``
+        :returns: ``self``
+        """
+        self._children.pop(key, None)
+        # Attempt to remove the item from the evolver too.  It may be something
+        # that was replaced rather than added by a previous ``set`` operation.
+        try:
+            self._evolver.remove(key)
+        except KeyError:
+            pass
+        return self
+
+    def commit(self):
+        for segment, child_evolver_proxy in self._children.items():
+            child = child_evolver_proxy.commit()
+            self._evolver.set(segment, child)
+        return self._evolver.persistent()
+
+
+def _proxy_for_evolvable_object(obj):
+    """
+    :returns: an ``_IRecursiveEvolverProxy`` suitable for the type of ``obj``.
+    """
+    if not _IEvolvable.providedBy(obj):
+        raise TypeError(
+            "{!r} does not provide {}".format(
+                obj,
+                _IEvolvable.__name__
             )
-        proxy_for_child = _EvolverProxy(child)
-        self._children[segment] = proxy_for_child
-        return proxy_for_child
+        )
+    if _ISetType.providedBy(obj):
+        return _EvolverProxyForSet(obj)
+    elif _IRecordType.providedBy(obj):
+        return _EvolverProxyForRecord(obj)
+    else:
+        raise TypeError("Object '{}' does not provide a supported interface")
+
+
+def _get_or_add_proxy_child(parent_proxy, segment):
+    """
+    Returns a proxy wrapper around the ``_IEvolvable`` object corresponding to
+    ``segment``. A new proxy is created if one does not already exist and it is
+    added to ``parent_proxy._children``.
+
+    :param _IParentProxy parent_proxy: The parent.
+    :param unicode segment: The label in a ``path`` supplied to ``transform``.
+    :returns:
+    """
+    child = parent_proxy._children.get(segment)
+    if child is not None:
+        return child
+    child = _get(parent_proxy._original, segment, _sentinel)
+    if child is _sentinel:
+        raise KeyError(
+            "Attribute or key '{}' not found in {}".format(
+                segment, parent_proxy._original
+            )
+        )
+    proxy_for_child = _proxy_for_evolvable_object(child)
+    parent_proxy._children[segment] = proxy_for_child
+    return proxy_for_child
+
+
+@implementer(_IRecursiveEvolverProxy)
+class _TransformProxy(object):
+    """
+    This attempts to bunch a the ``transform`` operations performed when
+    applying a sequence of diffs into a single transaction so that related
+    attributes can be ``set`` without triggering an in invariant error.
+    Leaf nodes are persisted first and in isolation, so as not to trigger
+    invariant errors in ancestor nodes.
+    """
+    def __init__(self, original):
+        """
+        :param _IEvolvable original: The root object to which transformations
+            will be applied.
+        """
+        self._root = _proxy_for_evolvable_object(original)
 
     def transform(self, path, operation):
         """
@@ -192,85 +373,14 @@ class _EvolverProxy(object):
              the object at ``path``
         :returns: ``self``
         """
-        target = self
+        target = self._root
         for segment in path:
-            target = target._child(segment)
+            target = _get_or_add_proxy_child(target, segment)
         operation(target)
         return self
 
-    def add(self, item):
-        """
-        Add ``item`` to the ``original`` ``Pset`` or if the item is itself a
-        Pyrsistent object, add a new proxy for that item so that further
-        operations can be performed on it without triggering invariant checks
-        until the tree is finally committed.
-
-        :param item: An object to be added to the ``PSet`` wrapped by this
-            proxy.
-        :returns: ``self``
-        """
-        if _IEvolvable.providedBy(item):
-            self._children[item] = _EvolverProxy(item)
-        else:
-            self._evolver.add(item)
-        return self
-
-    def set(self, key, item):
-        """
-        Set the ``item`` in an evolver of the ``original`` ``PMap`` or
-        ``PClass`` or if the item is itself a Pyrsistent object, add a new
-        proxy for that item so that further operations can be performed on it
-        without triggering invariant checks until the tree is finally
-        committed.
-
-        :param item: An object to be added or set on the ``PMap`` wrapped by
-            this proxy.
-        :returns: ``self``
-        """
-        if _IEvolvable.providedBy(item):
-            # This will replace any existing proxy.
-            self._children[key] = _EvolverProxy(item)
-        else:
-            self._evolver.set(key, item)
-        return self
-
-    def remove(self, item):
-        """
-        Remove the ``item`` in an evolver of the ``original`` ``PMap``,
-        ``PClass``, or ``PSet`` and if the item is an uncommitted
-        ``_EvolverProxy`` remove it from the list of children so that the item
-        is not persisted when the structure is finally committed.
-
-        :param item: The object to be removed from the wrapped ``PSet`` or the
-            key to be removed from the wrapped ``PMap``
-        :returns: ``self``
-        """
-        self._children.pop(item, None)
-        # Attempt to remove the item from the evolver too.  It may be something
-        # that was replaced rather than added by a previous ``set`` operation.
-        try:
-            self._evolver.remove(item)
-        except KeyError:
-            pass
-        return self
-
     def commit(self):
-        """
-        Persist all the changes made to the descendants of this structure, then
-        persist the resulting sub-objects and local changes to this root object
-        and finally return the resulting immutable structure.
-
-        :returns: The updated and persisted version of ``original``.
-        """
-        for segment, child_evolver_proxy in self._children.items():
-            child = child_evolver_proxy.commit()
-            # XXX this is ugly. Perhaps have a separate proxy for PClass, PMap
-            # and PSet collections
-            if hasattr(self._evolver, 'set'):
-                self._evolver.set(segment, child)
-            else:
-                self._evolver.add(child)
-        return self._evolver.persistent()
+        return self._root.commit()
 
 
 TARGET_OBJECT = Field(
@@ -305,7 +415,7 @@ class Diff(PClass):
     changes = pvector_field(object)
 
     def apply(self, obj):
-        proxy = _EvolverProxy(original=obj)
+        proxy = _TransformProxy(original=obj)
         for c in self.changes:
             proxy = c.apply(proxy)
         try:

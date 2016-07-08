@@ -17,7 +17,7 @@ from .._diffing import (
     create_diff,
     compose_diffs,
     DIFF_COMMIT_ERROR,
-    _EvolverProxy,
+    _TransformProxy,
 )
 from .._persistence import wire_encode, wire_decode
 from .._model import Node, Port
@@ -363,9 +363,9 @@ class InvariantDiffTests(TestCase):
         )
 
 
-class EvolverProxyTests(TestCase):
+class TransformProxyTests(TestCase):
     """
-    Tests for ``_EvolverProxy``.
+    Tests for ``_TransformProxy``.
     """
     def test_type_error(self):
         """
@@ -373,7 +373,7 @@ class EvolverProxyTests(TestCase):
         """
         e = self.assertRaises(
             TypeError,
-            _EvolverProxy,
+            _TransformProxy,
             1
         )
         self.assertEqual(
@@ -387,7 +387,7 @@ class EvolverProxyTests(TestCase):
         performed.
         """
         original = pmap()
-        self.assertIs(original, _EvolverProxy(original).commit())
+        self.assertIs(original, _TransformProxy(original).commit())
 
     def test_transform_keyerror(self):
         """
@@ -396,7 +396,7 @@ class EvolverProxyTests(TestCase):
         """
         e = self.assertRaises(
             KeyError,
-            _EvolverProxy(pmap()).transform,
+            _TransformProxy(pmap()).transform,
             ['a'], 1
         )
         self.assertEqual(
@@ -409,7 +409,7 @@ class EvolverProxyTests(TestCase):
         ``transform`` raises ``TypeError`` if the object at the supplied
         ``path`` does not provide ``_IEvolvable``.
         """
-        proxy = _EvolverProxy(pmap({'a': 1}))
+        proxy = _TransformProxy(pmap({'a': 1}))
 
         e = self.assertRaises(
             TypeError,
@@ -426,7 +426,7 @@ class EvolverProxyTests(TestCase):
         If ``transform`` is supplied with an empty path, the operation is
         performed on the root object.
         """
-        proxy = _EvolverProxy(pmap({'a': 1}))
+        proxy = _TransformProxy(pmap({'a': 1}))
         proxy.transform([], lambda o: o.set('a', 2))
         self.assertEqual(
             pmap({'a': 2}),
@@ -439,7 +439,7 @@ class EvolverProxyTests(TestCase):
         the operation is performed on the object corresponding to the last
         segment.
         """
-        proxy = _EvolverProxy(
+        proxy = _TransformProxy(
             pmap({
                 'a': pmap({
                     'b': pmap({
@@ -465,7 +465,7 @@ class EvolverProxyTests(TestCase):
         ``transform`` can perform operations on nested objects that have
         invariant constraints, without triggering the InvariantException.
         """
-        proxy = _EvolverProxy(
+        proxy = _TransformProxy(
             pmap({
                 'a': pmap({
                     'b': pmap({
