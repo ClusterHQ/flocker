@@ -647,7 +647,7 @@ class ConfigurationAPIUserV1(object):
     def create_container_configuration(
         self, node_uuid, name, image, ports=(), environment=None,
         restart_policy=None, cpu_shares=None, memory_limit=None,
-        links=(), volumes=(), command_line=None, swappiness=0,
+        links=(), volumes=(), command_line=None, swappiness=None,
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -693,7 +693,7 @@ class ConfigurationAPIUserV1(object):
             running the Docker image's entry point.
 
         :param swappiness: Tune container's memory swappiness
-            (default of 0 is no swap).
+            (default of None is no swap).
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
