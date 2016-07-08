@@ -136,24 +136,36 @@ classImplements(PClass, _IEvolvable)
 
 
 class _ISetType(Interface):
+    """
+    The operations that can be performed when transforming a ``PSet`` object.
+    """
     def add(item):
         """
+        Add ``item`` to set.
         """
 
     def remove(item):
         """
+        Remove ``item`` from set.
         """
+
 classImplements(PSet, _ISetType)
 
 
 class _IRecordType(Interface):
-    def set(item):
+    """
+    The operations that can be performed when transforming a ``PSet`` object.
+    """
+    def set(key, value):
         """
+        Add or replace the ``key`` in a ``PMap`` with ``value``.
         """
 
     def remove(item):
         """
+        Remove the ``key`` in a ``PMap``.
         """
+
 classImplements(PMap, _IRecordType)
 classImplements(PClass, _IRecordType)
 
