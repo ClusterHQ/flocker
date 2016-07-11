@@ -111,6 +111,7 @@ DISTRIBUTION_NAME_MAP = {
     'centos-7': Distribution(name="centos", version="7"),
     'ubuntu-14.04': Distribution(name="ubuntu", version="14.04"),
     'ubuntu-15.10': Distribution(name="ubuntu", version="15.10"),
+    'ubuntu-16.04': Distribution(name="ubuntu", version="16.04"),
 }
 
 CURRENT_DISTRIBUTION = Distribution._get_current_distribution()
@@ -652,6 +653,11 @@ IGNORED_WARNINGS = {
         # Fixed upstream, but not released.
         'executable-not-elf-or-script',
 
+        # libffi installs shared libraries with executable bit setContent
+        # '14:59:26 E: clusterhq-python-flocker: shlib-with-executable-bit
+        # opt/flocker/lib/python2.7/site-packages/.libs_cffi_backend/libffi-72499c49.so.6.0.4
+        'shlib-with-executable-bit',
+
         # Our omnibus packages are never going to be used by upstream so
         # there's no bug to close.
         # https://lintian.debian.org/tags/new-package-should-close-itp-bug.html
@@ -941,8 +947,6 @@ def omnibus_package_builder(
             # change this you may also want to change entry_points in setup.py.
             CreateLinks(
                 links=[
-                    (FilePath('/opt/flocker/bin/flocker-deploy'),
-                     flocker_cli_path),
                     (FilePath('/opt/flocker/bin/flocker'),
                      flocker_cli_path),
                     (FilePath('/opt/flocker/bin/flocker-ca'),

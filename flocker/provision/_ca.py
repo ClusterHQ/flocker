@@ -82,7 +82,7 @@ class Certificates(object):
         run(b"create-control-certificate", control_hostname)
         run(b"create-api-certificate", b"allison")
         # Rename to user.crt/user.key so we can use this folder directly
-        # from flocker-deploy and other clients:
+        # from clients:
         directory.child(b"allison.crt").moveTo(directory.child(b"user.crt"))
         directory.child(b"allison.key").moveTo(directory.child(b"user.key"))
         for i in range(num_nodes):

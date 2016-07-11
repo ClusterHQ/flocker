@@ -96,7 +96,7 @@ class _Add(PClass):
 
 
 @implementer(_IDiffChange)
-class _Diff(PClass):
+class Diff(PClass):
     """
     A ``_IDiffChange`` that is simply the serial application of other diff
     changes.
@@ -230,14 +230,36 @@ def create_diff(object_a, object_b):
 
     :param object_b: The desired output object.
 
-    :returns:  A ``_Diff`` that will convert ``object_a`` into ``object_b``
+    :returns:  A ``Diff`` that will convert ``object_a`` into ``object_b``
         when applied.
     """
     changes = _create_diffs_for(pvector([]), object_a, object_b)
-    return _Diff(changes=changes)
+    return Diff(changes=changes)
 
 
-# Ensure that the representation of a ``_Diff`` is entirely serializable:
+def compose_diffs(iterable_of_diffs):
+    """
+    Compose multiple ``Diff`` objects into a single diff.
+
+    Assuming you have 3 objects, A, B, and C and you compute diff AB and BC.
+    If you pass [AB, BC] into this function it will return AC, a diff that when
+    applied to object A, will return C.
+
+    :param iterable_of_diffs: An iterable of diffs to be composed.
+
+    :returns: A new diff such that applying this diff is equivalent to applying
+        each of the input diffs in serial.
+    """
+    return Diff(
+        changes=reduce(
+            lambda x, y: x.extend(y.changes),
+            iterable_of_diffs,
+            pvector().evolver()
+        ).persistent()
+    )
+
+
+# Ensure that the representation of a ``Diff`` is entirely serializable:
 DIFF_SERIALIZABLE_CLASSES = [
-    _Set, _Remove, _Add, _Diff
+    _Set, _Remove, _Add, Diff
 ]

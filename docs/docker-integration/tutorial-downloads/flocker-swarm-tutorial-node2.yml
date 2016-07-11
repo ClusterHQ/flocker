@@ -25,7 +25,7 @@ services:
      ports:
         -  "5432:5432"
      environment:
-        - "constraint:flocker-node==1"
+        - "constraint:flocker-node==2"
         - "POSTGRES_USER=flocker"
         - "POSTGRES_PASSWORD=flockerdemo"
         - "POSTGRES_DB=postgres"

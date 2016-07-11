@@ -13,15 +13,15 @@ You can learn more about where we might be going with future releases by:
 This Release
 ============
 
-v1.12.0
+v1.13.0
 -------
 
-* The OpenStack Cinder backend for Flocker will now use the Cinder version 2 API if it is available. 
-  This allows Flocker to work in OpenStack clusters where there are more than 1000 Cinder volumes.
-* Flocker can now be :ref:`installed on Redhat Enterprise Linux 7 <rhel-7-install-standalone-flocker>`.
-* The Flocker control service and dataset agents now use less CPU and network bandwidth whilst converging on configuration changes.
-* The Flocker dataset agent will now reconnect to the control service within 30 seconds, even after an extended disconnection.
-* The Flocker documentation search engine is now faster and generates more relevant results.
+* The control service now uses a diff algorithm to exchange configuration changes and state changes with convergence agents.
+  This significantly reduces the CPU and network bandwidth whilst converging on configuration changes.
+* The dataset agent now has backend support for :ref:`Pure Storage <pure-storage-backend>`.
+* The dataset agent now has backend support for :ref:`CoprHD <coprhd-backend>`.
+* The ``flocker-deploy`` command line utility, which was deprecated in 1.11.0, has now been removed.
+* All the Flocker Python library requirements have been updated to the latest stable versions.
 
 Previous Releases
 =================
@@ -30,6 +30,16 @@ Previous Releases
    :local:
    :backlinks: none
    :depth: 2
+
+v1.12.0
+-------
+
+* The OpenStack Cinder backend for Flocker will now use the Cinder version 2 API if it is available.
+  This allows Flocker to work in OpenStack clusters where there are more than 1000 Cinder volumes.
+* Flocker can now be :ref:`installed on Redhat Enterprise Linux 7 <rhel-7-install-standalone-flocker>`.
+* The Flocker control service and dataset agents now use less CPU and network bandwidth whilst converging on configuration changes.
+* The Flocker dataset agent will now reconnect to the control service within 30 seconds, even after an extended disconnection.
+* The Flocker documentation search engine is now faster and generates more relevant results.
 
 v1.11.0
 -------

@@ -26,6 +26,7 @@ deduplication
 Deis
 devel
 DevStack
+diff
 DigitalOcean
 Dockerized
 dropdown
@@ -37,7 +38,6 @@ FirewallD
 Flocker
 flocker
 flocker-cli
-flocker-deploy
 flocker-node
 Freenode
 GlusterFS

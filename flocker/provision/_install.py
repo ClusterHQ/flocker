@@ -225,6 +225,13 @@ def get_repository_url(distribution, flocker_version):
                             key='ubuntu' + get_package_key_suffix(
                                 flocker_version),
                         ),
+
+        'ubuntu-16.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
+                        '$(lsb_release --release --short)/\\$(ARCH)'.format(
+                            archive_bucket=ARCHIVE_BUCKET,
+                            key='ubuntu' + get_package_key_suffix(
+                                flocker_version),
+                        ),
     }
 
     try:
@@ -302,30 +309,6 @@ def ensure_minimal_setup(package_manager):
         ])
     else:
         raise UnsupportedDistribution()
-
-
-def cli_pkg_test(package_source=PackageSource()):
-    """
-    Check that the Flocker CLI is working and has the expected version.
-
-    :param PackageSource package_source: The source from which to install the
-        package.
-
-    :return: An ``Effect`` to pass to a ``Dispatcher`` that supports
-        ``Sequence``, ``Run``, ``Sudo``, ``Comment``, and ``Put``.
-    """
-    expected = package_source.version
-    if not expected:
-        if package_source.branch:
-            # If branch is set but version isn't, we don't know the
-            # latest version. In this case, just check that the version
-            # can be displayed.
-            return run('flocker-deploy --version')
-        else:
-            # If neither branch nor version is set, the latest
-            # installable release will be installed.
-            expected = get_installable_version(version)
-    return run('test `flocker-deploy --version` = {}'.format(quote(expected)))
 
 
 def wipe_yum_cache(repository):
@@ -464,10 +447,6 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # is available, and HTTPS URLs are supported.
         apt_get_update(),
         apt_get_install(["apt-transport-https", "software-properties-common"]),
-
-        # Add ClusterHQ repo for installation of Flocker packages.
-        # XXX This needs retry
-        run(command='add-apt-repository -y "deb {} /"'.format(repository_url))
         ]
 
     pinned_host = urlparse(repository_url).hostname
@@ -481,6 +460,17 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # server. Thus, in all cases we pin precisely which url we want to
         # install flocker from.
         pinned_host = urlparse(package_source.build_server).hostname
+    else:
+        # Add ClusterHQ repo for installation of Flocker packages.
+        # XXX This needs retry
+        commands.append(
+            run(
+                command='add-apt-repository -y "deb {} /"'.format(
+                    repository_url
+                )
+            )
+        )
+
     commands.append(put(dedent('''\
         Package: *
         Pin: origin {}
@@ -697,7 +687,7 @@ def cli_pip_test(venv_name='flocker-client', package_source=PackageSource()):
     """
     return sequence([
         run_from_args(['source', '{}/bin/activate'.format(venv_name)]),
-        run('test `flocker-deploy --version` = {}'.format(
+        run('test `flocker-ca --version` = {}'.format(
             quote(_get_wheel_version(package_source))))
         ])
 

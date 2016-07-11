@@ -960,6 +960,7 @@ class ConfigurationAPIUserV1(object):
             raise NODE_BY_ERA_NOT_FOUND
         return {u"uuid": unicode(node_uuid)}
 
+    # XXX This endpoint should be removed. (FLOC-4435)
     @app.route("/configuration/_compose", methods=['POST'])
     @private_api
     @structured(

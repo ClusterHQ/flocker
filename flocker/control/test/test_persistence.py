@@ -24,13 +24,17 @@ from twisted.python.filepath import FilePath
 
 from pyrsistent import PClass, pset
 
+from testtools.matchers import Is, Equals, Not
+
+from ..testtools import deployment_strategy
+
 from ...testtools import AsyncTestCase, TestCase
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
     _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE,
-    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED, to_unserialized_json,
+    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED, to_unserialized_json, generation_hash
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -774,7 +778,7 @@ class ConfigurationMigrationTests(TestCase):
     def test_upgrade_configuration_versions(self, versions):
         """
         A range of versions can be upgraded and the configuration
-        blob after upgrade will matche that which is expected for the
+        blob after upgrade will match that which is expected for the
         particular version.
 
         See flocker/control/test/configurations for individual
@@ -831,3 +835,141 @@ class LatestGoldenFilesValid(TestCase):
                 "an upgrade test if you are intentionally changing the "
                 "model." % (path.path,)
             )
+
+
+class GenerationHashTests(TestCase):
+    """
+    Tests for generation_hash.
+    """
+
+    @given(st.data())
+    def test_no_hash_collisions(self, data):
+        """
+        Hashes of different deployments do not have hash collisions, hashes of
+        the same object have the same hash.
+        """
+        # With 128 bits of hash, a collision here indicates a fault in the
+        # algorithm.
+
+        # Generate the first deployment.
+        deployment_a = data.draw(deployment_strategy())
+
+        # Decide if we want to generate a second deployment, or just compare
+        # the first deployment to a re-serialized version of itself:
+        simple_comparison = data.draw(st.booleans())
+        if simple_comparison:
+            deployment_b = wire_decode(wire_encode(deployment_a))
+        else:
+            deployment_b = data.draw(deployment_strategy())
+
+        should_be_equal = (deployment_a == deployment_b)
+        if simple_comparison:
+            self.assertThat(
+                should_be_equal,
+                Is(True)
+            )
+
+        hash_a = generation_hash(deployment_a)
+        hash_b = generation_hash(deployment_b)
+
+        if should_be_equal:
+            self.assertThat(
+                hash_a,
+                Equals(hash_b)
+            )
+        else:
+            self.assertThat(
+                hash_a,
+                Not(Equals(hash_b))
+            )
+
+    def test_maps_and_sets_differ(self):
+        """
+        Mappings hash to different values than frozensets of their iteritems().
+        """
+        self.assertThat(
+            generation_hash(frozenset([('a', 1), ('b', 2)])),
+            Not(Equals(generation_hash(dict(a=1, b=2))))
+        )
+
+    def test_strings_and_jsonable_types_differ(self):
+        """
+        Strings and integers hash to different values.
+        """
+        self.assertThat(
+            generation_hash(5),
+            Not(Equals(generation_hash('5')))
+        )
+
+    def test_sets_and_objects_differ(self):
+        """
+        Sets can be hashed and 1 element sets have a different hash than the
+        hash of the single element.
+        """
+        self.assertThat(
+            generation_hash(5),
+            Not(Equals(generation_hash(frozenset([5]))))
+        )
+
+    def test_lists_and_objects_differ(self):
+        """
+        Lists can be hashed, and have a different hash value than scalars with
+        the same value or sets with the same values.
+        """
+        self.assertThat(
+            generation_hash(913),
+            Not(Equals(generation_hash([913])))
+        )
+        self.assertThat(
+            generation_hash(frozenset([913])),
+            Not(Equals(generation_hash([913])))
+        )
+
+    def test_empty_sets_can_be_hashed(self):
+        """
+        Empty sets can be hashed and result in different hashes than empty
+        strings or the string 'NULLSET'.
+        """
+        self.assertThat(
+            generation_hash(frozenset()),
+            Not(Equals(generation_hash('')))
+        )
+        self.assertThat(
+            generation_hash(frozenset()),
+            Not(Equals(generation_hash(b'NULLSET')))
+        )
+
+    def test_unicode_hash(self):
+        """
+        Unicode strings can be hashed, and are hashed to the same value as
+        their bytes equivalent.
+        """
+        self.assertThat(
+            generation_hash(unicode(u'abcde')),
+            Equals(generation_hash(bytes(b'abcde')))
+        )
+
+    def test_consistent_hash(self):
+        """
+        A given deployment hashes to a specific value.
+        """
+        # Unfortunately these are manually created golden values generated by
+        # running the test with wrong values and copying the output into this
+        # file. This test mostly adds value in verifying that the hashes
+        # computed in all of our CI environments are the same.
+        TEST_DEPLOYMENT_1_HASH = ''.join(chr(x) for x in [
+            0x4e, 0x35, 0x2b, 0xa2, 0x68, 0xde, 0x10, 0x0a,
+            0xa5, 0xbc, 0x8a, 0x7e, 0x75, 0xc7, 0xf4, 0xe6
+        ])
+        TEST_DEPLOYMENT_2_HASH = ''.join(chr(x) for x in [
+            0x96, 0xe6, 0xcb, 0xa9, 0x5f, 0x7c, 0x8e, 0xfa,
+            0xf8, 0x76, 0x8a, 0xc6, 0x89, 0x1a, 0xec, 0xc5
+        ])
+        self.assertThat(
+            generation_hash(TEST_DEPLOYMENT_1),
+            Equals(TEST_DEPLOYMENT_1_HASH)
+        )
+        self.assertThat(
+            generation_hash(TEST_DEPLOYMENT_2),
+            Equals(TEST_DEPLOYMENT_2_HASH)
+        )

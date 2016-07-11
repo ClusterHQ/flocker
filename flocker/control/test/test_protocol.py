@@ -40,17 +40,18 @@ from ...testtools.amp import (
 
 from .._protocol import (
     PING_INTERVAL, Big, SerializableArgument,
-    VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    NoOp, AgentAMP, ControlAMP, _AgentLocator,
-    ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
-    AGENT_CONNECTED, caching_wire_encode, SetNodeEraCommand,
+    VersionCommand, ClusterStatusCommand, ClusterStatusDiffCommand,
+    NodeStateCommand, IConvergenceAgent, NoOp, AgentAMP, ControlAMP,
+    _AgentLocator, ControlServiceLocator, LOG_SEND_CLUSTER_STATE,
+    LOG_SEND_TO_AGENT, AGENT_CONNECTED, caching_wire_encode, SetNodeEraCommand,
     timeout_for_protocol, CONTROL_SERVICE_BATCHING_DELAY
 )
 from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset, DeploymentState, NonManifestDatasets,
 )
-from .._persistence import wire_encode
+from .._persistence import wire_encode, make_generation_hash
+from .._diffing import create_diff
 from .clusterstatetools import advance_some, advance_rest
 
 
@@ -70,6 +71,22 @@ def arbitrary_transformation(deployment):
         ["nodes", uuid], Node(uuid=uuid)
     )
 
+
+def arbitrary_state_transformation(deployment_state):
+    """
+    Make some change to a deployment state.  Any change.
+
+    The exact change made is unspecified but the resulting ``DeploymentState``
+    will be different from the given ``DeploymentState``.
+
+    :param DeploymentState deployment_state: A deployment state to change.
+
+    :return: A ``DeploymentState`` similar but not exactly equal to the given.
+    """
+    uuid = uuid4()
+    return deployment_state.transform(
+        ["nodes", uuid], NodeState(uuid=uuid, hostname=u'catcatdog')
+    )
 
 APP1 = Application(
     name=u'myapp',
@@ -408,47 +425,16 @@ class ControlAMPTests(ControlTestCase):
         self.protocol = ControlAMP(self.reactor, self.control_amp_service)
         self.client = LoopbackAMPClient(self.protocol.locator)
 
-    def test_connection_stays_open_on_activity(self):
-        """
-        The AMP connection remains open when communication is received at
-        any time up to the timeout limit.
-        """
-        self.protocol.makeConnection(StringTransportWithAbort())
-        initially_aborted = self.protocol.transport.aborted
-        advance_some(self.reactor)
-        self.client.callRemote(NoOp)
-        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
-        # This NoOp will reset the timeout.
-        self.client.callRemote(NoOp)
-        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
-        later_aborted = self.protocol.transport.aborted
-        self.assertEqual(
-            dict(initially=initially_aborted, later=later_aborted),
-            dict(initially=False, later=False)
-        )
-
-    def test_connection_closed_on_no_activity(self):
-        """
-        If no communication has been received for long enough that we expire
-        cluster state, the silent connection is forcefully closed.
-        """
-        self.protocol.makeConnection(StringTransportWithAbort())
-        advance_some(self.reactor)
-        self.client.callRemote(NoOp)
-        self.assertFalse(self.protocol.transport.aborted)
-        self.reactor.advance(PING_INTERVAL.seconds * 2)
-        self.assertEqual(self.protocol.transport.aborted, True)
-
     def test_connection_made(self):
         """
         When a connection is made the ``ControlAMP`` is added to the services
         set of connections.
         """
         marker = object()
-        self.control_amp_service.connections.add(marker)
-        current = self.control_amp_service.connections.copy()
+        self.control_amp_service._connections.add(marker)
+        current = self.control_amp_service._connections.copy()
         self.protocol.makeConnection(StringTransportWithAbort())
-        self.assertEqual((current, self.control_amp_service.connections),
+        self.assertEqual((current, self.control_amp_service._connections),
                          ({marker}, {marker, self.protocol}))
 
     @capture_logging(assertHasAction, AGENT_CONNECTED, succeeded=True)
@@ -468,7 +454,11 @@ class ControlAMPTests(ControlTestCase):
             sent[0],
             (((ClusterStatusCommand,),
               dict(configuration=_TEST_DEPLOYMENT,
-                   state=cluster_state))))
+                   configuration_generation=make_generation_hash(
+                       _TEST_DEPLOYMENT
+                   ),
+                   state=cluster_state,
+                   state_generation=make_generation_hash(cluster_state)))))
 
     def test_connection_lost(self):
         """
@@ -476,14 +466,14 @@ class ControlAMPTests(ControlTestCase):
         service's set of connections.
         """
         marker = object()
-        self.control_amp_service.connections.add(marker)
+        self.control_amp_service._connections.add(marker)
         # Patching is bad.
         # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(self.protocol, "callRemote",
                    lambda *args, **kwargs: succeed(None))
         self.protocol.makeConnection(StringTransportWithAbort())
         self.protocol.connectionLost(Failure(ConnectionLost()))
-        self.assertEqual(self.control_amp_service.connections, {marker})
+        self.assertEqual(self.control_amp_service._connections, {marker})
 
     def test_version(self):
         """
@@ -1097,29 +1087,6 @@ class AgentClientTests(TestCase):
         # to access the passed in locator directly.
         self.server = LoopbackAMPClient(self.client.locator)
 
-    def test_connection_stays_open_on_activity(self):
-        """
-        The AMP connection remains open when communication is received at
-        any time up to the timeout limit.
-        """
-        advance_some(self.reactor)
-        self.server.callRemote(NoOp)
-        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
-        # This NoOp will reset the timeout.
-        self.server.callRemote(NoOp)
-        self.reactor.advance(PING_INTERVAL.seconds * 1.9)
-        self.assertEqual(self.client.transport.aborted, False)
-
-    def test_connection_closed_on_no_activity(self):
-        """
-        If no communication has been received for long enough that we expire
-        cluster state, the silent connection is forcefully closed.
-        """
-        advance_some(self.reactor)
-        self.server.callRemote(NoOp)
-        self.reactor.advance(PING_INTERVAL.seconds * 2)
-        self.assertEqual(self.client.transport.aborted, True)
-
     def test_initially_not_connected(self):
         """
         The agent does not get told a connection was made or lost before it's
@@ -1155,7 +1122,9 @@ class AgentClientTests(TestCase):
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=configuration,
+            configuration_generation=make_generation_hash(configuration),
             state=actual,
+            state_generation=make_generation_hash(actual),
             eliot_context=TEST_ACTION
         )
 
@@ -1170,11 +1139,59 @@ class AgentClientTests(TestCase):
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=Deployment(),
+            configuration_generation=make_generation_hash(Deployment()),
             state=state,
+            state_generation=make_generation_hash(state),
             eliot_context=TEST_ACTION,
         )
         self.successResultOf(d)
         self.assertEqual(state, self.agent.actual)
+
+    def _send_cluster_status(self, configuration, state):
+        """
+        Send a ``ClusterStatusCommand``.
+
+        :param configuration: The configuration to send to the agent.
+        :param state: The state to send to the agent.
+
+        :returns: The ``Deferred`` returned from the ``callRemote`` call.
+        """
+        return self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=configuration,
+            configuration_generation=make_generation_hash(configuration),
+            state=state,
+            state_generation=make_generation_hash(state),
+            eliot_context=TEST_ACTION
+        )
+
+    def _send_cluster_status_diff(self, initial_config, initial_state,
+                                  after_config, after_state):
+        """
+        Send a ``ClusterStatusCommand``.
+
+        :param initial_config: The expected configuration that the agent
+            already has.
+        :param initial_state: The expected state that the agent already has.
+        :param after_config: The desired resulting configuration.
+        :param after_state: The desired resulting state.
+
+        :returns: The ``Deferred`` returned from the ``callRemote`` call.
+        """
+        configuration_diff = create_diff(initial_config, after_config)
+        state_diff = create_diff(initial_state, after_state)
+        return self.server.callRemote(
+            ClusterStatusDiffCommand,
+            configuration_diff=configuration_diff,
+            start_configuration_generation=make_generation_hash(
+                initial_config
+            ),
+            end_configuration_generation=make_generation_hash(after_config),
+            state_diff=state_diff,
+            start_state_generation=make_generation_hash(initial_state),
+            end_state_generation=make_generation_hash(after_state),
+            eliot_context=TEST_ACTION
+        )
 
     def test_cluster_updated(self):
         """
@@ -1182,19 +1199,133 @@ class AgentClientTests(TestCase):
         having cluster state updated.
         """
         actual = DeploymentState(nodes=[])
-        d = self.server.callRemote(
-            ClusterStatusCommand,
-            configuration=_TEST_DEPLOYMENT,
-            state=actual,
-            eliot_context=TEST_ACTION
+        d = self._send_cluster_status(_TEST_DEPLOYMENT, actual)
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    _TEST_DEPLOYMENT
+                ),
+                current_state_generation=make_generation_hash(
+                    actual
+                ),
+            )
         )
-
-        self.successResultOf(d)
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client,
                                                desired=_TEST_DEPLOYMENT,
                                                cluster_updated_count=1,
                                                actual=actual))
+
+    def test_cluster_updated_diff(self):
+        """
+        ``ClusterStatusDiffCommand`` sent to the ``AgentClient`` result in
+        agent having cluster state updated.
+        """
+        actual = DeploymentState(nodes=[])
+        d = self._send_cluster_status(_TEST_DEPLOYMENT, actual)
+        self.successResultOf(d)
+        next_deployment = arbitrary_transformation(_TEST_DEPLOYMENT)
+        next_state = arbitrary_state_transformation(actual)
+        d = self._send_cluster_status_diff(
+            _TEST_DEPLOYMENT, actual, next_deployment, next_state
+        )
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    next_deployment
+                ),
+                current_state_generation=make_generation_hash(
+                    next_state
+                ),
+            )
+        )
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=next_deployment,
+                                               cluster_updated_count=2,
+                                               actual=next_state))
+
+    def test_cluster_updated_diff_wrong_initial(self):
+        """
+        ``ClusterStatusDiffCommand`` sent to the ``AgentClient`` result in
+        the agent returning its latest hash if the initial object sent by the
+        control agent was not the version the agent had.
+        """
+        actual = DeploymentState(nodes=[])
+        d = self._send_cluster_status(_TEST_DEPLOYMENT, actual)
+        self.successResultOf(d)
+        next_deployment = arbitrary_transformation(_TEST_DEPLOYMENT)
+        wrong_initial_deployment = arbitrary_transformation(next_deployment)
+        next_state = arbitrary_state_transformation(actual)
+        wrong_initial_state = arbitrary_transformation(next_deployment)
+        d = self._send_cluster_status_diff(
+            wrong_initial_deployment, actual, next_deployment, next_state
+        )
+
+        # Agent detects mismatch in initial hashes, and reports what its
+        # actual hash is.
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    _TEST_DEPLOYMENT
+                ),
+                current_state_generation=make_generation_hash(
+                    actual
+                ),
+            )
+        )
+        # Agent still has the initial configuration.
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=_TEST_DEPLOYMENT,
+                                               cluster_updated_count=1,
+                                               actual=actual))
+
+        d = self._send_cluster_status_diff(
+            _TEST_DEPLOYMENT, wrong_initial_state, next_deployment, next_state
+        )
+        # Agent detects mismatch in initial hashes, and reports what its
+        # actual hash is.
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    _TEST_DEPLOYMENT
+                ),
+                current_state_generation=make_generation_hash(
+                    actual
+                ),
+            )
+        )
+        # Agent still has the initial configuration.
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=_TEST_DEPLOYMENT,
+                                               cluster_updated_count=1,
+                                               actual=actual))
+
+        d = self._send_cluster_status_diff(
+            _TEST_DEPLOYMENT, actual, next_deployment, next_state
+        )
+        self.assertEqual(
+            self.successResultOf(d),
+            dict(
+                current_configuration_generation=make_generation_hash(
+                    next_deployment
+                ),
+                current_state_generation=make_generation_hash(
+                    next_state
+                ),
+            )
+        )
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=next_deployment,
+                                               cluster_updated_count=2,
+                                               actual=next_state))
 
 
 def iconvergence_agent_tests_factory(fixture):
@@ -1286,8 +1417,25 @@ class ClusterStatusCommandTests(TestCase):
         ClusterStatusCommand requires the following arguments.
         """
         self.assertItemsEqual(
-            ['configuration', 'state', 'eliot_context'],
+            ['configuration', 'configuration_generation', 'state',
+             'state_generation', 'eliot_context'],
             (v[0] for v in ClusterStatusCommand.arguments))
+
+
+class ClusterStatusDiffCommandTests(TestCase):
+    """
+    Tests for ``ClusterStatusDiffCommand``.
+    """
+    def test_command_arguments(self):
+        """
+        ClusterStatusDiffCommand requires the following arguments.
+        """
+        self.assertItemsEqual(
+            ['configuration_diff', 'start_configuration_generation',
+             'end_configuration_generation', 'state_diff',
+             'start_state_generation', 'end_state_generation',
+             'eliot_context'],
+            (v[0] for v in ClusterStatusDiffCommand.arguments))
 
 
 class AgentLocatorTests(TestCase):
@@ -1418,6 +1566,55 @@ class PingTestsMixin(object):
         protocol.connectionLost(Failure(ConnectionDone("test, simulated")))
         reactor.advance(PING_INTERVAL.total_seconds())
         self.assertEqual(b"", transport.value())
+
+    def test_timeout_cancelled_on_lost_connection(self):
+        """
+        The ping timeout is cancelled if the remote connection is lost.
+        """
+        reactor = Clock()
+        protocol = self.build_protocol(reactor)
+        transport = StringTransportWithAbort()
+        protocol.makeConnection(transport)
+        protocol.connectionLost(
+            Failure(ConnectionDone("test, simulated"))
+        )
+        reactor.advance(PING_INTERVAL.total_seconds() * 3)
+
+    def test_timeout_reset_on_ping_activity(self):
+        """
+        The AMP connection remains open when communication is received at
+        any time up to the timeout limit.
+        """
+        reactor = Clock()
+        protocol = self.build_protocol(reactor)
+        locator = _NoOpCounter()
+        peer = AMP(locator=locator)
+        pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
+        # The timer started the moment the protocol was instantiated.
+        # A moment before the timer expires the protocol is still connected
+        # (not disconnecting).
+        reactor.advance(2 * PING_INTERVAL.total_seconds() - 0.1)
+        initially_aborted = protocol.transport.disconnecting
+        # If at this point the peer pings us, it resets the timer.
+        peer.callRemote(NoOp)
+        pump.flush()
+        # And we can advance to the original expiry time without triggering
+        # abortConnection.
+        reactor.advance(0.1)
+        later_aborted = protocol.transport.disconnecting
+        # But if we now advance to the expiry timeout (the ping occured at
+        # expiry - 0.1s, without a ping, then abortConnection is called and the
+        # connection begins disconnecting.
+        reactor.advance(2 * PING_INTERVAL.total_seconds() - 0.1)
+        finally_aborted = protocol.transport.disconnecting
+        self.assertEqual(
+            dict(initially=initially_aborted,
+                 later=later_aborted,
+                 final=finally_aborted),
+            dict(initially=False,
+                 later=False,
+                 final=True)
+        )
 
 
 class ControlAMPPingTests(TestCase, PingTestsMixin):

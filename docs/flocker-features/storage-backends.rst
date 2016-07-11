@@ -40,6 +40,8 @@ Community supported drivers
 * :ref:`open-vstorage-backend`
 * :ref:`saratogaspeed-backend`
 * :ref:`vmware-backend`
+* :ref:`coprhd-backend`
+* :ref:`pure-storage-backend`
 
 .. toctree::
    :hidden:
@@ -54,6 +56,8 @@ Community supported drivers
    open-vstorage-configuration
    saratogaspeed-configuration
    vmware-configuration
+   coprhd-configuration
+   pure-storage-configuration
 
 Flocker supports pluggable storage backends.
 Any storage system that is able to present itself as a network-based block device can serve as the underlying storage for a Docker data volume managed by Flocker.
@@ -65,9 +69,9 @@ Next Step
 =========
 
 If you have configured a backend as part of the Flocker configuration process, you will now need to return to complete the configuration steps before you can use Flocker.
-   
+
 The links below will return you to the final step of your configuration process:
-   
+
 * :ref:`Enabling the Flocker Agent Service for the Docker Integration <enabling-agent-service-docker>`
-* :ref:`Enabling the Flocker Agent Service for the Kubernetes Integration <enabling-agent-service-kubernetes>` 
+* :ref:`Enabling the Flocker Agent Service for the Kubernetes Integration <enabling-agent-service-kubernetes>`
 * :ref:`Enabling the Flocker Agent Service for an Integration of Flocker with Other Systems <enabling-agent-service-standalone-flocker>`

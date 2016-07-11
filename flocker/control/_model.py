@@ -676,8 +676,8 @@ class BlockDeviceOwnership(CheckedPMap):
         Once a record is made no other entry can overwrite the existing
         one; the relationship is hardcoded and permanent. XXX this may
         interact badly with deletion of dataset where dataset_id is
-        auto-generated from name, e.g. flocker-deploy or Docker
-        plugin. That is pre-existing issue, though.
+        auto-generated from name, e.g. Docker plugin.
+        That is pre-existing issue, though.
 
         :param UUID dataset_id: The dataset being associated with a
             blockdevice.
@@ -1237,10 +1237,50 @@ class NonManifestDatasets(PClass):
         return NoWipe()
 
 
+def _generation_hash_value_factory(x):
+    """
+    Factory method to create a generation hash.
+
+    This is specifically designed to be able to turn a ``bytes`` string into a
+    tuple of ints. See ``GenerationHash`` for why this is required.
+
+    :param x: The input value to be turned into a proper hash value in a
+        ``GenerationHash``.
+
+    :returns: A tuple of ints.
+    """
+    if x is None:
+        return x
+    transform = lambda y: y
+    if isinstance(x, bytes):
+        transform = ord
+    return tuple(transform(i) for i in x)
+
+
+class GenerationHash(PClass):
+    """
+    Generation hash uniquely defines a configuration or state. A value of None
+    indicates that there is no configuration or state known.
+
+    Note that this is a tuple of ints rather than ``bytes`` because the flocker
+    ``wire_encode`` function assumes that ``bytes`` can be encoded as JSON
+    strings, which is not true of generation hashes.
+
+    :ivar hash_value: A tuple of ints each less than 256 that corresponds to a
+        byte string generation hash.
+    """
+
+    hash_value = field(
+        type=(tuple, type(None)),
+        mandatory=True,
+        factory=_generation_hash_value_factory
+    )
+
+
 # Classes that can be serialized to disk or sent over the network:
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
     NodeState, DeploymentState, NonManifestDatasets, Configuration,
-    Lease, Leases, PersistentState
+    Lease, Leases, PersistentState, GenerationHash
 ] + DIFF_SERIALIZABLE_CLASSES

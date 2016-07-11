@@ -4,7 +4,6 @@
 Generate a Flocker package that can be deployed onto cluster nodes.
 """
 
-import sys
 from os import environ
 from pkg_resources import parse_requirements, RequirementParseError
 from setuptools import setup, find_packages
@@ -120,7 +119,6 @@ setup(
         # (admin/packaging.py) if you make changes here.
         'console_scripts': [
             'flocker-volume = flocker.volume.script:flocker_volume_main',
-            'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-container-agent = flocker.node.script:flocker_container_agent_main',  # noqa
             'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',  # noqa
             'flocker-control = flocker.control.script:flocker_control_main',
