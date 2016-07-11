@@ -724,10 +724,10 @@ class DockerClient(object):
             if command_line_values is not None:
                 command_line_values = list(command_line_values)
 
-            if swappiness == 0:
-                memswap_limit = -1
-            else
+            memswap_limit = -1
+            if swappiness != 0:
                 memswap_limit = mem_limit + mem_limit * swappiness
+
             self._client.create_container(
                 name=container_name,
                 image=image_name,
