@@ -183,6 +183,9 @@ class Unit(PClass):
 
     :ivar command_line: Custom command to run using the image, a ``PVector``
         of ``unicode``. ``None`` means use default.
+
+    :ivar swappiness: Tunable swappiness of the container.
+        Default of 0 disables swap.
     """
     name = field(mandatory=True)
     container_name = field(mandatory=True)
@@ -195,6 +198,7 @@ class Unit(PClass):
     cpu_shares = field(mandatory=True, initial=None)
     restart_policy = field(mandatory=True, initial=RestartNever())
     command_line = pvector_field(unicode, optional=True, initial=None)
+    swappiness = field(mandatory=False, initial=0, type=int)
 
 
 class IDockerClient(Interface):
@@ -322,7 +326,7 @@ class FakeDockerClient(object):
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
             volumes=frozenset(), mem_limit=None, cpu_shares=None,
-            restart_policy=RestartNever(), command_line=None):
+            restart_policy=RestartNever(), command_line=None, swappiness=0):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         for port in ports:
@@ -356,6 +360,7 @@ class FakeDockerClient(object):
             cpu_shares=cpu_shares,
             restart_policy=restart_policy,
             command_line=command_line,
+            swappiness=swappiness
         )
         return succeed(None)
 
