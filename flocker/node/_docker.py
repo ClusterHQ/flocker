@@ -209,7 +209,7 @@ class IDockerClient(Interface):
 
     def add(unit_name, image_name, ports=None, environment=None, volumes=(),
             mem_limit=None, cpu_shares=None, restart_policy=RestartNever(),
-            command_line=None, swappiness=None):
+            command_line=None, swappiness=0):
         """
         Install and start a new unit.
 
@@ -244,7 +244,7 @@ class IDockerClient(Interface):
         :param command_line: Custom command to run using the image, a sequence
             of ``unicode``, or ``None`` to use default image command line.
         :param swappiness: Tune container's memory swappiness.
-            Default of None is no swap.
+            Default of 0 disables swap.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -682,7 +682,7 @@ class DockerClient(object):
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
             restart_policy=RestartNever(), command_line=None,
-            swappiness=None):
+            swappiness=0):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:

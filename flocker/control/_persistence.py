@@ -35,7 +35,7 @@ _CLASS_MARKER = u"$__class__$"
 
 # The latest configuration version. Configuration versions are
 # always integers.
-_CONFIG_VERSION = 6
+_CONFIG_VERSION = 5
 
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
@@ -213,7 +213,7 @@ class ConfigurationMigration(object):
                 uuid = node[0]
                 applications = node[1][u"applications"][u"values"]
                 for app in applications:
-                    app[1].update({u'swappiness': None})
+                    app[1].update({u'swappiness': 0})
                 new_node = node[1]
                 new_node[u"applications"][u"values"] = applications
                 new_node_values.append((uuid, new_node))

@@ -200,7 +200,7 @@ definitions:
   swappiness:
     title: "Swappiness"
     description: |
-      Tune a container's memory swappiness behavior (default of 0 is no swap).
+      Tune a container's memory swappiness behavior (default of 0 disables swap).
     type: integer
     minimum: 0
     maximum: 100
