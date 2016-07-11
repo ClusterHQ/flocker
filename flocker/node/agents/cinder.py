@@ -894,7 +894,7 @@ class Cinder1to2Adapter(proxyForInterface(ICinderVolumeManager, "_client_v2")):
 
 
 CINDER_API_METADATA_IN_PRIORITY_ORDER = (
-    dict(version=u"2", adapter_v1=Cinder1to2Adapter),
+    dict(version=u"2.0", adapter_v1=Cinder1to2Adapter),
     dict(version=u"1", adapter_v1=lambda client: client),
 )
 
