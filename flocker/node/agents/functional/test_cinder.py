@@ -5,6 +5,7 @@ Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
 cluster.
 """
 
+from subprocess import check_call, CalledProcessError
 from unittest import skipIf
 from urlparse import urlsplit
 from uuid import uuid4
@@ -14,6 +15,7 @@ import netifaces
 import psutil
 
 from keystoneauth1.exceptions.http import BadRequest
+from keystoneauth1.exceptions.connection import ConnectFailure
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
@@ -28,9 +30,10 @@ from ..testtools import (
     get_minimum_allocatable_size,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
+    mimic_for_test,
     require_backend,
 )
-from ....testtools import TestCase, flaky, run_process
+from ....testtools import TestCase, flaky, run_process, if_root
 from ....testtools.cluster_utils import make_cluster_id, TestTypes
 
 from ..cinder import (
@@ -769,7 +772,7 @@ class CinderFromConfigurationTests(TestCase):
     Tests for ``cinder_from_configuation`` via tha ``flocker.node._backends``
     loader code.
     """
-    def test_lazy_authentication(self):
+    def test_no_immediate_authentication(self):
         """
         ``cinder_from_configuration`` returns an API object even if it can't
         connect to the keystone server endpoint.
@@ -790,4 +793,68 @@ class CinderFromConfigurationTests(TestCase):
             api_args=api_args,
             reactor=object(),
             cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+        )
+
+    @if_root
+    def test_no_retry_authentication(self):
+        """
+        The API object returned by ``cinder_from_configuration`` will retry
+        authentication even when initial authentication attempts fail.
+        """
+        mimic_port = mimic_for_test(test_case=self)
+        backend, api_args = backend_and_api_args_from_configuration({
+            "backend": "openstack",
+            "auth_plugin": "rackspace",
+            "region": "DFW",
+            "username": "mimic",
+            "api_key": "12345",
+            "auth_url": "http://127.0.0.1:{}/identity/v2.0".format(
+                mimic_port
+            ),
+        })
+        api = get_api(
+            backend=backend,
+            api_args=api_args,
+            reactor=object(),
+            cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+        )
+        check_call([
+            "/usr/sbin/iptables", "--insert", "INPUT",
+            "--proto", "tcp",
+            "--dport", bytes(mimic_port),
+            "--jump", "REJECT"
+        ])
+
+        def delete_reject_rule():
+            check_call([
+                "/usr/sbin/iptables", "--delete", "INPUT",
+                "--proto", "tcp",
+                "--dport", bytes(mimic_port),
+                "--jump", "REJECT",
+            ])
+
+        def maybe_cleanup():
+            """
+            If the test succeeded, the rule will have been removed.
+            """
+            try:
+                delete_reject_rule()
+            except CalledProcessError:
+                pass
+
+        self.addCleanup(maybe_cleanup)
+
+        # First API call fails to authenticate because we blocked the mimic
+        # port and hence, the keystone endpoint.
+        self.assertRaises(
+            ConnectFailure,
+            api.list_volumes
+        )
+
+        delete_reject_rule()
+
+        # Second API call succeeds because the port is now open.
+        self.assertEqual(
+            [],
+            api.list_volumes()
         )
