@@ -21,6 +21,7 @@ from keystoneclient.openstack.common.apiclient.exceptions import (
 from keystoneclient.auth import get_plugin_class
 from keystoneclient.session import Session
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
+from cinderclient.api_versions import get_api_version
 from cinderclient.client import Client as CinderClient
 from cinderclient.exceptions import NotFound as CinderClientNotFound
 from novaclient.client import Client as NovaClient
@@ -893,9 +894,30 @@ class Cinder1to2Adapter(proxyForInterface(ICinderVolumeManager, "_client_v2")):
         )
 
 
+def lazy_loading_proxy_for_interface(interface, loader):
+    """
+    """
+    class LazyLoadingProxy(proxyForInterface(interface, "_original")):
+        """
+        """
+        _cached_original = None
+
+        def __init__(self):
+            """
+            Overridden
+            """
+
+        @property
+        def _original(self):
+            if self._cached_original is None:
+                self._cached_original = loader()
+            return self._cached_original
+    return LazyLoadingProxy()
+
+
 CINDER_API_METADATA_IN_PRIORITY_ORDER = (
-    dict(version=u"2", adapter_v1=Cinder1to2Adapter),
-    dict(version=u"1", adapter_v1=lambda client: client),
+    dict(version=2, adapter_v1=Cinder1to2Adapter),
+    dict(version=1, adapter_v1=lambda client: client),
 )
 
 CINDER_V1_ADAPTERS = {
@@ -973,24 +995,32 @@ def cinder_from_configuration(region, cluster_id, **config):
     :param cluster_id: The unique identifier for the cluster to access.
     :param config: A dictionary of configuration options for Openstack.
     """
-    cinder_client = get_cinder_client(
-        session=get_keystone_session(**config),
-        region=region,
+    def lazy_cinder_loader():
+        cinder_client = get_cinder_client(
+            session=get_keystone_session(**config),
+            region=region,
+        )
+
+        wrapped_cinder_volume_manager = _LoggingCinderVolumeManager(
+            cinder_client.volumes
+        )
+        cinder_client_version = get_api_version(cinder_client.version)
+        # Add a Cinder v1 adapter if necessary
+        adapted_cinder_volume_manager = CINDER_V1_ADAPTERS[
+            cinder_client_version.ver_major
+        ](wrapped_cinder_volume_manager)
+
+        return adapted_cinder_volume_manager
+
+    lazy_cinder_volume_manager_proxy = lazy_loading_proxy_for_interface(
+        interface=ICinderVolumeManager,
+        loader=lazy_cinder_loader,
     )
 
     nova_client = get_nova_v2_client(
         session=get_keystone_session(**config),
         region=region,
     )
-
-    wrapped_cinder_volume_manager = _LoggingCinderVolumeManager(
-        cinder_client.volumes
-    )
-
-    # Add a Cinder v1 adapter if necessary
-    wrapped_cinder_volume_manager = CINDER_V1_ADAPTERS[
-        cinder_client.version
-    ](wrapped_cinder_volume_manager)
 
     logging_nova_volume_manager = _LoggingNovaVolumeManager(
         _nova_volumes=nova_client.volumes
@@ -999,7 +1029,7 @@ def cinder_from_configuration(region, cluster_id, **config):
         _nova_servers=nova_client.servers
     )
     return CinderBlockDeviceAPI(
-        cinder_volume_manager=wrapped_cinder_volume_manager,
+        cinder_volume_manager=lazy_cinder_volume_manager_proxy,
         nova_volume_manager=logging_nova_volume_manager,
         nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,

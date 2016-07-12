@@ -1,9 +1,9 @@
 # Libcloud is not detected by snakefood
-apache-libcloud==0.20.1
+apache-libcloud==1.0.0
 bitmath==1.3.0.2
-boto==2.40.0
+boto==2.41.0
 boto3==1.3.1
-botocore==1.4.28
+botocore==1.4.34
 characteristic==14.3.0
 python-cinderclient==1.8.0
 docker-py==1.8.1
@@ -36,7 +36,7 @@ oauth2client==1.5.2
 # e.g. nomenclature; sys_platform==linux2 (FLOC-4429)
 pip==8.1.2
 pyOpenSSL==16.0.0
-psutil==4.2.0
+psutil==4.3.0
 --find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq5#egg=pyrsistent-0.11.13+chq5
 pyrsistent==0.11.13+chq5
 pytz==2016.4
@@ -60,7 +60,7 @@ alabaster==0.7.8
 attrs==16.0.0
 Babel==2.3.4
 backports.ssl-match-hostname==3.5.0.1
-cffi==1.6.0
+cffi==1.7.0
 cryptography==1.3.4
 debtcollector==1.5.0
 enum34==1.1.6
@@ -81,12 +81,12 @@ MarkupSafe==0.23
 monotonic==1.1
 msgpack-python==0.4.7
 netaddr==0.7.18
-oslo.config==3.11.0
+oslo.config==3.12.0
 oslo.i18n==3.7.0
-oslo.serialization==2.9.0
-oslo.utils==3.13.0
+oslo.serialization==2.10.0
+oslo.utils==3.14.0
 pbr==1.10.0
-positional==1.1.0
+positional==1.1.1
 prettytable==0.7.2
 pyasn1==0.1.9
 pyasn1-modules==0.0.8
@@ -94,6 +94,7 @@ pycparser==2.14
 Pygments==2.1.3
 python-dateutil==2.5.3
 python-mimeparse==1.5.2
+rfc3986==0.3.1
 rsa==3.4.2
 service-identity==16.0.0
 simplejson==3.8.2

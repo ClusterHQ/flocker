@@ -7,16 +7,24 @@ Tests for ``flocker.node._diffing``.
 from json import dumps
 from uuid import uuid4
 
+from eliot.testing import capture_logging, assertHasMessage
 from hypothesis import given
 import hypothesis.strategies as st
-from pyrsistent import PClass, field, pmap, pset
+from pyrsistent import PClass, field, pmap, pset, InvariantException
+from twisted.python.monkey import MonkeyPatcher
 
-from .._diffing import create_diff, compose_diffs
+from .._diffing import (
+    create_diff,
+    compose_diffs,
+    DIFF_COMMIT_ERROR,
+    _TransformProxy,
+)
 from .._persistence import wire_encode, wire_decode
 from .._model import Node, Port
 from ..testtools import (
     application_strategy,
     deployment_strategy,
+    node_strategy,
     related_deployments_strategy
 )
 
@@ -183,7 +191,6 @@ class DeploymentDiffTest(TestCase):
         object_a = DiffTestObj(a=pset(xrange(1000)))
         object_b = pmap({'1': 34})
         diff = create_diff(object_a, object_b)
-
         self.assertThat(
             wire_decode(wire_encode(diff)).apply(object_a),
             Equals(object_b)
@@ -201,4 +208,287 @@ class DeploymentDiffTest(TestCase):
         self.assertThat(
             wire_decode(wire_encode(diff)).apply(object_a),
             Equals(object_b)
+        )
+
+
+class DiffTestObjInvariant(PClass):
+    """
+    Simple pyrsistent object with an invariant that spans multiple fields.
+
+    Diffs which swap the values of the fields will trigger ``InvariantError`
+    unless ``_perform_invariant_check`` is set to ``False`` or the diff is
+    applied to an evolver object.
+    """
+    _perform_invariant_check = True
+    a = field()
+    b = field()
+
+    def __invariant__(self):
+        if self._perform_invariant_check and self.a == self.b:
+            return (False, "a must not equal b")
+        else:
+            return (True, "")
+
+
+class InvariantDiffTests(TestCase):
+    """
+    Tests for creating and applying diffs to objects with invariant checks.
+    """
+    def test_straight_swap(self):
+        """
+        A diff composed of two separate ``set`` operations can be applied to an
+        object without triggering an invariant exception.
+        """
+        o1 = DiffTestObjInvariant(
+            a=1,
+            b=2,
+        )
+        o2 = DiffTestObjInvariant(
+            a=2,
+            b=1,
+        )
+        diff = create_diff(o1, o2)
+        self.expectThat(len(diff.changes), Equals(2))
+        self.assertEqual(
+            o2,
+            diff.apply(o1)
+        )
+
+    def test_deep_swap(self):
+        """
+        A diff composed of two separate ``set`` operations can be applied to a
+        nested object without triggering an invariant exception.
+        """
+        a = DiffTestObjInvariant(
+            a=1,
+            b=2,
+        )
+        b = DiffTestObjInvariant(
+            a=3,
+            b=4,
+        )
+        o1 = DiffTestObjInvariant(
+            a=a,
+            b=b,
+        )
+        o2 = o1.transform(
+            ['a'],
+            DiffTestObjInvariant(
+                a=2,
+                b=1,
+            )
+        )
+        diff = create_diff(o1, o2)
+        self.expectThat(len(diff.changes), Equals(2))
+        self.assertEqual(
+            o2,
+            diff.apply(o1)
+        )
+
+    @capture_logging(assertHasMessage, DIFF_COMMIT_ERROR)
+    def test_error_logging(self, logger):
+        """
+        Failures while applying a diff emit a log message containing the full
+        diff.
+        """
+        o1 = DiffTestObjInvariant(
+            a=1,
+            b=2,
+        )
+        patcher = MonkeyPatcher()
+        patcher.addPatch(
+            DiffTestObjInvariant,
+            '_perform_invariant_check',
+            False
+        )
+        patcher.patch()
+        try:
+            o2 = o1.set('b', 1)
+        finally:
+            patcher.restore()
+        diff = create_diff(o1, o2)
+        self.assertRaises(
+            InvariantException,
+            diff.apply,
+            o1,
+        )
+
+    def test_application_add(self):
+        """
+        A diff on a Node, which *adds* and application with a volume *and* the
+        manifestation for the volume, can be applied without triggering an
+        invariant error on the Node.
+        """
+        node2 = node_strategy(
+            min_number_of_applications=1,
+            stateful_applications=True,
+        ).example()
+        application = node2.applications.values()[0]
+        node1 = node2.transform(
+            ['applications'],
+            lambda o: o.remove(application.name)
+        ).transform(
+            ['manifestations'],
+            lambda o: o.remove(application.volume.manifestation.dataset_id)
+        )
+        diff = create_diff(node1, node2)
+        self.assertEqual(
+            node2,
+            diff.apply(node1),
+        )
+
+    def test_application_modify(self):
+        """
+        A diff on a Node, which adds a volume to an *existing* application
+        volume *and* the manifestation for the volume, can be applied without
+        triggering an invariant error on the Node.
+        """
+        node2 = node_strategy(
+            min_number_of_applications=1,
+            stateful_applications=True,
+        ).example()
+        application = node2.applications.values()[0]
+        volume = application.volume
+        node1 = node2.transform(
+            ['applications', application.name],
+            lambda o: o.set('volume', None)
+        ).transform(
+            ['manifestations'],
+            lambda o: o.remove(volume.manifestation.dataset_id)
+        )
+        diff = create_diff(node1, node2)
+        self.assertEqual(
+            node2,
+            diff.apply(node1),
+        )
+
+
+class TransformProxyTests(TestCase):
+    """
+    Tests for ``_TransformProxy``.
+    """
+    def test_type_error(self):
+        """
+        The wrapped object must provide _IEvolvable.
+        """
+        e = self.assertRaises(
+            TypeError,
+            _TransformProxy,
+            1
+        )
+        self.assertEqual(
+            '1 does not provide _IEvolvable',
+            e.message,
+        )
+
+    def test_commit_no_change(self):
+        """
+        ``commit`` returns the original object if no changes have been
+        performed.
+        """
+        original = pmap()
+        self.assertIs(original, _TransformProxy(original).commit())
+
+    def test_transform_keyerror(self):
+        """
+        ``transform`` raises ``KeyError`` if the supplied ``path`` is not
+        found.
+        """
+        e = self.assertRaises(
+            KeyError,
+            _TransformProxy(pmap()).transform,
+            ['a'], 1
+        )
+        self.assertEqual(
+            "Attribute or key 'a' not found in pmap({})",
+            e.message,
+        )
+
+    def test_transform_typeerror(self):
+        """
+        ``transform`` raises ``TypeError`` if the object at the supplied
+        ``path`` does not provide ``_IEvolvable``.
+        """
+        proxy = _TransformProxy(pmap({'a': 1}))
+
+        e = self.assertRaises(
+            TypeError,
+            proxy.transform,
+            ['a'], 2,
+        )
+        self.assertEqual(
+            "1 does not provide _IEvolvable",
+            e.message
+        )
+
+    def test_transform_empty_path(self):
+        """
+        If ``transform`` is supplied with an empty path, the operation is
+        performed on the root object.
+        """
+        proxy = _TransformProxy(pmap({'a': 1}))
+        proxy.transform([], lambda o: o.set('a', 2))
+        self.assertEqual(
+            pmap({'a': 2}),
+            proxy.commit(),
+        )
+
+    def test_transform_deep_path(self):
+        """
+        If ``transform`` is supplied with a path containing multiple segments,
+        the operation is performed on the object corresponding to the last
+        segment.
+        """
+        proxy = _TransformProxy(
+            pmap({
+                'a': pmap({
+                    'b': pmap({
+                        'c': 1
+                    })
+                })
+            })
+        )
+        proxy.transform(['a', 'b'], lambda o: o.set('c', 2))
+        self.assertEqual(
+            pmap({
+                'a': pmap({
+                    'b': pmap({
+                        'c': 2
+                    })
+                })
+            }),
+            proxy.commit(),
+        )
+
+    def test_transform_deep_evolver(self):
+        """
+        ``transform`` can perform operations on nested objects that have
+        invariant constraints, without triggering the InvariantException.
+        """
+        proxy = _TransformProxy(
+            pmap({
+                'a': pmap({
+                    'b': pmap({
+                        'c': DiffTestObjInvariant(
+                            a=1, b=2
+                        )
+                    })
+                })
+            })
+        )
+        # If these operations were performed directly on the Pyrsistent
+        # structure it'd trigger InvariantException.
+        proxy.transform(['a', 'b', 'c'], lambda o: o.set('a', 2))
+        proxy.transform(['a', 'b', 'c'], lambda o: o.set('b', 1))
+        self.assertEqual(
+            pmap({
+                'a': pmap({
+                    'b': pmap({
+                        'c': DiffTestObjInvariant(
+                            a=2, b=1
+                        )
+                    })
+                })
+            }),
+            proxy.commit(),
         )

@@ -3,14 +3,6 @@
 """
 Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
 cluster.
-
-Ideally, there'd be some in-memory tests too. Some ideas:
- * Maybe start a `mimic` server and use it to at test just the authentication
-   step.
- * Mimic doesn't currently fake the cinder APIs but perhaps we could contribute
-   that feature.
-
-See https://github.com/rackerlabs/mimic/issues/218
 """
 
 from unittest import skipIf
@@ -39,11 +31,14 @@ from ..testtools import (
     require_backend,
 )
 from ....testtools import TestCase, flaky, run_process
+from ....testtools.cluster_utils import make_cluster_id, TestTypes
 
 from ..cinder import (
     get_keystone_session, wait_for_volume_state, UnexpectedStateException,
     UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
 )
+from ...script import get_api
+from ...backends import backend_and_api_args_from_configuration
 
 from .logging import CINDER_VOLUME
 
@@ -680,4 +675,79 @@ class BlockDeviceAPIDestroyTests(TestCase):
         self.assertEqual(
             expected_timeout,
             time_module._current_time
+        )
+
+
+from zope.interface import Interface, implementer
+from ..cinder import lazy_loading_proxy_for_interface
+
+
+class TestInterface(Interface):
+    def do_something():
+        """
+        """
+
+
+@implementer(TestInterface)
+class TestImplementer(object):
+    def do_something(self):
+        """
+        """
+
+
+class LazyLoadingProxyTests(TestCase):
+    """
+    Tests for ``lazy_loading_proxy_for_interface``.
+    """
+    def test_lazy(self):
+        """
+        """
+        class LazyException(Exception):
+            """
+            """
+        called = []
+
+        def loader():
+            called.append(True)
+            return TestImplementer()
+
+        proxy = lazy_loading_proxy_for_interface(
+            interface=TestInterface,
+            loader=loader,
+        )
+
+        self.assertEqual([], called)
+
+        proxy.do_something()
+        proxy.do_something()
+
+        self.assertEqual([True], called)
+
+
+class CinderFromConfigurationTests(TestCase):
+    """
+    Tests for ``cinder_from_configuation`` via tha ``flocker.node._backends``
+    loader code.
+    """
+    def test_lazy_authentication(self):
+        """
+        ``cinder_from_configuration`` returns an API object even if it can't
+        connect to the keystone server endpoint.
+        Keystone authentication is postponed until the API is first used.
+        """
+        backend, api_args = backend_and_api_args_from_configuration({
+            "backend": "openstack",
+            "auth_plugin": "password",
+            "region": "RegionOne",
+            "username": "non-existent-user",
+            "password": "non-working-password",
+            "auth_url": "http://127.0.0.2:5000/v2.0",
+        })
+        # This will fail if loading the API depends on being able to connect to
+        # the auth_url (above)
+        get_api(
+            backend=backend,
+            api_args=api_args,
+            reactor=object(),
+            cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
         )

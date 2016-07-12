@@ -34,6 +34,9 @@
                     "running": [
                         "__builtin__.bool"
                     ],
+                    "swappiness": [
+                        "__builtin__.int"
+                    ],
                     "volume": []
                 }
             },
@@ -222,5 +225,5 @@
         },
         "root": "flocker.control._model.Deployment"
     },
-    "version": "1.12.0+147.gff7220d"
+    "version": "1.12.0+192.gc6a4ddc"
 }

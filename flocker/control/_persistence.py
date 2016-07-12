@@ -38,7 +38,7 @@ _CLASS_MARKER = u"$__class__$"
 
 # The latest configuration version. Configuration versions are
 # always integers.
-_CONFIG_VERSION = 5
+_CONFIG_VERSION = 6
 
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
@@ -190,6 +190,36 @@ class ConfigurationMigration(object):
                     _CLASS_MARKER: "PMap"
                 }
                 new_node_values.append((new_node["uuid"], new_node))
+            decoded_config[u"deployment"][u"nodes"] = {
+                u"values": new_node_values,
+                _CLASS_MARKER: "PMap"
+            }
+        return dumps(decoded_config)
+
+    @classmethod
+    def upgrade_from_v5(cls, config):
+        """
+        Migrate a v5 JSON configuration to v6.
+
+        :param bytes config: The v5 JSON data.
+        :return bytes: The v6 JSON data.
+        """
+        decoded_config = loads(config)
+        decoded_config[u"version"] = 6
+        try:
+            nodes = decoded_config[u"deployment"][u"nodes"]
+        except KeyError:
+            pass
+        else:
+            new_node_values = []
+            for node in nodes[u"values"]:
+                uuid = node[0]
+                applications = node[1][u"applications"][u"values"]
+                for app in applications:
+                    app[1].update({u'swappiness': 0})
+                new_node = node[1]
+                new_node[u"applications"][u"values"] = applications
+                new_node_values.append((uuid, new_node))
             decoded_config[u"deployment"][u"nodes"] = {
                 u"values": new_node_values,
                 _CLASS_MARKER: "PMap"
