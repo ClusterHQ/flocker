@@ -682,46 +682,86 @@ from zope.interface import Interface, implementer
 from ..cinder import lazy_loading_proxy_for_interface
 
 
-class TestInterface(Interface):
-    def do_something():
-        """
-        """
+class AnInterface(Interface):
+    def method_a():
+        pass
+
+    def method_b():
+        pass
 
 
-@implementer(TestInterface)
-class TestImplementer(object):
-    def do_something(self):
-        """
-        """
+@implementer(AnInterface)
+class AnImplementation(object):
+    def __init__(self):
+        self.method_a_called = []
+        self.method_b_called = []
+
+    def method_a(self):
+        self.method_a_called.append(True)
+
+    def method_b(self):
+        self.method_b_called.append(True)
 
 
 class LazyLoadingProxyTests(TestCase):
     """
     Tests for ``lazy_loading_proxy_for_interface``.
     """
-    def test_lazy(self):
+    def test_loader_exceptions_raised(self):
         """
+        The ``loader`` supplied to ``lazy_loading_proxy_for_interface`` is
+        called as a result of resolving the method that is being called.
+        Exceptions raised from the ``loader`` must be caught before the method
+        is called.
         """
-        class LazyException(Exception):
-            """
-            """
-        called = []
+        class SomeException(Exception):
+            pass
 
         def loader():
-            called.append(True)
-            return TestImplementer()
+            raise SomeException()
 
         proxy = lazy_loading_proxy_for_interface(
-            interface=TestInterface,
+            interface=AnInterface,
+            loader=loader,
+        )
+        self.assertRaises(
+            SomeException,
+            # We're not calling the method here, just looking it up.
+            getattr, proxy, 'method_a',
+        )
+
+    def test_loader_called_once(self):
+        """
+        The ``loader`` supplied to ``lazy_loading_proxy_for_interface`` is only
+        called once and all method calls are dispatched to the object it
+        returns.
+        """
+        loader_called = []
+        wrapped = AnImplementation()
+
+        def loader():
+            loader_called.append(True)
+            return wrapped
+
+        proxy = lazy_loading_proxy_for_interface(
+            interface=AnInterface,
             loader=loader,
         )
 
-        self.assertEqual([], called)
+        self.assertEqual(
+            ([], [], []),
+            (loader_called,
+             wrapped.method_a_called, wrapped.method_b_called)
+        )
 
-        proxy.do_something()
-        proxy.do_something()
+        proxy.method_a()
+        proxy.method_b()
 
-        self.assertEqual([True], called)
+        self.assertEqual(
+            ([True], [True], [True]),
+            (loader_called,
+             wrapped.method_a_called, wrapped.method_b_called)
+        )
 
 
 class CinderFromConfigurationTests(TestCase):
