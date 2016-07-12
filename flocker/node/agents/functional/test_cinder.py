@@ -527,13 +527,14 @@ class VirtIOCinderAttachmentTests(TestCase):
             device=None,
         )
 
-        with self.assertRaises(UnexpectedStateException) as e:
-            wait_for_volume_state(
-                volume_manager=self.cinder,
-                expected_volume=attached_volume,
-                desired_state=u'in-use',
-                transient_states=(u'available', u'attaching',),
-            )
+        e = self.assertRaises(
+            UnexpectedStateException,
+            wait_for_volume_state,
+            volume_manager=self.cinder,
+            expected_volume=attached_volume,
+            desired_state=u'in-use',
+            transient_states=(u'available', u'attaching',),
+        )
         self.assertEqual(e.exception.unexpected_state, u'available')
 
     def test_get_device_path_virtio_blk_error_without_udev(self):
