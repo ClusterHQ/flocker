@@ -3,12 +3,14 @@
 """
 Tools for testing :py:module:`flocker.control`.
 """
+from uuid import uuid4
 
 from zope.interface.verify import verifyObject
 
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
+from twisted.python.filepath import FilePath
 from twisted.test.proto_helpers import MemoryReactor
 
 from ..testtools import TestCase
@@ -21,10 +23,13 @@ from ._protocol import (
 from ._registry import IStatePersister, InMemoryStatePersister
 from ._model import (
     Application,
+    AttachedVolume,
+    Dataset,
     DatasetAlreadyOwned,
     Deployment,
     DockerImage,
     Lease,
+    Manifestation,
     Node,
     PersistentState,
     Port,
@@ -214,7 +219,7 @@ def docker_image_strategy(
 
 
 @composite
-def application_strategy(draw, min_number_of_ports=0):
+def application_strategy(draw, min_number_of_ports=0, stateful=False):
     """
     A hypothesis strategy to generate an ``Application``
 
@@ -227,7 +232,8 @@ def application_strategy(draw, min_number_of_ports=0):
             max_value=max(8, min_number_of_ports+1)
         )
     )
-    return Application(
+    dataset_id = unicode(uuid4())
+    application = Application(
         name=draw(unique_name_strategy()),
         image=draw(docker_image_strategy()),
         ports=frozenset(
@@ -235,13 +241,30 @@ def application_strategy(draw, min_number_of_ports=0):
                 internal_port=8000+i,
                 external_port=8000+i+1
             ) for i in xrange(num_ports)
-        )
+        ),
     )
+    if stateful:
+        application = application.set(
+            'volume',
+            AttachedVolume(
+                manifestation=Manifestation(
+                    dataset=Dataset(
+                        dataset_id=dataset_id,
+                        deleted=False,
+                    ),
+                    primary=True,
+                ),
+                mountpoint=FilePath('/flocker').child(dataset_id)
+            )
+        )
+    return application
 
 
 @composite
 def node_strategy(
         draw,
+        min_number_of_applications=0,
+        stateful_applications=False,
         uuid=st.uuids(),
         applications=application_strategy()
 ):
@@ -253,17 +276,24 @@ def node_strategy(
     :param applications: The strategy to use to generate the applications on
         the Node.
     """
-    applications = draw(st.lists(
-        application_strategy(),
-        min_size=0,
-        average_size=2,
-        max_size=5
-    ))
+    applications = {
+        a.name: a for a in
+        draw(
+            st.lists(
+                application_strategy(stateful=stateful_applications),
+                min_size=min_number_of_applications,
+                average_size=2,
+                max_size=5
+            )
+        )
+    }
     return Node(
         uuid=draw(uuid),
-        applications={
-            a.name: a
-            for a in applications
+        applications=applications,
+        manifestations={
+            a.volume.manifestation.dataset_id: a.volume.manifestation
+            for a in applications.values()
+            if a.volume is not None
         }
     )
 
@@ -341,7 +371,7 @@ def deployment_strategy(
         draw(
             lease_strategy(
                 dataset_id=st.just(dataset_id),
-                node_uuid=st.just(node_uuid)
+                node_id=st.just(node_uuid)
             )
         ) for dataset_id, node_uuid in (
             dataset_id_node_mapping.items()[i] for i in lease_indexes
