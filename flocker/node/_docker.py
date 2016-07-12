@@ -183,6 +183,9 @@ class Unit(PClass):
 
     :ivar command_line: Custom command to run using the image, a ``PVector``
         of ``unicode``. ``None`` means use default.
+
+    :ivar swappiness: Tunable swappiness of the container.
+        Default of 0 disables swap.
     """
     name = field(mandatory=True)
     container_name = field(mandatory=True)
@@ -195,6 +198,7 @@ class Unit(PClass):
     cpu_shares = field(mandatory=True, initial=None)
     restart_policy = field(mandatory=True, initial=RestartNever())
     command_line = pvector_field(unicode, optional=True, initial=None)
+    swappiness = field(mandatory=False, initial=0, type=int)
 
 
 class IDockerClient(Interface):
@@ -209,7 +213,7 @@ class IDockerClient(Interface):
 
     def add(unit_name, image_name, ports=None, environment=None, volumes=(),
             mem_limit=None, cpu_shares=None, restart_policy=RestartNever(),
-            command_line=None):
+            command_line=None, swappiness=0):
         """
         Install and start a new unit.
 
@@ -243,6 +247,8 @@ class IDockerClient(Interface):
             container.
         :param command_line: Custom command to run using the image, a sequence
             of ``unicode``, or ``None`` to use default image command line.
+        :param swappiness: Tune container's memory swappiness.
+            Default of 0 disables swap.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -320,7 +326,7 @@ class FakeDockerClient(object):
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
             volumes=frozenset(), mem_limit=None, cpu_shares=None,
-            restart_policy=RestartNever(), command_line=None):
+            restart_policy=RestartNever(), command_line=None, swappiness=0):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         for port in ports:
@@ -354,6 +360,7 @@ class FakeDockerClient(object):
             cpu_shares=cpu_shares,
             restart_policy=restart_policy,
             command_line=command_line,
+            swappiness=swappiness
         )
         return succeed(None)
 
@@ -679,7 +686,8 @@ class DockerClient(object):
 
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
-            restart_policy=RestartNever(), command_line=None):
+            restart_policy=RestartNever(), command_line=None,
+            swappiness=0):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:
@@ -716,6 +724,10 @@ class DockerClient(object):
             if command_line_values is not None:
                 command_line_values = list(command_line_values)
 
+            memswap_limit = -1
+            if swappiness != 0:
+                memswap_limit = mem_limit + mem_limit * swappiness
+
             self._client.create_container(
                 name=container_name,
                 image=image_name,
@@ -725,6 +737,7 @@ class DockerClient(object):
                 mem_limit=mem_limit,
                 cpu_shares=cpu_shares,
                 host_config=host_config,
+                memswap_limit=memswap_limit,
             )
 
         def _add():

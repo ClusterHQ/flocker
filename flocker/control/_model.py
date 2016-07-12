@@ -314,6 +314,10 @@ class Application(PClass):
     :ivar command_line: Custom command to run using the image, a ``PVector``
         of ``unicode``. ``None`` means use default.
 
+    :ivar swappiness: Tunable swappiness of the container (default is 0,
+        which disables swapping). Valid value is in between (including)
+        [0, 100].
+
     :ivar bool running: Whether or not the application is running.
     """
     name = field(mandatory=True, type=unicode)
@@ -328,6 +332,7 @@ class Application(PClass):
                         type=PMap)
     running = field(mandatory=True, initial=True, type=bool)
     command_line = pvector_field(unicode, optional=True, initial=None)
+    swappiness = field(mandatory=False, initial=0, type=int)
 
 
 class Dataset(PClass):
