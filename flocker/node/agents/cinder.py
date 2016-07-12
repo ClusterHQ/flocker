@@ -530,7 +530,7 @@ class CinderBlockDeviceAPI(object):
         http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html
         """
         flocker_volumes = []
-        for cinder_volume in self.cinder_volume_manager.list():
+        for cinder_volume in self.cinder_volume_manager.list(detailed=False):
             if _is_cluster_volume(self.cluster_id, cinder_volume):
                 flocker_volume = _blockdevicevolume_from_cinder_volume(
                     cinder_volume
