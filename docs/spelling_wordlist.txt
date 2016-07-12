@@ -111,6 +111,8 @@ stateful
 sysadmin
 syslog
 sudo
+swappiness
+Swappiness
 terabytes
 terraform
 tfvars

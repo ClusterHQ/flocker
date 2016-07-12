@@ -631,7 +631,7 @@ APPLICATIONS = st.builds(
     memory_limit=NONE_OR_INT,
     cpu_shares=NONE_OR_INT,
     running=st.booleans(),
-    swappiness=NONE_OR_INT
+    swappiness=st.integers(min_value=0, max_value=100)
 )
 
 
@@ -827,7 +827,7 @@ class LatestGoldenFilesValid(TestCase):
                 b"configuration_%d_v%d.json" % (i, _CONFIG_VERSION)
             )
             self.assertEqual(
-                encoding, path.getContent(),
+                encoding, path.getContent().rstrip(),
                 "Golden test file %s can not be generated from HEAD. Please "
                 "review the python files in that directory to re-generate "
                 "that file if you have intentionally changed the backing test "
@@ -965,7 +965,6 @@ class GenerationHashTests(TestCase):
             0x5f, 0xc0, 0x2b, 0x4c, 0x57, 0x75, 0x35, 0xff,
             0x6d, 0x1f, 0xd2, 0xc0, 0x14, 0xcf, 0x45, 0x32
         ])
-        import pdb; pdb.set_trace()
         self.assertThat(
             generation_hash(TEST_DEPLOYMENT_1),
             Equals(TEST_DEPLOYMENT_1_HASH)
