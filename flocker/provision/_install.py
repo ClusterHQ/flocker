@@ -225,6 +225,13 @@ def get_repository_url(distribution, flocker_version):
                             key='ubuntu' + get_package_key_suffix(
                                 flocker_version),
                         ),
+
+        'ubuntu-16.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
+                        '$(lsb_release --release --short)/\\$(ARCH)'.format(
+                            archive_bucket=ARCHIVE_BUCKET,
+                            key='ubuntu' + get_package_key_suffix(
+                                flocker_version),
+                        ),
     }
 
     try:
@@ -440,10 +447,6 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # is available, and HTTPS URLs are supported.
         apt_get_update(),
         apt_get_install(["apt-transport-https", "software-properties-common"]),
-
-        # Add ClusterHQ repo for installation of Flocker packages.
-        # XXX This needs retry
-        run(command='add-apt-repository -y "deb {} /"'.format(repository_url))
         ]
 
     pinned_host = urlparse(repository_url).hostname
@@ -457,6 +460,17 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # server. Thus, in all cases we pin precisely which url we want to
         # install flocker from.
         pinned_host = urlparse(package_source.build_server).hostname
+    else:
+        # Add ClusterHQ repo for installation of Flocker packages.
+        # XXX This needs retry
+        commands.append(
+            run(
+                command='add-apt-repository -y "deb {} /"'.format(
+                    repository_url
+                )
+            )
+        )
+
     commands.append(put(dedent('''\
         Package: *
         Pin: origin {}

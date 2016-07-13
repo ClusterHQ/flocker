@@ -501,15 +501,18 @@ common_cli:
     sudo cp repo/* ${DOC_ROOT}/${REPO_PATH}
     cd ${DOC_ROOT}/${REPO_PATH}
     # create a repo on either centos or ubuntu
-    if [ "${DISTRIBUTION_NAME}" == "ubuntu-14.04" ]; then
-      sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
-    fi
-    if [ "${DISTRIBUTION_NAME}" == "ubuntu-15.10" ]; then
-      sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
-    fi
-    if [ "${DISTRIBUTION_NAME}" == "centos-7" ]; then
-      sudo createrepo .
-    fi
+    case "${DISTRIBUTION_NAME}" in
+        ubuntu*)
+            sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
+            ;;
+        centos*)
+            sudo createrepo .
+            ;;
+        *)
+            echo "ERROR: Unsupported distribution '${DISTRIBUTION_NAME}'." >&2
+            exit 1
+            ;;
+    esac
     cd -
 
   clean_packages: &clean_packages |

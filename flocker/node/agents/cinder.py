@@ -21,6 +21,7 @@ from keystoneclient.openstack.common.apiclient.exceptions import (
 from keystoneclient.auth import get_plugin_class
 from keystoneclient.session import Session
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
+from cinderclient.api_versions import get_api_version
 from cinderclient.client import Client as CinderClient
 from cinderclient.exceptions import NotFound as CinderClientNotFound
 from novaclient.client import Client as NovaClient
@@ -894,8 +895,8 @@ class Cinder1to2Adapter(proxyForInterface(ICinderVolumeManager, "_client_v2")):
 
 
 CINDER_API_METADATA_IN_PRIORITY_ORDER = (
-    dict(version=u"2", adapter_v1=Cinder1to2Adapter),
-    dict(version=u"1", adapter_v1=lambda client: client),
+    dict(version=2, adapter_v1=Cinder1to2Adapter),
+    dict(version=1, adapter_v1=lambda client: client),
 )
 
 CINDER_V1_ADAPTERS = {
@@ -986,10 +987,10 @@ def cinder_from_configuration(region, cluster_id, **config):
     wrapped_cinder_volume_manager = _LoggingCinderVolumeManager(
         cinder_client.volumes
     )
-
+    cinder_client_version = get_api_version(cinder_client.version)
     # Add a Cinder v1 adapter if necessary
     wrapped_cinder_volume_manager = CINDER_V1_ADAPTERS[
-        cinder_client.version
+        cinder_client_version.ver_major
     ](wrapped_cinder_volume_manager)
 
     logging_nova_volume_manager = _LoggingNovaVolumeManager(

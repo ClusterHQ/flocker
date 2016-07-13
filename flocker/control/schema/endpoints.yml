@@ -30,6 +30,8 @@ definitions:
         '$ref': 'types.json#/definitions/restart_policy'
       command_line:
         '$ref': 'types.json#/definitions/command_line'
+      swappiness:
+        '$ref': 'types.json#/definitions/swappiness'
       volumes:
         title: Volumes to attach to the container
         description: |
