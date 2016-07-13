@@ -1023,8 +1023,12 @@ def cinder_from_configuration(region, cluster_id, **config):
 
         :returns: The ``ICinderVolumeManager`` wrapper.
         """
+        session = get_keystone_session(**config)
+        # Force authentication here for a clearer stack trace if the keystone
+        # endpoint is not accessible.
+        session.get_token()
         cinder_client = get_cinder_client(
-            session=get_keystone_session(**config),
+            session=session,
             region=region,
         )
 

@@ -5,7 +5,6 @@ Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
 cluster.
 """
 
-from subprocess import check_call, CalledProcessError
 from unittest import skipIf
 from urlparse import urlsplit
 from uuid import uuid4
@@ -17,8 +16,10 @@ import psutil
 from keystoneauth1.exceptions.http import BadRequest
 from keystoneauth1.exceptions.connection import ConnectFailure
 
+from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.python.monkey import MonkeyPatcher
 
 from zope.interface import Interface, implementer
 
@@ -35,7 +36,7 @@ from ..testtools import (
     mimic_for_test,
     require_backend,
 )
-from ....testtools import TestCase, flaky, run_process, if_root
+from ....testtools import AsyncTestCase, TestCase, flaky, run_process
 from ....testtools.cluster_utils import make_cluster_id, TestTypes
 
 from ..cinder import (
@@ -773,7 +774,7 @@ class LazyLoadingProxyTests(TestCase):
         )
 
 
-class CinderFromConfigurationTests(TestCase):
+class CinderFromConfigurationTests(AsyncTestCase):
     """
     Tests for ``cinder_from_configuation`` via tha ``flocker.node._backends``
     loader code.
@@ -801,66 +802,79 @@ class CinderFromConfigurationTests(TestCase):
             cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
         )
 
-    @if_root
     def test_no_retry_authentication(self):
         """
         The API object returned by ``cinder_from_configuration`` will retry
         authentication even when initial authentication attempts fail.
         """
-        mimic_port = mimic_for_test(test_case=self)
-        backend, api_args = backend_and_api_args_from_configuration({
-            "backend": "openstack",
-            "auth_plugin": "rackspace",
-            "region": "DFW",
-            "username": "mimic",
-            "api_key": "12345",
-            "auth_url": "http://127.0.0.1:{}/identity/v2.0".format(
-                mimic_port
-            ),
-        })
-        api = get_api(
-            backend=backend,
-            api_args=api_args,
-            reactor=object(),
-            cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+        import twisted.web.http
+        self.patch(
+            twisted.web.http.HTTPChannel,
+            'checkPersistence',
+            lambda self, request, version: False
         )
-        check_call([
-            "/usr/sbin/iptables", "--insert", "INPUT",
-            "--proto", "tcp",
-            "--dport", bytes(mimic_port),
-            "--jump", "REJECT"
-        ])
+        patch = MonkeyPatcher()
+        patch.addPatch(
+            twisted.web.http.HTTPChannel,
+            'connectionMade',
+            lambda self: self.transport.loseConnection()
+        )
+        self.addCleanup(patch.restore)
+        mimic_starting = mimic_for_test(test_case=self)
 
-        def delete_reject_rule():
-            check_call([
-                "/usr/sbin/iptables", "--delete", "INPUT",
-                "--proto", "tcp",
-                "--dport", bytes(mimic_port),
-                "--jump", "REJECT",
-            ])
+        def build_api(listening_port):
+            backend, api_args = backend_and_api_args_from_configuration({
+                "backend": "openstack",
+                "auth_plugin": "rackspace",
+                "region": "ORD",
+                "username": "mimic",
+                "api_key": "12345",
+                "auth_url": "http://127.0.0.1:{}/identity/v2.0".format(
+                    listening_port.getHost().port
+                ),
+            })
+            patch.patch()
+            api = get_api(
+                backend=backend,
+                api_args=api_args,
+                reactor=object(),
+                cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+            )
+            patch.restore()
+            return api
 
-        def maybe_cleanup():
-            """
-            If the test succeeded, the rule will have been removed.
-            """
+        mimic_started = mimic_starting.addCallback(build_api)
+
+        def list_volumes(api, force_connection_failure=False):
+            if force_connection_failure:
+                patch.patch()
             try:
-                delete_reject_rule()
-            except CalledProcessError:
-                pass
+                return api.list_volumes()
+            finally:
+                patch.restore()
 
-        self.addCleanup(maybe_cleanup)
+        def check_failing_connection(api):
+            d = deferToThread(
+                lambda api: list_volumes(api, force_connection_failure=True),
+                api,
+            )
+            d = self.assertFailure(d, ConnectFailure)
+            # return the api for further testing.
+            d = d.addCallback(
+                lambda failure_instance: api
+            )
+            return d
+        listing_volumes1 = mimic_started.addCallback(check_failing_connection)
 
-        # First API call fails to authenticate because we blocked the mimic
-        # port and hence, the keystone endpoint.
-        self.assertRaises(
-            ConnectFailure,
-            api.list_volumes
-        )
+        def check_successful_connection(api):
+            d = deferToThread(
+                lambda api: list_volumes(api, force_connection_failure=False),
+                api,
+            )
+            d = d.addCallback(
+                lambda result: self.assertEqual([], result)
+            )
+            return d
+        finishing = listing_volumes1.addCallback(check_successful_connection)
 
-        delete_reject_rule()
-
-        # Second API call succeeds because the port is now open.
-        self.assertEqual(
-            [],
-            api.list_volumes()
-        )
+        return finishing

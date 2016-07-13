@@ -3,15 +3,11 @@
 """
 Test helpers for ``flocker.node.agents.cinder``.
 """
-from itertools import repeat
-import os
-import re
-from subprocess import Popen
 
+from mimic.tap import makeService as mimic_make_service
 from zope.interface.verify import verifyObject
 
 from flocker.testtools import TestCase
-from ....common import poll_until
 from ..cinder import (
     ICinderVolumeManager,
     INovaVolumeManager,
@@ -77,33 +73,21 @@ def mimic_for_test(test_case):
     Parsing the logs for the chosen port number is ugly, but ``find_free_port``
     kept returning ports that were in use when mimic attempted to bind to them.
     """
-    log = test_case.make_temporary_path()
-    stdout = test_case.make_temporary_path()
-    stderr = test_case.make_temporary_path()
-    with stdout.open('w') as stdout, stderr.open('w') as stderr:
-        p = Popen(['twistd', '--nodaemon', '--logfile', log.path,
-                   'mimic', '--listen', '0', '--realtime'],
-                  stdin=open(os.devnull), stdout=stdout, stderr=stderr,
-                  close_fds=True)
+    mimic_config = {
+        "realtime": True,
+        "listen": "0",
+        "verbose": True,
+    }
+    mimic_service = mimic_make_service(mimic_config)
+    mimic_service.startService()
+    test_case.addCleanup(mimic_service.stopService)
 
-    def cleanup():
-        p.terminate()
-        p.wait()
-    test_case.addCleanup(cleanup)
+    [site_service] = mimic_service.services
+    waiting_for_port = site_service._waitingForPort
 
-    poll_until(
-        predicate=log.exists,
-        steps=repeat(1, 5)
-    )
+    def stop_the_port(listening_port):
+        test_case.addCleanup(lambda: listening_port.stopListening())
+        return listening_port
 
-    def port_from_log():
-        for line in log.open():
-            match = re.search(r"Site starting on (\d+)$", line)
-            if match:
-                port = match.group(1)
-                return int(port)
-
-    return poll_until(
-        predicate=port_from_log,
-        steps=repeat(1, 5)
-    )
+    listening = waiting_for_port.addCallback(stop_the_port)
+    return listening
