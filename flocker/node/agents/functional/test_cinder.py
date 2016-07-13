@@ -20,6 +20,8 @@ from keystoneauth1.exceptions.connection import ConnectFailure
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
+from zope.interface import Interface, implementer
+
 from flocker.ca import (
     RootCredential, AUTHORITY_CERTIFICATE_FILENAME, NodeCredential
 )
@@ -39,11 +41,13 @@ from ....testtools.cluster_utils import make_cluster_id, TestTypes
 from ..cinder import (
     get_keystone_session, wait_for_volume_state, UnexpectedStateException,
     UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
+    lazy_loading_proxy_for_interface,
 )
 from ...script import get_api
 from ...backends import backend_and_api_args_from_configuration
 
 from .logging import CINDER_VOLUME
+
 
 # Tests requiring virtio can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
@@ -681,11 +685,10 @@ class BlockDeviceAPIDestroyTests(TestCase):
         )
 
 
-from zope.interface import Interface, implementer
-from ..cinder import lazy_loading_proxy_for_interface
-
-
 class AnInterface(Interface):
+    """
+    An example interface for testing ``proxyForInterface`` style wrappers.
+    """
     def method_a():
         pass
 
@@ -695,6 +698,9 @@ class AnInterface(Interface):
 
 @implementer(AnInterface)
 class AnImplementation(object):
+    """
+    An example implementation for testing ``proxyForInterface`` style wrappers.
+    """
     def __init__(self):
         self.method_a_called = []
         self.method_b_called = []
