@@ -7,6 +7,7 @@ Test helpers for ``flocker.node.agents``.
 from ._cinder import (
     make_icindervolumemanager_tests,
     make_inovavolumemanager_tests,
+    mimic_for_test,
 )
 from ._blockdevice import (
     FakeCloudAPI,
@@ -45,6 +46,7 @@ __all__ = [
     'make_icloudapi_tests',
     'make_inovavolumemanager_tests',
     'make_iprofiledblockdeviceapi_tests',
+    'mimic_for_test',
     'mountroot_for_test',
     'require_backend',
     'umount',

@@ -1,3 +1,4 @@
+mimic
 # The test suite uses network namespaces
 # nomenclature can only be installed on Linux
 # The "linux2" marker value is specific to Python2
