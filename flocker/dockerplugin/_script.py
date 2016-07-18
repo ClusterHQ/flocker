@@ -83,7 +83,7 @@ class DockerPluginScript(object):
             # delay, with jitter
             steps=(
                 min(60, i * delay) + uniform(-0.2, 0.2)
-                for i, delay in enumerate(repeat(5))
+                for i, delay in enumerate(repeat(5), start=1)
             )
         )
 
