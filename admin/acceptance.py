@@ -77,6 +77,7 @@ def _validate_version_option(option_name, option_value):
                 option_value,
             )
         )
+    return option_value
 
 
 def extend_environ(**kwargs):
