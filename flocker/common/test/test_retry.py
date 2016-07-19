@@ -5,8 +5,11 @@ Tests for ``flocker.common._retry``.
 """
 
 from datetime import timedelta
-from itertools import repeat, count
+from itertools import count, islice, repeat, izip
 from functools import partial
+
+from hypothesis import given, assume
+from hypothesis import strategies as st
 
 from testtools.matchers import (
     MatchesPredicate, Is, Equals, AllMatch, IsInstance, GreaterThan, raises
@@ -44,6 +47,7 @@ from .. import (
     with_retry,
 )
 from .._retry import (
+    backoff,
     LOOP_UNTIL_ACTION,
     LOOP_UNTIL_ITERATION_MESSAGE,
     LoopExceeded,
@@ -947,3 +951,147 @@ class WithRetryTests(TestCase):
 
         self.expectThat(wrapped, raises(CustomException))
         self.expectThat(next(counter), Equals(11))
+
+
+def greater_than_zero():
+    """
+    A strategy that yields floats greater than zero.
+    """
+    return st.floats(
+        min_value=0.0,
+        allow_infinity=False,
+    ).filter(lambda x: x > 0.0)
+
+
+class BackoffTests(TestCase):
+    """
+    Tests for ``backoff``.
+    """
+    def test_defaults(self):
+        """
+        ``backoff`` has sane default arguments:
+        """
+        expected_values = map(
+            float,
+            [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 60, 60, 60],
+        )
+        actual_values = list(backoff())
+        # Default jitter: 0.2
+        self.assertNotEqual(
+            expected_values,
+            actual_values
+        )
+        rounded_values = map(round, actual_values)
+        # Default step: 5.0
+        # Default maximum_step: 60
+        self.assertEqual(
+            expected_values,
+            rounded_values,
+        )
+        # Default timeout: 600s (10min)
+        self.assertEqual(
+            570.0,
+            sum(rounded_values)
+        )
+
+    @given(st.floats(max_value=0.0))
+    def test_min_step_size(self, step):
+        """
+        ``step`` must be greater than zero.
+        """
+        self.assertRaises(
+            ValueError,
+            backoff, step=step
+        )
+
+    @given(
+        greater_than_zero()
+    )
+    def test_step(self, step):
+        """
+        Successive values increase by ``step``.
+        """
+        b = backoff(step=step, maximum_step=None, timeout=None, jitter=None)
+        self.assertEqual(
+            list(
+                step * i
+                for i in range(1, 11)
+            ),
+            list(islice(b, 0, 10))
+        )
+
+    @given(st.floats(max_value=0.0))
+    def test_min_maximum_step_size(self, maximum_step):
+        """
+        ``maximum_step`` must be greater than zero.
+        """
+        self.assertRaises(
+            ValueError,
+            backoff, step=1.0, maximum_step=maximum_step
+        )
+
+    @given(
+        greater_than_zero(),
+        greater_than_zero(),
+    )
+    def test_maximum_step(self, step, maximum_step):
+        """
+        Successive values increase by ``step`` up to ``maximum_step``.
+        """
+        b = backoff(step=step, maximum_step=maximum_step,
+                    timeout=None, jitter=None)
+        self.assertEqual(
+            list(
+                min(maximum_step, step * i)
+                for i in range(1, 101)
+            ),
+            list(islice(b, 0, 100))
+        )
+
+    @given(
+        greater_than_zero().filter(lambda x: x > 1.0),
+        st.floats(min_value=0.0, max_value=5*60.0),
+    )
+    def test_timeout(self, step, timeout):
+        """
+        The sum of the generated values is never greater than ``timeout``.
+        """
+        b = backoff(step=step, maximum_step=None,
+                    timeout=timeout, jitter=None)
+        self.assertLessEqual(sum(b), timeout)
+
+    @given(
+        greater_than_zero(),
+        st.floats(min_value=0.0, allow_infinity=False),
+    )
+    def test_jitter(self, step, jitter):
+        """
+        When ``jitter`` is specified, the values will all be within +/-
+        ``jitter``.
+        """
+        jitter_values = backoff(
+            step=step,
+            jitter=jitter,
+            maximum_step=None,
+            timeout=None,
+        )
+
+        non_jitter_values = backoff(
+            step=step,
+            jitter=None,
+            maximum_step=None,
+            timeout=None,
+        )
+
+        some_values = islice(
+            izip(jitter_values, non_jitter_values),
+            0, 10
+        )
+        for x, y in some_values:
+            assume(float('inf') not in (x, y))
+            difference = abs(x - y)
+            self.assertLessEqual(
+                difference,
+                jitter * 2,
+                "x: {!r}, y: {!r}".format(x, y)
+            )
