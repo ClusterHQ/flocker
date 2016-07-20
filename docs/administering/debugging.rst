@@ -35,9 +35,9 @@ For example, to find all logged errors for ``flocker-dataset-agent``, run:
 
 .. _journald-logs:
 
-Ubuntu 16.04, Centos7 and RHEL7
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Flocker processes on Ubuntu 16.04, Centos7 and RHEL7 are managed by Systemd.
+Ubuntu 16.04, CentOS 7 and RHEL7
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Flocker processes on Ubuntu 16.04, CentOS 7 and RHEL 7 are managed by Systemd.
 The logs from the Flocker processes running on the nodes are written to `systemd's journal`_.
 They have unit names that begin with a ``flocker-`` prefix.
 For example, ``flocker-dataset-agent``.
