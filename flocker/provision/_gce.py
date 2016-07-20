@@ -149,7 +149,11 @@ GCE_DISTRIBUTION_TO_IMAGE_MAP = {
     "ubuntu-14.04": _DistributionImageParams(
         project=u"ubuntu-os-cloud",
         image_name_prefix=u"ubuntu-1404",
-    )
+    ),
+    "ubuntu-16.04": _DistributionImageParams(
+        project=u"ubuntu-os-cloud",
+        image_name_prefix=u"ubuntu-1604",
+    ),
 }
 
 

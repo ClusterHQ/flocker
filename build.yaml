@@ -1111,7 +1111,7 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_acceptance_loopback_on_AWS_Ubuntu_Xenial_for:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',

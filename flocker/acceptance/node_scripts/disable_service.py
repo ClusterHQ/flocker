@@ -2,14 +2,19 @@
 Stop a service and disable across reboots.
 """
 
-import os
 import sys
-from subprocess import check_call, check_output
+from subprocess import check_call, check_output, CalledProcessError
 
 service = sys.argv[1]
 
-if os.path.exists("/etc/redhat-release"):
-    # Redhat-based system:
+try:
+    check_output(["systemctl", "--version"])
+except (CalledProcessError, OSError):
+    systemd_system = False
+else:
+    systemd_system = True
+
+if systemd_system:
     check_call(["systemctl", "disable", service])
     check_call(["systemctl", "stop", service])
 else:

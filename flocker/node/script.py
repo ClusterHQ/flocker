@@ -607,8 +607,7 @@ class DiagnosticsOptions(Options):
     """
     longdesc = """\
     Exports Flocker log files and diagnostic data. Run this script as root, on
-    an Ubuntu 14.04 or Centos 7 server where the clusterhq-flocker-node package
-    has been installed.
+    a server where the clusterhq-flocker-node package has been installed.
     """
 
     synopsis = "Usage: flocker-diagnostics [OPTIONS]"
