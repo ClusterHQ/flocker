@@ -135,7 +135,7 @@ Installing on CentOS 7
 
 .. end-body-installing-node-centos
 
-.. begin-body-installing-node-ubuntu
+.. begin-body-installing-node-ubuntu-1604
 
 Installing on Ubuntu 16.04
 ==========================
@@ -172,6 +172,10 @@ Installing on Ubuntu 16.04
 #. **Repeat the previous steps for all other nodes:**
 
    Log into your other nodes as root, and then complete step 2 and 3 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` and the optional ``clusterhq-flocker-docker-plugin`` package.
+
+.. end-body-installing-node-ubuntu-1604
+
+.. begin-body-installing-node-ubuntu-1404
 
 Installing on Ubuntu 14.04
 ==========================
@@ -215,4 +219,4 @@ Installing on Ubuntu 14.04
 
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
 
-.. end-body-installing-node-ubuntu
+.. end-body-installing-node-ubuntu-1404
