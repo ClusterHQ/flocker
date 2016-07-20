@@ -84,7 +84,7 @@ In the following example we find what actions the dataset agent decided it neede
 
 .. prompt:: bash [root@node]# auto
 
-   [root@centos]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TYPE=flocker:agent:converge:actions | tail -1 | eliot-prettyprint
+   [root@node]# journalctl --all --output cat -u flocker-dataset-agent ELIOT_TYPE=flocker:agent:converge:actions | tail -1 | eliot-prettyprint
    32e5b4e9-0a8c-4b5c-9895-d2a88315a8d7 -> /2/4
    2015-09-02 13:42:28.943926Z
      message_type: flocker:agent:converge:actions
