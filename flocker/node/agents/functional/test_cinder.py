@@ -3,14 +3,6 @@
 """
 Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
 cluster.
-
-Ideally, there'd be some in-memory tests too. Some ideas:
- * Maybe start a `mimic` server and use it to at test just the authentication
-   step.
- * Mimic doesn't currently fake the cinder APIs but perhaps we could contribute
-   that feature.
-
-See https://github.com/rackerlabs/mimic/issues/218
 """
 
 from unittest import skipIf
@@ -22,9 +14,14 @@ import netifaces
 import psutil
 
 from keystoneauth1.exceptions.http import BadRequest
+from keystoneauth1.exceptions.connection import ConnectFailure
 
+from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.python.monkey import MonkeyPatcher
+
+from zope.interface import Interface, implementer
 
 from flocker.ca import (
     RootCredential, AUTHORITY_CERTIFICATE_FILENAME, NodeCredential
@@ -36,16 +33,22 @@ from ..testtools import (
     get_minimum_allocatable_size,
     make_iblockdeviceapi_tests,
     make_icloudapi_tests,
+    mimic_for_test,
     require_backend,
 )
-from ....testtools import TestCase, flaky, run_process
+from ....testtools import AsyncTestCase, TestCase, flaky, run_process
+from ....testtools.cluster_utils import make_cluster_id, TestTypes
 
 from ..cinder import (
     get_keystone_session, wait_for_volume_state, UnexpectedStateException,
     UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
+    lazy_loading_proxy_for_interface,
 )
+from ...script import get_api
+from ...backends import backend_and_api_args_from_configuration
 
 from .logging import CINDER_VOLUME
+
 
 # Tests requiring virtio can currently only be run on a devstack installation
 # that is not within our CI system. This will be addressed with FLOC-2972.
@@ -681,3 +684,197 @@ class BlockDeviceAPIDestroyTests(TestCase):
             expected_timeout,
             time_module._current_time
         )
+
+
+class AnInterface(Interface):
+    """
+    An example interface for testing ``proxyForInterface`` style wrappers.
+    """
+    def method_a():
+        pass
+
+    def method_b():
+        pass
+
+
+@implementer(AnInterface)
+class AnImplementation(object):
+    """
+    An example implementation for testing ``proxyForInterface`` style wrappers.
+    """
+    def __init__(self):
+        self.method_a_called = []
+        self.method_b_called = []
+
+    def method_a(self):
+        self.method_a_called.append(True)
+
+    def method_b(self):
+        self.method_b_called.append(True)
+
+
+class LazyLoadingProxyTests(TestCase):
+    """
+    Tests for ``lazy_loading_proxy_for_interface``.
+    """
+    def test_loader_exceptions_raised(self):
+        """
+        The ``loader`` supplied to ``lazy_loading_proxy_for_interface`` is
+        called as a result of resolving the method that is being called.
+        Exceptions raised from the ``loader`` must be caught before the method
+        is called.
+        """
+        class SomeException(Exception):
+            pass
+
+        def loader():
+            raise SomeException()
+
+        proxy = lazy_loading_proxy_for_interface(
+            interface=AnInterface,
+            loader=loader,
+        )
+        self.assertRaises(
+            SomeException,
+            # We're not calling the method here, just looking it up.
+            getattr, proxy, 'method_a',
+        )
+
+    def test_loader_called_once(self):
+        """
+        The ``loader`` supplied to ``lazy_loading_proxy_for_interface`` is only
+        called once and all method calls are dispatched to the object it
+        returns.
+        """
+        loader_called = []
+        wrapped = AnImplementation()
+
+        def loader():
+            loader_called.append(True)
+            return wrapped
+
+        proxy = lazy_loading_proxy_for_interface(
+            interface=AnInterface,
+            loader=loader,
+        )
+
+        self.assertEqual(
+            ([], [], []),
+            (loader_called,
+             wrapped.method_a_called, wrapped.method_b_called)
+        )
+
+        proxy.method_a()
+        proxy.method_b()
+
+        self.assertEqual(
+            ([True], [True], [True]),
+            (loader_called,
+             wrapped.method_a_called, wrapped.method_b_called)
+        )
+
+
+class CinderFromConfigurationTests(AsyncTestCase):
+    """
+    Tests for ``cinder_from_configuation`` via tha ``flocker.node._backends``
+    loader code.
+    """
+    def test_no_immediate_authentication(self):
+        """
+        ``cinder_from_configuration`` returns an API object even if it can't
+        connect to the keystone server endpoint.
+        Keystone authentication is postponed until the API is first used.
+        """
+        backend, api_args = backend_and_api_args_from_configuration({
+            "backend": "openstack",
+            "auth_plugin": "password",
+            "region": "RegionOne",
+            "username": "non-existent-user",
+            "password": "non-working-password",
+            "auth_url": "http://127.0.0.2:5000/v2.0",
+        })
+        # This will fail if loading the API depends on being able to connect to
+        # the auth_url (above)
+        get_api(
+            backend=backend,
+            api_args=api_args,
+            reactor=object(),
+            cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+        )
+
+    def test_no_retry_authentication(self):
+        """
+        The API object returned by ``cinder_from_configuration`` will retry
+        authentication even when initial authentication attempts fail.
+        """
+        import twisted.web.http
+        self.patch(
+            twisted.web.http.HTTPChannel,
+            'checkPersistence',
+            lambda self, request, version: False
+        )
+        patch = MonkeyPatcher()
+        patch.addPatch(
+            twisted.web.http.HTTPChannel,
+            'connectionMade',
+            lambda self: self.transport.loseConnection()
+        )
+        self.addCleanup(patch.restore)
+        mimic_starting = mimic_for_test(test_case=self)
+
+        def build_api(listening_port):
+            backend, api_args = backend_and_api_args_from_configuration({
+                "backend": "openstack",
+                "auth_plugin": "rackspace",
+                "region": "ORD",
+                "username": "mimic",
+                "api_key": "12345",
+                "auth_url": "http://127.0.0.1:{}/identity/v2.0".format(
+                    listening_port.getHost().port
+                ),
+            })
+            patch.patch()
+            api = get_api(
+                backend=backend,
+                api_args=api_args,
+                reactor=object(),
+                cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+            )
+            patch.restore()
+            return api
+
+        mimic_started = mimic_starting.addCallback(build_api)
+
+        def list_volumes(api, force_connection_failure=False):
+            if force_connection_failure:
+                patch.patch()
+            try:
+                return api.list_volumes()
+            finally:
+                patch.restore()
+
+        def check_failing_connection(api):
+            d = deferToThread(
+                lambda api: list_volumes(api, force_connection_failure=True),
+                api,
+            )
+            d = self.assertFailure(d, ConnectFailure)
+            # return the api for further testing.
+            d = d.addCallback(
+                lambda failure_instance: api
+            )
+            return d
+        listing_volumes1 = mimic_started.addCallback(check_failing_connection)
+
+        def check_successful_connection(api):
+            d = deferToThread(
+                lambda api: list_volumes(api, force_connection_failure=False),
+                api,
+            )
+            d = d.addCallback(
+                lambda result: self.assertEqual([], result)
+            )
+            return d
+        finishing = listing_volumes1.addCallback(check_successful_connection)
+
+        return finishing

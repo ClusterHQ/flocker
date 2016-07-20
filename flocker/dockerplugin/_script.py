@@ -3,7 +3,6 @@
 """
 Command to start up the Docker plugin.
 """
-
 from os import umask
 from stat import S_IRUSR, S_IWUSR, S_IXUSR
 
@@ -13,6 +12,8 @@ from twisted.application.internet import StreamServerEndpointService
 from twisted.web.server import Site
 from twisted.python.filepath import FilePath
 
+# XXX: Make flocker.common._retry public
+from ..common._retry import retry_failure, backoff
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from ._api import VolumePlugin
@@ -73,7 +74,12 @@ class DockerPluginScript(object):
         self._create_listening_directory(PLUGIN_PATH.parent())
 
         # Get the node UUID, and then start up:
-        getting_id = flocker_client.this_node_uuid()
+        # Retry on  *all* errors.
+        getting_id = retry_failure(
+            reactor=reactor,
+            function=flocker_client.this_node_uuid,
+            steps=backoff()
+        )
 
         def run_service(node_id):
             endpoint = serverFromString(
