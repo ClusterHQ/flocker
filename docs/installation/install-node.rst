@@ -18,8 +18,8 @@ Prerequisites
 Before you begin to install the Flocker node services, you will need the following:
 
 * A minimum of 2 nodes:
-  
-  * We support installing the Flocker node services on either CentOS 7 or Ubuntu 14.04.
+
+  * We support installing the Flocker node services on RHEL 7, CentOS 7, Ubuntu 14.04 and Ubuntu 16.04.
   * If you do not have any nodes, our guides listed below can be used to help you set up nodes, using Amazon Web Services, Rackspace, or Google Compute Engine.
   * To avoid potential disk space problems (for example, when storing popular Docker images), we recommend a minimum of 16 GB storage on each node.
 
@@ -61,7 +61,7 @@ Installing on RHEL 7
 
    To install ``clusterhq-flocker-node`` on RHEL 7 you must install the RPM package provided by the ClusterHQ repository.
    The commands below will install the two repositories and the ``clusterhq-flocker-node`` package.
-   
+
    Run the following commands as root on the target node:
 
    .. prompt:: bash [root@rhel]#
@@ -78,7 +78,7 @@ Installing on RHEL 7
    Run the following command as root on the target node:
 
    .. prompt:: bash [root@rhel]#
-   
+
       yum install -y clusterhq-flocker-docker-plugin
 
    .. XXX FLOC-3454 to create a task directive for installing the plugin
@@ -109,7 +109,7 @@ Installing on CentOS 7
 
    To install ``clusterhq-flocker-node`` on CentOS 7 you must install the RPM package provided by the ClusterHQ repository.
    The commands below will install the two repositories and the ``clusterhq-flocker-node`` package.
-   
+
    Run the following commands as root on the target node:
 
    .. task:: install_flocker centos-7
@@ -121,7 +121,7 @@ Installing on CentOS 7
    Run the following command as root on the target node:
 
    .. prompt:: bash [root@centos]#
-   
+
       yum install -y clusterhq-flocker-docker-plugin
 
    .. XXX FLOC-3454 to create a task directive for installing the plugin
@@ -135,7 +135,47 @@ Installing on CentOS 7
 
 .. end-body-installing-node-centos
 
-.. begin-body-installing-node-ubuntu
+.. begin-body-installing-node-ubuntu-1604
+
+Installing on Ubuntu 16.04
+==========================
+
+.. note:: You should ensure your nodes are Flocker-ready, either by checking the prerequisites above, or by following our guides on using Amazon Web Services, Rackspace, or Google Compute Engine.
+
+#. **Log into the first node as root:**
+
+   .. prompt:: bash alice@mercury:~$
+
+      ssh root@<your-first-node>
+
+#. **Install the** ``clusterhq-flocker-node`` **package:**
+
+   To install ``clusterhq-flocker-node`` on Ubuntu 16.04 you must install the package provided by the ClusterHQ repository.
+   The commands below will install the two repositories and the ``clusterhq-flocker-node`` package.
+
+   Run the following commands as root on the target node:
+
+   .. task:: install_flocker ubuntu-16.04
+      :prompt: [root@ubuntu]#
+
+#. **Install the** ``clusterhq-flocker-docker-plugin`` **package:**
+
+   At this point you can choose to install the Flocker plugin for Docker.
+   Run the following command as root on the target node:
+
+   .. prompt:: bash [root@ubuntu]#
+
+      apt-get install -y clusterhq-flocker-docker-plugin
+
+   .. XXX FLOC-3454 to create a task directive for installing the plugin
+
+#. **Repeat the previous steps for all other nodes:**
+
+   Log into your other nodes as root, and then complete step 2 and 3 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` and the optional ``clusterhq-flocker-docker-plugin`` package.
+
+.. end-body-installing-node-ubuntu-1604
+
+.. begin-body-installing-node-ubuntu-1404
 
 Installing on Ubuntu 14.04
 ==========================
@@ -152,9 +192,9 @@ Installing on Ubuntu 14.04
 
    To install ``clusterhq-flocker-node`` on Ubuntu 14.04 you must install the package provided by the ClusterHQ repository.
    The commands below will install the two repositories and the ``clusterhq-flocker-node`` package.
-   
+
    Run the following commands as root on the target node:
-   
+
    .. task:: install_flocker ubuntu-14.04
       :prompt: [root@ubuntu]#
 
@@ -164,7 +204,7 @@ Installing on Ubuntu 14.04
    Run the following command as root on the target node:
 
    .. prompt:: bash [root@ubuntu]#
-   
+
       apt-get install -y clusterhq-flocker-docker-plugin
 
    .. XXX FLOC-3454 to create a task directive for installing the plugin
@@ -179,4 +219,4 @@ Installing on Ubuntu 14.04
 
 .. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
 
-.. end-body-installing-node-ubuntu
+.. end-body-installing-node-ubuntu-1404

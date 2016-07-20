@@ -110,6 +110,7 @@ snapshotting
 stateful
 sysadmin
 syslog
+systemd
 sudo
 swappiness
 Swappiness

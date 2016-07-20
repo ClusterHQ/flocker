@@ -17,7 +17,7 @@ You'll need to setup at least two nodes.
    * Click ``Create Instance``.
    * Choose a name and a zone for your instance. Zone must be the same for all instances.
    * Choose a machine type.
-   * For the Boot Disk, choose a supported Linux distribution (either CentOS 7 or Ubuntu 14.04) as your image.
+   * For the Boot Disk, choose a supported Linux distribution (either RHEL 7, CentOS 7, Ubuntu 16.04 or Ubuntu 14.04) as your image.
    * Under ``Identity and API Access`` select ``Set access for each API`` and grant Read Write access to ``Compute``.
    * Click ``Create`` to create the new instance.
 
