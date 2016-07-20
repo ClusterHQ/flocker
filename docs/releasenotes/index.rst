@@ -15,7 +15,7 @@ Next Release
 v1.14.0
 -------
 * Flocker can now be installed on Ubuntu 16.04.
-* **Deprectated**: The installation of Flocker client tools on Ubuntu 15.10 is deprectated.
+* **Deprecated**: The installation of Flocker client tools on Ubuntu 15.10 is deprecated.
   The Ubuntu 15.10 client installation instructions have been removed.
   The Ubuntu 15.10 packages will be removed in the next release.
 
