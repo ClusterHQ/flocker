@@ -23,15 +23,25 @@ chmod --recursive a-rwx,u+rwX "${TMP_DIR}"
 mv "${TMP_DIR}" "${FLOCKER_CONFIG_DIRECTORY}"
 
 if test "${node_number}" -eq "0"; then
-    service flocker-control restart
+    # Enable flocker-control on node0 and disable the flocker agent services.
+    systemctl enable flocker-control
+    systemctl restart flocker-control
 
     for service_name in flocker-{container,dataset}-agent flocker-docker-plugin; do
-        service "${service_name}" stop || true
+        systemctl stop "${service_name}"
+        systemctl disable "${service_name}"
     done
 else
-    service flocker-control stop || true
+    # All other nodes will run flocker agent services.
+    # We're using docker swarm to schedule containers so the container agent
+    # is disabled.
+    for service_name in flocker-container-agent flocker-control; do
+        systemctl stop "${service_name}"
+        systemctl disable "${service_name}"
+    done
 
-    for service_name in flocker-{container,dataset}-agent flocker-docker-plugin; do
-        service "${service_name}" restart
+    for service_name in flocker-dataset-agent flocker-docker-plugin; do
+        systemctl enable "${service_name}"
+        systemctl restart "${service_name}"
     done
 fi
