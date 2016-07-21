@@ -35,13 +35,12 @@ class RegionConstant(ValueConstant):
 
 
 # The AWS regions supported by Packer.
-# XXX ap-northeast-2 is not supported by the current packer release:
-# https://github.com/mitchellh/packer/issues/3058
 class AWS_REGIONS(Values):
     """
-    Constants representing supported target packaging formats.
+    AWS regions in which images will be published.
     """
     AP_NORTHEAST_1 = RegionConstant(u"ap-northeast-1")
+    AP_NORTHEAST_2 = RegionConstant(u"ap-northeast-2")
     AP_SOUTHEAST_1 = RegionConstant(u"ap-southeast-1")
     AP_SOUTHEAST_2 = RegionConstant(u"ap-southeast-2")
     EU_CENTRAL_1 = RegionConstant(u"eu-central-1")
@@ -53,7 +52,7 @@ class AWS_REGIONS(Values):
 
 DEFAULT_IMAGE_BUCKET = u'clusterhq-installer-images'
 DEFAULT_BUILD_REGION = AWS_REGIONS.US_WEST_1
-DEFAULT_DISTRIBUTION = u"ubuntu-14.04"
+DEFAULT_DISTRIBUTION = u"ubuntu-16.04"
 DEFAULT_TEMPLATE = u"docker"
 
 
@@ -144,7 +143,7 @@ class PackerConfigure(PClass):
     :ivar template: The prototype configuration to use as a base. One of
         `docker` or `flocker`.
     :ivar distribution: The operating system distribution to install.
-        ubuntu-14.04 is the only one implemented so far.
+        ubuntu-16.04 is the only one implemented so far.
     :ivar configuration_directory: The directory containing prototype
         configuration templates.
     :ivar source_ami_map: The AMI map containing base images.

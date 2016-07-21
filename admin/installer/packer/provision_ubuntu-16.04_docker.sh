@@ -42,11 +42,9 @@ TvBR8Q==
 DOCKER_PUBLIC_KEY
 
 cat <<EOF > /etc/apt/sources.list.d/docker.list
-deb https://apt.dockerproject.org/repo ubuntu-trusty main
+deb https://apt.dockerproject.org/repo ubuntu-xenial main
 EOF
-# apt-get update fails in an Ubuntu 14.04 docker container unless you install
-# this first.
-apt-get install -qq -y apt-transport-https
+apt-get install -qq -y apt-transport-https ca-certificates
 apt-get update -qq -y
 apt-get purge -qq -y lxc-docker* || true
 apt-get install -qq -y "linux-image-extra-$(uname -r)" "docker-engine=${DOCKER_VERSION}*"
