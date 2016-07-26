@@ -15,18 +15,13 @@ Flocker Installation Options
 .. raw:: html
 
     <div class="pods-eq">
-	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
-		   <span>Install Flocker manually
+            <div class="pod-boxout pod-boxout--2up pod-boxout--short">
+                   <span>Install Flocker manually
            <em><a href="../supported/index.html">Works with all Supported Configurations</a></em></span>
            </span>
-		     <a href="manual-install.html" class="button">Install Manually</a>
-	    </div>
-	    <div class="pod-boxout pod-boxout--2up pod-boxout--short">
-		   <span>Use the Labs Installer
-           <em>Supports Ubuntu and CoreOS on AWS only</em></span>
-		     <a href="installer.html" class="button">Labs Installer</a>
-	    </div>
-	</div>
+                     <a href="manual-install.html" class="button">Install Manually</a>
+            </div>
+        </div>
 
 .. the following causes the toctree to be hidden on page but not in the navigation, meaning that when on the linked page, the navigation shows you where you are, which is crucial for UX.
 
@@ -39,4 +34,3 @@ Flocker Installation Options
 .. toctree::
 
    manual-install
-   installer
