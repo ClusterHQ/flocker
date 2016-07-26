@@ -70,12 +70,12 @@ class DockerPluginTests(AsyncTestCase):
         """
         distro = []
         get_distro = run_ssh(
-            reactor, b"root", address, ["python", "-m", "platform"],
+            reactor, b"root", address, ["python2.7", "-m", "platform"],
             handle_stdout=distro.append)
         get_distro.addCallback(lambda _: distro[0].lower())
 
         def action_docker(distribution):
-            if 'ubuntu' in distribution:
+            if 'ubuntu-14.04' in distribution:
                 command = ["service", "docker", action]
             else:
                 command = ["systemctl", action, "docker"]
@@ -124,7 +124,7 @@ class DockerPluginTests(AsyncTestCase):
 
         container = client.create_container(
             "python:2.7-slim",
-            ["python", "-c", script.getContent()] + list(script_arguments),
+            ["python2.7", "-c", script.getContent()] + list(script_arguments),
             volume_driver="flocker", **docker_arguments)
         cid = container["Id"]
         client.start(container=cid)

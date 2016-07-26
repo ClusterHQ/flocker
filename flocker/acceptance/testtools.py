@@ -274,6 +274,34 @@ require_moving_backend = skip_backend(
     reason="doesn't support moving")
 
 
+def skip_distribution(unsupported, reason):
+    """
+    Create decorator that skips a test if the distribution doesn't support the
+    operations required by the test.
+
+    :param supported: List of supported volume backends for this test.
+    :param reason: The reason the backend isn't supported.
+    """
+    def decorator(test_method):
+        """
+        :param test_method: The test method that should be skipped.
+        """
+        @wraps(test_method)
+        def wrapper(test_case, *args, **kwargs):
+            distribution = environ.get("FLOCKER_ACCEPTANCE_DISTRIBUTION")
+            if distribution in unsupported:
+                raise SkipTest(
+                    "Distribution not supported: "
+                    "'{distribution}' ({reason}).".format(
+                        distribution=distribution,
+                        reason=reason,
+                    )
+                )
+            return test_method(test_case, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def get_default_volume_size():
     """
     :returns int: the default volume size (in bytes) supported by the
@@ -380,7 +408,7 @@ class Node(PClass):
         :param argv: Additional arguments for the script.
         """
         script = NODE_SCRIPTS.child(python_script + ".py").getContent()
-        return self.run_as_root([b"python", b"-c", script] +
+        return self.run_as_root([b"python2.7", b"-c", script] +
                                 list(argv))
 
 
@@ -1269,7 +1297,7 @@ def create_python_container(test_case, cluster, parameters, script,
     """
     parameters = parameters.copy()
     parameters[u"image"] = u"python:2.7-slim"
-    parameters[u"command_line"] = [u"python", u"-c",
+    parameters[u"command_line"] = [u"python2.7", u"-c",
                                    script.getContent().decode("ascii")] + list(
                                        additional_arguments)
     if u"restart_policy" not in parameters:

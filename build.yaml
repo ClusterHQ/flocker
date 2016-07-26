@@ -1056,6 +1056,31 @@ job_type:
       timeout: 45
       directories_to_delete: *run_acceptance_directories_to_delete
 
+    run_acceptance_loopback_on_AWS_Ubuntu_Xenial_for:
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_modules: *run_full_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-16.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=${MODULE}',
+                   'export ACCEPTANCE_TEST_PROVIDER=aws',
+                   *run_acceptance_loopback_tests,
+                   *convert_results_to_junit,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
+      timeout: 45
+      directories_to_delete: *run_acceptance_directories_to_delete
+
   run_client:
     run_client_installation_on_Ubuntu_Trusty:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
@@ -1284,6 +1309,34 @@ job_type:
       directories_to_delete: []
       notify_slack: '#nightly-builds'
 
+    run_acceptance_on_AWS_Ubuntu_Xenial_with_EBS:
+      at: '0 6 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-16.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
+                   'export ACCEPTANCE_TEST_PROVIDER=aws',
+                   *run_acceptance_tests,
+                   *convert_results_to_junit,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
+      # Similar to the reasoning for run_acceptance_on_AWS_CentOS_7_with_EBS
+      # but slightly shorter since Ubuntu runs the tests faster.
+      timeout: 90
+      directories_to_delete: []
+      notify_slack: '#nightly-builds'
+
     run_acceptance_on_GCE_CentOS_7_with_GCE:
       at: '0 5 * * *'
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
@@ -1321,6 +1374,33 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
+                   'export ACCEPTANCE_TEST_PROVIDER=gce',
+                   *run_acceptance_tests,
+                   *convert_results_to_junit,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
+      # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
+      timeout: 90
+      directories_to_delete: []
+      notify_slack: '#nightly-builds'
+
+    run_acceptance_on_GCE_Ubuntu_Xenial_with_GCE:
+      at: '0 6 * * *'
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-16.04',
                    *build_sdist, *build_package,
                    *build_repo_metadata,
                    *setup_authentication,
@@ -1379,6 +1459,35 @@ job_type:
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    *setup_aws_env_vars, *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=flocker.acceptance',
+                   'export ACCEPTANCE_TEST_PROVIDER=rackspace',
+                   *run_acceptance_tests,
+                   *convert_results_to_junit,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts_ubuntu_special_case
+      publish_test_results: true
+      # Reasoning as for run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS
+      timeout: 90
+      directories_to_delete: []
+      notify_slack: '#nightly-builds'
+
+    run_acceptance_on_Rackspace_Ubuntu_Xenial_with_Cinder:
+      at: '0 6 * * *'
+      # flocker.provision is responsible for creating the test nodes on
+      # Rackspace, so we can actually run run-acceptance-tests from AWS
+      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *setup_aws_env_vars, *check_version,
+                   'export DISTRIBUTION_NAME=ubuntu-16.04',
                    *build_sdist, *build_package,
                    *build_repo_metadata,
                    *setup_authentication,
