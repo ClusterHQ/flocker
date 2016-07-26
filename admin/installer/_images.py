@@ -142,8 +142,6 @@ class PackerConfigure(PClass):
     :ivar publish_regions: The AWS regions to publish the build images to.
     :ivar template: The prototype configuration to use as a base. One of
         `docker` or `flocker`.
-    :ivar distribution: The operating system distribution to install.
-        ubuntu-16.04 is the only one implemented so far.
     :ivar configuration_directory: The directory containing prototype
         configuration templates.
     :ivar source_ami_map: The AMI map containing base images.
@@ -151,7 +149,6 @@ class PackerConfigure(PClass):
     build_region = field(type=RegionConstant, mandatory=True)
     publish_regions = pvector_field(item_type=RegionConstant)
     template = field(type=unicode, mandatory=True)
-    distribution = field(type=unicode, mandatory=True)
     configuration_directory = field(type=FilePath, initial=PACKER_TEMPLATE_DIR)
     source_ami_map = pmap_field(key_type=RegionConstant, value_type=unicode)
 
@@ -209,7 +206,7 @@ class RealPerformers(object):
 
         template_name = (
             u"template_{distribution}_{template}.json".format(
-                distribution=intent.distribution,
+                distribution=DEFAULT_DISTRIBUTION,
                 template=intent.template,
             )
         )
@@ -313,8 +310,6 @@ class PublishInstallerImagesOptions(Options):
     optParameters = [
         ["build_region", None, DEFAULT_BUILD_REGION.value,
          "A region where the image will be built.\n", unicode],
-        ["distribution", None, DEFAULT_DISTRIBUTION,
-         "The distribution of operating system to install.\n", unicode],
         ["source-ami-map", None, None,
          "A JSON encoded map of AWS region to AMI ID of base images.\n",
          _validate_ami_region_map],
@@ -344,7 +339,6 @@ def publish_installer_images_effects(options):
             build_region=options["build_region"],
             publish_regions=options["regions"],
             template=options["template"],
-            distribution=options["distribution"],
             source_ami_map=options["source-ami-map"],
         )
     )
