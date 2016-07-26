@@ -9,6 +9,16 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
+Next Release
+============
+
+v1.14.0
+-------
+* Flocker can now be installed on Ubuntu 16.04.
+* **Deprecated**: The installation of Flocker client tools on Ubuntu 15.10 is deprecated.
+  The Ubuntu 15.10 client installation instructions have been removed.
+  The Ubuntu 15.10 packages will be removed in the next release.
+
 
 This Release
 ============

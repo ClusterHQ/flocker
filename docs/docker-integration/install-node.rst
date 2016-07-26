@@ -34,11 +34,17 @@ Installing the Flocker Node Services
    :start-after: .. begin-body-installing-node-centos
    :end-before: .. end-body-installing-node-centos
 
+.. _ubuntu-16.04-install-docker:
+
+.. include:: ../installation/install-node.rst
+   :start-after: .. begin-body-installing-node-ubuntu-1604
+   :end-before: .. end-body-installing-node-ubuntu-1604
+
 .. _ubuntu-14.04-install-docker:
 
 .. include:: ../installation/install-node.rst
-   :start-after: .. begin-body-installing-node-ubuntu
-   :end-before: .. end-body-installing-node-ubuntu
+   :start-after: .. begin-body-installing-node-ubuntu-1404
+   :end-before: .. end-body-installing-node-ubuntu-1404
 
 Next Step
 =========

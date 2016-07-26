@@ -1,7 +1,7 @@
 .. Single Source Instructions
 
 ====================================
-Enabling the Flocker Control Service 
+Enabling the Flocker Control Service
 ====================================
 
 .. begin-body
@@ -33,7 +33,7 @@ RHEL 7.2
 ========
 
 .. prompt:: bash [root@rhel]#
-      
+
    systemctl enable flocker-control
    systemctl start flocker-control
 
@@ -50,8 +50,24 @@ For more details on configuring the firewall, see the `FirewallD documentation`_
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
-Ubuntu
-======
+Ubuntu 16.04
+============
+
+.. task:: enable_flocker_control ubuntu-16.04
+   :prompt: [root@control-node]#
+
+The control service needs to accessible remotely.
+To configure ``UFW`` to allow access to the control service HTTP API, and for agent connections:
+
+.. task:: open_control_firewall ubuntu-16.04
+   :prompt: [root@control-node]#
+
+For more details on configuring the firewall, see Ubuntu's `UFW documentation`_.
+
+On AWS, an external firewall is used instead, which will need to be configured similarly.
+
+Ubuntu 14.04
+============
 
 .. task:: enable_flocker_control ubuntu-14.04
    :prompt: [root@control-node]#

@@ -29,12 +29,27 @@ CentOS 7, RHEL 7.2
 #. Run the following commands to enable the Flocker plugin for Docker:
 
    .. prompt:: bash [root@agent-node]#
-   
+
       systemctl enable flocker-docker-plugin
       systemctl restart flocker-docker-plugin
 
-Ubuntu
-======
+Ubuntu 16.04
+============
+
+#. Run the following commands to enable the agent service:
+
+   .. task:: enable_flocker_agent ubuntu-16.04
+      :prompt: [root@agent-node]#
+
+#. Run the following command to enable the Flocker plugin for Docker:
+
+   .. prompt:: bash [root@agent-node]#
+
+      systemctl enable flocker-docker-plugin
+      systemctl restart flocker-docker-plugin
+
+Ubuntu 14.04
+============
 
 #. Run the following commands to enable the agent service:
 
@@ -65,8 +80,16 @@ Run the following commands to enable the agent service:
 .. task:: enable_flocker_agent centos-7
       :prompt: [root@agent-node]#
 
-Ubuntu
-======
+Ubuntu 16.04
+============
+
+Run the following commands to enable the agent service:
+
+.. task:: enable_flocker_agent ubuntu-16.04
+      :prompt: [root@agent-node]#
+
+Ubuntu 14.04
+============
 
 Run the following commands to enable the agent service:
 
