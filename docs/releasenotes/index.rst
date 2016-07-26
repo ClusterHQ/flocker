@@ -18,6 +18,8 @@ v1.14.0
 * **Deprecated**: The installation of Flocker client tools on Ubuntu 15.10 is deprecated.
   The Ubuntu 15.10 client installation instructions have been removed.
   The Ubuntu 15.10 packages will be removed in the next release.
+* **Deprecated**: The "Labs Installer" from the `Unofficial Flocker Tools repository <https://github.com/ClusterHQ/unofficial-flocker-tools>`_ is deprecated and the documentation for this installation mechanism has been removed.
+
 
 
 This Release
