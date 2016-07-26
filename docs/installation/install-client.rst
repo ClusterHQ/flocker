@@ -15,24 +15,24 @@ The following sections describe how to install the Flocker client on your platfo
 
 .. end-body-installing-client-intro
 
-.. _installing-flocker-cli-ubuntu-15.10:
+.. _installing-flocker-cli-ubuntu-16.04:
 
-.. begin-body-installing-client-Ubuntu-15.10
+.. begin-body-installing-client-Ubuntu-16.04
 
-Installing on Ubuntu 15.10 (64-bit)
+Installing on Ubuntu 16.04 (64-bit)
 ===================================
 
-.. note:: 
+.. note::
    These instructions require that you have ``sudo`` access.
 
    If you are using a 32-bit Ubuntu platform, see the instructions for Installing on Other Linux Distributions.
 
-On Ubuntu 15.10 (64-bit), the Flocker CLI can be installed from the ClusterHQ repository:
+On Ubuntu 16.04 (64-bit), the Flocker CLI can be installed from the ClusterHQ repository:
 
-.. task:: cli_pkg_install ubuntu-15.10
+.. task:: cli_pkg_install ubuntu-16.04
    :prompt: alice@mercury:~$
 
-.. end-body-installing-client-Ubuntu-15.10
+.. end-body-installing-client-Ubuntu-16.04
 
 .. _installing-flocker-cli-ubuntu-14.04:
 
@@ -41,7 +41,7 @@ On Ubuntu 15.10 (64-bit), the Flocker CLI can be installed from the ClusterHQ re
 Installing on Ubuntu 14.04 (64-bit)
 ===================================
 
-.. note:: 
+.. note::
    These instructions require that you have ``sudo`` access.
 
    If you are using a 32-bit Ubuntu platform, see the instructions for Installing on Other Linux Distributions.
@@ -60,7 +60,7 @@ On Ubuntu 14.04 (64-bit), the Flocker CLI can be installed from the ClusterHQ re
 Installing on RHEL 7.2
 ======================
 
-.. note:: 
+.. note::
    These instructions require that you have ``sudo`` access.
 
 
@@ -144,4 +144,3 @@ Whenever you need to run Flocker CLI commands, ensure you are in the virtualenv:
    |latest-installable|
 
 .. end-body-installing-client-OSX
-

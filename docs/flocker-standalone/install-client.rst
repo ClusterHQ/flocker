@@ -8,11 +8,11 @@ Installing the Flocker Client
    :start-after: .. begin-body-installing-client-intro
    :end-before: .. end-body-installing-client-intro
 
-.. _installing-flocker-cli-ubuntu-15.10-standalone-flocker:
+.. _installing-flocker-cli-ubuntu-16.04-standalone-flocker:
 
 .. include:: ../installation/install-client.rst
-   :start-after: .. begin-body-installing-client-Ubuntu-15.10
-   :end-before: .. end-body-installing-client-Ubuntu-15.10
+   :start-after: .. begin-body-installing-client-Ubuntu-16.04
+   :end-before: .. end-body-installing-client-Ubuntu-16.04
 
 .. note:: If you are using a 32-bit Ubuntu platform, see the instructions for  :ref:`installing-flocker-cli-linux-standalone-flocker`.
 
