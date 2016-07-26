@@ -254,12 +254,12 @@ Release
 
       FLOCKER_VERSION="${TAG:?}"
 
-      DOCKER_VERSION=1.10.0
-      SWARM_VERSION=1.1.0
+      DOCKER_VERSION=1.11.2
+      SWARM_VERSION=1.2.3
 
       export FLOCKER_VERSION DOCKER_VERSION SWARM_VERSION
 
-      admin/ami-search-ubuntu > /tmp/ami_map_ubuntu.json
+      admin/ami-search-ubuntu --ubuntu-name xenial  --ec2-image-type ebs-ssd > ami_map_ubuntu.json
 
       admin/publish-installer-images \
           --copy_to_all_regions \

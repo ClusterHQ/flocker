@@ -35,13 +35,12 @@ class RegionConstant(ValueConstant):
 
 
 # The AWS regions supported by Packer.
-# XXX ap-northeast-2 is not supported by the current packer release:
-# https://github.com/mitchellh/packer/issues/3058
 class AWS_REGIONS(Values):
     """
-    Constants representing supported target packaging formats.
+    AWS regions in which images will be published.
     """
     AP_NORTHEAST_1 = RegionConstant(u"ap-northeast-1")
+    AP_NORTHEAST_2 = RegionConstant(u"ap-northeast-2")
     AP_SOUTHEAST_1 = RegionConstant(u"ap-southeast-1")
     AP_SOUTHEAST_2 = RegionConstant(u"ap-southeast-2")
     EU_CENTRAL_1 = RegionConstant(u"eu-central-1")
@@ -53,7 +52,7 @@ class AWS_REGIONS(Values):
 
 DEFAULT_IMAGE_BUCKET = u'clusterhq-installer-images'
 DEFAULT_BUILD_REGION = AWS_REGIONS.US_WEST_1
-DEFAULT_DISTRIBUTION = u"ubuntu-14.04"
+DEFAULT_DISTRIBUTION = u"ubuntu-16.04"
 DEFAULT_TEMPLATE = u"docker"
 
 
@@ -143,8 +142,6 @@ class PackerConfigure(PClass):
     :ivar publish_regions: The AWS regions to publish the build images to.
     :ivar template: The prototype configuration to use as a base. One of
         `docker` or `flocker`.
-    :ivar distribution: The operating system distribution to install.
-        ubuntu-14.04 is the only one implemented so far.
     :ivar configuration_directory: The directory containing prototype
         configuration templates.
     :ivar source_ami_map: The AMI map containing base images.
@@ -152,7 +149,6 @@ class PackerConfigure(PClass):
     build_region = field(type=RegionConstant, mandatory=True)
     publish_regions = pvector_field(item_type=RegionConstant)
     template = field(type=unicode, mandatory=True)
-    distribution = field(type=unicode, mandatory=True)
     configuration_directory = field(type=FilePath, initial=PACKER_TEMPLATE_DIR)
     source_ami_map = pmap_field(key_type=RegionConstant, value_type=unicode)
 
@@ -210,7 +206,7 @@ class RealPerformers(object):
 
         template_name = (
             u"template_{distribution}_{template}.json".format(
-                distribution=intent.distribution,
+                distribution=DEFAULT_DISTRIBUTION,
                 template=intent.template,
             )
         )
@@ -314,8 +310,6 @@ class PublishInstallerImagesOptions(Options):
     optParameters = [
         ["build_region", None, DEFAULT_BUILD_REGION.value,
          "A region where the image will be built.\n", unicode],
-        ["distribution", None, DEFAULT_DISTRIBUTION,
-         "The distribution of operating system to install.\n", unicode],
         ["source-ami-map", None, None,
          "A JSON encoded map of AWS region to AMI ID of base images.\n",
          _validate_ami_region_map],
@@ -345,7 +339,6 @@ def publish_installer_images_effects(options):
             build_region=options["build_region"],
             publish_regions=options["regions"],
             template=options["template"],
-            distribution=options["distribution"],
             source_ami_map=options["source-ami-map"],
         )
     )

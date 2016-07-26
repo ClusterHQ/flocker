@@ -1,7 +1,6 @@
 {
     "variables": {
-        "DOCKER_VERSION": "{{env `DOCKER_VERSION`}}",
-        "SWARM_VERSION": "{{env `SWARM_VERSION`}}"
+        "FLOCKER_VERSION": "{{env `FLOCKER_VERSION`}}"
     },
     "builders": [{
         "type": "amazon-ebs",
@@ -9,21 +8,19 @@
         "source_ami": "",
         "instance_type": "m3.medium",
         "ssh_username": "ubuntu",
-        "ami_name": "clusterhq_ubuntu-14.04_docker_{{timestamp}}",
+        "ami_name": "clusterhq_ubuntu-16.04_flocker_{{timestamp}}",
         "ami_groups": ["all"],
         "ami_regions": [],
         "tags": {
-            "DOCKER_VERSION": "{{user `DOCKER_VERSION`}}",
-            "SWARM_VERSION": "{{user `SWARM_VERSION`}}"
+            "FLOCKER_VERSION": "{{user `FLOCKER_VERSION`}}"
         }
     }],
     "provisioners": [
         {
             "type": "shell",
-            "script": "{{template_dir}}/provision_ubuntu-14.04_docker.sh",
+            "script": "{{template_dir}}/provision_ubuntu-16.04_flocker.sh",
             "environment_vars": [
-                "DOCKER_VERSION={{user `DOCKER_VERSION`}}",
-                "SWARM_VERSION={{user `SWARM_VERSION`}}"
+                "FLOCKER_VERSION={{user `FLOCKER_VERSION`}}"
             ],
             "execute_command": "{{ .Vars }} sudo -E -S sh '{{ .Path }}'"
         }
