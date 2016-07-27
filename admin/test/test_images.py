@@ -1,6 +1,6 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
-Tests for ``admin.installer``.
+Tests for ``admin.installer._images``.
 """
 import json
 import os
@@ -179,7 +179,6 @@ class PackerConfigureTests(TestCase):
             publish_regions=expected_publish_regions,
             source_ami_map=expected_source_ami_map,
             template=u"docker",
-            distribution=u"ubuntu-14.04",
         )
 
         # Call the performer
@@ -300,7 +299,6 @@ class PublishInstallerImagesEffectsTests(TestCase):
                     publish_regions=options["regions"],
                     source_ami_map=options["source-ami-map"],
                     template=options["template"],
-                    distribution=options["distribution"],
                 ), lambda intent: configuration_path),
                 (PackerBuild(
                     configuration_path=configuration_path,
