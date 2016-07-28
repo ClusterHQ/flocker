@@ -18,6 +18,8 @@ from ._install import (
     task_enable_flocker_agent,
     task_open_control_firewall,
     task_install_zfs,
+    task_consul_start,
+    task_consul_join,
 )
 
 __all__ = [
@@ -34,4 +36,6 @@ __all__ = [
     'task_enable_flocker_agent',
     'task_open_control_firewall',
     'task_install_zfs',
+    'task_consul_start',
+    'task_consul_join',
 ]
