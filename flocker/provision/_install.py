@@ -1429,35 +1429,37 @@ def task_install_docker_plugin(
     )
 
 
-def task_consul_start(bootstrap_expect, advertise_address):
+def task_consul_start(bootstrap, advertise_address):
     """
-    Install consul,
+    Start consul.
     """
+    consul_server_command = [
+        'docker', 'run',
+        '--detach',
+        '--name', 'consul_server',
+        '--net', 'host',
+
+        'consul', 'agent',
+        '-server',
+        '-advertise', advertise_address,
+    ]
+    if bootstrap:
+        consul_server_command.append('-bootstrap')
     return sequence([
         run_from_args(['docker', 'pull', 'consul']),
-        run_from_args([
-            'docker', 'run',
-            '--detach',
-            '--name', 'consul_server',
-            '--net', 'host',
-
-            'consul', 'agent',
-            '-server',
-            '-bootstrap-expect', str(bootstrap_expect),
-            '-advertise', advertise_address,
-        ]),
+        run_from_args(consul_server_command),
     ])
 
 
-def task_consul_join(*consul_addresses):
+def task_consul_join(bootstrap_address):
     """
     Join up the consul cluster.
     """
     return sequence([
-        run_from_args((
+        run_from_args([
             'docker', 'run',
             '--rm', '--net', 'host',
-            'consul', 'join') + consul_addresses),
+            'consul', 'join', bootstrap_address]),
     ])
 
 
@@ -1823,16 +1825,23 @@ def configure_node(
             distribution=node.distribution,
             action=setup_action,
         ),
-        task_consul_start(
-            bootstrap_expect=min(3, len(cluster.all_nodes)),
-            advertise_address=node.address,
-        ),
     ]
 
-    if node is not cluster.control_node:
+    if node is cluster.control_node:
         tasks.append(
-            task_consul_join(cluster.control_node.address),
+            task_consul_start(
+                bootstrap=True,
+                advertise_address=node.address,
+            )
         )
+    else:
+        tasks.extend([
+            task_consul_start(
+                bootstrap=False,
+                advertise_address=node.address,
+            ),
+            task_consul_join(cluster.control_node.address),
+        ])
 
     return run_remotely(
         username='root',
