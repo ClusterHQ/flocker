@@ -10,7 +10,7 @@ The ``flockerctl`` Command
 
     <div class="admonition labs">
         <p>This page describes one of our experimental projects, developed to less rigorous quality and testing standards than the mainline Flocker distribution. It is not built with production-readiness in mind.</p>
-	</div>
+        </div>
 
 ``flockerctl`` is a CLI for controlling the Flocker Control Service, with commands for listing nodes, creating volumes, and moving them around.
 ``flockerctl`` supports supplying metadata such as size, name and :ref:`storage-profiles`.
@@ -30,9 +30,6 @@ You will need to set some environment variables which define the address and cre
 * ``FLOCKER_USER`` - the name of a flocker user which has ``.key`` and ``.crt`` file in the certs path. See :ref:`generate-api-standalone-flocker`.
 * ``FLOCKER_CONTROL_SERVICE`` - the address (DNS name or IP address) of the control service. The name you use should match up with the name you specified when creating the cluster certificates.
 
-.. note::
-
-   If you used the :ref:`labs-installer` to install your cluster, ``flockerctl`` will work with the generated ``cluster.yml`` file and can  figure out how to connect to your cluster based on that.
 
 Running the CLI
 ===============
