@@ -12,12 +12,16 @@ from time import clock
 
 from twisted.python.usage import Options
 from twisted.internet.endpoints import serverFromString
+from twisted.internet.defer import maybeDeferred
 from twisted.python.filepath import FilePath
 from twisted.application.service import MultiService
 from twisted.internet.ssl import Certificate
 
 from .httpapi import create_api_service, REST_API_PORT
-from ._persistence import ConfigurationPersistenceService
+from ._persistence import (
+    ConfigurationPersistenceService,
+    FilePathConfigurationStore,
+)
 from ._clusterstate import ClusterStateService
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service,
@@ -63,23 +67,36 @@ class ControlScript(object):
         control_credential = ControlCredential.from_path(
             certificates_path, b"service")
 
-        top_service = MultiService()
-        persistence = ConfigurationPersistenceService(
-            reactor, options["data-path"])
-        persistence.setServiceParent(top_service)
-        cluster_state = ClusterStateService(reactor)
-        cluster_state.setServiceParent(top_service)
-        api_service = create_api_service(
-            persistence, cluster_state, serverFromString(
-                reactor, options["port"]),
-            rest_api_context_factory(ca, control_credential))
-        api_service.setServiceParent(top_service)
-        amp_service = ControlAMPService(
-            reactor, cluster_state, persistence, serverFromString(
-                reactor, options["agent-port"]),
-            amp_server_context_factory(ca, control_credential))
-        amp_service.setServiceParent(top_service)
-        return main_for_service(reactor, top_service)
+        d = maybeDeferred(
+            FilePathConfigurationStore.from_directory,
+            options["data-path"],
+        )
+
+        def make_persistence_service(configuration_store):
+            return ConfigurationPersistenceService.from_configuration_store(
+                reactor,
+                configuration_store
+            )
+        d.addCallback(make_persistence_service)
+
+        def start_services(persistence_service):
+            top_service = MultiService()
+            persistence_service.setServiceParent(top_service)
+            cluster_state = ClusterStateService(reactor)
+            cluster_state.setServiceParent(top_service)
+            api_service = create_api_service(
+                persistence_service, cluster_state, serverFromString(
+                    reactor, options["port"]),
+                rest_api_context_factory(ca, control_credential))
+            api_service.setServiceParent(top_service)
+            amp_service = ControlAMPService(
+                reactor, cluster_state, persistence_service, serverFromString(
+                    reactor, options["agent-port"]),
+                amp_server_context_factory(ca, control_credential))
+            amp_service.setServiceParent(top_service)
+            return main_for_service(reactor, top_service)
+        d.addCallback(start_services)
+        return d
 
 
 def flocker_control_main():

@@ -16,7 +16,10 @@ from twisted.test.proto_helpers import MemoryReactor
 from ..testtools import TestCase
 
 from ._clusterstate import ClusterStateService
-from ._persistence import ConfigurationPersistenceService
+from ._persistence import (
+    ConfigurationPersistenceService,
+    FilePathConfigurationStore
+)
 from ._protocol import (
     ControlAMPService, ControlAMP,
 )
@@ -137,7 +140,9 @@ def build_control_amp_service(test_case, reactor=None):
     cluster_state.startService()
     test_case.addCleanup(cluster_state.stopService)
     persistence_service = ConfigurationPersistenceService(
-        reactor, test_case.make_temporary_directory())
+        reactor=reactor,
+        configuration_saver=lambda deployment_data: None,
+    )
     persistence_service.startService()
     test_case.addCleanup(persistence_service.stopService)
     return ControlAMPService(
