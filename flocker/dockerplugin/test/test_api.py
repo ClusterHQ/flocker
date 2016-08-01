@@ -119,7 +119,8 @@ class APITestsMixin(APIAssertionsMixin):
         unmount_id = ''.join(random.choice(
             '0123456789abcdef') for n in xrange(64))
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
-                                 {u"Name": u"vol", unicode(unmount_id): u""},
+                                 {u"Name": u"vol",
+                                  u"ID": unicode(unmount_id)},
                                  OK, {u"Err": u""})
 
     def test_create_with_profile(self):
