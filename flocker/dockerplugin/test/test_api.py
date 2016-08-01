@@ -4,6 +4,7 @@
 Tests for the Volumes Plugin API provided by the plugin.
 """
 
+import random
 from uuid import uuid4
 
 from bitmath import TiB, GiB, MiB, KiB, Byte
@@ -115,8 +116,11 @@ class APITestsMixin(APIAssertionsMixin):
         """
         ``/VolumeDriver.Unmount`` returns a successful result.
         """
+        unmount_id = ''.join(random.choice(
+            '0123456789abcdef') for n in xrange(64))
         return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
-                                 {u"Name": u"vol"}, OK, {u"Err": u""})
+                                 {u"Name": u"vol", unicode(unmount_id): u""},
+                                 OK, {u"Err": u""})
 
     def test_create_with_profile(self):
         """
@@ -320,6 +324,8 @@ class APITestsMixin(APIAssertionsMixin):
         """
         name = u"myvol"
         dataset_id = uuid4()
+        mount_id = ''.join(random.choice(
+            '0123456789abcdef') for n in xrange(64))
 
         # Create dataset on a different node:
         d = self.flocker_client.create_dataset(
@@ -337,7 +343,7 @@ class APITestsMixin(APIAssertionsMixin):
         d.addCallback(lambda _:
                       self.assertResult(
                           b"POST", b"/VolumeDriver.Mount",
-                          {u"Name": name}, OK,
+                          {u"Name": name, u"ID": unicode(mount_id)}, OK,
                           {u"Err": u"",
                            u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
         d.addCallback(lambda _: self.flocker_client.list_datasets_state())
@@ -363,6 +369,8 @@ class APITestsMixin(APIAssertionsMixin):
         """
         name = u"myvol"
         dataset_id = uuid4()
+        mount_id = ''.join(random.choice(
+            '0123456789abcdef') for n in xrange(64))
         # Create dataset on a different node:
         d = self.flocker_client.create_dataset(
             self.NODE_B, int(DEFAULT_SIZE.to_Byte()),
@@ -379,7 +387,7 @@ class APITestsMixin(APIAssertionsMixin):
         d.addCallback(lambda _:
                       self.assertResult(
                           b"POST", b"/VolumeDriver.Mount",
-                          {u"Name": name}, OK,
+                          {u"Name": name, u"ID": unicode(mount_id)}, OK,
                           {u"Err": u"Timed out waiting for dataset to mount.",
                            u"Mountpoint": u""}))
         return d
@@ -392,6 +400,8 @@ class APITestsMixin(APIAssertionsMixin):
         don't have a special dataset ID.
         """
         name = u"myvol"
+        mount_id = ''.join(random.choice(
+            '0123456789abcdef') for n in xrange(64))
 
         d = self.flocker_client.create_dataset(
             self.NODE_A, int(DEFAULT_SIZE.to_Byte()),
@@ -401,7 +411,7 @@ class APITestsMixin(APIAssertionsMixin):
             self.flocker_client.synchronize_state()
             result = self.assertResult(
                 b"POST", b"/VolumeDriver.Mount",
-                {u"Name": name}, OK,
+                {u"Name": name, u"ID": unicode(mount_id)}, OK,
                 {u"Err": u"",
                  u"Mountpoint": u"/flocker/{}".format(
                      dataset.dataset_id)})
@@ -420,9 +430,11 @@ class APITestsMixin(APIAssertionsMixin):
         non-existent volume.
         """
         name = u"myvol"
+        mount_id = ''.join(random.choice(
+            '0123456789abcdef') for n in xrange(64))
         return self.assertResult(
             b"POST", b"/VolumeDriver.Mount",
-            {u"Name": name}, OK,
+            {u"Name": name, u"ID": unicode(mount_id)}, OK,
             {u"Err": u"Could not find volume with given name."})
 
     def test_path(self):
