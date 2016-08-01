@@ -7,6 +7,7 @@ import base64
 
 from eliot import ActionType, Field
 from eliot.twisted import DeferredContext
+from pyrsistent import PClass, field
 from treq import json_content, content
 import treq
 from twisted.web.http import (
@@ -16,9 +17,6 @@ from zope.interface import implementer
 
 from ._persistence import IConfigurationStore
 
-
-BASE_URL = b"http://localhost:8500/v1/kv"
-CONFIG_PATH = b"/com.clusterhq/flocker/current_configuration"
 
 _LOG_HTTP_REQUEST = ActionType(
     "flocker:control:consul",
@@ -46,10 +44,18 @@ class NotFound(Exception):
     """
 
 
+class NotReady(Exception):
+    """
+    """
+
+CONFIG_PATH = b"/v1/kv/com.clusterhq/flocker/current_configuration"
+
+
 @implementer(IConfigurationStore)
-class ConsulConfigurationStore(object):
-    _base_url = BASE_URL
+class ConsulConfigurationStore(PClass):
     _treq = treq
+    api_address = field(mandatory=True, initial=b"127.0.0.1")
+    api_port = field(mandatory=True, initial=8500)
 
     def _request_with_headers(
             self, method, path, body, success_codes, error_codes=None):
@@ -67,7 +73,9 @@ class ConsulConfigurationStore(object):
         :return: ``Deferred`` firing a tuple of (decoded JSON,
             response headers).
         """
-        url = self._base_url + path
+        url = b"http://{}:{}{}".format(
+            self.api_address, self.api_port, path
+        )
         action = _LOG_HTTP_REQUEST(url=url, method=method, request_body=body)
 
         if error_codes is None:
@@ -121,8 +129,6 @@ class ConsulConfigurationStore(object):
             lambda t: t[0])
 
     def initialize(self):
-        """
-        """
         d = self.get_content()
 
         def set_if_missing(failure):
@@ -157,3 +163,17 @@ class ConsulConfigurationStore(object):
             content_bytes,
             success_codes={OK},
         )
+
+    def ready(self):
+        d = self._request(
+            b"GET",
+            b"/v1/status/leader",
+            None,
+            {OK},
+        )
+
+        def check_leader(result):
+            if not result:
+                raise NotReady("The consul cluster has no leader.")
+        d.addCallback(check_leader)
+        return d
