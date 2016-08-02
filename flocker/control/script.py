@@ -10,6 +10,8 @@ import signal
 from functools import partial
 from time import clock
 
+from pyrsistent import PClass, field
+
 from twisted.python.usage import Options
 from twisted.internet.endpoints import serverFromString
 from twisted.internet.defer import maybeDeferred
@@ -22,6 +24,7 @@ from ._persistence import (
     ConfigurationPersistenceService,
     FilePathConfigurationStore,
 )
+from ._consul import ConsulConfigurationStore
 from ._clusterstate import ClusterStateService
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service,
@@ -34,6 +37,32 @@ from ..ca import (
 DEFAULT_CERTIFICATE_PATH = b"/etc/flocker"
 
 
+class ConfigurationStorePlugin(PClass):
+    name = field(mandatory=True, type={unicode})
+    factory = field(mandatory=True)
+
+CONFIGURATION_STORE_PLUGINS = [
+    ConfigurationStorePlugin(
+        name=u"filepath",
+        factory=FilePathConfigurationStore.from_directory
+    ),
+    ConfigurationStorePlugin(
+        name=u"consul",
+        factory=ConsulConfigurationStore
+    ),
+]
+
+CONFIGURATION_STORE_PLUGINS_BY_NAME = {
+    p.name: p for p in CONFIGURATION_STORE_PLUGINS
+}
+
+CONFIGURATION_STORE_PLUGIN_NAMES = [
+    p.name for p in CONFIGURATION_STORE_PLUGINS
+]
+
+CONFIGURATION_STORE_PLUGIN_DEFAULT = CONFIGURATION_STORE_PLUGIN_NAMES[0]
+
+
 @flocker_standard_options
 class ControlOptions(Options):
     """
@@ -42,6 +71,12 @@ class ControlOptions(Options):
     optParameters = [
         ["data-path", "d", FilePath(b"/var/lib/flocker"),
          "The directory where data will be persisted.", FilePath],
+        ["configuration-store-plugin", None,
+         CONFIGURATION_STORE_PLUGIN_DEFAULT,
+         "The plugin to use for storing Flocker configuration. "
+         "One of '{}'.".format(
+             "', '".join(CONFIGURATION_STORE_PLUGIN_NAMES)
+         )],
         ["port", "p", 'tcp:%d' % (REST_API_PORT,),
          "The external API port to listen on."],
         ["agent-port", "a", 'tcp:4524',
