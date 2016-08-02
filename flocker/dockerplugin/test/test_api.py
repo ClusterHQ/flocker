@@ -123,6 +123,16 @@ class APITestsMixin(APIAssertionsMixin):
                                   u"ID": unicode(unmount_id)},
                                  OK, {u"Err": u""})
 
+    def test_unmount_no_id(self):
+        """
+        ``/VolumeDriver.Unmount`` returns a successful result.
+
+        No ID for backward compatability with Docker < 1.12
+        """
+        return self.assertResult(b"POST", b"/VolumeDriver.Unmount",
+                                 {u"Name": u"vol"},
+                                 OK, {u"Err": u""})
+
     def test_create_with_profile(self):
         """
         Calling the ``/VolumerDriver.Create`` API with an ``Opts`` value
@@ -345,6 +355,50 @@ class APITestsMixin(APIAssertionsMixin):
                       self.assertResult(
                           b"POST", b"/VolumeDriver.Mount",
                           {u"Name": name, u"ID": unicode(mount_id)}, OK,
+                          {u"Err": u"",
+                           u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
+        d.addCallback(lambda _: self.flocker_client.list_datasets_state())
+
+        def final_assertions(datasets):
+            self.assertEqual([self.NODE_A],
+                             [d.primary for d in datasets
+                              if d.dataset_id == dataset_id])
+            # There should be less than 20 calls to list_datasets_state over
+            # the course of 5 seconds.
+            self.assertLess(
+                self.flocker_client.num_calls('list_datasets_state'), 20)
+        d.addCallback(final_assertions)
+
+        return d
+
+    def test_mount_no_id(self):
+        """
+        ``/VolumeDriver.Mount`` sets the primary of the dataset with matching
+        name to the current node and then waits for the dataset to
+        actually arrive.
+
+        No ID for backward compatability with Docker < 1.12
+        """
+        name = u"myvol"
+        dataset_id = uuid4()
+
+        # Create dataset on a different node:
+        d = self.flocker_client.create_dataset(
+            self.NODE_B, int(DEFAULT_SIZE.to_Byte()),
+            metadata={NAME_FIELD: name},
+            dataset_id=dataset_id)
+
+        self._flush_volume_plugin_reactor_on_endpoint_render()
+
+        # Pretend that it takes 5 seconds for the dataset to get established on
+        # Node A.
+        self.volume_plugin_reactor.callLater(
+            5.0, self.flocker_client.synchronize_state)
+
+        d.addCallback(lambda _:
+                      self.assertResult(
+                          b"POST", b"/VolumeDriver.Mount",
+                          {u"Name": name}, OK,
                           {u"Err": u"",
                            u"Mountpoint": u"/flocker/{}".format(dataset_id)}))
         d.addCallback(lambda _: self.flocker_client.list_datasets_state())

@@ -197,7 +197,7 @@ class VolumePlugin(object):
 
     @app.route("/VolumeDriver.Unmount", methods=["POST"])
     @_endpoint(u"Unmount")
-    def volumedriver_unmount(self, Name, ID):
+    def volumedriver_unmount(self, Name, ID=None):
         """
         The Docker container is no longer using the given volume.
 
@@ -314,7 +314,7 @@ class VolumePlugin(object):
 
     @app.route("/VolumeDriver.Mount", methods=["POST"])
     @_endpoint(u"Mount")
-    def volumedriver_mount(self, Name, ID):
+    def volumedriver_mount(self, Name, ID=None):
         """
         Move a volume with the given name to the current node and mount it.
 
