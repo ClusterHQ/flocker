@@ -10,12 +10,17 @@ from eliot.twisted import DeferredContext
 from pyrsistent import PClass, field
 from treq import json_content, content
 import treq
+
+from twisted.internet import reactor
+from twisted.internet.error import ConnectionRefusedError
 from twisted.web.http import (
-    OK, NOT_FOUND
+    OK, NOT_FOUND, INTERNAL_SERVER_ERROR
 )
+
 from zope.interface import implementer
 
 from .interface import IConfigurationStore
+from ...common import retry_failure, backoff
 
 
 _LOG_HTTP_REQUEST = ActionType(
@@ -44,9 +49,21 @@ class NotFound(Exception):
     """
 
 
+class InternalServerError(Exception):
+    """
+    500 from server.
+    """
+
+
 class NotReady(Exception):
     """
     """
+
+
+class NoLeader(Exception):
+    """
+    """
+
 
 CONFIG_PATH = b"/v1/kv/com.clusterhq/flocker/current_configuration"
 
@@ -128,6 +145,26 @@ class ConsulConfigurationStore(PClass):
         return self._request_with_headers(*args, **kwargs).addCallback(
             lambda t: t[0])
 
+    def _request_retry(self, *args, **kwargs):
+        def handle_no_cluster_leader(failure):
+            failure.trap(InternalServerError)
+            if failure.value.message == "No cluster leader":
+                raise NoLeader()
+            return failure
+
+        def request():
+            d = self._request(*args, **kwargs)
+            d.addErrback(handle_no_cluster_leader)
+            return d
+
+        d = retry_failure(
+            reactor,
+            request,
+            {ConnectionRefusedError, NoLeader},
+            backoff(step=0.5, maximum_step=5.0, timeout=60.0),
+        )
+        return d
+
     def initialize(self):
         d = self.get_content()
 
@@ -139,12 +176,15 @@ class ConsulConfigurationStore(PClass):
         return d
 
     def get_content(self):
-        d = self._request(
+        d = self._request_retry(
             b"GET",
             CONFIG_PATH,
             None,
             {OK},
-            error_codes={NOT_FOUND: NotFound}
+            error_codes={
+                NOT_FOUND: NotFound,
+                INTERNAL_SERVER_ERROR: InternalServerError,
+            }
         )
 
         def decode(result):
@@ -158,7 +198,7 @@ class ConsulConfigurationStore(PClass):
         return d
 
     def set_content(self, content_bytes):
-        return self._request(
+        return self._request_retry(
             b"PUT",
             CONFIG_PATH,
             content_bytes,

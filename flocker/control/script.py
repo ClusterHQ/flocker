@@ -12,7 +12,7 @@ from time import clock
 
 from pyrsistent import PClass, field
 
-from twisted.python.usage import Options
+from twisted.python.usage import Options, UsageError
 from twisted.internet.endpoints import serverFromString
 from twisted.python.filepath import FilePath
 from twisted.application.service import MultiService
@@ -40,15 +40,59 @@ DEFAULT_CERTIFICATE_PATH = b"/etc/flocker"
 class ConfigurationStorePlugin(PClass):
     name = field(mandatory=True, type={unicode})
     factory = field(mandatory=True)
+    options = field(mandatory=True)
+
+    def __unicode__(self):
+        return self.name
+
+
+def directory_store_from_options(options):
+    return DirectoryConfigurationStore(
+        directory=options["data-path"]
+    )
+
+
+def consul_store_from_options(options):
+    return ConsulConfigurationStore(
+        api_address=options["consul-api-address"],
+        api_port=options["consul-api-port"],
+    )
+
+
+def validate_plugin_options(plugin, options):
+    required_options = {option[0] for option in plugin.options}
+    missing_options = required_options.difference(options.keys())
+    if missing_options:
+        raise UsageError(
+            u"Missing option(s): '--{}'. "
+            u"--configuration-store-plugin {} "
+            u"requires '--{}'.".format(
+                "', '--".join(missing_options),
+                plugin.name,
+                "', '--".join(required_options),
+            )
+        )
+
 
 CONFIGURATION_STORE_PLUGINS = [
     ConfigurationStorePlugin(
         name=u"directory",
-        factory=DirectoryConfigurationStore,
+        factory=directory_store_from_options,
+        options=[[
+            "data-path", "d", FilePath(b"/var/lib/flocker"),
+            "The directory where data will be persisted.", FilePath
+        ]],
+
     ),
     ConfigurationStorePlugin(
         name=u"consul",
-        factory=ConsulConfigurationStore,
+        factory=consul_store_from_options,
+        options=[
+            ["consul-api-address", None, u"127.0.0.1",
+             "The IP address or hostname of the consul server"],
+            ["consul-api-port", None, 8500,
+             "The TCP port number of the consul server", int],
+        ],
     ),
 ]
 
@@ -60,7 +104,7 @@ CONFIGURATION_STORE_PLUGIN_NAMES = [
     p.name for p in CONFIGURATION_STORE_PLUGINS
 ]
 
-CONFIGURATION_STORE_PLUGIN_DEFAULT = CONFIGURATION_STORE_PLUGIN_NAMES[0]
+CONFIGURATION_STORE_PLUGIN_DEFAULT = CONFIGURATION_STORE_PLUGINS[0]
 
 
 @flocker_standard_options
@@ -69,14 +113,12 @@ class ControlOptions(Options):
     Command line options for ``flocker-control`` cluster management process.
     """
     optParameters = [
-        ["data-path", "d", FilePath(b"/var/lib/flocker"),
-         "The directory where data will be persisted.", FilePath],
         ["configuration-store-plugin", None,
          CONFIGURATION_STORE_PLUGIN_DEFAULT,
-         "The plugin to use for storing Flocker configuration. "
-         "One of '{}'.".format(
+         u"The plugin to use for storing Flocker configuration. "
+         u"One of '{}'.".format(
              "', '".join(CONFIGURATION_STORE_PLUGIN_NAMES)
-         )],
+         ), CONFIGURATION_STORE_PLUGINS_BY_NAME.get],
         ["port", "p", 'tcp:%d' % (REST_API_PORT,),
          "The external API port to listen on."],
         ["agent-port", "a", 'tcp:4524',
@@ -86,6 +128,8 @@ class ControlOptions(Options):
           "root certificate (cluster.crt) and control service certificate "
           "and private key (control-service.crt and control-service.key).")],
     ]
+    for plugin in CONFIGURATION_STORE_PLUGINS:
+        optParameters.extend(plugin.options)
 
 
 class ControlScript(object):
@@ -101,17 +145,14 @@ class ControlScript(object):
         # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
         control_credential = ControlCredential.from_path(
             certificates_path, b"service")
-        store = DirectoryConfigurationStore(
-            directory=options["data-path"]
-        )
-        d = store.initialize()
+        configuration_store_plugin = options['configuration-store-plugin']
+        validate_plugin_options(configuration_store_plugin, options)
+        store = configuration_store_plugin.factory(options)
 
-        def make_persistence_service(ignored):
-            return ConfigurationPersistenceService.from_configuration_store(
-                reactor,
-                store
-            )
-        d.addCallback(make_persistence_service)
+        d = ConfigurationPersistenceService.from_configuration_store(
+            reactor,
+            store
+        )
 
         def start_services(persistence_service):
             top_service = MultiService()

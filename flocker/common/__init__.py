@@ -23,7 +23,7 @@ from ._net import get_all_ips, ipaddress_from_string
 from ._retry import (
     loop_until, timeout, poll_until, retry_failure, retry_effect_with_timeout,
     get_default_retry_steps,
-    retry_if, decorate_methods, with_retry,
+    retry_if, decorate_methods, with_retry, backoff
 )
 from .version import parse_version, UnparseableVersion
 
@@ -36,7 +36,7 @@ __all__ = [
     'poll_until', 'retry_effect_with_timeout',
 
     'decorate_methods',
-    'get_default_retry_steps', 'retry_if', 'with_retry',
+    'get_default_retry_steps', 'retry_if', 'with_retry', 'backoff',
     'parse_version', 'UnparseableVersion',
 
     'RACKSPACE_MINIMUM_VOLUME_SIZE',

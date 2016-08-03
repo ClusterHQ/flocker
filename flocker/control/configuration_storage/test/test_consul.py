@@ -2,13 +2,9 @@
 """
 Tests for ``flocker.control.configuration_storage.consul``.
 """
-from twisted.internet import reactor
-from twisted.internet.error import ConnectionRefusedError
-
 from ....testtools import AsyncTestCase
-from ....common import retry_failure
 from ..testtools import consul_server_for_test, IConfigurationStoreTestsMixin
-from ..consul import ConsulConfigurationStore, NotFound, NotReady
+from ..consul import ConsulConfigurationStore, NotFound
 
 
 class ConsulTests(IConfigurationStoreTestsMixin, AsyncTestCase):
@@ -17,12 +13,6 @@ class ConsulTests(IConfigurationStoreTestsMixin, AsyncTestCase):
         api_port = consul_server_for_test(self)
         self.store = ConsulConfigurationStore(
             api_port=api_port
-        )
-        return retry_failure(
-            reactor,
-            self.store._ready,
-            {ConnectionRefusedError, NotReady},
-            [0.1] * 50
         )
 
     def test_uninitialized(self):

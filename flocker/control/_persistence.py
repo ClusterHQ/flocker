@@ -664,7 +664,8 @@ class ConfigurationPersistenceService(MultiService):
         Load the persisted configuration, upgrading the configuration format
         if an older version is detected.
         """
-        d = configuration_store.get_content()
+        d = configuration_store.initialize()
+        d.addCallback(lambda ignored: configuration_store.get_content())
 
         def load(json_bytes):
             return cls.from_json_bytes(
