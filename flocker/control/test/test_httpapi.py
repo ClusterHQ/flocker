@@ -76,9 +76,7 @@ class APITestsMixin(APIAssertionsMixin):
         """
         Create initial objects for the ``ConfigurationAPIUserV1``.
         """
-        service = ConfigurationPersistenceService.from_directory(
-            reactor, FilePath(self.mktemp())
-        )
+        service = ConfigurationPersistenceService(reactor)
         self.persistence_service = service
         self.persistence_service.startService()
         self.cluster_state_service = ClusterStateService(Clock())
@@ -2602,9 +2600,7 @@ class CreateAPIServiceTests(TestCase):
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
         verifyObject(IService, create_api_service(
-            ConfigurationPersistenceService.from_directory(
-                reactor, FilePath(self.mktemp())
-            ),
+            ConfigurationPersistenceService(reactor),
             ClusterStateService(reactor), endpoint, ClientContextFactory()))
 
 

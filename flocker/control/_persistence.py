@@ -15,7 +15,7 @@ from collections import Set, Mapping, Iterable
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 from eliot.twisted import DeferredContext
 
-from pyrsistent import PRecord, PVector, PMap, PSet, pmap, PClass, field
+from pyrsistent import PRecord, PVector, PMap, PSet, pmap, PClass
 
 from pytz import UTC
 
@@ -24,13 +24,12 @@ from twisted.application.service import Service, MultiService
 from twisted.internet.defer import succeed, maybeDeferred
 from twisted.internet.task import LoopingCall
 
-from zope.interface import Interface, implementer
-
 from weakref import WeakKeyDictionary
 
 from ._model import (
     SERIALIZABLE_CLASSES, Deployment, Configuration, GenerationHash
 )
+from .configuration_storage.directory import DirectoryConfigurationStore
 
 # The class at the root of the configuration tree.
 ROOT_CLASS = Deployment
@@ -588,75 +587,9 @@ def update_leases(transform, persistence_service):
     return succeed(new_leases)
 
 
-class IConfigurationStore(Interface):
-    """
-    """
-    def get_content():
-        """
-        """
-
-    def set_content():
-        """
-        """
-
-
-def _process_v1_config(directory, config_path):
-    """
-    Check if a v1 configuration file exists and upgrade it if necessary.
-    After upgrade, the v1 configuration file is retained with an archived
-    file name, which ensures the data is not lost but we do not override
-    a newer configuration version next time the service starts.
-    """
-    v1_config_path = directory.child(b"current_configuration.v1.json")
-    v1_archived_path = directory.child(b"current_configuration.v1.old.json")
-    # Check for a v1 config and upgrade to latest if found.
-    if v1_config_path.exists():
-        v1_json = v1_config_path.getContent()
-        with _LOG_UPGRADE(configuration=v1_json,
-                          source_version=1,
-                          target_version=_CONFIG_VERSION):
-            updated_json = migrate_configuration(
-                1, _CONFIG_VERSION, v1_json,
-                ConfigurationMigration
-            )
-            config_path.setContent(updated_json)
-            v1_config_path.moveTo(v1_archived_path)
-
-
-@implementer(IConfigurationStore)
-class FilePathConfigurationStore(PClass):
-    path = field(mandatory=True)
-
-    @classmethod
-    def from_directory(cls, directory):
-        if not directory.exists():
-            directory.makedirs()
-        path = directory.child("current_configuration.json")
-        if not path.exists():
-            path.touch()
-        # Version 1 configurations are a special case. They do not store
-        # any version information in the configuration data itself, rather they
-        # can only be identified by the use of the file name
-        # current_configuration.v1.json
-        # Therefore we check for a version 1 configuration file and if it is
-        # found, the config is upgraded, written to current_configuration.json
-        # and the old file archived as current_configuration.v1.old.json
-        _process_v1_config(directory, path)
-        return cls(path=path)
-
-    def get_content_sync(self):
-        return self.path.getContent()
-
-    def get_content(self):
-        return succeed(self.get_content_sync())
-
-    def set_content(self, content):
-        return succeed(self.path.setContent(content))
-
-
 def load_and_upgrade(config_json):
     config_dict = loads(config_json)
-    config_version = config_dict['version']
+    config_version = config_dict.get('version', 1)
     if config_version < _CONFIG_VERSION:
         with _LOG_UPGRADE(configuration=config_json,
                           source_version=config_version,
@@ -744,9 +677,10 @@ class ConfigurationPersistenceService(MultiService):
 
     @classmethod
     def from_directory(cls, reactor, directory):
-        configuration_store = FilePathConfigurationStore.from_directory(
-            directory
+        configuration_store = DirectoryConfigurationStore(
+            directory=directory
         )
+        configuration_store.initialize_sync()
         return cls.from_json_bytes(
             reactor=reactor,
             json_bytes=configuration_store.get_content_sync(),

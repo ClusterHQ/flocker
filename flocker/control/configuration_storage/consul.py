@@ -15,7 +15,7 @@ from twisted.web.http import (
 )
 from zope.interface import implementer
 
-from ._persistence import IConfigurationStore
+from .interface import IConfigurationStore
 
 
 _LOG_HTTP_REQUEST = ActionType(
@@ -135,6 +135,7 @@ class ConsulConfigurationStore(PClass):
             failure.trap(NotFound)
             return self.set_content(b"")
         d.addErrback(set_if_missing)
+        d.addCallback(lambda ignored: None)
         return d
 
     def get_content(self):
@@ -164,7 +165,7 @@ class ConsulConfigurationStore(PClass):
             success_codes={OK},
         )
 
-    def ready(self):
+    def _ready(self):
         d = self._request(
             b"GET",
             b"/v1/status/leader",

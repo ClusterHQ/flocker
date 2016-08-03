@@ -29,7 +29,7 @@ from pyrsistent import PClass, pset
 
 from testtools.matchers import Is, Equals, Not
 
-from ..testtools import deployment_strategy
+from ..testtools import deployment_strategy, arbitrary_transformation
 
 from ...testtools import AsyncTestCase, TestCase
 from .._persistence import (
@@ -294,15 +294,28 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         The persistence service will detect if an existing configuration
         saved in a file is a previous version and perform a migration to
         the latest version.
+
+        XXX: The upgraded configuration is not persisted immediately.  Only
+        when the deployment is first saved and only if the deployment has
+        changed. I'm not sure I like this -RichardW.
         """
         path = FilePath(self.mktemp())
         path.makedirs()
         v1_config_file = path.child(b"current_configuration.v1.json")
         v1_config_file.setContent(V1_TEST_DEPLOYMENT_JSON)
         config_path = path.child(b"current_configuration.json")
-        self.service(path)
-        configuration = wire_decode(config_path.getContent())
-        self.assertEqual(configuration.version, _CONFIG_VERSION)
+        service = self.service(path)
+        upgraded_deployment = service.get()
+        changed_upgraded_deployment = arbitrary_transformation(
+            upgraded_deployment
+        )
+        d = service.save(changed_upgraded_deployment)
+
+        def check_file(ignored):
+            configuration = wire_decode(config_path.getContent())
+            self.assertEqual(configuration.version, _CONFIG_VERSION)
+        d.addCallback(check_file)
+        return d
 
     def test_current_configuration_unchanged(self):
         """

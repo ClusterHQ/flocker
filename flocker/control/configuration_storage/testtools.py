@@ -1,15 +1,14 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
-Tests for ``flocker.control._consul``.
+Tests for ``flocker.control.configuration_storage``.
 """
 from subprocess import check_output
 
-from twisted.internet import reactor
-from twisted.internet.error import ConnectionRefusedError
+from zope.interface.verify import verifyObject
 
-from ...testtools import AsyncTestCase, random_name, find_free_port
-from ...common import retry_failure
-from .._consul import ConsulConfigurationStore, NotFound, NotReady
+from ...testtools import random_name, find_free_port
+
+from .interface import IConfigurationStore
 
 
 def consul_server_for_test(test_case):
@@ -34,27 +33,19 @@ def consul_server_for_test(test_case):
     return api_port
 
 
-class ConsulTests(AsyncTestCase):
-    def setUp(self):
-        super(ConsulTests, self).setUp()
-        api_port = consul_server_for_test(self)
-        self.store = ConsulConfigurationStore(
-            api_port=api_port
-        )
-        return retry_failure(
-            reactor,
-            self.store.ready,
-            {ConnectionRefusedError, NotReady},
-            [0.1] * 50
-        )
+class IConfigurationStoreTestsMixin(object):
+    def test_interface(self):
+        """
+        ``self.store`` provides ``IConfigurationStore``.
+        """
+        self.assertTrue(verifyObject(IConfigurationStore, self.store))
 
-    def test_uninitialized(self):
+    def test_initialize_returns_none(self):
         """
-        ``get_content`` raises ``NotFound`` if the configuration store key does
-        not exist.
+        ``initialize`` returns ``None``.
         """
-        d = self.store.get_content()
-        d = self.assertFailure(d, NotFound)
+        d = self.store.initialize()
+        d.addCallback(self.assertIs, None)
         return d
 
     def test_initialize_empty(self):

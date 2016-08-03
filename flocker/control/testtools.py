@@ -16,10 +16,7 @@ from twisted.test.proto_helpers import MemoryReactor
 from ..testtools import TestCase
 
 from ._clusterstate import ClusterStateService
-from ._persistence import (
-    ConfigurationPersistenceService,
-    FilePathConfigurationStore
-)
+from ._persistence import ConfigurationPersistenceService
 from ._protocol import (
     ControlAMPService, ControlAMP,
 )
@@ -53,6 +50,23 @@ __all__ = [
     'make_istatepersister_tests',
     'make_loopback_control_client',
 ]
+
+
+def arbitrary_transformation(deployment):
+    """
+    Make some change to a deployment configuration.  Any change.
+
+    The exact change made is unspecified but the resulting ``Deployment`` will
+    be different from the given ``Deployment``.
+
+    :param Deployment deployment: A configuration to change.
+
+    :return: A ``Deployment`` similar but not exactly equal to the given.
+    """
+    uuid = uuid4()
+    return deployment.transform(
+        ["nodes", uuid], Node(uuid=uuid)
+    )
 
 
 def make_istatepersister_tests(fixture):

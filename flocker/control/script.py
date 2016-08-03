@@ -14,7 +14,6 @@ from pyrsistent import PClass, field
 
 from twisted.python.usage import Options
 from twisted.internet.endpoints import serverFromString
-from twisted.internet.defer import maybeDeferred
 from twisted.python.filepath import FilePath
 from twisted.application.service import MultiService
 from twisted.internet.ssl import Certificate
@@ -22,9 +21,10 @@ from twisted.internet.ssl import Certificate
 from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import (
     ConfigurationPersistenceService,
-    FilePathConfigurationStore,
 )
-from ._consul import ConsulConfigurationStore
+from .configuration_storage.consul import ConsulConfigurationStore
+from .configuration_storage.directory import DirectoryConfigurationStore
+
 from ._clusterstate import ClusterStateService
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service,
@@ -43,12 +43,12 @@ class ConfigurationStorePlugin(PClass):
 
 CONFIGURATION_STORE_PLUGINS = [
     ConfigurationStorePlugin(
-        name=u"filepath",
-        factory=FilePathConfigurationStore.from_directory
+        name=u"directory",
+        factory=DirectoryConfigurationStore,
     ),
     ConfigurationStorePlugin(
         name=u"consul",
-        factory=ConsulConfigurationStore
+        factory=ConsulConfigurationStore,
     ),
 ]
 
@@ -101,16 +101,15 @@ class ControlScript(object):
         # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
         control_credential = ControlCredential.from_path(
             certificates_path, b"service")
-
-        d = maybeDeferred(
-            FilePathConfigurationStore.from_directory,
-            options["data-path"],
+        store = DirectoryConfigurationStore(
+            directory=options["data-path"]
         )
+        d = store.initialize()
 
-        def make_persistence_service(configuration_store):
+        def make_persistence_service(ignored):
             return ConfigurationPersistenceService.from_configuration_store(
                 reactor,
-                configuration_store
+                store
             )
         d.addCallback(make_persistence_service)
 
