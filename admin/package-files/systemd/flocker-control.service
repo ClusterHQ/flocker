@@ -2,7 +2,7 @@
 Description=Flocker Control Service
 
 [Service]
-ExecStart=/usr/sbin/flocker-control --port tcp:4523 --agent-port tcp:4524 --journald
+ExecStart=/usr/sbin/flocker-control --port tcp:4523 --agent-port tcp:4524 --journald --configuration-store-plugin consul
 Restart=always
 
 PrivateTmp=true
