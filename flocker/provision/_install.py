@@ -862,7 +862,7 @@ def task_enable_docker(distribution):
                     """\
                     [Service]
                     ExecStart=
-                    ExecStart=/usr/bin/docker daemon -H fd:// {}
+                    ExecStart=/usr/bin/dockerd {}
                     """.format(docker_tls_options))),
             run_from_args(["systemctl", "enable", "docker.service"]),
         ])
