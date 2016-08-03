@@ -834,9 +834,12 @@ def task_enable_docker(distribution):
     # Use the Flocker node TLS certificate, since it's readily
     # available.
     docker_tls_options = (
-        '--tlsverify --tlscacert=/etc/flocker/cluster.crt'
+        '--tls=true --tlscacert=/etc/flocker/cluster.crt'
         ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
         ' -H=0.0.0.0:2376')
+
+    # Used in multiple config options
+    unixsock_opt = "-H unix:///var/run/docker.sock"
 
     if is_systemd_distribution(distribution):
         conf_path = (
@@ -862,16 +865,16 @@ def task_enable_docker(distribution):
                     """\
                     [Service]
                     ExecStart=
-                    ExecStart=/usr/bin/docker daemon -H fd:// {}
-                    """.format(docker_tls_options))),
+                    ExecStart=/usr/bin/dockerd {} {}
+                    """.format(unixsock_opt, docker_tls_options))),
             run_from_args(["systemctl", "enable", "docker.service"]),
         ])
     elif is_ubuntu(distribution):
         return sequence([
             put(path="/etc/default/docker",
                 content=(
-                    'DOCKER_OPTS="-H unix:///var/run/docker.sock {}"'.format(
-                        docker_tls_options))),
+                    'DOCKER_OPTS="{} {}"'.format(
+                        unixsock_opt, docker_tls_options))),
             ])
     else:
         raise DistributionNotSupported(distribution=distribution)
