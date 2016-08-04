@@ -834,7 +834,7 @@ def task_enable_docker(distribution):
     # Use the Flocker node TLS certificate, since it's readily
     # available.
     docker_tls_options = (
-        '--tls=true --tlscacert=/etc/flocker/cluster.crt'
+        '--tlsverify --tlscacert=/etc/flocker/cluster.crt'
         ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
         ' -H=0.0.0.0:2376')
 
