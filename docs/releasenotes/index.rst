@@ -9,21 +9,27 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-Next Release
+This Release
 ============
 
 v1.14.0
 -------
 * Flocker can now be installed on Ubuntu 16.04.
+* Flocker and the Flocker Docker Plugin are now compatible with Docker 1.12.
+* The container API now accepts a swappiness parameter to control a container’s memory swappiness behavior.
 * **Deprecated**: The installation of Flocker client tools on Ubuntu 15.10 is deprecated.
   The Ubuntu 15.10 client installation instructions have been removed.
   The Ubuntu 15.10 packages will be removed in the next release.
 * **Deprecated**: The "Labs Installer" from the `Unofficial Flocker Tools repository <https://github.com/ClusterHQ/unofficial-flocker-tools>`_ is deprecated and the documentation for this installation mechanism has been removed.
 
 
+Previous Releases
+=================
 
-This Release
-============
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
 
 v1.13.0
 -------
@@ -34,14 +40,6 @@ v1.13.0
 * The dataset agent now has backend support for :ref:`CoprHD <coprhd-backend>`.
 * The ``flocker-deploy`` command line utility, which was deprecated in 1.11.0, has now been removed.
 * All the Flocker Python library requirements have been updated to the latest stable versions.
-
-Previous Releases
-=================
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
 
 v1.12.0
 -------
