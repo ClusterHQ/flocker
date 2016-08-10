@@ -16,6 +16,7 @@ v1.14.0
 -------
 * Flocker can now be installed on Ubuntu 16.04.
 * Flocker and the Flocker Docker Plugin are now compatible with Docker 1.12.
+  Flocker 1.14.0 has been tested with Docker 1.12.0.
 * The container API now accepts a swappiness parameter to control a container’s memory swappiness behavior.
 * **Deprecated**: The installation of Flocker client tools on Ubuntu 15.10 is deprecated.
   The Ubuntu 15.10 client installation instructions have been removed.
