@@ -636,6 +636,13 @@ class APITestsMixin(APIAssertionsMixin):
                                  {u"Implements": [u"VolumeDriver"]},
                                  additional_headers={b"Host": [""]})
 
+    def test_get_status_from_dataset_id(self):
+        """
+        Calling ``/VolumeDriver.Get`` should return correct
+        information about a volume places in ``Status``
+        """
+        pass
+
     def test_get(self):
         """
         ``/VolumeDriver.Get`` returns the mount path of the given volume if

@@ -378,6 +378,47 @@ class VolumePlugin(object):
         d.addCallback(got_path)
         return d.result
 
+    def _get_status_from_dataset_id(self, dataset_id):
+        """
+        Return information about dataset for return to
+        docker for `docker inspect`.
+
+        :param UUID dataset_id: The dataset to lookup.
+
+        :return: ``Deferred`` that fires with the status ``{}``,
+            or errbacks with ``_NotFound`` if it is does not
+            exist at all.
+        """
+        d = self._flocker_client.list_datasets_state()
+
+        def got_state(datasets):
+            status = {}
+            datasets = [dataset for dataset in datasets
+                        if dataset.dataset_id == dataset_id]
+            if datasets:
+                status['size'] = datasets[0].maximum_size
+                status['dataset_id'] = datasets[0].dataset_id
+                # want to add attached status like we have it here
+                # unofficial_flocker_tools/txflocker/client.py#L88
+                # but "attached" needs to compare
+                if datasets[0].primary is None:
+                    status[u"attached"] = u"detached"
+                    status[u"primary"] = u""
+                else:
+                    status[u"attached"] = u"attached"
+                    status[u"primary"] = datasets[0].primary
+                if datasets[0].path is None;
+                    # maybe this should be "not ready or detached"
+                    status[u"mounted"] = u"false"
+                else:
+                    # maybe this should be "ready or attached"
+                    status['mounted'] = "true"
+                return status
+            else:
+                return None
+        d.addCallback(got_state)
+        return d
+
     @app.route("/VolumeDriver.Get", methods=["POST"])
     @_endpoint(u"Get")
     def volumedriver_get(self, Name):
