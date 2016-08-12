@@ -26,7 +26,7 @@ from ...node import backends
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
-    skip_backend, get_backend_api, verify_socket,
+    skip_backend, skip_distribution, get_backend_api, verify_socket,
     get_default_volume_size, ACCEPTANCE_TEST_TIMEOUT
 )
 
@@ -93,6 +93,14 @@ class DatasetAPITests(AsyncTestCase):
             branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'],
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
+    @skip_distribution(
+        unsupported={'ubuntu-16.04'},
+        # XXX: FLOC-4297: Enable this after the next marketing release.
+        reason=(
+            "Ubuntu-16.04 packages cannot be downgraded "
+            "until the next release."
+        ),
+    )
     @skip_backend(
         unsupported={backends.LOOPBACK},
         reason="Does not maintain compute_instance_id across restarting "

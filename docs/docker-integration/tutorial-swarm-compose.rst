@@ -136,7 +136,7 @@ To clean up the containers and Docker's references to the volumes, run:
 .. prompt:: bash $
 
    docker-compose -f flocker-swarm-tutorial-node2.yml down
-   docker volume rm postgres
+   docker volume rm swarmcomposetutorial_postgres
 
 To actually delete the volumes, we need to use ``flockerctl``.
 For more information, see :ref:`about-docker-integration` and :ref:`flockerctl`.

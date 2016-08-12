@@ -306,6 +306,12 @@ DISTRIBUTIONS = (
         version=u'14.04',
         service_manager=UpstartServiceManager,
         log_exporter=UpstartLogExporter,
+    ),
+    Distribution(
+        name=u'ubuntu',
+        version=u'16.04',
+        service_manager=SystemdServiceManager,
+        log_exporter=JournaldLogExporter,
     )
 )
 

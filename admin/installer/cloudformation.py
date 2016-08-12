@@ -4,23 +4,27 @@
 Troposphere script to generate an AWS CloudFormation JSON template.
 
 Sample usage:
-python cloudformation.py > /tmp/flocker-cluster.cloudformation.json
+
+    admin/create-cloudformation-template \
+        --client-ami-map-body="$(<ami_map_docker.json)" \
+        --node-ami-map-body="$(<ami_map_flocker.json)" \
+        > "flocker-cluster.cloudformation.json"
 
 Resulting JSON template has the following blueprint to describe the
 desired stack's resources and properties:
 
 * 1 Control Node with Flocker Control Service, (TLS-enabled) Swarm Manager,
-  (TLS-enabled) Docker, Ubuntu 14.04
+  (TLS-enabled) Docker, Ubuntu 16.04
 
   After Control Node is booted, proceed with creating rest of the stack.
 
 * 2 Agent Nodes with Flocker Dataset Agent, Swarm Agent, (TLS-enabled) Docker,
-  Ubuntu 14.04
+  Ubuntu 16.04
 
   After Agent Nodes are booted and configured with Flocker and Swarm, proceed
   with creating rest of the stack.
 
-* 1 Client Node with Flockerctl, Docker, Docker-compose, Ubuntu 14.04
+* 1 Client Node with Flockerctl, Docker, Docker-compose, Ubuntu 16.04
 
 To manifest the blueprint, please input the JSON template at AWS CloudFormation
 Create Stack console (after replacing ``us-east-1`` with your Region):

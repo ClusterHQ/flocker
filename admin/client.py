@@ -36,6 +36,7 @@ DOCKER_IMAGES = {
     'fedora-22': DockerImage(image='fedora:22', package_manager='dnf'),
     'ubuntu-14.04': DockerImage(image='ubuntu:14.04', package_manager='apt'),
     'ubuntu-15.10': DockerImage(image='ubuntu:15.10', package_manager='apt'),
+    'ubuntu-16.04': DockerImage(image='ubuntu:16.04', package_manager='apt'),
 }
 
 # No distribution is officially supported using pip, but the code can
@@ -45,7 +46,12 @@ PIP_DISTRIBUTIONS = DOCKER_IMAGES.keys()
 # Some distributions have packages created for them.
 # Although CentOS 7 is not a supported client distribution, the client
 # packages get built, and can be tested.
-PACKAGED_CLIENT_DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-15.10')
+PACKAGED_CLIENT_DISTRIBUTIONS = (
+    'centos-7',
+    'ubuntu-14.04',
+    'ubuntu-15.10',
+    'ubuntu-16.04',
+)
 
 
 class ScriptBuilder(TypeDispatcher):

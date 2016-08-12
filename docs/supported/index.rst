@@ -189,9 +189,9 @@ Supported Operating Systems
 .. raw:: html
 
         <div class="pods-eq">
-                 <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
+            <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">
                         <img src="../_static/images/ubuntu2x.png" alt="Ubuntu Logo"/>
-                        <span>Ubuntu 14.04</span>
+                        <span>Ubuntu 14.04 / 16.04</span>
                 <a href="../index.html" class="button">Learn more</a>
             </div>
             <div class="pod-boxout pod-boxout--4up pod-boxout--orchestration">

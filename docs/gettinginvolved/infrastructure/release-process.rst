@@ -16,6 +16,7 @@ By the end of the release process we will have:
 - a tag in version control,
 - a Python wheel on Amazon `S3`_,
 - CentOS 7 RPMs for software on the node and client,
+- Ubuntu 16.04 DEBs for software on the node and client,
 - Ubuntu 14.04 DEBs for software on the node and client,
 - Ubuntu 15.10 DEBs for software on the node and client,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_, and
@@ -253,12 +254,12 @@ Release
 
       FLOCKER_VERSION="${TAG:?}"
 
-      DOCKER_VERSION=1.10.0
-      SWARM_VERSION=1.1.0
+      DOCKER_VERSION=1.11.2
+      SWARM_VERSION=1.2.3
 
       export FLOCKER_VERSION DOCKER_VERSION SWARM_VERSION
 
-      admin/ami-search-ubuntu > /tmp/ami_map_ubuntu.json
+      admin/ami-search-ubuntu --ubuntu-name xenial  --ec2-image-type ebs-ssd > ami_map_ubuntu.json
 
       admin/publish-installer-images \
           --copy_to_all_regions \

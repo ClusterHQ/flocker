@@ -119,6 +119,20 @@ def is_centos_or_rhel(distribution):
     return (distribution.startswith(("centos-", "rhel-")))
 
 
+def is_systemd_distribution(distribution):
+    """
+    Determine whether the named distribution uses systemd.
+
+    :param bytes distribution: The name of the distribution to inspect.
+
+    :return: ``True`` if the distribution uses systemd else ``False``.
+    """
+    return (
+        is_centos_or_rhel(distribution) or
+        distribution == "ubuntu-16.04"
+    )
+
+
 def _from_args(sudo):
     """
     Select a function for running a command, either using ``sudo(8)`` or not.
@@ -220,6 +234,13 @@ def get_repository_url(distribution, flocker_version):
                         ),
 
         'ubuntu-15.10': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
+                        '$(lsb_release --release --short)/\\$(ARCH)'.format(
+                            archive_bucket=ARCHIVE_BUCKET,
+                            key='ubuntu' + get_package_key_suffix(
+                                flocker_version),
+                        ),
+
+        'ubuntu-16.04': 'https://{archive_bucket}.s3.amazonaws.com/{key}/'
                         '$(lsb_release --release --short)/\\$(ARCH)'.format(
                             archive_bucket=ARCHIVE_BUCKET,
                             key='ubuntu' + get_package_key_suffix(
@@ -440,10 +461,6 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # is available, and HTTPS URLs are supported.
         apt_get_update(),
         apt_get_install(["apt-transport-https", "software-properties-common"]),
-
-        # Add ClusterHQ repo for installation of Flocker packages.
-        # XXX This needs retry
-        run(command='add-apt-repository -y "deb {} /"'.format(repository_url))
         ]
 
     pinned_host = urlparse(repository_url).hostname
@@ -457,6 +474,17 @@ def install_commands_ubuntu(package_name, distribution, package_source,
         # server. Thus, in all cases we pin precisely which url we want to
         # install flocker from.
         pinned_host = urlparse(package_source.build_server).hostname
+    else:
+        # Add ClusterHQ repo for installation of Flocker packages.
+        # XXX This needs retry
+        commands.append(
+            run(
+                command='add-apt-repository -y "deb {} /"'.format(
+                    repository_url
+                )
+            )
+        )
+
     commands.append(put(dedent('''\
         Package: *
         Pin: origin {}
@@ -697,7 +725,7 @@ def task_upgrade_kernel(distribution):
             yum_install(["kernel-devel", "kernel"]),
             run_from_args(['sync']),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         # Not required.
         return sequence([])
     else:
@@ -810,7 +838,10 @@ def task_enable_docker(distribution):
         ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
         ' -H=0.0.0.0:2376')
 
-    if is_centos_or_rhel(distribution):
+    # Used in multiple config options
+    unixsock_opt = "-H unix:///var/run/docker.sock"
+
+    if is_systemd_distribution(distribution):
         conf_path = (
             "/etc/systemd/system/docker.service.d/01-TimeoutStartSec.conf"
         )
@@ -834,16 +865,16 @@ def task_enable_docker(distribution):
                     """\
                     [Service]
                     ExecStart=
-                    ExecStart=/usr/bin/docker daemon -H fd:// {}
-                    """.format(docker_tls_options))),
+                    ExecStart=/usr/bin/dockerd {} {}
+                    """.format(unixsock_opt, docker_tls_options))),
             run_from_args(["systemctl", "enable", "docker.service"]),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         return sequence([
             put(path="/etc/default/docker",
                 content=(
-                    'DOCKER_OPTS="-H unix:///var/run/docker.sock {}"'.format(
-                        docker_tls_options))),
+                    'DOCKER_OPTS="{} {}"'.format(
+                        unixsock_opt, docker_tls_options))),
             ])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -882,6 +913,7 @@ def task_enable_flocker_control(distribution, action="start"):
     :param bytes distribution: name of the distribution where the flocker
         controls currently runs. The supported distros are:
             - ubuntu-14.04
+            - ubuntu-16.04
             - centos-<centos version>
     :param bytes action: action to perform with the flocker control service.
         Currently, we support:
@@ -894,12 +926,12 @@ def task_enable_flocker_control(distribution, action="start"):
     """
     validate_start_action(action)
 
-    if is_centos_or_rhel(distribution):
+    if is_systemd_distribution(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-control']),
             run_from_args(['systemctl', action.lower(), 'flocker-control']),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         return sequence([
             put(
                 path='/etc/init/flocker-control.override',
@@ -933,13 +965,13 @@ def task_enable_docker_plugin(distribution):
 
     :param bytes distribution: The distribution name.
     """
-    if is_centos_or_rhel(distribution):
+    if is_systemd_distribution(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
             run_from_args(['systemctl', START, 'flocker-docker-plugin']),
             run_from_args(['systemctl', START, 'docker']),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         return sequence([
             run_from_args(['service', 'flocker-docker-plugin', 'restart']),
             run_from_args(['service', 'docker', 'restart']),
@@ -954,7 +986,7 @@ def task_open_control_firewall(distribution):
     """
     if is_centos_or_rhel(distribution):
         open_firewall = open_firewalld
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         open_firewall = open_ufw
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -986,7 +1018,7 @@ def if_firewall_available(distribution, commands):
     """
     if is_centos_or_rhel(distribution):
         firewall_command = b'firewall-cmd'
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         firewall_command = b'ufw'
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1014,7 +1046,7 @@ def open_firewall_for_docker_api(distribution):
                          </service>
                          """))
         open_firewall = open_firewalld
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         upload = put(path="/etc/ufw/applications.d/docker",
                      content=dedent(
                          """
@@ -1108,7 +1140,7 @@ def task_enable_flocker_agent(distribution, action="start"):
     """
     validate_start_action(action)
 
-    if is_centos_or_rhel(distribution):
+    if is_systemd_distribution(distribution):
         return sequence([
             run_from_args(['systemctl',
                            'enable',
@@ -1123,7 +1155,7 @@ def task_enable_flocker_agent(distribution, action="start"):
                            action.lower(),
                            'flocker-container-agent']),
         ])
-    elif distribution == 'ubuntu-14.04':
+    elif is_ubuntu(distribution):
         return sequence([
             run_from_args(['service',
                            'flocker-dataset-agent',
@@ -1157,7 +1189,7 @@ def task_install_zfs(distribution, variants=set()):
     :param set variants: The set of variant configurations to use when
     """
     commands = []
-    if distribution == 'ubuntu-14.04':
+    if is_ubuntu(distribution):
         commands += [
             # ZFS not available in base Ubuntu - add ZFS repo
             run_network_interacting_from_args([
@@ -1225,14 +1257,44 @@ def configure_zfs(node, variants):
     ])
 
 
-def _uninstall_flocker_ubuntu1404():
+def _maybe_disable(unit):
+    return run(
+        u"{{ "
+        u"systemctl is-enabled {unit} && "
+        u"systemctl stop {unit} && "
+        u"systemctl disable {unit} "
+        u"; }} || /bin/true".format(unit=unit).encode("ascii")
+    )
+
+
+def _disable_flocker_systemd():
+    return list(
+        # XXX There should be uninstall hooks for stopping services.
+        _maybe_disable(unit) for unit in [
+            u"flocker-control", u"flocker-dataset-agent",
+            u"flocker-container-agent", u"flocker-docker-plugin",
+        ]
+    )
+
+
+def _uninstall_flocker_ubuntu():
     """
     Return an ``Effect`` for uninstalling the Flocker package from an Ubuntu
-    14.04 machine.
+    machine.
     """
     return run_from_args([
         b"apt-get", b"remove", b"-y", b"--purge", b"clusterhq-python-flocker",
     ])
+
+
+def _uninstall_flocker_ubuntu1604():
+    """
+    Return an ``Effect`` for uninstalling the Flocker package from an Ubuntu
+    machine.
+    """
+    return sequence(
+        _disable_flocker_systemd() + [_uninstall_flocker_ubuntu()]
+    )
 
 
 def _uninstall_flocker_centos7():
@@ -1240,23 +1302,8 @@ def _uninstall_flocker_centos7():
     Return an ``Effect`` for uninstalling the Flocker package from a CentOS 7
     or RHEL 7.2 machine.
     """
-    def maybe_disable(unit):
-        return run(
-            u"{{ "
-            u"systemctl is-enabled {unit} && "
-            u"systemctl stop {unit} && "
-            u"systemctl disable {unit} "
-            u"; }} || /bin/true".format(unit=unit).encode("ascii")
-        )
-
     return sequence(
-        list(
-            # XXX There should be uninstall hooks for stopping services.
-            maybe_disable(unit) for unit in [
-                u"flocker-control", u"flocker-dataset-agent",
-                u"flocker-container-agent", u"flocker-docker-plugin",
-            ]
-        ) + [
+        _disable_flocker_systemd() + [
             run_from_args([
                 b"yum", b"erase", b"-y", b"clusterhq-python-flocker",
             ]),
@@ -1273,7 +1320,8 @@ def _uninstall_flocker_centos7():
 
 
 _flocker_uninstallers = {
-    "ubuntu-14.04": _uninstall_flocker_ubuntu1404,
+    "ubuntu-14.04": _uninstall_flocker_ubuntu,
+    "ubuntu-16.04": _uninstall_flocker_ubuntu1604,
     "centos-7": _uninstall_flocker_centos7,
     "rhel-7.2": _uninstall_flocker_centos7,
 }
