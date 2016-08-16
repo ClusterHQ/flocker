@@ -24,6 +24,7 @@ from ._persistence import (
 )
 from .configuration_storage.consul import ConsulConfigurationStore
 from .configuration_storage.directory import DirectoryConfigurationStore
+from .configuration_storage.sql import SQLConfigurationStore
 
 from ._clusterstate import ClusterStateService
 from ..common.script import (
@@ -56,6 +57,12 @@ def consul_store_from_options(options):
     return ConsulConfigurationStore(
         api_address=options["consul-api-address"],
         api_port=options["consul-api-port"],
+    )
+
+
+def sql_store_from_options(options):
+    return SQLConfigurationStore(
+        connection_string=options["connection-string"],
     )
 
 
@@ -92,6 +99,14 @@ CONFIGURATION_STORE_PLUGINS = [
              "The IP address or hostname of the consul server"],
             ["consul-api-port", None, 8500,
              "The TCP port number of the consul server", int],
+        ],
+    ),
+    ConfigurationStorePlugin(
+        name=u"sql",
+        factory=sql_store_from_options,
+        options=[
+            ["sql_connection_string", None, u"mysql+pymysql://",
+             "The SQLAlchemy connection string for your database."],
         ],
     ),
 ]

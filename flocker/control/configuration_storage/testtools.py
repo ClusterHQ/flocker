@@ -2,12 +2,13 @@
 """
 Tests for ``flocker.control.configuration_storage``.
 """
+from os import urandom
 from subprocess import check_output
 
+from sqlalchemy.engine.url import URL as sqlalchemy_url
 from zope.interface.verify import verifyObject
 
 from ...testtools import random_name, find_free_port
-
 from .interface import IConfigurationStore
 
 
@@ -31,6 +32,39 @@ def consul_server_for_test(test_case):
         ['docker', 'rm', '--force', container_id]
     )
     return api_port
+
+
+def mariadb_server_for_test(test_case):
+    address, port = find_free_port()
+    container_name = random_name(test_case)
+    password = urandom(32).encode('hex')
+
+    url = sqlalchemy_url(
+        drivername=u"mysql+pymysql",
+        host=address,
+        port=port,
+        username=u"test",
+        password=password,
+        database=u"flocker",
+    )
+
+    container_id = check_output([
+        'docker', 'run',
+        '--detach',
+        '--publish', u'{}:3306'.format(url.port),
+        '--name', container_name,
+        '--env', u'MYSQL_ROOT_PASSWORD={}'.format(url.password),
+        '--env', u'MYSQL_USER={}'.format(url.username),
+        '--env', u'MYSQL_PASSWORD={}'.format(url.password),
+        '--env', u'MYSQL_DATABASE={}'.format(url.database),
+        'mariadb:10.1'
+    ]).rstrip()
+
+    test_case.addCleanup(
+        check_output,
+        ['docker', 'rm', '--force', container_id]
+    )
+    return url
 
 
 class IConfigurationStoreTestsMixin(object):
