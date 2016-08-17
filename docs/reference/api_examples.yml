@@ -147,6 +147,23 @@
 
     {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}, "deleted": false}
 
+-
+  id:
+    "create dataset from snapshot"
+
+  doc: |
+    Create a new dataset from a volume snapshot.
+
+  request: |
+    POST /v1/configuration/datasets HTTP/1.1
+
+    {"primary": "%(NODE_0)s", "metadata": {"source_snapshot_id": "24e891ac-9f6e-492d-b1ea-d8e44d4ccfdb"}}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"source_snapshot_id": "24e891ac-9f6e-492d-b1ea-d8e44d4ccfdb"}, "deleted": false}
+
 
 -
   id:

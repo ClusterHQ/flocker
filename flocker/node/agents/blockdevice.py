@@ -31,7 +31,10 @@ from twisted.python.constants import (
     Names, NamedConstant,
 )
 
-from .blockdevice_manager import BlockDeviceManager
+from .blockdevice_manager import (
+    BlockDeviceManager,
+    IProfiledBlockDeviceAPI
+)
 from ._logging import DATASET_ID, COUNT
 
 from .. import (
@@ -861,18 +864,22 @@ class CreateBlockDeviceDataset(PClass):
         """
         api = deployer.block_device_api
         profile_name = self.metadata.get(PROFILE_METADATA_KEY)
+        snapshot_source_id = self.metadata.get("snapshot_source_id")
         size = allocated_size(allocation_unit=api.allocation_unit(),
                               requested_size=self.maximum_size)
-        if profile_name:
-            return (
-                deployer.profiled_blockdevice_api.create_volume_with_profile(
-                    dataset_id=self.dataset_id,
-                    size=size,
-                    profile_name=profile_name
-                )
-            )
-        else:
-            return api.create_volume(dataset_id=self.dataset_id, size=size)
+
+        kwargs = dict(
+            dataset_id=self.dataset_id,
+            size=size,
+        )
+
+        if profile_name and IProfiledBlockDeviceAPI.providedBy(api):
+            kwargs[profile_name] = profile_name
+
+        if snapshot_source_id and ICreateVolumeFromSnapshot.providedBy(api):
+            kwargs[snapshot_source_id] = snapshot_source_id
+
+        return api.create_volume(**kwargs)
 
     def run(self, deployer, state_persister):
         """
@@ -1179,6 +1186,17 @@ class IBlockDeviceAPI(Interface):
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to a host.
         :returns: A ``FilePath`` for the device.
+        """
+
+
+class ICreateVolumeFromSnapshot(Interface):
+    """
+    A specialization of ``IBlockdeviceAPI.create_volume`` for backend drivers
+    that support volume creation from snapshots.
+    """
+    def create_volume(dataset_id, size, snapshot_source_id):
+        """
+        Create a new volume from a snapshot.
         """
 
 

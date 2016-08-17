@@ -32,7 +32,8 @@ from zope.interface import implementer, Interface
 
 from .blockdevice import (
     IBlockDeviceAPI, IProfiledBlockDeviceAPI, ICloudAPI, BlockDeviceVolume,
-    AlreadyAttachedVolume, UnknownVolume, UnattachedVolume, MandatoryProfiles
+    AlreadyAttachedVolume, UnknownVolume, UnattachedVolume, MandatoryProfiles,
+    ICreateVolumeFromSnapshot,
 )
 from ...common import poll_until, loop_until
 
@@ -408,6 +409,7 @@ def gce_credentials_from_config(gce_credentials_config=None):
 
 @implementer(IBlockDeviceAPI)
 @implementer(IProfiledBlockDeviceAPI)
+@implementer(ICreateVolumeFromSnapshot)
 @implementer(ICloudAPI)
 class GCEBlockDeviceAPI(PClass):
     """
@@ -578,7 +580,8 @@ class GCEBlockDeviceAPI(PClass):
         fqdn = get_metadata_path("instance/hostname")
         return unicode(fqdn.split(".")[0])
 
-    def create_volume_with_profile(self, dataset_id, size, profile_name):
+    def create_volume_with_profile(self, dataset_id, size, profile_name,
+                                   snapshot_source_id=None):
         blockdevice_id = _dataset_id_to_blockdevice_id(dataset_id)
         size = Byte(size)
         profile_type = MandatoryProfiles.lookupByValue(profile_name).name
@@ -588,7 +591,8 @@ class GCEBlockDeviceAPI(PClass):
                 name=blockdevice_id,
                 size=size,
                 description=self._disk_resource_description(),
-                gce_disk_type=gce_disk_type
+                gce_disk_type=gce_disk_type,
+                snapshot_source_id=snapshot_source_id,
             )
         except HttpError as e:
             if e.resp.status == 409:
@@ -606,7 +610,7 @@ class GCEBlockDeviceAPI(PClass):
             dataset_id=_blockdevice_id_to_dataset_id(blockdevice_id),
         )
 
-    def create_volume(self, dataset_id, size):
+    def create_volume(self, dataset_id, size, snapshot_source_id=None):
         return self.create_volume_with_profile(
             dataset_id, size, MandatoryProfiles.DEFAULT.value)
 
@@ -796,7 +800,8 @@ class IGCEOperations(Interface):
     driver.
     """
 
-    def create_disk(name, size, description, gce_disk_type):
+    def create_disk(name, size, description, gce_disk_type,
+                    snapshot_source_id=None):
         """
         Create a new GCE PD. Block until the disk is created.
 
@@ -976,7 +981,8 @@ class GCEOperations(PClass):
             return wait_for_operation(
                 self._compute, operation, [1]*timeout_sec, lock_dropped_sleep)
 
-    def create_disk(self, name, size, description, gce_disk_type):
+    def create_disk(self, name, size, description, gce_disk_type,
+                    snapshot_source_id=None):
         sizeGiB = int(size.to_GiB())
         config = dict(
             name=name,
@@ -985,6 +991,9 @@ class GCEOperations(PClass):
             type="projects/{project}/zones/{zone}/diskTypes/{type}".format(
                 project=self._project, zone=self._zone, type=gce_disk_type)
         )
+        if snapshot_source_id:
+            config['sourceSnapshotId'] = snapshot_source_id
+
         return self._do_blocking_operation(
             self._compute.disks().insert,
             body=config,
