@@ -303,7 +303,7 @@ class VolumePlugin(object):
                 if dataset.metadata.get(NAME_FIELD) == Name
                     # we want to allow  names to be re-used if
                     # volumes with the same names are deleted.
-                    && dataset.deleted == False:
+                    and dataset.deleted == False:
                     raise DatasetAlreadyExists
 
         creating = conditional_create(
