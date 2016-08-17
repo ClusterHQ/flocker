@@ -44,6 +44,9 @@ SCHEMAS = {
 # Metadata field we use to store volume names:
 NAME_FIELD = u"name"
 
+# Metadata field we use to store source_snapshot_id
+SOURCE_SNAPSHOT_FIELD = u"source_snapshot_id"
+
 # The default size of a created volume. Pick a number that isn't the same
 # as devicemapper loopback size (100GiB) so we don't trigger
 # https://clusterhq.atlassian.net/browse/FLOC-2889 and that is large
@@ -277,6 +280,13 @@ class VolumePlugin(object):
             metadata[u"maximum_size"] = unicode(int(size.to_Byte()))
         else:
             size = DEFAULT_SIZE
+
+        source_snapshot_id = opts.get(u"source_snapshot_id")
+        if source_snapshot_id:
+            # I dont think any validation needs to happen
+            # here, as the backend specifics depends on what
+            # the `snapshot_id` actually looks like to be valid
+            metadata[SOURCE_SNAPSHOT_FIELD] = source_snapshot_id
 
         def ensure_unique_name(configured):
             for dataset in configured:
