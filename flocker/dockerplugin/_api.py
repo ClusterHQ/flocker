@@ -155,6 +155,7 @@ class VolumePlugin(object):
     """
     _POLL_INTERVAL = 1.0
     _MOUNT_TIMEOUT = 120.0
+    _DELETE_TIMEOUT = 60.0
 
     app = Klein()
 
@@ -186,14 +187,33 @@ class VolumePlugin(object):
 
         :param unicode Name: The name of the volume.
 
-        In practice we don't actually delete anything. As a multi-node
-        volume driver we want to keep volumes around beyond lifetime of a
-        specific container, or even a single node, so we don't delete
-        datasets based on information from Docker.
+        Actually remove the volume from the backend, 
+        it is the responsibility of the layers above docker
+        to make sure they call `rm` when they want to remove
+        actual data.
 
-        :return: Result indicating success.
+        :return: Result indicating success or an `Err` that
+        we timed out waiting to verify the volume has been
+        deleted.
         """
-        return {u"Err": u""}
+        d = DeferredContext(self._dataset_id_for_name(Name))
+        d.addCallback(lambda dataset_id:
+                      self._flocker_client.delete_dataset(dataset_id))
+        d.addCallback(lambda dataset: dataset.dataset_id)
+
+        d.addCallback(lambda dataset_id: loop_until(
+            self._reactor,
+            lambda: self._verify_dataset_is_deleted(dataset_id),
+            repeat(self._POLL_INTERVAL)))
+        d.addCallback(lambda p: {u"Err": u""})
+
+        timeout(self._reactor, d.result, self._DELETE_TIMEOUT)
+
+        def handleCancel(failure):
+            failure.trap(CancelledError)
+            return {u"Err": u"Timed out waiting for dataset to delete."}
+        d.addErrback(handleCancel)
+        return d.result
 
     @app.route("/VolumeDriver.Unmount", methods=["POST"])
     @_endpoint(u"Unmount")
@@ -280,7 +300,10 @@ class VolumePlugin(object):
 
         def ensure_unique_name(configured):
             for dataset in configured:
-                if dataset.metadata.get(NAME_FIELD) == Name:
+                if dataset.metadata.get(NAME_FIELD) == Name
+                    # we want to allow  names to be re-used if
+                    # volumes with the same names are deleted.
+                    && dataset.deleted == False:
                     raise DatasetAlreadyExists
 
         creating = conditional_create(
@@ -309,6 +332,28 @@ class VolumePlugin(object):
                 return datasets[0].path
             else:
                 return None
+        d.addCallback(got_state)
+        return d
+
+    def _verify_dataset_is_deleted(self, dataset_id):
+        """
+        Return true is dataset is deleted.
+
+        :param UUID dataset_id: The dataset to lookup.
+
+        :return: ``Deferred`` that fires with the response ``True``,
+            ``None`` if the dataset not deleted.
+        """
+        d = self._flocker_client.list_datasets_state()
+
+        def got_state(datasets):
+            datasets = [dataset for dataset in datasets
+                        if dataset.dataset_id == dataset_id]
+            if datasets:
+                # dataset is not deleted if > 0 datasets exist
+                return None
+            else:
+                return True
         d.addCallback(got_state)
         return d
 

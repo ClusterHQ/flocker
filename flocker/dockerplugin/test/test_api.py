@@ -105,12 +105,15 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResult(b"POST", b"/Plugin.Activate", 12345, OK,
                                  {u"Implements": [u"VolumeDriver"]})
 
-    def test_remove(self):
+    def test_remove_removes(self):
         """
         ``/VolumeDriver.Remove`` returns a successful result.
         """
-        return self.assertResult(b"POST", b"/VolumeDriver.Remove",
-                                 {u"Name": u"vol"}, OK, {u"Err": u""})
+        ## TODO
+        ## create volume
+        ## delete volume
+        ## list configuration state, verify removed
+        pass
 
     def test_unmount(self):
         """
@@ -248,6 +251,18 @@ class APITestsMixin(APIAssertionsMixin):
         return self.assertResult(b"POST", b"/VolumeDriver.Create",
                                  {u"Name": name}, OK, {u"Err": u""})
 
+    def remove(self, name):
+        """
+        Call the ``/VolumeDriver.Remove`` API to create a volume with the
+        given name.
+
+        :param unicode name: The name of the volume to remove.
+
+        :return: ``Deferred`` that fires when the volume that was removed.
+        """
+        return self.assertResult(b"POST", b"/VolumeDriver.Remove",
+                                 {u"Name": name}, OK, {u"Err": u""})
+
     def test_create_creates(self):
         """
         ``/VolumeDriver.Create`` creates a new dataset in the configuration.
@@ -281,6 +296,38 @@ class APITestsMixin(APIAssertionsMixin):
         d.addCallback(
             lambda _: self.flocker_client.list_datasets_configuration())
         d.addCallback(lambda results: self.assertEqual(len(list(results)), 1))
+        return d
+
+    def test_create_duplicate_name_after_delete(self):
+        """
+        If a dataset with the given name already exists, then is
+        deleted we want to make sure ``/VolumeDriver.Create`` 
+        succeeds when we create a new volume.
+        """
+        name = u"thename"
+        # Create a dataset out-of-band with matching name but non-matching
+        # dataset ID:
+        d = self.flocker_client.create_dataset(
+            self.NODE_A, int(DEFAULT_SIZE.to_Byte()),
+            metadata={NAME_FIELD: name})
+        # does delete leave the volume with deleted=true?
+        d.addCallback(lambda _: self.delete(name))
+        d.addCallback(lambda _: self.create(name))
+        d.addCallback(
+            lambda _: self.flocker_client.list_datasets_configuration())
+        d.addCallback(lambda results: self.assertItemsEqual(
+                          result, [
+                              # because of _client.py:450 the dataset
+                              # is removed and not marked delete like
+                              # in the real json config so there should be
+                              # one.
+                              # Is this a seperate issue that we dont
+                              # capture this state in the test framework?
+                              # or if we use remove() above will it remain?
+                              Dataset(dataset_id=result[0].dataset_id,
+                                      primary=self.NODE_A,
+                                      maximum_size=int(DEFAULT_SIZE.to_Byte()),
+                                      metadata={NAME_FIELD: name})]))
         return d
 
     def test_create_duplicate_name_race_condition(self):
