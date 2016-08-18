@@ -1734,7 +1734,7 @@ def reinstall_flocker_from_package_source(
 def configure_control_node(
     cluster,
     provider,
-    logging_config=None
+    logging_config=None,
     container_agent=True
 ):
     """
