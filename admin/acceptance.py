@@ -259,6 +259,9 @@ RUNNER_ATTRIBUTES = [
     # dict giving configuration for the dataset backend the nodes use - eg
     # {"pool": "flocker"}
     'dataset_backend_configuration',
+
+    # bool telling whether to install container agent.
+    'container-agent',
 ]
 
 
@@ -496,7 +499,7 @@ def get_default_volume_size(dataset_backend_configuration):
 def configured_cluster_for_nodes(
     reactor, certificates, nodes, dataset_backend,
     dataset_backend_configuration, dataset_backend_config_file,
-    provider=None, logging_config=None
+    provider=None, logging_config=None, container_agent=True,
 ):
     """
     Get a ``Cluster`` with Flocker services running on the right nodes.
@@ -535,7 +538,8 @@ def configured_cluster_for_nodes(
     configuring = perform(
         make_dispatcher(reactor),
         configure_cluster(
-            cluster, dataset_backend_configuration, provider, logging_config
+            cluster, dataset_backend_configuration, provider, logging_config,
+            container_agent=container_agent
         )
     )
     configuring.addCallback(lambda ignored: cluster)
@@ -753,7 +757,8 @@ class LibcloudRunner(object):
             self.identity.prefix, self.creator, tag, index,
         )
 
-    def _add_node_to_cluster(self, reactor, cluster, node, index):
+    def _add_node_to_cluster(self, reactor, cluster, node, index,
+                             container_agent=True):
         """
         Configure the given node as an agent node for the given cluster.
 
@@ -772,6 +777,7 @@ class LibcloudRunner(object):
             self.dataset_backend_configuration,
             'libcloud',
             logging_config=self.config.get('logging'),
+            container_agent=container_agent,
         )
         d = perform(make_dispatcher(reactor), commands)
 

@@ -1127,7 +1127,8 @@ def task_configure_flocker_agent(
     return sequence([put_config_file])
 
 
-def task_enable_flocker_agent(distribution, action="start"):
+def task_enable_flocker_agent(distribution, action="start",
+                              container_agent=True):
     """
     Enable the flocker agents.
 
@@ -1141,29 +1142,47 @@ def task_enable_flocker_agent(distribution, action="start"):
     validate_start_action(action)
 
     if is_systemd_distribution(distribution):
-        return sequence([
-            run_from_args(['systemctl',
-                           'enable',
-                           'flocker-dataset-agent']),
-            run_from_args(['systemctl',
-                           action.lower(),
-                           'flocker-dataset-agent']),
-            run_from_args(['systemctl',
-                           'enable',
-                           'flocker-container-agent']),
-            run_from_args(['systemctl',
-                           action.lower(),
-                           'flocker-container-agent']),
-        ])
+        if container_agent:
+            return sequence([
+                run_from_args(['systemctl',
+                               'enable',
+                               'flocker-dataset-agent']),
+                run_from_args(['systemctl',
+                               action.lower(),
+                               'flocker-dataset-agent']),
+                run_from_args(['systemctl',
+                               'enable',
+                               'flocker-container-agent']),
+                run_from_args(['systemctl',
+                               action.lower(),
+                               'flocker-container-agent']),
+            ])
+        else:
+            return sequence([
+                run_from_args(['systemctl',
+                               'enable',
+                               'flocker-dataset-agent']),
+                run_from_args(['systemctl',
+                               action.lower(),
+                               'flocker-dataset-agent']),
+            ])
+
     elif is_ubuntu(distribution):
-        return sequence([
-            run_from_args(['service',
-                           'flocker-dataset-agent',
-                           action.lower()]),
-            run_from_args(['service',
-                           'flocker-container-agent',
-                           action.lower()]),
-        ])
+        if container_agent:
+            return sequence([
+                run_from_args(['service',
+                               'flocker-dataset-agent',
+                               action.lower()]),
+                run_from_args(['service',
+                               'flocker-container-agent',
+                               action.lower()]),
+            ])
+        else:
+            return sequence([
+                run_from_args(['service',
+                               'flocker-dataset-agent',
+                               action.lower()]),
+            ])
     else:
         raise DistributionNotSupported(distribution=distribution)
 
@@ -1562,7 +1581,8 @@ def install_flocker(nodes, package_source):
 
 
 def configure_cluster(
-    cluster, dataset_backend_configuration, provider, logging_config=None
+    cluster, dataset_backend_configuration, provider, logging_config=None,
+    container_agent=True
 ):
     """
     Configure flocker-control, flocker-dataset-agent and
@@ -1593,6 +1613,7 @@ def configure_cluster(
                     dataset_backend_configuration,
                     provider,
                     logging_config,
+                    container_agent=container_agent,
                 ),
             ]) for certnkey, node
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
@@ -1602,7 +1623,7 @@ def configure_cluster(
 
 def reinstall_flocker_from_package_source(
     reactor, nodes, control_node, package_source, distribution,
-    destroy_persisted_state=False
+    destroy_persisted_state=False, container_agent=True
 ):
     """
     Put the version of Flocker indicated by ``package_source`` onto all of
@@ -1692,6 +1713,7 @@ def reinstall_flocker_from_package_source(
                         task_enable_flocker_agent(
                             distribution=node.distribution,
                             action='restart',
+                            container_agent=container_agent,
                         ),
                     ])
                 )
@@ -1751,7 +1773,8 @@ def configure_node(
     certnkey,
     dataset_backend_configuration,
     provider,
-    logging_config=None
+    logging_config=None,
+    container_agent=True
 ):
     """
     Configure flocker-dataset-agent and flocker-container-agent on a node,
@@ -1796,6 +1819,7 @@ def configure_node(
             task_enable_flocker_agent(
                 distribution=node.distribution,
                 action=setup_action,
+                container_agent=container_agent,
             ),
         ]),
     )
