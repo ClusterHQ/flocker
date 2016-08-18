@@ -1603,6 +1603,7 @@ def configure_cluster(
             cluster,
             provider,
             logging_config,
+            container_agent=container_agent,
         ),
         parallel([
             sequence([
@@ -1734,6 +1735,7 @@ def configure_control_node(
     cluster,
     provider,
     logging_config=None
+    container_agent=True
 ):
     """
     Configure Flocker control service on the given node.
