@@ -261,7 +261,7 @@ RUNNER_ATTRIBUTES = [
     'dataset_backend_configuration',
 
     # bool telling whether to install container agent.
-    'container-agent',
+    'container_agent',
 ]
 
 
