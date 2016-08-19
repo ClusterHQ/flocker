@@ -229,7 +229,8 @@ class IClusterRunner(Interface):
             found.  Otherwise, fails with ``AgentNotFound`` or ``KeyNotFound``.
         """
 
-    def extend_cluster(reactor, cluster, count, tag, starting_index):
+    def extend_cluster(reactor, cluster, count, tag, starting_index,
+                       container_agent, docker_tls):
         """
         Create new nodes and add them to the given cluster.
 
@@ -238,6 +239,8 @@ class IClusterRunner(Interface):
         :param int count: How many new nodes to create.
         :param str tag: Tag used for naming the new nodes.
         :param int starting_index: A number used for naming the new nodes.
+        :param bool container_agent: Run contianer agent?
+        :param bool docker_tls: configure tls?
         :return: List of ``Deferred``s that fire when a new node is configured
             or fails.
 
@@ -262,6 +265,9 @@ RUNNER_ATTRIBUTES = [
 
     # bool telling whether to install container agent.
     'container_agent',
+
+    # bool telling whether to use docker tls config
+    'docker_tls',
 ]
 
 
@@ -290,7 +296,7 @@ class ManagedRunner(object):
     """
     def __init__(self, node_addresses, package_source, distribution,
                  dataset_backend, dataset_backend_configuration, identity,
-                 cert_path, logging_config):
+                 cert_path, logging_config, container_agent, docker_tls):
         """
         :param list: A ``list`` of public IP addresses or
             ``[private_address, public_address]`` lists.
@@ -307,6 +313,8 @@ class ManagedRunner(object):
         self.identity = identity
         self.cert_path = cert_path
         self.logging_config = logging_config
+        self.container_agent = container_agent
+        self.docker_tls = docker_tls
 
     def _upgrade_flocker(self, reactor, nodes, package_source):
         """
@@ -377,6 +385,8 @@ class ManagedRunner(object):
                 ),
                 provider="managed",
                 logging_config=self.logging_config,
+                container_agent=self.container_agent,
+                docker_tls=self.docker_tls,
             )
         configuring = upgrading.addCallback(configure)
         return configuring
@@ -387,7 +397,8 @@ class ManagedRunner(object):
         """
         return succeed(None)
 
-    def extend_cluster(self, reactor, cluster, count, tag, starting_index):
+    def extend_cluster(self, reactor, cluster, count, tag, starting_index,
+                       container_agent=True, docker_tls=True):
         raise UsageError("Extending a cluster with managed nodes "
                          "is not implemented yet.")
 
@@ -500,6 +511,7 @@ def configured_cluster_for_nodes(
     reactor, certificates, nodes, dataset_backend,
     dataset_backend_configuration, dataset_backend_config_file,
     provider=None, logging_config=None, container_agent=True,
+    docker_tls=True
 ):
     """
     Get a ``Cluster`` with Flocker services running on the right nodes.
@@ -539,7 +551,7 @@ def configured_cluster_for_nodes(
         make_dispatcher(reactor),
         configure_cluster(
             cluster, dataset_backend_configuration, provider, logging_config,
-            container_agent=container_agent
+            container_agent=container_agent, docker_tls=docker_tls
         )
     )
     configuring.addCallback(lambda ignored: cluster)
@@ -758,7 +770,7 @@ class LibcloudRunner(object):
         )
 
     def _add_node_to_cluster(self, reactor, cluster, node, index,
-                             container_agent=True):
+                             container_agent=True, docker_tls=True):
         """
         Configure the given node as an agent node for the given cluster.
 
@@ -778,6 +790,7 @@ class LibcloudRunner(object):
             'libcloud',
             logging_config=self.config.get('logging'),
             container_agent=container_agent,
+            docker_tls=docker_tls,
         )
         d = perform(make_dispatcher(reactor), commands)
 
@@ -800,7 +813,8 @@ class LibcloudRunner(object):
         d.addCallbacks(add_node, errback=configure_failed)
         return d
 
-    def extend_cluster(self, reactor, cluster, count, tag, starting_index):
+    def extend_cluster(self, reactor, cluster, count, tag, starting_index,
+                       container_agent=True, docker_tls=True):
         """
         Extend a cluster with nodes provisioned via libcloud.
         """
@@ -810,7 +824,9 @@ class LibcloudRunner(object):
         results = self._create_nodes(reactor, names)
 
         def add_node(node, index):
-            return self._add_node_to_cluster(reactor, cluster, node, index)
+            return self._add_node_to_cluster(reactor, cluster, node, index,
+                                             container_agent=container_agent,
+                                             docker_tls=docker_tls)
 
         for i, d in enumerate(results):
             d.addCallback(add_node, starting_index + i)
@@ -1098,6 +1114,8 @@ class CommonOptions(Options):
             identity=self._make_cluster_identity(dataset_backend),
             cert_path=self['cert-directory'],
             logging_config=self['config'].get('logging'),
+            container_agent=self.container_agent,
+            docker_tls=self.docker_tls
         )
 
     def _libcloud_runner(self, package_source, dataset_backend,
@@ -1209,6 +1227,8 @@ class RunOptions(CommonOptions):
         ["keep", "k", "Keep VMs around, if the tests fail."],
         ["no-pull", None,
          "Do not pull any Docker images when provisioning nodes."],
+        ["no-container-agent", None, "Do not install container agent"],
+        ["no-docker-tls", None, "Do not use tls for docker"],
     ]
 
     synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '

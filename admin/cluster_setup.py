@@ -73,6 +73,7 @@ class LibcloudRunner(OldLibcloudRunner):
             'libcloud',
             logging_config=self.config.get('logging'),
             container_agent=self.container_agent,
+            docker_tls=self.docker_tls,
         )
         d = perform(make_dispatcher(reactor), commands)
 
@@ -88,6 +89,7 @@ class LibcloudRunner(OldLibcloudRunner):
             lambda _: self._add_node_to_cluster(
                 reactor, cluster, node, index,
                 container_agent=self.container_agent,
+                docker_tls=self.docker_tls,
             ),
             errback=configure_failed,
         )
@@ -101,7 +103,8 @@ class LibcloudRunner(OldLibcloudRunner):
             if node is not cluster.control_node:
                 return self._add_node_to_cluster(
                     reactor, cluster, node, index,
-                    container_agent=self.container_agent)
+                    container_agent=self.container_agent,
+                    docker_tls=self.docker_tls)
 
         for i, d in enumerate(results):
             d.addCallback(add_node, i)
@@ -184,6 +187,7 @@ class RunOptions(CommonOptions):
     optFlags = [
         ["no-keep", None, "Do not keep VMs around (when testing)"],
         ["no-container-agent", None, "Do not install container agent"],
+        ["no-docker-tls", None, "Do not use tls for docker"],
     ]
 
     synopsis = ('Usage: cluster-setup --distribution <distribution> '
@@ -232,6 +236,12 @@ class RunOptions(CommonOptions):
         else:
             return True
 
+    def _get_docker_tls(self):
+        if self['no-docker-tls']:
+            return False
+        else:
+            return True
+
     def _libcloud_runner(self, package_source, dataset_backend,
                          provider, provider_config):
         """
@@ -265,6 +275,7 @@ class RunOptions(CommonOptions):
             identity=self._make_cluster_identity(dataset_backend),
             cert_path=self['cert-directory'],
             container_agent=self._get_container_agent(),
+            docker_tls=self._get_docker_tls(),
         )
 
 

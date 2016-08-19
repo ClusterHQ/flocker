@@ -824,7 +824,7 @@ def task_install_api_certificates(api_cert, api_key):
         ])
 
 
-def task_enable_docker(distribution):
+def task_enable_docker(distribution, tls=True):
     """
     Configure docker.
 
@@ -833,10 +833,13 @@ def task_enable_docker(distribution):
     """
     # Use the Flocker node TLS certificate, since it's readily
     # available.
-    docker_tls_options = (
-        '--tlsverify --tlscacert=/etc/flocker/cluster.crt'
-        ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
-        ' -H=0.0.0.0:2376')
+    if tls:
+        docker_tls_options = (
+            '--tlsverify --tlscacert=/etc/flocker/cluster.crt'
+            ' --tlscert=/etc/flocker/node.crt --tlskey=/etc/flocker/node.key'
+            ' -H=0.0.0.0:2376')
+    else:
+        docker_tls_options = ('-H=0.0.0.0')
 
     # Used in multiple config options
     unixsock_opt = "-H unix:///var/run/docker.sock"
@@ -1582,7 +1585,7 @@ def install_flocker(nodes, package_source):
 
 def configure_cluster(
     cluster, dataset_backend_configuration, provider, logging_config=None,
-    container_agent=True
+    container_agent=True, docker_tls=True
 ):
     """
     Configure flocker-control, flocker-dataset-agent and
@@ -1604,6 +1607,7 @@ def configure_cluster(
             provider,
             logging_config,
             container_agent=container_agent,
+            docker_tls=docker_tls,
         ),
         parallel([
             sequence([
@@ -1735,7 +1739,8 @@ def configure_control_node(
     cluster,
     provider,
     logging_config=None,
-    container_agent=True
+    container_agent=True,
+    docker_tls=True
 ):
     """
     Configure Flocker control service on the given node.
@@ -1776,7 +1781,8 @@ def configure_node(
     dataset_backend_configuration,
     provider,
     logging_config=None,
-    container_agent=True
+    container_agent=True,
+    docker_tls=True
 ):
     """
     Configure flocker-dataset-agent and flocker-container-agent on a node,
@@ -1817,7 +1823,9 @@ def configure_node(
                 ),
                 logging_config=logging_config,
             ),
-            task_enable_docker_plugin(node.distribution),
+            task_enable_docker_plugin(
+                node.distribution,
+                tls=docker_tls),
             task_enable_flocker_agent(
                 distribution=node.distribution,
                 action=setup_action,

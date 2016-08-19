@@ -178,12 +178,21 @@ def main(reactor, args, base_path, top_level):
 
     yield runner.ensure_keys(reactor)
 
+    cagent = True
+    tls = True
+    if options['no-container-agent']:
+        cagent = False
+    if options['no-docker-tls']:
+        tls = False
+
     deferreds = runner.extend_cluster(
         reactor,
         cluster,
         options['number-of-nodes'],
         options['tag'],
         options['starting-index'],
+        cagent,
+        tls,
     )
     results = yield DeferredList(deferreds)
 
