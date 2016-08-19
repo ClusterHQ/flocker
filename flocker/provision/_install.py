@@ -1810,7 +1810,9 @@ def configure_node(
             task_install_api_certificates(
                 cluster.certificates.user.certificate,
                 cluster.certificates.user.key),
-            task_enable_docker(node.distribution),
+            task_enable_docker(
+                node.distribution,
+                tls=docker_tls),
             if_firewall_available(
                 node.distribution,
                 open_firewall_for_docker_api(node.distribution),
@@ -1823,9 +1825,7 @@ def configure_node(
                 ),
                 logging_config=logging_config,
             ),
-            task_enable_docker_plugin(
-                node.distribution,
-                tls=docker_tls),
+            task_enable_docker_plugin(node.distribution),
             task_enable_flocker_agent(
                 distribution=node.distribution,
                 action=setup_action,
