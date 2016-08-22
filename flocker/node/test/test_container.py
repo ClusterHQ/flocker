@@ -6,15 +6,10 @@ Tests for ``flocker.node._container``.
 
 from uuid import UUID, uuid4
 
-from ipaddr import IPAddress
-
 from pyrsistent import pset, pvector
 
 from bitmath import GiB
 
-from eliot.testing import capture_logging
-
-from twisted.internet.defer import FirstError
 from twisted.python.filepath import FilePath
 
 from .. import (
@@ -37,7 +32,7 @@ from .._deploy import (
     NodeLocalState,
 )
 from .._container import (
-    StartApplication, StopApplication, SetProxies, _link_environment, OpenPorts
+    StartApplication, StopApplication, _link_environment
 )
 from ...control.testtools import InMemoryStatePersister
 from ...control._model import (
@@ -46,8 +41,6 @@ from ...control._model import (
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient, Volume as DockerVolume)
-from ...route import Proxy, OpenPort, make_memory_network
-from ...route._iptables import HostNetwork
 
 from .istatechange import make_istatechange_tests
 
@@ -106,7 +99,6 @@ def assert_application_calculated_changes(
         hostname=node_state.hostname,
         node_uuid=node_state.uuid,
         docker_client=FakeDockerClient(),
-        network=make_memory_network(),
     )
     return assert_calculated_changes_for_deployer(
         case, deployer, node_state, node_config, nonmanifest_datasets,
@@ -143,26 +135,6 @@ class ApplicationNodeDeployerAttributesTests(TestCase):
                 docker_client=dummy_docker_client).docker_client
         )
 
-    def test_network_default(self):
-        """
-        ``ApplicationNodeDeployer._network`` is a ``HostNetwork`` by default.
-        """
-        self.assertIsInstance(
-            ApplicationNodeDeployer(u'example.com', None).network,
-            HostNetwork)
-
-    def test_network_override(self):
-        """
-        ``ApplicationNodeDeployer._network`` can be overridden in the
-        constructor.
-        """
-        dummy_network = object()
-        self.assertIs(
-            dummy_network,
-            ApplicationNodeDeployer(u'example.com',
-                                    network=dummy_network).network
-        )
-
 
 StartApplicationIStateChangeTests = make_istatechange_tests(
     StartApplication,
@@ -179,11 +151,6 @@ StopApplicationIStageChangeTests = make_istatechange_tests(
     StopApplication,
     dict(application=APPLICATION_WITH_VOLUME),
     dict(application=APPLICATION_WITH_VOLUME.set(name=u"throwaway-app")),
-)
-SetProxiesIStateChangeTests = make_istatechange_tests(
-    SetProxies,
-    dict(ports=[Proxy(ip=IPAddress("10.0.0.1"), port=1000)]),
-    dict(ports=[Proxy(ip=IPAddress("10.0.0.2"), port=2000)]),
 )
 
 
@@ -612,7 +579,6 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             ApplicationNodeDeployerDiscoverNodeConfigurationTests, self
         ).setUp()
         self.hostname = u"example.com"
-        self.network = make_memory_network()
         self.node_uuid = uuid4()
         # https://clusterhq.atlassian.net/browse/FLOC-1926
         self.EMPTY_NODESTATE = NodeState(
@@ -648,7 +614,6 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             self.hostname,
             node_uuid=self.node_uuid,
             docker_client=fake_docker,
-            network=self.network
         )
         if start_applications:
             for app in expected_applications:
@@ -1143,161 +1108,13 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
             no_change(),
         )
 
-    def test_proxy_needs_creating(self):
-        """
-        ``ApplicationNodeDeployer.calculate_changes`` returns a
-        ``IStateChange``, specifically a ``SetProxies`` with a list of
-        ``Proxy`` objects. One for each port exposed by ``Application``\ s
-        hosted on a remote nodes.
-        """
-        port = Port(
-            internal_port=3306, external_port=1001,
-        )
-        application = Application(
-            name=u'mysql-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/mysql',
-                              tag=u'release-14.0'),
-            ports=frozenset([port]),
-        )
-        local_state = NodeState(
-            uuid=uuid4(), hostname=u"192.0.2.100",
-            applications=[],
-            manifestations={}, devices={}, paths={},
-        )
-        destination_state = NodeState(
-            uuid=uuid4(), hostname=u"192.0.2.101",
-            applications=[application],
-            manifestations={}, devices={}, paths={},
-        )
-        local_config = to_node(local_state)
-
-        proxy = Proxy(
-            ip=destination_state.hostname,
-            port=port.external_port,
-        )
-        expected = sequentially(changes=[SetProxies(ports=frozenset([proxy]))])
-        assert_application_calculated_changes(
-            self, local_state, local_config, set(),
-            additional_node_states={destination_state},
-            additional_node_config={to_node(destination_state)},
-            expected_changes=expected,
-        )
-
-    def test_no_proxy_if_node_state_unknown(self):
-        """
-        ``ApplicationNodeDeployer.calculate_changes`` does not attempt to
-        create a proxy to a node whose state is unknown, since the
-        destination IP is unavailable.
-        """
-        api = ApplicationNodeDeployer(u'192.168.1.1', node_uuid=uuid4(),
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
-        expected_destination_port = 1001
-        port = Port(internal_port=3306,
-                    external_port=expected_destination_port)
-        application = Application(
-            name=u'mysql-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/mysql',
-                              tag=u'release-14.0'),
-            ports=frozenset([port]),
-        )
-        desired = Deployment(nodes=[Node(uuid=uuid4(),
-                                         applications=[application])])
-        result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY_STATE,
-            local_state=empty_node_local_state(api))
-        expected = sequentially(changes=[])
-        self.assertEqual(expected, result)
-
-    def test_proxy_empty(self):
-        """
-        ``ApplicationNodeDeployer.calculate_changes`` returns a
-        ``SetProxies`` instance containing an empty `proxies`
-        list if there are no remote applications that need proxies.
-        """
-        network = make_memory_network()
-        network.create_proxy_to(ip=u'192.0.2.100', port=3306)
-
-        api = ApplicationNodeDeployer(u'node2.example.com',
-                                      docker_client=FakeDockerClient(),
-                                      network=network)
-        desired = Deployment(nodes=frozenset())
-        result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY,
-            local_state=empty_node_local_state(api))
-        expected = sequentially(changes=[SetProxies(ports=frozenset())])
-        self.assertEqual(expected, result)
-
-    def test_open_port_needs_creating(self):
-        """
-        ``ApplicationNodeDeployer.calculate_changes`` returns a
-        ``IStateChange``, specifically a ``OpenPorts`` with a list of
-        ports to open. One for each port exposed by ``Application``\ s
-        hosted on this node.
-        """
-        api = ApplicationNodeDeployer(u'example.com',
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network(),
-                                      node_uuid=uuid4())
-        expected_destination_port = 1001
-        port = Port(internal_port=3306,
-                    external_port=expected_destination_port)
-        application = Application(
-            name=u'mysql-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/mysql',
-                              tag=u'release-14.0'),
-            ports=[port],
-        )
-
-        nodes = [
-            Node(
-                uuid=api.node_uuid,
-                applications=[application]
-            )
-        ]
-
-        node_state = NodeState(
-            hostname=api.hostname, uuid=api.node_uuid,
-            applications=[])
-        desired = Deployment(nodes=nodes)
-        result = api.calculate_changes(
-            desired_configuration=desired,
-            current_cluster_state=DeploymentState(nodes=[node_state]),
-            local_state=NodeLocalState(node_state=node_state))
-        expected = sequentially(changes=[
-            OpenPorts(ports=[OpenPort(port=expected_destination_port)]),
-            in_parallel(changes=[
-                StartApplication(application=application,
-                                 node_state=node_state)])])
-        self.assertEqual(expected, result)
-
-    def test_open_ports_empty(self):
-        """
-        ``ApplicationNodeDeployer.calculate_changes`` returns a
-        ``OpenPorts`` instance containing an empty `ports`
-        list if there are no local applications that need open_ports.
-        """
-        network = make_memory_network()
-        network.open_port(port=3306)
-
-        api = ApplicationNodeDeployer(u'node2.example.com',
-                                      docker_client=FakeDockerClient(),
-                                      network=network)
-        desired = Deployment(nodes=[])
-        result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY,
-            local_state=empty_node_local_state(api))
-        expected = sequentially(changes=[OpenPorts(ports=[])])
-        self.assertEqual(expected, result)
-
     def test_application_needs_stopping(self):
         """
         ``ApplicationNodeDeployer.calculate_changes`` specifies that an
         application must be stopped when it is running but not desired.
         """
         api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      docker_client=FakeDockerClient())
 
         to_stop = StopApplication(application=Application(
             name=u"site-example.com", image=DockerImage.from_string(
@@ -1321,7 +1138,6 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         """
         api = ApplicationNodeDeployer(u'example.com',
                                       docker_client=FakeDockerClient(),
-                                      network=make_memory_network(),
                                       node_uuid=uuid4())
         application = Application(
             name=u'mysql-hybridcluster',
@@ -1357,8 +1173,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         to a different node.
         """
         api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      docker_client=FakeDockerClient())
         application = Application(
             name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -1387,8 +1202,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         configuration is the same as the current configuration.
         """
         api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      docker_client=FakeDockerClient())
 
         application = Application(
             name=u'mysql-hybridcluster',
@@ -1421,8 +1235,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         configuration does not include that node.
         """
         api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      docker_client=FakeDockerClient())
         application = Application(
             name=u"my-db",
             image=DockerImage.from_string("postgres")
@@ -1448,7 +1261,6 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         """
         api = ApplicationNodeDeployer(u'n.example.com',
                                       docker_client=FakeDockerClient(),
-                                      network=make_memory_network(),
                                       node_uuid=uuid4())
         application_desired = Application(
             name=u'mysql-hybridcluster',
@@ -1487,8 +1299,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         """
         api = ApplicationNodeDeployer(
             u'example.com',
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
+            docker_client=FakeDockerClient())
         to_stop = Application(
             name=u"myapp",
             image=DockerImage.from_string(u"postgres"),
@@ -1512,7 +1323,6 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         api = ApplicationNodeDeployer(
             u'node1.example.com',
             docker_client=FakeDockerClient(),
-            network=make_memory_network(),
             node_uuid=uuid4(),
         )
 
@@ -1559,13 +1369,9 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         application's current state is added to the list of applications to
         restart.
         """
-        network = make_memory_network()
-        network.open_port(50432)
-
         api = ApplicationNodeDeployer(
             u'node1.example.com',
             docker_client=FakeDockerClient(),
-            network=network,
         )
 
         old_postgres_app = Application(
@@ -1604,7 +1410,6 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         )
 
         expected = sequentially(changes=[
-            OpenPorts(ports=[OpenPort(port=50433)]),
             in_parallel(changes=[
                 sequentially(changes=[
                     StopApplication(application=old_postgres_app),
@@ -1626,7 +1431,6 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         api = ApplicationNodeDeployer(
             u'node1.example.com',
             docker_client=FakeDockerClient(),
-            network=make_memory_network()
         )
 
         old_wordpress_app = Application(
@@ -1686,7 +1490,6 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         api = ApplicationNodeDeployer(
             u'node1.example.com',
             docker_client=FakeDockerClient(),
-            network=make_memory_network(),
             node_uuid=uuid4(),
         )
 
@@ -1729,7 +1532,6 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         api = ApplicationNodeDeployer(
             u'node1.example.com',
             docker_client=FakeDockerClient(),
-            network=make_memory_network()
         )
 
         postgres_app = Application(
@@ -1757,8 +1559,7 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
         application can be started.
         """
         api = ApplicationNodeDeployer(u'example.com',
-                                      docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      docker_client=FakeDockerClient())
         manifestation = Manifestation(
             dataset=Dataset(dataset_id=unicode(uuid4())),
             primary=True,
@@ -1891,277 +1692,3 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
             RestartOnFailure(maximum_retry_count=2),
             True,
         )
-
-
-class SetProxiesTests(TestCase):
-    """
-    Tests for ``SetProxies``.
-    """
-    def test_proxies_added(self):
-        """
-        Proxies which are required are added.
-        """
-        fake_network = make_memory_network()
-        api = ApplicationNodeDeployer(
-            u'example.com',
-            docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        expected_proxy = Proxy(ip=u'192.0.2.100', port=3306)
-        d = SetProxies(ports=[expected_proxy]).run(
-            api, state_persister=InMemoryStatePersister())
-        self.successResultOf(d)
-        self.assertEqual(
-            [expected_proxy],
-            fake_network.enumerate_proxies()
-        )
-
-    def test_proxies_removed(self):
-        """
-        Proxies which are no longer required on the node are removed.
-        """
-        fake_network = make_memory_network()
-        fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        d = SetProxies(ports=[]).run(
-            api, state_persister=InMemoryStatePersister())
-        self.successResultOf(d)
-        self.assertEqual(
-            [],
-            fake_network.enumerate_proxies()
-        )
-
-    def test_desired_proxies_remain(self):
-        """
-        Proxies which exist on the node and which are still required are not
-        removed.
-        """
-        fake_network = make_memory_network()
-
-        # A proxy which will be removed
-        fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
-        # And some proxies which are still required
-        required_proxy1 = fake_network.create_proxy_to(ip=u'192.0.2.101',
-                                                       port=3306)
-        required_proxy2 = fake_network.create_proxy_to(ip=u'192.0.2.101',
-                                                       port=8080)
-
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        d = SetProxies(ports=[required_proxy1, required_proxy2]).run(
-            api, state_persister=InMemoryStatePersister())
-
-        self.successResultOf(d)
-        self.assertEqual(
-            set([required_proxy1, required_proxy2]),
-            set(fake_network.enumerate_proxies())
-        )
-
-    @capture_logging(None)
-    def test_delete_proxy_errors_as_errbacks(self, logger):
-        """
-        Exceptions raised in `delete_proxy` operations are reported as
-        failures in the returned deferred.
-        """
-        fake_network = make_memory_network()
-        fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
-        fake_network.delete_proxy = lambda proxy: 1/0
-
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        d = SetProxies(ports=[]).run(
-            api, state_persister=InMemoryStatePersister())
-        exception = self.failureResultOf(d, FirstError)
-        self.assertIsInstance(
-            exception.value.subFailure.value,
-            ZeroDivisionError
-        )
-        logger.flush_tracebacks(ZeroDivisionError)
-
-    @capture_logging(None)
-    def test_create_proxy_errors_as_errbacks(self, logger):
-        """
-        Exceptions raised in `create_proxy_to` operations are reported as
-        failures in the returned deferred.
-        """
-        fake_network = make_memory_network()
-        fake_network.create_proxy_to = lambda ip, port: 1/0
-
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        d = SetProxies(ports=[Proxy(ip=u'192.0.2.100', port=3306)]).run(
-            api, state_persister=InMemoryStatePersister())
-        exception = self.failureResultOf(d, FirstError)
-        self.assertIsInstance(
-            exception.value.subFailure.value,
-            ZeroDivisionError
-        )
-        logger.flush_tracebacks(ZeroDivisionError)
-
-    @capture_logging(None)
-    def test_create_proxy_errors_all_logged(self, logger):
-        """
-        Exceptions raised in `create_proxy_to` operations are all logged.
-        """
-        fake_network = make_memory_network()
-        fake_network.create_proxy_to = lambda ip, port: 1/0
-
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        d = SetProxies(
-            ports=[Proxy(ip=u'192.0.2.100', port=3306),
-                   Proxy(ip=u'192.0.2.101', port=3306),
-                   Proxy(ip=u'192.0.2.102', port=3306)]
-        ).run(api, state_persister=InMemoryStatePersister())
-
-        self.failureResultOf(d, FirstError)
-
-        failures = logger.flush_tracebacks(ZeroDivisionError)
-        self.assertEqual(3, len(failures))
-
-
-class OpenPortsTests(TestCase):
-    """
-    Tests for ``OpenPorts``.
-    """
-    def test_open_ports_added(self):
-        """
-        Porst which are required are opened.
-        """
-        fake_network = make_memory_network()
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        expected_open_port = OpenPort(port=3306)
-        d = OpenPorts(ports=[expected_open_port]).run(
-            api, state_persister=InMemoryStatePersister())
-        self.successResultOf(d)
-        self.assertEqual(
-            [expected_open_port],
-            fake_network.enumerate_open_ports()
-        )
-
-    def test_open_ports_removed(self):
-        """
-        Open ports which are no longer required on the node are closed.
-        """
-        fake_network = make_memory_network()
-        fake_network.open_port(port=3306)
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        d = OpenPorts(ports=[]).run(
-            api, state_persister=InMemoryStatePersister())
-        self.successResultOf(d)
-        self.assertEqual(
-            [],
-            fake_network.enumerate_proxies()
-        )
-
-    def test_desired_open_ports_remain(self):
-        """
-        Open ports which exist on the node and which are still required are not
-        removed.
-        """
-        fake_network = make_memory_network()
-
-        # A open_port which will be removed
-        fake_network.open_port(port=3305)
-        # And some open ports which are still required
-        required_open_port_1 = fake_network.open_port(port=3306)
-        required_open_port_2 = fake_network.open_port(port=8080)
-
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        state_change = OpenPorts(
-            ports=[required_open_port_1, required_open_port_2])
-        d = state_change.run(api, state_persister=InMemoryStatePersister())
-
-        self.successResultOf(d)
-        self.assertEqual(
-            set([required_open_port_1, required_open_port_2]),
-            set(fake_network.enumerate_open_ports())
-        )
-
-    @capture_logging(None)
-    def test_delete_open_port_errors_as_errbacks(self, logger):
-        """
-        Exceptions raised in `delete_open_port` operations are reported as
-        failures in the returned deferred.
-        """
-        fake_network = make_memory_network()
-        fake_network.open_port(port=3306)
-        fake_network.delete_open_port = lambda open_port: 1/0
-
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        d = OpenPorts(ports=[]).run(
-            api, state_persister=InMemoryStatePersister())
-        exception = self.failureResultOf(d, FirstError)
-        self.assertIsInstance(
-            exception.value.subFailure.value,
-            ZeroDivisionError
-        )
-        logger.flush_tracebacks(ZeroDivisionError)
-
-    @capture_logging(None)
-    def test_open_port_errors_as_errbacks(self, logger):
-        """
-        Exceptions raised in `open_port` operations are reported as
-        failures in the returned deferred.
-        """
-        fake_network = make_memory_network()
-        fake_network.open_port = lambda port: 1/0
-
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        d = OpenPorts(ports=[OpenPort(port=3306)]).run(
-            api, state_persister=InMemoryStatePersister())
-        exception = self.failureResultOf(d, FirstError)
-        self.assertIsInstance(
-            exception.value.subFailure.value,
-            ZeroDivisionError
-        )
-        logger.flush_tracebacks(ZeroDivisionError)
-
-    @capture_logging(None)
-    def test_open_ports_errors_all_logged(self, logger):
-        """
-        Exceptions raised in `OpenPorts` operations are all logged.
-        """
-        fake_network = make_memory_network()
-        fake_network.open_port = lambda port: 1/0
-
-        api = ApplicationNodeDeployer(
-            u'example.com', docker_client=FakeDockerClient(),
-            network=fake_network)
-
-        d = OpenPorts(
-            ports=[OpenPort(port=3306),
-                   OpenPort(port=3307),
-                   OpenPort(port=3308)]
-        ).run(api, state_persister=InMemoryStatePersister())
-
-        self.failureResultOf(d, FirstError)
-
-        failures = logger.flush_tracebacks(ZeroDivisionError)
-        self.assertEqual(3, len(failures))

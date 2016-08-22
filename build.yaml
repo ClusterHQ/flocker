@@ -747,12 +747,9 @@ run_trial_modules: &run_trial_modules
   - flocker.node.functional.test_deploy
   - flocker.provision
   - flocker.restapi
-  - flocker.route
   - flocker.test
   - flocker.testtools
 run_trial_as_root_modules: &run_trial_as_root_modules
-  # iptables requires root
-  - flocker.route.functional
   # journald access requires root
   - flocker.common.functional
   # flocker.volume needs to run as root due to ZFS calls
