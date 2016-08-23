@@ -33,6 +33,7 @@ from treq import json_content, content
 from ..ca import treq_with_authentication
 from ..control import Leases as LeasesModel, LeaseError, DockerImage
 from ..common import retry_failure
+from ..testtools import find_free_port
 
 from .. import __version__
 
@@ -810,6 +811,7 @@ class FlockerClient(object):
     def create_container(self, node_uuid, name, image, volumes=None):
         container = dict(
             node_uuid=unicode(node_uuid), name=name, image=image.full_name,
+            ports=[dict(internal=5432, external=find_free_port()[1])]
         )
         if volumes:
             container[u'volumes'] = [
