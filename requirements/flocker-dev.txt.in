@@ -1,3 +1,4 @@
+--find-links git+https://github.com/ClusterHQ/mimic@2.1.0+chq2#egg=mimic-2.1.0+chq2
 mimic
 # The test suite uses network namespaces
 # nomenclature can only be installed on Linux
