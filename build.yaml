@@ -1497,7 +1497,7 @@ job_type:
       at: '0 5 * * *'
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1526,7 +1526,7 @@ job_type:
       at: '0 6 * * *'
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1555,7 +1555,7 @@ job_type:
       at: '0 6 * * *'
       # flocker.provision is responsible for creating the test nodes on
       # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
