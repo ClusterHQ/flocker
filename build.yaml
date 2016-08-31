@@ -438,8 +438,10 @@ common_cli:
     --distribution ${DISTRIBUTION_NAME} \
     --provider ${ACCEPTANCE_TEST_PROVIDER} \
     --dataset-backend ${ACCEPTANCE_TEST_PROVIDER} \
-    --branch ${TRIGGERED_BRANCH} --build-server  \
-    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --branch ${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://$(curl http://169.254.169.254/computeMetadata/v1beta1/instance/network-
+interfaces/0/ip)  \
     --config-file /tmp/acceptance.yaml \
     -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
@@ -1061,7 +1063,7 @@ job_type:
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
     run_acceptance_loopback_on_AWS_CentOS_7_for:
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
@@ -1086,7 +1088,7 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_acceptance_loopback_on_AWS_Ubuntu_Trusty_for:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
@@ -1111,7 +1113,7 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_acceptance_loopback_on_AWS_Ubuntu_Xenial_for:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
@@ -1326,7 +1328,9 @@ job_type:
 
     run_acceptance_on_AWS_CentOS_7_with_EBS:
       at: '0 5 * * *'
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1357,7 +1361,9 @@ job_type:
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1385,7 +1391,9 @@ job_type:
 
     run_acceptance_on_AWS_Ubuntu_Xenial_with_EBS:
       at: '0 6 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1413,8 +1421,9 @@ job_type:
 
     run_acceptance_on_GCE_CentOS_7_with_GCE:
       at: '0 5 * * *'
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1441,7 +1450,9 @@ job_type:
 
     run_acceptance_on_GCE_Ubuntu_Trusty_with_GCE:
       at: '0 6 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1468,7 +1479,9 @@ job_type:
 
     run_acceptance_on_GCE_Ubuntu_Xenial_with_GCE:
       at: '0 6 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1496,8 +1509,8 @@ job_type:
     run_acceptance_on_Rackspace_CentOS_7_with_Cinder:
       at: '0 5 * * *'
       # flocker.provision is responsible for creating the test nodes on
-      # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1525,8 +1538,8 @@ job_type:
     run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
       # flocker.provision is responsible for creating the test nodes on
-      # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1554,8 +1567,8 @@ job_type:
     run_acceptance_on_Rackspace_Ubuntu_Xenial_with_Cinder:
       at: '0 6 * * *'
       # flocker.provision is responsible for creating the test nodes on
-      # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
