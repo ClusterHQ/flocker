@@ -440,8 +440,7 @@ common_cli:
     --dataset-backend ${ACCEPTANCE_TEST_PROVIDER} \
     --branch ${TRIGGERED_BRANCH} \
     --build-server  \
-    http://$(curl http://169.254.169.254/computeMetadata/v1beta1/instance/network-
-interfaces/0/ip)  \
+    http://$(curl http://169.254.169.254/computeMetadata/v1beta1/instance/network-interfaces/0/ip) \
     --config-file /tmp/acceptance.yaml \
     -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
