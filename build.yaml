@@ -495,7 +495,7 @@ common_cli:
     # we provide one by starting a webserver and pointing the tests
     # to look over there
     REPO_PATH=/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
-    DOC_ROOT=/usr/share/nginx/html
+    DOC_ROOT=/var/www/html
     sudo rm -rf ${DOC_ROOT}/${REPO_PATH}
     sudo mkdir -p ${DOC_ROOT}/${REPO_PATH}
     sudo cp repo/* ${DOC_ROOT}/${REPO_PATH}
