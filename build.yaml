@@ -1136,7 +1136,7 @@ job_type:
 
   run_client:
     run_client_installation_on_Ubuntu_Trusty:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1154,7 +1154,7 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_client_installation_on_Ubuntu_Wily:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1172,7 +1172,7 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_client_installation_on_Ubuntu_Xenial:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
