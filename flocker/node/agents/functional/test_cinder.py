@@ -868,6 +868,7 @@ class CinderFromConfigurationTests(AsyncTestCase):
         (api
          .cinder_volume_manager
          ._original
+         ._client_v2
          ._cinder_volumes
          .api
          .client
