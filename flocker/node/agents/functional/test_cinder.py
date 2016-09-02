@@ -802,17 +802,17 @@ class CinderFromConfigurationTests(AsyncTestCase):
             cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
         )
 
-    def test_no_retry_authentication(self):
+    def _build_and_test_api(self, listening_port):
         """
-        The API object returned by ``cinder_from_configuration`` will retry
-        authentication even when initial authentication attempts fail.
+        Build the CinderBlockDeviceAPI configured to connect to the Mimic
+        server at ``listening_port``.
+        Patch twisted.web to force the mimic server to drop incoming
+        connections.
+        And attempt to interact with the disabled API server first and then
+        after re-enabling it to show that the API will re-authenticate even
+        after an initial failure.
         """
         import twisted.web.http
-        self.patch(
-            twisted.web.http.HTTPChannel,
-            'checkPersistence',
-            lambda self, request, version: False
-        )
         patch = MonkeyPatcher()
         patch.addPatch(
             twisted.web.http.HTTPChannel,
@@ -820,61 +820,75 @@ class CinderFromConfigurationTests(AsyncTestCase):
             lambda self: self.transport.loseConnection()
         )
         self.addCleanup(patch.restore)
-        mimic_starting = mimic_for_test(test_case=self)
-
-        def build_api(listening_port):
-            backend, api_args = backend_and_api_args_from_configuration({
-                "backend": "openstack",
-                "auth_plugin": "rackspace",
-                "region": "ORD",
-                "username": "mimic",
-                "api_key": "12345",
-                "auth_url": "http://127.0.0.1:{}/identity/v2.0".format(
-                    listening_port.getHost().port
-                ),
-            })
-            patch.patch()
-            api = get_api(
-                backend=backend,
-                api_args=api_args,
-                reactor=object(),
-                cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+        backend, api_args = backend_and_api_args_from_configuration({
+            "backend": "openstack",
+            "auth_plugin": "rackspace",
+            "region": "ORD",
+            "username": "mimic",
+            "api_key": "12345",
+            "auth_url": "http://127.0.0.1:{}/identity/v2.0".format(
+                listening_port.getHost().port
+            ),
+        })
+        # Cause the Mimic server to close incoming connections
+        patch.patch()
+        api = get_api(
+            backend=backend,
+            api_args=api_args,
+            reactor=object(),
+            cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+        )
+        # List volumes with API patched to close incoming connections.
+        try:
+            result = api.list_volumes()
+        except ConnectFailure:
+            # Can't use self.asserRaises here because that would call the
+            # function in the main thread.
+            pass
+        else:
+            self.fail(
+                'ConnectFailure was not raised. '
+                'Got {!r} instead.'.format(
+                    result
+                )
             )
+        finally:
+            # Re-enable the Mimic server.
+            # The API operations that follow should succeed.
             patch.restore()
-            return api
 
-        mimic_started = mimic_starting.addCallback(build_api)
+        # List volumes with API re-enabled
+        result = api.list_volumes()
+        self.assertEqual([], result)
 
-        def list_volumes(api, force_connection_failure=False):
-            if force_connection_failure:
-                patch.patch()
-            try:
-                return api.list_volumes()
-            finally:
-                patch.restore()
+        # Close the connection from the client side so that the mimic server
+        # can close down without leaving behind lingering persistent HTTP
+        # channels which cause dirty reactor errors.
+        # XXX: This is gross. Perhaps we need ``IBlockDeviceAPI.close``
+        (api
+         .cinder_volume_manager
+         ._original
+         ._cinder_volumes
+         .api
+         .client
+         .session
+         .session.close())
 
-        def check_failing_connection(api):
-            d = deferToThread(
-                lambda api: list_volumes(api, force_connection_failure=True),
-                api,
+    def test_no_retry_authentication(self):
+        """
+        The API object returned by ``cinder_from_configuration`` will retry
+        authentication even when initial authentication attempts fail.
+
+        The API is tested against a Mimic server which...mimics the OpenStack
+        Keystone auth and Cinder APIs.
+
+        The blocking IBlockDeviceAPI operations are performed in a thread to
+        avoid blocking the Twisted reactor which is running the mimic server.
+        """
+        d = mimic_for_test(test_case=self)
+        d.addCallback(
+            lambda listening_port: deferToThread(
+                self._build_and_test_api, listening_port
             )
-            d = self.assertFailure(d, ConnectFailure)
-            # return the api for further testing.
-            d = d.addCallback(
-                lambda failure_instance: api
-            )
-            return d
-        listing_volumes1 = mimic_started.addCallback(check_failing_connection)
-
-        def check_successful_connection(api):
-            d = deferToThread(
-                lambda api: list_volumes(api, force_connection_failure=False),
-                api,
-            )
-            d = d.addCallback(
-                lambda result: self.assertEqual([], result)
-            )
-            return d
-        finishing = listing_volumes1.addCallback(check_successful_connection)
-
-        return finishing
+        )
+        return d
