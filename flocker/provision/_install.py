@@ -1111,7 +1111,20 @@ def task_configure_flocker_agent(
     content = {
         "version": 1,
         "control-service": {
-            "hostname": control_node,
+            # ``flocker-dataset-agent`` can be modified to serve the REST API.
+            # And the agent will no longer connect to a control service,
+            # Or initially we could run flocker-control on every node.
+            # ``flocker-dataset-agent`` will simply connect to the control
+            # service running locally.
+            #
+            # In any case this is where the flocker-docker-plugin looks for the
+            # REST API endpoint address.
+            # It *might* still be useful to configure the address that it
+            # listens on (discuss...).
+            #
+            # Or we make this a path to a unix socket.
+            # Then access can be controlled with filesystem permissions.
+            "hostname": "127.0.0.1",
             "port": 4524,
         },
         "dataset": dataset_backend_configuration,
@@ -1579,6 +1592,7 @@ def configure_cluster(
         following the structure of PEP 391.
     """
     return sequence([
+        # Either remove this or run ``flocker-control`` on every node.
         configure_control_node(
             cluster,
             provider,

@@ -62,10 +62,15 @@ class DockerPluginScript(object):
         # We can use /etc/flocker/agent.yml and /etc/flocker/node.crt to load
         # some information we need:
         agent_config = get_configuration(options)
+        # This should always be a localhost address or a unix socket path.
+        # Hardcode this?
+        # What about authentication?
         control_host = agent_config['control-service']['hostname']
 
         certificates_path = options["agent-config"].parent()
         control_port = options["rest-api-port"]
+        # We're aiming to remove the need for complicated certificate based
+        # authentication.
         flocker_client = FlockerClient(reactor, control_host, control_port,
                                        certificates_path.child(b"cluster.crt"),
                                        certificates_path.child(b"plugin.crt"),
@@ -75,6 +80,7 @@ class DockerPluginScript(object):
 
         # Get the node UUID, and then start up:
         # Retry on  *all* errors.
+        # This shouldn't be necessary any more.
         getting_id = retry_failure(
             reactor=reactor,
             function=flocker_client.this_node_uuid,
@@ -82,6 +88,7 @@ class DockerPluginScript(object):
         )
 
         def run_service(node_id):
+            # This is how to run a REST API on a Unix socket.
             endpoint = serverFromString(
                 reactor, "unix:{}:mode=600".format(PLUGIN_PATH.path))
             service = StreamServerEndpointService(endpoint, Site(

@@ -412,6 +412,7 @@ class DockerPluginTests(AsyncTestCase):
             cluster, volume_name=name))
         return d
 
+    # Calls this
     def _test_move(self, cluster, origin_node, destination_node):
         """
         Assert that Docker can run a container with a volume provisioned by
@@ -471,6 +472,9 @@ class DockerPluginTests(AsyncTestCase):
         )
         return d
 
+    # This test seems like a good starting point.
+    # I can run this on a single node cluster using the loopback backend.
+    # A good mix of realism and fast test feedback while experimenting.
     @flaky(u'FLOC-2977')
     @require_cluster(1)
     def test_move_volume_single_node(self, cluster):
