@@ -178,6 +178,9 @@ class VolumePlugin(object):
         """
         return {u"Implements": [u"VolumeDriver"]}
 
+    # * Acquire lease
+    # * Delete volume
+    # * Release lease
     @app.route("/VolumeDriver.Remove", methods=["POST"])
     @_endpoint(u"Remove")
     def volumedriver_remove(self, Name):
@@ -195,6 +198,10 @@ class VolumePlugin(object):
         """
         return {u"Err": u""}
 
+    # * Check for existing lease and existing mount
+    # * unmount
+    # * detach
+    # * release lease
     @app.route("/VolumeDriver.Unmount", methods=["POST"])
     @_endpoint(u"Unmount")
     def volumedriver_unmount(self, Name, ID=None):
@@ -236,6 +243,22 @@ class VolumePlugin(object):
         listing.addCallback(got_configured)
         return listing
 
+    # ``docker volume create --name foo``
+    # Local control service now has a desired dataset
+    # But when we move the volume, the control service on other node will also
+    # have this desired dataset.
+    # Both dataset agents will be attempting to attach the volume.
+    # Perhaps that's ok though.
+    # As long as we have reliable leases, the other agent won't be able to
+    # proceed.
+    #
+    # Steps:
+    # * aquire lease for dataset
+    # * register dataset
+    # * create dataset
+    # * release lease
+    #
+    # * fail if lease is held elsewhere.
     @app.route("/VolumeDriver.Create", methods=["POST"])
     @_endpoint(u"Create")
     def volumedriver_create(self, Name, Opts=None):
@@ -251,6 +274,9 @@ class VolumePlugin(object):
         that has datasets that weren't created with this hashing
         mechanism.
 
+        # Change this.
+        # What if the duplicate create has same name but different options?
+        # E.g. different profile.
         If there is a duplicate we don't return an error, but rather
         success: we will likely get unneeded creates from Docker since it
         doesn't necessarily know about existing persistent volumes.
@@ -312,6 +338,9 @@ class VolumePlugin(object):
         d.addCallback(got_state)
         return d
 
+    # * Acquire lease
+    # * Attach volume
+    # * Refresh lease
     @app.route("/VolumeDriver.Mount", methods=["POST"])
     @_endpoint(u"Mount")
     def volumedriver_mount(self, Name, ID=None):
@@ -378,6 +407,8 @@ class VolumePlugin(object):
         d.addCallback(got_path)
         return d.result
 
+    # Available for all cluster volumes or only locally created / attached
+    # volumes?
     @app.route("/VolumeDriver.Get", methods=["POST"])
     @_endpoint(u"Get")
     def volumedriver_get(self, Name):
@@ -403,6 +434,7 @@ class VolumePlugin(object):
         d.addCallback(got_path)
         return d.result
 
+    # Show all cluster volumes or only locally created / attached volumes?
     @app.route("/VolumeDriver.List", methods=["POST"])
     @_endpoint(u"List")
     def volumedriver_list(self):
