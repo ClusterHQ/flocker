@@ -435,6 +435,8 @@ class VolumePlugin(object):
         return d.result
 
     # Show all cluster volumes or only locally created / attached volumes?
+    # Should return all cluster volumes and additionally the plugin should
+    # report scope: global in its capabilities FLOC-4482
     @app.route("/VolumeDriver.List", methods=["POST"])
     @_endpoint(u"List")
     def volumedriver_list(self):
