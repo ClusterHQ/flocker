@@ -438,8 +438,9 @@ common_cli:
     --distribution ${DISTRIBUTION_NAME} \
     --provider ${ACCEPTANCE_TEST_PROVIDER} \
     --dataset-backend ${ACCEPTANCE_TEST_PROVIDER} \
-    --branch ${TRIGGERED_BRANCH} --build-server  \
-    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --branch ${TRIGGERED_BRANCH} \
+    --build-server  \
+    http://$(curl -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip) \
     --config-file /tmp/acceptance.yaml \
     -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
@@ -495,7 +496,7 @@ common_cli:
     # we provide one by starting a webserver and pointing the tests
     # to look over there
     REPO_PATH=/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
-    DOC_ROOT=/usr/share/nginx/html
+    DOC_ROOT=/var/www/html
     sudo rm -rf ${DOC_ROOT}/${REPO_PATH}
     sudo mkdir -p ${DOC_ROOT}/${REPO_PATH}
     sudo cp repo/* ${DOC_ROOT}/${REPO_PATH}
@@ -771,7 +772,6 @@ run_trial_cli: &run_trial_cli [
   *setup_venv,
   *setup_flocker_modules,
   *setup_coverage,
-  *setup_aws_env_vars,
   *run_trial_with_coverage,
   *run_coverage,
   *convert_results_to_junit ]
@@ -783,7 +783,6 @@ run_trial_cli_as_root: &run_trial_cli_as_root [
   *setup_venv,
   *setup_flocker_modules,
   *setup_coverage,
-  *setup_aws_env_vars,
   *run_trial_with_coverage_as_root,
   *run_coverage,
   *convert_results_to_junit ]
@@ -1058,14 +1057,14 @@ job_type:
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
     run_acceptance_loopback_on_AWS_CentOS_7_for:
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=centos-7',
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
                    *setup_authentication,
@@ -1083,13 +1082,13 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_acceptance_loopback_on_AWS_Ubuntu_Trusty_for:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
                    *build_sdist, *build_package,
                    *build_repo_metadata,
@@ -1108,13 +1107,13 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_acceptance_loopback_on_AWS_Ubuntu_Xenial_for:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-16.04',
                    *build_sdist, *build_package,
                    *build_repo_metadata,
@@ -1134,13 +1133,13 @@ job_type:
 
   run_client:
     run_client_installation_on_Ubuntu_Trusty:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
                    *run_client_tests,
@@ -1152,13 +1151,13 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_client_installation_on_Ubuntu_Wily:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=ubuntu-15.10',
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
                    *run_client_tests,
@@ -1170,13 +1169,13 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_client_installation_on_Ubuntu_Xenial:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=ubuntu-16.04',
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
                    *run_client_tests,
@@ -1323,13 +1322,15 @@ job_type:
 
     run_acceptance_on_AWS_CentOS_7_with_EBS:
       at: '0 5 * * *'
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=centos-7',
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
                    *setup_authentication,
@@ -1354,12 +1355,14 @@ job_type:
 
     run_acceptance_on_AWS_Ubuntu_Trusty_with_EBS:
       at: '0 6 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
                    *build_sdist, *build_package,
                    *build_repo_metadata,
@@ -1382,12 +1385,14 @@ job_type:
 
     run_acceptance_on_AWS_Ubuntu_Xenial_with_EBS:
       at: '0 6 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-16.04',
                    *build_sdist, *build_package,
                    *build_repo_metadata,
@@ -1410,8 +1415,9 @@ job_type:
 
     run_acceptance_on_GCE_CentOS_7_with_GCE:
       at: '0 5 * * *'
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1438,7 +1444,9 @@ job_type:
 
     run_acceptance_on_GCE_Ubuntu_Trusty_with_GCE:
       at: '0 6 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1465,7 +1473,9 @@ job_type:
 
     run_acceptance_on_GCE_Ubuntu_Xenial_with_GCE:
       at: '0 6 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1493,14 +1503,14 @@ job_type:
     run_acceptance_on_Rackspace_CentOS_7_with_Cinder:
       at: '0 5 * * *'
       # flocker.provision is responsible for creating the test nodes on
-      # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=centos-7',
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
                    *setup_authentication,
@@ -1522,13 +1532,13 @@ job_type:
     run_acceptance_on_Rackspace_Ubuntu_Trusty_with_Cinder:
       at: '0 6 * * *'
       # flocker.provision is responsible for creating the test nodes on
-      # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-14.04',
                    *build_sdist, *build_package,
                    *build_repo_metadata,
@@ -1551,13 +1561,13 @@ job_type:
     run_acceptance_on_Rackspace_Ubuntu_Xenial_with_Cinder:
       at: '0 6 * * *'
       # flocker.provision is responsible for creating the test nodes on
-      # Rackspace, so we can actually run run-acceptance-tests from AWS
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *setup_aws_env_vars, *check_version,
+                   *check_version,
                    'export DISTRIBUTION_NAME=ubuntu-16.04',
                    *build_sdist, *build_package,
                    *build_repo_metadata,
@@ -1617,7 +1627,6 @@ job_type:
                    *setup_venv,
                    *setup_flocker_modules,
                    *setup_coverage,
-                   *setup_aws_env_vars,
                    *check_version,
                    *setup_authentication,
                    'export ACCEPTANCE_YAML=/tmp/acceptance.yaml',
