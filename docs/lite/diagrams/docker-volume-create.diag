@@ -1,0 +1,7 @@
+diagram {
+  docker      -> flongle        [label = "Volume.Create",
+                                 note  = ""]
+  flongle  => IBlockDeviceAPI   [label  = "create_dataset",
+                                           return   = ""];
+  docker      <- flongle        [label = "success"];
+}

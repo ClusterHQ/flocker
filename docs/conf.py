@@ -38,6 +38,7 @@ extensions = [
     'flocker.restapi.docs.publicapi',
     'flocker.restapi.docs.hidden_code_block',
     'flocker.docs.bootstrap',
+    'sphinxcontrib.seqdiag',
 ]
 
 if not on_rtd:
