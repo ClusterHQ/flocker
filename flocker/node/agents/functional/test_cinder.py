@@ -842,7 +842,7 @@ class CinderFromConfigurationTests(AsyncTestCase):
         try:
             result = api.list_volumes()
         except ConnectFailure:
-            # Can't use self.asserRaises here because that would call the
+            # Can't use self.assertRaises here because that would call the
             # function in the main thread.
             pass
         else:
@@ -875,7 +875,7 @@ class CinderFromConfigurationTests(AsyncTestCase):
          .session
          .session.close())
 
-    def test_no_retry_authentication(self):
+    def test_retry_authentication(self):
         """
         The API object returned by ``cinder_from_configuration`` will retry
         authentication even when initial authentication attempts fail.
