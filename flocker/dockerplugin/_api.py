@@ -158,7 +158,7 @@ class VolumePlugin(object):
 
     app = Klein()
 
-    def __init__(self, reactor, flocker_client, node_id):
+    def __init__(self, reactor, blockdevice_api):
         """
         :param IReactorTime reactor: Reactor time interface implementation.
         :param IFlockerAPIV1Client flocker_client: Client that allows
@@ -167,8 +167,7 @@ class VolumePlugin(object):
             running on.
         """
         self._reactor = reactor
-        self._flocker_client = flocker_client
-        self._node_id = node_id
+        self._blockdevice_api = blockdevice_api
 
     @app.route("/Plugin.Activate", methods=["POST"])
     @_endpoint(u"PluginActivate", ignore_body=True)
@@ -434,6 +433,20 @@ class VolumePlugin(object):
         d.addCallback(got_path)
         return d.result
 
+    @app.route("/VolumeDriver.Capabilities", methods=["POST"])
+    @_endpoint(u"Capabilities")
+    def volumedriver_capabilities(self):
+        """
+        Return information about the plugin capabilities
+
+        :return: Result indicating success.
+        """
+        return {
+            u"Capabilities": {
+                u"Scope": u"global"
+            }
+        }
+
     # Show all cluster volumes or only locally created / attached volumes?
     # Should return all cluster volumes and additionally the plugin should
     # report scope: global in its capabilities FLOC-4482
@@ -445,8 +458,16 @@ class VolumePlugin(object):
 
         :return: Result indicating success.
         """
+        return {
+            u"Err": u"",
+            u"Volumes": [
+                {u"Name": u"foobar",
+                 u"Mountpoint": u"/flocker/foobar"}
+            ]
+        }
+
         listing = DeferredContext(
-            self._flocker_client.list_datasets_configuration())
+            self._.list_datasets_configuration())
 
         def got_configured(configured):
             results = []

@@ -5,6 +5,8 @@ Command to start up the Docker plugin.
 """
 from os import umask
 from stat import S_IRUSR, S_IWUSR, S_IXUSR
+from uuid import uuid4
+import yaml
 
 from twisted.python.usage import Options
 from twisted.internet.endpoints import serverFromString
@@ -12,14 +14,13 @@ from twisted.application.internet import StreamServerEndpointService
 from twisted.web.server import Site
 from twisted.python.filepath import FilePath
 
-# XXX: Make flocker.common._retry public
-from ..common._retry import retry_failure, backoff
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from ._api import VolumePlugin
-from ..node.script import get_configuration
-from ..apiclient import FlockerClient
-from ..control.httpapi import REST_API_PORT
+from ..node.script import (
+    backend_and_api_args_from_configuration,
+    get_api,
+)
 
 PLUGIN_PATH = FilePath("/run/docker/plugins/flocker/flocker.sock")
 
@@ -30,8 +31,6 @@ class DockerPluginOptions(Options):
     Command-line options for the Docker plugin.
     """
     optParameters = [
-        ["rest-api-port", "p", REST_API_PORT,
-         "Port to connect to for control service REST API."],
         ["agent-config", "c", "/etc/flocker/agent.yml",
          "The configuration file for the local agent."],
     ]
@@ -59,43 +58,27 @@ class DockerPluginScript(object):
             umask(original_umask)
 
     def main(self, reactor, options):
-        # We can use /etc/flocker/agent.yml and /etc/flocker/node.crt to load
-        # some information we need:
-        agent_config = get_configuration(options)
-        # This should always be a localhost address or a unix socket path.
-        # Hardcode this?
-        # What about authentication?
-        control_host = agent_config['control-service']['hostname']
-
-        certificates_path = options["agent-config"].parent()
-        control_port = options["rest-api-port"]
-        # We're aiming to remove the need for complicated certificate based
-        # authentication.
-        flocker_client = FlockerClient(reactor, control_host, control_port,
-                                       certificates_path.child(b"cluster.crt"),
-                                       certificates_path.child(b"plugin.crt"),
-                                       certificates_path.child(b"plugin.key"))
-
+        configuration = yaml.safe_load(
+            options[u"agent-config"].getContent()
+        )
+        (backend_description,
+         api_args) = backend_and_api_args_from_configuration(
+            configuration['dataset']
+        )
+        api = get_api(
+            backend=backend_description,
+            api_args=api_args,
+            reactor=reactor,
+            cluster_id=uuid4(),
+        )
         self._create_listening_directory(PLUGIN_PATH.parent())
 
-        # Get the node UUID, and then start up:
-        # Retry on  *all* errors.
-        # This shouldn't be necessary any more.
-        getting_id = retry_failure(
-            reactor=reactor,
-            function=flocker_client.this_node_uuid,
-            steps=backoff()
-        )
-
-        def run_service(node_id):
-            # This is how to run a REST API on a Unix socket.
-            endpoint = serverFromString(
-                reactor, "unix:{}:mode=600".format(PLUGIN_PATH.path))
-            service = StreamServerEndpointService(endpoint, Site(
-                VolumePlugin(reactor, flocker_client, node_id).app.resource()))
-            return main_for_service(reactor, service)
-        getting_id.addCallback(run_service)
-        return getting_id
+        # This is how to run a REST API on a Unix socket.
+        endpoint = serverFromString(
+            reactor, "unix:{}:mode=600".format(PLUGIN_PATH.path))
+        service = StreamServerEndpointService(endpoint, Site(
+            VolumePlugin(reactor, api).app.resource()))
+        return main_for_service(reactor, service)
 
 
 def docker_plugin_main():
