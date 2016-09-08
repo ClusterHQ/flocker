@@ -1,4 +1,5 @@
-mimic==2.1.0
+--find-links git+https://github.com/ClusterHQ/mimic@2.1.0+chq2#egg=mimic-2.1.0+chq2
+mimic==2.1.0+chq2
 # The test suite uses network namespaces
 # nomenclature can only be installed on Linux
 # The "linux2" marker value is specific to Python2
