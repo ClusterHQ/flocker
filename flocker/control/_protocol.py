@@ -57,6 +57,7 @@ from twisted.protocols.amp import (
     Argument, Command, Integer, CommandLocator, AMP, Unicode,
     MAX_VALUE_LENGTH,
 )
+from twisted.internet.error import AlreadyCalled
 from twisted.internet.task import LoopingCall
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
@@ -350,7 +351,12 @@ class Timeout(object):
         """
         Cancel the delayed call to this ``Timeout``'s ``action``.
         """
-        self._delay_call.cancel()
+        try:
+            self._delay_call.cancel()
+        except AlreadyCalled:
+            # This Timeout may have triggered protocol.abortConnection which
+            # will attempt to cancel...this timeout...
+            pass
 
 
 class ControlServiceLocator(CommandLocator):
