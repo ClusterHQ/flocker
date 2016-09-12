@@ -4,12 +4,10 @@
 Tests for the Flocker Docker plugin.
 """
 
-from datetime import timedelta
-from distutils.version import LooseVersion
-
-from testtools import run_test_with
+from distutils.version import LooseVersion  # pylint: disable=import-error
 
 from twisted.internet import reactor
+from twisted.internet.defer import gatherResults
 
 from hypothesis.strategies import integers
 
@@ -17,23 +15,22 @@ from bitmath import GiB
 
 from eliot import Message
 
-from ...common import loop_until
+from ...common import loop_until, poll_until
 from ...common.runner import run_ssh
 
 from ...dockerplugin.test.test_api import volume_expression
 
-from ...testtools import (
-    AsyncTestCase, random_name, flaky, async_runner,
-)
+from ...testtools import AsyncTestCase, random_name, flaky, async_runner
 from ..testtools import (
     require_cluster, post_http_server, assert_http_server,
-    get_docker_client, verify_socket, check_http_server, DatasetBackend,
+    get_docker_client, verify_socket, check_http_server,
     extract_external_port,
-    create_dataset, require_moving_backend,
+    create_dataset, require_moving_backend, ACCEPTANCE_TEST_TIMEOUT
 )
 
 from ..scripts import SCRIPTS
 
+from ...node import backends
 from ...node.agents.ebs import EBSMandatoryProfileAttributes
 
 
@@ -41,6 +38,9 @@ class DockerPluginTests(AsyncTestCase):
     """
     Tests for the Docker plugin.
     """
+
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+
     def require_docker(self, required_version, cluster):
         """
         Check for a specific minimum version of Docker on a remote node.
@@ -70,12 +70,12 @@ class DockerPluginTests(AsyncTestCase):
         """
         distro = []
         get_distro = run_ssh(
-            reactor, b"root", address, ["python", "-m", "platform"],
+            reactor, b"root", address, ["python2.7", "-m", "platform"],
             handle_stdout=distro.append)
         get_distro.addCallback(lambda _: distro[0].lower())
 
         def action_docker(distribution):
-            if 'ubuntu' in distribution:
+            if 'ubuntu-14.04' in distribution:
                 command = ["service", "docker", action]
             else:
                 command = ["systemctl", action, "docker"]
@@ -124,7 +124,7 @@ class DockerPluginTests(AsyncTestCase):
 
         container = client.create_container(
             "python:2.7-slim",
-            ["python", "-c", script.getContent()] + list(script_arguments),
+            ["python2.7", "-c", script.getContent()] + list(script_arguments),
             volume_driver="flocker", **docker_arguments)
         cid = container["Id"]
         client.start(container=cid)
@@ -135,16 +135,28 @@ class DockerPluginTests(AsyncTestCase):
     def _create_volume(self, client, name, driver_opts):
         """
         Create a volume with the given name and driver options on the passed in
-        docker client.
+        docker client and block until the ``docker volume ls`` API reports that
+        the volume has been mounted.
 
         :param client: The docker.Client object to use.
         :param name: The name of the volume to create.
         :param opts: The options to pass through to the Flocker Plugin for
             Docker.
-        :returns: The result of the API call.
+        :returns: The result of the API call when the volume has been mounted.
         """
         result = client.create_volume(name, u'flocker', driver_opts)
         self.addCleanup(client.remove_volume, name)
+
+        # The docker volume API doesn't block.
+        # Wait until the volume has been mounted.
+        poll_until(
+            predicate=lambda: list(
+                v for v in client.volumes()["Volumes"]
+                if v["Name"] == name and v["Mountpoint"]
+            ),
+            steps=[1]*60
+        )
+
         return result
 
     def _test_sized_vol_container(self, cluster, node):
@@ -204,7 +216,9 @@ class DockerPluginTests(AsyncTestCase):
         Docker can run a container with a provisioned volumes with a
         specific size.
         """
-        self.require_docker('1.9.0', cluster)
+        # Requires docker volume list which was introduced in 1.10.0.
+        # https://github.com/docker/docker/blob/master/CHANGELOG.md#volumes-3
+        self.require_docker('1.10.0', cluster)
         return self._test_sized_vol_container(cluster, cluster.nodes[0])
 
     def _test_create_container(self, cluster, volume_name=None):
@@ -255,7 +269,7 @@ class DockerPluginTests(AsyncTestCase):
         self.require_docker('1.9.0', cluster)
         return self._test_create_container(cluster)
 
-    @require_cluster(1, required_backend=DatasetBackend.aws)
+    @require_cluster(1, required_backend=backends.AWS)
     def test_create_silver_volume_with_v2_plugin_api(self, cluster, backend):
         """
         Docker >=1.9, using the v2 plugin API, can create a volume with the
@@ -469,8 +483,6 @@ class DockerPluginTests(AsyncTestCase):
 
     @require_moving_backend
     @flaky(u'FLOC-3346')
-    # Test is very slow on Rackspace, it seems:
-    @run_test_with(async_runner(timeout=timedelta(minutes=4)))
     @require_cluster(2)
     def test_move_volume_different_node(self, cluster):
         """
@@ -512,14 +524,20 @@ class DockerPluginTests(AsyncTestCase):
         """
         self.require_docker('1.10.0', cluster)
         name = random_name(self)
+        name2 = random_name(self)
 
-        d = create_dataset(self, cluster, metadata={u"name": name})
+        d = gatherResults([
+            create_dataset(self, cluster, metadata={u"name": name}),
+            create_dataset(self, cluster, metadata={u"name": name2})])
 
         def created(_):
             client = get_docker_client(
                 cluster, cluster.nodes[0].public_address)
-            our_volume = [v[u"Driver"] for v in client.volumes()[u"Volumes"]
-                          if v[u"Name"] == name]
-            self.assertEqual(our_volume, [u"flocker"])
+            our_volumes = [v for v in client.volumes()[u"Volumes"]
+                           if v[u"Name"] in (name, name2)]
+            self.assertEqual([v[u"Driver"] for v in our_volumes],
+                             [u"flocker", u"flocker"])
+            self.assertItemsEqual(
+                [v[u"Name"] for v in our_volumes], [name, name2])
         d.addCallback(created)
         return d

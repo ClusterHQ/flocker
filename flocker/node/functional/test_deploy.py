@@ -20,7 +20,9 @@ from .. import (
 from ...common import loop_until
 from ...control._model import (
     Deployment, Application, DockerImage, Node, AttachedVolume, Link,
-    Manifestation, Dataset, DeploymentState, NodeState)
+    Manifestation, Dataset, DeploymentState, NodeState,
+    PersistentState,
+)
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
@@ -30,6 +32,7 @@ from ...testtools import (
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 from .. import run_state_change
+from ...control.testtools import InMemoryStatePersister
 
 
 class P2PNodeDeployer(object):
@@ -51,13 +54,16 @@ class P2PNodeDeployer(object):
         self.docker_client = self.applications_deployer.docker_client
         self.network = self.applications_deployer.network
 
-    def discover_state(self, cluster_state):
-        d = self.manifestations_deployer.discover_state(cluster_state)
+    def discover_state(self, cluster_state, persistent_state):
+        d = self.manifestations_deployer.discover_state(
+            cluster_state, persistent_state=persistent_state)
 
         def got_manifestations_state(manifestations_local_state):
             manifestations_state = manifestations_local_state.node_state
             app_discovery = self.applications_deployer.discover_state(
-                DeploymentState(nodes={manifestations_state}))
+                DeploymentState(nodes={manifestations_state}),
+                persistent_state=PersistentState(),
+            )
 
             def got_app_local_state(app_local_state):
                 app_state = app_local_state.node_state
@@ -97,6 +103,8 @@ def change_node_state(deployer, desired_configuration):
         nodes.
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
+    state_persister = InMemoryStatePersister()
+
     def converge():
         d = deployer.discover_state(
             DeploymentState(nodes={
@@ -104,6 +112,7 @@ def change_node_state(deployer, desired_configuration):
                           applications=[],
                           manifestations={}, paths={}, devices={}),
             }),
+            persistent_state=state_persister.get_state(),
         )
 
         def got_changes(local_state):
@@ -114,7 +123,9 @@ def change_node_state(deployer, desired_configuration):
             return deployer.calculate_changes(
                 desired_configuration, cluster_state, local_state)
         d.addCallback(got_changes)
-        d.addCallback(lambda change: run_state_change(change, deployer))
+        d.addCallback(lambda change: run_state_change(
+            change, deployer=deployer,
+            state_persister=state_persister))
         return d
     # Repeat a few times until things settle down:
     result = converge()
@@ -317,7 +328,9 @@ class DeployerTests(AsyncTestCase):
                 NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
                           applications=[],
                           manifestations={}, paths={}, devices={}),
-            })))
+            }),
+            persistent_state=PersistentState(),
+        ))
         return d
 
     @if_docker_configured
@@ -338,7 +351,8 @@ class DeployerTests(AsyncTestCase):
         d.addCallback(
             lambda results: self.assertIn(
                 pset([link]),
-                [app.links for app in results.node_state.applications]))
+                [app.links for app in results.node_state.applications.values()]
+            ))
         return d
 
     @if_docker_configured
@@ -352,7 +366,8 @@ class DeployerTests(AsyncTestCase):
         d.addCallback(
             lambda results: self.assertIn(
                 command_line,
-                [app.command_line for app in results.node_state.applications]))
+                [app.command_line for app in
+                 results.node_state.applications.values()]))
         return d
 
     @if_docker_configured

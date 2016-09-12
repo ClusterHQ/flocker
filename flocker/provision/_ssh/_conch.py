@@ -20,10 +20,13 @@ from twisted.conch.endpoints import (
     _NewConnectionHelper,
     # https://twistedmatrix.com/trac/ticket/7862
     _ReadFile, ConsoleUI,
+    _CommandChannel,
 )
 
+from twisted.conch.ssh.common import NS
+import twisted.conch.ssh.session as session
 from twisted.conch.client.knownhosts import KnownHostsFile
-from twisted.internet.defer import Deferred, inlineCallbacks
+from twisted.internet.defer import Deferred, inlineCallbacks, CancelledError
 from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
 from twisted.internet.error import ConnectionDone
 from twisted.protocols.basic import LineOnlyReceiver
@@ -46,9 +49,9 @@ RUN_OUTPUT_MESSAGE = MessageType(
 )
 
 
-def extReceived(self, type, data):
+def extReceived(self, ext_type, data):
     from twisted.conch.ssh.connection import EXTENDED_DATA_STDERR
-    if type == EXTENDED_DATA_STDERR:
+    if ext_type == EXTENDED_DATA_STDERR:
         self.dataReceived(data)
 
 
@@ -87,6 +90,59 @@ class CommandProtocol(LineOnlyReceiver, object):
         ).write()
 
 
+class CommandChannelWithTTY(_CommandChannel):
+    """
+    CentOS/RHEL wants us to have a pty in order to run commands with sudo.
+    Create a pty that won't be used when creating the channel.
+    """
+    def channelOpen(self, ignored):
+        """
+        Create a pty by sending a pty-req to the server
+        """
+        term = 'xterm'
+        winSize = (25, 80, 0, 0)
+        ptyReqData = session.packRequest_pty_req(term, winSize, '')
+        self.conn.sendRequest(self, 'pty-req', ptyReqData)
+        command = self.conn.sendRequest(
+            self, 'exec', NS(self._command), wantReply=True)
+        command.addCallbacks(self._execSuccess, self._execFailure)
+
+
+class SSHCommandClientEndpointWithTTY(SSHCommandClientEndpoint):
+    """
+    Subclass that spawns a TTY when connecting.
+    """
+    def _executeCommand(self, connection, protocolFactory):
+        """
+        Given a secured SSH connection, try to execute a command in a new
+        channel created on it and associate the result with a protocol from the
+        given factory.
+
+        @param connection: See L{SSHCommandClientEndpoint.existingConnection}'s
+            C{connection} parameter.
+
+        @param protocolFactory: See L{SSHCommandClientEndpoint.connect}'s
+            C{protocolFactory} parameter.
+
+        @return: See L{SSHCommandClientEndpoint.connect}'s return value.
+        """
+
+        def disconnectOnFailure(passthrough):
+            # Close the connection immediately in case of cancellation, since
+            # that implies user wants it gone immediately (e.g. a timeout):
+            immediate = passthrough.check(CancelledError)
+            self._creator.cleanupConnection(connection, immediate)
+            return passthrough
+
+        commandConnected = Deferred()
+        commandConnected.addErrback(disconnectOnFailure)
+
+        channel = CommandChannelWithTTY(
+            self._creator, self._command, protocolFactory, commandConnected)
+        connection.openChannel(channel)
+        return commandConnected
+
+
 def get_ssh_dispatcher(connection, context):
     """
     :param Message context: The eliot message context to log.
@@ -99,7 +155,7 @@ def get_ssh_dispatcher(connection, context):
             message_type="flocker.provision.ssh:run",
             command=intent.log_command_filter(intent.command),
         ).write()
-        endpoint = SSHCommandClientEndpoint.existingConnection(
+        endpoint = SSHCommandClientEndpointWithTTY.existingConnection(
             connection, intent.command)
         d = Deferred()
         connectProtocol(endpoint, CommandProtocol(
@@ -168,6 +224,16 @@ def perform_run_remotely(reactor, base_dispatcher, intent):
     ])
 
     yield perform(dispatcher, intent.commands)
+
+    #  Work around https://twistedmatrix.com/trac/ticket/8138 by reaching deep
+    #  into a different layer and closing a leaked connection.
+    if (connection.transport and
+            connection.transport.instance and
+            connection.transport.instance.agent):
+        connection.transport.instance.agent.transport.loseConnection()
+        # Set the agent to None as the agent is unusable and cleaned up at this
+        # point.
+        connection.transport.instance.agent = None
 
     yield connection_helper.cleanupConnection(
         connection, False)

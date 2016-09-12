@@ -14,40 +14,27 @@ import boto
 
 @attributes([
     "bucket",
-    "prefix",
-    "target_prefix",
+    "routing_rules",
 ])
-class UpdateS3RoutingRule(object):
+class UpdateS3RoutingRules(object):
     """
-    Update a routing rule for an S3 bucket website endpoint to point to a new
-    path.
-
-    If the path is changed, return the old path.
+    Update the routing rules for an S3 bucket website endpoint.
 
     :ivar bytes bucket: Name of bucket to change routing rule for.
-    :ivar bytes prefix: Prefix to change routing rule for.
-    :ivar bytes target_prefix: Target prefix to redirect to.
+    :ivar boto.s3.website.RoutingRules routing_rules: New routing rules.
     """
 
 
 @sync_performer
-def perform_update_s3_routing_rule(dispatcher, intent):
+def perform_update_s3_routing_rules(dispatcher, intent):
     """
     See :class:`UpdateS3RoutingRule`.
     """
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.bucket)
     config = bucket.get_website_configuration_obj()
-    rule = [rule for rule in config.routing_rules if
-            rule.condition.key_prefix == intent.prefix][0]
-    if rule.redirect.replace_key_prefix == intent.target_prefix:
-        return None
-    else:
-        old_prefix = rule.redirect.replace_key_prefix
-        rule.redirect.replace_key_prefix = intent.target_prefix
-        bucket.set_website_configuration(config)
-        return old_prefix
-
+    config.routing_rules = intent.routing_rules
+    bucket.set_website_configuration(config)
 
 
 @attributes([
@@ -69,6 +56,7 @@ class UpdateS3ErrorPage(object):
         """
         """
         return '{}error_pages/404.html'.format(self.target_prefix)
+
 
 @sync_performer
 def perform_update_s3_error_page(dispatcher, intent):
@@ -322,14 +310,14 @@ def perform_upload_s3_key_recursively(dispatcher, intent):
     """
     See :class:`UploadToS3Recursively`.
     """
-    for file in intent.files:
-        path = intent.source_path.preauthChild(file)
+    for child in intent.files:
+        path = intent.source_path.preauthChild(child)
         if path.isfile():
             yield Effect(
                 UploadToS3(
                     source_path=intent.source_path,
                     target_bucket=intent.target_bucket,
-                    target_key="%s/%s" % (intent.target_key, file),
+                    target_key="%s/%s" % (intent.target_key, child),
                     file=path,
                     ))
 
@@ -369,7 +357,7 @@ def perform_upload_s3_key(dispatcher, intent):
         key.make_public()
 
 boto_dispatcher = TypeDispatcher({
-    UpdateS3RoutingRule: perform_update_s3_routing_rule,
+    UpdateS3RoutingRules: perform_update_s3_routing_rules,
     UpdateS3ErrorPage: perform_update_s3_error_page,
     ListS3Keys: perform_list_s3_keys,
     DeleteS3Keys: perform_delete_s3_keys,
@@ -414,13 +402,11 @@ class FakeAWS(object):
         self.cloudfront_invalidations = []
 
     @sync_performer
-    def _perform_update_s3_routing_rule(self, dispatcher, intent):
+    def _perform_update_s3_routing_rules(self, dispatcher, intent):
         """
         See :class:`UpdateS3RoutingRule`.
         """
-        old_target = self.routing_rules[intent.bucket][intent.prefix]
-        self.routing_rules[intent.bucket][intent.prefix] = intent.target_prefix
-        return old_target
+        self.routing_rules[intent.bucket] = intent.routing_rules
 
     @sync_performer
     def _perform_update_s3_error_page(self, dispatcher, intent):
@@ -503,7 +489,7 @@ class FakeAWS(object):
             UploadToS3Recursively: perform_upload_s3_key_recursively,
 
             # Fake implementation
-            UpdateS3RoutingRule: self._perform_update_s3_routing_rule,
+            UpdateS3RoutingRules: self._perform_update_s3_routing_rules,
             UpdateS3ErrorPage: self._perform_update_s3_error_page,
             ListS3Keys: self._perform_list_s3_keys,
             DeleteS3Keys: self._perform_delete_s3_keys,

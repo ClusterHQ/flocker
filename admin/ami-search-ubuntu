@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Create and switch to a release branch.
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+if __name__ == '__main__':
+    from admin.ubuntu import ami_search_ubuntu_main as main
+    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)

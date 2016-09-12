@@ -12,7 +12,7 @@ class RateMeasurerTest(TestCase):
     ``RateMeasurer`` tests.
     """
 
-    def send_requests(self, rate_measurer, num_requests, num_samples):
+    def receive_requests(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will send the desired number of request.
 
@@ -20,10 +20,11 @@ class RateMeasurerTest(TestCase):
         :param num_requests: The number of request we want to send.
         :param num_samples: The number of samples to collect.
         """
-        for i in range(num_samples * num_requests):
-            rate_measurer.request_sent()
+        call_duration = 4.567
+        for i in range(num_samples*num_requests):
+            rate_measurer.response_received(call_duration)
 
-    def receive_requests(self, rate_measurer, num_requests, num_samples):
+    def send_requests(self, rate_measurer, num_requests, num_samples):
         """
         Helper function that will receive the desired number of requests.
 
@@ -31,10 +32,9 @@ class RateMeasurerTest(TestCase):
         :param num_requests: The number of request we want to receive.
         :param num_samples: The number of samples to collect.
         """
-        call_duration = 4.567
         for i in range(num_samples):
             for i in range(num_requests):
-                rate_measurer.response_received(call_duration)
+                rate_measurer.request_sent()
             rate_measurer.update_rate()
 
     def failed_requests(self, rate_measurer, num_failures, num_samples):
@@ -47,10 +47,8 @@ class RateMeasurerTest(TestCase):
         :param num_samples: The number of samples to collect.
         """
         result = Failure(RuntimeError('fail'))
-        for i in range(num_samples):
-            for i in range(num_failures):
-                rate_measurer.request_failed(result)
-            rate_measurer.update_rate()
+        for i in range(num_samples*num_failures):
+            rate_measurer.request_failed(result)
 
     def increase_rate(self, rate_measurer, num_requests, num_samples):
         """
@@ -114,7 +112,7 @@ class RateMeasurerTest(TestCase):
 
         self.assertEqual(target_rate, r.rate())
 
-    def test_rate_only_considers_received_samples(self):
+    def test_rate_only_considers_sent_samples(self):
         """
         The rate is based on the number of received requests,
         not the number of sent or failed requests.
@@ -128,7 +126,7 @@ class RateMeasurerTest(TestCase):
         self.failed_requests(r, failed_request_rate, r.sample_size)
         self.receive_requests(r, receive_request_rate, r.sample_size)
 
-        self.assertEqual(receive_request_rate, r.rate())
+        self.assertEqual(send_request_rate, r.rate())
 
     def test_outstanding_considers_all_responses(self):
         """

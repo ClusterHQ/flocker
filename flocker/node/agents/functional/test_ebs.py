@@ -4,9 +4,10 @@
 Functional tests for ``flocker.node.agents.ebs`` using an EC2 cluster.
 """
 
-import time
 from uuid import uuid4
 from bitmath import Byte, GiB
+
+from datetime import timedelta
 
 from botocore.exceptions import ClientError
 
@@ -23,36 +24,37 @@ from ..blockdevice import MandatoryProfiles
 from ..ebs import (
     _wait_for_volume_state_change,
     VolumeOperations, VolumeStateTable, VolumeStates,
-    TimeoutException, _should_finish, UnexpectedStateException,
+    TimeoutException, _reached_end_state, UnexpectedStateException,
     EBSMandatoryProfileAttributes, _get_volume_tag,
-    AttachUnexpectedInstance, VolumeBusy,
+    AttachUnexpectedInstance, VolumeBusy, _next_device,
 )
-from ....testtools import AsyncTestCase, flaky
+from ....testtools import AsyncTestCase, async_runner
 
 from .._logging import (
     AWS_CODE, AWS_MESSAGE, AWS_REQUEST_ID, BOTO_LOG_HEADER,
     CREATE_VOLUME_FAILURE, AWS_ACTION, VOLUME_BUSY_MESSAGE,
 )
-from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests, make_iprofiledblockdeviceapi_tests,
+from ..testtools import (
+    InvalidConfig,
+    get_blockdevice_config,
+    get_blockdeviceapi_with_cleanup,
+    get_ec2_client_for_test,
+    make_iblockdeviceapi_tests,
     make_icloudapi_tests,
-)
-
-from ..test.blockdevicefactory import (
-    InvalidConfig, ProviderType, get_blockdevice_config,
-    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
-    get_minimum_allocatable_size, get_ec2_client_for_test,
+    make_iprofiledblockdeviceapi_tests,
+    require_backend,
 )
 
 TIMEOUT = 5
 ONE_GIB = 1073741824
 
 
+@require_backend('aws')
 def ebsblockdeviceapi_for_test(test_case):
     """
     Create an ``EBSBlockDeviceAPI`` for use by tests.
     """
-    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.aws)
+    return get_blockdeviceapi_with_cleanup(test_case)
 
 
 class EBSBlockDeviceAPIInterfaceTests(
@@ -62,11 +64,19 @@ class EBSBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
-            minimum_allocatable_size=get_minimum_allocatable_size(),
-            device_allocation_unit=get_device_allocation_unit(),
             unknown_blockdevice_id_factory=lambda test: u"vol-00000000",
         )
 ):
+
+    """
+    Due to AWS eventual consistency sometimes taking too long, give
+    these tests some extra time, such that they are limited only by
+    the CI system max time.
+
+    We are addressing eventual consistency issues; see
+    https://clusterhq.atlassian.net/browse/FLOC-3219
+    """
+    run_tests_with = async_runner(timeout=timedelta(hours=1))
 
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
@@ -89,7 +99,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         is made to detach a volume that has not been unmounted.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 
@@ -155,14 +165,13 @@ class EBSBlockDeviceAPIInterfaceTests(
             bad_instance_id
         )
 
-    @flaky(u"FLOC-3832")
     def test_attach_when_foreign_device_has_next_device(self):
         """
         ``attach_volume`` does not attempt to use device paths that are already
         assigned to volumes that have been attached outside of Flocker.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 
@@ -189,8 +198,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         instance_id = self.api.compute_instance_id()
 
         # Attach manual volume using /xvd* device.
-        device_name = self.api._next_device()
-        device_name = device_name.replace('/sd', '/xvd')
+        device_name = _next_device().replace(u'/sd', u'/xvd')
         self.api._attach_ebs_volume(
             created_volume.id, instance_id, device_name)
         _wait_for_volume_state_change(VolumeOperations.ATTACH, created_volume)
@@ -215,7 +223,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         belonging to the current Flocker cluster.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
         ec2_client = get_ec2_client_for_test(config)
@@ -251,7 +259,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         Newly created volumes get the "Name" tag set to a human-readable name.
         """
         try:
-            config = get_blockdevice_config(ProviderType.aws)
+            config = get_blockdevice_config()
         except InvalidConfig as e:
             self.skipTest(str(e))
 
@@ -444,11 +452,11 @@ class VolumeStub(object):
         equal = True
         for key, value in self._volume_attributes.items():
             other_value = getattr(other, key, None)
-            if self._volume_attributes[key] is not None:
-                if self._volume_attributes[key] != other_value:
+            if value is not None:
+                if value != other_value:
                     equal = False
             if other_value is not None:
-                if self._volume_attributes[key] != other_value:
+                if value != other_value:
                     equal = False
         return equal
 
@@ -598,9 +606,8 @@ class VolumeStateTransitionTests(AsyncTestCase):
         volume = self._create_template_ebs_volume(operation)
         update = self._custom_update(operation, volume_end_state_type,
                                      attach_type)
-        start_time = time.time()
-        self.assertRaises(UnexpectedStateException, _should_finish,
-                          operation, volume, update, start_time, TIMEOUT)
+        self.assertRaises(UnexpectedStateException, _reached_end_state,
+                          operation, volume, update, 0, TIMEOUT)
 
     def _assert_fail(self, operation, volume_end_state_type,
                      attach_data_type=A.MISSING_ATTACH_DATA):
@@ -611,8 +618,7 @@ class VolumeStateTransitionTests(AsyncTestCase):
         volume = self._create_template_ebs_volume(operation)
         update = self._custom_update(operation, volume_end_state_type,
                                      attach_data_type)
-        start_time = time.time()
-        finish_result = _should_finish(operation, volume, update, start_time)
+        finish_result = _reached_end_state(operation, volume, update, 0)
         self.assertEqual(False, finish_result)
 
     def _assert_timeout(self, operation, testcase,
@@ -624,10 +630,8 @@ class VolumeStateTransitionTests(AsyncTestCase):
         volume = self._create_template_ebs_volume(operation)
         update = self._custom_update(operation, testcase, attach_data_type)
 
-        start_time = time.time()
-        time.sleep(TIMEOUT)
-        self.assertRaises(TimeoutException, _should_finish,
-                          operation, volume, update, start_time, TIMEOUT)
+        self.assertRaises(TimeoutException, _reached_end_state,
+                          operation, volume, update, TIMEOUT + 1, TIMEOUT)
 
     def _process_volume(self, operation, testcase,
                         attach_data_type=A.ATTACH_SUCCESS):

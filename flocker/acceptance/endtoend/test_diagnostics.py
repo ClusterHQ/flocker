@@ -10,16 +10,25 @@ import tarfile
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
 
-from ...common.runner import run_ssh, download_file
-from ...testtools import AsyncTestCase
-from ..testtools import require_cluster
+from ...common.runner import run_ssh, download
+from ...testtools import AsyncTestCase, async_runner
+from ..testtools import require_cluster, ACCEPTANCE_TEST_TIMEOUT
+from testtools.matchers import MatchesAny, Equals
 
 
 class DiagnosticsTests(AsyncTestCase):
     """
     Tests for ``flocker-diagnostics``.
     """
-    @require_cluster(1)
+
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
+
+    # This only requires the container agent to check
+    # that its log is collected. We still care about
+    # that working, so we run it. We should stop
+    # running it for this test when we get closer
+    # to never running it in production.
+    @require_cluster(1, require_container_agent=True)
     def test_export(self, cluster):
         """
         ``flocker-diagnostics`` creates an archive of all Flocker service logs
@@ -42,12 +51,12 @@ class DiagnosticsTests(AsyncTestCase):
 
         def download_archive(remote_archive_path):
             local_archive_path = FilePath(self.mktemp())
-            return download_file(
-                reactor,
-                'root',
-                node_address,
-                remote_archive_path,
-                local_archive_path,
+            return download(
+                reactor=reactor,
+                username=b'root',
+                host=node_address.encode('ascii'),
+                remote_path=remote_archive_path,
+                local_path=local_archive_path,
             ).addCallback(lambda ignored: local_archive_path)
         downloading = creating.addCallback(download_archive)
 
@@ -61,13 +70,16 @@ class DiagnosticsTests(AsyncTestCase):
                         continue
                     actual_basenames.add(basename)
 
+            container_agent_basenames = set([
+                'flocker-container-agent_startup.gz',
+                'flocker-container-agent_eliot.gz',
+            ])
+
             expected_basenames = set([
                 'flocker-control_startup.gz',
                 'flocker-control_eliot.gz',
                 'flocker-dataset-agent_startup.gz',
                 'flocker-dataset-agent_eliot.gz',
-                'flocker-container-agent_startup.gz',
-                'flocker-container-agent_eliot.gz',
                 'flocker-docker-plugin_startup.gz',
                 'flocker-docker-plugin_eliot.gz',
                 'flocker-version',
@@ -83,7 +95,14 @@ class DiagnosticsTests(AsyncTestCase):
                 'fdisk',
                 'lshw',
             ])
-            self.assertEqual(expected_basenames, actual_basenames)
+            self.expectThat(
+                actual_basenames,
+                MatchesAny(
+                    Equals(expected_basenames),
+                    Equals(expected_basenames.union(
+                        container_agent_basenames)),
+                )
+            )
 
         verifying = downloading.addCallback(verify_archive)
 

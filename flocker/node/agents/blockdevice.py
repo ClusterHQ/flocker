@@ -7,6 +7,7 @@ convergence agent that can be re-used against many different kinds of block
 devices.
 """
 
+import itertools
 from uuid import UUID
 from stat import S_IRWXU, S_IRWXG, S_IRWXO
 from errno import EEXIST
@@ -31,6 +32,7 @@ from twisted.python.constants import (
 )
 
 from .blockdevice_manager import BlockDeviceManager
+from ._logging import DATASET_ID, COUNT
 
 from .. import (
     IDeployer, ILocalState, IStateChange, in_parallel, NoOp,
@@ -64,8 +66,20 @@ class DatasetStates(Names):
     """
     # Doesn't exist yet.
     NON_EXISTENT = NamedConstant()
-    # Exists, but attached elsewhere
+    # Existing volume not recorded as owning a dataset
+    UNREGISTERED = NamedConstant()
+    # Ownership recorded but not reported as a volume
+    # This can happen
+    # - after a volume has been deleted (since the dataset registrations are
+    #   never cleaned up.
+    # - Some backends (AWS in particular) are only eventually consistent, so
+    #   list_volumes might not report the volume even after it has already
+    #   been created.
+    REGISTERED = NamedConstant()
+    # Exists, but attached elsewhere to a live host:
     ATTACHED_ELSEWHERE = NamedConstant()
+    # Exists, but attached elsewhere to a dead host:
+    ATTACHED_TO_DEAD_NODE = NamedConstant()
     # Exists, but not attached
     NON_MANIFEST = NamedConstant()
     # Attached to this node but no filesystem
@@ -97,7 +111,7 @@ class DiscoveredDataset(PClass):
         mandatory=True,
     )
     dataset_id = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int, mandatory=True)
+    maximum_size = field(type=(int, long))
     blockdevice_id = field(type=unicode, mandatory=True)
     device_path = field(FilePath)
     mount_point = field(FilePath)
@@ -105,11 +119,17 @@ class DiscoveredDataset(PClass):
     __invariant__ = TaggedUnionInvariant(
         tag_attribute='state',
         attributes_for_tag={
-            DatasetStates.ATTACHED_ELSEWHERE: set(),
-            DatasetStates.NON_MANIFEST: set(),
-            DatasetStates.ATTACHED_NO_FILESYSTEM: {'device_path'},
-            DatasetStates.ATTACHED: {'device_path'},
-            DatasetStates.MOUNTED: {'device_path', 'mount_point'},
+            DatasetStates.ATTACHED_ELSEWHERE: {'maximum_size'},
+            DatasetStates.ATTACHED_TO_DEAD_NODE: {'maximum_size'},
+            DatasetStates.NON_MANIFEST: {'maximum_size'},
+            DatasetStates.UNREGISTERED: {'maximum_size'},
+            DatasetStates.REGISTERED: set(),
+            DatasetStates.ATTACHED_NO_FILESYSTEM: {
+                'device_path', 'maximum_size'},
+            DatasetStates.ATTACHED: {
+                'device_path', 'maximum_size'},
+            DatasetStates.MOUNTED: {
+                'device_path', 'mount_point', 'maximum_size'},
         },
     )
 
@@ -124,7 +144,7 @@ class DesiredDataset(PClass):
         mandatory=True,
     )
     dataset_id = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int)
+    maximum_size = field(type=(int, long))
     metadata = pmap_field(
         key_type=unicode,
         value_type=unicode,
@@ -269,12 +289,6 @@ FILESYSTEM_TYPE = Field.forTypes(
     u"The name of a filesystem."
 )
 
-DATASET_ID = Field(
-    u"dataset_id",
-    lambda dataset_id: unicode(dataset_id),
-    u"The unique identifier of a dataset."
-)
-
 MOUNTPOINT = Field(
     u"mountpoint",
     lambda path: path.path,
@@ -330,13 +344,6 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
     [DATASET_ID, MAXIMUM_SIZE, METADATA],
     [],
     u"A block-device-backed dataset is being created.",
-)
-
-DESTROY_BLOCK_DEVICE_DATASET = ActionType(
-    u"agent:blockdevice:destroy",
-    [DATASET_ID],
-    [],
-    u"A block-device-backed dataset is being destroyed.",
 )
 
 UNMOUNT_BLOCK_DEVICE = ActionType(
@@ -422,6 +429,30 @@ DISCOVERED_RAW_STATE = MessageType(
     u"The discovered raw state of the node's block device volumes.")
 
 
+UNREGISTERED_VOLUME_ATTACHED = MessageType(
+    u"agent:blockdevice:unregistered_volume_attached",
+    [DATASET_ID, BLOCK_DEVICE_ID],
+    u"A blockdevice that isn't registered as belonging to a dataset is "
+    u"attached to an instance."
+)
+
+FUNCTION_NAME = Field.for_types(
+    "function", [bytes, unicode],
+    u"The name of the function.")
+
+CALL_LIST_VOLUMES = MessageType(
+    u"flocker:node:agents:blockdevice:list_volumes",
+    [FUNCTION_NAME, COUNT],
+    u"list_volumes called.",)
+
+REGISTER_BLOCKDEVICE = ActionType(
+    u"agent:blockdevice:register",
+    [DATASET_ID, BLOCK_DEVICE_ID],
+    [],
+    u"A block-device is being registered as belonging to a dataset.",
+)
+
+
 def _volume_field():
     """
     Create and return a ``PClass`` ``field`` to hold a ``BlockDeviceVolume``.
@@ -453,7 +484,7 @@ class BlockDeviceVolume(PClass):
     :ivar UUID dataset_id: The Flocker dataset ID associated with this volume.
     """
     blockdevice_id = field(type=unicode, mandatory=True)
-    size = field(type=int, mandatory=True)
+    size = field(type=(int, long), mandatory=True)
     attached_to = field(
         type=(unicode, type(None)), initial=None, mandatory=True
     )
@@ -504,7 +535,7 @@ class CreateFilesystem(PClass):
             filesystem_type=self.filesystem
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         try:
             _ensure_no_filesystem(self.device, deployer.block_device_manager)
             deployer.block_device_manager.make_filesystem(self.device,
@@ -573,7 +604,7 @@ class MountBlockDevice(PClass):
         return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id,
                                   block_device_path=self.device_path)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Run the system ``mount`` tool to mount this change's volume's block
         device.  The volume must be attached to this node.
@@ -639,7 +670,7 @@ class UnmountBlockDevice(PClass):
     def eliot_action(self):
         return UNMOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Run the system ``unmount`` tool to unmount this change's volume's block
         device.  The volume must be attached to this node and the corresponding
@@ -686,7 +717,7 @@ class AttachVolume(PClass):
         return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id,
                              block_device_id=self.blockdevice_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
         """
@@ -728,7 +759,7 @@ class DetachVolume(PClass):
         return DETACH_VOLUME(_logger, dataset_id=self.dataset_id,
                              block_device_id=self.blockdevice_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Use the deployer's ``IBlockDeviceAPI`` to detach the volume.
         """
@@ -755,7 +786,7 @@ class DestroyVolume(PClass):
     def eliot_action(self):
         return DESTROY_VOLUME(_logger, block_device_id=self.blockdevice_id)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
         """
@@ -794,7 +825,7 @@ class CreateBlockDeviceDataset(PClass):
     :ivar Dataset dataset: The dataset for which to create a block device.
     """
     dataset_id = field(UUID, mandatory=True)
-    maximum_size = field(int, mandatory=True)
+    maximum_size = field(type=(int, long), mandatory=True)
     metadata = pmap_field(unicode, unicode)
 
     @classmethod
@@ -843,7 +874,7 @@ class CreateBlockDeviceDataset(PClass):
         else:
             return api.create_volume(dataset_id=self.dataset_id, size=size)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         """
         Create a block device, attach it to the local host, create an ``ext4``
         filesystem on the device and mount it.
@@ -864,6 +895,53 @@ class CreateBlockDeviceDataset(PClass):
             return fail()
 
         return self._create_volume(deployer)
+
+
+@implementer(IStateChange)
+@provider(IDatasetStateChangeFactory)
+class RegisterVolume(PClass):
+    """
+    Register a blockdevice volume as belonging to a particular dataset.
+
+    If we have a volume in the output of list_volumes() that is associated to
+    a dataset that doesn't have a mapping in the blockdevice ownership
+    registry, send a command to the control service indicating this mapping.
+
+    Since control service registry won't allow more than one mapping, if there
+    are two block device volumes we end up picking one, ensuring no
+    ambiguity. This is both the crash recovery optimization (allowing us to
+    reuse already created block devices) and also the upgrade mechanism from
+    time when registry didn't exist.
+
+    :ivar UUID dataset_id: The unique identifier of the dataset to have a
+        blockdevice registered to it.
+    :ivar unicode blockdevice_id: The unique identifier of the mounted
+        ``IBlockDeviceAPI``-managed volume to be registered as belonging to the
+        dataset.
+    """
+
+    dataset_id = field(type=UUID, mandatory=True)
+    blockdevice_id = field(type=unicode, mandatory=True)
+
+    @classmethod
+    def from_state_and_config(cls, discovered_dataset, desired_dataset):
+        return cls(
+            dataset_id=discovered_dataset.dataset_id,
+            blockdevice_id=discovered_dataset.blockdevice_id,
+        )
+
+    @property
+    def eliot_action(self):
+        return REGISTER_BLOCKDEVICE(
+            dataset_id=self.dataset_id,
+            block_device_id=self.blockdevice_id,
+        )
+
+    def run(self, deployer, state_persister):
+        return state_persister.record_ownership(
+            dataset_id=self.dataset_id,
+            blockdevice_id=self.blockdevice_id,
+        )
 
 
 class IBlockDeviceAsyncAPI(Interface):
@@ -1015,6 +1093,10 @@ class IBlockDeviceAPI(Interface):
         dataset_id in order to ease debugging. Some implementations may
         choose not to do so or may not be able to do so.
 
+        The dataset_id must be stored by backend and reported by the API, but
+        it is not the canonical location of information (which is the control
+        service registry).
+
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this
             volume.
         :param int size: The size of the new volume in bytes.
@@ -1107,13 +1189,32 @@ class ICloudAPI(Interface):
 
     In particular the presumption is that nodes are also managed by a
     centralized infrastructure.
+
+    This is specifically designed for cloud systems where shut down nodes
+    continue to have volumes attached to them.
     """
     def list_live_nodes():
         """
         Return the compute IDs of all nodes that are currently up and running.
 
-        :returns: A collection of compute instance IDs, compatible with
-            those returned by ``IBlockDeviceAPI.compute_instance_id``.
+        This is used to figure out which nodes are dead, so that other
+        nodes can do the detach.
+
+        :returns: A collection of ``unicode`` compute instance IDs, compatible
+            with those returned by ``IBlockDeviceAPI.compute_instance_id``.
+        """
+
+    def start_node(node_id):
+        """
+        Start up a node that has been shutdown.
+
+        This is only used by acceptance tests, so has no direct functional
+        tests.
+
+        This is done on a best effort basis. Error conditions are not tested
+        for or even necessarily raised if they occur.
+
+        :param unicode node_id: The compute node ID to startup.
         """
 
 
@@ -1212,7 +1313,40 @@ class _SyncToThreadedAsyncAPIAdapter(PClass):
     _sync = field()
     _threadpool = field()
 
+    @classmethod
+    def from_api(cls, block_device_api, reactor=None):
+        if reactor is None:
+            from twisted.internet import reactor
+        return cls(
+            _sync=block_device_api,
+            _reactor=reactor,
+            _threadpool=reactor.getThreadPool(),
+        )
 
+
+def log_list_volumes(function):
+    """
+    Decorator to count calls to list_volumes.
+
+    :param func function: The function to call.
+
+    :return: A function which will call the method and do
+        the extra logging.
+    """
+    counter = itertools.count(1)
+
+    def _count_calls(*args, **kwargs):
+        """
+        Run given function with count.
+        """
+        CALL_LIST_VOLUMES(
+            function=function.__name__, count=next(counter)
+        ).write()
+        return function(*args, **kwargs)
+    return _count_calls
+
+
+@log_list_volumes
 def check_for_existing_dataset(api, dataset_id):
     """
     :param IBlockDeviceAPI api: The ``api`` for listing the existing volumes.
@@ -1227,6 +1361,7 @@ def check_for_existing_dataset(api, dataset_id):
             raise DatasetExists(volume)
 
 
+@log_list_volumes
 def get_blockdevice_volume(api, blockdevice_id):
     """
     Find a ``BlockDeviceVolume`` matching the given identifier.
@@ -1264,6 +1399,8 @@ class RawState(PClass):
     The raw state of a node.
 
     :param unicode compute_instance_id: The identifier for this node.
+    :param _live_instances: ``pset`` of the identifiers of live nodes, or
+        ``None`` if unknown.
     :param volumes: List of all volumes in the cluster.
     :type volumes: ``pvector`` of ``BlockDeviceVolume``
     :param devices: Mapping from dataset UUID to block device path containing
@@ -1276,10 +1413,23 @@ class RawState(PClass):
         those devices that have filesystems on this node.
     """
     compute_instance_id = field(unicode, mandatory=True)
+    _live_instances = pset_field(unicode, optional=True)
     volumes = pvector_field(BlockDeviceVolume)
     devices = pmap_field(UUID, FilePath)
     system_mounts = pmap_field(FilePath, FilePath)
     devices_with_filesystems = pset_field(FilePath)
+
+    def is_known_dead_instance(self, instance_id):
+        """
+        If the node identified by given ID is dead, return ``True``. If it's
+        alive or unknown, return ``False``.
+
+        @param unicode instance_id: Node identifier.
+        @return: Whether instance is known to be dead.
+        """
+        if self._live_instances is None:
+            return False
+        return instance_id not in self._live_instances
 
 
 @implementer(ILocalState)
@@ -1326,6 +1476,7 @@ class BlockDeviceDeployerLocalState(PClass):
             elif dataset.state in (
                 DatasetStates.NON_MANIFEST, DatasetStates.ATTACHED,
                 DatasetStates.ATTACHED_NO_FILESYSTEM,
+                DatasetStates.ATTACHED_TO_DEAD_NODE,
             ):
                 nonmanifest_datasets[unicode(dataset_id)] = Dataset(
                     dataset_id=dataset_id,
@@ -1383,7 +1534,7 @@ class DoNothing(PClass):
 
 
 @provider(IDatasetStateChangeFactory)
-class PollUntilAttached(PClass):
+class Poll(PClass):
     """
     Wake up more frequently to see if remote node has detached a volume we
     wish to attach.
@@ -1408,10 +1559,17 @@ DATASET_TRANSITIONS = TransitionTable.create({
         # Other node will need to detach first, but we need to wake up to
         # notice that it has detached until FLOC-3834 makes that info part
         # of cluster state. So we need to poll... but not too often:
-        Discovered.ATTACHED_ELSEWHERE: PollUntilAttached,
+        Discovered.ATTACHED_ELSEWHERE: Poll,
+        # Some backends (AWS in particular) are only eventually consistent, so
+        # list_volumes might not report the volume even after it has already
+        # been created. We poll waiting for the backend to start reporting the
+        # created volume.
+        Discovered.REGISTERED: Poll,
+        Discovered.UNREGISTERED: RegisterVolume,
         Discovered.ATTACHED_NO_FILESYSTEM: CreateFilesystem,
         Discovered.NON_MANIFEST: AttachVolume,
-        DatasetStates.ATTACHED: MountBlockDevice,
+        Discovered.ATTACHED: MountBlockDevice,
+        Discovered.ATTACHED_TO_DEAD_NODE: DetachVolume,
     },
     Desired.NON_MANIFEST: {
         # XXX FLOC-2206
@@ -1419,9 +1577,13 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.NON_EXISTENT: CreateBlockDeviceDataset,
         # Other node will detach:
         Discovered.ATTACHED_ELSEWHERE: DoNothing,
+        # We reach this state when a dataset has been deleted.
+        Discovered.REGISTERED: DoNothing,
+        Discovered.UNREGISTERED: RegisterVolume,
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
+        Discovered.ATTACHED_TO_DEAD_NODE: DoNothing,
     },
     Desired.DELETED: {
         Discovered.NON_EXISTENT: DoNothing,
@@ -1429,9 +1591,12 @@ DATASET_TRANSITIONS = TransitionTable.create({
         Discovered.ATTACHED_ELSEWHERE: DoNothing,
         # Can't pick node that will do destruction yet.
         Discovered.NON_MANIFEST: DestroyVolume,
+        Discovered.REGISTERED: DoNothing,
+        Discovered.UNREGISTERED: RegisterVolume,
         Discovered.ATTACHED_NO_FILESYSTEM: DetachVolume,
         Discovered.ATTACHED: DetachVolume,
         Discovered.MOUNTED: UnmountBlockDevice,
+        Discovered.ATTACHED_TO_DEAD_NODE: DetachVolume,
     },
 })
 del Desired, Discovered
@@ -1501,11 +1666,12 @@ class BlockDeviceDeployer(PClass):
 
     :ivar unicode hostname: The IP address of the node that has this deployer.
     :ivar UUID node_uuid: The UUID of the node that has this deployer.
-    :ivar IBlockDeviceAPI block_device_api: The block device API that will be
-        called upon to perform block device operations.
-    :ivar IProfiledBlockDeviceAPI _profiled_blockdevice_api: The block device
-        API that will be called upon to perform block device operations with
-        profiles.
+    :ivar IBlockDeviceAPI block_device_api: The block device API that will
+        be called upon to perform block device operations. This will
+        typically be a ``ProcessLifetimeCache`` wrapping the underlying
+        provider.
+    :ivar _underlying_blockdevice_api: The underlying block device API,
+        unwrapped.
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
     :ivar _async_block_device_api: An object to override the value of the
@@ -1519,7 +1685,7 @@ class BlockDeviceDeployer(PClass):
     hostname = field(type=unicode, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
     block_device_api = field(mandatory=True)
-    _profiled_blockdevice_api = field(mandatory=True, initial=None)
+    _underlying_blockdevice_api = field(mandatory=True, initial=None)
     _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
     block_device_manager = field(initial=BlockDeviceManager())
@@ -1534,12 +1700,13 @@ class BlockDeviceDeployer(PClass):
         """
         Get an ``IProfiledBlockDeviceAPI`` provider which can create volumes
         configured based on pre-defined profiles. This will use the
-        _profiled_blockdevice_api attribute, falling back to the
+        _underlying_blockdevice_api attribute, falling back to the
         block_device_api attributed and finally an adapter implementation
         around the block_device_api if neither of those provide the interface.
         """
-        if IProfiledBlockDeviceAPI.providedBy(self._profiled_blockdevice_api):
-            return self._profiled_blockdevice_api
+        if IProfiledBlockDeviceAPI.providedBy(
+                self._underlying_blockdevice_api):
+            return self._underlying_blockdevice_api
         if IProfiledBlockDeviceAPI.providedBy(self.block_device_api):
             return self.block_device_api
         return ProfiledBlockDeviceAPIAdapter(
@@ -1559,14 +1726,12 @@ class BlockDeviceDeployer(PClass):
         subclass).
         """
         if self._async_block_device_api is None:
-            from twisted.internet import reactor
-            return _SyncToThreadedAsyncAPIAdapter(
-                _sync=self.block_device_api,
-                _reactor=reactor,
-                _threadpool=reactor.getThreadPool(),
+            return _SyncToThreadedAsyncAPIAdapter.from_api(
+                self.block_device_api,
             )
         return self._async_block_device_api
 
+    @log_list_volumes
     def _discover_raw_state(self):
         """
         Find the state of this node that is relevant to determining which
@@ -1606,8 +1771,14 @@ class BlockDeviceDeployer(PClass):
                     # in the filesystem yet.
                     pass
 
+        if ICloudAPI.providedBy(self._underlying_blockdevice_api):
+            live_instances = self._underlying_blockdevice_api.list_live_nodes()
+        else:
+            # Can't know accurately who is alive and who is dead:
+            live_instances = None
         result = RawState(
             compute_instance_id=compute_instance_id,
+            _live_instances=live_instances,
             volumes=volumes,
             devices=devices,
             system_mounts=system_mounts,
@@ -1618,7 +1789,7 @@ class BlockDeviceDeployer(PClass):
         DISCOVERED_RAW_STATE(raw_state=result).write()
         return result
 
-    def discover_state(self, cluster_state):
+    def discover_state(self, cluster_state, persistent_state):
         """
         Find all datasets that are currently associated with this host and
         return a ``BlockDeviceDeployerLocalState`` containing all the datasets
@@ -1629,7 +1800,23 @@ class BlockDeviceDeployer(PClass):
         datasets = {}
         for volume in raw_state.volumes:
             dataset_id = volume.dataset_id
-            if dataset_id in raw_state.devices:
+            owning_blockdevice_id = persistent_state.blockdevice_ownership.get(
+                dataset_id)
+            if owning_blockdevice_id is None:
+                datasets[dataset_id] = DiscoveredDataset(
+                    state=DatasetStates.UNREGISTERED,
+                    dataset_id=dataset_id,
+                    maximum_size=volume.size,
+                    blockdevice_id=volume.blockdevice_id,
+                )
+            elif volume.blockdevice_id != owning_blockdevice_id:
+                # XXX Should we cleanup duplicate volumes?
+                if volume.attached_to is not None:
+                    UNREGISTERED_VOLUME_ATTACHED(
+                        dataset_id=dataset_id,
+                        block_device_id=volume.blockdevice_id,
+                    ).write()
+            elif dataset_id in raw_state.devices:
                 device_path = raw_state.devices[dataset_id]
                 mount_point = self._mountpath_for_dataset_id(
                     unicode(dataset_id)
@@ -1670,12 +1857,26 @@ class BlockDeviceDeployer(PClass):
                         blockdevice_id=volume.blockdevice_id,
                     )
                 else:
+                    if raw_state.is_known_dead_instance(volume.attached_to):
+                        state = DatasetStates.ATTACHED_TO_DEAD_NODE
+                    else:
+                        state = DatasetStates.ATTACHED_ELSEWHERE
                     datasets[dataset_id] = DiscoveredDataset(
-                        state=DatasetStates.ATTACHED_ELSEWHERE,
+                        state=state,
                         dataset_id=dataset_id,
                         maximum_size=volume.size,
                         blockdevice_id=volume.blockdevice_id,
                     )
+
+        for dataset_id, blockdevice_id in (
+            persistent_state.blockdevice_ownership.items()
+        ):
+            if dataset_id not in datasets:
+                datasets[dataset_id] = DiscoveredDataset(
+                    state=DatasetStates.REGISTERED,
+                    dataset_id=dataset_id,
+                    blockdevice_id=blockdevice_id,
+                )
 
         local_state = BlockDeviceDeployerLocalState(
             node_uuid=self.node_uuid,
@@ -1757,8 +1958,11 @@ class BlockDeviceDeployer(PClass):
         # `ATTACHED_ELSEWHERE` need the same behavior as `NON_MANIFEST`, so we
         # don't check them either.
 
-        not_in_use_datasets = not_in_use(local_datasets.values())
+        # This is a performance optimization.  We deliberately use a ``set``
+        # here to allow fast hash based lookups.
+        not_in_use_datasets = set(not_in_use(local_datasets.values()))
         for dataset_id, dataset in local_datasets.items():
+            # Hash based lookup rather than iteration here.
             if dataset in not_in_use_datasets:
                 continue
             if dataset.state != DatasetStates.MOUNTED:
@@ -1784,15 +1988,12 @@ class BlockDeviceDeployer(PClass):
         local_node_state = cluster_state.get_node(self.node_uuid,
                                                   hostname=self.hostname)
 
-        # We need to know applications (for now) to see if we should delay
-        # deletion or handoffs. Eventually this will rely on leases instead.
-        # https://clusterhq.atlassian.net/browse/FLOC-1425.
-        if local_node_state.applications is None:
-            return NOTHING_TO_DO
-
+        local_applications = None
+        if local_node_state.applications is not None:
+            local_applications = local_node_state.applications.values()
         desired_datasets = self._calculate_desired_state(
             configuration=configuration,
-            local_applications=local_node_state.applications,
+            local_applications=local_applications,
             local_datasets=local_state.datasets,
         )
 

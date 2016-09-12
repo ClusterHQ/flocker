@@ -241,17 +241,7 @@ class _RetryFlaky(testtools.RunTest):
         # XXX: Still using internal API of testtools despite improvements in
         # #165. Will need to do follow-up work on testtools to ensure that
         # RunTest.run(case); RunTest.run(case) is supported.
-        try:
-            case._reset()
-        except AttributeError:
-            # We are using a fork of testtools, which unfortunately means that
-            # we need to do special things to make sure we're using the latest
-            # version. Raise an error message that will help people figure out
-            # what they need to do.
-            raise Exception(
-                "Could not reset TestCase. Maybe upgrade your version of "
-                "testtools: pip install --upgrade --process-dependency-links "
-                ".[dev]")
+        case._reset()
         self._run_test(case, tmp_result)
         result_type = _get_result_type(tmp_result)
         details = pmap(case.getDetails())

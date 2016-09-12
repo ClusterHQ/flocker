@@ -1,0 +1,22 @@
+--find-links git+https://github.com/ClusterHQ/mimic@2.1.0+chq2#egg=mimic-2.1.0+chq2
+mimic
+# The test suite uses network namespaces
+# nomenclature can only be installed on Linux
+# The "linux2" marker value is specific to Python2
+# We can't use the "in" marker comparison because it isn't recognised by
+# setuptools, only by pkg_resources.
+nomenclature >= "0.1.0"; sys_platform == "linux2"
+# Required by flocker.acceptance.integration.test_postgres
+pg8000
+pycrypto
+# Sphinx docs dependencies
+# enchant.tokenize is not detected by snakefood
+pyenchant
+pylint
+# Required by flocker.acceptance.integration.test_mongodb
+pymongo
+sphinx-prompt
+sphinxcontrib-spelling
+# XXX: This shouldn't be here. It's only needed by admin.packaging module but
+# buildbot doesn't install the admin dependencies
+virtualenv

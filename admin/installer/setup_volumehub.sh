@@ -2,7 +2,6 @@
 # Set up Volume Hub if a token has been supplied.
 set -ex
 
-: ${volumehub_token:?}
 : ${flocker_node_type:?}
 
 if test -n "${volumehub_token}"; then

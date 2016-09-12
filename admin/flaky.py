@@ -91,7 +91,8 @@ def report_test_tree(output, flaky_tests):
     """
     reporter = TreeReporter(output)
     for (test, flaky) in flaky_tests:
-        new_test = clone_test_with_new_id(test, '{}({})'.format(test.id(), ', '.join(flaky.jira_keys)))
+        new_test = clone_test_with_new_id(
+            test, '{}({})'.format(test.id(), ', '.join(flaky.jira_keys)))
         reporter.startTest(new_test)
         reporter.addSuccess(new_test)
         reporter.stopTest(new_test)

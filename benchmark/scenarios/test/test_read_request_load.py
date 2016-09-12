@@ -14,8 +14,8 @@ from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
-    RequestRateTooLow, RequestRateNotReached,
-    RequestOverload, read_request_load_scenario, RequestScenarioAlreadyStarted,
+    read_request_load_scenario, RequestRateTooLow, RequestOverload,
+    RequestScenarioAlreadyStarted,
 )
 
 DEFAULT_VOLUME_SIZE = 1073741824
@@ -123,6 +123,12 @@ class read_request_load_scenarioTest(TestCase):
         c.pump(repeat(1, sample_size))
         s.maintained().addBoth(lambda x: self.fail())
         d.addCallback(lambda ignored: s.stop())
+
+        def verify_scenario_returns_metrics(result):
+            self.assertIsInstance(result, dict)
+
+        d.addCallback(verify_scenario_returns_metrics)
+
         c.pump(repeat(1, sample_size))
         self.successResultOf(d)
 
@@ -195,8 +201,9 @@ class read_request_load_scenarioTest(TestCase):
         """
         c = Clock()
 
-        cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
+        cluster = self.make_cluster(RequestErrorFakeFlockerClient)
         sample_size = 5
+        cluster.get_control_service(c).delay = 0
         s = read_request_load_scenario(c, cluster, sample_size=sample_size,
                                        tolerance_percentage=0)
 
@@ -206,13 +213,17 @@ class read_request_load_scenarioTest(TestCase):
         # requested rate.
         c.pump(repeat(1, sample_size))
 
-        cluster.get_control_service(c).drop_requests = True
+        cluster.get_control_service(c).fail_requests = True
 
         # Advance the clock by 2 seconds so that a request is dropped
         # and a new rate which is below the target can be established.
-        c.advance(2)
+        time_to_advance = s.tolerated_errors / sample_size
+        c.pump(repeat(1, time_to_advance))
 
         failure = self.failureResultOf(s.maintained())
+
+        _logger.flushTracebacks(FakeNetworkError)
+
         self.assertIsInstance(failure.value, RequestRateTooLow)
 
     @capture_logging(None)
@@ -239,27 +250,6 @@ class read_request_load_scenarioTest(TestCase):
         c.pump(repeat(1, sample_size*s.request_rate))
 
         self.successResultOf(d)
-
-    @capture_logging(None)
-    def test_scenario_throws_exception_if_requested_rate_not_reached(
-        self, _logger
-    ):
-        """
-        ``read_request_load_scenario`` raises ``RequestRateNotReached`` if the
-        target rate cannot be established within a given timeframe.
-        """
-        c = Clock()
-        cluster = self.make_cluster(RequestDroppingFakeFlockerClient)
-        s = read_request_load_scenario(c, cluster, tolerance_percentage=0)
-        cluster.get_control_service(c).drop_requests = True
-        d = s.start()
-
-        # Continue the clock for one second longer than the timeout
-        # value to allow the timeout to be triggered.
-        c.advance(s.timeout + 1)
-
-        failure = self.failureResultOf(d)
-        self.assertIsInstance(failure.value, RequestRateNotReached)
 
     @capture_logging(None)
     def test_scenario_throws_exception_if_overloaded(self, _logger):

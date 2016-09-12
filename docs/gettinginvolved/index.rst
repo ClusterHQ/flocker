@@ -15,5 +15,4 @@ Getting Involved
    benchmarking
    client-testing
    infrastructure/index
-   appendix
    authors

@@ -3,6 +3,8 @@
 
 """
 APIs for parsing and validating configuration.
+
+XXX: This module can be deleted. (FLOC-4435)
 """
 
 from __future__ import unicode_literals, absolute_import
@@ -868,8 +870,8 @@ class FlockerConfiguration(object):
         present_keys = set(self._application_configuration)
         if flocker_keys.issubset(present_keys):
             valid = True
-            for application_name, application in (
-                self._application_configuration['applications'].items()
+            for application in (
+                self._application_configuration['applications'].values()
             ):
                 if not isinstance(application, dict):
                     valid = False
@@ -1256,7 +1258,8 @@ def deployment_from_configuration(deployment_state, deployment_configuration,
         raise ConfigurationError("Deployment configuration has an error. "
                                  "Incorrect version specified.")
 
-    node_states = {node.hostname: node for node in deployment_state.nodes}
+    node_states = {node.hostname: node for node in
+                   deployment_state.nodes.itervalues()}
     nodes = []
     seen_applications = set()
     for hostname, application_names in (
@@ -1296,7 +1299,7 @@ def deployment_from_configuration(deployment_state, deployment_configuration,
             raise ConfigurationError("No known node with address {}.".format(
                 hostname))
         node = Node(uuid=node_states[hostname].uuid,
-                    applications=frozenset(node_applications),
+                    applications={app.name: app for app in node_applications},
                     manifestations={app.volume.manifestation.dataset_id:
                                     app.volume.manifestation
                                     for app in node_applications

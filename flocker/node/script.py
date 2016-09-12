@@ -7,14 +7,17 @@ The command-line ``flocker-*-agent`` tools.
 
 from socket import socket
 from contextlib import closing
+import cProfile
+import signal
 import sys
-from time import sleep
+from functools import partial
+from time import sleep, clock
 
 import yaml
 
 from jsonschema import FormatChecker, Draft4Validator
 
-from pyrsistent import PClass, field, PMap, pmap, pvector
+from pyrsistent import PClass, field, PMap, pmap
 
 from eliot import ActionType, fields
 
@@ -23,18 +26,14 @@ from zope.interface import implementer
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.internet.ssl import Certificate
-from twisted.internet import reactor
+from twisted.internet import reactor  # pylint: disable=unused-import
 from twisted.internet.defer import succeed
-from twisted.python.constants import Names, NamedConstant
-from twisted.python.reflect import namedAny
 
-from ..volume.filesystems import zfs
-from ..volume.service import (
-    VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT, FLOCKER_POOL)
 
 from ..common.script import (
     ICommandLineScript,
-    flocker_standard_options, FlockerScriptRunner, main_for_service)
+    flocker_standard_options, FlockerScriptRunner, main_for_service,
+    enable_profiling, disable_profiling)
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .exceptions import StorageInitializationError
@@ -45,13 +44,14 @@ from .diagnostics import (
 from .agents.blockdevice import (
     BlockDeviceDeployer, ProcessLifetimeCache,
 )
-from .agents.loopback import (
-    LoopbackBlockDeviceAPI,
-)
-from .agents.cinder import cinder_from_configuration
-from .agents.ebs import aws_from_configuration
 from ..ca import ControlServicePolicy, NodeCredential
 from ..common._era import get_era
+
+from .backends import (
+    BackendDescription,
+    DeployerType,
+    backend_and_api_args_from_configuration,
+)
 
 __all__ = [
     "flocker_dataset_agent_main",
@@ -73,6 +73,12 @@ def flocker_dataset_agent_main():
     agent_script = AgentScript(service_factory=service_factory.get_service)
     options = DatasetAgentOptions()
 
+    # Use CPU time instead of wallclock time.
+    pr = cProfile.Profile(clock)
+
+    signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
+    signal.signal(signal.SIGUSR2, partial(disable_profiling, pr, 'dataset'))
+
     return FlockerScriptRunner(
         script=agent_script,
         options=options,
@@ -91,6 +97,13 @@ def flocker_container_agent_main():
         deployer_factory=deployer_factory
     ).get_service
     agent_script = AgentScript(service_factory=service_factory)
+
+    # Use CPU time instead of wallclock time.
+    pr = cProfile.Profile(clock)
+
+    signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
+    signal.signal(signal.SIGUSR2, partial(disable_profiling, pr, 'container'))
+
     return FlockerScriptRunner(
         script=agent_script,
         options=ContainerAgentOptions()
@@ -301,7 +314,7 @@ class AgentServiceFactory(PClass):
     # This should have an explicit interface:
     # https://clusterhq.atlassian.net/browse/FLOC-1929
     deployer_factory = field(mandatory=True)
-    get_external_ip = field(initial=_get_external_ip, mandatory=True)
+    get_external_ip = field(initial=(lambda: _get_external_ip), mandatory=True)
 
     def get_service(self, reactor, options):
         """
@@ -365,147 +378,73 @@ def get_configuration(options):
     return configuration
 
 
-def _zfs_storagepool(
-        reactor, pool=FLOCKER_POOL, mount_root=None, volume_config_path=None):
-    """
-    Create a ``VolumeService`` with a ``zfs.StoragePool``.
-
-    :param pool: The name of the ZFS storage pool to use.
-    :param bytes mount_root: The path to the directory where ZFS filesystems
-        will be mounted.
-    :param bytes volume_config_path: The path to the volume service's
-        configuration file.
-
-    :return: The ``VolumeService``, started.
-    """
-    if mount_root is None:
-        mount_root = FLOCKER_MOUNTPOINT
-    else:
-        mount_root = FilePath(mount_root)
-    if volume_config_path is None:
-        config_path = DEFAULT_CONFIG_PATH
-    else:
-        config_path = FilePath(volume_config_path)
-
-    pool = zfs.StoragePool(
-        reactor=reactor, name=pool, mount_root=mount_root,
-    )
-    api = VolumeService(
-        config_path=config_path,
-        pool=pool,
-        reactor=reactor,
-    )
-    api.startService()
-    return api
-
-
-class DeployerType(Names):
-    """
-    References to the different ``IDeployer`` implementations that are
-    available.
-
-    :ivar p2p: The "peer-to-peer" deployer - suitable for use with system like
-        ZFS where nodes interact directly with each other for data movement.
-    :ivar block: The Infrastructure-as-a-Service deployer - suitable for use
-        with system like EBS where volumes can be attached to nodes as block
-        devices and then detached (and then re-attached to other nodes).
-    """
-    p2p = NamedConstant()
-    block = NamedConstant()
-
-
-class BackendDescription(PClass):
-    """
-    Represent one kind of storage backend we might be able to use.
-
-    :ivar name: The human-meaningful name of this storage backend.
-    :ivar needs_reactor: A flag which indicates whether this backend's API
-        factory needs to have a reactor passed to it.
-    :ivar needs_cluster_id: A flag which indicates whether this backend's API
-        factory needs to have the cluster's unique identifier passed to it.
-    :ivar api_factory: An object which can be called with some simple
-        configuration data and which returns the API object implementing this
-        storage backend.
-    :ivar deployer_type: A constant from ``DeployerType`` indicating which kind
-        of ``IDeployer`` the API object returned by ``api_factory`` is usable
-        with.
-    """
-    name = field(type=unicode, mandatory=True)
-    needs_reactor = field(type=bool, mandatory=True)
-    # XXX Eventually everyone will take cluster_id so we will throw this flag
-    # out.
-    needs_cluster_id = field(type=bool, mandatory=True)
-    api_factory = field(mandatory=True)
-    deployer_type = field(
-        mandatory=True,
-        invariant=lambda value: (
-            value in DeployerType.iterconstants(), "Unknown deployer_type"
-        ),
-    )
-
-# These structures should be created dynamically to handle plug-ins
-_DEFAULT_BACKENDS = [
-    # P2PManifestationDeployer doesn't currently know anything about
-    # cluster_uuid.  It probably should so that it can make sure it
-    # only talks to other nodes in the same cluster (maybe the
-    # authentication layer would mostly handle this but maybe not if
-    # you're slightly careless with credentials - also ZFS backend
-    # doesn't use TLS yet).
-    BackendDescription(
-        name=u"zfs", needs_reactor=True, needs_cluster_id=False,
-        api_factory=_zfs_storagepool, deployer_type=DeployerType.p2p,
-    ),
-    BackendDescription(
-        name=u"loopback", needs_reactor=False, needs_cluster_id=False,
-        # XXX compute_instance_id is the wrong type
-        api_factory=LoopbackBlockDeviceAPI.from_path,
-        deployer_type=DeployerType.block,
-    ),
-    BackendDescription(
-        name=u"openstack", needs_reactor=False, needs_cluster_id=True,
-        api_factory=cinder_from_configuration,
-        deployer_type=DeployerType.block,
-    ),
-    BackendDescription(
-        name=u"aws", needs_reactor=False, needs_cluster_id=True,
-        api_factory=aws_from_configuration,
-        deployer_type=DeployerType.block,
-    ),
-]
-
 _DEFAULT_DEPLOYERS = {
     DeployerType.p2p: lambda api, **kw:
         P2PManifestationDeployer(volume_service=api, **kw),
     DeployerType.block: lambda api, **kw:
         BlockDeviceDeployer(block_device_api=ProcessLifetimeCache(api),
-                            _profiled_blockdevice_api=api,
+                            _underlying_blockdevice_api=api,
                             **kw),
 }
 
 
+def get_api(backend, api_args, reactor, cluster_id):
+    """
+    Get an storage driver which can be used to create an ``IDeployer``.
+
+    :param BackendDescription backend: Backend to use.
+    :param PMap api_args: Parameters to pass the API factory.
+    :param reactor: The reactor to use.
+    :param cluster_id: The cluster's unique ID.
+
+    :return: An object created by one of the factories in ``self.backends``
+        using the configuration from ``self.api_args`` and other useful
+        state on ``self``.
+    """
+    if backend.needs_cluster_id:
+        api_args = api_args.set("cluster_id", cluster_id)
+    if backend.needs_reactor:
+        api_args = api_args.set("reactor", reactor)
+
+    for config_key in backend.required_config:
+        if config_key not in api_args:
+            raise UsageError(
+                u"Configuration error: Required key {} is missing.".format(
+                    config_key.decode("utf-8"))
+            )
+
+    try:
+        return backend.api_factory(**api_args)
+    except StorageInitializationError as e:
+        if e.code == StorageInitializationError.CONFIGURATION_ERROR:
+            raise UsageError(u"Configuration error", *e.args)
+        else:
+            raise
+
+
 class AgentService(PClass):
     """
-    :ivar backends: ``BackendDescription`` instances describing how to use each
-        available storage backend.
+    :cvar PluginLoader backends: Plugin loader to get dataset backend from.
     :ivar deployers: Factories to create ``IDeployer`` providers given an API
         object and some extra keyword arguments.  Keyed on a value from
         ``DeployerType``.
     :ivar node_credential: Credentials with which to configure this agent.
     :ivar ca_certificate: The root certificate to use to validate the control
         service certificate.
-    :ivar backend_name: The name of the storage driver to instantiate.  This
-        must name one of the items in ``backends``.
+    :ivar BackendDescription backend_description: The backend to load when
+        starting the service.
     :ivar api_args: Extra arguments to pass to the factory from ``backends``.
     :ivar get_external_ip: Typically ``_get_external_ip``, but
         overrideable for tests.
     """
-    backends = field(
-        factory=pvector, initial=_DEFAULT_BACKENDS, mandatory=True,
+    backend_description = field(
+        BackendDescription,
+        mandatory=True,
     )
     deployers = field(factory=pmap, initial=_DEFAULT_DEPLOYERS, mandatory=True)
     reactor = field(initial=reactor, mandatory=True)
 
-    get_external_ip = field(initial=_get_external_ip, mandatory=True)
+    get_external_ip = field(initial=(lambda: _get_external_ip), mandatory=True)
 
     control_service_host = field(type=bytes, mandatory=True)
     control_service_port = field(type=int, mandatory=True)
@@ -516,18 +455,18 @@ class AgentService(PClass):
     # Cannot use type=Certificate; pyrsistent rejects classic classes.
     ca_certificate = field(mandatory=True)
 
-    backend_name = field(type=unicode, mandatory=True)
     api_args = field(type=PMap, factory=pmap, mandatory=True)
 
     @classmethod
-    def from_configuration(cls, configuration):
+    def from_configuration(cls, configuration, reactor=None):
         """
         Load configuration from a data structure loaded from the configuration
         file and only minimally processed.
 
         :param dict configuration: Agent configuration as returned by
             ``get_configuration``.
-
+        :param IReactorCore reactor: A provider of IReactorCore and
+            IReactorTime or None to use the global reactor.
         :return: A new instance of ``cls`` with values loaded from the
             configuration.
         """
@@ -541,38 +480,23 @@ class AgentService(PClass):
         node_credential = configuration['node-credential']
         ca_certificate = configuration['ca-certificate']
 
-        api_args = configuration['dataset']
-        backend_name = api_args.pop('backend')
-
-        return cls(
+        (backend_description,
+         api_args) = backend_and_api_args_from_configuration(
+            configuration['dataset']
+        )
+        kwargs = dict(
             control_service_host=host,
             control_service_port=port,
 
             node_credential=node_credential,
             ca_certificate=ca_certificate,
 
-            backend_name=backend_name.decode("ascii"),
+            backend_description=backend_description,
             api_args=api_args,
         )
-
-    def get_backend(self):
-        """
-        Find the backend in ``self.backends`` that matches the one named by
-        ``self.backend_name``.
-
-        :raise ValueError: If ``backend_name`` doesn't match any known backend.
-        :return: The matching ``BackendDescription``.
-        """
-        for backend in self.backends:
-            if backend.name == self.backend_name:
-                return backend
-        try:
-            return namedAny(self.backend_name + ".FLOCKER_BACKEND")
-        except (AttributeError, ValueError):
-            raise ValueError(
-                "'{!s}' is neither a built-in backend nor a 3rd party "
-                "module.".format(self.backend_name),
-            )
+        if reactor is not None:
+            kwargs['reactor'] = reactor
+        return cls(**kwargs)
 
     # Needs tests: FLOC-1964.
     def get_tls_context(self):
@@ -599,22 +523,15 @@ class AgentService(PClass):
             using the configuration from ``self.api_args`` and other useful
             state on ``self``.
         """
-        backend = self.get_backend()
-
-        api_args = self.api_args
-        if backend.needs_cluster_id:
+        cluster_id = None
+        if self.backend_description.needs_cluster_id:
             cluster_id = self.node_credential.cluster_uuid
-            api_args = api_args.set("cluster_id", cluster_id)
-        if backend.needs_reactor:
-            api_args = api_args.set("reactor", self.reactor)
-
-        try:
-            return backend.api_factory(**api_args)
-        except StorageInitializationError as e:
-            if e.code == StorageInitializationError.CONFIGURATION_ERROR:
-                raise UsageError(u"Configuration error", *e.args)
-            else:
-                raise
+        return get_api(
+            self.backend_description,
+            self.api_args,
+            self.reactor,
+            cluster_id
+        )
 
     def get_deployer(self, api):
         """
@@ -626,9 +543,9 @@ class AgentService(PClass):
 
         :return: The ``IDeployer`` provider.
         """
-        backend = self.get_backend()
-        deployer_factory = self.deployers[backend.deployer_type]
-
+        deployer_factory = self.deployers[
+            self.backend_description.deployer_type
+        ]
         address = self.get_external_ip(
             self.control_service_host, self.control_service_port,
         )
@@ -660,8 +577,9 @@ class DatasetServiceFactory(PClass):
     A helper for creating most of the pieces that go into a dataset convergence
     agent.
     """
-    agent_service_factory = field(initial=AgentService.from_configuration)
-    configuration_factory = field(initial=get_configuration)
+    agent_service_factory = field(
+        initial=(lambda: AgentService.from_configuration))
+    configuration_factory = field(initial=(lambda: get_configuration))
 
     def get_service(self, reactor, options):
         """
@@ -689,8 +607,7 @@ class DiagnosticsOptions(Options):
     """
     longdesc = """\
     Exports Flocker log files and diagnostic data. Run this script as root, on
-    an Ubuntu 14.04 or Centos 7 server where the clusterhq-flocker-node package
-    has been installed.
+    a server where the clusterhq-flocker-node package has been installed.
     """
 
     synopsis = "Usage: flocker-diagnostics [OPTIONS]"

@@ -8,10 +8,15 @@ for consolidation opportunities.
 """
 
 from eliot import Field, ActionType, MessageType
-from .blockdevice import DATASET_ID
 
 # Begin: Common structures used by all (AWS, OpenStack)
 # storage drivers.
+
+DATASET_ID = Field(
+    u"dataset_id",
+    lambda dataset_id: unicode(dataset_id),
+    u"The unique identifier of a dataset."
+)
 
 # An OPERATION is a list of:
 # IBlockDeviceAPI name, positional arguments, keyword arguments.
@@ -19,6 +24,10 @@ OPERATION = Field.for_types(
     u"operation", [list],
     u"The IBlockDeviceAPI operation being executed,"
     u"along with positional and keyword arguments.")
+
+COUNT = Field.for_types(
+    u"count", [int],
+    u"Count of operation calls.")
 
 # End: Common structures used by all storage drivers.
 
@@ -28,7 +37,7 @@ OPERATION = Field.for_types(
 # ActionType used by AWS storage driver.
 AWS_ACTION = ActionType(
     u"flocker:node:agents:blockdevice:aws",
-    [OPERATION],
+    [OPERATION, COUNT],
     [],
     u"An IBlockDeviceAPI operation is executing using AWS storage driver.")
 
@@ -86,7 +95,7 @@ TARGET_STATUS = Field.for_types(
     u"target_status", [bytes, unicode],
     u"Expected target status of the volume, as a result of an AWS API call.")
 WAIT_TIME = Field.for_types(
-    u"wait_time", [int],
+    u"wait_time", [int, float],
     u"Time, in seconds, system waited for the volume to reach target status.")
 NEEDS_ATTACH_DATA = Field.for_types(
     u"needs_attach_data", [bool],

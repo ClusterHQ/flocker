@@ -1,3 +1,5 @@
+.. _deprecated-endpoints:
+
 ====================
 Deprecated Endpoints
 ====================
@@ -11,6 +13,9 @@ The Flocker Container API enables you to manage containers in your cluster.
 However, ClusterHQ is no longer developing any future features in this area, as you can now use Flocker with 3rd party orchestration tools.
 
 The deprecated endpoints listed below are still available for use, but please be aware that they will not be available in future versions of the Flocker API:
+
+Deprecated Endpoints
+====================
 
 .. contents::
         :local:

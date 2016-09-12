@@ -26,7 +26,8 @@ from benchmark.cluster import BenchmarkCluster
 from benchmark._driver import driver
 
 
-to_file(sys.stderr)
+# Change this number when changing the format of the output JSON
+OUTPUT_VERSION = 1
 
 # If modifying scenarios, operations, or metrics, please update
 # docs/gettinginvolved/benchmarking.rst
@@ -72,8 +73,6 @@ def create_factory_from_config(table, config):
 
 
 class BenchmarkOptions(Options):
-    description = "Run benchmark tests."
-
     optParameters = [
         ['cluster', None, None,
          'Directory containing cluster configuration files.  '
@@ -85,7 +84,8 @@ class BenchmarkOptions(Options):
          'Environmental scenario under which to perform test.'],
         ['operation', None, 'default', 'Operation to measure.'],
         ['metric', None, 'default', 'Quantity to benchmark.'],
-        ['userdata', None, None, 'JSON data to add to output.']
+        ['userdata', None, None, 'JSON data to add to output.'],
+        ['log-file', None, None, 'File for writing log, stderr by default.'],
     ]
 
 
@@ -241,6 +241,22 @@ def main(argv, environ, react=react):
     except UsageError as e:
         usage(options, e.args[0])
 
+    if options['log-file'] is not None:
+        try:
+            log_file = open(options['log-file'], 'a')
+        except EnvironmentError as e:
+            usage(
+                options,
+                'Can not open the log file {}.\n{}: {}.'.format(
+                    options['log-file'],
+                    e.filename,
+                    e.strerror
+                )
+            )
+    else:
+        log_file = sys.stderr
+    to_file(log_file)
+
     cluster = get_cluster(options, environ)
 
     with open(options['config'], 'rt') as f:
@@ -289,6 +305,7 @@ def main(argv, environ, react=react):
     timestamp = datetime.now().isoformat()
 
     result = dict(
+        version=OUTPUT_VERSION,
         timestamp=timestamp,
         client=dict(
             flocker_version=flocker_client_version,

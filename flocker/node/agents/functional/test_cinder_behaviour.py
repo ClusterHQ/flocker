@@ -5,48 +5,33 @@ Test for real world behaviour of Cinder implementations to validate some of our
 basic assumptions/understandings of how Cinder works in the real world.
 """
 
-from unittest import SkipTest
+from bitmath import Byte
 
-from ..cinder import (
-    get_keystone_session, get_cinder_v1_client, wait_for_volume_state
-)
-from ..test.blockdevicefactory import (
-    InvalidConfig,
-    ProviderType,
-    get_openstack_region_for_test,
-    get_blockdevice_config,
+from ..cinder import wait_for_volume_state
+from ..testtools import (
+    get_blockdeviceapi_with_cleanup,
+    get_minimum_allocatable_size,
+    require_backend,
+
 )
 from ....testtools import TestCase, random_name
 
 from .logging import CINDER_VOLUME
 
 
-def cinder_volume_manager():
-    """
-    Get an ``ICinderVolumeManager`` configured to work on this environment.
-
-    XXX: It will not automatically clean up after itself. See FLOC-1824.
-    """
-    try:
-        config = get_blockdevice_config(ProviderType.openstack)
-    except InvalidConfig as e:
-        raise SkipTest(str(e))
-    region = get_openstack_region_for_test()
-    session = get_keystone_session(**config)
-    return get_cinder_v1_client(session, region).volumes
-
-
 # All of the following tests could be part of the suite returned by
 # ``make_icindervolumemanager_tests`` instead.
 # https://clusterhq.atlassian.net/browse/FLOC-1846
-
+@require_backend('openstack')
 class VolumesCreateTests(TestCase):
     """
     Tests for ``cinder.Client.volumes.create``.
     """
     def setUp(self):
         super(VolumesCreateTests, self).setUp()
-        self.cinder_volumes = cinder_volume_manager()
+        self.cinder_volumes = get_blockdeviceapi_with_cleanup(
+            self,
+        ).cinder_volume_manager
 
     def test_create_metadata_is_listed(self):
         """
@@ -56,7 +41,7 @@ class VolumesCreateTests(TestCase):
         expected_metadata = {random_name(self): "bar"}
 
         new_volume = self.cinder_volumes.create(
-            size=100,
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value),
             metadata=expected_metadata
         )
         CINDER_VOLUME(id=new_volume.id).write()
@@ -79,13 +64,16 @@ class VolumesCreateTests(TestCase):
         )
 
 
+@require_backend('openstack')
 class VolumesSetMetadataTests(TestCase):
     """
     Tests for ``cinder.Client.volumes.set_metadata``.
     """
     def setUp(self):
         super(VolumesSetMetadataTests, self).setUp()
-        self.cinder_volumes = cinder_volume_manager()
+        self.cinder_volumes = get_blockdeviceapi_with_cleanup(
+            self,
+        ).cinder_volume_manager
 
     def test_updated_metadata_is_listed(self):
         """
@@ -94,7 +82,9 @@ class VolumesSetMetadataTests(TestCase):
         """
         expected_metadata = {random_name(self): u"bar"}
 
-        new_volume = self.cinder_volumes.create(size=100)
+        new_volume = self.cinder_volumes.create(
+            size=int(Byte(get_minimum_allocatable_size()).to_GiB().value),
+        )
         CINDER_VOLUME(id=new_volume.id).write()
         self.addCleanup(self.cinder_volumes.delete, new_volume)
 

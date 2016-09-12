@@ -6,6 +6,8 @@ This module implements tools for exposing Python methods as API endpoints.
 from __future__ import absolute_import
 
 from functools import wraps
+import os
+import sys
 
 from json import loads, dumps
 
@@ -20,7 +22,7 @@ from eliot.twisted import DeferredContext
 from pyrsistent import pmap
 
 from ._error import DECODING_ERROR, BadRequest, InvalidRequestJSON
-from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
+from ._logging import LOG_SYSTEM, REQUEST
 from ._schema import getValidator
 
 _ASCENDING = b"ascending"
@@ -142,6 +144,26 @@ def _remote_logging(original):
     return logger
 
 
+# Set _validate_responses to True to perform jsonschema validation of
+# API responses from the control service.  Schema validation
+# confirms that outputs are valid, but is computationally expensive for
+# large responses.  Validation can be explicitly controlled by setting
+# the environment variable FLOCKER_VALIDATE_API_RESPONSES to "no" to
+# disable validation or any other value to enable.  If the environment
+# variable is not set, validation is only enabled when running using
+# trial or the Python unittest module.
+try:
+    if os.environ['FLOCKER_VALIDATE_API_RESPONSES'] == 'no':
+        _validate_responses = False
+    else:
+        _validate_responses = True
+except KeyError:
+    if os.path.basename(sys.argv[0]) in ('trial', 'python -m unittest'):
+        _validate_responses = True
+    else:
+        _validate_responses = False
+
+
 def _serialize(outputValidator):
     """
     Decorate a function so that its return value is automatically JSON encoded
@@ -160,7 +182,8 @@ def _serialize(outputValidator):
                 code = result.code
                 headers = result.headers
                 result = result.result
-            outputValidator.validate(result)
+            if _validate_responses:
+                outputValidator.validate(result)
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
             for key, value in headers.items():
@@ -231,28 +254,14 @@ def structured(inputSchema, outputSchema, schema_store=None,
                 if errors:
                     raise InvalidRequestJSON(errors=errors, schema=inputSchema)
 
-            eliot_action = JSON_REQUEST(_get_logger(self), json=objects.copy())
-            with eliot_action.context():
-                # Just assume there are no conflicts between these collections
-                # of arguments right now.  When there is a schema for the JSON
-                # hopefully we can do some static verification that no routing
-                # arguments conflict with any top-level keys in the request
-                # body and then we can be sure there are no conflicts here.
-                objects.update(routeArguments)
+            # Just assume there are no conflicts between these collections
+            # of arguments right now.  When there is a schema for the JSON
+            # hopefully we can do some static verification that no routing
+            # arguments conflict with any top-level keys in the request
+            # body and then we can be sure there are no conflicts here.
+            objects.update(routeArguments)
 
-                d = DeferredContext(maybeDeferred(original, self, **objects))
-
-                def got_result(result):
-                    code = OK
-                    json = result
-                    if isinstance(result, EndpointResponse):
-                        code = result.code
-                        json = result.result
-                    eliot_action.add_success_fields(code=code, json=json)
-                    return result
-                d.addCallback(got_result)
-                d.addActionFinish()
-                return d.result
+            return maybeDeferred(original, self, **objects)
 
         loadAndDispatch.inputSchema = inputSchema
         loadAndDispatch.outputSchema = outputSchema

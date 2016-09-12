@@ -1,0 +1,9 @@
+1450420216,,ui,say,Build 'amazon-ebs' finished.
+1450420216,,ui,say,\n==> Builds finished. The artifacts of successful builds are:
+1450420216,amazon-ebs,artifact-count,1
+1450420216,amazon-ebs,artifact,0,builder-id,mitchellh.amazonebs
+1450420216,amazon-ebs,artifact,0,id,us-west-1:ami-e098f380
+1450420216,amazon-ebs,artifact,0,string,AMIs were created:\n\nus-west-1: ami-e098f380
+1450420216,amazon-ebs,artifact,0,files-count,0
+1450420216,amazon-ebs,artifact,0,end
+1450420216,,ui,say,--> amazon-ebs: AMIs were created:\n\nus-west-1: ami-e098f380

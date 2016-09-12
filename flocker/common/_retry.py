@@ -11,7 +11,8 @@ from sys import exc_info
 from datetime import timedelta
 from functools import partial
 from inspect import getfile, getsourcelines
-from itertools import repeat
+from itertools import chain, count, imap, repeat, takewhile
+from random import uniform
 import time
 
 from eliot import (
@@ -26,6 +27,65 @@ from twisted.internet.defer import maybeDeferred
 
 from effect import Effect, Constant, Delay
 from effect.retry import retry
+
+
+def backoff(step=5.0, maximum_step=60.0, timeout=10*60.0, jitter=0.2):
+    """
+    Generate increasingly large values for use as the ``steps`` argument to
+    retry functions.
+
+    :param float step: The amount by which to increase successive values.
+    :param float maximum_step: The maximum value that will be
+        generated. ``None`` means no maximum.
+    :param float timeout: No further values will be generated when the sum of
+        the generated steps is greater than ``timeout``. ``None`` means no
+        timeout.
+    :param float jitter: If not ``None``, the generated values will be adjusted
+        by a random amount between +/- ``jitter.
+    :returns: A generator of floats.
+    """
+    if step <= 0.0:
+        raise ValueError("Invalid ``step`` ({!r}). "
+                         "Must be > 0.0.".format(step))
+    steps = imap(
+        lambda x: x * step,
+        count(start=1)
+    )
+    if maximum_step is not None:
+        if maximum_step <= 0.0:
+            raise ValueError(
+                "Invalid ``maximum_step`` ({!r}). "
+                "Must be > 0.0.".format(
+                    maximum_step
+                )
+            )
+
+        steps = takewhile(
+            lambda x: x < maximum_step,
+            steps
+        )
+        steps = chain(
+            steps,
+            repeat(maximum_step)
+        )
+    if jitter is not None:
+        steps = imap(
+            lambda x: x + uniform(-jitter, jitter),
+            steps,
+        )
+    if timeout is not None:
+        total_time = [0]
+
+        def maybe_timeout(values):
+            for value in values:
+                total_time[0] += value
+                if total_time[0] > timeout:
+                    break
+                yield value
+
+        steps = maybe_timeout(steps)
+
+    return steps
 
 
 def function_serializer(function):
@@ -252,8 +312,8 @@ def retry_effect_with_timeout(effect, timeout, retry_wait=timedelta(seconds=1),
     algorithm by default, waiting double the time between each retry.
 
     :param Effect effect: The Effect to retry.
-    :param int timeout: Keep retrying until timeout.  This is measured from the
-        time of the first failure of ``effect``.
+    :param int timeout: Keep retrying until timeout.  This is measured in
+        seconds from the time of the first failure of ``effect``.
     :param timedelta retry_wait: The wait time between retries
     :param bool backoff: Whether we should use exponential backoff
     :param callable time: A nullary callable that returns a UNIX timestamp.

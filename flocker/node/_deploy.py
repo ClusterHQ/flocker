@@ -62,16 +62,19 @@ class IDeployer(Interface):
     node_uuid = Attribute("")
     hostname = Attribute("")
 
-    def discover_state(cluster_state):
+    def discover_state(cluster_state, persistent_state):
         """
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.
 
-        :param DeploymentState local_state: The previously known state of the
-            cluster. This may include information that this deployer cannot
-            discover on its own. Information here should NOT be copied
-            into the result; the return result should include only
-            information discovered by this particular deployer.
+        :param DeploymentState cluster_state: The previously discovered state
+            of the cluster. Information here should NOT be copied into the
+            result; the return result should include only information
+            discovered by this particular deployer.
+
+        :param PersistentState persistent_state: The persisted non-discoverable
+            state of the cluster. This includes association between entities
+            that can't reliably be determined by inspecting the running system.
 
         :return: A ``Deferred`` which fires with a ``ILocalState``. The
             result of shared_state_changes() will be passed to the control
@@ -94,7 +97,7 @@ class IDeployer(Interface):
 
         Returning ``flocker.node.NoOp`` will result in the convergence
         loop sleeping for the duration of the specified sleep. If a new
-        cluster state or configuration are recieved by the loop then it
+        cluster state or configuration are received by the loop then it
         runs ``calculate_changes`` with cached local state and new
         configuration and cluster state in order to figure out whether it
         should interrupt the sleep. If this results in a ``IStateChange``
@@ -119,12 +122,6 @@ class NotInUseDatasets(object):
     """
     Filter out datasets that are in use by applications on the current
     node.
-
-    For now we delay things like deletion until we know applications
-    aren't using the dataset, and also until there are no leases. Later on
-    we'll switch the container agent to rely solely on leases, at which
-    point we can rip out the logic related to Application objects. See
-    https://clusterhq.atlassian.net/browse/FLOC-2732.
     """
     def __init__(self, node_uuid, local_applications, leases):
         """
@@ -132,6 +129,8 @@ class NotInUseDatasets(object):
         :param applications: Applications running on the node.
         :param Leases leases: The current leases on datasets.
         """
+        if local_applications is None:
+            local_applications = []
         self._node_id = node_uuid
         self._in_use_datasets = {app.volume.manifestation.dataset_id
                                  for app in local_applications

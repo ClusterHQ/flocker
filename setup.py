@@ -4,35 +4,71 @@
 Generate a Flocker package that can be deployed onto cluster nodes.
 """
 
-import os
-import platform
+from os import environ
+from pkg_resources import parse_requirements, RequirementParseError
 from setuptools import setup, find_packages
 import versioneer
-
-# Hard linking doesn't work inside VirtualBox shared folders. This means that
-# you can't use tox in a directory that is being shared with Vagrant,
-# since tox relies on `python setup.py sdist` which uses hard links. As a
-# workaround, disable hard-linking if setup.py is a descendant of /vagrant.
-# See
-# https://stackoverflow.com/questions/7719380/python-setup-py-sdist-error-operation-not-permitted
-# for more details.
-if os.path.abspath(__file__).split(os.path.sep)[1] == 'vagrant':
-    del os.link
 
 with open("README.rst") as readme:
     description = readme.read()
 
-with open("requirements.txt") as requirements:
-    install_requires = requirements.readlines()
-with open("dev-requirements.txt") as dev_requirements:
-    dev_requires = dev_requirements.readlines()
 
-# The test suite uses network namespaces
-# nomenclature can only be installed on Linux
-if platform.system() == 'Linux':
-    dev_requires.extend([
-        "nomenclature >= 0.1.0",
-    ])
+def requirements_list_from_file(requirements_file, dependency_links):
+    """
+    Parse a requirements file.
+
+    Requirements that have an environment marker will only be included
+    in the list if the marker evaluates True.
+
+    ``--find-links`` lines will be added to the supplied ``dependency_links``
+    list.
+
+    XXX There's a package called ``pbr`` which is also supposed to do this
+    job. I couldn't get it to work --RichardW.
+    """
+    requirements = []
+    with open(requirements_file) as f:
+        for line in f:
+            line = line.rstrip()
+            if line.startswith('#'):
+                continue
+            elif line.startswith('--find-links'):
+                link = line.split(None, 1)[1]
+                dependency_links.append(link)
+            else:
+                parsed_requirements = parse_requirements(line)
+                try:
+                    (req,) = list(parsed_requirements)
+                except RequirementParseError as original_error:
+                    # XXX Buildbot has an old version of setuptools /
+                    # pkg_resources which can't parse environment markers.
+                    message = unicode(original_error)
+                    if environ['HOME'] != "/srv/buildslave":
+                        raise
+                    if not message.startswith("Expected version spec in "):
+                        raise
+                    if ";" not in line:
+                        raise
+                    continue
+                if getattr(req, "marker", None) and not req.marker.evaluate():
+                    continue
+                requirements.append(unicode(req))
+    return requirements
+
+# Parse the ``.in`` files. This will allow the dependencies to float when
+# Flocker is installed using ``pip install .``.
+# It also allows Flocker to be imported as a package alongside other Python
+# libraries that may require different versions than those specified in
+# Flocker's pinned dependency files.
+dependency_links = []
+install_requires = requirements_list_from_file(
+    "requirements/flocker.txt.in",
+    dependency_links,
+)
+dev_requires = requirements_list_from_file(
+    "requirements/flocker-dev.txt.in",
+    dependency_links,
+)
 
 setup(
     # This is the human-targetted name of the software being packaged.
@@ -83,7 +119,6 @@ setup(
         # (admin/packaging.py) if you make changes here.
         'console_scripts': [
             'flocker-volume = flocker.volume.script:flocker_volume_main',
-            'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-container-agent = flocker.node.script:flocker_container_agent_main',  # noqa
             'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',  # noqa
             'flocker-control = flocker.control.script:flocker_control_main',
@@ -104,19 +139,13 @@ setup(
     extras_require={
         # This extra is for developers who need to work on Flocker itself.
         "dev": dev_requires,
-        },
+    },
 
     cmdclass=versioneer.get_cmdclass(),
 
-    dependency_links = [
-        # Use our fork of testtools until #165, #171, and #172 are merged and
-        # released. See FLOC-3498.
-        #
-        # "git+https" weirdness is due to setuptools expecting:
-        #     vcs+proto://host/path@revision#egg=project-version
-        # See https://setuptools.readthedocs.org/en/latest/setuptools.html
-        "git+https://github.com/ClusterHQ/testtools@clusterhq-fork#egg=testtools-1.8.2chq2",  # noqa
-    ],
+    # Duplicate dependency links may have been added from different
+    # requirements files.
+    dependency_links=list(set(dependency_links)),
 
     # Some "trove classifiers" which are relevant.
     classifiers=[

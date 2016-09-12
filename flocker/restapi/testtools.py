@@ -528,13 +528,15 @@ def dummyRequest(method, path, headers, body=b""):
     @return: A L{IRequest} which can be used to render an L{IResource} using
         only in-memory data structures.
     """
-    scheme, location, path, params, query, fragment = urlparse(path)
-    if query:
+    parsed = urlparse(path)
+    if parsed.query:
         # Oops, dropped params.  Good thing no one cares.
-        path = path + "?" + query
+        new_path = parsed.path + "?" + parsed.query
+    else:
+        new_path = parsed.path
     return _DummyRequest(
         next(_dummyRequestCounter),
-        method, path, headers, body)
+        method, new_path, headers, body)
 
 
 def render(resource, request):
@@ -592,12 +594,15 @@ def build_schema_test(name, schema, schema_store,
         'passing_instances': passing_instances,
         'failing_instances': failing_instances,
         }
-    for i, inst in enumerate(failing_instances):
-        def test(self, inst=inst):
-            self.assertRaises(ValidationError,
-                              self.validator.validate, inst)
-        test.__name__ = 'test_fails_validation_%d' % (i,)
-        body[test.__name__] = test
+    for error_type in failing_instances:
+        for i, inst in enumerate(failing_instances[error_type]):
+            def test(self, inst=inst, error_type=error_type):
+                e = self.assertRaises(
+                    ValidationError, self.validator.validate, inst
+                )
+                self.assertEqual(e.validator, error_type)
+            test.__name__ = 'test_fails_validation_%s_%d' % (error_type, i)
+            body[test.__name__] = test
 
     for i, inst in enumerate(passing_instances):
         def test(self, inst=inst):

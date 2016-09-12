@@ -17,8 +17,8 @@ from flocker.testtools import TestCase
 
 from benchmark.cluster import BenchmarkCluster
 from benchmark.scenarios import (
-    write_request_load_scenario, RequestRateTooLow, RequestRateNotReached,
-    RequestOverload, DatasetCreationTimeout, RequestScenarioAlreadyStarted,
+    write_request_load_scenario, RequestRateTooLow, RequestOverload,
+    DatasetCreationTimeout, RequestScenarioAlreadyStarted,
 )
 
 DEFAULT_VOLUME_SIZE = 1073741824
@@ -136,7 +136,7 @@ class write_request_load_scenarioTest(TestCase):
         return UnresponsiveDatasetCreationFakeFlockerClient(
             self.get_fake_flocker_client_instance())
 
-    def get_error_response_client(self, reactor):
+    def get_error_response_client_instance(self, reactor):
         """
         Returns a ``RequestErrorFakeFlockerClient`` instance using the
         nodes defined in the init.
@@ -159,13 +159,40 @@ class write_request_load_scenarioTest(TestCase):
             self.assertNotEqual(returned_datasets, [])
 
         # Create a datasest and verify we get a success
-        d = s.scenario_setup._create_dataset(self.node1)
+        d = s.request._create_dataset(self.node1)
+        d.addCallback(s.request._set_dataset_id)
         self.successResultOf(d)
 
         # Verify that a dataset is actually being created
-        d2 = s.scenario_setup.control_service.list_datasets_configuration()
+        d2 = s.request.control_service.list_datasets_configuration()
         d2.addCallback(assert_created)
         s.stop()
+
+    @capture_logging(None)
+    def test_cleanup_deletes_dataset(self, _logger):
+        """
+        ``write_request_load_scenario`` deletes the dataset created by
+        the setup when the scenario is stopped.
+        """
+        reactor = Clock()
+        cluster = self.make_cluster(self.get_fake_flocker_client_instance())
+        write_scenario = write_request_load_scenario(
+            reactor, cluster, 5, sample_size=3
+        )
+
+        d = write_scenario.start()
+
+        d.addCallback(write_scenario.stop)
+
+        def list_datasets(ignored):
+            return write_scenario.request.control_service.list_datasets_state()
+
+        d.addCallback(list_datasets)
+
+        def verify_dataset_has_been_deleted(datasets):
+            self.assertEqual(datasets, [])
+
+        d.addCallback(verify_dataset_has_been_deleted)
 
     def test_setup_retries_generating_dataset(self):
         # XXX: Not implemented. This will just return an error
@@ -183,7 +210,7 @@ class write_request_load_scenarioTest(TestCase):
         s = write_request_load_scenario(c, cluster, 5, sample_size=3)
 
         d = s.start()
-        c.pump(repeat(1, s.scenario_setup.timeout+1))
+        c.pump(repeat(1, s.request.timeout+1))
 
         failure = self.failureResultOf(d)
         self.assertIsInstance(failure.value, DatasetCreationTimeout)
@@ -207,6 +234,12 @@ class write_request_load_scenarioTest(TestCase):
         c.pump(repeat(1, sample_size))
         s.maintained().addBoth(lambda x: self.fail())
         d.addCallback(lambda ignored: s.stop())
+
+        def verify_scenario_returns_metrics(result):
+            self.assertIsInstance(result, dict)
+
+        d.addCallback(verify_scenario_returns_metrics)
+
         self.successResultOf(d)
 
     @capture_logging(None)
@@ -235,6 +268,43 @@ class write_request_load_scenarioTest(TestCase):
         c.pump(repeat(1, sample_size*s.request_rate))
 
         self.successResultOf(d)
+
+    @capture_logging(None)
+    def test_scenario_throws_exception_when_rate_drops(self, _logger):
+        """
+        ``read_request_load_scenario`` raises ``RequestRateTooLow`` if rate
+        drops below the requested rate.
+
+        Establish the requested rate by having the ``FakeFlockerClient``
+        respond to all requests, then lower the rate by dropping
+        alternate requests. This should result in ``RequestRateTooLow``
+        being raised.
+        """
+        c = Clock()
+
+        cluster = self.make_cluster(self.get_error_response_client_instance(c))
+        sample_size = 5
+        cluster.get_control_service(c).delay = 0
+        s = write_request_load_scenario(c, cluster, sample_size=sample_size,
+                                        tolerance_percentage=0.0)
+        s.start()
+
+        # Advance the clock by `sample_size` seconds to establish the
+        # requested rate.
+        c.pump(repeat(1, sample_size))
+
+        cluster.get_control_service(c).fail_requests = True
+
+        # Advance the clock by 2 seconds so that a request is dropped
+        # and a new rate which is below the target can be established.
+        time_to_advance = s.tolerated_errors / sample_size
+        c.pump(repeat(1, time_to_advance))
+
+        failure = self.failureResultOf(s.maintained())
+
+        _logger.flushTracebacks(FakeNetworkError)
+
+        self.assertIsInstance(failure.value, RequestRateTooLow)
 
     @capture_logging(None)
     def test_write_scenario_start_stop_start_succeeds(self, _logger):
@@ -272,61 +342,6 @@ class write_request_load_scenarioTest(TestCase):
         s.start()
         c.pump(repeat(1, sample_size))
         self.assertRaises(RequestScenarioAlreadyStarted, s.start)
-
-    @capture_logging(None)
-    def test_scenario_throws_exception_when_rate_drops(self, _logger):
-        """
-        ``write_request_load_scenario`` raises ``RequestRateTooLow`` if rate
-        drops below the requested rate.
-
-        Establish the requested rate by having the ``FakeFlockerClient``
-        respond to all requests, then lower the rate by dropping
-        alternate requests. This should result in ``RequestRateTooLow``
-        being raised.
-        """
-        c = Clock()
-        control_service = self.get_dropping_flocker_client_instance()
-        cluster = self.make_cluster(control_service)
-        sample_size = 5
-        s = write_request_load_scenario(c, cluster, sample_size=sample_size,
-                                        tolerance_percentage=0)
-
-        s.start()
-
-        # Advance the clock by `sample_size` seconds to establish the
-        # requested rate.
-        c.pump(repeat(1, sample_size))
-
-        control_service.drop_requests = True
-
-        # Advance the clock by 2 seconds so that a request is dropped
-        # and a new rate which is below the target can be established.
-        c.advance(2)
-
-        failure = self.failureResultOf(s.maintained())
-        self.assertIsInstance(failure.value, RequestRateTooLow)
-
-    @capture_logging(None)
-    def test_scenario_throws_exception_if_requested_rate_not_reached(
-        self, _logger
-    ):
-        """
-        ``write_request_load_scenario`` raises ``RequestRateNotReached`` if
-        the target rate cannot be established within a given timeframe.
-        """
-        c = Clock()
-        control_service = self.get_dropping_flocker_client_instance()
-        cluster = self.make_cluster(control_service)
-        s = write_request_load_scenario(c, cluster)
-        control_service.drop_requests = True
-        d = s.start()
-
-        # Continue the clock for one second longer than the timeout
-        # value to allow the timeout to be triggered.
-        c.advance(s.timeout + 1)
-
-        failure = self.failureResultOf(d)
-        self.assertIsInstance(failure.value, RequestRateNotReached)
 
     @capture_logging(None)
     def test_scenario_throws_exception_if_overloaded(self, __logger):
@@ -379,7 +394,7 @@ class write_request_load_scenarioTest(TestCase):
         """
         c = Clock()
 
-        control_service = self.get_error_response_client(c)
+        control_service = self.get_error_response_client_instance(c)
         cluster = self.make_cluster(control_service)
         delay = 1
 
@@ -424,7 +439,7 @@ class write_request_load_scenarioTest(TestCase):
         """
         c = Clock()
 
-        control_service = self.get_error_response_client(c)
+        control_service = self.get_error_response_client_instance(c)
         cluster = self.make_cluster(control_service)
         sample_size = 5
         s = write_request_load_scenario(

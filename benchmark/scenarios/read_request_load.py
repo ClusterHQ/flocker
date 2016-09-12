@@ -9,12 +9,12 @@ from twisted.internet.defer import succeed
 
 from flocker.apiclient import IFlockerAPIV1Client
 
-from .._interfaces import IRequestScenarioSetup
+from .._interfaces import IRequest
 from .._method import validate_no_arg_method
 from ._request_load import RequestLoadScenario, DEFAULT_SAMPLE_SIZE
 
 
-@implementer(IRequestScenarioSetup)
+@implementer(IRequest)
 class ReadRequest(object):
     """
     Implementation of the setup and request maker for the read load
@@ -40,6 +40,15 @@ class ReadRequest(object):
         """
         No setup is required for the read scenario, so this is a no-op
         setup.
+
+        :return: A ``Deferred`` that fires instantly with a success result.
+        """
+        return succeed(None)
+
+    def run_cleanup(self):
+        """
+        No cleanup is required for the read scenario, so this is a no-op
+        cleanup.
 
         :return: A ``Deferred`` that fires instantly with a success result.
         """

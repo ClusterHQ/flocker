@@ -65,8 +65,10 @@
             })();
         </script>
     {% endif %}
-	
+
     <link rel="shortcut icon" href="https://clusterhq.com/assets/favicon.ico"/>
+    <!-- Algolia doc search -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css" />
 </head>
 <body>
     <!-- Menu area -->
@@ -113,12 +115,24 @@
                     </div>
                 </div>
                 <!-- Menu area start -->
+
+                {%- if pagename == "index" %}
+                <h3><a href="{{ pathto('index') }}">Install &amp; Docs</a></h3>
+                <ul class="navbar-prelude">
+                    <li class="toctree-l1 current"><a class="reference internal current" href="{{ pathto('index') }}">Flocker Integrations</a></li>
+                </ul>
+                {%- else %}
+                <h3><a href="{{ pathto('index') }}">Install &amp; Docs</a></h3>
+                <ul class="navbar-prelude">
+                    <li class="toctree-l1"><a class="reference internal" href="{{ pathto('index') }}">Flocker Integrations</a></li>
+                </ul>
+                {%- endif %}
                 {{ toctree(collapse=true, maxdepth=2) }}
                 <!-- Menu area end -->
             </div>
 
             <!-- Main contents area -->
-            <div class="col-sm-8 col-sm-offset-1 page white-bg">
+            <div class="col-sm-9 page white-bg">
                 {%- if pagename != "search" %}
                 <form class="search" action="{{ pathto('search') }}" method="get" _lpchecked="1">
                     <input type="text" name="q" placeholder="Type here to search docs..." id="search">
@@ -157,7 +171,8 @@
                 </div>
 
                 <!-- Feedback form -->
-                <div class="row">
+                <hr/>
+				<div class="row">
                     <div class="col-sm-8 feedback-form">
                         <h3>How could we improve this page?</h3>
                         <form method="post" action="https://www.formstack.com/forms/index.php" id="feedback">
@@ -189,7 +204,7 @@
                 <img src="{{ pathto('_static/images/small-logo@2x.png', 1) }}" width="47" height="52">
             </div>
             <div class="col-xs-9 text-right">
-                &copy; Copyright 2015, ClusterHQ. Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> {{ sphinx_version }}.
+                &copy; Copyright 2016, ClusterHQ. Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> {{ sphinx_version }}.
             </div>
         </div>
     </div>
@@ -214,22 +229,7 @@
             }
         });
     </script>
-    {% if theme_disqus_shortname %}
-        <script type="text/javascript">
-            var disqus_title = '{{ title|striptags|e }}{{ titlesuffix }}';
-            var disqus_identifier ='code' + '.' + "{{ theme_disqus_shortname }}" + window.location.pathname.replace('/', '.');
-
-            var disqus_shortname = "{{ theme_disqus_shortname }}";
-
-            (function() {
-                var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
-                dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
-                (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-            })();
-        </script>
-    {% endif %}
-
-    <!-- 
+    <!--
         Optimizely: AB Testing tool
         Snippet generated from:
         https://app.optimizely.com/projects/2309470232/implementation
@@ -248,7 +248,7 @@
     <!-- Display out-of-date documentation notice -->
     <script>
         // Do an AJAX request to check latest version
-        var request = $.ajax({url: "https://docs.clusterhq.com/en/latest/version.html"});
+        var request = $.ajax({url: "/en/latest/version.html"});
         var canonicalLocation = window.location.pathname.split('/').slice(3).join('/')
         var canonicalLink = document.createElement('link');
         canonicalLink.rel = "canonical";
@@ -277,7 +277,23 @@
         });
     </script>
 
+    <!-- Apply images to navbar -->
+    <script>
+        $('.contents-menu>ul>li:contains("Docker, Swarm, Compose")').addClass("docker")
+        $('.contents-menu>ul>li:contains("Kubernetes")').addClass("kubernetes")
+        $('.contents-menu>ul>li:contains("Mesos")').addClass("mesos")
+        $('.contents-menu>ul>li:contains("Other Systems")').addClass("other")
+    </script>
     <!-- Javascript include for form feedback submit -->
     <script type="text/javascript" src="{{ pathto('_static/js/feedback.js', 1) }}"></script>
+
+    <!-- Algolia doc search -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script> 
+    <script type="text/javascript"> docsearch({
+    apiKey: 'b86b6835a1d01a8df4634f4b78bdfe2b',
+    indexName: 'clusterhq',
+    inputSelector: 'input#search'
+    }); 
+    </script>
   </body>
 </html>

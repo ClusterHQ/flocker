@@ -82,7 +82,7 @@ class Certificates(object):
         run(b"create-control-certificate", control_hostname)
         run(b"create-api-certificate", b"allison")
         # Rename to user.crt/user.key so we can use this folder directly
-        # from flocker-deploy and other clients:
+        # from clients:
         directory.child(b"allison.crt").moveTo(directory.child(b"user.crt"))
         directory.child(b"allison.key").moveTo(directory.child(b"user.key"))
         for i in range(num_nodes):
@@ -93,3 +93,25 @@ class Certificates(object):
             child.moveTo(directory.child(b"node-%d.crt" % (i,)))
             sibling.moveTo(directory.child(b"node-%d.key" % (i,)))
         return cls(directory)
+
+    def add_node(self, index):
+        """
+        Generate another node certificate.
+
+        :rtype: CertAndKey
+        :return: The newly created node certificate.
+        """
+        def run(*arguments):
+            check_call([b"flocker-ca"] + list(arguments),
+                       cwd=self.directory.path)
+
+        run(b"create-node-certificate")
+        tmp_crt = self.directory.globChildren(b"????????-????-*.crt")[0]
+        tmp_key = FilePath(tmp_crt.path[:-3] + b"key")
+        crt = self.directory.child(b"node-%d.crt" % (index,))
+        key = self.directory.child(b"node-%d.key" % (index,))
+        tmp_crt.moveTo(crt)
+        tmp_key.moveTo(key)
+        cert = CertAndKey(crt, key)
+        self.nodes.append(cert)
+        return cert

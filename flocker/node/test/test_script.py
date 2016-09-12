@@ -8,6 +8,7 @@ from functools import wraps
 import logging
 import socket
 from unittest import skipUnless
+from uuid import uuid4
 
 import yaml
 from ipaddr import IPAddress
@@ -24,8 +25,10 @@ from twisted.internet.defer import Deferred
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.python.runtime import platform
+from twisted.python.usage import UsageError
 
 from ...common.script import ICommandLineScript
+from ...common.plugin import PluginNotFound
 from ...common import get_all_ips
 from ...common._era import get_era
 
@@ -33,11 +36,10 @@ from ..script import (
     AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
     _context_factory_and_credential, DatasetServiceFactory,
-    AgentService, BackendDescription, get_configuration,
+    AgentService, get_configuration,
     DeployerType, _get_external_ip, LOG_GET_EXTERNAL_IP
 )
-from ..agents.cinder import CinderBlockDeviceAPI
-from ..agents.ebs import EBSBlockDeviceAPI
+from ..backends import BackendDescription, LOOPBACK, ZFS
 
 from .._loop import AgentLoopService
 from ...testtools import MemoryCoreReactor, TestCase, random_name
@@ -180,7 +182,7 @@ def agent_service_setup(test):
         node_credential=test.ca_set.node,
         ca_certificate=test.ca_set.root.credential.certificate,
 
-        backend_name=u"anything",
+        backend_description=LOOPBACK,
         api_args={},
     )
 
@@ -237,8 +239,7 @@ class AgentServiceFromConfigurationTests(TestCase):
                 # Compare this separately :/
                 node_credential=None,
                 ca_certificate=self.ca_set.root.credential.certificate,
-
-                backend_name=u"zfs",
+                backend_description=ZFS,
                 api_args={
                     "name": name,
                     "mount_root": self.config.sibling(b"mount_root").path,
@@ -311,29 +312,19 @@ class AgentServiceGetAPITests(TestCase):
     def test_backend_selection(self):
         """
         ``AgentService.get_api`` returns an object constructed by the
-        factory corresponding to the agent's ``backend`` in the agent's
-        ``backends`` dictionary, supplying ``api_args``.
+        factory corresponding to the agent's ``backend_description``,
+        supplying ``api_args``.
         """
         class API(PClass):
             a = field()
             b = field()
 
-        class WrongAPI(object):
-            pass
-
         agent_service = self.agent_service.set(
-            "backends", [
-                BackendDescription(
-                    name=u"foo", needs_reactor=False, needs_cluster_id=False,
-                    api_factory=API, deployer_type=DeployerType.p2p,
-                ),
-                BackendDescription(
-                    name=u"bar", needs_reactor=False, needs_cluster_id=False,
-                    api_factory=WrongAPI, deployer_type=DeployerType.block,
-                ),
-            ],
-        ).set(
-            "backend_name", u"foo"
+            "backend_description",
+            BackendDescription(
+                name=u"foo", needs_reactor=False, needs_cluster_id=False,
+                api_factory=API, deployer_type=DeployerType.p2p,
+            ),
         ).set(
             "api_args", {"a": "x", "b": "y"},
         )
@@ -347,7 +338,7 @@ class AgentServiceGetAPITests(TestCase):
     def test_needs_reactor(self):
         """
         If the flag for needing a reactor as an extra argument is set in the
-        selected backend, the ``AgentService`` passes its own reactor when
+        backend_description, the ``AgentService`` passes its own reactor when
         ``AgentService.get_api`` calls the backend factory.
         """
         reactor = MemoryCoreReactor()
@@ -356,13 +347,12 @@ class AgentServiceGetAPITests(TestCase):
             reactor = field()
 
         agent_service = self.agent_service.set(
-            "backends", [
-                BackendDescription(
-                    name=self.agent_service.backend_name,
-                    needs_reactor=True, needs_cluster_id=False,
-                    api_factory=API, deployer_type=DeployerType.p2p,
-                ),
-            ],
+            "backend_description",
+            BackendDescription(
+                name=u"foo",
+                needs_reactor=True, needs_cluster_id=False,
+                api_factory=API, deployer_type=DeployerType.p2p,
+            ),
         ).set(
             "reactor", reactor,
         )
@@ -375,21 +365,20 @@ class AgentServiceGetAPITests(TestCase):
     def test_needs_cluster_id(self):
         """
         If the flag for needing a cluster id as an extra argument is set in the
-        selected backend, the ``AgentService`` passes the cluster id extracted
-        from the node certificate when ``AgentService.get_api`` calls the
-        backend factory.
+        backend_description, the ``AgentService`` passes the cluster id
+        extracted from the node certificate when ``AgentService.get_api`` calls
+        the backend factory.
         """
         class API(PClass):
             cluster_id = field()
 
         agent_service = self.agent_service.set(
-            "backends", [
-                BackendDescription(
-                    name=self.agent_service.backend_name,
-                    needs_reactor=False, needs_cluster_id=True,
-                    api_factory=API, deployer_type=DeployerType.p2p,
-                ),
-            ],
+            "backend_description",
+            BackendDescription(
+                name=u"foo",
+                needs_reactor=False, needs_cluster_id=True,
+                api_factory=API, deployer_type=DeployerType.p2p,
+            ),
         )
         api = agent_service.get_api()
         self.assertEqual(
@@ -397,42 +386,33 @@ class AgentServiceGetAPITests(TestCase):
             api,
         )
 
-    def test_default_openstack(self):
+    def test_required_config(self):
         """
-        An OpenStack backend is available by default.
+        A ``UsageError`` is raised if the loaded configuration for the API
+        factory does not contain a key in the corresponding backend's required
+        configuration keys.
         """
-        agent_service = self.agent_service.set(
-            "backend_name", u"openstack"
-        ).set(
-            "api_args", {
-                "region": "abc",
-                "auth_plugin": "password",
-                "auth_url": "http://example.invalid/",
-                "username": "allison",
-                "password": "123",
-            }
-        )
-        cinder = agent_service.get_api()
-        self.assertIsInstance(cinder, CinderBlockDeviceAPI)
+        class API(PClass):
+            region = field()
+            api_key = field()
 
-    def test_default_aws(self):
-        """
-        An AWS backend is available by default.
-        """
         agent_service = self.agent_service.set(
-            "backend_name", u"aws"
-        ).set(
-            "api_args", {
-                "region": "aq-south-1",
-                "zone": "aq-south-1g",
-                "access_key_id": "XXXXXXXXXX",
-                "secret_access_key": "YYYYYYYYYY",
-                "cluster_id": "123456789",
-                "validate_region": False,
-            }
+            "backend_description",
+            BackendDescription(
+                name=u"foo",
+                needs_reactor=False, needs_cluster_id=False,
+                api_factory=API, deployer_type=DeployerType.p2p,
+                required_config={u"region", u"api_key"},
+            ),
         )
-        ebs = agent_service.get_api()
-        self.assertIsInstance(ebs, EBSBlockDeviceAPI)
+        agent_service = agent_service.set("api_args", {
+            "region": "abc",
+        })
+        error = self.assertRaises(UsageError, agent_service.get_api)
+        self.assertEqual(
+            error.message,
+            u'Configuration error: Required key api_key is missing.'
+        )
 
     def test_3rd_party_backend(self):
         """
@@ -440,12 +420,22 @@ class AgentServiceGetAPITests(TestCase):
         backend name is treated as a Python import path, and the
         ``FLOCKER_BACKEND`` attribute of that is used as the backend.
         """
-        agent_service = self.agent_service.set(
-            "backend_name", u"flocker.node.test.dummybackend"
-        ).set(
-            "api_args", {
-                u"custom": u"arguments!",
-            }
+        agent_service = AgentService.from_configuration(
+            configuration={
+                u"control-service": {
+                    u"hostname": b"192.0.2.1",
+                    u"port": 1234,
+                },
+                u"node-credential": type(
+                    "node-credential", (object,), {"cluster_uuid": uuid4()}
+                )(),
+                u"ca-certificate": None,
+                u"dataset": {
+                    u"backend": u"flocker.node.test.dummybackend",
+                    u"custom": u"arguments!"
+                },
+            },
+            reactor=MemoryCoreReactor(),
         )
         api = agent_service.get_api()
         # This backend is hardcoded to always return the same object:
@@ -456,26 +446,50 @@ class AgentServiceGetAPITests(TestCase):
         If the backend name refers to a bad attribute lookup path in an
         importable package, an appropriate ``ValueError`` is raised.
         """
-        agent_service = self.agent_service.set(
-            "backend_name", u"flocker.not.a.real.module",
+        self.assertRaises(
+            PluginNotFound,
+            AgentService.from_configuration,
+            configuration={
+                u"control-service": {
+                    u"hostname": b"192.0.2.1",
+                    u"port": 1234,
+                },
+                u"node-credential": type(
+                    "node-credential", (object,), {"cluster_uuid": uuid4()}
+                )(),
+                u"ca-certificate": None,
+                u"dataset": {
+                    u"backend": u"flocker.not.a.real.module",
+                    u"custom": u"arguments!"
+                },
+            },
+            reactor=MemoryCoreReactor(),
         )
-        exc = self.assertRaises(ValueError, agent_service.get_api)
-        self.assertEqual(str(exc),
-                         "'flocker.not.a.real.module' is neither a "
-                         "built-in backend nor a 3rd party module.")
 
     def test_wrong_package_3rd_party_backend(self):
         """
         If the backend name refers to an unimportable package, an appropriate
         ``ValueError`` is raised.
         """
-        agent_service = self.agent_service.set(
-            "backend_name", u"notarealmoduleireallyhope",
+        self.assertRaises(
+            PluginNotFound,
+            AgentService.from_configuration,
+            configuration={
+                u"control-service": {
+                    u"hostname": b"192.0.2.1",
+                    u"port": 1234,
+                },
+                u"node-credential": type(
+                    "node-credential", (object,), {"cluster_uuid": uuid4()}
+                )(),
+                u"ca-certificate": None,
+                u"dataset": {
+                    u"backend": u"notarealmoduleireallyhope",
+                    u"custom": u"arguments!"
+                },
+            },
+            reactor=MemoryCoreReactor(),
         )
-        exc = self.assertRaises(ValueError, agent_service.get_api)
-        self.assertEqual(str(exc),
-                         "'notarealmoduleireallyhope' is neither a "
-                         "built-in backend nor a 3rd party module.")
 
 
 class AgentServiceDeployerTests(TestCase):
@@ -513,13 +527,12 @@ class AgentServiceDeployerTests(TestCase):
         agent_service = self.agent_service.set(
             "get_external_ip", get_external_ip,
         ).set(
-            "backends", [
-                BackendDescription(
-                    name=self.agent_service.backend_name,
-                    needs_reactor=False, needs_cluster_id=False,
-                    api_factory=None, deployer_type=DeployerType.p2p,
-                ),
-            ],
+            "backend_description",
+            BackendDescription(
+                name=u"foo",
+                needs_reactor=False, needs_cluster_id=False,
+                api_factory=None, deployer_type=DeployerType.p2p,
+            ),
         ).set(
             "deployers", {
                 DeployerType.p2p: Deployer,

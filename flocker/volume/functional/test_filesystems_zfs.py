@@ -546,7 +546,7 @@ class FilesystemTests(AsyncTestCase):
             with path.child(b"ok").open("w") as fObj:
                 chunk_size = 8 * 1024
                 chunk = b"x" * chunk_size
-                for i in range(maximum_size / chunk_size):
+                for _ in range(maximum_size / chunk_size):
                     fObj.write(chunk)
                 fObj.flush()
                 exception = self.assertRaises(

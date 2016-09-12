@@ -183,7 +183,7 @@ class CreateTests(AsyncTestCase):
         A connection attempt to the server created in ``setUp`` is successful.
         """
         client = connect_nonblocking(self.server_ip, self.port)
-        accepted, client_address = self.server.accept()
+        _, client_address = self.server.accept()
         self.assertEqual(client.getsockname(), client_address)
 
     @validateLogging(some_iptables_logged(CREATE_PROXY_TO))
@@ -196,7 +196,7 @@ class CreateTests(AsyncTestCase):
         self.network.create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
-        accepted, client_address = self.server.accept()
+        _, client_address = self.server.accept()
         self.assertEqual(client.getsockname(), client_address)
 
     def test_client_to_server(self):
@@ -207,7 +207,7 @@ class CreateTests(AsyncTestCase):
         self.network.create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
-        accepted, client_address = self.server.accept()
+        accepted, _ = self.server.accept()
 
         client.send(b"x")
         self.assertEqual(b"x", accepted.recv(1))
@@ -220,7 +220,7 @@ class CreateTests(AsyncTestCase):
         self.network.create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
-        accepted, client_address = self.server.accept()
+        accepted, _ = self.server.accept()
 
         accepted.send(b"x")
         self.assertEqual(b"x", client.recv(1))

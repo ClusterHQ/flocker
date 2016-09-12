@@ -12,7 +12,7 @@ from yaml import safe_load
 from docutils import nodes
 
 from sphinxcontrib import httpdomain
-from sphinxcontrib.autohttp.flask import translate_werkzeug_rule
+from sphinxcontrib.autohttp.flask_base import translate_werkzeug_rule
 from sphinxcontrib.autohttp.common import http_directive
 
 from sphinx.util.compat import Directive
@@ -124,12 +124,12 @@ def _parseSchema(schema, schema_store):
 
     def fill_in_result(object_schema):
         result['properties'] = {}
-        for property, propSchema in object_schema[u'properties'].iteritems():
-            attr = result['properties'][property] = {}
+        for prop, propSchema in object_schema[u'properties'].iteritems():
+            attr = result['properties'][prop] = {}
             attr['title'] = propSchema['title']
             attr['description'] = prepare_docstring(
                 propSchema['description'])
-            attr['required'] = property in object_schema.get("required", [])
+            attr['required'] = prop in object_schema.get("required", [])
             attr['type'] = propSchema['type']
 
     if schema[u"type"] == u"object":
@@ -233,7 +233,7 @@ def _formatSchema(data, incoming):
         param = ">json"
     if data["type"] == "array":
         param += "arr"
-    for property, attr in sorted(data[u'properties'].iteritems()):
+    for prop, attr in sorted(data[u'properties'].iteritems()):
         if attr['required']:
             required = '*(required)* '
         else:
@@ -242,7 +242,7 @@ def _formatSchema(data, incoming):
             types = "|".join(attr['type'])
         else:
             types = attr['type']
-        yield ':%s %s %s: %s%s' % (param, types, property, required,
+        yield ':%s %s %s: %s%s' % (param, types, prop, required,
                                    attr['title'])
         yield ''
         for line in attr['description']:

@@ -197,11 +197,12 @@ class VolumePlugin(object):
 
     @app.route("/VolumeDriver.Unmount", methods=["POST"])
     @_endpoint(u"Unmount")
-    def volumedriver_unmount(self, Name):
+    def volumedriver_unmount(self, Name, ID=None):
         """
         The Docker container is no longer using the given volume.
 
         :param unicode Name: The name of the volume.
+        :param string ID: A unique ID for caller that requested the mount
 
         For now this does nothing. In FLOC-2755 this will release the
         lease acquired for the dataset by the ``VolumeDriver.Mount``
@@ -313,7 +314,7 @@ class VolumePlugin(object):
 
     @app.route("/VolumeDriver.Mount", methods=["POST"])
     @_endpoint(u"Mount")
-    def volumedriver_mount(self, Name):
+    def volumedriver_mount(self, Name, ID=None):
         """
         Move a volume with the given name to the current node and mount it.
 
@@ -321,6 +322,11 @@ class VolumePlugin(object):
         dataset is mounted locally.
 
         :param unicode Name: The name of the volume.
+        :param string ID: A unique ID for caller that requested the mount
+
+        Right now we do nothing with ID, but it can be used to track
+        the mount calls when multiple containers are trying to mount
+        the same volume.
 
         :return: Result that includes the mountpoint.
         """
@@ -414,9 +420,9 @@ class VolumePlugin(object):
                 # Datasets without a name can't be used by the Docker plugin:
                 if NAME_FIELD not in dataset.metadata:
                     continue
-                name = dataset.metadata[NAME_FIELD]
+                dataset_name = dataset.metadata[NAME_FIELD]
                 d = self._get_path_from_dataset_id(dataset.dataset_id)
-                d.addCallback(lambda path: (path, name))
+                d.addCallback(lambda path, name=dataset_name: (path, name))
                 results.append(d)
             return gatherResults(results)
 

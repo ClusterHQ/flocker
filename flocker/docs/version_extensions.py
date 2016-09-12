@@ -71,7 +71,7 @@ class VersionDownload(XRefRole):
     nodeclass = addnodes.download_reference
 
     def process_link(self, env, refnode, has_explicit_title, title, target):
-        rel_filename, filename = env.relfn2path(target)
+        _, filename = env.relfn2path(target)
         make_changed_file(filename, env)
 
         return (remove_extension(title),
@@ -87,7 +87,7 @@ class VersionLiteralInclude(LiteralInclude):
     def run(self):
         document = self.state.document
         env = document.settings.env
-        rel_filename, filename = env.relfn2path(self.arguments[0])
+        _, filename = env.relfn2path(self.arguments[0])
         make_changed_file(filename, env)
         self.arguments[0] = remove_extension(self.arguments[0])
 
@@ -108,7 +108,8 @@ class VersionPrompt(sphinx_prompt.PromptDirective):
 
     .. version-prompt:: bash $
 
-       $ brew install flocker-|latest-installable|
+       $ flocker-ca --version
+       |latest-installable|
     """
     def run(self):
         latest = get_installable_version(version)

@@ -8,7 +8,7 @@ from zope.interface import implementer
 from eliot import start_action, write_failure, Message
 from eliot.twisted import DeferredContext
 
-from twisted.internet.defer import CancelledError, Deferred
+from twisted.internet.defer import CancelledError, Deferred, succeed
 from twisted.internet.task import LoopingCall
 
 from flocker.common import loop_until, timeout
@@ -54,8 +54,7 @@ class RequestLoadScenario(object):
     requests at a specified rate.
 
     :ivar reactor: Reactor to use.
-    :ivar scenario_setup: provider of the interface
-        ``IRequestScenarioSetup``.
+    :ivar request: provider of the interface ``IRequest``.
     :ivar request_rate: The target number of requests per second.
     :ivar sample_size: The number of samples to collect when measuring
         the rate.
@@ -76,31 +75,26 @@ class RequestLoadScenario(object):
     """
 
     def __init__(
-        self, reactor, scenario_setup_instance, request_rate=10,
+        self, reactor, request, request_rate=10,
         sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
         tolerance_percentage=0.2
     ):
         """
         ``RequestLoadScenario`` constructor.
 
-        :param reactor: Reactor to use.
-        :param scenario_setup_instance: provider of the
-            ``IRequestScenarioSetup`` interface.
-        :param request_rate: target number of request per second.
-        :param sample_size: number of samples to collect when measuring
-            the rate.
         :param tolerance_percentage: error percentage in the rate that is
             considered valid. For example, if we request a ``request_rate``
             of 20, and we give a tolerance_percentage of 0.2 (20%), anything
             in [16,20] will be a valid rate.
         """
         self.reactor = reactor
-        self.scenario_setup = scenario_setup_instance
+        self.request = request
         self.request_rate = request_rate
         self.timeout = timeout
         self._maintained = Deferred()
         self.rate_measurer = RateMeasurer(sample_size)
         self.max_outstanding = 10 * request_rate
+        self.tolerated_errors = 5 * request_rate
         # Send requests per second
         self.loop = LoopingCall.withCount(self._request_and_measure)
         self.loop.clock = self.reactor
@@ -117,30 +111,47 @@ class RequestLoadScenario(object):
         Update the rate with the current value and send ``request_rate``
         number of new requests.
 
+        This function expects to be called from a ``LoopingCall`` with a 1
+        second interval.  Normally, count == 1 and this gets runs once.  If
+        this function takes longer than the loop interval (1 second) it will
+        miss a call and will subsequently be called with count > 1 to allow it
+        to catch up.
+
         :param count: The number of seconds passed since the last time
             ``_request_and_measure`` was called.
-        """
-        for i in range(count):
-            self.rate_measurer.update_rate()
 
+        :return Deferred[None]: LoopingCall expects a ``Deferred``.  Results of
+            Deferred's created in this function are handled in the rate
+            measurer.  Meanwhile we want this function to return quickly to
+            avoid missing loop iterations.  We don't worry about overload, as
+            that is checked in the `check_rate` function.
+        """
         def handle_request_error(result):
             self.rate_measurer.request_failed(result)
             write_failure(result)
 
-        for i in range(self.request_rate):
-            t0 = self.reactor.seconds()
+        if count != 1:
+            Message.log(function='_request_and_measure', count=count)
 
-            d = self.scenario_setup.make_request()
+        for i in range(count):
+            self.rate_measurer.update_rate()
 
-            def get_time(_ignore):
-                return self.reactor.seconds() - t0
-            d.addCallback(get_time)
+            for i in range(self.request_rate):
+                t0 = self.reactor.seconds()
 
-            self.rate_measurer.request_sent()
-            d.addCallbacks(
-                self.rate_measurer.response_received,
-                handle_request_error
-            )
+                d = self.request.make_request()
+
+                def get_time(_ignore, reactor=self.reactor, t0=t0):
+                    return reactor.seconds() - t0
+                d.addCallback(get_time)
+
+                self.rate_measurer.request_sent()
+                d.addCallbacks(
+                    self.rate_measurer.response_received,
+                    handle_request_error
+                )
+
+        return succeed(None)
 
     def _fail(self, exception):
         """
@@ -165,6 +176,9 @@ class RequestLoadScenario(object):
         if rate < self.rate_tolerated:
             self._fail(RequestRateTooLow(rate))
 
+        elif self.rate_measurer.num_of_erros() >= self.tolerated_errors:
+            self._fail(RequestRateTooLow(rate))
+
         elif self.rate_measurer.outstanding() > self.max_outstanding:
             self._fail(RequestOverload())
 
@@ -184,7 +198,7 @@ class RequestLoadScenario(object):
         else:
             self.is_started = True
 
-        d = self.scenario_setup.run_setup()
+        d = self.request.run_setup()
         d.addCallback(self.run_scenario)
         return d
 
@@ -276,6 +290,23 @@ class RequestLoadScenario(object):
                 )
                 Message.log(key='force_stop_request', value=msg)
             scenario.addErrback(handle_timeout)
+
+            def scenario_cleanup(ignored):
+                """
+                Calls the scenario cleanup, and wraps it inside an eliot
+                start action, so we can see the logs if something goes
+                wrong within the cleanup
+
+                :return Deferred: that will fire once the cleanup has been
+                    completed
+                """
+                with start_action(
+                    action_type=u'flocker:benchmark:scenario:cleanup',
+                    scenario='request_load'
+                ):
+                    return self.request.run_cleanup()
+
+            scenario.addBoth(scenario_cleanup)
 
             def return_metrics(_ignore):
                 return self.rate_measurer.get_metrics()

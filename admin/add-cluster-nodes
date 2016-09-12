@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Provision new nodes and add them to an existing cluster
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+from twisted.internet.task import react
+
+from admin.cluster_add_nodes import main
+
+if __name__ == '__main__':
+    react(main, (sys.argv[1:], BASEPATH, TOPLEVEL))

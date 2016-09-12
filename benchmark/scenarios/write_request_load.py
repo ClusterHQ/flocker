@@ -10,7 +10,7 @@ from twisted.internet.defer import CancelledError
 
 from flocker.common import timeout
 
-from .._interfaces import IRequestScenarioSetup
+from .._interfaces import IRequest
 from ._request_load import (
     RequestLoadScenario, NoNodesFound
 )
@@ -23,20 +23,20 @@ class DatasetCreationTimeout(Exception):
     """
 
 
-@implementer(IRequestScenarioSetup)
+@implementer(IRequest)
 class WriteRequest(object):
     """
     Implementation of the write setup.
     :ivar reactor: Reactor to use.
-    :ivar cluster: ``BenchmarkCluster`` containing the control service.
+    :ivar control_service: provider of the ``IFlockerAPIV1Client`` interface.
     :ivar timeout: Maximum time in seconds to wait until the dataset is
         created.
     :ivar nodes: list of nodes of the cluster.
     :ivar dataset_node: node where the dataset is.
     :ivar dataset_id: id of the dataset.
     """
-    def __init__(self, reactor, cluster, timeout=10):
-        self.control_service = cluster.get_control_service(reactor)
+    def __init__(self, reactor, control_service, timeout=10):
+        self.control_service = control_service
         self.reactor = reactor
         self.timeout = timeout
         self.nodes = None
@@ -122,6 +122,9 @@ class WriteRequest(object):
             self.dataset_id
             )
 
+    def run_cleanup(self):
+        return self.control_service.delete_dataset(self.dataset_id)
+
 
 def write_request_load_scenario(reactor, cluster, request_rate=10,
                                 sample_size=DEFAULT_SAMPLE_SIZE, timeout=45,
@@ -147,7 +150,7 @@ def write_request_load_scenario(reactor, cluster, request_rate=10,
     """
     return RequestLoadScenario(
         reactor,
-        WriteRequest(reactor, cluster),
+        WriteRequest(reactor, cluster.get_control_service(reactor)),
         request_rate=request_rate,
         sample_size=sample_size,
         timeout=timeout,

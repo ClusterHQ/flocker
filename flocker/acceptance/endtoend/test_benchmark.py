@@ -7,14 +7,16 @@ Tests for ``flocker-benchmark``.
 import json
 
 from ...common.runner import run_ssh
-from ...testtools import AsyncTestCase
-from ..testtools import require_cluster
+from ...testtools import AsyncTestCase, async_runner
+from ..testtools import require_cluster, ACCEPTANCE_TEST_TIMEOUT
 
 
 class BenchmarkTests(AsyncTestCase):
     """
     Tests for ``flocker-benchmark``.
     """
+
+    run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
 
     @require_cluster(1)
     def test_export(self, cluster):

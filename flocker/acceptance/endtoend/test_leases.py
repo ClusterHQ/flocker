@@ -122,7 +122,9 @@ class LeaseAPITests(AsyncTestCase):
                 "volumes": [u"/data"]}
             container = client.create_container(
                 "python:2.7-slim",
-                ["python", "-c", script.getContent()] + list(script_arguments),
+                ["python2.7", "-c", script.getContent()] + list(
+                    script_arguments
+                ),
                 **docker_arguments)
             container_id = container["Id"]
             containers.insert(0, container_id)

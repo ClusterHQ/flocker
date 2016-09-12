@@ -3,10 +3,13 @@
 """Helpers for flocker shell commands."""
 
 import sys
+from time import strftime
 
 from bitmath import MiB
 
-from eliot import MessageType, fields, Logger, FileDestination
+from eliot import (
+    MessageType, fields, Logger, FileDestination, add_destination,
+)
 from eliot.logwriter import ThreadedWriter
 
 from twisted.application.service import MultiService, Service
@@ -151,6 +154,32 @@ def eliot_logging_service(destination, reactor, capture_stdout):
 TWISTED_LOG_MESSAGE = MessageType("twisted:log",
                                   fields(error=bool, message=unicode),
                                   u"A log message from Twisted.")
+
+
+def eliot_to_stdout(message_formats, action_formats, stdout=sys.stdout):
+    """
+    Write pretty versions of eliot log messages to stdout.
+    """
+    def eliot_output(message):
+        message_type = message.get('message_type')
+        action_type = message.get('action_type')
+        action_status = message.get('action_status')
+
+        message_format = ''
+        if message_type is not None:
+            if message_type == 'twisted:log' and message.get('error'):
+                message_format = '%(message)s'
+            else:
+                message_format = message_formats.get(message_type, '')
+        elif action_type is not None:
+            if action_status == 'started':
+                message_format = action_formats.get('action_type', '')
+            # We don't consider other status, since we
+            # have no meaningful messages to write.
+        stdout.write(message_format % message)
+        stdout.flush()
+
+    add_destination(eliot_output)
 
 
 class EliotObserver(Service):
@@ -307,3 +336,36 @@ def main_for_service(reactor, service):
     reactor.addSystemEventTrigger(
         "before", "shutdown", _chain_stop_result, service, stop)
     return stop
+
+
+def enable_profiling(profile, signal, frame):
+    """
+    Enable profiling of a Flocker service.
+
+    :param profile: A ``cProfile.Profile`` object for a Flocker service.
+    :param int signal: See ``signal.signal``.
+    :param frame: None or frame object. See ``signal.signal``.
+    """
+    profile.enable()
+
+
+def disable_profiling(profile, service, signal, frame):
+    """
+    Disable profiling of a Flocker service.
+    Dump profiling statistics to a file.
+
+    :param profile: A ``cProfile.Profile`` object for a Flocker service.
+    :param str service: Name of or identifier for a Flocker service.
+    :param int signal: See ``signal.signal``.
+    :param frame: None or frame object. See ``signal.signal``.
+    """
+    current_time = strftime("%Y%m%d%H%M%S")
+    path = FilePath('/var/lib/flocker')
+    path = path.child('profile-{service}-{current_time}'.format(
+        service=service,
+        current_time=current_time)
+    )
+    # This dumps the current profiling statistics and disables the
+    # collection of profiling data. When the profiler is next enabled
+    # the new statistics are added to existing data.
+    profile.dump_stats(path.path)

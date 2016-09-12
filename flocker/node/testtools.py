@@ -9,7 +9,7 @@ import os
 import pwd
 from unittest import skipIf, SkipTest
 from uuid import uuid4
-from distutils.version import LooseVersion
+from distutils.version import LooseVersion  # pylint: disable=import-error
 
 import psutil
 
@@ -29,7 +29,9 @@ from . import (
 from ..common import loop_until
 from ..testtools import AsyncTestCase, find_free_port
 from ..control import (
-    IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
+    IClusterStateChange, Node, NodeState, Deployment, DeploymentState,
+    PersistentState,
+)
 from ..control._model import ip_to_uuid, Leases
 from ._docker import AddressInUse, DockerClient
 
@@ -132,6 +134,7 @@ class ControllableAction(object):
     """
     called = False
     deployer = None
+    state_persister = None
 
     _logger = Logger()
 
@@ -139,9 +142,10 @@ class ControllableAction(object):
     def eliot_action(self):
         return CONTROLLABLE_ACTION_TYPE(self._logger)
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         self.called = True
         self.deployer = deployer
+        self.state_persister = state_persister
         return self.result
 
 
@@ -166,7 +170,7 @@ class DummyDeployer(object):
     hostname = u"127.0.0.1"
     node_uuid = uuid4()
 
-    def discover_state(self, cluster_state):
+    def discover_state(self, cluster_state, persistent_state):
         return succeed(DummyLocalState())
 
     def calculate_changes(self, desired_configuration, cluster_state,
@@ -195,8 +199,8 @@ class ControllableDeployer(object):
         self.calculate_inputs = []
         self.discover_inputs = []
 
-    def discover_state(self, cluster_state):
-        self.discover_inputs.append(cluster_state)
+    def discover_state(self, cluster_state, persistent_state):
+        self.discover_inputs.append((cluster_state, persistent_state))
         state = self.local_states.pop(0)
         if isinstance(state, Exception):
             raise state
@@ -273,7 +277,9 @@ def ideployer_tests_factory(fixture):
             # cache?
             self._deployer = self._make_deployer()
             result = self._deployer.discover_state(
-                DeploymentState(nodes={NodeState(hostname=b"10.0.0.1")}))
+                DeploymentState(nodes={NodeState(hostname=b"10.0.0.1")}),
+                persistent_state=PersistentState(),
+            )
             return result
 
         def test_discover_state_ilocalstate_result(self):
@@ -331,7 +337,7 @@ def to_node(node_state):
     :return Node: Equivalent node.
     """
     return Node(uuid=node_state.uuid, hostname=node_state.hostname,
-                applications=node_state.applications or [],
+                applications=node_state.applications or {},
                 manifestations=node_state.manifestations or {})
 
 

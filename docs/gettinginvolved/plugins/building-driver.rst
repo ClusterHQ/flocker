@@ -12,6 +12,7 @@ These drivers include:
 
 * `OpenStack Cinder <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/cinder.py>`_
 * `Amazon EBS <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/ebs.py>`_
+* `Google Compute Engine Persistent Disk <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/gce.py>`_
 
 After you have implemented the driver, you will need to test your implementation, and ClusterHQ provide a number of test suites to help you do this.
 These tests are the bare minimum required to accept the driver.
@@ -30,11 +31,17 @@ Testing Your Driver
    .. code-block:: python
 
       from uuid import uuid4
-      from flocker.node.agents.test.test_blockdevice import make_iblockdeviceapi_tests
+      from flocker.node.agents.testtools import (
+          get_blockdeviceapi_with_cleanup,
+          make_iblockdeviceapi_tests,
+      )
 
       def api_factory(test):
-          # Return an instance of your IBlockDeviceAPI implementation class, given
-          # a twisted.trial.unittest.TestCase instance.
+          # Return an instance of your IBlockDeviceAPI implementation class,
+          # given a twisted.trial.unittest.TestCase instance or use
+          # ``get_blockdeviceapi_with_cleanup`` which will also take care of
+          # cleaning up any volumes that are created in your tests.
+          return get_blockdeviceapi_with_cleanup(test)
 
       # Smallest volume to create in tests, e.g. 1GiB:
       MIN_ALLOCATION_SIZE = 1024 * 1024 * 1024
@@ -51,12 +58,15 @@ Testing Your Driver
           """
 
    If you wish the tests to cleanup volumes after each run, please provide a cleanup version of ``IBlockDeviceAPI``.
-   For an example of a clean up script, see the `EBS API with cleanup <https://github.com/ClusterHQ/flocker/blob/master/flocker/node/agents/test/blockdevicefactory.py>`_ inside ``api_factory``.
+   For example, see ``flocker.node.agents.testtools.get_blockdeviceapi_with_cleanup``.
 
    You can run these tests with the ``trial`` test runner, provided by `Twisted <http://twistedmatrix.com/trac/wiki/TwistedTrial>`_, one of Flocker's dependencies:
 
    .. prompt:: bash $
 
+      FLOCKER_FUNCTIONAL_TEST=TRUE \
+      FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE=/path/to/agent.yml \
+      FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_SECTION=dataset \
       trial yourstorage.test_yourstorage
 
 #. Additional functional tests:
@@ -125,7 +135,13 @@ Here's what the module could look like:
     FLOCKER_BACKEND = BackendDescription(
         name=u"mystorage_flocker_plugin",
         needs_reactor=False, needs_cluster_id=True,
-        api_factory=api_factory, deployer_type=DeployerType.block)
+        api_factory=api_factory,
+        required_config={u"username", u"password"},
+        deployer_type=DeployerType.block)
+
+The ``required_config`` set in a ``BackendDescription`` is an optional set of configuration keys that must be present in your backend's ``agent.yml`` for your driver to successfully initialize.
+If you specify ``required_config``, the dataset agent will validate that all of these keys are present in the user's ``dataset`` configuration when starting.
+The specified keys must be a set of :py:obj:`unicode` objects.
 
 The ``cluster_id`` parameter is a Python :py:obj:`uuid.UUID` instance uniquely identifying the cluster.
 This is useful if you want to build a system that supports multiple Flocker clusters talking to a shared storage backend.

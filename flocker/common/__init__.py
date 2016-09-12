@@ -15,23 +15,29 @@ from ._ipc import INode, FakeNode, ProcessNode
 from ._defer import gather_deferreds
 from ._thread import auto_threaded
 from ._filepath import make_directory, make_file
-from ._interface import interface_decorator, provides
+from ._interface import (
+    interface_decorator, provides, validate_signature_against_kwargs,
+    InvalidSignature,
+)
 from ._net import get_all_ips, ipaddress_from_string
 from ._retry import (
     loop_until, timeout, poll_until, retry_failure, retry_effect_with_timeout,
     get_default_retry_steps,
     retry_if, decorate_methods, with_retry,
 )
+from .version import parse_version, UnparseableVersion
+
 
 __all__ = [
     'INode', 'FakeNode', 'ProcessNode', 'gather_deferreds',
     'auto_threaded', 'interface_decorator', 'provides',
-    'get_all_ips', 'ipaddress_from_string',
-    'loop_until', 'timeout', 'retry_failure', 'poll_until',
-    'retry_effect_with_timeout',
+    'validate_signature_against_kwargs', 'InvalidSignature', 'get_all_ips',
+    'ipaddress_from_string', 'loop_until', 'timeout', 'retry_failure',
+    'poll_until', 'retry_effect_with_timeout',
 
     'decorate_methods',
     'get_default_retry_steps', 'retry_if', 'with_retry',
+    'parse_version', 'UnparseableVersion',
 
     'RACKSPACE_MINIMUM_VOLUME_SIZE',
     'DEVICEMAPPER_LOOPBACK_SIZE',

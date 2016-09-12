@@ -46,7 +46,7 @@ Have questions or need help?
 * You can open an account there to file issues, but we're also happy to accept a `GitHub issue`_ with feature requests or bug reports. `Security issues`_  should be reported directly to our security team.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
-.. _debugging documentation: https://docs.clusterhq.com/en/latest/using/administering/debugging.html
+.. _debugging documentation: https://docs.clusterhq.com/en/latest/administering/debugging.html
 .. _Security issues: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#reporting-security-issues
 .. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
 
@@ -54,40 +54,32 @@ Have questions or need help?
 Development Environment
 =======================
 
-You will need Python 2.7 (and optionally a recent version of PyPy) installed on your development machine.
-To run the complete test suite you will also need `ZFS`_ and `Docker`_ installed.
+You will need Python 2.7 installed on your development machine.
+To run the complete test suite you will also need `Docker`_ installed.
 
-The recommended way to get an environment with these installed is to use Vagrant to run a pre-configured Flocker development virtual machine.
-
-First, clone the Flocker repository on your local machine:
-
-.. prompt:: bash $
-
-   git clone https://github.com/ClusterHQ/flocker.git
-   cd flocker
-
-Vagrant 1.6.2 or later is required.
-Once you have Vagrant installed (see the `Vagrant documentation <https://docs.vagrantup.com/v2/>`_) you can run the following to get going:
-
-.. prompt:: bash $
-
-   vagrant up
-   vagrant ssh
-
-The ``flocker`` directory created above will be shared in the virtual machine at ``/vagrant``.
 Install Flocker's development dependencies in a ``virtualenv`` by running the following commands:
 
 .. prompt:: bash $
 
-   cd /vagrant
    mkvirtualenv flocker
-   pip install --process-dependency-links --editable .[dev]
+   pip install --requirement dev-requirements.txt
 
-.. Need --process-dependency-links while are using a fork of testtools.
-
-.. _ZFS: http://zfsonlinux.org
 .. _Docker: https://www.docker.com/
 
+
+CentOS 7
+^^^^^^^^
+
+.. prompt:: bash $
+
+   sudo yum install git python-virtualenv libffi-devel openssl-devel gcc enchant-devel
+
+Ubuntu
+^^^^^^
+
+.. prompt:: bash $
+
+   sudo apt-get install git virtualenvwrapper python-dev libffi-dev libssl-dev enchant
 
 Running Tests
 =============
@@ -104,14 +96,14 @@ You can also run specific tests in a specific environment:
 
    tox -e py27 flocker.control.test.test_httpapi
 
-Functional tests require ``ZFS`` and ``Docker`` to be installed and, in the case of Docker, running.
+Functional tests require ``Docker`` to be installed and, in the case of Docker, running.
 In addition, ``tox`` needs to be run as root:
 
 .. prompt:: bash $
 
    sudo tox
 
-Since these tests involve global state on your machine (filesystems, ``iptables``, Docker containers, etc.) we recommend running them in the development Vagrant image.
+Since these tests involve global state on your machine (filesystems, ``iptables``, Docker containers, etc.) we recommend running them in a virtual machine.
 
 
 Documentation

@@ -648,11 +648,8 @@ class FlockerClient(object):
 
         with action.context():
             request = DeferredContext(self._treq.request(
-                method, url,
-                data=data, headers=headers,
-                # Keep tests from having dirty reactor problems:
-                persistent=False
-                ))
+                method, url, data=data, headers=headers,
+            ))
         request.addCallback(got_response)
 
         def got_body(result):
@@ -721,10 +718,13 @@ class FlockerClient(object):
     def list_datasets_configuration(self):
         request = self._request_with_headers(
             b"GET", b"/configuration/datasets", None, {OK})
+        # In order to accomodate the client running against older versions of
+        # flocker, put an artificial tag of None in if we are running against
+        # an older server.
         request.addCallback(
             lambda (results, headers):
             DatasetsConfiguration(
-                tag=headers.getRawHeaders('X-Configuration-Tag')[0],
+                tag=headers.getRawHeaders('X-Configuration-Tag', [None])[0],
                 datasets={
                     UUID(d['dataset_id']): self._parse_configuration_dataset(d)
                     for d in results if not d['deleted']

@@ -68,6 +68,13 @@ The :program:`admin/setup-cluster` script has several options:
    Specifies the number of nodes (machines) to create for use in the cluster.
    This option is only applicable if the nodes are created dynamically.
 
+.. option:: --cert-directory <directory>
+
+   If this option is used then the generated cluster certificate files will be stored
+   in the directory specified.
+   Otherwise a random temporary directory will be used.
+   The specified directory must not exist or it must be an empty directory.
+
 To see the supported values for each option, run:
 
 .. prompt:: bash $
@@ -83,6 +90,17 @@ An example of how to run :program:`setup-cluster` would be:
     --provider rackspace \
     --config-file $PWD/cluster.yml \
     --number-of-nodes 2 
+
+The :program:`setup-cluster` script also creates the following files in the directory
+specified by :option:`--cert-directory`:
+
+    :file:`environment.env`
+        contains definitions of the environment variables that are needed to run the
+        acceptance tests on the cluster.
+
+    :file:`managed.yaml`
+        a YAML configuration file based on the file specified with :option:`--config-file` that
+        in addition contains a ``managed`` section describing the newly created cluster nodes.
 
 Configuration File
 ==================
@@ -110,6 +128,17 @@ To create a cluster on AWS, see :ref:`acceptance-testing-aws-config`.
 .. prompt:: bash $
 
   admin/setup-cluster --distribution centos-7 --provider aws --config-file config.yml --number-of-nodes 2
+
+.. _cluster-setup-gce-config:
+
+GCE
+===
+
+To create a cluster on GCE, see :ref:`acceptance-testing-gce-config`.
+
+.. prompt:: bash $
+
+  admin/setup-cluster --distribution centos-7 --provider gce --dataset-backend gce --config-file config.yml --number-of-nodes 2
 
 .. _cluster-setup-managed-config:
 
@@ -171,9 +200,122 @@ Or you can run, for example, the acceptance tests against the created cluster:
      --flocker-version='' \
      flocker.acceptance.obsolete.test_containers.ContainerAPITests.test_create_container_with_ports
 
+=========================
+Extending a Cluster
+=========================
+
+It is possible to add more nodes to an existing Flocker cluster.
+
+.. prompt:: bash $
+
+   admin/add-cluster-nodes <options>
+
+
+The :program:`admin/add-cluster-nodes` script has several options,
+some of them the same as for :program:`admin/setup-cluster`:
+
+.. program:: admin/add-cluster-nodes
+
+.. option:: --distribution <distribution>
+
+   See :program:`admin/setup-cluster`.
+   Typically this would be the same distribution as for the existing cluster nodes,
+   however that's not required.
+
+.. option:: --provider <provider>
+
+   See :program:`admin/setup-cluster`.
+   This should be the same provider as for the existing nodes.
+   The new nodes may fail to work properly otherwise.
+   At present ``rackspace`` and ``aws`` providers are supported.
+
+.. option:: --dataset-backend <dataset-backend>
+
+   See :program:`admin/setup-cluster`.
+
+.. option:: --branch <branch>
+
+   See :program:`admin/setup-cluster`.
+   Different Flocker versions might fail to inter-operate.
+
+.. option:: --flocker-version <version>
+
+   See :program:`admin/setup-cluster`.
+   Different Flocker versions might fail to inter-operate.
+
+.. option:: --build-server <buildserver>
+
+   See :program:`admin/setup-cluster`.
+
+.. option:: --config-file <config-file>
+
+   See :program:`admin/setup-cluster`.
+   The configuration file must include a ``managed`` section that describes the existing nodes.
+   Typically this would be :file:`managed.yaml` file from the certificates directory
+   of the cluster.  See :option:`--cert-directory`.
+
+.. option:: --purpose <purpose>
+
+   See :program:`admin/setup-cluster`.
+   The purpose should be the same as used when creating the existing node.
+   That makes the administration of the nodes easier.
+
+.. option:: --tag <tag>
+
+   :program:`admin/setup-cluster` generates a random tag that is added to names
+   of the cluster nodes.
+   This option allows to use the same tag for the new nodes.
+   That makes the administration of the nodes easier.
+
+.. option:: --number-of-nodes <number>
+
+   Specifies the number of additional nodes to add to the cluster.
+
+.. option:: --cert-directory <directory>
+
+   This mandatory option specifies a directory with the cluster certificate files.
+   Certificate files for the new nodes will also be added to this directory.
+   The :file:`environment.env` and :file:`managed.yaml` files in this directory will
+   be updated in place.
+
+.. option:: --control-node <IP address>
+
+   IP address of the cluster's control node.
+
+.. option:: --starting-index <number>
+
+   A starting index to use when naming the new nodes.
+   If not specified then the number of the existing nodes will be used as the starting index.
+   The indexes of nodes are reflected in their names and in file names of node certificates.
+
+
+:program:`add-cluster-nodes` may create fewer nodes than requested with :option:`--number-of-nodes`,
+the partial success is still considered as a success.
+A diagnostic message will be printed in such a case.
+
+To see the supported values for each option, run:
+
+.. prompt:: bash $
+
+   admin/add-cluster-nodes --help
+
+An example of how to run :program:`add-cluster-nodes` would be:
+
+.. prompt:: bash $
+
+  admin/add-cluster-nodes \
+    --distribution centos-7 \
+    --branch master \
+    --config-file ~/clusters/test0/managed.yaml \
+    --purpose FLOC-3947 \
+    --tag '4S4Av0gRJ9c' \
+    --cert-directory ~/clusters/test0 \
+    --control-node 52.33.228.33 \
+    --number-of-nodes 3
+
+Adding Containers and Datasets
 ==============================
-Adding containers and datasets
-==============================
+
 To make it easier to re-use a test cluster and test under different configurations, Flocker provides a tool to create a certain number of datasets and containers per node.
 Run the following command to deploy clusters and datasets:
 
@@ -185,19 +327,22 @@ The :program:`setup-cluster-containers` script has the following command line op
 
 .. program:: setup-cluster-containers`
 
-.. option:: --app-template <application-template-file>
+.. option:: --image <docker image>
 
-   Specifies a YAML file that describes a single application.
-   It must include a name of a Docker image to use as an application container and may include other parameters.
+   Specifies the docker image to use to create the containers.
+
+.. option:: --mountpoint <mountpoint path>
+
+    Path of the mountpoint where the dataset should be mounted in the containers.
+
+.. option:: --control-node <ip-address>
+
+    Public IP address of the control node.
 
 .. option:: --apps-per-node <number>
 
    Specifies the number of applications (containers) to start on each cluster node.
    If this is not specified, one container and dataset per node will be created.
-
-.. option:: --control-node <ip-address>
-
-    Public IP address of the control node.
 
 .. option:: --cert-directory <certificates-directory>
 
@@ -207,36 +352,43 @@ The :program:`setup-cluster-containers` script has the following command line op
    - ``user.crt`` - a user certificate file; and
    - ``user.key`` - a user private key file.
 
+.. option:: --max-size <GB>
+    
+    Maximum size of the datasets specified in gigabytes. This parameter is optional. By default it will
+    be 1GB.
+
 .. option:: --wait <seconds>
 
    Specifies the timeout of waiting for the configuration changes to take effect
    or, in other words, for the cluster to converge.
    If this parameter is not set, then the program will wait up to two hours.
 
+.. option:: --wait-interval <seconds>
+    
+    The duration of the waiting intervals can be set as a parameter. It will determine how long the
+    program will wait between list calls when waiting for the containers and datasets to be created.
+    It is four seconds by default.
+
+If :option:`--max-size` is used the script will create volumes with the given maximum
+size (GB).
+If :option:`--max-size` is not specified, then the script will create volumes of 1GB.
+
 If :option:`--wait` is used the script waits for the deletions to take effect.
 After the script successfully finishes the cluster should be in a converged state
 with the requested containers and datasets.
 If :option:`--wait` is not specified, then the script will wait for up to two hours.
 
-Application Template
---------------------
+If :option:`--wait-interval` is used the script waits the specified number of seconds between
+list calls when waiting for the containers and datasets to be created.
+If :option:`--wait-interval` is not specified, then the script will wait for four seconds.
 
-The configuration file given for the ``--app-template`` parameter describes a single application.
-At the very least it should specify a name of a Docker image to use for an application container.
-
-.. code-block:: yaml
-
-  image: "clusterhq/mongodb"
-  volume:
-    mountpoint: "/data/db"
-
-See :ref:application-configuration for more details.
-The ``--apps-per-node`` parameter specifies how many applications to start on each cluster node.
+An example of how to use it, without specifying any optional argument would be:
 
 .. prompt:: bash $
 
-  admin/setup-cluster-containers \
-    --app-template $PWD/application.yml \
+  benchmark/setup-cluster-containers \
+    --image "clusterhq/mongodb" \
+    --mountpoint "/data/db" \
     --apps-per-node 5 \
     --control-node 52.52.52.52 \
     --cert-directory /etc/flocker/test_cluster1/
@@ -244,7 +396,6 @@ The ``--apps-per-node`` parameter specifies how many applications to start on ea
 Note that all application instances will have exactly the same configuration.
 In particular, multiple containers may fail to start if they use a common host resource (e.g. host ports).
 
-=====================================
 Cleaning Up the Cluster Configuration
 =====================================
 
@@ -254,12 +405,12 @@ so that it can be re-used for testing a different configuration.
 
 .. prompt:: bash $
 
-   admin/cleanup-cluster <options>
+   benchmark/cleanup-cluster <options>
 
 
-The :program:`admin/cleanup-cluster` script has several options:
+The :program:`benchmark/cleanup-cluster` script has several options:
 
-.. program:: admin/cleanup-cluster
+.. program:: benchmark/cleanup-cluster
 
 .. option:: --control-node <address>
 

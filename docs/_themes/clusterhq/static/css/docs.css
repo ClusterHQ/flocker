@@ -1,5 +1,422 @@
 /* Docs */
 
+/*****************************
+Algolia doc search
+*****************************/
+
+.algolia-autocomplete {
+	width: 100%;
+}
+
+/***************************** 
+Navbar images and tweaks
+*****************************/
+
+.contents-menu>ul>li.docker>a {
+    background: url(../images/docker2x.png) no-repeat;
+    background-size:auto 1.0em;
+    background-position: 0 0;
+    padding-left: 2em;
+}
+.contents-menu>ul>li.kubernetes>a {
+    background: url(../images/kubernetes2x.png) no-repeat;
+    background-size:auto 1.1em;
+    background-position: 0 0;
+    padding-left: 2em;
+}
+.contents-menu>ul>li.mesos>a {
+    background: url(../images/mesos2x.png) no-repeat;
+    background-size:auto 1.1em;
+    background-position: 0 0;
+    padding-left: 2em;
+}
+.contents-menu>ul>li.other>a {
+    background: url(../images/icon-question2x.png) no-repeat;
+    background-size:auto 1em;
+    background-position: 0.5em 0;
+    padding-left: 2em;
+}
+
+.page ul.navbar-prelude {
+    margin-bottom: 0;
+}
+
+/*****************************
+Pods
+*****************************/
+
+.pods-eq,
+.pods-solo {
+    overflow: hidden;
+}
+
+.pod-boxout {
+	border: 1px solid #cccccc;
+	padding: 1em;
+	text-align: center;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.pod-boxout--recommended {
+	border-color: #00a99d;
+}
+
+.pod-boxout--minor {
+	display: block;
+	overflow: hidden;
+	background-color: #eee;
+}
+
+.pod-boxout img {
+	max-width: 90%;
+	height: auto;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 12px;
+}
+
+.pod-boxout .button {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 12px;
+	width: auto;
+}
+
+.pod-boxout .button--fast {
+	background-color: #00a99d;
+}
+
+.pod-boxout .button--manual {
+	background-color: #333333;
+}
+
+.pod-boxout span {
+	height: 70px;
+	margin-bottom: 16px;
+	display: block;
+	font-family: "Soho Gothic W01 Regular";
+} 
+
+.pod-boxout span em {
+	margin-top: 6px;
+	display: block;
+	color: #00a99d;
+	font-style: normal;
+} 
+
+.pod-boxout--minor span,
+.pod-boxout--short span {
+	height: auto;
+	margin-top: 10px;
+	margin-bottom: 0;
+}
+
+
+.pod-boxout--tutorial {
+	background-color: #eee;
+}
+
+.pod-boxout--solo span,
+.pod-boxout--tutorial span {
+	height: auto;
+	margin-bottom: 16px;
+}
+
+.pod-boxout--minor .button {
+	background-color: #333;
+}
+
+.pod-boxout--minor img {
+	width: 20px;
+	height: 20px;
+	float: left;
+	margin-right: 4px;
+}
+
+.pod-boxout.pod-boxout--2up img {
+	max-width: 66%;
+}
+
+@media screen and (min-width: 450px) {
+	.pod-boxout--minor span {
+		width: 75%;
+		float: left;
+		display: inline-block;
+		text-align: left;
+	}
+	.pod-boxout--minor .button {
+		float: right;
+		width: 140px;
+		margin-top: 0;
+	}
+}
+
+@media screen and (min-width: 530px) {
+	.pod-eq {
+		display: -webkit-flex;
+	    display: -ms-flexbox;
+	    display: flex;
+	    -webkit-flex-wrap: wrap;
+	    -ms-flex-wrap: wrap;
+	    flex-wrap: wrap;
+	}
+	.pod-boxout {
+		float: left;
+		display: inline-block;
+		width: 32%;
+		margin-right: 2%;
+	}
+	.pod-boxout--2up {
+		width: 48%;
+		padding: 1.5em;
+	}
+	.pod-boxout--4up {
+		width: 24%;
+		margin-right: 1%;
+	}
+	.pod-boxout--solo,
+	.pod-boxout--tutorial {
+		padding: 1.5em;
+	}
+	.pods-solo .pod-boxout {
+		float: none;
+		width: 100%;	
+	}
+	.pod-boxout:last-child {
+		margin-right: 0;
+	}
+	.pod-boxout--2up:nth-child(odd) {
+		clear: left;
+	}
+	.pod-boxout--4up:nth-child(4n+1) {
+		clear: left;
+	}
+	.pod-boxout--minor {
+		width: 100%;
+		display: block;
+		margin-left: 0;
+	}
+}
+
+
+/*****************************
+I've got the key (I've got the secret)
+*****************************/
+
+.icon-key {
+	list-style: none;
+	padding: 1.4em 2em;
+	border: 1px solid #cccccc;
+	margin-top: 12px;
+}
+
+.icon-key li {
+	position: relative;
+	overflow: hidden;
+	margin-bottom: 12px;
+}
+
+.icon-key li:last-child {
+	margin-bottom: 0;
+}
+
+.icon-key__ico {
+	position: relative;
+	width: 20px;
+	height: 20px;
+	display: inline-block;
+	margin-right: 12px;
+	margin-top: -1px;
+}
+
+img.icon-key-assign {
+	display: inline-block;
+	width: 14px;
+	height: 14px;
+	margin-right: 6px;
+	margin-top: 22px;
+	position: absolute;
+	top: 10px;
+	left: 10px;
+	margin-top: 0;
+	margin-bottom: 0;
+	z-index: 5;
+}
+
+
+
+/***************************** 
+Steps
+*****************************/
+
+.step-stages {
+	overflow: hidden;
+	margin-top: 24px;
+	padding-bottom: 12px;
+}
+
+.step-stages + .step-stages {
+	padding-top: 15px;
+	border-top: 1px solid #ccc;
+}
+
+html > body h2.step-stages__heading {
+	text-align: center;
+	font-family: "Soho Gothic W01 Regular";
+	font-size: 42px;
+	margin-bottom: 24px;
+	padding-left: 0.5em;
+	padding-right: 0.5em;
+	&:after {
+		content: "";
+		width: 30px;
+		height: 3px;
+		background-color: #333;
+		margin-top: 8px;
+		display: block;
+		margin-left: auto;
+		margin-left: auto;
+	}
+}
+
+.step-stages__excerpt {
+	margin-left: auto;
+	margin-right: auto;
+	max-width: 650px;
+	text-align: center;
+	margin-bottom: 32px;
+}
+
+.step-stages__excerpt .button {
+	margin-top: 16px;
+	margin-left: auto;
+	margin-right: auto;
+	display: block;
+	max-width: 200px;
+}
+
+.step-stages__step {
+	margin-bottom: 24px;
+}
+
+.step-stages__step img {
+	max-width: 100%;
+	display: block;
+	height: auto;
+	margin-bottom: 8px;
+	border: 1px solid #eee;
+}
+
+.step-stages__step span {
+	font-family: "Soho Gothic W01 Regular";
+	display: block;
+	margin-bottom: 8px;
+	font-size: 14px;
+}
+.step-stages__step span strong {
+    font-weight: 900;
+}
+
+.step-stages__step span>ul>li {
+	font-family: "Soho Gothic W01 Regular";
+    color: black;
+}
+
+.step-stages__step p {
+	font-size: 12px;
+}
+
+@media screen and (min-width: 600px) and (max-width: 768px) {
+	.step-stages__step {
+		float: left;
+		display: inline-block;
+		width: 32%;
+		margin-left: 2%;
+	}
+	.step-stages__step.first {
+		margin-left: 0;
+	}
+}
+
+@media screen and (min-width: 980px) {
+	.step-stages__step {
+		float: left;
+		display: inline-block;
+		width: 32%;
+		margin-left: 2%;
+	}
+	.step-stages__step.first {
+		margin-left: 0;
+	}
+}
+
+
+/***************************** 
+Legacy
+*****************************/
+
+
+.wide-box {
+    border:1px solid black;
+    width:45%;
+    height:10em;
+    float:left;
+    margin:0.5em;
+    padding:0.5em;
+}
+
+.recommended {
+    background-color: #F2DE72;
+}
+
+.harder {
+
+}
+
+.big-box {
+    border:1px solid #777;
+    width:11em;
+    height:11em;
+    float:left;
+    margin:0.5em;
+    padding:0.5em;
+    margin-top:20px; margin-bottom:20px;
+    text-align:center;
+	font-family: "Soho Gothic W01 Regular";
+}
+
+.small-box {
+    border:1px solid #777;
+    width:7em;
+    height:7em;
+    float:left;
+    margin:0.5em;
+    padding:0.5em;
+    text-align:center;
+	font-family: "Soho Gothic W01 Regular";
+}
+
+.orchestration {
+    border-color: #80B164;
+}
+
+.storage {
+    border-color: #D69A00;
+}
+
+.admonition.labs {
+    background: url(../images/icon-labs2x.png) no-repeat #BCED91;
+    background-size:30px; background-position: 30px 20px;
+    padding-right:20px;
+}
+
+.admonition.labs p {
+    padding-bottom:1em;
+}
+
 /* Nav Style from website */
 
 nav {
@@ -82,8 +499,31 @@ li.button.menu a:hover {
 
 h1, h2, h3, h4, h5 {
     font-family:'Soho Gothic W01 Medium';
-    padding-bottom: 25px;
+    margin-bottom: 1em;
+    /*padding-bottom: 25px;
     padding-top: 25px;
+    */
+}
+
+.page h1 {
+	font-size: 36px;
+	margin-bottom: 0.525em;
+	font-family:'Soho Gothic W01 Regular';
+}
+
+.page h2 {
+	font-size: 20px;
+	margin-top: 1.2em;
+}
+
+.page h3 {
+	font-size: 16px;
+	margin-top: 1.2em;
+}
+
+.page h4, .page h5, .page h6 {
+	font-size: 14px;
+	margin-top: 1.8em;
 }
 
 a.headerlink {
@@ -95,25 +535,24 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu {
-    background-color: #646570;
 }
 
 .contents-menu>ul {
     list-style: none;
     padding: 0;
-    font-size: 1.4em;
+    font-size: 1.1em;
     font-family: lato;
     color: #FFFFFF;
     width: 100%;
 }
 
-.contents-menu>ul  a {
+.contents-menu>ul a {
     text-decoration: none;
-    color: #ffffff;
+    color: #999;
 }
 
-.contents-menu>ul  a:hover {
-    color: #9ac4c4;
+.contents-menu>ul a:hover {
+    color: #bbb;
 }
 
 .contents-menu>ul li{
@@ -121,9 +560,8 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu>ul>li {
-    border-top: solid #a2dad7 1px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: 5px;
+    padding-bottom: 5px;
 }
 
 .contents-menu>ul>li:first-child {
@@ -131,11 +569,11 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu>ul>li>ul>li {
-    font-size: 0.7em;
+    font-size: 0.8em;
 }
 
 .contents-menu>ul  ul>li:first-child {
-    padding-top: 15px;
+    padding-top: 10px;
 }
 
 .contents-menu>ul  ul>li {
@@ -143,11 +581,11 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .contents-menu>ul .current>a {
-    color: #9ac4c4;
+    color: #444;
 }
 
 .contents-menu>ul ul:not(.current){
-    display:none;
+    display: none;
 }
 
 .contents-menu>ul li.current ul{
@@ -157,9 +595,13 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 .mob-contents {
     font-size: 2em;
     font-family: lato;
-    color: white;
     padding: 20px 10px 20px 0px;
     margin-bottom: 15px;
+    background-color: #eee;
+    margin-left: -15px;
+    margin-right: -15px;
+    padding-right: 25px;
+    color: #eee;
 }
 
 .mob-contents .plus a {
@@ -206,11 +648,28 @@ a.button:hover, input.button:hover {
     background-color: #343a3d;
 }
 
+.button--disabled {
+	background-color: #444;
+	cursor: not-allowed;
+	font-family: "Soho Gothic W01 Medium";
+    border-radius: 8px;
+    text-decoration: none;
+    color: #ffffff;
+    background-color: #777;
+    padding: 10px;
+    cursor: pointer;
+    width: 150px;
+    border: 0;
+    cursor: not-allowed;
+}
+
 a.button.rel {
     display: block;
     width: 100%;
     text-align: center;
     margin-top: 10px;
+    /* Hide prev/next buttons: they are more often wrong */
+    display: none;
 }
 
 /* Search bar */
@@ -302,7 +761,7 @@ a.download:before {
     max-width: 100%;
 }
 
-.page ul, ol {
+.page ul, .page ol, page p {
     color: #646570;
     font-family: lato;
     margin-bottom: 10px;
@@ -339,8 +798,6 @@ a.download:before {
 @media all and (min-width: 768px) {
     /* sm */
     body {
-        background: linear-gradient(to right, #646570, #646570 35%, white 35%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
-        background-size: 1170px, 100%;
     }
     
     .menubar {
@@ -411,8 +868,6 @@ a.download:before {
 @media all and (min-width: 992px) {
     /* md */
     body {
-        background: linear-gradient(to right, #646570, #646570 30%, white 30%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
-        background-size: 1170px, 100%;
     }
     
     .menubar {
@@ -420,7 +875,6 @@ a.download:before {
     }
     
     .contents-menu>ul ul {
-        padding-left:30px;
     }
 
     .menu ul.menu {
@@ -437,8 +891,6 @@ a.download:before {
 @media all and (min-width: 1200px) {
     /* lg */
     body {
-        background: linear-gradient(to right, #646570, #646570 25%, white 25%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
-        background-size: 1170px, 100%;
     }
 
     .menu ul.menu li {
@@ -465,3 +917,8 @@ a.download:before {
         padding: 0 15px;
     }
 }
+
+/* Docs homepage bullet list */
+div.bulleted-list { text-align: left} 
+div.heading-logo-lockup {min-height: 20rem} 
+div.bulleted-list ul {min-height: 7rem}

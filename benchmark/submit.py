@@ -102,8 +102,8 @@ def main(reactor, args):
 
     d = submit(server_url, result)
 
-    def succeeded(id):
-        print("Assigned result ID: {}".format(id))
+    def succeeded(result_id):
+        print("Assigned result ID: {}".format(result_id))
 
     def failed(failure):
         failure.trap(SubmitFailure)

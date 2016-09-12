@@ -588,3 +588,28 @@ class MainTests(TestCase):
                 self.get_default_environ()
             )
         self.assertIn('Invalid sample count', exception.args[0])
+
+    def test_version(self):
+        """
+        Check that result contains the expected keys for the current version.
+
+        This only checks the keys generated in main, not the keys added by the
+        benchmarks.
+        """
+        result = self.call_main(
+            ['--userdata={"branch": "master"}'], self.get_default_environ()
+        )
+        self.assertEqual(
+            sorted(result['result'].keys()),
+            [
+                'client', 'metric', 'operation', 'scenario', 'timestamp',
+                'userdata', 'version',
+            ]
+        )
+        self.assertEqual(
+            sorted(result['result']['client'].keys()),
+            [
+                'flocker_version', 'nodename', 'platform', 'username',
+                'working_directory',
+            ]
+        )

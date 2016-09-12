@@ -1,0 +1,35 @@
+version: "2"
+
+volumes:
+   postgres:
+      driver: "flocker"
+      driver_opts:
+        size: "10GiB"
+        profile: "bronze"
+
+services:
+   web:
+     image: binocarlos/moby-counter
+     ports:
+        -  "80:80"
+     environment:
+        - "constraint:flocker-node==2"
+        - "USE_POSTGRES_HOST=postgres"
+        - "POSTGRES_USER=flocker"
+        - "POSTGRES_PASSWORD=flockerdemo"
+     network_mode: "bridge"
+     links:
+        - "postgres:postgres"
+   postgres:
+     image: postgres:9.5
+     ports:
+        -  "5432:5432"
+     environment:
+        - "constraint:flocker-node==2"
+        - "POSTGRES_USER=flocker"
+        - "POSTGRES_PASSWORD=flockerdemo"
+        - "POSTGRES_DB=postgres"
+        - "PGDATA=/var/lib/postgresql/data"
+     network_mode: "bridge"
+     volumes:
+        - 'postgres:/var/lib/postgresql/data'

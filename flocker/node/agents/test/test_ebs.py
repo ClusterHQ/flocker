@@ -4,7 +4,7 @@
 Tests for ``flocker.node.agents.ebs``.
 """
 
-from string import lowercase
+from string import ascii_lowercase
 from uuid import uuid4
 
 from hypothesis import given
@@ -19,7 +19,8 @@ from eliot.testing import capture_logging, assertHasMessage
 from ..ebs import (
     AttachedUnexpectedDevice, _expected_device,
     _attach_volume_and_wait_for_device, _get_blockdevices,
-    _get_device_size, _wait_for_new_device,
+    _get_device_size, _wait_for_new_device, _find_allocated_devices,
+    _select_free_device, NoAvailableDevice,
 )
 from .._logging import NO_NEW_DEVICE_IN_OS
 from ..blockdevice import BlockDeviceVolume
@@ -30,7 +31,9 @@ from ....testtools import CustomException, TestCase
 # A Hypothesis strategy for generating /dev/sd?
 device_path = builds(
     lambda suffix: b"/dev/sd" + b"".join(suffix),
-    suffix=lists(elements=sampled_from(lowercase), min_size=1, max_size=2),
+    suffix=lists(
+        elements=sampled_from(ascii_lowercase), min_size=1, max_size=2
+    ),
 )
 
 
@@ -132,6 +135,8 @@ class AttachVolumeAndWaitTests(TestCase):
         expected way, ``AttachedUnexpectedDevice`` is raised giving details
         about the expected and received paths.
         """
+        unexpected_device = []
+
         # The implementation is going to look at the real system to see what
         # block devices exist.  It would be nice to have an abstraction in
         # place to easily manipulate these results for the tests.  Lacking
@@ -151,6 +156,7 @@ class AttachVolumeAndWaitTests(TestCase):
                 size = _get_device_size(wrong_device.basename())
                 volume = self.volume.set("size", size)
                 blockdevices.remove(wrong_device)
+                unexpected_device.append(wrong_device)
                 break
         else:
             # Ideally we'd have more control over the implementation so we
@@ -187,7 +193,9 @@ class AttachVolumeAndWaitTests(TestCase):
         self.assertEqual(
             AttachedUnexpectedDevice(
                 requested=FilePath(device),
-                discovered=FilePath(b"/dev/").child(wrong_device.basename()),
+                discovered=FilePath(b"/dev/").child(
+                    unexpected_device.pop().basename()
+                ),
             ),
             exception,
         )
@@ -242,3 +250,39 @@ class WaitForNewDeviceTests(TestCase):
                 time_limit=0,
             )
         )
+
+
+class FindAllocatedDeviceTests(TestCase):
+    """
+    Tests for finding allocated devices.
+    """
+
+    def test_returns_device_name_list(self):
+        """
+        Returns at least one device (the root device).  All returned
+        values are existing devices.
+        """
+        devices = _find_allocated_devices()
+        self.assertGreater(len(devices), 0)
+        self.assertTrue(
+            all(FilePath('/dev/{}'.format(d)).exists() for d in devices)
+        )
+
+
+class SelectFreeDeviceTests(TestCase):
+    """
+    Tests for selecting new device.
+    """
+
+    def test_provides_device_name(self):
+        """
+        Return a device name.
+        """
+        self.assertTrue(_select_free_device(['sda']).startswith(u'/dev/'))
+
+    def test_all_devices_used(self):
+        """
+        Raises exception if no available device names.
+        """
+        existing = ['sd' + ch for ch in ascii_lowercase]
+        self.assertRaises(NoAvailableDevice, _select_free_device, existing)

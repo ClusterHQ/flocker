@@ -73,6 +73,9 @@ class EnsureAllTestsRun(TestCase):
             for job in jobs.values():
                 for module in job.get(u"with_modules", []):
                     configured_tests = configured_tests | get_tests_for(module)
+                module = job.get("module", None)
+                if module is not None:
+                    configured_tests = configured_tests | get_tests_for(module)
 
         expected_tests = pset()
         for child in REPOSITORY.children():

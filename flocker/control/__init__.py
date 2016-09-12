@@ -20,13 +20,18 @@ from ._model import (
     Link, AttachedVolume, NodeState, Manifestation, Dataset, RestartNever,
     RestartOnFailure, RestartAlways, DeploymentState, NonManifestDatasets,
     same_node, IClusterStateWipe, Leases, Lease, LeaseError, pmap_field,
-    ChangeSource, UpdateNodeStateEra, NoWipe,
+    ChangeSource, UpdateNodeStateEra, NoWipe, PersistentState,
+    DatasetAlreadyOwned,
 )
 from ._protocol import (
     IConvergenceAgent,
     NodeStateCommand,
     AgentAMP,
     SetNodeEraCommand,
+    SetBlockDeviceIdForDatasetId,
+)
+from ._registry import (
+    IStatePersister,
 )
 
 __all__ = [
@@ -52,10 +57,13 @@ __all__ = [
     'RestartOnFailure',
     'RestartAlways',
     'NonManifestDatasets',
+    'PersistentState',
+    'DatasetAlreadyOwned',
 
     'IConvergenceAgent',
     'NodeStateCommand',
     'SetNodeEraCommand',
+    'SetBlockDeviceIdForDatasetId',
     'AgentAMP',
     'pmap_field',
     'Lease',
@@ -64,4 +72,5 @@ __all__ = [
     'ChangeSource',
     'UpdateNodeStateEra',
     'NoWipe',
+    'IStatePersister',
 ]

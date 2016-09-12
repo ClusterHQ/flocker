@@ -125,7 +125,10 @@ def get_credential_sets():
 
     :return: Tuple, a pair of ``CredentialSet`` instances.
     """
-    global _credential_set1, _credential_set2
+    # Yes, we shouldn't use global in general, but this is test code and
+    # it's the easiest way to have cached value.
+    global _credential_set2  # pylint: disable=global-statement
+    global _credential_set1  # pylint: disable=global-statement
     if _credential_set1 is None:
         _credential_set1 = CredentialSet.create()
         _credential_set2 = CredentialSet.create()

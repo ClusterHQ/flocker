@@ -47,7 +47,7 @@ from ...control import (
     NodeState, NonManifestDatasets, Dataset as ModelDataset, ChangeSource,
     DockerImage, UpdateNodeStateEra,
 )
-from ...restapi._logging import JSON_REQUEST
+from ...restapi._logging import REQUEST
 from ...restapi import _infrastructure as rest_api
 from ... import __version__
 
@@ -486,12 +486,12 @@ def make_clientv1_tests():
             Creating two containers with same ``name`` results in an
             ``ContainerAlreadyExists``.
             """
-            expected_container, d = create_container_for_test(
+            _, d = create_container_for_test(
                 self, self.client,
             )
 
             def got_result(container):
-                expected_container, d = create_container_for_test(
+                _, d = create_container_for_test(
                     self, self.client,
                     name=container.name
                 )
@@ -769,7 +769,7 @@ class FlockerClientTests(make_clientv1_tests()):
                                         for manifestation
                                         in node.manifestations.values()},
                                  devices={})
-                       for node in deployment.nodes]
+                       for node in deployment.nodes.values()]
         self.cluster_state_service.apply_changes(node_states)
 
     def get_configuration_tag(self):
@@ -809,7 +809,7 @@ class FlockerClientTests(make_clientv1_tests()):
 
         def got_response(_):
             parent = LoggedAction.ofType(logger.messages, my_action)[0]
-            child = LoggedAction.ofType(logger.messages, JSON_REQUEST)[0]
+            child = LoggedAction.ofType(logger.messages, REQUEST)[0]
             self.assertIn(child, list(parent.descendants()))
         d.addCallback(got_response)
         return d
@@ -1000,7 +1000,7 @@ class ConditionalCreateTests(TestCase):
         # Every time we advance we change the config, invalidating
         # previous result. 2 queries (list+create) for 20 tries, 40th
         # query fails:
-        for i in range(39):
+        for _ in range(39):
             self.assertNoResult(d)
             self.successResultOf(self.client.create_dataset(
                 primary=self.node_id))

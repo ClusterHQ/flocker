@@ -6,13 +6,14 @@ set -ex
 
 DOCKER_CERT_HOME="/root/.docker"
 UBUNTU_HOME="/home/ubuntu"
+SUCCESS_SIGNAL_URL="http://check.clusterhq.com/cloudformation-complete.txt"
 
 # Get Postgres image.
 apt-get update
 sudo apt-get install -y postgresql-client
 
 # Get docker-compose.
-curl -L https://github.com/docker/compose/releases/download/1.5.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+curl -L https://github.com/docker/compose/releases/download/1.7.1/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
 # Get uft-flocker-volumes in order to use flockerctl.
@@ -27,7 +28,7 @@ s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-t
 s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/ca-key.pem "${DOCKER_CERT_HOME}"/ca-key.pem
 s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-tls-config/passphrase.txt "${DOCKER_CERT_HOME}"/passphrase.txt
 PASSPHRASE=`eval cat ${DOCKER_CERT_HOME}/passphrase.txt`
- 
+
 # Get expect to autofill openssl inputs.
 sudo apt-get install -y expect
 
@@ -53,3 +54,13 @@ ${DOCKER_CERT_HOME}/createclient.exp
 
 # Copy Docker Certificates directory to Ubuntu's home directory.
 cp -r ${DOCKER_CERT_HOME} ${UBUNTU_HOME}
+
+# Clear out S3 bucket used by CloudFormation so that subsequent stack destroy attempt succeeds.
+s3cmd_wrapper del --recursive --config=/root/.s3cfg s3://${s3_bucket}
+
+# Delete S3 bucket with CloudFormation configuration.
+s3cmd_wrapper rb --config=/root/.s3cfg s3://${s3_bucket}
+
+
+# Signal successful stack creation.
+curl ${SUCCESS_SIGNAL_URL} || echo "Failed to report success to ClusterHQ"

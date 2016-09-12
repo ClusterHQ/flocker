@@ -39,3 +39,26 @@ class CertificatesGenerateTests(TestCase):
             },
             set(output.children()),
         )
+
+    @skipUnless(which(b"flocker-ca"), b"flocker-ca not installed (FLOC-2600)")
+    def test_add_node(self):
+        """
+        ``Certificates.add_node`` generates another node certificate.
+        """
+        output = FilePath(self.mktemp())
+        output.makedirs()
+        certificates = Certificates.generate(output, b"some-service", 2,
+                                             b"test-cluster")
+        certificates.add_node(3)
+        self.assertEqual(
+            {
+                output.child(b"cluster.crt"), output.child(b"cluster.key"),
+                output.child(b"control-some-service.crt"),
+                output.child(b"control-some-service.key"),
+                output.child(b"user.crt"), output.child(b"user.key"),
+                output.child(b"node-0.crt"), output.child(b"node-0.key"),
+                output.child(b"node-1.crt"), output.child(b"node-1.key"),
+                output.child(b"node-3.crt"), output.child(b"node-3.key"),
+            },
+            set(output.children()),
+        )

@@ -32,7 +32,7 @@ class ClusterStateServiceTests(TestCase):
     """
     WITH_APPS = NodeState(
         hostname=u"192.0.2.56", uuid=uuid4(),
-        applications=[APP1, APP2],
+        applications={a.name: a for a in [APP1, APP2]},
     )
     WITH_MANIFESTATION = NodeState(
         hostname=u"host2",
@@ -81,7 +81,7 @@ class ClusterStateServiceTests(TestCase):
         """
         service = self.service()
         service.apply_changes([
-            NodeState(hostname=u"host1", applications=[APP1]),
+            NodeState(hostname=u"host1", applications={APP1.name: APP1}),
             NodeState(hostname=u"host1", applications=None,
                       manifestations={
                           MANIFESTATION.dataset_id:
@@ -94,7 +94,7 @@ class ClusterStateServiceTests(TestCase):
                              manifestations={
                                  MANIFESTATION.dataset_id: MANIFESTATION},
                              devices={}, paths={},
-                             applications=[APP1])]))
+                             applications={APP1.name: APP1})]))
 
     def test_update(self):
         """
@@ -103,13 +103,13 @@ class ClusterStateServiceTests(TestCase):
         """
         service = self.service()
         service.apply_changes([
-            NodeState(hostname=u"host1", applications=[APP1]),
-            NodeState(hostname=u"host1", applications=[APP2]),
+            NodeState(hostname=u"host1", applications={APP1.name: APP1}),
+            NodeState(hostname=u"host1", applications={APP2.name: APP2}),
         ])
         self.assertEqual(service.as_deployment(),
                          DeploymentState(nodes=[NodeState(
                              hostname=u"host1",
-                             applications=frozenset([APP2]))]))
+                             applications={APP2.name: APP2})]))
 
     def test_multiple_hosts(self):
         """
@@ -118,17 +118,17 @@ class ClusterStateServiceTests(TestCase):
         """
         service = self.service()
         service.apply_changes([
-            NodeState(hostname=u"host1", applications=[APP1]),
-            NodeState(hostname=u"host2", applications=[APP2]),
+            NodeState(hostname=u"host1", applications={APP1.name: APP1}),
+            NodeState(hostname=u"host2", applications={APP2.name: APP2}),
         ])
         self.assertEqual(service.as_deployment(),
                          DeploymentState(nodes=[
                              NodeState(
                                  hostname=u"host1",
-                                 applications=frozenset([APP1])),
+                                 applications={APP1.name: APP1}),
                              NodeState(
                                  hostname=u"host2",
-                                 applications=frozenset([APP2])),
+                                 applications={APP2.name: APP2}),
                          ]))
 
     def test_manifestation_path(self):

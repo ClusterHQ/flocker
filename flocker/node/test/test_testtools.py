@@ -4,7 +4,7 @@
 Tests for ``flocker.node.testtools``.
 """
 
-from testtools.deferredruntest import SynchronousDeferredRunTest
+from testtools.twistedsupport import SynchronousDeferredRunTest
 from twisted.internet.defer import succeed
 
 from .. import sequentially

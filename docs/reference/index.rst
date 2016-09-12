@@ -1,6 +1,9 @@
+=========
+Reference
+=========
+
 .. _api:
 
-================
 Flocker REST API
 ================
 
@@ -8,7 +11,7 @@ In general the API allows for modifying the desired configuration of the cluster
 When you use the API to change the configuration, e.g. creating a new dataset:
 
 You will need to provide API end users with a certificate for authentication before they can use the API.
-For more information, see the :ref:`API authentication guide <generate-api>`.
+For more information, see :ref:`generate-api-standalone-flocker`.
 
 #. A successful response indicates a change in configuration, not a change to cluster state.
 #. Convergence agents will then take the necessary actions and eventually the cluster's state will match the requested configuration.
@@ -25,6 +28,18 @@ For more information read the :ref:`cluster architecture<architecture>` document
 
    api
    deprecated_api
+
+Leases
+======
+
+.. include:: ../reference/leases.rst
+   :start-after: .. begin-body
+   :end-before: .. end-body
+
+.. toctree::
+   :maxdepth: 2
+   
+   leases
 
 .. XXX: Improvements to the API (create collapse directive) requires Engineering effort:
 .. https://clusterhq.atlassian.net/browse/FLOC-2094

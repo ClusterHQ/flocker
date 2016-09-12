@@ -12,10 +12,7 @@ To build omnibus packages, create a VirtualEnv and install Flocker then its rele
 
    cd /path/to/flocker
    mkvirtualenv flocker-packaging
-   pip install .
-   pip install --process-dependency-links .[dev]
-
-.. Need --process-dependency-links while we're using a fork of testtools.
+   pip install --requirement requirements/admin.txt
 
 Then run the following command from a clean checkout of the Flocker repository:
 
@@ -33,7 +30,6 @@ This will generate three packages files in the current working directory. E.g.
 * ``clusterhq-flocker-cli-0.3.0-0.dev.1.307.gb6d6e9f.dirty.noarch.rpm``
 
   This meta-package will install all the dependencies needed to run the Flocker client scripts.
-  It will also install a symbolic link for ``flocker-deploy`` in ``/usr/bin``.
 
 * ``clusterhq-flocker-node-0.3.0-0.dev.1.307.gb6d6e9f.dirty.noarch.rpm``
 
@@ -65,9 +61,7 @@ Package Hosting
 
 New packages are hosted on Amazon S3 in directories in the ``clusterhq-archive`` bucket.
 
-The Homebrew installation script for OS X downloads packages from the ``python`` directory.
-
-CentOS and Ubuntu client and node packages are hosted on Amazon S3.
+CentOS, Ubuntu, and python client packages as well as node packages are hosted on Amazon S3.
 
 ``clusterhq-archive``
 ---------------------
@@ -78,17 +72,17 @@ Each contains sub-folders for the distribution version and architecture, which f
 To make the entire bucket public, this bucket has the following policy::
 
    {
-   	"Version": "2008-10-17",
-   	"Id": "PolicyForPublicAccess",
-   	"Statement": [
-   		{
-   			"Sid": "1",
-   			"Effect": "Allow",
-   			"Principal": "*",
-   			"Action": "s3:GetObject",
-   			"Resource": "arn:aws:s3:::clusterhq-archive/*"
-   		}
-   	]
+        "Version": "2008-10-17",
+        "Id": "PolicyForPublicAccess",
+        "Statement": [
+                {
+                        "Sid": "1",
+                        "Effect": "Allow",
+                        "Principal": "*",
+                        "Action": "s3:GetObject",
+                        "Resource": "arn:aws:s3:::clusterhq-archive/*"
+                }
+        ]
    }
 
 A policy can be set by going to a bucket's "Properties", "Permissions", then "Add bucket policy".

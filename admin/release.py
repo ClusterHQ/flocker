@@ -1,4 +1,4 @@
-# -*- test-case-name: admin.test.test_release -*-
+# -*- test-case-name: admin.test.test_release,admin.functional.test_release -*-  # noqa
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
@@ -8,16 +8,16 @@ XXX This script is not automatically checked by buildbot. See
 https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
-import json
+import yaml
 import os
 import sys
 import tempfile
 import virtualenv
 
 from datetime import datetime
-from subprocess import check_call, check_output
-from sys import platform as _platform
-from urllib import quote
+from subprocess import check_call
+
+from boto.s3.website import RoutingRules, RoutingRule
 
 from effect import (
     Effect, sync_perform, ComposedDispatcher)
@@ -26,8 +26,6 @@ from effect.do import do
 from characteristic import attributes
 from git import GitCommandError, Repo
 from pytz import UTC
-
-import requests
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
@@ -56,7 +54,7 @@ from .aws import (
     UploadToS3,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
-
+    UpdateS3RoutingRules
 )
 
 from .yum import (
@@ -65,8 +63,6 @@ from .yum import (
     DownloadPackagesFromRepository,
 )
 
-from .vagrant import vagrant_version
-from .homebrew import make_recipe
 from .packaging import available_distributions, DISTRIBUTION_NAME_MAP
 
 
@@ -120,12 +116,6 @@ class MissingPreRelease(Exception):
     """
 
 
-class PushFailed(Exception):
-    """
-    Raised if pushing to Git fails.
-    """
-
-
 @attributes([
     'documentation_bucket',
     'cloudfront_cname',
@@ -155,8 +145,47 @@ DOCUMENTATION_CONFIGURATIONS = {
 }
 
 
+def parse_routing_rules(routing_config, hostname):
+    """
+    Parse routing rule description.
+
+    The configuration is a dictionary. The top-level keys are common prefixes
+    for the rules in them. Each top-level key maps to a dictionary that maps
+    the rest of a prefix to the redirection target. A redirection target is a
+    dictionary of keyword arguments to ``boto.s3.website.Redirect``. If no
+    hostname is provided in the redirection target, then the passed hostname is
+    used, and the common prefix is prepended to the redirection target.
+
+    :param routing_config: ``dict`` containing the routing configuration.
+    :param bytes hostname: The hostname the bucket is hosted at.
+
+    :return: Parsed routing rules.
+    :rtype: ``boto.s3.website.RoutingRules``
+    """
+    rules = []
+    for prefix, relative_redirects in routing_config.items():
+        for postfix, destination in relative_redirects.items():
+            destination.setdefault('http_redirect_code', '302')
+            destination['protocol'] = 'https'
+            if 'hostname' not in destination.keys():
+                destination['hostname'] = hostname
+                for key in ('replace_key', 'replace_key_prefix'):
+                    if key in destination:
+                        destination[key] = prefix + destination[key]
+            rules.append(RoutingRule.when(
+                key_prefix=prefix+postfix,
+            ).then_redirect(**destination))
+
+    # Sort the rules in reverse order of prefix to match, so that
+    # long-match wins.
+    return RoutingRules(
+        sorted(rules, key=lambda rule: rule.condition.key_prefix,
+               reverse=True)
+    )
+
+
 @do
-def publish_docs(flocker_version, doc_version, environment):
+def publish_docs(flocker_version, doc_version, environment, routing_config):
     """
     Publish the Flocker documentation. The documentation for each version of
     Flocker is uploaded to a development bucket on S3 by the build server and
@@ -170,14 +199,16 @@ def publish_docs(flocker_version, doc_version, environment):
     :param bytes doc_version: The version to publish the documentation as.
     :param Environments environment: The environment to publish the
         documentation to.
+    :param dict routing_config: The loaded routing configuration (see
+        ``parse_routing_rules`` for details).
     :raises NotARelease: Raised if trying to publish to a version that isn't a
         release.
     :raises NotTagged: Raised if publishing to production and the version being
         published version isn't tagged.
     """
-    if not (is_release(doc_version)
-            or is_weekly_release(doc_version)
-            or is_pre_release(doc_version)):
+    if not (is_release(doc_version) or
+            is_weekly_release(doc_version) or
+            is_pre_release(doc_version)):
         raise NotARelease()
 
     if environment == Environments.PRODUCTION:
@@ -268,6 +299,12 @@ def publish_docs(flocker_version, doc_version, environment):
                      for key_name in changed_keys
                      for prefix in [stable_prefix, version_prefix]}
 
+    yield Effect(UpdateS3RoutingRules(
+        bucket=configuration.documentation_bucket,
+        routing_rules=parse_routing_rules(
+            routing_config, configuration.cloudfront_cname),
+    ))
+
     # Invalidate all the changed paths in cloudfront.
     yield Effect(
         CreateCloudFrontInvalidation(cname=configuration.cloudfront_cname,
@@ -319,6 +356,8 @@ def publish_docs_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
+    redirects_path = top_level.descendant(['docs', 'redirects.yaml'])
+    routing_config = yaml.safe_load(redirects_path.getContent())
     try:
         sync_perform(
             dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
@@ -326,6 +365,7 @@ def publish_docs_main(args, base_path, top_level):
                 flocker_version=options['flocker-version'],
                 doc_version=options['doc-version'],
                 environment=options.environment,
+                routing_config=routing_config,
                 ))
     except NotARelease:
         sys.stderr.write("%s: Can't publish non-release.\n"
@@ -351,16 +391,14 @@ class UploadOptions(Options):
         ["build-server", None,
          b'http://build.clusterhq.com',
          "The URL of the build-server.\n"],
-        ["homebrew-tap", None, "git@github.com:ClusterHQ/homebrew-tap.git",
-         "The Git repository to add a Homebrew recipe to.\n"],
     ]
 
     def parseArgs(self):
         version = self['flocker-version']
 
-        if not (is_release(version)
-                or is_weekly_release(version)
-                or is_pre_release(version)):
+        if not (is_release(version) or
+                is_weekly_release(version) or
+                is_pre_release(version)):
             raise NotARelease()
 
         if get_doc_version(version) != version:
@@ -373,114 +411,6 @@ FLOCKER_PACKAGES = [
     b'clusterhq-flocker-node',
     b'clusterhq-flocker-docker-plugin',
 ]
-
-
-def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
-                            scratch_directory, top_level):
-    """
-    Publish a Homebrew recipe to a Git repository.
-
-    :param git.Repo homebrew_repo: Homebrew tap Git repository. This should
-        be an SSH URL so as not to require a username and password.
-    :param bytes version: Version of Flocker to publish a recipe for.
-    :param bytes source_bucket: S3 bucket to get source distribution from.
-    :param FilePath scratch_directory: Temporary directory to create a recipe
-        in.
-    :param FilePath top_level: The top-level of the flocker repository.
-    """
-    url_template = 'https://{bucket}.s3.amazonaws.com/python/Flocker-{version}.tar.gz'  # noqa
-    sdist_url = url_template.format(bucket=source_bucket, version=version)
-    requirements_path = top_level.child('requirements.txt')
-    content = make_recipe(
-        version=version,
-        sdist_url=sdist_url,
-        requirements_path=requirements_path,
-    )
-    homebrew_repo = Repo.clone_from(
-        url=homebrew_repo_url,
-        to_path=scratch_directory.path)
-    recipe = 'flocker-{version}.rb'.format(version=version)
-    FilePath(homebrew_repo.working_dir).child(recipe).setContent(content)
-
-    homebrew_repo.index.add([recipe])
-    homebrew_repo.index.commit('Add recipe for Flocker version ' + version)
-
-    # Sometimes this raises an index error, and it seems to be a race
-    # condition. There should probably be a loop until push succeeds or
-    # whatever condition is necessary for it to succeed is met. FLOC-2043.
-    push_info = homebrew_repo.remotes.origin.push(
-        homebrew_repo.head,
-        # Ignore any hooks which might prevent pushing (to master in this
-        # case). Without this, the release process can hang.
-        no_verify=True,
-        )[0]
-
-    if (push_info.flags & push_info.ERROR) != 0:
-        raise PushFailed()
-
-
-@do
-def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
-                             target_bucket):
-    """
-    Publish Vagrant metadata for a given version of a given box.
-
-    :param bytes version: The version of the Vagrant box to publish metadata
-        for.
-    :param bytes box_url: The URL of the Vagrant box.
-    :param FilePath scratch_directory: A directory to create Vagrant metadata
-        files in before uploading.
-    :param bytes box_name: The name of the Vagrant box to publish metadata for.
-    :param bytes target_bucket: S3 bucket to upload metadata to.
-    """
-    metadata_filename = '{box_name}.json'.format(box_name=box_name)
-    # Download recursively because there may not be a metadata file
-    yield Effect(DownloadS3KeyRecursively(
-        source_bucket=target_bucket,
-        source_prefix='vagrant',
-        target_path=scratch_directory,
-        filter_extensions=(metadata_filename,)))
-
-    metadata = {
-        "description": "clusterhq/{box_name} box.".format(box_name=box_name),
-        "name": "clusterhq/{box_name}".format(box_name=box_name),
-        "versions": [],
-    }
-
-    try:
-        existing_metadata_file = scratch_directory.children()[0]
-    except IndexError:
-        pass
-    else:
-        existing_metadata = json.loads(existing_metadata_file.getContent())
-        for version_metadata in existing_metadata['versions']:
-            # In the future we may want to have multiple providers for the
-            # same version but for now we discard any current providers for
-            # the version being added.
-            if version_metadata['version'] != vagrant_version(version):
-                metadata['versions'].append(version_metadata)
-
-    metadata['versions'].append({
-        "version": vagrant_version(version),
-        "providers": [
-            {
-                "url": quote(box_url, safe=":/"),
-                "name": "virtualbox",
-            },
-        ],
-    })
-
-    # If there is an existing file, overwrite it. Else create a new file.
-    new_metadata_file = scratch_directory.child(metadata_filename)
-    new_metadata_file.setContent(json.dumps(metadata))
-
-    yield Effect(UploadToS3(
-        source_path=scratch_directory,
-        target_bucket=target_bucket,
-        target_key='vagrant/' + metadata_filename,
-        file=new_metadata_file,
-        content_type='application/json',
-        ))
 
 
 @do
@@ -668,7 +598,7 @@ def upload_python_packages(scratch_directory, target_bucket, top_level,
         'bdist_wheel', '--dist-dir={}'.format(scratch_directory.path)],
         cwd=top_level.path, stdout=output, stderr=error)
 
-    files = set([file.basename() for file in scratch_directory.children()])
+    files = set([f.basename() for f in scratch_directory.children()])
     yield Effect(UploadToS3Recursively(
         source_path=scratch_directory,
         target_bucket=target_bucket,
@@ -709,21 +639,6 @@ def publish_artifacts_main(args, base_path, top_level):
     scratch_directory.child('packages').createDirectory()
     scratch_directory.child('python').createDirectory()
     scratch_directory.child('pip').createDirectory()
-    scratch_directory.child('vagrant').createDirectory()
-    scratch_directory.child('homebrew').createDirectory()
-
-    box_type = "flocker-tutorial"
-    vagrant_prefix = 'vagrant/tutorial/'
-
-    box_name = "{box_type}-{version}.box".format(
-        box_type=box_type,
-        version=options['flocker-version'],
-    )
-
-    box_url = "https://{bucket}.s3.amazonaws.com/{key}".format(
-        bucket=options['target'],
-        key=vagrant_prefix + box_name,
-    )
 
     try:
         sync_perform(
@@ -747,31 +662,7 @@ def publish_artifacts_main(args, base_path, top_level):
                     scratch_directory=scratch_directory.child('pip'),
                     target_bucket=options['target'],
                 ),
-                Effect(
-                    CopyS3Keys(
-                        source_bucket=DEV_ARCHIVE_BUCKET,
-                        source_prefix=vagrant_prefix,
-                        destination_bucket=options['target'],
-                        destination_prefix=vagrant_prefix,
-                        keys=[box_name],
-                    )
-                ),
-                publish_vagrant_metadata(
-                    version=options['flocker-version'],
-                    box_url=box_url,
-                    scratch_directory=scratch_directory.child('vagrant'),
-                    box_name=box_type,
-                    target_bucket=options['target'],
-                ),
             ]),
-        )
-
-        publish_homebrew_recipe(
-            homebrew_repo_url=options['homebrew-tap'],
-            version=options['flocker-version'],
-            source_bucket=options['target'],
-            scratch_directory=scratch_directory.child('homebrew'),
-            top_level=top_level,
         )
 
     finally:
@@ -787,9 +678,9 @@ def calculate_base_branch(version, path):
     :param bytes path: See :func:`git.Repo.init`.
     :returns: The base branch from which the new release branch was created.
     """
-    if not (is_release(version)
-            or is_weekly_release(version)
-            or is_pre_release(version)):
+    if not (is_release(version) or
+            is_weekly_release(version) or
+            is_pre_release(version)):
         raise NotARelease()
 
     repo = Repo(path=path, search_parent_directories=True)
@@ -902,25 +793,24 @@ def initialize_release(version, path, top_level):
     release_repo.active_branch.checkout(b="release/flocker-{}".format(version))
 
     sys.stdout.write("Creating virtual environment...\n")
+    virtualenv_path = release_path.child("flocker-{}".format(version))
     virtualenv.create_environment(
-        release_path.child("flocker-{}".format(version)).path,
+        virtualenv_path.path,
         site_packages=False
     )
 
-    sys.stdout.write("Activating virtual environment...\n")
-    virtualenv_file = release_path.child("flocker-{}".format(version))
-    virtualenv_file = virtualenv_file.child("bin").child("activate_this.py")
-    execfile(virtualenv_file.path, dict(__file__=virtualenv_file.path))
-
     sys.stdout.write("Installing dependencies...\n")
-    os.chdir(release_path.path)
-    if _platform == "darwin":
-        brew_openssl = check_output(["brew", "--prefix", "openssl"])
-        os.environ["LDFLAGS"] = '-L{}/lib" CFLAGS="-I{}/include'.format(
-            brew_openssl, brew_openssl)
+    environment = {
+        "PATH": os.environ["PATH"]
+    }
     check_call(
-        ["pip install --process-dependency-links -e .[dev]"], shell=True,
-        stdout=open(os.devnull, 'w'))
+        [virtualenv_path.descendant(["bin", "python"]).path,
+         virtualenv_path.descendant(["bin", "pip"]).path,
+         "install", "--requirement", "dev-requirements.txt"],
+        stdout=open(os.devnull, 'w'),
+        env=environment,
+        cwd=release_path.path,
+    )
 
     sys.stdout.write("Updating LICENSE file...\n")
     update_license_file(list(), top_level)
@@ -993,173 +883,6 @@ def create_release_branch_main(args, base_path, top_level):
         sys.stderr.write("%s: The release branch already exists.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
-
-
-class TestRedirectsOptions(Options):
-    """
-    Arguments for ``test-redirects`` script.
-    """
-    optParameters = [
-        ["doc-version", None, flocker.__version__,
-         "The version which the documentation sites are expected to redirect "
-         "to.\n"
-        ],
-    ]
-
-    optFlags = [
-        ["production", None, "Check the production documentation site."],
-    ]
-
-    environment = Environments.STAGING
-
-    def parseArgs(self):
-        if self['production']:
-            self.environment = Environments.PRODUCTION
-
-
-def get_expected_redirects(flocker_version):
-    """
-    Get the expected redirects for a given version of Flocker, if that version
-    has been published successfully. Documentation versions (e.g. 0.3.0.post2)
-    are published to their release version counterparts (e.g. 0.3.0).
-
-    :param bytes flocker_version: The version of Flocker for which to get
-        expected redirects.
-
-    :return: Dictionary mapping paths to the path to which they are expected to
-        redirect.
-    """
-    published_version = get_doc_version(flocker_version)
-
-    if is_release(published_version):
-        expected_redirects = {
-            '/': '/en/' + published_version + '/',
-            '/en/': '/en/' + published_version + '/',
-            '/en/latest': '/en/' + published_version + '/',
-            '/en/latest/faq/index.html':
-                '/en/' + published_version + '/faq/index.html',
-        }
-    else:
-        expected_redirects = {
-            '/en/devel': '/en/' + published_version + '/',
-            '/en/devel/faq/index.html':
-                '/en/' + published_version + '/faq/index.html',
-        }
-
-    return expected_redirects
-
-def test_redirects_main(args, base_path, top_level):
-    """
-    Tests redirects to Flocker documentation.
-
-    :param list args: The arguments passed to the script.
-    :param FilePath base_path: The executable being run.
-    :param FilePath top_level: The top-level of the flocker repository.
-    """
-    options = TestRedirectsOptions()
-
-    try:
-        options.parseOptions(args)
-    except UsageError as e:
-        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
-        raise SystemExit(1)
-
-    expected_redirects = get_expected_redirects(
-        flocker_version=options['doc-version'])
-    document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
-    base_url = 'https://' + document_configuration.cloudfront_cname
-
-    failed_redirects = []
-
-    for path in expected_redirects:
-        original_url = base_url + path
-        expected_url = base_url + expected_redirects[path]
-        final_url = requests.get(original_url).url
-
-        if expected_url != final_url:
-            failed_redirects.append(original_url)
-
-            message = (
-                "'{original_url}' expected to redirect to '{expected_url}', "
-                "instead redirects to '{final_url}'.\n").format(
-                    original_url=original_url,
-                    expected_url=expected_url,
-                    final_url=final_url,
-            )
-
-            sys.stderr.write(message)
-
-    if len(failed_redirects):
-         raise SystemExit(1)
-    else:
-        print 'All tested redirects work correctly.'
-
-
-class PublishDevBoxOptions(Options):
-    """
-    Options for publishing a Vagrant development box.
-    """
-    optParameters = [
-        ["flocker-version", None, flocker.__version__,
-         "The version of Flocker to upload a development box for.\n"],
-        ["target", None, ARCHIVE_BUCKET,
-         "The bucket to upload a development box to.\n"],
-    ]
-
-def publish_dev_box_main(args, base_path, top_level):
-    """
-    Publish a development Vagrant box.
-
-    :param list args: The arguments passed to the script.
-    :param FilePath base_path: The executable being run.
-    :param FilePath top_level: The top-level of the flocker repository.
-    """
-    options = PublishDevBoxOptions()
-
-    try:
-        options.parseOptions(args)
-    except UsageError as e:
-        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
-        raise SystemExit(1)
-
-    scratch_directory = FilePath(tempfile.mkdtemp(
-        prefix=b'flocker-upload-'))
-    scratch_directory.child('vagrant').createDirectory()
-
-    box_type = "flocker-dev"
-    prefix = 'vagrant/dev/'
-
-    box_name = "{box_type}-{version}.box".format(
-        box_type=box_type,
-        version=options['flocker-version'],
-    )
-
-    box_url = "https://{bucket}.s3.amazonaws.com/{key}".format(
-        bucket=options['target'],
-        key=prefix + box_name,
-    )
-
-    sync_perform(
-        dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
-        effect=sequence([
-            Effect(
-                CopyS3Keys(
-                    source_bucket=DEV_ARCHIVE_BUCKET,
-                    source_prefix=prefix,
-                    destination_bucket=options['target'],
-                    destination_prefix=prefix,
-                    keys=[box_name],
-                )
-            ),
-            publish_vagrant_metadata(
-                version=options['flocker-version'],
-                box_url=box_url,
-                scratch_directory=scratch_directory.child('vagrant'),
-                box_name=box_type,
-                target_bucket=options['target'],
-            ),
-        ]),
-    )
 
 
 def update_license_file(args, top_level, year=datetime.now(UTC).year):

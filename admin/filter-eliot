@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Filter Eliot messages out of Twisted test.log files.
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+if __name__ == '__main__':
+    from admin.eliotlogging import filter_eliot_main as main
+    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)

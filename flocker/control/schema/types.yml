@@ -150,6 +150,7 @@ definitions:
     patternProperties:
       "^.+$":
         type: string
+    additionalProperties: false
 
   volume:
     title: "A volume attached to a container"
@@ -195,6 +196,14 @@ definitions:
     items:
       type: string
       maxLength: 4096
+
+  swappiness:
+    title: "Swappiness"
+    description: |
+      Tune a container's memory swappiness behavior (default of 0 disables swap).
+    type: integer
+    minimum: 0
+    maximum: 100
 
   host:
     title: "Host"
@@ -245,7 +254,7 @@ definitions:
       The upper limit on how much data the dataset will be allowed to
       store, as an integer number of bytes.
     type:
-      - "number"
+      - integer
       - "null"
     # 64 MiB.  Sort of an arbitrary limit but inspired by the lower bound
     # on what this can be set to for the ZFS backend.  Could probably be

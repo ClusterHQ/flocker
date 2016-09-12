@@ -30,6 +30,8 @@ from klein import Klein
 
 from pyrsistent import discard
 
+from repoze.lru import lru_cache
+
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request,
     private_api
@@ -132,6 +134,33 @@ def _if_configuration_matches(original):
         return original(self, request, **route_arguments)
 
     return render_if_matches
+
+
+@lru_cache(1)
+def _extract_containers_state(deployment_state):
+    """
+    Turn the deployment state into serializable simple types for every
+    container in the deployment state.
+
+    N.B.: Callers of this function should not mutate the returned value as this
+    function uses an lru_cache (FLOC-4345 to clean up).
+
+    :param DeploymentState deployment_state: The deployment state to extract
+        the containers from.
+
+    :returns: The states of the containers in simple types.
+    """
+    result = []
+    for node in deployment_state.nodes.itervalues():
+        applications = ()
+        if node.applications is not None:
+            applications = node.applications.values()
+        for application in applications:
+            container = container_configuration_response(
+                application, node.uuid)
+            container[u"running"] = application.running
+            result.append(container)
+    return result
 
 
 class ConfigurationAPIUserV1(object):
@@ -281,7 +310,7 @@ class ConfigurationAPIUserV1(object):
         # Use persistence_service to get a Deployment for the cluster
         # configuration.
         deployment = self.persistence_service.get()
-        for node in deployment.nodes:
+        for node in deployment.nodes.itervalues():
             for manifestation in node.manifestations.values():
                 if manifestation.dataset.dataset_id == dataset_id:
                     raise DATASET_ID_COLLISION
@@ -350,7 +379,7 @@ class ConfigurationAPIUserV1(object):
 
         # XXX this doesn't handle replicas
         # https://clusterhq.atlassian.net/browse/FLOC-1240
-        old_manifestation, origin_node = _find_manifestation_and_node(
+        _, origin_node = _find_manifestation_and_node(
             deployment, dataset_id)
 
         new_node = origin_node.transform(
@@ -523,7 +552,8 @@ class ConfigurationAPIUserV1(object):
         :return: A ``list`` of ``dict`` representing each of the containers
             that are configured to exist anywhere on the cluster.
         """
-        return list(containers_from_deployment(self.persistence_service.get()))
+        return list(
+            _containers_from_deployment(self.persistence_service.get()))
 
     @app.route("/state/containers", methods=['GET'])
     @user_documentation(
@@ -551,17 +581,8 @@ class ConfigurationAPIUserV1(object):
         :return: A ``list`` of ``dict`` representing each of the containers
             that are configured to exist anywhere on the cluster.
         """
-        result = []
         deployment_state = self.cluster_state_service.as_deployment()
-        for node in deployment_state.nodes:
-            if node.applications is None:
-                continue
-            for application in node.applications:
-                container = container_configuration_response(
-                    application, node.uuid)
-                container[u"running"] = application.running
-                result.append(container)
-        return result
+        return _extract_containers_state(deployment_state)
 
     def _get_attached_volume(self, node_uuid, volume):
         """
@@ -609,6 +630,7 @@ class ConfigurationAPIUserV1(object):
             u"create container with memory limit",
             u"create container with links",
             u"create container with command line",
+            u"create container with swappiness",
             # No example of creating a container with a different restart
             # policy because only the "never" policy is supported.  See
             # FLOC-2449.
@@ -625,7 +647,7 @@ class ConfigurationAPIUserV1(object):
     def create_container_configuration(
         self, node_uuid, name, image, ports=(), environment=None,
         restart_policy=None, cpu_shares=None, memory_limit=None,
-        links=(), volumes=(), command_line=None,
+        links=(), volumes=(), command_line=None, swappiness=0,
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -670,6 +692,9 @@ class ConfigurationAPIUserV1(object):
         :param command_line: If not ``None``, the command line to use when
             running the Docker image's entry point.
 
+        :param swappiness: Tune container's memory swappiness
+            (default of 0 disables swap).
+
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
         """
@@ -679,10 +704,9 @@ class ConfigurationAPIUserV1(object):
 
         # Check if container by this name already exists, if it does
         # return error.
-        for node in deployment.nodes:
-            for application in node.applications:
-                if application.name == name:
-                    raise CONTAINER_NAME_COLLISION
+        for node in deployment.nodes.itervalues():
+            if name in node.applications:
+                raise CONTAINER_NAME_COLLISION
 
         # Find the volume, if any; currently we only support one volume
         # https://clusterhq.atlassian.net/browse/FLOC-49
@@ -697,8 +721,8 @@ class ConfigurationAPIUserV1(object):
         # external ports exposed to ensure there is no conflict. If there is a
         # conflict, return an error.
         for port in ports:
-            for current_node in deployment.nodes:
-                for application in current_node.applications:
+            for current_node in deployment.nodes.itervalues():
+                for application in current_node.applications.values():
                     for application_port in application.ports:
                         if application_port.external_port == port['external']:
                             raise CONTAINER_PORT_COLLISION
@@ -752,11 +776,12 @@ class ConfigurationAPIUserV1(object):
             memory_limit=memory_limit,
             links=application_links,
             command_line=command_line,
+            swappiness=swappiness,
         )
 
         new_node_config = node.transform(
             ["applications"],
-            lambda s: s.add(application)
+            lambda s: s.set(application.name, application)
         )
 
         new_deployment = deployment.update_node(new_node_config)
@@ -807,22 +832,22 @@ class ConfigurationAPIUserV1(object):
         deployment = self.persistence_service.get()
         node_uuid = UUID(hex=node_uuid)
         target_node = deployment.get_node(node_uuid)
-        for node in deployment.nodes:
-            for application in node.applications:
-                if application.name == name:
-                    deployment = deployment.move_application(
-                        application, target_node
+        for node in deployment.nodes.itervalues():
+            application = node.applications.get(name)
+            if application:
+                deployment = deployment.move_application(
+                    application, target_node
+                )
+                saving = self.persistence_service.save(deployment)
+
+                def saved(_, application=application):
+                    result = container_configuration_response(
+                        application, node_uuid
                     )
-                    saving = self.persistence_service.save(deployment)
+                    return EndpointResponse(OK, result)
 
-                    def saved(_):
-                        result = container_configuration_response(
-                            application, node_uuid
-                        )
-                        return EndpointResponse(OK, result)
-
-                    saving.addCallback(saved)
-                    return saving
+                saving.addCallback(saved)
+                return saving
 
         # Didn't find the application:
         raise CONTAINER_NOT_FOUND
@@ -857,15 +882,17 @@ class ConfigurationAPIUserV1(object):
         """
         deployment = self.persistence_service.get()
 
-        for node in deployment.nodes:
-            for application in node.applications:
-                if application.name == name:
-                    updated_node = node.transform(
-                        ["applications"], lambda s: s.remove(application))
-                    d = self.persistence_service.save(
-                        deployment.update_node(updated_node))
-                    d.addCallback(lambda _: None)
-                    return d
+        for node in deployment.nodes.itervalues():
+            application = node.applications.get(name)
+            if application:
+                updated_node = node.transform(
+                    ["applications"],
+                    lambda s, application=application: s.discard(
+                        application.name))
+                d = self.persistence_service.save(
+                    deployment.update_node(updated_node))
+                d.addCallback(lambda _: None)
+                return d
 
         # Didn't find the application:
         raise CONTAINER_NOT_FOUND
@@ -892,7 +919,7 @@ class ConfigurationAPIUserV1(object):
     def list_current_nodes(self):
         return [{u"host": node.hostname, u"uuid": unicode(node.uuid)}
                 for node in
-                self.cluster_state_service.as_deployment().nodes]
+                self.cluster_state_service.as_deployment().nodes.itervalues()]
 
     @app.route("/state/nodes/by_era/<era>", methods=['GET'])
     @user_documentation(
@@ -933,6 +960,7 @@ class ConfigurationAPIUserV1(object):
             raise NODE_BY_ERA_NOT_FOUND
         return {u"uuid": unicode(node_uuid)}
 
+    # XXX This endpoint should be removed. (FLOC-4435)
     @app.route("/configuration/_compose", methods=['POST'])
     @private_api
     @structured(
@@ -1176,7 +1204,7 @@ def _update_dataset_maximum_size(deployment, dataset_id, maximum_size):
         size limit.
     :returns: An updated ``Deployment``.
     """
-    manifestation, node = _find_manifestation_and_node(deployment, dataset_id)
+    _, node = _find_manifestation_and_node(deployment, dataset_id)
     deployment = deployment.set(nodes=deployment.nodes.discard(node))
     node = node.transform(
         ['manifestations', dataset_id, 'dataset', 'maximum_size'],
@@ -1197,7 +1225,7 @@ def manifestations_from_deployment(deployment, dataset_id):
     :return: Iterable returning all manifestations of the supplied
         ``dataset_id``.
     """
-    for node in deployment.nodes:
+    for node in deployment.nodes.itervalues():
         if dataset_id in node.manifestations:
             yield node.manifestations[dataset_id], node
 
@@ -1215,7 +1243,7 @@ def datasets_from_deployment(deployment):
 
     :return: Iterable returning all datasets.
     """
-    for node in deployment.nodes:
+    for node in deployment.nodes.itervalues():
         if node.manifestations is None:
             continue
         for manifestation in node.manifestations.values():
@@ -1229,18 +1257,26 @@ def datasets_from_deployment(deployment):
                 )
 
 
-def containers_from_deployment(deployment):
+@lru_cache(1)
+def _containers_from_deployment(deployment):
     """
     Extract the containers from the supplied deployment instance.
+
+    N.B.: Callers of this function should not mutate the returned value as this
+    function uses an lru_cache (FLOC-4345 to clean up).
 
     :param Deployment deployment: A ``Deployment`` describing the state
         of the cluster.
 
-    :return: Iterable returning all containers.
+    :return: List of all containers.
     """
-    for node in deployment.nodes:
-        for application in node.applications:
-            yield container_configuration_response(application, node.uuid)
+    results = []
+    for node in deployment.nodes.itervalues():
+        for application in node.applications.values():
+            results.append(
+                container_configuration_response(application, node.uuid)
+            )
+    return results
 
 
 def container_configuration_response(application, node):

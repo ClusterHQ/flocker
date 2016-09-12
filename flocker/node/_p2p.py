@@ -70,7 +70,7 @@ class CreateDataset(PClass):
             maximum_size=self.dataset.maximum_size,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         volume = deployer.volume_service.get(
             name=_to_volume_name(self.dataset.dataset_id),
             size=VolumeSize(maximum_size=self.dataset.maximum_size)
@@ -94,7 +94,7 @@ class ResizeDataset(object):
             maximum_size=self.dataset.maximum_size,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         volume = deployer.volume_service.get(
             name=_to_volume_name(self.dataset.dataset_id),
             size=VolumeSize(maximum_size=self.dataset.maximum_size)
@@ -124,7 +124,7 @@ class HandoffDataset(object):
             hostname=self.hostname,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
         return service.handoff(
@@ -154,7 +154,7 @@ class PushDataset(object):
             hostname=self.hostname,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
         return service.push(
@@ -184,7 +184,7 @@ class DeleteDataset(PClass):
             dataset_id=self.dataset.dataset_id,
         )
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         service = deployer.volume_service
         d = service.enumerate()
 
@@ -219,7 +219,7 @@ class P2PManifestationDeployer(object):
         self.hostname = hostname
         self.volume_service = volume_service
 
-    def discover_state(self, cluster_state):
+    def discover_state(self, cluster_state, persistent_state):
         """
         Discover local ZFS manifestations.
         """
@@ -274,15 +274,15 @@ class P2PManifestationDeployer(object):
         better solution.
         """
         local_state = cluster_state.get_node(self.node_uuid)
-        # We need to know applications (for now) to see if we should delay
-        # deletion or handoffs. Eventually this will rely on leases instead.
-        if local_state.applications is None:
-            return sequentially(changes=[])
         phases = []
+
+        local_applications_vector = None
+        if local_state.applications:
+            local_applications_vector = local_state.applications.values()
 
         not_in_use_datasets = NotInUseDatasets(
             node_uuid=self.node_uuid,
-            local_applications=local_state.applications,
+            local_applications=local_applications_vector,
             leases=configuration.leases,
         )
 
@@ -347,18 +347,22 @@ def find_dataset_changes(uuid, current_state, desired_state):
          order to match desired configuration.
     """
     uuid_to_hostnames = {node.uuid: node.hostname
-                         for node in current_state.nodes}
+                         for node in current_state.nodes.values()}
     desired_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             in node.manifestations.values())
-                        for node in desired_state.nodes}
+                        for node in desired_state.nodes.values()}
     current_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             # We pretend ignorance is equivalent to no
                             # datasets; this is wrong. See FLOC-2060.
                             in (node.manifestations or {}).values())
-                        for node in current_state.nodes}
-    local_desired_datasets = desired_datasets.get(uuid, set())
+                        for node in current_state.nodes.values()}
+
+    local_desired_datasets = set(
+        dataset for dataset in desired_datasets.get(uuid, set())
+        if dataset.deleted is False
+    )
     local_desired_dataset_ids = set(dataset.dataset_id for dataset in
                                     local_desired_datasets)
     local_current_dataset_ids = set(dataset.dataset_id for dataset in
@@ -411,6 +415,7 @@ def find_dataset_changes(uuid, current_state, desired_state):
                    if dataset.dataset_id in creating_dataset_ids)
 
     deleting = set(dataset for dataset in chain(*desired_datasets.values())
-                   if dataset.deleted)
+                   if dataset.deleted
+                   and dataset.dataset_id in local_current_dataset_ids)
     return DatasetChanges(going=going, deleting=deleting,
                           creating=creating, resizing=resizing)

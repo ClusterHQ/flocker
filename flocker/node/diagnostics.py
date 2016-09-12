@@ -31,26 +31,17 @@ def gzip_file(source_path, archive_path):
                 copyfileobj(source, archive)
 
 
-def list_hardware(classes=()):
+def list_hardware():
     """
     List the hardware on the local machine.
 
-    :param classes: iterable of hardware classes to include in result.
-        Default is to include all classes.
     :returns: ``bytes`` JSON encoded hardware inventory of the current host.
     """
-    command = ['lshw', '-quiet', '-json']
-    for hardware_class in classes:
-        command.append('-class')
-        command.append(hardware_class)
     with open(os.devnull, 'w') as devnull:
-        result = check_output(command, stderr=devnull)
-        if classes:
-            # If classes are named, the result is a sequence of JSON objects,
-            # which need to be wrapped in a JSON array.  Also has a trailing
-            # comma which is invalid JSON.
-            result = '[{}]\n'.format(result.rstrip().rstrip(','))
-        return result
+        return check_output(
+            ['lshw', '-quiet', '-json'],
+            stderr=devnull
+        )
 
 
 class FlockerDebugArchive(object):
@@ -315,6 +306,12 @@ DISTRIBUTIONS = (
         version=u'14.04',
         service_manager=UpstartServiceManager,
         log_exporter=UpstartLogExporter,
+    ),
+    Distribution(
+        name=u'ubuntu',
+        version=u'16.04',
+        service_manager=SystemdServiceManager,
+        log_exporter=JournaldLogExporter,
     )
 )
 
@@ -330,7 +327,7 @@ def current_distribution():
     :returns: A ``str`` label for the operating system distribution running
         this script.
     """
-    name, version, nickname = platform_dist()
+    name, version, _ = platform_dist()
     return name.lower() + '-' + version
 
 

@@ -10,4 +10,4 @@ Contents:
    release-process
    release-schedule-versioning
    documentation
-   cloudformation
+   maintaining-cloudformation

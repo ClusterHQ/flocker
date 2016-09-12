@@ -2,9 +2,16 @@
 REST API Endpoints
 ==================
 
+Communicating with the API
+==========================
+
+* The API is available on port 4523 of the control service, using HTTPS.
+* The client should validate the identity of the server using standard TLS validation, using :file:`cluster.crt` as the CA certificate.
+* The client should authenticate to the server by using the :file:`api.key` and :file:`api.crt` files.
+
 .. _conditional requests:
 
-Conditional requests
+Conditional Requests
 ====================
 When using the API to create, delete or otherwise modify datasets you may wish to do so only if certain conditions apply.
 For example, the Docker plugin relies on a metadata field called ``name`` to locate which dataset to use.

@@ -9,6 +9,8 @@ from eliot.twisted import DeferredContext
 from twisted.internet.task import cooperate
 from twisted.internet.defer import Deferred, logError, maybeDeferred
 
+from flocker.common import gather_deferreds
+
 
 def bypass(result, func, *args, **kw):
     """
@@ -134,12 +136,25 @@ def driver(
         printing or storage.
     """
 
-    d = cluster.get_control_service(reactor).version()
+    control_service = cluster.get_control_service(reactor)
+    d = gather_deferreds([
+        control_service.version(),
+        control_service.list_nodes(),
+        control_service.list_containers_configuration(),
+        control_service.list_datasets_configuration(),
+    ])
 
-    def add_control_service(version, result):
+    def add_control_service(characteristics, result):
+        version = characteristics[0]
+        node_count = len(characteristics[1])
+        container_count = len(characteristics[2])
+        dataset_count = len(characteristics[3].datasets)
         result['control_service'] = dict(
             host=cluster.control_node_address().compressed,
             flocker_version=version[u"flocker"],
+            node_count=node_count,
+            container_count=container_count,
+            dataset_count=dataset_count,
         )
 
     d.addCallback(add_control_service, result)

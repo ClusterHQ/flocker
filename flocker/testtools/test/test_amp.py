@@ -4,8 +4,7 @@
 Tests for :module:`flocker.testtools.amp`.
 """
 
-from ..amp import FakeAMPClient, DelayedAMPClient
-from ...control.test.test_protocol import LoopbackAMPClient
+from ..amp import FakeAMPClient, DelayedAMPClient, LoopbackAMPClient
 
 from twisted.internet.error import ConnectionLost
 from twisted.protocols.amp import (

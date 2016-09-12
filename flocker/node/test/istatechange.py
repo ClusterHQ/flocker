@@ -100,7 +100,7 @@ class DummyStateChange(PClass):
     def eliot_action(self):
         return start_action(Logger(), u"flocker:tests:dummy_state_change")
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         return succeed(None)
 
 
@@ -114,6 +114,6 @@ class RunSpyStateChange(object):
     def eliot_action(self):
         return start_action(Logger(), u"flocker:tests:run_spy_state_change")
 
-    def run(self, deployer):
+    def run(self, deployer, state_persister):
         self.value += 1
         return succeed(None)

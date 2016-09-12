@@ -7,9 +7,12 @@ A loopback implementation of the ``IBlockDeviceAPI`` for testing.
 from uuid import UUID, uuid4
 from subprocess import check_output
 
+from bitmath import MiB
+
 from zope.interface import implementer
 
 from twisted.python.filepath import FilePath
+from twisted.python.components import proxyForInterface
 
 from .blockdevice import (
     BlockDeviceVolume,
@@ -20,6 +23,10 @@ from .blockdevice import (
     allocated_size,
     get_blockdevice_volume,
 )
+
+LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
+# Enough space for the ext4 journal:
+LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(16).to_Byte().value)
 
 
 def _blockdevicevolume_from_dataset_id(dataset_id, size,
@@ -76,7 +83,7 @@ def _losetup_list_parse(output):
         parts = line.split(u":", 2)
         if len(parts) != 3:
             continue
-        device_file, attributes, backing_file = parts
+        device_file, _, backing_file = parts
         device_file = FilePath(device_file.strip().encode("utf-8"))
 
         # Trim everything from the first left bracket, skipping over the
@@ -404,3 +411,21 @@ class LoopbackBlockDeviceAPI(object):
             self._allocate_device(volume_path)
             path = _device_for_path(volume_path)
         return path
+
+
+class EventuallyConsistentBlockDeviceAPI(
+    proxyForInterface(IBlockDeviceAPI, "_original")
+):
+    """
+    IBlockDeivceAPI implementation that provides delayed results about volumes.
+    """
+
+    def __init__(self, _original):
+        super(EventuallyConsistentBlockDeviceAPI, self).__init__(_original)
+        self.cached_volumes = [[], []]
+
+    def list_volumes(self):
+        self.cached_volumes.append(
+            self._original.list_volumes()
+        )
+        return self.cached_volumes.pop(0)

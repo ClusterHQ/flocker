@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+"""
+Publish Installer images.
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+if __name__ == '__main__':
+    from twisted.internet.task import react
+    from admin.installer import publish_installer_images_main as main
+    react(main, (sys.argv[1:], BASEPATH, TOPLEVEL))
