@@ -33,7 +33,6 @@ python-novaclient
 oauth2client < 2.0.0
 # XXX This is here to ensure that buildbot installs a version of pip and
 # setuptools capable of parsing pkg_resources environment markers
-# e.g. nomenclature; sys_platform==linux2 (FLOC-4429)
 pip >= 8.1.2
 pyOpenSSL
 psutil
