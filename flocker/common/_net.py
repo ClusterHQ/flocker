@@ -29,7 +29,7 @@ def get_all_ips():
     """
     Find all IPs for this machine.
 
-    :return: ``set`` of IP addresses (``bytes``).
+    :return: ``set`` of IP addresses (``IPAddress``).
     """
     ips = set()
     interfaces = netifaces.interfaces()

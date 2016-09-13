@@ -380,6 +380,31 @@ def _extract_nova_server_addresses(addresses):
     return all_addresses
 
 
+def _get_compute_id(local_ips, id_to_node_ips):
+    """
+    Compute the instance ID of the local machine.
+
+    Expectation is that our local IPs intersect with one (only) of the
+    remote nodes' sets of IPs.
+
+    :param set local_ips: The local machine's IPs.
+    :param id_to_node_ips: Mapping from instance IDs to sets of IPs, as
+        reported by OpenStack.
+
+    :return: Instance ID of local machine.
+    """
+    matching_instances = []
+    for server_id, api_addresses in id_to_node_ips.items():
+        if api_addresses.intersection(local_ips):
+            matching_instances.append(server_id)
+
+    # If we've got this correct there should only be one matching instance.
+    # But we don't currently test this directly. See FLOC-2281.
+    if len(matching_instances) == 1 and matching_instances[0]:
+        return matching_instances[0]
+    raise KeyError("Couldn't find matching node.")
+
+
 def _nova_detach(nova_volume_manager, cinder_volume_manager,
                  server_id, cinder_volume):
     """
@@ -464,31 +489,25 @@ class CinderBlockDeviceAPI(object):
         """
         local_ips = get_all_ips()
         api_ip_map = {}
-        matching_instances = []
+        id_to_node_ips = {}
         for server in self.nova_server_manager.list():
             # Servers which are not active will not have any IP addresses
             if server.status != u'ACTIVE':
                 continue
             api_addresses = _extract_nova_server_addresses(server.addresses)
-            # Only do subset comparison if there were *some* IP addresses;
-            # non-ACTIVE servers will have an empty list of IP addresses and
-            # lead to incorrect matches.
-            if api_addresses and api_addresses.issubset(local_ips):
-                matching_instances.append(server.id)
-            else:
-                for ip in api_addresses:
-                    api_ip_map[ip] = server.id
+            id_to_node_ips[server.id] = api_addresses
+            for ip in api_addresses:
+                api_ip_map[ip] = server.id
 
-        # If we've got this correct there should only be one matching instance.
-        # But we don't currently test this directly. See FLOC-2281.
-        if len(matching_instances) == 1 and matching_instances[0]:
-            return matching_instances[0]
-        # If there was no match, or if multiple matches were found, log an
-        # error containing all the local and remote IPs.
-        COMPUTE_INSTANCE_ID_NOT_FOUND(
-            local_ips=local_ips, api_ips=api_ip_map
-        ).write()
-        raise UnknownInstanceID(self)
+        try:
+            return _get_compute_id(local_ips, id_to_node_ips)
+        except KeyError:
+            # If there was no match, or if multiple matches were found, log an
+            # error containing all the local and remote IPs.
+            COMPUTE_INSTANCE_ID_NOT_FOUND(
+                local_ips=local_ips, api_ips=api_ip_map
+            ).write()
+            raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):
         """
