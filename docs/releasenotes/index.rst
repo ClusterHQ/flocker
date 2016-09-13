@@ -9,8 +9,8 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-Next Release
-============
+v.1.15.0
+========
 * ``flocker-container-agent``, which has been deprecated since Flocker 1.10.1, no longer manipulates ``iptables`` firewall rules.
   It will no longer create firewall rules to allow access to ports which have been exposed on Docker containers that it starts.
   And it will no longer maintain NAT routing rules to allow access to exposed ports from other nodes in the cluster.
