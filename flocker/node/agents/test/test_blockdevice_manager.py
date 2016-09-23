@@ -12,11 +12,12 @@ from testtools.matchers import Not, FileExists
 from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase, random_name, if_root
-
+from ....common.process import run_process
 from ..blockdevice_manager import (
     BindMountError,
     BlockDeviceManager,
     IBlockDeviceManager,
+    LabelMounter,
     MakeFilesystemError,
     MakeTmpfsMountError,
     MountError,
@@ -409,3 +410,31 @@ class TemporaryMountTests(TestCase):
             )
         self.assertFalse(mounts[1].mountpoint.exists())
         self.assertNotEqual(*mounts)
+
+
+class LabelMounterTests(TestCase):
+    """
+    Tests for ``LabelMounter``.
+    """
+    @if_root
+    def setUp(self):
+        super(LabelMounterTests, self).setUp()
+        self.device = formatted_loopback_device_for_test(self)
+        self.label = random_name(self)[-16:]
+        run_process(['tune2fs', '-L', self.label, self.device.device.path])
+
+    def test_success(self):
+        """
+        ``LabelMounter`` can mount a filesystem based on its LABEL.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mountpoint1 = self.make_temporary_directory()
+        with LabelMounter(label=self.label).mount(mountpoint1):
+            mountpoint1.child(filename).setContent(filecontent)
+        mountpoint2 = self.make_temporary_directory()
+        with LabelMounter(label=self.label).mount(mountpoint2):
+            self.assertEqual(
+                filecontent,
+                mountpoint2.child(filename).getContent()
+            )

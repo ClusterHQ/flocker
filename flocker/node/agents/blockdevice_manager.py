@@ -326,13 +326,55 @@ def _unmount(mountpoint, idempotent=False):
             raise
 
 
+class IMounter(Interface):
+    """
+    An interface for different device descriptions that can be passed to the
+    ``mount`` command.
+    """
+    def mount(mountpoint):
+        """
+        Mount a filesystem at ``mountpoint``.
+        """
+
+
+@implementer(IMounter)
+class FileMounter(PClass):
+    """
+    Mount a device by path.
+    """
+    device = field(type=FilePath)
+
+    def mount(self, mountpoint):
+        run_process(['mount', self.device.path, mountpoint.path])
+        return MountedFileSystem(
+            mountpoint=mountpoint
+        )
+
+
+@implementer(IMounter)
+class LabelMounter(PClass):
+    """
+    Mount a device by LABEL.
+    """
+    label = field(type=unicode)
+
+    def mount(self, mountpoint):
+        run_process([
+            'mount',
+            'LABEL=%s' % (self.label.encode('ascii'),),
+            mountpoint.path,
+        ])
+        return MountedFileSystem(
+            mountpoint=mountpoint
+        )
+
+
 class MountedFileSystem(PClass):
     """
     Represents a mounted filesystem which can be unmounted.
     If used as a context manager, the filesystem will be unmounted on __exit__.
     """
-    device = field(type=FilePath)
-    mountpoint = field(type=FilePath)
+    mountpoint = field(type=(FilePath, _TemporaryPath))
 
     def unmount(self, idempotent=False):
         _unmount(self.mountpoint, idempotent=idempotent)
@@ -344,29 +386,31 @@ class MountedFileSystem(PClass):
         self.unmount()
 
 
-def mount(device, mountpoint, return_type=MountedFileSystem):
+def mount(device, mountpoint):
     """
     Mount the device at mountpoint.
 
     :returns: a ``MountedFileSystem``
     """
-    run_process(['mount', device.path, mountpoint.path])
-    return return_type(
-        device=device,
+    FileMounter(device=device).mount(mountpoint)
+    return MountedFileSystem(
         mountpoint=mountpoint,
     )
 
 
 class TemporaryMountedFileSystem(PClass):
-    device = field(type=FilePath)
-    mountpoint = field(type=_TemporaryPath)
+    fs = field(type=MountedFileSystem)
+
+    @property
+    def mountpoint(self):
+        return self.fs.mountpoint
 
     def unmount(self, idempotent=False):
-        _unmount(self.mountpoint, idempotent=idempotent)
-        if idempotent and not self.mountpoint.exists():
+        _unmount(self.fs.mountpoint, idempotent=idempotent)
+        if idempotent and not self.fs.mountpoint.exists():
             pass
         else:
-            self.mountpoint.remove()
+            self.fs.mountpoint.remove()
 
     def __enter__(self):
         return self
@@ -377,4 +421,5 @@ class TemporaryMountedFileSystem(PClass):
 
 def temporary_mount(device):
     mountpoint = temporary_directory()
-    return mount(device, mountpoint, return_type=TemporaryMountedFileSystem)
+    fs = mount(device, mountpoint)
+    return TemporaryMountedFileSystem(fs=fs)
