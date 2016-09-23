@@ -67,6 +67,9 @@ class _TemporaryPath(proxyForInterface(IFilePath, "_path")):
     def __exit__(self, exc_type, exc_value, traceback):
         self.remove()
 
+    def __repr__(self):
+        return repr(self._path)
+
 
 def temporary_directory(parent_path=None):
     """

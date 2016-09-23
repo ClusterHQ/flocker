@@ -18,6 +18,8 @@ from twisted.python.constants import ValueConstant, Values
 from characteristic import attributes
 
 from ...common.process import run_process
+from ...common import temporary_directory
+from ...common._filepath import _TemporaryPath
 
 
 class Permissions(Values):
@@ -309,6 +311,21 @@ class BlockDeviceManager(PClass):
                                       source_message=e.output)
 
 
+def _unmount(mountpoint, idempotent=False):
+    """
+    Unmount the mountpoint.
+    """
+    try:
+        run_process(
+            ['umount', '--lazy', mountpoint.path],
+        )
+    except CalledProcessError as e:
+        if idempotent and e.returncode == 32:
+            pass
+        else:
+            raise
+
+
 class MountedFileSystem(PClass):
     """
     Represents a mounted filesystem which can be unmounted.
@@ -318,18 +335,7 @@ class MountedFileSystem(PClass):
     mountpoint = field(type=FilePath)
 
     def unmount(self, idempotent=False):
-        """
-        Unmount the mountpoint.
-        """
-        try:
-            run_process(
-                ['umount', '--lazy', self.mountpoint.path],
-            )
-        except CalledProcessError as e:
-            if idempotent and e.returncode == 32:
-                pass
-            else:
-                raise
+        _unmount(self.mountpoint, idempotent=idempotent)
 
     def __enter__(self):
         return self
@@ -338,14 +344,37 @@ class MountedFileSystem(PClass):
         self.unmount()
 
 
-def mount(device, mountpoint):
+def mount(device, mountpoint, return_type=MountedFileSystem):
     """
     Mount the device at mountpoint.
 
     :returns: a ``MountedFileSystem``
     """
     run_process(['mount', device.path, mountpoint.path])
-    return MountedFileSystem(
+    return return_type(
         device=device,
         mountpoint=mountpoint,
     )
+
+
+class TemporaryMountedFileSystem(PClass):
+    device = field(type=FilePath)
+    mountpoint = field(type=_TemporaryPath)
+
+    def unmount(self, idempotent=False):
+        _unmount(self.mountpoint, idempotent=idempotent)
+        if idempotent and not self.mountpoint.exists():
+            pass
+        else:
+            self.mountpoint.remove()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.unmount()
+
+
+def temporary_mount(device):
+    mountpoint = temporary_directory()
+    return mount(device, mountpoint, return_type=TemporaryMountedFileSystem)

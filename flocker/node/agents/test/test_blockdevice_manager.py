@@ -23,6 +23,7 @@ from ..blockdevice_manager import (
     MountInfo,
     Permissions,
     RemountError,
+    temporary_mount,
     mount,
     UnmountError,
 )
@@ -260,6 +261,21 @@ class BlockDeviceManagerTests(TestCase):
             self.manager_under_test.make_tmpfs_mount(non_existent)
 
 
+def formatted_loopback_device_for_test(test_case):
+    losetup = Losetup()
+    backing_file = test_case.make_temporary_file()
+    with backing_file.open('wb') as f:
+        f.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
+    device = losetup.add(backing_file=backing_file)
+    test_case.addCleanup(device.remove)
+    bdm = BlockDeviceManager()
+    bdm.make_filesystem(
+        blockdevice=device.device,
+        filesystem=u"ext4"
+    )
+    return device
+
+
 class MountTests(TestCase):
     """
     Tests for ``mount``.
@@ -267,19 +283,7 @@ class MountTests(TestCase):
     @if_root
     def setUp(self):
         super(MountTests, self).setUp()
-        losetup = Losetup()
-        backing_file = self.make_temporary_file()
-        with backing_file.open('wb') as f:
-            f.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
-        self.device = losetup.add(
-            backing_file=backing_file
-        )
-        self.addCleanup(self.device.remove)
-        self.bdm = BlockDeviceManager()
-        self.bdm.make_filesystem(
-            blockdevice=self.device.device,
-            filesystem=u"ext4"
-        )
+        self.device = formatted_loopback_device_for_test(self)
 
     def test_success(self):
         """
@@ -349,3 +353,59 @@ class MountTests(TestCase):
             self.assertEqual([], mountpoint.children())
         else:
             self.fail("The expected ``SomeException`` was not raised.")
+
+
+class TemporaryMountTests(TestCase):
+    """
+    Tests for ``temporary_mount``.
+    """
+    @if_root
+    def setUp(self):
+        super(TemporaryMountTests, self).setUp()
+        self.device = formatted_loopback_device_for_test(self)
+
+    def test_success(self):
+        """
+        ``temporary_mount`` mounts the supplied device at a temporary
+        directory.
+        The temporary directory is removed when it is unmounted.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        fs1 = temporary_mount(self.device.device)
+        self.addCleanup(fs1.unmount, idempotent=True)
+        fs1.mountpoint.child(filename).setContent(filecontent)
+        fs2 = temporary_mount(self.device.device)
+        self.addCleanup(fs2.unmount, idempotent=True)
+        self.assertEqual(
+            filecontent,
+            fs2.mountpoint.child(filename).getContent()
+        )
+        fs1.unmount()
+        fs2.unmount()
+        self.assertEqual(
+            (False, False),
+            (fs1.mountpoint.exists(), fs2.mountpoint.exists())
+        )
+
+    def test_context_manager(self):
+        """
+        ``temporary_mount`` when used as a context manager will unmount and
+        remove the temporary mountpoint on context exit.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mounts = []
+        with temporary_mount(self.device.device) as fs:
+            mounts.append(fs)
+            fs.mountpoint.child(filename).setContent(filecontent)
+        self.assertFalse(mounts[0].mountpoint.exists())
+
+        with temporary_mount(self.device.device) as fs:
+            mounts.append(fs)
+            self.assertEqual(
+                filecontent,
+                fs.mountpoint.child(filename).getContent()
+            )
+        self.assertFalse(mounts[1].mountpoint.exists())
+        self.assertNotEqual(*mounts)
