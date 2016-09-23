@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 from subprocess import check_output
 
 from bitmath import MiB
-
+from pyrsistent import PClass, field
 from zope.interface import implementer
 
 from twisted.python.filepath import FilePath
@@ -23,6 +23,7 @@ from .blockdevice import (
     allocated_size,
     get_blockdevice_volume,
 )
+from ...common.process import run_process
 
 LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
 # Enough space for the ext4 journal:
@@ -163,6 +164,36 @@ def _backing_file_name(volume):
         ``volume.blockdevice_id`` and ``volume.size``.
     """
     return volume.blockdevice_id.encode('ascii') + '_' + bytes(volume.size)
+
+
+class LoopDevice(PClass):
+    device = field(type=FilePath)
+    backing_file = field(type=FilePath)
+
+    def remove(self):
+        run_process(
+            [b"losetup", b"--detach", self.device.path],
+        )
+
+
+class Losetup(object):
+    def list(self):
+        return list(
+            LoopDevice(
+                device=device,
+                backing_file=backing_file
+            )
+            for device, backing_file in _losetup_list()
+        )
+
+    def add(self, backing_file):
+        result = run_process(
+            [b"losetup", b"--find", b"--show", backing_file.path],
+        )
+        return LoopDevice(
+            device=FilePath(result.output.rstrip()),
+            backing_file=backing_file,
+        )
 
 
 @implementer(IBlockDeviceAPI)
