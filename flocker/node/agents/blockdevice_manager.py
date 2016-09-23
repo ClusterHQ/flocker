@@ -5,7 +5,6 @@
 Interactions between the OS pertaining to block devices.
 This controls actions such as formatting and mounting a blockdevice.
 """
-
 import psutil
 from subprocess import CalledProcessError
 
@@ -308,3 +307,45 @@ class BlockDeviceManager(PClass):
         except CalledProcessError as e:
             raise MakeTmpfsMountError(mountpoint=mountpoint,
                                       source_message=e.output)
+
+
+class MountedFileSystem(PClass):
+    """
+    Represents a mounted filesystem which can be unmounted.
+    If used as a context manager, the filesystem will be unmounted on __exit__.
+    """
+    device = field(type=FilePath)
+    mountpoint = field(type=FilePath)
+
+    def unmount(self, idempotent=False):
+        """
+        Unmount the mountpoint.
+        """
+        try:
+            run_process(
+                ['umount', '--lazy', self.mountpoint.path],
+            )
+        except CalledProcessError as e:
+            if idempotent and e.returncode == 32:
+                pass
+            else:
+                raise
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.unmount()
+
+
+def mount(device, mountpoint):
+    """
+    Mount the device at mountpoint.
+
+    :returns: a ``MountedFileSystem``
+    """
+    run_process(['mount', device.path, mountpoint.path])
+    return MountedFileSystem(
+        device=device,
+        mountpoint=mountpoint,
+    )

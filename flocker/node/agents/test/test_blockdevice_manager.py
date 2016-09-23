@@ -3,7 +3,7 @@
 """
 Tests for ``flocker.node.agents.blockdevice_manager``.
 """
-
+from subprocess import CalledProcessError
 from uuid import uuid4
 
 from testtools import ExpectedException
@@ -11,7 +11,7 @@ from testtools.matchers import Not, FileExists
 
 from zope.interface.verify import verifyObject
 
-from ....testtools import TestCase
+from ....testtools import TestCase, random_name, if_root
 
 from ..blockdevice_manager import (
     BindMountError,
@@ -23,9 +23,10 @@ from ..blockdevice_manager import (
     MountInfo,
     Permissions,
     RemountError,
+    mount,
     UnmountError,
 )
-from ..loopback import LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
+from ..loopback import Losetup, LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
 from ..testtools import (
     loopbackblockdeviceapi_for_test,
     mountroot_for_test,
@@ -257,3 +258,94 @@ class BlockDeviceManagerTests(TestCase):
         non_existent = self._get_directory_for_mount().child('non_existent')
         with ExpectedException(MakeTmpfsMountError, '.*non_existent.*'):
             self.manager_under_test.make_tmpfs_mount(non_existent)
+
+
+class MountTests(TestCase):
+    """
+    Tests for ``mount``.
+    """
+    @if_root
+    def setUp(self):
+        super(MountTests, self).setUp()
+        losetup = Losetup()
+        backing_file = self.make_temporary_file()
+        with backing_file.open('wb') as f:
+            f.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
+        self.device = losetup.add(
+            backing_file=backing_file
+        )
+        self.addCleanup(self.device.remove)
+        self.bdm = BlockDeviceManager()
+        self.bdm.make_filesystem(
+            blockdevice=self.device.device,
+            filesystem=u"ext4"
+        )
+
+    def test_success(self):
+        """
+        ``mount`` mounts the supplied device and returns a
+        ``MountedFileSystem`` that can be unmounted.
+        ``MountedFileSystem.unmount`` can be idempotent.
+        The files added to mountpoint are stored on the filesystem rather than
+        in the mountpoint directory.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mountpoint1 = self.make_temporary_directory()
+        fs1 = mount(self.device.device, mountpoint1)
+        # This succeeds even though the fs has already been unmounted below.
+        self.addCleanup(fs1.unmount, idempotent=True)
+        fs1.mountpoint.child(filename).setContent(filecontent)
+        fs1.unmount()
+        # ``unmount`` will fail unless the mountpoint is mounted or you specify
+        # idempotent=True
+        self.assertRaises(CalledProcessError, fs1.unmount)
+
+        self.assertEqual([], mountpoint1.children())
+        mountpoint2 = self.make_temporary_directory()
+        fs2 = mount(self.device.device, mountpoint2)
+        self.addCleanup(fs2.unmount, idempotent=True)
+        self.assertEqual(
+            filecontent,
+            fs2.mountpoint.child(filename).getContent()
+        )
+
+    def test_context_manager(self):
+        """
+        When used as a context manager, the filesystem is unmounted on exiting
+        the context.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mountpoint = self.make_temporary_directory()
+        with mount(self.device.device, mountpoint) as fs:
+            self.addCleanup(fs.unmount, idempotent=True)
+            mountpoint.child(filename).setContent(filecontent)
+        self.assertEqual([], mountpoint.children())
+        with mount(self.device.device, mountpoint) as fs:
+            self.addCleanup(fs.unmount, idempotent=True)
+            self.assertEqual(
+                filecontent,
+                mountpoint.child(filename).getContent()
+            )
+
+    def test_context_manager_error(self):
+        """
+        When used as a context manager, the filesystem is unmounted even if
+        exceptions are raised.
+        """
+        class SomeException(Exception):
+            pass
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mountpoint = self.make_temporary_directory()
+        try:
+            with mount(self.device.device, mountpoint) as fs:
+                self.addCleanup(fs.unmount, idempotent=True)
+                with fs.mountpoint.child(filename).open('w') as f:
+                    f.write(filecontent)
+                raise SomeException()
+        except SomeException:
+            self.assertEqual([], mountpoint.children())
+        else:
+            self.fail("The expected ``SomeException`` was not raised.")
