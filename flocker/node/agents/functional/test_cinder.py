@@ -4,7 +4,7 @@
 Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
 cluster.
 """
-
+import errno
 from unittest import skipIf
 from urlparse import urlsplit
 from uuid import uuid4
@@ -35,14 +35,21 @@ from ..testtools import (
     make_icloudapi_tests,
     mimic_for_test,
     require_backend,
+    formatted_loopback_device_for_test,
 )
-from ....testtools import AsyncTestCase, TestCase, flaky, run_process
+from ....testtools import (
+    AsyncTestCase,
+    TestCase,
+    flaky,
+    random_name,
+    run_process,
+)
 from ....testtools.cluster_utils import make_cluster_id, TestTypes
 
 from ..cinder import (
     get_keystone_session, wait_for_volume_state, UnexpectedStateException,
     UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
-    lazy_loading_proxy_for_interface,
+    lazy_loading_proxy_for_interface, config_drive,
 )
 from ...script import get_api
 from ...backends import backend_and_api_args_from_configuration
@@ -893,3 +900,38 @@ class CinderFromConfigurationTests(AsyncTestCase):
             )
         )
         return d
+
+
+class ConfigDriveTests(TestCase):
+    """
+    Tests for ``config_drive``.
+    """
+    def setUp(self):
+        super(ConfigDriveTests, self).setUp()
+        self.label = random_name(self)[-16:]
+        self.device = formatted_loopback_device_for_test(
+            self,
+            label=self.label,
+        )
+
+    def test_not_found(self):
+        """
+        ``config_drive`` yields ``None`` if the config drive cannot be mounted.
+        """
+        non_existent_label = random_name(self)[-16:]
+        with config_drive(label=non_existent_label) as mountpoint:
+            self.assertIs(None, mountpoint)
+
+    def test_readonly(self):
+        """
+        ``config_drive`` is mounted readonly.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        with config_drive(label=self.label) as mountpoint:
+            e = self.assertRaises(
+                OSError,
+                mountpoint.child(filename).setContent,
+                filecontent
+            )
+            self.assertEqual(errno.EROFS, e.errno)

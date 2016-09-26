@@ -337,6 +337,14 @@ class IMounter(Interface):
         """
 
 
+def _mount(device, mountpoint, mount_options):
+    command = ["mount"]
+    if mount_options:
+        command.extend(["--options", ",".join(mount_options)])
+    command.extend([device, mountpoint])
+    run_process(command)
+
+
 @implementer(IMounter)
 class FileMounter(PClass):
     """
@@ -344,9 +352,9 @@ class FileMounter(PClass):
     """
     device = field(type=FilePath)
 
-    def mount(self, mountpoint):
+    def mount(self, mountpoint, options=None):
         try:
-            run_process(['mount', self.device.path, mountpoint.path])
+            _mount(self.device.path, mountpoint.path, options)
         except CalledProcessError as e:
             raise MountError(
                 blockdevice=self.device,
@@ -366,13 +374,13 @@ class LabelMounter(PClass):
     """
     label = field(type=unicode)
 
-    def mount(self, mountpoint):
+    def mount(self, mountpoint, options=None):
         try:
-            run_process([
-                'mount',
+            _mount(
                 'LABEL=%s' % (self.label.encode('ascii'),),
                 mountpoint.path,
-            ])
+                options,
+            )
         except CalledProcessError as e:
             raise MountError(
                 blockdevice=FilePath("/dev/disk/by-label").child(self.label),

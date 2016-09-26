@@ -4,7 +4,9 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
+from contextlib import contextmanager
 from itertools import repeat
+import json
 import time
 from uuid import UUID
 
@@ -35,12 +37,13 @@ from zope.interface import implementer, Interface
 
 from ...common import (
     interface_decorator, get_all_ips, ipaddress_from_string,
-    poll_until,
+    poll_until, temporary_directory,
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, UnknownInstanceID, get_blockdevice_volume, ICloudAPI,
 )
+from .blockdevice_manager import LabelMounter, MountError
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
     OPENSTACK_ACTION, CINDER_CREATE
@@ -59,6 +62,31 @@ CINDER_TIMEOUT = 600
 
 # The longest time we're willing to wait for a Cinder volume to be destroyed
 CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
+
+CONFIG_DRIVE_LABEL = u"config-2"
+
+
+@contextmanager
+def config_drive(label=CONFIG_DRIVE_LABEL):
+    mountpoint = temporary_directory()
+    mounter = LabelMounter(label=label)
+    fs = None
+    try:
+        fs = mounter.mount(mountpoint, options=["ro"])
+    except MountError as e:
+        Message.new(
+            message_type=(
+                u"flocker:node:agents:blockdevice:openstack:"
+                u"compute_instance_id:configdrive_not_available"),
+            error_message=unicode(e),
+        ).write()
+        yield
+    else:
+        yield mountpoint
+    finally:
+        if fs:
+            fs.unmount()
+        mountpoint.remove()
 
 
 def _openstack_logged_method(method_name, original_name):
@@ -462,6 +490,25 @@ class CinderBlockDeviceAPI(object):
         Find the ``ACTIVE`` Nova API server with a subset of the IPv4 and IPv6
         addresses on this node.
         """
+        # Try config drive
+        with config_drive() as mountpoint:
+            if mountpoint:
+                metadata_file = mountpoint.descendant(
+                    ['openstack', 'latest', 'meta_data.json']
+                )
+                try:
+                    content = metadata_file.getContent()
+                except IOError as e:
+                    Message.new(
+                        message_type=(
+                            u"flocker:node:agents:blockdevice:openstack:"
+                            u"compute_instance_id:metadata_file_not_found"),
+                        error_message=unicode(e),
+                    ).write()
+                    return
+                metadata = json.loads(content)
+                return metadata["uuid"]
+
         local_ips = get_all_ips()
         api_ip_map = {}
         matching_instances = []

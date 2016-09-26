@@ -29,12 +29,14 @@ from ._blockdevice import (
 from ._loopback import (
     fakeprofiledloopbackblockdeviceapi_for_test,
     loopbackblockdeviceapi_for_test,
+    formatted_loopback_device_for_test,
 )
 __all__ = [
     'FakeCloudAPI',
     'InvalidConfig',
     'detach_destroy_volumes',
     'fakeprofiledloopbackblockdeviceapi_for_test',
+    'formatted_loopback_device_for_test',
     'get_blockdevice_config',
     'get_blockdeviceapi_with_cleanup',
     'get_ec2_client_for_test',

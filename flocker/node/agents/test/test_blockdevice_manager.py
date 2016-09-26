@@ -12,7 +12,8 @@ from testtools.matchers import Not, FileExists
 from zope.interface.verify import verifyObject
 
 from ....testtools import TestCase, random_name, if_root
-from ....common.process import run_process
+
+from ..loopback import LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
 from ..blockdevice_manager import (
     BindMountError,
     BlockDeviceManager,
@@ -28,10 +29,10 @@ from ..blockdevice_manager import (
     mount,
     UnmountError,
 )
-from ..loopback import Losetup, LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
 from ..testtools import (
     loopbackblockdeviceapi_for_test,
     mountroot_for_test,
+    formatted_loopback_device_for_test,
 )
 
 
@@ -262,21 +263,6 @@ class BlockDeviceManagerTests(TestCase):
             self.manager_under_test.make_tmpfs_mount(non_existent)
 
 
-def formatted_loopback_device_for_test(test_case):
-    losetup = Losetup()
-    backing_file = test_case.make_temporary_file()
-    with backing_file.open('wb') as f:
-        f.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
-    device = losetup.add(backing_file=backing_file)
-    test_case.addCleanup(device.remove)
-    bdm = BlockDeviceManager()
-    bdm.make_filesystem(
-        blockdevice=device.device,
-        filesystem=u"ext4"
-    )
-    return device
-
-
 class MountTests(TestCase):
     """
     Tests for ``mount``.
@@ -419,10 +405,10 @@ class LabelMounterTests(TestCase):
     @if_root
     def setUp(self):
         super(LabelMounterTests, self).setUp()
-        self.device = formatted_loopback_device_for_test(self)
-        # Assign a 16 byte label to the FS.
         self.label = random_name(self)[-16:]
-        run_process(['tune2fs', '-L', self.label, self.device.device.path])
+        self.device = formatted_loopback_device_for_test(
+            self, label=self.label
+        )
 
     def test_success(self):
         """
