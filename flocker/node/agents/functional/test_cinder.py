@@ -45,7 +45,7 @@ from ....testtools import (
     run_process,
 )
 from ....testtools.cluster_utils import make_cluster_id, TestTypes
-
+from ..blockdevice_manager import temporary_mount
 from ..cinder import (
     get_keystone_session, wait_for_volume_state, UnexpectedStateException,
     UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
@@ -926,12 +926,22 @@ class ConfigDriveTests(TestCase):
         """
         ``config_drive`` is mounted readonly.
         """
-        filename = random_name(self)
+        filename1 = random_name(self)
+        filename2 = random_name(self)
         filecontent = random_name(self)
+        with temporary_mount(self.device.device) as fs:
+            fs.mountpoint.child(filename1).setContent(filecontent)
+
         with config_drive(label=self.label) as mountpoint:
+            # Read a file
+            self.assertEqual(
+                filecontent,
+                mountpoint.child(filename1).getContent()
+            )
+            # Fail to write a file.
             e = self.assertRaises(
                 OSError,
-                mountpoint.child(filename).setContent,
+                mountpoint.child(filename2).setContent,
                 filecontent
             )
             self.assertEqual(errno.EROFS, e.errno)

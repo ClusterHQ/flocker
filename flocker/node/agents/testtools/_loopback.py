@@ -102,5 +102,4 @@ def formatted_loopback_device_for_test(test_case, label=None):
     if label:
         # Assign a 16 byte label to the FS.
         run_process(['tune2fs', '-L', label, device.device.path])
-
     return device
