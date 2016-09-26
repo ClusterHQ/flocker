@@ -167,17 +167,31 @@ def _backing_file_name(volume):
 
 
 class LoopDevice(PClass):
+    """
+    A loopback device returned by ``Losetup`` operations.
+    """
     device = field(type=FilePath)
     backing_file = field(type=FilePath)
 
     def remove(self):
+        """
+        Detach this loopback device from its backing file.
+        """
         run_process(
             [b"losetup", b"--detach", self.device.path],
         )
 
 
 class Losetup(object):
+    """
+    Create and list loopback devices.
+    """
     def list(self):
+        """
+        List all loopback devices.
+
+        :returns: A ``list`` of ``LoopDevice``.
+        """
         return list(
             LoopDevice(
                 device=device,
@@ -187,6 +201,11 @@ class Losetup(object):
         )
 
     def add(self, backing_file):
+        """
+        Attach a loopback device to ``backing_file``.
+
+        :returns: A ``LoopDevice``.
+        """
         result = run_process(
             [b"losetup", b"--find", b"--show", backing_file.path],
         )
