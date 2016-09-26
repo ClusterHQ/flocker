@@ -345,7 +345,15 @@ class FileMounter(PClass):
     device = field(type=FilePath)
 
     def mount(self, mountpoint):
-        run_process(['mount', self.device.path, mountpoint.path])
+        try:
+            run_process(['mount', self.device.path, mountpoint.path])
+        except CalledProcessError as e:
+            raise MountError(
+                blockdevice=self.device,
+                mountpoint=mountpoint,
+                source_message=e.output,
+            )
+
         return MountedFileSystem(
             mountpoint=mountpoint
         )
@@ -359,11 +367,18 @@ class LabelMounter(PClass):
     label = field(type=unicode)
 
     def mount(self, mountpoint):
-        run_process([
-            'mount',
-            'LABEL=%s' % (self.label.encode('ascii'),),
-            mountpoint.path,
-        ])
+        try:
+            run_process([
+                'mount',
+                'LABEL=%s' % (self.label.encode('ascii'),),
+                mountpoint.path,
+            ])
+        except CalledProcessError as e:
+            raise MountError(
+                blockdevice=FilePath("/dev/disk/by-label").child(self.label),
+                mountpoint=mountpoint,
+                source_message=e.output,
+            )
         return MountedFileSystem(
             mountpoint=mountpoint
         )

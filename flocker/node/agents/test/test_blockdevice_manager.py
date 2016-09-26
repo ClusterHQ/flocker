@@ -420,6 +420,7 @@ class LabelMounterTests(TestCase):
     def setUp(self):
         super(LabelMounterTests, self).setUp()
         self.device = formatted_loopback_device_for_test(self)
+        # Assign a 16 byte label to the FS.
         self.label = random_name(self)[-16:]
         run_process(['tune2fs', '-L', self.label, self.device.device.path])
 
@@ -438,3 +439,17 @@ class LabelMounterTests(TestCase):
                 filecontent,
                 mountpoint2.child(filename).getContent()
             )
+
+    def test_label_not_found(self):
+        """
+        ``MountError`` is raised if the supplied filesystem label is not found.
+        """
+        non_existent_label = random_name(self)[-16:]
+        mountpoint1 = self.make_temporary_path()
+        mounter = LabelMounter(label=non_existent_label)
+        e = self.assertRaises(
+            MountError,
+            mounter.mount,
+            mountpoint1,
+        )
+        self.assertIn(non_existent_label, unicode(e))
