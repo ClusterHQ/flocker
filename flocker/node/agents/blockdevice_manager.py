@@ -8,7 +8,7 @@ This controls actions such as formatting and mounting a blockdevice.
 import psutil
 from subprocess import CalledProcessError
 
-from zope.interface import Interface, implementer
+from zope.interface import Attribute, Interface, implementer
 
 from pyrsistent import PClass, field
 
@@ -331,13 +331,20 @@ class IMounter(Interface):
     An interface for different device descriptions that can be passed to the
     ``mount`` command.
     """
-    def mount(mountpoint):
+    def mount(mountpoint, options=None):
         """
-        Mount a filesystem at ``mountpoint``.
+        Mount a filesystem at ``mountpoint`` with ``options``
+        :param FilePath mountpoint: The directory to use as mountpoint.
+        :param options: An optional list of mount --options arguments.
+        :returns: ``MountedFileSystem``
+        :raises: ``MountError`` if the device / filesystem could not be found.
         """
 
 
 def _mount(device, mountpoint, mount_options):
+    """
+    Invoke the ``mount`` command.
+    """
     command = ["mount"]
     if mount_options:
         command.extend(["--options", ",".join(mount_options)])
@@ -348,7 +355,7 @@ def _mount(device, mountpoint, mount_options):
 @implementer(IMounter)
 class FileMounter(PClass):
     """
-    Mount a device by path.
+    Mount a device by device file path.
     """
     device = field(type=FilePath)
 
@@ -392,11 +399,31 @@ class LabelMounter(PClass):
         )
 
 
-class MountedFileSystem(PClass):
+class IMountedFilesystem(Interface):
     """
     Represents a mounted filesystem which can be unmounted.
     If used as a context manager, the filesystem will be unmounted on __exit__.
     """
+    mountpoint = Attribute("A ``FilePath`` of the filesystem mountpoint.")
+
+    def unmount(idempotent=False):
+        """
+        Unmount this filesystem.
+        """
+
+    def __enter__():
+        """
+        Enter the context of a context manager.
+        """
+
+    def __exit__(exc_type, exc_value, traceback):
+        """
+        Exit the context of a context manager and unmount.
+        """
+
+
+@implementer(IMountedFilesystem)
+class MountedFileSystem(PClass):
     mountpoint = field(type=(FilePath, _TemporaryPath))
 
     def unmount(self, idempotent=False):
@@ -421,7 +448,12 @@ def mount(device, mountpoint):
     )
 
 
+@implementer(IMountedFilesystem)
 class TemporaryMountedFileSystem(PClass):
+    """
+    A wrapper around a ``MountedFileSystem`` which will remove the mountpoint
+    after the filesystem has been unmounted.
+    """
     fs = field(type=MountedFileSystem)
 
     @property
@@ -443,6 +475,10 @@ class TemporaryMountedFileSystem(PClass):
 
 
 def temporary_mount(device):
+    """
+    Mount the device at a temporary mountpoint.
+    The temporary mountpoint will be removed when the filesystem is unmounted.
+    """
     mountpoint = temporary_directory()
     fs = mount(device, mountpoint)
     return TemporaryMountedFileSystem(fs=fs)
