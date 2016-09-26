@@ -36,8 +36,9 @@ from twisted.python.components import proxyForInterface
 from zope.interface import implementer, Interface
 
 from ...common import (
-    interface_decorator, get_all_ips, ipaddress_from_string,
-    poll_until, temporary_directory,
+    interface_decorator,
+    poll_until,
+    temporary_directory,
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -45,7 +46,7 @@ from .blockdevice import (
 )
 from .blockdevice_manager import LabelMounter, MountError
 from ._logging import (
-    NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
+    NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR,
     OPENSTACK_ACTION, CINDER_CREATE
 )
 
@@ -390,24 +391,6 @@ def wait_for_volume_state(volume_manager, expected_volume, desired_state,
     return poll_until(waiter.reached_desired_state, repeat(1))
 
 
-def _extract_nova_server_addresses(addresses):
-    """
-    :param dict addresses: A ``dict`` mapping OpenStack network names
-        to lists of address dictionaries in that network assigned to a
-        server.
-    :return: A ``set`` of all the IPv4 and IPv6 addresses from the
-        ``addresses`` attribute of a ``Server``.
-    """
-    all_addresses = set()
-    for _, addresses in addresses.items():
-        for address_info in addresses:
-            all_addresses.add(
-                ipaddress_from_string(address_info['addr'])
-            )
-
-    return all_addresses
-
-
 def _nova_detach(nova_volume_manager, cinder_volume_manager,
                  server_id, cinder_volume):
     """
@@ -487,8 +470,7 @@ class CinderBlockDeviceAPI(object):
 
     def compute_instance_id(self):
         """
-        Find the ``ACTIVE`` Nova API server with a subset of the IPv4 and IPv6
-        addresses on this node.
+        Attempt to retrieve node UUID from the metadata in a config drive.
         """
         # Try config drive
         with config_drive() as mountpoint:
@@ -508,33 +490,6 @@ class CinderBlockDeviceAPI(object):
                     return
                 metadata = json.loads(content)
                 return metadata["uuid"]
-
-        local_ips = get_all_ips()
-        api_ip_map = {}
-        matching_instances = []
-        for server in self.nova_server_manager.list():
-            # Servers which are not active will not have any IP addresses
-            if server.status != u'ACTIVE':
-                continue
-            api_addresses = _extract_nova_server_addresses(server.addresses)
-            # Only do subset comparison if there were *some* IP addresses;
-            # non-ACTIVE servers will have an empty list of IP addresses and
-            # lead to incorrect matches.
-            if api_addresses and api_addresses.issubset(local_ips):
-                matching_instances.append(server.id)
-            else:
-                for ip in api_addresses:
-                    api_ip_map[ip] = server.id
-
-        # If we've got this correct there should only be one matching instance.
-        # But we don't currently test this directly. See FLOC-2281.
-        if len(matching_instances) == 1 and matching_instances[0]:
-            return matching_instances[0]
-        # If there was no match, or if multiple matches were found, log an
-        # error containing all the local and remote IPs.
-        COMPUTE_INSTANCE_ID_NOT_FOUND(
-            local_ips=local_ips, api_ips=api_ip_map
-        ).write()
         raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):
