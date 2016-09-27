@@ -65,6 +65,7 @@ CINDER_TIMEOUT = 600
 CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
 
 CONFIG_DRIVE_LABEL = u"config-2"
+METADATA_RELATIVE_PATH = ['openstack', 'latest', 'meta_data.json']
 
 
 @contextmanager
@@ -88,6 +89,36 @@ def config_drive(label=CONFIG_DRIVE_LABEL):
         if fs:
             fs.unmount()
         mountpoint.remove()
+
+
+def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
+    """
+    Attempt to retrieve metadata from config drive.
+    """
+    # Try config drive
+    with config_drive(label=config_drive_label) as mountpoint:
+        if mountpoint:
+            metadata_file = mountpoint.descendant(METADATA_RELATIVE_PATH)
+            try:
+                content = metadata_file.getContent()
+            except IOError as e:
+                Message.new(
+                    message_type=(
+                        u"flocker:node:agents:blockdevice:openstack:"
+                        u"compute_instance_id:metadata_file_not_found"),
+                    error_message=unicode(e),
+                ).write()
+                return
+            try:
+                return json.loads(content)
+            except ValueError as e:
+                Message.new(
+                    message_type=(
+                        u"flocker:node:agents:blockdevice:openstack:"
+                        u"compute_instance_id:metadata_file_not_json"),
+                    error_message=unicode(e),
+                ).write()
+                return
 
 
 def _openstack_logged_method(method_name, original_name):
@@ -472,24 +503,9 @@ class CinderBlockDeviceAPI(object):
         """
         Attempt to retrieve node UUID from the metadata in a config drive.
         """
-        # Try config drive
-        with config_drive() as mountpoint:
-            if mountpoint:
-                metadata_file = mountpoint.descendant(
-                    ['openstack', 'latest', 'meta_data.json']
-                )
-                try:
-                    content = metadata_file.getContent()
-                except IOError as e:
-                    Message.new(
-                        message_type=(
-                            u"flocker:node:agents:blockdevice:openstack:"
-                            u"compute_instance_id:metadata_file_not_found"),
-                        error_message=unicode(e),
-                    ).write()
-                    return
-                metadata = json.loads(content)
-                return metadata["uuid"]
+        metadata = metadata_from_config_drive()
+        if metadata:
+            return metadata["uuid"]
         raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):

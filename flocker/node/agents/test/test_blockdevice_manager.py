@@ -30,9 +30,10 @@ from ..blockdevice_manager import (
     UnmountError,
 )
 from ..testtools import (
+    filesystem_label_for_test,
+    formatted_loopback_device_for_test,
     loopbackblockdeviceapi_for_test,
     mountroot_for_test,
-    formatted_loopback_device_for_test,
 )
 
 
@@ -405,7 +406,7 @@ class LabelMounterTests(TestCase):
     @if_root
     def setUp(self):
         super(LabelMounterTests, self).setUp()
-        self.label = random_name(self)[-16:]
+        self.label = filesystem_label_for_test(self)
         self.device = formatted_loopback_device_for_test(
             self, label=self.label
         )
@@ -430,7 +431,7 @@ class LabelMounterTests(TestCase):
         """
         ``MountError`` is raised if the supplied filesystem label is not found.
         """
-        non_existent_label = random_name(self)[-16:]
+        non_existent_label = filesystem_label_for_test(self)
         mountpoint1 = self.make_temporary_path()
         mounter = LabelMounter(label=non_existent_label)
         e = self.assertRaises(

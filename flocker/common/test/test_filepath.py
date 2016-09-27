@@ -110,6 +110,17 @@ class TemporaryDirectoryTests(TestCase):
         self.assertIn(path, parent.children())
         self.assertThat(path, dir_exists())
 
+    def test_descendant(self):
+        """
+        ``temporary_directory`` has a descendant method.
+        """
+        parent = self.make_temporary_directory()
+        path = temporary_directory(
+            parent_path=parent
+        )
+        path.child("foo").child("bar").makedirs()
+        path.descendant(["foo", "bar", "baz"]).setContent("")
+
     def test_context_manager(self):
         """
         ``temporary_directory`` can be used as a context manager.

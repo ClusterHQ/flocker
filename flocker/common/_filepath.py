@@ -44,7 +44,22 @@ def make_directory(path):
     return path
 
 
-class _TemporaryPath(proxyForInterface(IFilePath, "_path")):
+class IFilePathExtended(IFilePath):
+    """
+    ``IFilePath`` plus some other ``FilePath`` methods that we need in Flocker.
+    """
+    def remove():
+        """
+        Recursively remove the path and all its descendants.
+        """
+
+    def descendant():
+        """
+        Retrieve a descendant FilePath.
+        """
+
+
+class _TemporaryPath(proxyForInterface(IFilePathExtended, "_path")):
     """
     An ``IFilePath`` which when used as a context manager will remove itself.
     """
@@ -54,9 +69,6 @@ class _TemporaryPath(proxyForInterface(IFilePath, "_path")):
     @property
     def path(self):
         return self._path.path
-
-    def remove(self):
-        return self._path.remove()
 
     def __eq__(self, other):
         return self._path == other
