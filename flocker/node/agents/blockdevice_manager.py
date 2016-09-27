@@ -317,8 +317,9 @@ def _unmount(mountpoint, idempotent=False):
     Unmount the mountpoint.
     """
     try:
+        # Do lazy umount.
         run_process(
-            ['umount', '--lazy', mountpoint.path],
+            ['umount', '-l', mountpoint.path],
         )
     except CalledProcessError as e:
         if idempotent and e.returncode == 32:
