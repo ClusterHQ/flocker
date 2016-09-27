@@ -42,6 +42,7 @@ from ..testtools import (
 from ....testtools import (
     AsyncTestCase,
     if_root,
+    find_free_port,
     flaky,
     random_name,
     run_process,
@@ -53,7 +54,7 @@ from ..cinder import (
     get_keystone_session, wait_for_volume_state, UnexpectedStateException,
     UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
     lazy_loading_proxy_for_interface, config_drive, metadata_from_config_drive,
-    METADATA_RELATIVE_PATH,
+    METADATA_RELATIVE_PATH, UnknownInstanceID, metadata_from_service,
 )
 from ...script import get_api
 from ...backends import backend_and_api_args_from_configuration
@@ -1020,3 +1021,57 @@ class MetadataFromConfigDriveTests(TestCase):
             config_drive_label=self.label
         )
         self.assertEqual(expected_value, result["test_key"])
+
+
+class ComputeInstanceIDTests(TestCase):
+    """
+    Tests for Openstack specific behaviour of
+    ``CinderBlockDeviceAPI.compute_instance_id``.
+    """
+    def test_unknown_instance_id(self):
+        """
+        ``UnknownInstanceID`` is raised if all node UUID lookup mechanisms
+        fail.
+        """
+        backend, api_args = backend_and_api_args_from_configuration({
+            "backend": "openstack",
+            "auth_plugin": "rackspace",
+            "region": "ORD",
+            "username": "unknown_user",
+            "api_key": "unknown_api_key",
+            "auth_url": "http://192.0.2.1:1234/identity/v2.0",
+        })
+        api = get_api(
+            backend=backend,
+            api_args=api_args,
+            reactor=object(),
+            cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+        )
+        patch = MonkeyPatcher()
+        # Use non-existent config drive label.
+        # Mount will fail.
+        patch.addPatch(
+            api,
+            '_config_drive_label',
+            filesystem_label_for_test(self)
+        )
+        # Use an unreachable metadata service endpoint address.
+        # TCP connections will fail.
+        patch.addPatch(api, '_metadata_service_endpoint', find_free_port())
+        self.addCleanup(patch.restore)
+        patch.patch()
+        self.assertRaises(UnknownInstanceID, api.compute_instance_id)
+
+
+class MetadataFromServiceTests(TestCase):
+    """
+    Tests for ``metadata_from_service``.
+    """
+    def test_connection_error(self):
+        """
+        """
+        non_listening_endpoint = find_free_port()
+        result = metadata_from_service(
+            metadata_service_endpoint=non_listening_endpoint
+        )
+        self.assertIs(None, result)

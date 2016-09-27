@@ -66,6 +66,7 @@ CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
 
 CONFIG_DRIVE_LABEL = u"config-2"
 METADATA_RELATIVE_PATH = ['openstack', 'latest', 'meta_data.json']
+METADATA_SERVICE_ENDPOINT = (b"169.254.169.254", 80)
 
 
 @contextmanager
@@ -119,6 +120,12 @@ def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
                     error_message=unicode(e),
                 ).write()
                 return
+
+
+def metadata_from_service(metadata_service_endpoint=METADATA_SERVICE_ENDPOINT):
+    """
+    """
+    return None
 
 
 def _openstack_logged_method(method_name, original_name):
@@ -485,6 +492,8 @@ class CinderBlockDeviceAPI(object):
         if time_module is None:
             time_module = time
         self._time = time_module
+        self._config_drive_label = CONFIG_DRIVE_LABEL
+        self._metadata_service_endpoint = METADATA_SERVICE_ENDPOINT
 
     def allocation_unit(self):
         """
@@ -503,9 +512,16 @@ class CinderBlockDeviceAPI(object):
         """
         Attempt to retrieve node UUID from the metadata in a config drive.
         """
-        metadata = metadata_from_config_drive()
+        metadata = metadata_from_config_drive(
+            config_drive_label=self._config_drive_label
+        )
+        if metadata is None:
+            metadata = metadata_from_service(
+                metadata_service_endpoint=self._metadata_service_endpoint
+            )
         if metadata:
             return metadata["uuid"]
+
         raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):
