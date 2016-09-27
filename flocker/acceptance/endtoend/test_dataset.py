@@ -102,9 +102,14 @@ class DatasetAPITests(AsyncTestCase):
         ),
     )
     @skip_backend(
-        unsupported={backends.LOOPBACK},
-        reason="Does not maintain compute_instance_id across restarting "
-               "flocker (and didn't as of most recent release).")
+        unsupported={backends.LOOPBACK, backends.OPENSTACK},
+        reason=(
+            "Loopback backend does not maintain compute_instance_id across "
+            "restarting flocker (and didn't as of most recent release). "
+            "OpenStack backend (as of 1.15.0) cannot reliably identify "
+            "the compute node if it has floating IP addresses."
+        )
+    )
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):
