@@ -7,7 +7,7 @@ This controls actions such as formatting and mounting a blockdevice.
 """
 
 import psutil
-from subprocess import CalledProcessError, check_output, STDOUT
+from subprocess import CalledProcessError
 
 from zope.interface import Interface, implementer
 
@@ -17,6 +17,8 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import ValueConstant, Values
 
 from characteristic import attributes
+
+from ...common.process import run_process
 
 
 class Permissions(Values):
@@ -218,63 +220,30 @@ class IBlockDeviceManager(Interface):
         """
 
 
-class _CommandResult(PClass):
-    """
-    Helper object to represent the result of a command.
-
-    :ivar bool succeeded: True if the command was successful otherwise false.
-    :ivar unicode error_message: Message that would be useful to output on
-        failure. Only set if the command did not succeed.
-    """
-    succeeded = field(type=bool)
-    error_message = field(type=unicode, mandatory=False)
-
-
-def _run_command(command_arg_list):
-    """
-    Helper wrapper to run a command and capture STDOUT and STDERR if the
-    command fails. Used for common code in the implementation of many methods
-    of the interface.
-
-    :param command_arg_list: Command arguments that will be passed directly as
-        the first argument of check_output.
-
-    :returns _CommandResult: The representation of the result of the command.
-    """
-    try:
-        check_output(command_arg_list, stderr=STDOUT)
-    except CalledProcessError as e:
-        return _CommandResult(
-            succeeded=False,
-            error_message=u"\n".join([str(e), e.output]))
-    return _CommandResult(succeeded=True)
-
-
 @implementer(IBlockDeviceManager)
 class BlockDeviceManager(PClass):
     """
     Real implementation of IBlockDeviceManager.
     """
-
     def make_filesystem(self, blockdevice, filesystem):
-        result = _run_command([
-            b"mkfs", b"-t", filesystem.encode("ascii"),
-            # This is ext4 specific, and ensures mke2fs doesn't ask
-            # user interactively about whether they really meant to
-            # format whole device rather than partition. It will be
-            # removed once upstream bug is fixed. See FLOC-2085.
-            b"-F",
-            blockdevice.path
-        ])
-        if not result.succeeded:
+        try:
+            run_process([
+                b"mkfs", b"-t", filesystem.encode("ascii"),
+                # This is ext4 specific, and ensures mke2fs doesn't ask
+                # user interactively about whether they really meant to
+                # format whole device rather than partition. It will be
+                # removed once upstream bug is fixed. See FLOC-2085.
+                b"-F",
+                blockdevice.path
+            ])
+        except CalledProcessError as e:
             raise MakeFilesystemError(blockdevice=blockdevice,
-                                      source_message=result.error_message)
+                                      source_message=e.output)
 
     def has_filesystem(self, blockdevice):
         try:
-            check_output(
-                [b"blkid", b"-p", b"-u", b"filesystem", blockdevice.path],
-                stderr=STDOUT,
+            run_process(
+                [b"blkid", b"-p", b"-u", b"filesystem", blockdevice.path]
             )
         except CalledProcessError as e:
             # According to the man page:
@@ -294,16 +263,18 @@ class BlockDeviceManager(PClass):
         return True
 
     def mount(self, blockdevice, mountpoint):
-        result = _run_command([b"mount", blockdevice.path, mountpoint.path])
-        if not result.succeeded:
+        try:
+            run_process([b"mount", blockdevice.path, mountpoint.path])
+        except CalledProcessError as e:
             raise MountError(blockdevice=blockdevice, mountpoint=mountpoint,
-                             source_message=result.error_message)
+                             source_message=e.output)
 
     def unmount(self, blockdevice):
-        result = _run_command([b"umount", blockdevice.path])
-        if not result.succeeded:
+        try:
+            run_process([b"umount", blockdevice.path])
+        except CalledProcessError as e:
             raise UnmountError(blockdevice=blockdevice,
-                               source_message=result.error_message)
+                               source_message=e.output)
 
     def get_mounts(self):
         mounts = psutil.disk_partitions()
@@ -312,24 +283,28 @@ class BlockDeviceManager(PClass):
                 for mount in mounts)
 
     def bind_mount(self, source_path, mountpoint):
-        result = _run_command(
-            [b"mount", "--bind", source_path.path, mountpoint.path])
-        if not result.succeeded:
+        try:
+            run_process(
+                [b"mount", "--bind", source_path.path, mountpoint.path])
+        except CalledProcessError as e:
             raise BindMountError(source_path=source_path,
                                  mountpoint=mountpoint,
-                                 source_message=result.error_message)
+                                 source_message=e.output)
 
     def remount(self, mountpoint, permissions):
-        result = _run_command([
-            b"mount", "-o", "remount,%s" % permissions.value, mountpoint.path])
-        if not result.succeeded:
+        try:
+            run_process([
+                b"mount", "-o", "remount,%s" % permissions.value,
+                mountpoint.path])
+        except CalledProcessError as e:
             raise RemountError(mountpoint=mountpoint,
                                permissions=permissions,
-                               source_message=result.error_message)
+                               source_message=e.output)
 
     def make_tmpfs_mount(self, mountpoint):
-        result = _run_command(
-            [b"mount", "-t", "tmpfs", "tmpfs", mountpoint.path])
-        if not result.succeeded:
+        try:
+            run_process(
+                [b"mount", "-t", "tmpfs", "tmpfs", mountpoint.path])
+        except CalledProcessError as e:
             raise MakeTmpfsMountError(mountpoint=mountpoint,
-                                      source_message=result.error_message)
+                                      source_message=e.output)
