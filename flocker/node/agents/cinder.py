@@ -5,6 +5,9 @@
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 from itertools import repeat
+import json
+from subprocess import CalledProcessError, check_output, STDOUT
+from tempfile import mkdtemp
 import time
 from uuid import UUID
 
@@ -27,6 +30,8 @@ from cinderclient.exceptions import NotFound as CinderClientNotFound
 from novaclient.client import Client as NovaClient
 from novaclient.exceptions import NotFound as NovaNotFound
 from novaclient.exceptions import ClientException as NovaClientException
+import requests
+from requests.exceptions import ConnectionError, Timeout
 
 from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
@@ -380,6 +385,31 @@ def _extract_nova_server_addresses(addresses):
     return all_addresses
 
 
+def _get_compute_id(local_ips, id_to_node_ips):
+    """
+    Compute the instance ID of the local machine.
+
+    Expectation is that our local IPs intersect with one (only) of the
+    remote nodes' sets of IPs.
+
+    :param set local_ips: The local machine's IPs.
+    :param id_to_node_ips: Mapping from instance IDs to sets of IPs, as
+        reported by OpenStack.
+
+    :return: Instance ID of local machine.
+    """
+    matching_instances = []
+    for server_id, api_addresses in id_to_node_ips.items():
+        if api_addresses.intersection(local_ips):
+            matching_instances.append(server_id)
+
+    # If we've got this correct there should only be one matching instance.
+    # But we don't currently test this directly. See FLOC-2281.
+    if len(matching_instances) == 1 and matching_instances[0]:
+        return matching_instances[0]
+    raise KeyError("Couldn't find matching node.")
+
+
 def _nova_detach(nova_volume_manager, cinder_volume_manager,
                  server_id, cinder_volume):
     """
@@ -457,37 +487,140 @@ class CinderBlockDeviceAPI(object):
         """
         return int(GiB(1).to_Byte().value)
 
-    def compute_instance_id(self):
+    def _metadata_from_configdrive(self):
         """
-        Find the ``ACTIVE`` Nova API server with a subset of the IPv4 and IPv6
-        addresses on this node.
+        Attempt to mount the configdrive and return the decoded metadata file.
+        """
+        mountpoint = FilePath(mkdtemp(suffix='.flocker.node.agents.cinder'))
+        metadata_file = mountpoint.descendant(
+            ['openstack', 'latest', 'meta_data.json']
+        )
+        try:
+            try:
+                result = check_output(
+                    ['blkid', '-l', '-t', 'LABEL=config-2', '-o', 'device'],
+                    stderr=STDOUT,
+                )
+            except CalledProcessError as e:
+                if e.returncode == 2 and not e.output:
+                    Message.new(
+                        message_type=(
+                            u"flocker:node:agents:blockdevice:openstack:"
+                            u"compute_instance_id:configdrive_not_available"),
+                        error_message=unicode(e),
+                    ).write()
+                    return
+                raise
+            device_path = FilePath(result.rstrip())
+            check_output(
+                ['mount', '-o', 'ro', device_path.path, mountpoint.path],
+                stderr=STDOUT,
+            )
+            try:
+                try:
+                    content = metadata_file.getContent()
+                except IOError as e:
+                    Message.new(
+                        message_type=(
+                            u"flocker:node:agents:blockdevice:openstack:"
+                            u"compute_instance_id:metadata_file_not_found"),
+                        error_message=unicode(e),
+                    ).write()
+                    return
+                return json.loads(content)
+            finally:
+                check_output(
+                    ['umount', mountpoint.path],
+                    stderr=STDOUT,
+                )
+        finally:
+            mountpoint.remove()
+
+    def _compute_instance_id_from_configdrive(self):
+        """
+        Attempt to mount the config drive and get instance ID from the metadata
+        file.
+
+        http://docs.openstack.org/user-guide/cli-config-drive.html
+        """
+        metadata = self._metadata_from_configdrive()
+        if metadata is not None:
+            return metadata["uuid"]
+
+    def _compute_instance_id_from_metadata_service(self):
+        """
+        Attempt to access instance ID from the metadata service.
+
+        http://docs.openstack.org/admin-guide/compute-networking-nova.html#metadata-service
+        """
+        try:
+            response = requests.get(
+                'http://169.254.169.254/openstack/latest/meta_data.json',
+                timeout=1.0,
+            )
+        except (ConnectionError, Timeout) as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_service_unreachable"),
+                error_message=unicode(e),
+            ).write()
+            return
+
+        if response.ok:
+            metadata = response.json()
+            return metadata["uuid"]
+        else:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_response_error"),
+                status_code=response.status_code,
+                content=response.content,
+            ).write()
+
+    def _compute_instance_id_from_ipaddresses(self):
+        """
+        Find the ``ACTIVE`` Nova API server with an intersection of
+        the IPv4 and IPv6 addresses on this node.
         """
         local_ips = get_all_ips()
         api_ip_map = {}
-        matching_instances = []
+        id_to_node_ips = {}
         for server in self.nova_server_manager.list():
             # Servers which are not active will not have any IP addresses
             if server.status != u'ACTIVE':
                 continue
             api_addresses = _extract_nova_server_addresses(server.addresses)
-            # Only do subset comparison if there were *some* IP addresses;
-            # non-ACTIVE servers will have an empty list of IP addresses and
-            # lead to incorrect matches.
-            if api_addresses and api_addresses.issubset(local_ips):
-                matching_instances.append(server.id)
-            else:
-                for ip in api_addresses:
-                    api_ip_map[ip] = server.id
+            id_to_node_ips[server.id] = api_addresses
+            for ip in api_addresses:
+                api_ip_map[ip] = server.id
 
-        # If we've got this correct there should only be one matching instance.
-        # But we don't currently test this directly. See FLOC-2281.
-        if len(matching_instances) == 1 and matching_instances[0]:
-            return matching_instances[0]
-        # If there was no match, or if multiple matches were found, log an
-        # error containing all the local and remote IPs.
-        COMPUTE_INSTANCE_ID_NOT_FOUND(
-            local_ips=local_ips, api_ips=api_ip_map
-        ).write()
+        try:
+            return _get_compute_id(local_ips, id_to_node_ips)
+        except KeyError:
+            # If there was no match, or if multiple matches were found, log an
+            # error containing all the local and remote IPs.
+            COMPUTE_INSTANCE_ID_NOT_FOUND(
+                local_ips=local_ips, api_ips=api_ip_map
+            ).write()
+
+    def compute_instance_id(self):
+        """
+        Attempt to find the local instance ID:
+        * from local configdrive if it exists, or
+        * from metadata service, or
+        * by matching the local IP addresses to those reported by the Nova API.
+        """
+        methods = [
+            self._compute_instance_id_from_configdrive,
+            self._compute_instance_id_from_metadata_service,
+            self._compute_instance_id_from_ipaddresses,
+        ]
+        for method in methods:
+            result = method()
+            if result is not None:
+                return result
         raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):

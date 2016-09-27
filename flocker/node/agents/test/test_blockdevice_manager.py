@@ -11,18 +11,20 @@ from testtools.matchers import Not, FileExists
 
 from zope.interface.verify import verifyObject
 
-from ....testtools import TestCase
+from ....testtools import TestCase, random_name
 
 from ..blockdevice_manager import (
     BindMountError,
     BlockDeviceManager,
     IBlockDeviceManager,
+    Losetup,
     MakeFilesystemError,
     MakeTmpfsMountError,
     MountError,
     MountInfo,
     Permissions,
     RemountError,
+    temporary_mount,
     UnmountError,
 )
 from ..loopback import LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
@@ -257,3 +259,87 @@ class BlockDeviceManagerTests(TestCase):
         non_existent = self._get_directory_for_mount().child('non_existent')
         with ExpectedException(MakeTmpfsMountError, '.*non_existent.*'):
             self.manager_under_test.make_tmpfs_mount(non_existent)
+
+
+class TemporaryMountTests(TestCase):
+    def setUp(self):
+        super(TemporaryMountTests, self).setUp()
+        losetup = Losetup()
+        backing_file = self.make_temporary_file()
+        with backing_file.open('wb') as f:
+            f.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
+        self.device_path = losetup.add(
+            backing_file=backing_file
+        )
+        self.addCleanup(lambda: losetup.remove(self.device_path))
+        self.bdm = BlockDeviceManager()
+        self.bdm.make_filesystem(
+            blockdevice=self.device_path,
+            filesystem=u"ext4"
+        )
+
+    def test_mount(self):
+        """
+        ``temporary_mount`` mounts the supplied device.
+        """
+        filename = random_name(self)
+        paths = []
+        with temporary_mount(
+                self.device_path,
+        ) as path:
+            paths.append(path)
+            path.child(filename).setContent(filename)
+
+        with temporary_mount(
+                self.device_path,
+        ) as path:
+            paths.append(path)
+            # The randomly named child file can be read from the new mountpoint
+            # and has the same content.
+            self.assertEqual(filename, path.child(filename).getContent())
+
+        # The mountpoint is different each time.
+        self.assertNotEqual(*paths)
+
+        # The mountpoints are deleted by the context manager.
+        for path in paths:
+            self.assertFalse(
+                path.exists(), "Mountpoint still exists: {}".format(path)
+            )
+
+        # The device is unmounted by the context manager.
+        self.assertNotIn(
+            self.device_path,
+            [m.blockdevice for m in self.bdm.get_mounts()]
+        )
+
+    def test_error(self):
+        """
+        ``temporary_mount`` unmounts and removes the
+        """
+        paths = []
+
+        class SomeException(Exception):
+            pass
+
+        try:
+            with temporary_mount(
+                    self.device_path,
+            ) as path:
+                paths.append(path)
+                raise SomeException()
+        except SomeException:
+            pass
+        else:
+            self.fail("Exception not raised")
+        # The mountpoints are deleted by the context manager.
+        for path in paths:
+            self.assertFalse(
+                path.exists(), "Mountpoint still exists: {}".format(path)
+            )
+
+        # The device is unmounted by the context manager.
+        self.assertNotIn(
+            self.device_path,
+            [m.blockdevice for m in self.bdm.get_mounts()]
+        )

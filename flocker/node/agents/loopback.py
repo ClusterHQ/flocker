@@ -165,6 +165,16 @@ def _backing_file_name(volume):
     return volume.blockdevice_id.encode('ascii') + '_' + bytes(volume.size)
 
 
+class LoopbackManager(object):
+    def list(self):
+        pass
+
+    def add(self):
+        pass
+
+    def remove(self):
+        pass
+
 @implementer(IBlockDeviceAPI)
 class LoopbackBlockDeviceAPI(object):
     """

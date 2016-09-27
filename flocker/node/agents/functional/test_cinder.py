@@ -893,3 +893,66 @@ class CinderFromConfigurationTests(AsyncTestCase):
             )
         )
         return d
+
+
+class ComputeInstanceIDTests(TestCase):
+    """
+    Tests for CinderBlockDeviceAPI.compute_instance_id.
+    """
+    def setUp(self):
+        super(ComputeInstanceIDTests, self).setUp()
+        backend, api_args = backend_and_api_args_from_configuration({
+            "backend": "openstack",
+            "auth_plugin": "password",
+            "region": "RegionOne",
+            "username": "non-existent-user",
+            "password": "non-working-password",
+            "auth_url": "http://127.0.0.2:5000/v2.0",
+        })
+        # This will fail if loading the API depends on being able to connect to
+        # the auth_url (above)
+        self.api = get_api(
+            backend=backend,
+            api_args=api_args,
+            reactor=object(),
+            cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+        )
+
+    def test_configdrive(self):
+        """
+        Config drive is tried first.
+        """
+        expected_instance_id = unicode(uuid4())
+        self.patch(
+            self.api,
+            '_compute_instance_id_from_configdrive',
+            lambda: expected_instance_id,
+        )
+        actual_instance_id = self.api.compute_instance_id()
+        self.assertEqual(expected_instance_id, actual_instance_id)
+
+    def test_metadataservice(self):
+        """
+        Config drive is tried second.
+        """
+        expected_instance_id = unicode(uuid4())
+        self.patch(
+            self.api,
+            '_compute_instance_id_from_metadata_service',
+            lambda: expected_instance_id,
+        )
+        actual_instance_id = self.api.compute_instance_id()
+        self.assertEqual(expected_instance_id, actual_instance_id)
+
+    def test_ipaddresses(self):
+        """
+        Ip addresses third
+        """
+        expected_instance_id = unicode(uuid4())
+        self.patch(
+            self.api,
+            '_compute_instance_id_from_ipaddresses',
+            lambda: expected_instance_id,
+        )
+        actual_instance_id = self.api.compute_instance_id()
+        self.assertEqual(expected_instance_id, actual_instance_id)
