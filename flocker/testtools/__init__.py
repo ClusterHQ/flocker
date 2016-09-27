@@ -19,14 +19,13 @@ import shutil
 from functools import wraps
 from unittest import skipIf, skipUnless
 from StringIO import StringIO
-from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
 from bitmath import MiB
 
 from pyrsistent import PClass, field
 
 from docker import Client as DockerClient
-from eliot import ActionType, Message, MessageType, start_action, fields
+from eliot import ActionType, MessageType, fields
 from eliot.twisted import DeferredContext
 
 from zope.interface import implementer
@@ -54,6 +53,9 @@ from ._flaky import flaky
 from .. import __version__
 from ..common import RACKSPACE_MINIMUM_VOLUME_SIZE
 from ..common.script import FlockerScriptRunner, ICommandLineScript
+from ..common.process import (
+    _ProcessResult, _CalledProcessError, run_process
+)
 
 __all__ = [
     'AsyncTestCase',
@@ -81,6 +83,7 @@ __all__ = [
     'make_with_init_tests',
     'not_root',
     'random_name',
+    # XXX Refactor code that imports run_process from here.
     'run_process',
     'skip_on_broken_permissions',
 ]
@@ -864,27 +867,6 @@ PROCESS_ENDED = MessageType(
     u'The process terminated')
 
 
-class _ProcessResult(PClass):
-    """
-    The return type for ``run_process`` representing the outcome of the process
-    that was run.
-    """
-    command = field(type=list, mandatory=True)
-    output = field(type=bytes, mandatory=True)
-    status = field(type=int, mandatory=True)
-
-
-class _CalledProcessError(CalledProcessError):
-    """
-    Just like ``CalledProcessError`` except output is included in the string
-    representation.
-    """
-    def __str__(self):
-        base = super(_CalledProcessError, self).__str__()
-        lines = "\n".join("    |" + line for line in self.output.splitlines())
-        return base + " and output:\n" + lines
-
-
 class _LoggingProcessProtocol(ProcessProtocol):
     """
     A ``ProcessProtocol`` that both stores and logs output from the
@@ -958,36 +940,3 @@ def logged_run_process(reactor, command):
         d2.addCallback(process_ended)
         d2.addActionFinish()
         return d2.result
-
-
-def run_process(command, *args, **kwargs):
-    """
-    Run a child process, capturing its stdout and stderr.
-
-    :param list command: An argument list to use to launch the child process.
-
-    :raise CalledProcessError: If the child process has a non-zero exit status.
-
-    :return: A ``_ProcessResult`` instance describing the result of the child
-         process.
-    """
-    kwargs["stdout"] = PIPE
-    kwargs["stderr"] = STDOUT
-    action = start_action(
-        action_type="run_process", command=command, args=args, kwargs=kwargs)
-    with action:
-        process = Popen(command, *args, **kwargs)
-        output = process.stdout.read()
-        status = process.wait()
-        result = _ProcessResult(command=command, output=output, status=status)
-        # TODO: We should be using a specific logging type for this.
-        Message.new(
-            command=result.command,
-            output=result.output,
-            status=result.status,
-        ).write()
-        if result.status:
-            raise _CalledProcessError(
-                returncode=status, cmd=command, output=output,
-            )
-    return result
