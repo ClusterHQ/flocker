@@ -22,6 +22,12 @@ Previous Releases
    :backlinks: none
    :depth: 2
 
+v1.15.0
+-------
+* ``flocker-container-agent``, which has been deprecated since Flocker 1.10.1, no longer manipulates ``iptables`` firewall rules.
+  It will no longer create firewall rules to allow access to ports which have been exposed on Docker containers that it starts.
+  And it will no longer maintain NAT routing rules to allow access to exposed ports from other nodes in the cluster.
+
 v1.14.0
 -------
 * Flocker can now be installed on Ubuntu 16.04.

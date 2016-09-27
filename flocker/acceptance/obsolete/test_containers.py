@@ -11,10 +11,9 @@ from datetime import timedelta
 from testtools import run_test_with
 
 from twisted.internet import reactor
-from twisted.internet.defer import gatherResults
 
 from ...common import loop_until
-from ...testtools import AsyncTestCase, async_runner, flaky, random_name
+from ...testtools import AsyncTestCase, async_runner, random_name
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
     create_python_container, verify_socket, post_http_server,
@@ -275,74 +274,6 @@ class ContainerAPITests(AsyncTestCase):
         creating_dataset.addCallback(
             lambda _: assert_http_server(self, node.public_address, 8080))
         return creating_dataset
-
-    @require_cluster(2, require_container_agent=True)
-    def test_linking(self, cluster):
-        """
-        A link from an origin container to a destination container allows the
-        origin container to establish connections to the destination container
-        when the containers are running on different machines using an address
-        obtained from ``<ALIAS>_PORT_<PORT>_TCP_{ADDR,PORT}``-style environment
-        set in the origin container's environment.
-        """
-        destination_port = 8080
-        origin_port = 8081
-
-        [destination, origin] = cluster.nodes
-
-        running = gatherResults([
-            create_python_container(
-                self, cluster, {
-                    u"ports": [{u"internal": 8080,
-                                u"external": destination_port}],
-                    u"node_uuid": destination.uuid,
-                }, SCRIPTS.child(b"hellohttp.py")),
-            create_python_container(
-                self, cluster, {
-                    u"ports": [{u"internal": 8081,
-                                u"external": origin_port}],
-                    u"links": [{u"alias": "dest", u"local_port": 80,
-                                u"remote_port": destination_port}],
-                    u"node_uuid": origin.uuid,
-                }, SCRIPTS.child(b"proxyhttp.py")),
-            # Wait for the link target container to be accepting connections.
-            verify_socket(destination.public_address, destination_port),
-            # Wait for the link source container to be accepting connections.
-            verify_socket(origin.public_address, origin_port),
-            ])
-
-        running.addCallback(
-            lambda _: assert_http_server(
-                self, origin.public_address, origin_port))
-        return running
-
-    @flaky([u"FLOC-3485"])
-    @require_cluster(2, require_container_agent=True)
-    def test_traffic_routed(self, cluster):
-        """
-        An application can be accessed even from a connection to a node
-        which it is not running on.
-        """
-        port = 8080
-
-        [destination, origin] = cluster.nodes
-
-        running = gatherResults([
-            create_python_container(
-                self, cluster, {
-                    u"ports": [{u"internal": 8080, u"external": port}],
-                    u"node_uuid": destination.uuid,
-                }, SCRIPTS.child(b"hellohttp.py")),
-            # Wait for the destination to be accepting connections.
-            verify_socket(destination.public_address, port),
-            # Wait for the origin container to be accepting connections.
-            verify_socket(origin.public_address, port),
-            ])
-
-        running.addCallback(
-            # Connect to the machine where the container is NOT running:
-            lambda _: assert_http_server(self, origin.public_address, port))
-        return running
 
     @run_test_with(async_runner(timeout=timedelta(minutes=20)))
     @require_cluster(2, require_container_agent=True)
