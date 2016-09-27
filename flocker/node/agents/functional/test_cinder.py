@@ -4,6 +4,7 @@
 Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
 cluster.
 """
+
 import errno
 import json
 from unittest import skipIf

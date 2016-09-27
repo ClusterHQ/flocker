@@ -36,7 +36,7 @@ from twisted.python.components import proxyForInterface
 from zope.interface import implementer, Interface
 
 from ...common import (
-    interface_decorator,
+    interface_decorator, get_all_ips, ipaddress_from_string,
     poll_until,
     temporary_directory,
 )
@@ -46,7 +46,7 @@ from .blockdevice import (
 )
 from .blockdevice_manager import LabelMounter, MountError
 from ._logging import (
-    NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR,
+    NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
     OPENSTACK_ACTION, CINDER_CREATE
 )
 
@@ -465,7 +465,6 @@ def _get_compute_id(local_ips, id_to_node_ips):
     raise KeyError("Couldn't find matching node.")
 
 
->>>>>>> origin/master
 def _nova_detach(nova_volume_manager, cinder_volume_manager,
                  server_id, cinder_volume):
     """
@@ -546,6 +545,8 @@ class CinderBlockDeviceAPI(object):
     def compute_instance_id(self):
         """
         Attempt to retrieve node UUID from the metadata in a config drive.
+        Fall back to finging the ``ACTIVE`` Nova API server with an
+        intersection of the IPv4 and IPv6 addresses on this node.
         """
         metadata = metadata_from_config_drive()
         if metadata:

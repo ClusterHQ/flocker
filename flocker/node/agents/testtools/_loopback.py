@@ -88,6 +88,15 @@ def fakeprofiledloopbackblockdeviceapi_for_test(test_case,
 
 
 def formatted_loopback_device_for_test(test_case, label=None):
+    """
+    Create a loopback device, with a backing file located in the temporary
+    directory for this test case.
+    Format it with ext4 and optionally add a filesystem label.
+    Registers a test cleanup callback to detach the loopback device when the
+    test is complete.
+
+    :returns: A ``LoopDevice``.
+    """
     losetup = Losetup()
     backing_file = test_case.make_temporary_file()
     with backing_file.open('wb') as f:
