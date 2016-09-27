@@ -12,7 +12,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from eliot import Message
+from eliot import Message, writeTraceback
 
 from pyrsistent import PClass, field
 
@@ -577,25 +577,7 @@ class CinderBlockDeviceAPI(object):
         """
         return int(GiB(1).to_Byte().value)
 
-    def compute_instance_id(self):
-        """
-        Attempt to retrieve node UUID from the metadata in a config drive.
-        Fall back to finging the ``ACTIVE`` Nova API server with an
-        intersection of the IPv4 and IPv6 addresses on this node.
-        """
-        checkers = [
-            lambda: metadata_from_config_drive(
-                config_drive_label=self._config_drive_label
-            ),
-            lambda: metadata_from_service(
-                metadata_service_endpoint=self._metadata_service_endpoint
-            ),
-        ]
-        for checker in checkers:
-            metadata = checker()
-            if metadata:
-                return metadata["uuid"]
-
+    def _compute_instance_id_by_ipaddress_match(self):
         local_ips = get_all_ips()
         api_ip_map = {}
         id_to_node_ips = {}
@@ -616,7 +598,33 @@ class CinderBlockDeviceAPI(object):
             COMPUTE_INSTANCE_ID_NOT_FOUND(
                 local_ips=local_ips, api_ips=api_ip_map
             ).write()
-            raise UnknownInstanceID(self)
+
+    def compute_instance_id(self):
+        """
+        Attempt to retrieve node UUID from the metadata in a config drive or
+        from the metadata service.
+        Fall back to finging the ``ACTIVE`` Nova API server with an
+        intersection of the IPv4 and IPv6 addresses on this node.
+        """
+        metadata_checkers = [
+            lambda: metadata_from_config_drive(
+                config_drive_label=self._config_drive_label
+            ),
+            lambda: metadata_from_service(
+                metadata_service_endpoint=self._metadata_service_endpoint
+            ),
+        ]
+        for checker in metadata_checkers:
+            metadata = checker()
+            if metadata:
+                return metadata["uuid"]
+        try:
+            result = self._compute_instance_id_by_ipaddress_match()
+        except:
+            writeTraceback()
+        else:
+            return result
+        raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):
         """

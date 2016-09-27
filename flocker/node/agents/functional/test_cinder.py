@@ -1035,13 +1035,14 @@ class ComputeInstanceIDTests(AsyncTestCase):
     @if_root
     def setUp(self):
         super(ComputeInstanceIDTests, self).setUp()
+
         backend, api_args = backend_and_api_args_from_configuration({
             "backend": "openstack",
             "auth_plugin": "rackspace",
             "region": "ORD",
             "username": "unknown_user",
             "api_key": "unknown_api_key",
-            "auth_url": "http://192.0.2.1:1234/identity/v2.0",
+            "auth_url": "http://{}:{}/identity/v2.0".format(*find_free_port()),
         })
         self.api = get_api(
             backend=backend,
