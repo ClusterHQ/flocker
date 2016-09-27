@@ -1,6 +1,6 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
-Tests for ``flocker.common.runner``.
+Tests for ``flocker.common.process``.
 """
 from subprocess import CalledProcessError
 import sys
@@ -41,6 +41,11 @@ class RunProcessTests(TestCase):
     Tests for ``run_process``.
     """
     def command_for_test(self, returncode):
+        """
+        Construct a ``SampleScript`` which generates a command line for
+        ``SAMPLE_SCRIPT_FILE`` with test case specific stdout and stderr and
+        the supplied ``returncode``.
+        """
         return SampleScript(
             returncode=returncode,
             stdout=random_name(self).encode("utf8"),
@@ -64,6 +69,10 @@ class RunProcessTests(TestCase):
         )
 
     def check_run_process_error(self, expected_returncode):
+        """
+        Run ``SAMPLE_SCRIPT_FILE`` with ``run_process`` and assert that
+        ``CalledProcessError`` is raised.
+        """
         command = self.command_for_test(returncode=expected_returncode)
         e = self.assertRaises(
             CalledProcessError,

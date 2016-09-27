@@ -6,7 +6,7 @@ The returncode, stdout and stderr can all be supplied as command line arguments
 so that we can test how ``run_process`` captures process output and how it
 behaves when sub-processes exit with different return codes.
 If the supplied returncode is < 0 the script will send that integer as a signal
-to its own PID.
+to its own PID and then sleep until we receive the signal.
 """
 
 import os
@@ -34,7 +34,8 @@ def main():
     returncode = options["returncode"]
     if returncode < 0:
         os.kill(os.getpid(), abs(returncode))
-        time.sleep(10)
+        # Sleep for a short time or until we receive the signal.
+        time.sleep(5)
     return returncode
 
 if __name__ == "__main__":
