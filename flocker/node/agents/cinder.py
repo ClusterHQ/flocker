@@ -124,8 +124,34 @@ def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
 
 def metadata_from_service(metadata_service_endpoint=METADATA_SERVICE_ENDPOINT):
     """
+    Attempt to retrieve metadata from the Openstack metadata service.
     """
-    return None
+    import requests
+    endpoint_url = "http://{}:{}/{}".format(
+        metadata_service_endpoint[0],
+        metadata_service_endpoint[1],
+        "/".join(METADATA_RELATIVE_PATH),
+    )
+    try:
+        response = requests.get(endpoint_url)
+    except requests.exceptions.ConnectionError as e:
+        Message.new(
+            message_type=(
+                u"flocker:node:agents:blockdevice:openstack:"
+                u"compute_instance_id:metadataservice_not_available"),
+            error_message=unicode(e),
+        ).write()
+        return None
+    if response.ok:
+        try:
+            return response.json()
+        except ValueError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_json"),
+                error_message=unicode(e),
+            ).write()
 
 
 def _openstack_logged_method(method_name, original_name):
@@ -512,16 +538,18 @@ class CinderBlockDeviceAPI(object):
         """
         Attempt to retrieve node UUID from the metadata in a config drive.
         """
-        metadata = metadata_from_config_drive(
-            config_drive_label=self._config_drive_label
-        )
-        if metadata is None:
-            metadata = metadata_from_service(
+        checkers = [
+            lambda: metadata_from_config_drive(
+                config_drive_label=self._config_drive_label
+            ),
+            lambda: metadata_from_service(
                 metadata_service_endpoint=self._metadata_service_endpoint
-            )
-        if metadata:
-            return metadata["uuid"]
-
+            ),
+        ]
+        for checker in checkers:
+            metadata = checker()
+            if metadata:
+                return metadata["uuid"]
         raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):
