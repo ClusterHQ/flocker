@@ -18,6 +18,7 @@ class LosetupTests(TestCase):
 
     def test_success(self):
         """
+        ``Losetup.add`` creates a device that is listed.
         """
         loop = Losetup()
         backing_file = self.make_temporary_file()

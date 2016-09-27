@@ -150,6 +150,24 @@ KEYSTONE_HTTP_ERROR = MessageType(
     [CODE, RESPONSE, MESSAGE, DETAILS, REQUEST_ID, URL, METHOD],
 )
 
+LOCAL_IPS = Field(
+    u"local_ips",
+    repr,
+    u"The IP addresses found on the target node."
+)
+
+API_IPS = Field(
+    u"api_ips",
+    repr,
+    u"The IP addresses and instance_ids for all nodes."
+)
+
+COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
+    u"flocker:node:agents:blockdevice:openstack:compute_instance_id:not_found",
+    [LOCAL_IPS, API_IPS],
+    u"Unable to determine the instance ID of this node.",
+)
+
 CINDER_LOG_HEADER = u'flocker:node:agents:blockdevice:openstack'
 
 # ActionType used by OpenStack storage driver.
