@@ -12,6 +12,7 @@ from urlparse import urlsplit
 from uuid import uuid4
 
 from bitmath import Byte
+from eliot.testing import assertContainsFields, capture_logging
 import netifaces
 import psutil
 
@@ -1244,15 +1245,47 @@ class MetadataFromServiceTests(AsyncTestCase):
         checking = connecting.addCallback(check)
         return checking
 
-    def test_connection_error(self):
+    @capture_logging(None)
+    def test_timeout_error(self, logger):
+        """
+        Returns ``None`` if there is a timeout while connecting to the metadata
+        server.
+        """
+        # Simulate a connect timeout by attempting to connect to an unroutable
+        # IP address.
+        result = metadata_from_service(
+            metadata_service_endpoint=("10.0.0.0", 80),
+            connect_timeout=1.0
+        )
+        self.assertIs(None, result)
+        [message] = logger.messages
+        assertContainsFields(
+            self,
+            message,
+            {"message_type": (
+                "flocker:node:agents:blockdevice:openstack:"
+                "compute_instance_id:metadataservice_connect_timeout"
+            )}
+        )
+
+    @capture_logging(None)
+    def test_connection_error(self, logger):
         """
         Returns ``None`` if it can't connect to the metadata server.
         """
         result = metadata_from_service(
             metadata_service_endpoint=find_free_port()
         )
-
         self.assertIs(None, result)
+        [message] = logger.messages
+        assertContainsFields(
+            self,
+            message,
+            {"message_type": (
+                "flocker:node:agents:blockdevice:openstack:"
+                "compute_instance_id:metadataservice_connection_error"
+            )}
+        )
 
     def test_not_found(self):
         """

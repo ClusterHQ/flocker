@@ -29,7 +29,7 @@ from cinderclient.exceptions import NotFound as CinderClientNotFound
 from novaclient.client import Client as NovaClient
 from novaclient.exceptions import NotFound as NovaNotFound
 from novaclient.exceptions import ClientException as NovaClientException
-
+import requests
 from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
 
@@ -122,23 +122,31 @@ def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
                 return
 
 
-def metadata_from_service(metadata_service_endpoint=METADATA_SERVICE_ENDPOINT):
+def metadata_from_service(metadata_service_endpoint=METADATA_SERVICE_ENDPOINT,
+                          connect_timeout=5.0):
     """
     Attempt to retrieve metadata from the Openstack metadata service.
     """
-    import requests
     endpoint_url = "http://{}:{}/{}".format(
         metadata_service_endpoint[0],
         metadata_service_endpoint[1],
         "/".join(METADATA_RELATIVE_PATH),
     )
     try:
-        response = requests.get(endpoint_url)
+        response = requests.get(endpoint_url, timeout=connect_timeout)
+    except requests.exceptions.ConnectTimeout as e:
+        Message.new(
+            message_type=(
+                u"flocker:node:agents:blockdevice:openstack:"
+                u"compute_instance_id:metadataservice_connect_timeout"),
+            error_message=unicode(e),
+        ).write()
+        return None
     except requests.exceptions.ConnectionError as e:
         Message.new(
             message_type=(
                 u"flocker:node:agents:blockdevice:openstack:"
-                u"compute_instance_id:metadataservice_not_available"),
+                u"compute_instance_id:metadataservice_connection_error"),
             error_message=unicode(e),
         ).write()
         return None
