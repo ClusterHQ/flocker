@@ -467,11 +467,12 @@ class TemporaryMountedFileSystem(PClass):
         return self.fs.mountpoint
 
     def unmount(self, idempotent=False):
-        _unmount(self.fs.mountpoint, idempotent=idempotent)
         if idempotent and not self.fs.mountpoint.exists():
-            pass
-        else:
-            self.fs.mountpoint.remove()
+            # Don't attempt to unmount if the mountpoint has already been
+            # deleted, perhaps by an earlier call to unmount.
+            return
+        _unmount(self.fs.mountpoint)
+        self.fs.mountpoint.remove()
 
     def __enter__(self):
         return self
