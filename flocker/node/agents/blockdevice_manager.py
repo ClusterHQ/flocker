@@ -322,7 +322,11 @@ def _unmount(mountpoint, idempotent=False):
             ['umount', '-l', mountpoint.path],
         )
     except CalledProcessError as e:
-        if idempotent and e.returncode == 32:
+        # If idempotent, swallow the case where the mountpoint is no longer
+        # mounted.
+        # umount on Ubuntu 14.04 returns 1 in this case. On newer OS the return
+        # code is 32.
+        if idempotent and e.returncode in (1, 32):
             pass
         else:
             raise
