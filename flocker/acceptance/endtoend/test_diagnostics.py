@@ -13,7 +13,7 @@ from twisted.python.filepath import FilePath
 from ...common.runner import run_ssh, download
 from ...testtools import AsyncTestCase, async_runner
 from ..testtools import require_cluster, ACCEPTANCE_TEST_TIMEOUT
-from testtools.matchers import MatchesAny, Equals
+from testtools.matchers import Equals
 
 
 class DiagnosticsTests(AsyncTestCase):
@@ -23,12 +23,7 @@ class DiagnosticsTests(AsyncTestCase):
 
     run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
 
-    # This only requires the container agent to check
-    # that its log is collected. We still care about
-    # that working, so we run it. We should stop
-    # running it for this test when we get closer
-    # to never running it in production.
-    @require_cluster(1, require_container_agent=True)
+    @require_cluster(1)
     def test_export(self, cluster):
         """
         ``flocker-diagnostics`` creates an archive of all Flocker service logs
@@ -70,11 +65,6 @@ class DiagnosticsTests(AsyncTestCase):
                         continue
                     actual_basenames.add(basename)
 
-            container_agent_basenames = set([
-                'flocker-container-agent_startup.gz',
-                'flocker-container-agent_eliot.gz',
-            ])
-
             expected_basenames = set([
                 'flocker-control_startup.gz',
                 'flocker-control_eliot.gz',
@@ -97,11 +87,7 @@ class DiagnosticsTests(AsyncTestCase):
             ])
             self.expectThat(
                 actual_basenames,
-                MatchesAny(
-                    Equals(expected_basenames),
-                    Equals(expected_basenames.union(
-                        container_agent_basenames)),
-                )
+                Equals(expected_basenames),
             )
 
         verifying = downloading.addCallback(verify_archive)

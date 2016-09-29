@@ -64,7 +64,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
 
         # TODO: this test doesn't actually require the container agent, it just
         # uses it do to the setup. It should be ported to the docker API.
-        @require_cluster(1, require_container_agent=True)
+        @require_cluster(1)
         def test_start(self, cluster):
             """
             The specified application can be started with a Docker dataset
@@ -90,7 +90,7 @@ def make_dataset_integration_testcase(image_name, volume_path, internal_port,
 
         # TODO: this test don't actually require the container agent, it just
         # uses it do to the setup. It should be ported to the docker API.
-        @require_cluster(1, require_container_agent=True)
+        @require_cluster(1)
         def test_restart(self, cluster):
             """
             The specified application can be started with a Docker dataset
