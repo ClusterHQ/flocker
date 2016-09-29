@@ -18,7 +18,7 @@ pyrsistent==0.11.13+chq5
 python-dateutil==2.5.3
 pytz==2016.6.1
 PyYAML==3.12
-requests==2.11.1
+requests==2.10.0
 requests-file==1.4
 testtools==2.2.0
 troposphere==1.8.1
