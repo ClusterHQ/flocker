@@ -6,25 +6,24 @@ Enabling the Flocker Agent Service
 
 .. begin-body-enable-agent-intro
 
-The Flocker agents, the ``flocker-dataset-agent`` and the ``flocker-container-agent``, are the workhorses of Flocker; you have them on each node in your cluster, and enabling them is an essential step in setting up your cluster.
+The ``flocker-dataset-agent`` is the workhorse of Flocker; you install an agent on each node in your cluster, and enabling them is an essential step in setting up your cluster.
+
+.. note:: The ``flocker-container-agent`` is now deprecated, but it can still be enabled.
+   For more information, see :ref:`deprecated-endpoints`.
 
 .. end-body-enable-agent-intro
 
 .. begin-body-enable-agent-main
-
-.. note::
-   Flocker's container management features depend on Docker.
-   You will need to make sure `Docker (at least 1.8) is installed`_ and running before you enable ``flocker-container-agent``.
-
-.. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
 
 CentOS 7, RHEL 7.2
 ==================
 
 #. Run the following commands to enable the agent service:
 
-   .. task:: enable_flocker_agent centos-7
-      :prompt: [root@agent-node]#
+   .. prompt:: bash [root@agent-node]#
+   
+      systemctl enable flocker-dataset-agent
+      systemctl start flocker-dataset-agent
 
 #. Run the following commands to enable the Flocker plugin for Docker:
 
@@ -53,8 +52,9 @@ Ubuntu 14.04
 
 #. Run the following commands to enable the agent service:
 
-   .. task:: enable_flocker_agent ubuntu-14.04
-      :prompt: [root@agent-node]#
+   .. prompt:: bash [root@agent-node]#
+
+      service flocker-dataset-agent start
 
 #. Run the following command to enable the Flocker plugin for Docker:
 
@@ -66,19 +66,15 @@ Ubuntu 14.04
 
 .. begin-body-enable-agent-other
 
-.. note::
-   Flocker's container management features depend on Docker.
-   You will need to make sure `Docker (at least 1.8) is installed`_ and running before you enable ``flocker-container-agent``.
-
-.. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
-
 CentOS 7, RHEL 7.2
 ==================
 
 Run the following commands to enable the agent service:
 
-.. task:: enable_flocker_agent centos-7
-      :prompt: [root@agent-node]#
+.. prompt:: bash [root@agent-node]#
+   
+   systemctl enable flocker-dataset-agent
+   systemctl start flocker-dataset-agent
 
 Ubuntu 16.04
 ============
@@ -91,9 +87,10 @@ Run the following commands to enable the agent service:
 Ubuntu 14.04
 ============
 
-Run the following commands to enable the agent service:
+Run the following command to enable the agent service:
 
-.. task:: enable_flocker_agent ubuntu-14.04
-      :prompt: [root@agent-node]#
+.. prompt:: bash [root@agent-node]#
+
+   service flocker-dataset-agent start
 
 .. end-body-enable-agent-other
