@@ -105,8 +105,6 @@ class EnableFlockerAgentTests(TestCase):
         expected_sequence = sequence([
             run(command="systemctl enable flocker-dataset-agent"),
             run(command="systemctl start flocker-dataset-agent"),
-            run(command="systemctl enable flocker-container-agent"),
-            run(command="systemctl start flocker-container-agent"),
         ])
         self.assertEqual(commands, expected_sequence)
 
@@ -124,8 +122,6 @@ class EnableFlockerAgentTests(TestCase):
         expected_sequence = sequence([
             run(command="systemctl enable flocker-dataset-agent"),
             run(command="systemctl restart flocker-dataset-agent"),
-            run(command="systemctl enable flocker-container-agent"),
-            run(command="systemctl restart flocker-container-agent"),
         ])
         self.assertEqual(commands, expected_sequence)
 
@@ -140,7 +136,6 @@ class EnableFlockerAgentTests(TestCase):
         )
         expected_sequence = sequence([
             run(command="service flocker-dataset-agent start"),
-            run(command="service flocker-container-agent start"),
         ])
         self.assertEqual(commands, expected_sequence)
 
@@ -157,7 +152,6 @@ class EnableFlockerAgentTests(TestCase):
         )
         expected_sequence = sequence([
             run(command="service flocker-dataset-agent restart"),
-            run(command="service flocker-container-agent restart"),
         ])
         self.assertEqual(commands, expected_sequence)
 
