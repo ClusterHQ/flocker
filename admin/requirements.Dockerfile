@@ -19,8 +19,4 @@ RUN ["/usr/bin/pip", "wheel",\
      "--wheel-dir", "/wheelhouse",\
      "--constraint", "/requirements/constraints.txt",\
      "--requirement", "/requirements/all.txt.latest"]
-RUN ["/usr/bin/pip", "wheel",\
-     "--wheel-dir", "/wheelhouse",\
-     "--constraint", "/requirements/constraints.txt",\
-     "--requirement", "/requirements/all.txt.latest"]
 ENTRYPOINT ["/entrypoint"]
