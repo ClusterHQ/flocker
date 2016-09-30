@@ -31,7 +31,7 @@ from treq import json_content, content, get, post
 from pyrsistent import PClass, field, CheckedPVector, pmap
 
 from ..control import (
-    Application, AttachedVolume, DockerImage, Manifestation, Dataset,
+    AttachedVolume, Manifestation, Dataset,
 )
 
 from ..common import gather_deferreds, loop_until, timeout, retry_failure
@@ -60,8 +60,7 @@ except ImportError:
 
 __all__ = [
     'require_cluster',
-    'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
-    'create_application', 'create_attached_volume',
+    'create_attached_volume',
     'get_docker_client', 'ACCEPTANCE_TEST_TIMEOUT'
     ]
 
@@ -74,12 +73,6 @@ ACCEPTANCE_TEST_TIMEOUT = timedelta(minutes=5)
 require_mongo = skipUnless(
     PYMONGO_INSTALLED, "PyMongo not installed")
 
-
-# XXX The MONGO_APPLICATION will have to be removed because it does not match
-# the tutorial yml files, and the yml should be testably the same:
-# https://clusterhq.atlassian.net/browse/FLOC-947
-MONGO_APPLICATION = u"mongodb-example-application"
-MONGO_IMAGE = u"clusterhq/mongodb"
 
 DOCKER_PORT = 2376
 
@@ -125,32 +118,6 @@ def get_docker_client(cluster, address):
     return dockerpy_client(
         base_url="https://{}:{}".format(address, DOCKER_PORT),
         tls=tls, timeout=100, version='1.21',
-    )
-
-
-def get_mongo_application():
-    """
-    Return a new ``Application`` with a name and image corresponding to
-    the MongoDB tutorial example:
-
-    http://doc-dev.clusterhq.com/gettingstarted/tutorial/index.html
-    """
-    return Application(
-        name=MONGO_APPLICATION,
-        image=DockerImage.from_string(MONGO_IMAGE + u':latest'),
-    )
-
-
-def create_application(name, image, ports=frozenset(), volume=None,
-                       links=frozenset(), environment=None, memory_limit=None,
-                       cpu_shares=None):
-    """
-    Instantiate an ``Application`` with the supplied parameters and return it.
-    """
-    return Application(
-        name=name, image=DockerImage.from_string(image + u':latest'),
-        ports=ports, volume=volume, links=links, environment=environment,
-        memory_limit=memory_limit, cpu_shares=cpu_shares
     )
 
 
