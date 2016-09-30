@@ -562,7 +562,7 @@ common_cli:
     echo "RUN env URLGRABBER_DEBUG=1 yum install \
           --assumeyes epel-release" >> Dockerfile
     echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes \
-          git ruby-devel python-devel libffi-devel openssl-devel \
+          git ruby-devel python-devel libffi-devel openssl-devel enchant-devel \
           rpmlint" >> Dockerfile
     echo "RUN env URLGRABBER_DEBUG=1 yum update --assumeyes" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
@@ -575,7 +575,7 @@ common_cli:
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y git ruby-dev \
-          libffi-dev libssl-dev build-essential \
+          libffi-dev libssl-dev libenchant-dev build-essential \
           python2.7-dev lintian python" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
     echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile
@@ -587,7 +587,7 @@ common_cli:
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y \
-          git ruby-dev libffi-dev libssl-dev build-essential \
+          git ruby-dev libffi-dev libssl-dev libenchant-dev build-essential \
           python2.7-dev lintian python" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
     echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile
@@ -599,7 +599,7 @@ common_cli:
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y \
-          git ruby-dev libffi-dev libssl-dev build-essential \
+          git ruby-dev libffi-dev libssl-dev libenchant-dev build-essential \
           python2.7-dev lintian python" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
     echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile

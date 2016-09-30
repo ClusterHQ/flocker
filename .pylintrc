@@ -74,9 +74,6 @@ enable=import-error,
        global-at-module-level,
        bad-open-mode,
        redundant-unittest-assert,
-       # Has common issues with our style due to
-       # https://github.com/PyCQA/pylint/issues/210
-       unused-variable,
        boolean-datetime
 
 # Things we'd like to enable someday:
@@ -263,6 +260,10 @@ enable=import-error,
        # bare-except,
        # not-async-context-manager,
        # yield-inside-async-function,
+       #
+       # Has common issues with our style due to
+       # https://github.com/PyCQA/pylint/issues/210
+       # unused-variable,
 
 # ...
 [REPORTS]
