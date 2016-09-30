@@ -747,18 +747,6 @@ class Cluster(PClass):
                 for container in client.containers():
                     client.remove_container(container["Id"], force=True)
 
-        def cleanup_flocker_containers(_):
-            cleaning_containers = api_clean_state(
-                u"containers",
-                self.configured_containers,
-                self.current_containers,
-                lambda item: self.remove_container(item[u"name"]),
-            )
-            return timeout(
-                reactor, cleaning_containers, 30,
-                Exception("Timed out cleaning up Flocker containers"),
-            )
-
         def cleanup_datasets(_):
             cleaning_datasets = api_clean_state(
                 u"datasets",
@@ -825,7 +813,6 @@ class Cluster(PClass):
             )
 
         d = DeferredContext(cleanup_leases())
-        d.addCallback(cleanup_flocker_containers)
         if remove_foreign_containers:
             d.addCallback(cleanup_all_containers)
         d.addCallback(cleanup_datasets)
