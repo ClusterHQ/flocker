@@ -27,7 +27,6 @@ For more information read the :ref:`cluster architecture<architecture>` document
    :maxdepth: 2
 
    api
-   deprecated_api
 
 Leases
 ======
@@ -38,7 +37,7 @@ Leases
 
 .. toctree::
    :maxdepth: 2
-   
+
    leases
 
 .. XXX: Improvements to the API (create collapse directive) requires Engineering effort:
