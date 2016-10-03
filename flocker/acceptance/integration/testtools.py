@@ -17,7 +17,7 @@ DOCKER_CLIENT_LOCK = DeferredLock()
 
 def deferToThreadWithLock(lock, f, *args, **kwargs):
     """
-    Like deferToThread, but acquires ``lock`` before calling ``f`` and
+    Like ``deferToThread``, but acquires ``lock`` before calling ``f`` and
     releases the lock when ``f`` returns or raises.
     """
     locking = lock.acquire()

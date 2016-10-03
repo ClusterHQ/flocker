@@ -13,7 +13,6 @@ from twisted.python.filepath import FilePath
 from ...common.runner import run_ssh, download
 from ...testtools import AsyncTestCase, async_runner
 from ..testtools import require_cluster, ACCEPTANCE_TEST_TIMEOUT
-from testtools.matchers import Equals
 
 
 class DiagnosticsTests(AsyncTestCase):
@@ -57,15 +56,15 @@ class DiagnosticsTests(AsyncTestCase):
 
         def verify_archive(local_archive_path):
             with tarfile.open(local_archive_path.path) as f:
-                actual_basenames = set()
+                actual_filenames = set()
                 for name in f.getnames():
                     basename = os.path.basename(name)
                     if name == basename:
                         # Ignore the directory entry
                         continue
-                    actual_basenames.add(basename)
+                    actual_filenames.add(basename)
 
-            expected_basenames = set([
+            expected_filenames = set([
                 'flocker-control_startup.gz',
                 'flocker-control_eliot.gz',
                 'flocker-dataset-agent_startup.gz',
@@ -85,9 +84,11 @@ class DiagnosticsTests(AsyncTestCase):
                 'fdisk',
                 'lshw',
             ])
-            self.expectThat(
-                actual_basenames,
-                Equals(expected_basenames),
+            # Missing expected filenames will show up as differences.
+            # Unexpected filenames will be ignored.
+            self.assertEqual(
+                set(),
+                expected_filenames.difference(actual_filenames)
             )
 
         verifying = downloading.addCallback(verify_archive)
