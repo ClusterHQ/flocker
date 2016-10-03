@@ -15,15 +15,15 @@ from ...testtools import AsyncTestCase, random_name
 DOCKER_CLIENT_LOCK = DeferredLock()
 
 
-def deferToThreadWithLock(lock, callable, *args, **kwargs):
+def deferToThreadWithLock(lock, f, *args, **kwargs):
     """
-    Like deferToThread, but acquires ``lock`` before calling ``callable`` and
-    releases the lock when ``callable`` returns or raises.
+    Like deferToThread, but acquires ``lock`` before calling ``f`` and
+    releases the lock when ``f`` returns or raises.
     """
     locking = lock.acquire()
 
     def locked(lock):
-        return deferToThread(callable, *args, **kwargs)
+        return deferToThread(f, *args, **kwargs)
 
     calling = locking.addCallback(locked)
 
