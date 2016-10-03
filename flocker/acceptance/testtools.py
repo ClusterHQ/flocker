@@ -5,7 +5,6 @@ Testing utilities for ``flocker.acceptance``.
 """
 from datetime import timedelta
 from functools import wraps
-from json import dumps
 from os import environ, close
 from unittest import SkipTest, skipUnless
 from uuid import uuid4, UUID
@@ -19,12 +18,10 @@ import ssl
 
 from docker.tls import TLSConfig
 
-from twisted.internet import defer
-from twisted.web.http import OK, CREATED
+from twisted.web.http import OK
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.internet.error import ProcessTerminated
-from twisted.internet.task import deferLater
 
 from eliot import start_action, Message, write_failure
 from eliot.twisted import DeferredContext
@@ -34,7 +31,7 @@ from treq import json_content, content, get, post
 from pyrsistent import PClass, field, CheckedPVector, pmap
 
 from ..control import (
-    Application, AttachedVolume, DockerImage, Manifestation, Dataset,
+    AttachedVolume, Manifestation, Dataset,
 )
 
 from ..common import gather_deferreds, loop_until, timeout, retry_failure
@@ -45,7 +42,6 @@ from ..common.runner import download, run_ssh
 
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication, UserCredential
-from ..testtools import random_name
 from ..apiclient import FlockerClient, DatasetState
 from ..node.backends import backend_loader
 from ..node.script import get_api
@@ -64,8 +60,7 @@ except ImportError:
 
 __all__ = [
     'require_cluster',
-    'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
-    'create_application', 'create_attached_volume',
+    'create_attached_volume',
     'get_docker_client', 'ACCEPTANCE_TEST_TIMEOUT'
     ]
 
@@ -78,12 +73,6 @@ ACCEPTANCE_TEST_TIMEOUT = timedelta(minutes=5)
 require_mongo = skipUnless(
     PYMONGO_INSTALLED, "PyMongo not installed")
 
-
-# XXX The MONGO_APPLICATION will have to be removed because it does not match
-# the tutorial yml files, and the yml should be testably the same:
-# https://clusterhq.atlassian.net/browse/FLOC-947
-MONGO_APPLICATION = u"mongodb-example-application"
-MONGO_IMAGE = u"clusterhq/mongodb"
 
 DOCKER_PORT = 2376
 
@@ -129,32 +118,6 @@ def get_docker_client(cluster, address):
     return dockerpy_client(
         base_url="https://{}:{}".format(address, DOCKER_PORT),
         tls=tls, timeout=100, version='1.21',
-    )
-
-
-def get_mongo_application():
-    """
-    Return a new ``Application`` with a name and image corresponding to
-    the MongoDB tutorial example:
-
-    http://doc-dev.clusterhq.com/gettingstarted/tutorial/index.html
-    """
-    return Application(
-        name=MONGO_APPLICATION,
-        image=DockerImage.from_string(MONGO_IMAGE + u':latest'),
-    )
-
-
-def create_application(name, image, ports=frozenset(), volume=None,
-                       links=frozenset(), environment=None, memory_limit=None,
-                       cpu_shares=None):
-    """
-    Instantiate an ``Application`` with the supplied parameters and return it.
-    """
-    return Application(
-        name=name, image=DockerImage.from_string(image + u':latest'),
-        ports=ports, volume=volume, links=links, environment=environment,
-        memory_limit=memory_limit, cpu_shares=cpu_shares
     )
 
 
@@ -333,7 +296,10 @@ def get_mongo_client(host, port=27017):
     """
     def create_mongo_client():
         try:
-            client = MongoClient(host=host, port=port)
+            # Ensure that writes are only acknowledged once they've been
+            # written to disk.
+            # http://api.mongodb.com/python/current/api/pymongo/mongo_client.html
+            client = MongoClient(host=host, port=port, fsync=True)
             client.areyoualive.posts.insert({"ping": 1})
             return client
         except PyMongoError:
@@ -614,131 +580,6 @@ class Cluster(PClass):
         return waiting
 
     @log_method
-    def create_container(self, properties):
-        """
-        Create a container with the specified properties.
-
-        :param dict properties: A ``dict`` mapping to the API request fields
-            to create a container.
-
-        :returns: A ``Deferred`` which fires with an API response when the
-            container with the supplied properties has been persisted to the
-            cluster configuration.
-        """
-        request = self.treq.post(
-            self.base_url + b"/configuration/containers",
-            data=dumps(properties),
-            headers={b"content-type": b"application/json"},
-        )
-
-        request.addCallback(check_and_decode_json, CREATED)
-        return request
-
-    @log_method
-    def move_container(self, name, node_uuid):
-        """
-        Move a container.
-
-        :param unicode name: The name of the container to move.
-        :param unicode node_uuid: The UUID to which the container should
-            be moved.
-        :returns: A ``Deferred`` which fires with an API response when the
-            container move has been persisted to the cluster configuration.
-        """
-        request = self.treq.post(
-            self.base_url + b"/configuration/containers/" +
-            name.encode("ascii"),
-            data=dumps({u"node_uuid": node_uuid}),
-            headers={b"content-type": b"application/json"},
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def remove_container(self, name):
-        """
-        Remove a container.
-
-        :param unicode name: The name of the container to remove.
-
-        :returns: A ``Deferred`` which fires with an API response when the
-            container removal has been persisted to the cluster configuration.
-        """
-        request = self.treq.delete(
-            self.base_url + b"/configuration/containers/" +
-            name.encode("ascii"),
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def configured_containers(self):
-        """
-        Get current containers from configuration.
-
-        :return: A ``Deferred`` firing with a tuple (cluster instance, API
-            response).
-        """
-        request = self.treq.get(
-            self.base_url + b"/configuration/containers",
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def current_containers(self):
-        """
-        Get current containers.
-
-        :return: A ``Deferred`` firing with a tuple (cluster instance, API
-            response).
-        """
-        request = self.treq.get(
-            self.base_url + b"/state/containers",
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    @log_method
-    def wait_for_container(self, container_properties):
-        """
-        Poll the container state API until a container exists with all the
-        supplied ``container_properties``.
-
-        :param dict container_properties: The attributes of the container that
-            we're waiting for. All the keys, values and those of nested
-            dictionaries must match.
-        :returns: A ``Deferred`` which fires with an API response when a
-            container with the supplied properties appears in the cluster.
-        """
-        def created():
-            """
-            Check the container state list for the expected container
-            properties.
-            """
-            request = self.current_containers()
-
-            def got_response(containers):
-                expected_container = container_properties.copy()
-                for container in containers:
-                    container_items = container.items()
-                    if all([
-                        item in container_items
-                        for item in expected_container.items()
-                    ]):
-                        # Return cluster and container state
-                        return container
-                return False
-            request.addCallback(got_response)
-            return request
-
-        return loop_until(reactor, created)
-
-    @log_method
     def current_nodes(self):
         """
         Get current nodes.
@@ -876,18 +717,6 @@ class Cluster(PClass):
                 for container in client.containers():
                     client.remove_container(container["Id"], force=True)
 
-        def cleanup_flocker_containers(_):
-            cleaning_containers = api_clean_state(
-                u"containers",
-                self.configured_containers,
-                self.current_containers,
-                lambda item: self.remove_container(item[u"name"]),
-            )
-            return timeout(
-                reactor, cleaning_containers, 30,
-                Exception("Timed out cleaning up Flocker containers"),
-            )
-
         def cleanup_datasets(_):
             cleaning_datasets = api_clean_state(
                 u"datasets",
@@ -954,7 +783,6 @@ class Cluster(PClass):
             )
 
         d = DeferredContext(cleanup_leases())
-        d.addCallback(cleanup_flocker_containers)
         if remove_foreign_containers:
             d.addCallback(cleanup_all_containers)
         d.addCallback(cleanup_datasets)
@@ -1087,8 +915,7 @@ def _get_test_cluster(reactor):
     )
 
 
-def require_cluster(num_nodes, required_backend=None,
-                    require_container_agent=False):
+def require_cluster(num_nodes, required_backend=None):
     """
     A decorator which will call the supplied test_method when a cluster with
     the required number of nodes is available.
@@ -1144,19 +971,6 @@ def require_cluster(num_nodes, required_backend=None,
 
             waiting_for_cluster.addCallback(clean)
 
-            def enable_container_agent(cluster):
-                # This should ideally be some sort of fixture/testresources
-                # thing, but the APIs aren't quite right today.
-                def configure_container_agent(node):
-                    return ensure_container_agent_enabled(
-                        node, require_container_agent)
-                d = defer.gatherResults(
-                    map(configure_container_agent, cluster.nodes),
-                    consumeErrors=True)
-                d.addCallback(lambda _: cluster)
-                return d
-
-            waiting_for_cluster.addCallback(enable_container_agent)
             calling_test_method = waiting_for_cluster.addCallback(
                 call_test_method_with_cluster,
                 test_case, args, kwargs
@@ -1164,155 +978,6 @@ def require_cluster(num_nodes, required_backend=None,
             return calling_test_method
         return wrapper
     return decorator
-
-
-def is_container_agent_running(node):
-    """
-    Check if the container agent is running on the specified node.
-
-    :param Node node: the node to check.
-    :return Deferred[bool]: a Deferred that will fire when
-        with whether the container agent is runnning.
-    """
-    d = node.run_script("service_running", "flocker-container-agent")
-
-    def not_existing(failure):
-        failure.trap(ProcessTerminated)
-        return False
-    d.addCallbacks(lambda result: True, not_existing)
-    return d
-
-
-def set_container_agent_enabled_on_node(node, enabled):
-    """
-    Ensure the container agent is enabled/disabled as specified.
-
-    :param Node node: the node on which to ensure the container
-        agent's state
-    :param bool enabled: True to ensure the container agent
-        is enabled and running, false to ensure the opposite.
-    :return Deferred[None]: a Deferred that will fire when
-        the container agent is in the desired state.
-    """
-    if enabled:
-        d = node.run_script("enable_service", "flocker-container-agent")
-    else:
-        d = node.run_script("disable_service", "flocker-container-agent")
-    # If the agent was disabled We have to reboot to clear the control cache.
-    # If we want to avoid the reboot we could add an API to do this.
-    if not enabled:
-        d.addCallback(lambda _: node.reboot())
-        # Wait for reboot to be far enough along that everything
-        # should be shutdown:
-        d.addCallback(lambda _: deferLater(reactor, 20, lambda: None))
-        # Wait until server is back up:
-        d = d.addCallback(lambda _:
-                          verify_socket(node.public_address, 22))
-        d.addCallback(lambda _: loop_until(
-            reactor, lambda: is_process_running(
-                node, b'flocker-dataset-agent')))
-        d.addCallback(
-            lambda _:
-            node.run_script("disable_service", "flocker-dataset-agent"))
-        d.addCallback(
-            lambda _:
-            node.run_script("enable_service", "flocker-dataset-agent"))
-        d.addCallback(lambda _: loop_until(
-            reactor, lambda: is_process_running(
-                node, b'flocker-dataset-agent')))
-    # Hide the value in the callback as it could come from
-    # different places and shouldn't be used.
-    d.addCallback(lambda _: None)
-    return d
-
-
-def is_process_running(node, name):
-    """
-    Check if the process `name` is running on `node`.
-
-    :param Node node: the node to check.
-    :param bytes name: the name of the process to look for.
-    :return Deferred[bool]: a deferred that will fire
-        with whether at least one process named `name` is running
-        on `node`.
-    """
-    # pidof will return the pid if the processes is
-    # running else exit with status 1 which triggers the
-    # errback chain.
-    command = [b'pidof', b'-x', name]
-    d = node.run_as_root(command)
-
-    def not_existing(failure):
-        failure.trap(ProcessTerminated)
-        return False
-    d.addCallbacks(lambda result: True, not_existing)
-    return d
-
-
-def ensure_container_agent_enabled(node, to_enable):
-    """
-    Ensure the container agent is enabled/disabled as specified.
-
-    Doesn't make any changes if the agent is already in the
-    desired state.
-
-    :param Node node: the node on which to ensure the container
-        agent's state
-    :param bool to_enable: True to ensure the container agent
-        is enabled and running, False to ensure the opposite.
-    :return Deferred[None]: a Deferred that will fire when
-        the container agent is in the desired state.
-    """
-    # If the agent is enabled but stopped, and the test
-    # requests no container agent, then if the test rebooted
-    # the node it would get a running container agent after
-    # that point. This means that a test that fails in a
-    # particular way could cause incorrect results in later
-    # tests that rely on reboots. This function could change
-    # to check the enabled status as well.
-    d = is_container_agent_running(node)
-
-    def change_if_needed(enabled):
-        if enabled != to_enable:
-            return set_container_agent_enabled_on_node(node, to_enable)
-    d.addCallback(change_if_needed)
-    return d
-
-
-def create_python_container(test_case, cluster, parameters, script,
-                            cleanup=True, additional_arguments=()):
-    """
-    Create a Python container that runs a given script.
-
-    :param TestCase test_case: The current test.
-    :param Cluster cluster: The cluster to run on.
-    :param dict parameters: Parameters for the ``create_container`` JSON
-        query, beyond those provided by this function.
-    :param FilePath script: Python code to run.
-    :param bool cleanup: If true, remove container when test is over.
-    :param additional_arguments: Additional arguments to pass to the
-        script.
-
-    :return: ``Deferred`` that fires when the configuration has been updated.
-    """
-    parameters = parameters.copy()
-    parameters[u"image"] = u"python:2.7-slim"
-    parameters[u"command_line"] = [u"python2.7", u"-c",
-                                   script.getContent().decode("ascii")] + list(
-                                       additional_arguments)
-    if u"restart_policy" not in parameters:
-        parameters[u"restart_policy"] = {u"name": u"never"}
-    if u"name" not in parameters:
-        parameters[u"name"] = random_name(test_case)
-    creating = cluster.create_container(parameters)
-
-    def created(response):
-        if cleanup:
-            test_case.addCleanup(cluster.remove_container, parameters[u"name"])
-        test_case.assertEqual(response, parameters)
-        return response
-    creating.addCallback(created)
-    return creating
 
 
 def extract_external_port(
