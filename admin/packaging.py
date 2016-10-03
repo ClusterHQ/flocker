@@ -679,6 +679,11 @@ IGNORED_WARNINGS = {
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
 
+        # Pycparser is installed from an sdist as of FLOC-4507 which seems to
+        # result in these cache directories.
+        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/pycparser/__pycache__/',  # noqa
+        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/pycparser/ply/__pycache__/',  # noqa
+
         # files included by netaddr - we put the whole python we need in the
         # flocker package, and lint complains. See:
         # https://lintian.debian.org/tags/package-installs-ieee-data.html
