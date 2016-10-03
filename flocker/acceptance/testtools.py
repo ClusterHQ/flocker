@@ -296,7 +296,10 @@ def get_mongo_client(host, port=27017):
     """
     def create_mongo_client():
         try:
-            client = MongoClient(host=host, port=port)
+            # Ensure that writes are only acknowledged once they've been
+            # written to disk.
+            # http://api.mongodb.com/python/current/api/pymongo/mongo_client.html
+            client = MongoClient(host=host, port=port, fsync=True)
             client.areyoualive.posts.insert({"ping": 1})
             return client
         except PyMongoError:
