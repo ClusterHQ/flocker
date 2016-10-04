@@ -98,8 +98,6 @@ setup(
 
     package_data={
         'flocker.node.functional': [
-            'sendbytes-docker/*',
-            'env-docker/*',
             'retry-docker/*'
         ],
         # These data files are used by the volumes API to define input and
