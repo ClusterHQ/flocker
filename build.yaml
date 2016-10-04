@@ -745,7 +745,6 @@ run_trial_modules: &run_trial_modules
   - flocker.dockerplugin
   - flocker.node.test
   - flocker.node.functional.test_script
-  - flocker.node.functional.test_deploy
   - flocker.provision
   - flocker.restapi
   - flocker.test
