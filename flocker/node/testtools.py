@@ -4,14 +4,7 @@
 Testing utilities for ``flocker.node``.
 """
 
-from functools import wraps
-import os
-import pwd
-from unittest import skipIf, SkipTest
 from uuid import uuid4
-from distutils.version import LooseVersion  # pylint: disable=import-error
-
-import psutil
 
 from zope.interface import implementer
 
@@ -21,80 +14,18 @@ from twisted.internet.defer import succeed
 
 from zope.interface.verify import verifyObject
 
-from eliot import Logger, ActionType, MessageType, fields
+from eliot import Logger, ActionType
 
 from . import (
     ILocalState, IDeployer, NodeLocalState, IStateChange, sequentially
 )
 from ..common import loop_until
-from ..testtools import AsyncTestCase, find_free_port
+from ..testtools import AsyncTestCase
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState,
     PersistentState,
 )
 from ..control._model import ip_to_uuid, Leases
-from ._docker import AddressInUse, DockerClient
-
-
-def docker_accessible():
-    """
-    Attempt to connect to the Docker control socket.
-
-    :return: A ``bytes`` string describing the reason Docker is not
-        accessible or ``None`` if it appears to be accessible.
-    """
-    try:
-        client = DockerClient()
-        client._client.ping()
-    except Exception as e:
-        return str(e)
-    return None
-
-_docker_reason = docker_accessible()
-
-if_docker_configured = skipIf(
-    _docker_reason,
-    "User {!r} cannot access Docker: {}".format(
-        pwd.getpwuid(os.geteuid()).pw_name,
-        _docker_reason,
-    ))
-
-
-def require_docker_version(minimum_docker_version, message):
-    """
-    Skip the wrapped test if the actual Docker version is less than
-    ``minimum_docker_version``.
-
-    :param str minimum_docker_version: The minimum version required by the
-        test.
-    :param str message: An explanatory message which will be printed when
-        skipping the test.
-    """
-    minimum_docker_version = LooseVersion(
-        minimum_docker_version
-    )
-
-    # XXX: Can we change this to use skipIf?
-    def decorator(wrapped):
-        @wraps(wrapped)
-        def wrapper(*args, **kwargs):
-            client = DockerClient()
-            docker_version = LooseVersion(
-                client._client.version()['Version']
-            )
-            if docker_version < minimum_docker_version:
-                raise SkipTest(
-                    'Minimum required Docker version: {}. '
-                    'Actual Docker version: {}. '
-                    'Details: {}'.format(
-                        minimum_docker_version,
-                        docker_version,
-                        message,
-                    )
-                )
-            return wrapped(*args, **kwargs)
-        return wrapper
-    return decorator
 
 
 def wait_for_unit_state(reactor, docker_client, unit_name,
@@ -402,94 +333,3 @@ def assert_calculated_changes_for_deployer(
         cluster_configuration, cluster_state, local_state
     )
     case.assertEqual(expected_changes, changes)
-
-
-ADDRESS_IN_USE = MessageType(
-    u"flocker:test:address_in_use",
-    fields(ip=unicode, port=int, name=bytes),
-)
-
-
-def _find_process_name(port_number):
-    """
-    Get the name of the process using the given port number.
-    """
-    for connection in psutil.net_connections():
-        if connection.laddr[1] == port_number:
-            return psutil.Process(connection.pid).name()
-    return None
-
-
-def _retry_on_port_collision(reason, add, cleanup):
-    """
-    Cleanup and re-add a container if it failed to start because of a port
-    collision.
-
-    :param reason: The exception describing the container startup failure.
-    :param add: A no-argument callable that can be used to try adding and
-        starting the container again.
-    :param cleanup: A no-argument callable that can be used to remove the
-        container.
-    """
-    # We select a random, available port number on each attempt.  If it was in
-    # use it's because the "available" part of that port number selection logic
-    # is fairly shaky.  It should be good enough that trying again works fairly
-    # well, though.  So do that.
-    reason.trap(AddressInUse)
-    ip, port = reason.value.address
-    used_by = _find_process_name(port)
-    ADDRESS_IN_USE(ip=ip, port=port, name=used_by).write()
-    d = cleanup()
-    d.addCallback(lambda ignored: add())
-    return d
-
-
-def add_with_port_collision_retry(client, unit_name, **kw):
-    """
-    Add a container.  Try adding it repeatedly if it has ports defined and
-    container startup fails with ``AddressInUse``.
-
-    If ports in the container are defined with an external port number of ``0``
-    a locally free port number will be assigned.  On each re-try attempt, these
-    will be re-assigned to try to avoid the port collision.
-
-    :param DockerClient client: The ``IDockerClient`` to use to try to add the
-        container.
-    :param unicode unit_name: The name of the container to add.  See the
-        ``unit_name`` parameter of ``IDockerClient.add``.
-    :param kw: Additional keyword arguments to pass on to
-        ``IDockerClient.add``.
-
-    :return: A ``Deferred`` which fires with a two-tuple.  The first element
-        represents the container which has been added and started.  The second
-        element is a ``list`` of ``PortMap`` instances describing the ports
-        which were ultimately requested.
-    """
-    ultimate_ports = []
-
-    def add():
-        # Generate a replacement for any auto-assigned ports
-        ultimate_ports[:] = tentative_ports = list(
-            port.set(
-                external_port=find_free_port()[1]
-            )
-            if port.external_port == 0
-            else port
-            for port in kw["ports"]
-        )
-        tentative_kw = kw.copy()
-        tentative_kw["ports"] = tentative_ports
-        return client.add(unit_name, **tentative_kw)
-
-    def cleanup():
-        return client.remove(unit_name)
-
-    if "ports" in kw:
-        trying = add()
-        trying.addErrback(_retry_on_port_collision, add, cleanup)
-        result = trying
-    else:
-        result = client.add(unit_name, **kw)
-
-    result.addCallback(lambda app: (app, ultimate_ports))
-    return result

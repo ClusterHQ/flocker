@@ -869,51 +869,6 @@ job_type:
       timeout: 30
       directories_to_delete: *run_trial_directories_to_delete
 
-    run_trial_on_AWS_CentOS_7_flocker.node.functional.test_docker:
-      # FLOC-3903: docker on centos use loop-devmapper
-      # by default. That makes it much slower than Ubuntu
-      # with aufs. It leads to timeouts, but seems to do
-      # a bit better on the medium instance
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-      module: flocker.node.functional.test_docker
-      with_steps:
-        - { type: 'shell', cli: *run_trial_cli }
-      archive_artifacts: *flocker_artifacts
-      publish_test_results: true
-      coverage_report: true
-      clean_repo: true
-      # Increase the timeout due to FLOC-3903
-      timeout: 45
-      directories_to_delete: *run_trial_directories_to_delete
-
-    # Split out just to do the CentOS version above,
-    # for the reasons outlined in that section
-    run_trial_on_AWS_Ubuntu_Trusty_flocker.node.functional.test_docker:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      module: flocker.node.functional.test_docker
-      with_steps:
-        - { type: 'shell', cli: *run_trial_cli }
-      archive_artifacts: *flocker_artifacts
-      publish_test_results: true
-      coverage_report: true
-      clean_repo: true
-      timeout: 30
-      directories_to_delete: *run_trial_directories_to_delete
-
-    # Split out just to do the CentOS version above,
-    # for the reasons outlined in that section
-    run_trial_on_AWS_Ubuntu_Xenial_flocker.node.functional.test_docker:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
-      module: flocker.node.functional.test_docker
-      with_steps:
-        - { type: 'shell', cli: *run_trial_cli }
-      archive_artifacts: *flocker_artifacts
-      publish_test_results: true
-      coverage_report: true
-      clean_repo: true
-      timeout: 30
-      directories_to_delete: *run_trial_directories_to_delete
-
   run_trial_for_storage_driver:
     run_trial_for_ebs_storage_driver_on_CentOS_7:
       on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
