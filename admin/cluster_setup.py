@@ -390,7 +390,7 @@ def main(reactor, args, base_path, top_level):
         for node in cluster.all_nodes:
             capture_journal(reactor, node.address,
                             remote_logs_file).addErrback(write_failure)
-    elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.10'):
+    elif options['distribution'] in ('ubuntu-14.04',):
         remote_logs_file = open("remote_logs.log", "a")
         for node in cluster.all_nodes:
             capture_upstart(reactor, node.address,
