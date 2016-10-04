@@ -13,7 +13,6 @@ from twisted.python.filepath import FilePath
 from ...common.runner import run_ssh, download
 from ...testtools import AsyncTestCase, async_runner
 from ..testtools import require_cluster, ACCEPTANCE_TEST_TIMEOUT
-from testtools.matchers import MatchesAny, Equals
 
 
 class DiagnosticsTests(AsyncTestCase):
@@ -23,12 +22,7 @@ class DiagnosticsTests(AsyncTestCase):
 
     run_tests_with = async_runner(timeout=ACCEPTANCE_TEST_TIMEOUT)
 
-    # This only requires the container agent to check
-    # that its log is collected. We still care about
-    # that working, so we run it. We should stop
-    # running it for this test when we get closer
-    # to never running it in production.
-    @require_cluster(1, require_container_agent=True)
+    @require_cluster(1)
     def test_export(self, cluster):
         """
         ``flocker-diagnostics`` creates an archive of all Flocker service logs
@@ -62,20 +56,15 @@ class DiagnosticsTests(AsyncTestCase):
 
         def verify_archive(local_archive_path):
             with tarfile.open(local_archive_path.path) as f:
-                actual_basenames = set()
+                actual_filenames = set()
                 for name in f.getnames():
                     basename = os.path.basename(name)
                     if name == basename:
                         # Ignore the directory entry
                         continue
-                    actual_basenames.add(basename)
+                    actual_filenames.add(basename)
 
-            container_agent_basenames = set([
-                'flocker-container-agent_startup.gz',
-                'flocker-container-agent_eliot.gz',
-            ])
-
-            expected_basenames = set([
+            expected_filenames = set([
                 'flocker-control_startup.gz',
                 'flocker-control_eliot.gz',
                 'flocker-dataset-agent_startup.gz',
@@ -95,13 +84,11 @@ class DiagnosticsTests(AsyncTestCase):
                 'fdisk',
                 'lshw',
             ])
-            self.expectThat(
-                actual_basenames,
-                MatchesAny(
-                    Equals(expected_basenames),
-                    Equals(expected_basenames.union(
-                        container_agent_basenames)),
-                )
+            # Missing expected filenames will show up as differences.
+            # Unexpected filenames will be ignored.
+            self.assertEqual(
+                set(),
+                expected_filenames.difference(actual_filenames)
             )
 
         verifying = downloading.addCallback(verify_archive)
