@@ -1148,20 +1148,11 @@ def task_enable_flocker_agent(distribution, action="start"):
             run_from_args(['systemctl',
                            action.lower(),
                            'flocker-dataset-agent']),
-            run_from_args(['systemctl',
-                           'enable',
-                           'flocker-container-agent']),
-            run_from_args(['systemctl',
-                           action.lower(),
-                           'flocker-container-agent']),
         ])
     elif is_ubuntu(distribution):
         return sequence([
             run_from_args(['service',
                            'flocker-dataset-agent',
-                           action.lower()]),
-            run_from_args(['service',
-                           'flocker-container-agent',
                            action.lower()]),
         ])
     else:
@@ -1272,7 +1263,7 @@ def _disable_flocker_systemd():
         # XXX There should be uninstall hooks for stopping services.
         _maybe_disable(unit) for unit in [
             u"flocker-control", u"flocker-dataset-agent",
-            u"flocker-container-agent", u"flocker-docker-plugin",
+            u"flocker-docker-plugin",
         ]
     )
 
@@ -1565,8 +1556,7 @@ def configure_cluster(
     cluster, dataset_backend_configuration, provider, logging_config=None
 ):
     """
-    Configure flocker-control, flocker-dataset-agent and
-    flocker-container-agent on a collection of nodes.
+    Configure flocker-control, flocker-dataset-agent on a collection of nodes.
 
     :param Cluster cluster: Description of the cluster to configure.
 
@@ -1754,7 +1744,7 @@ def configure_node(
     logging_config=None
 ):
     """
-    Configure flocker-dataset-agent and flocker-container-agent on a node,
+    Configure flocker-dataset-agent on a node,
     so that it could join an existing Flocker cluster.
 
     :param Cluster cluster: Description of the cluster.
