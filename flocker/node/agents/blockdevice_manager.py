@@ -501,7 +501,7 @@ def mount(filesystem, mountpoint, options=None):
     except CalledProcessError as e:
         raise MountError(
             blockdevice=filesystem.device_path(),
-            mountpoint=mountpoint.path,
+            mountpoint=mountpoint,
             source_message=e.output,
         )
     return MountedFileSystem(

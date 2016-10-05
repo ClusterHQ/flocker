@@ -471,6 +471,18 @@ class TemporaryMountTests(TestCase):
             (fs1.mountpoint.exists(), fs2.mountpoint.exists())
         )
 
+    def test_mount_error(self):
+        """
+        If the mount fails, the temporary mountpoint is removed and the
+        MountError is raised.
+        """
+        e = self.assertRaises(
+            MountError,
+            temporary_mount,
+            self.make_temporary_file()
+        )
+        self.assertFalse(e.mountpoint.exists())
+
     def test_context_manager(self):
         """
         ``temporary_mount`` when used as a context manager will unmount and
