@@ -4,6 +4,7 @@
 Tests for ``flocker.node.agents.blockdevice_manager``.
 """
 
+import errno
 from uuid import uuid4
 
 from testtools import ExpectedException
@@ -18,6 +19,7 @@ from ..blockdevice_manager import (
     BindMountError,
     BlockDeviceManager,
     IBlockDeviceManager,
+    LabelledFilesystem,
     MakeFilesystemError,
     MakeTmpfsMountError,
     MountError,
@@ -29,6 +31,7 @@ from ..blockdevice_manager import (
     UnmountError,
 )
 from ..testtools import (
+    filesystem_label_for_test,
     formatted_loopback_device_for_test,
     loopbackblockdeviceapi_for_test,
     mountroot_for_test,
@@ -271,6 +274,29 @@ class MountTests(TestCase):
         super(MountTests, self).setUp()
         self.device = formatted_loopback_device_for_test(self)
 
+    def test_filesystem_adapter_error(self):
+        """
+        ``mount`` raises ``TypeError`` unless the supplied ``filesystem`` can
+        be adapted to ``IMountableFilesystem``.
+        """
+        self.assertRaises(
+            TypeError,
+            mount,
+            filesystem=object(),
+            mountpoint=self.make_temporary_directory(),
+        )
+
+    def test_mount_error(self):
+        """
+        ``mount`` raises ``MountError`` if the mount command fails.
+        """
+        self.assertRaises(
+            MountError,
+            mount,
+            filesystem=self.make_temporary_file(),
+            mountpoint=self.make_temporary_directory()
+        )
+
     def test_success(self):
         """
         ``mount`` mounts the supplied device and returns a
@@ -281,7 +307,9 @@ class MountTests(TestCase):
         filename = random_name(self)
         filecontent = random_name(self)
         mount_directory1 = self.make_temporary_directory()
+
         fs1 = mount(self.device.device, mount_directory1)
+
         mount_directory1.child(filename).setContent(filecontent)
         fs1.unmount()
         # ``unmount`` will fail unless the mountpoint is mounted.
@@ -345,6 +373,72 @@ class MountTests(TestCase):
         else:
             self.fail("The expected ``SomeException`` was not raised.")
 
+    def test_mount_options(self):
+        """
+        ``mount`` accepts mount options such as ``ro``.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mount_directory = self.make_temporary_directory()
+        with mount(
+                self.device.device,
+                mount_directory,
+                options=["ro"]
+        ) as mountpoint:
+            e = self.assertRaises(
+                OSError,
+                mountpoint.child(filename).setContent,
+                filecontent
+            )
+            self.assertEqual(errno.EROFS, e.errno)
+
+
+class LabelledFilesystemTests(TestCase):
+    """
+    Tests for ``LabelledFilesystem``.
+    """
+    @if_root
+    def setUp(self):
+        super(LabelledFilesystemTests, self).setUp()
+        self.label = filesystem_label_for_test(self)
+        self.device = formatted_loopback_device_for_test(
+            self, label=self.label
+        )
+
+    def test_success(self):
+        """
+        ``LabelledFilesystem`` can be mounted.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        with temporary_mount(
+                LabelledFilesystem(label=self.label)
+        ) as mountpoint:
+            mountpoint.child(filename).setContent(filecontent)
+
+        with temporary_mount(
+                LabelledFilesystem(label=self.label)
+        ) as mountpoint:
+            self.assertEqual(
+                filecontent,
+                mountpoint.child(filename).getContent()
+            )
+
+    def test_error(self):
+        """
+        If the label doesn't exist, the error includes the label.
+        """
+        non_existent_label = filesystem_label_for_test(self)
+        e = self.assertRaises(
+            MountError,
+            temporary_mount,
+            LabelledFilesystem(label=non_existent_label)
+        )
+        self.assertIn(
+            non_existent_label,
+            unicode(e)
+        )
+
 
 class TemporaryMountTests(TestCase):
     """
@@ -364,17 +458,17 @@ class TemporaryMountTests(TestCase):
         filename = random_name(self)
         filecontent = random_name(self)
         fs1 = temporary_mount(self.device.device)
-        fs1.mountpoint.path.child(filename).setContent(filecontent)
+        fs1.mountpoint.child(filename).setContent(filecontent)
         fs2 = temporary_mount(self.device.device)
         self.assertEqual(
             filecontent,
-            fs2.mountpoint.path.child(filename).getContent()
+            fs2.mountpoint.child(filename).getContent()
         )
         fs1.unmount()
         fs2.unmount()
         self.assertEqual(
             (False, False),
-            (fs1.mountpoint.path.exists(), fs2.mountpoint.path.exists())
+            (fs1.mountpoint.exists(), fs2.mountpoint.exists())
         )
 
     def test_context_manager(self):

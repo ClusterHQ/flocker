@@ -43,7 +43,7 @@ from .blockdevice import (
     UnattachedVolume, UnknownInstanceID, get_blockdevice_volume, ICloudAPI,
 )
 from .blockdevice_manager import (
-    LabelledFilesystem, MountError, TemporaryMountpoint
+    LabelledFilesystem, MountError, temporary_mount
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
@@ -73,7 +73,7 @@ def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
     Attempt to retrieve metadata from config drive.
     """
     try:
-        mounted_fs = TemporaryMountpoint().mount(
+        mounted_fs = temporary_mount(
             LabelledFilesystem(label=config_drive_label),
             options=["ro"]
         )
