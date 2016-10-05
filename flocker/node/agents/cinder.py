@@ -534,7 +534,7 @@ class CinderBlockDeviceAPI(object):
     def compute_instance_id(self):
         """
         Attempt to retrieve node UUID from the metadata in a config drive.
-        Fall back to finging the ``ACTIVE`` Nova API server with an
+        Fall back to finding the ``ACTIVE`` Nova API server with an
         intersection of the IPv4 and IPv6 addresses on this node.
         """
         metadata = metadata_from_config_drive()
