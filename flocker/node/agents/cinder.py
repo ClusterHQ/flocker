@@ -4,7 +4,6 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
-from contextlib import contextmanager
 from itertools import repeat
 import json
 import time
@@ -38,13 +37,14 @@ from zope.interface import implementer, Interface
 from ...common import (
     interface_decorator, get_all_ips, ipaddress_from_string,
     poll_until,
-    temporary_directory,
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, UnknownInstanceID, get_blockdevice_volume, ICloudAPI,
 )
-from .blockdevice_manager import LabelMounter, MountError
+from .blockdevice_manager import (
+    LabelledFilesystem, MountError, TemporaryMountpoint
+)
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
     OPENSTACK_ACTION, CINDER_CREATE
@@ -68,13 +68,15 @@ CONFIG_DRIVE_LABEL = u"config-2"
 METADATA_RELATIVE_PATH = ['openstack', 'latest', 'meta_data.json']
 
 
-@contextmanager
-def config_drive(label=CONFIG_DRIVE_LABEL):
-    mountpoint = temporary_directory()
-    mounter = LabelMounter(label=label)
-    fs = None
+def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
+    """
+    Attempt to retrieve metadata from config drive.
+    """
     try:
-        fs = mounter.mount(mountpoint, options=["ro"])
+        mounted_fs = TemporaryMountpoint().mount(
+            LabelledFilesystem(label=config_drive_label),
+            options=["ro"]
+        )
     except MountError as e:
         Message.new(
             message_type=(
@@ -82,43 +84,30 @@ def config_drive(label=CONFIG_DRIVE_LABEL):
                 u"compute_instance_id:configdrive_not_available"),
             error_message=unicode(e),
         ).write()
-        yield
-    else:
-        yield mountpoint
-    finally:
-        if fs:
-            fs.unmount()
-        mountpoint.remove()
+        return None
 
-
-def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
-    """
-    Attempt to retrieve metadata from config drive.
-    """
-    # Try config drive
-    with config_drive(label=config_drive_label) as mountpoint:
-        if mountpoint:
-            metadata_file = mountpoint.descendant(METADATA_RELATIVE_PATH)
-            try:
-                content = metadata_file.getContent()
-            except IOError as e:
-                Message.new(
-                    message_type=(
-                        u"flocker:node:agents:blockdevice:openstack:"
-                        u"compute_instance_id:metadata_file_not_found"),
-                    error_message=unicode(e),
-                ).write()
-                return
-            try:
-                return json.loads(content)
-            except ValueError as e:
-                Message.new(
-                    message_type=(
-                        u"flocker:node:agents:blockdevice:openstack:"
-                        u"compute_instance_id:metadata_file_not_json"),
-                    error_message=unicode(e),
-                ).write()
-                return
+    with mounted_fs as mountpoint:
+        metadata_file = mountpoint.descendant(METADATA_RELATIVE_PATH)
+        try:
+            content = metadata_file.getContent()
+        except IOError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_found"),
+                error_message=unicode(e),
+            ).write()
+            return
+        try:
+            return json.loads(content)
+        except ValueError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_json"),
+                error_message=unicode(e),
+            ).write()
+            return
 
 
 def _openstack_logged_method(method_name, original_name):

@@ -7,6 +7,7 @@ from tempfile import mkdtemp
 
 from twisted.python.filepath import FilePath, IFilePath
 from twisted.python.components import proxyForInterface
+from zope.interface import classImplements
 
 
 def make_file(path, content='', permissions=None):
@@ -57,6 +58,9 @@ class IFilePathExtended(IFilePath):
         """
         Retrieve a descendant FilePath.
         """
+
+# FilePath provides these and more
+classImplements(FilePath, IFilePathExtended)
 
 
 class _TemporaryPath(proxyForInterface(IFilePathExtended, "_path")):

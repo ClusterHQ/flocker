@@ -4,7 +4,6 @@
 Tests for ``flocker.node.agents.blockdevice_manager``.
 """
 
-from subprocess import CalledProcessError
 from uuid import uuid4
 
 from testtools import ExpectedException
@@ -19,7 +18,6 @@ from ..blockdevice_manager import (
     BindMountError,
     BlockDeviceManager,
     IBlockDeviceManager,
-    LabelMounter,
     MakeFilesystemError,
     MakeTmpfsMountError,
     MountError,
@@ -31,7 +29,6 @@ from ..blockdevice_manager import (
     UnmountError,
 )
 from ..testtools import (
-    filesystem_label_for_test,
     formatted_loopback_device_for_test,
     loopbackblockdeviceapi_for_test,
     mountroot_for_test,
@@ -278,30 +275,26 @@ class MountTests(TestCase):
         """
         ``mount`` mounts the supplied device and returns a
         ``MountedFileSystem`` that can be unmounted.
-        ``MountedFileSystem.unmount`` can be idempotent.
         The files added to mountpoint are stored on the filesystem rather than
         in the mountpoint directory.
         """
         filename = random_name(self)
         filecontent = random_name(self)
-        mountpoint1 = self.make_temporary_directory()
-        fs1 = mount(self.device.device, mountpoint1)
-        # This succeeds even though the fs has already been unmounted below.
-        self.addCleanup(fs1.unmount, idempotent=True)
-        fs1.mountpoint.child(filename).setContent(filecontent)
+        mount_directory1 = self.make_temporary_directory()
+        fs1 = mount(self.device.device, mount_directory1)
+        mount_directory1.child(filename).setContent(filecontent)
         fs1.unmount()
-        # ``unmount`` will fail unless the mountpoint is mounted or you specify
-        # idempotent=True
-        self.assertRaises(CalledProcessError, fs1.unmount)
+        # ``unmount`` will fail unless the mountpoint is mounted.
+        self.assertRaises(UnmountError, fs1.unmount)
 
-        self.assertEqual([], mountpoint1.children())
-        mountpoint2 = self.make_temporary_directory()
-        fs2 = mount(self.device.device, mountpoint2)
-        self.addCleanup(fs2.unmount, idempotent=True)
+        self.assertEqual([], mount_directory1.children())
+        mount_directory2 = self.make_temporary_directory()
+        fs2 = mount(self.device.device, mount_directory2)
         self.assertEqual(
             filecontent,
-            fs2.mountpoint.child(filename).getContent()
+            mount_directory2.child(filename).getContent()
         )
+        fs2.unmount()
 
     def test_context_manager(self):
         """
@@ -310,13 +303,19 @@ class MountTests(TestCase):
         """
         filename = random_name(self)
         filecontent = random_name(self)
-        mountpoint = self.make_temporary_directory()
-        with mount(self.device.device, mountpoint) as fs:
-            self.addCleanup(fs.unmount, idempotent=True)
+        mount_directory = self.make_temporary_directory()
+        with mount(self.device.device, mount_directory) as mountpoint:
             mountpoint.child(filename).setContent(filecontent)
-        self.assertEqual([], mountpoint.children())
-        with mount(self.device.device, mountpoint) as fs:
-            self.addCleanup(fs.unmount, idempotent=True)
+            self.assertEqual(
+                filecontent,
+                mount_directory.child(filename).getContent()
+            )
+        self.assertEqual([], mount_directory.children())
+
+        with mount(
+                self.device.device,
+                self.make_temporary_directory()
+        ) as mountpoint:
             self.assertEqual(
                 filecontent,
                 mountpoint.child(filename).getContent()
@@ -331,15 +330,18 @@ class MountTests(TestCase):
             pass
         filename = random_name(self)
         filecontent = random_name(self)
-        mountpoint = self.make_temporary_directory()
+        mount_directory = self.make_temporary_directory()
         try:
-            with mount(self.device.device, mountpoint) as fs:
-                self.addCleanup(fs.unmount, idempotent=True)
-                with fs.mountpoint.child(filename).open('w') as f:
+            with mount(self.device.device, mount_directory) as mountpoint:
+                with mountpoint.child(filename).open('w') as f:
                     f.write(filecontent)
+                self.assertEqual(
+                    filecontent,
+                    mount_directory.child(filename).getContent()
+                )
                 raise SomeException()
         except SomeException:
-            self.assertEqual([], mountpoint.children())
+            self.assertEqual([], mount_directory.children())
         else:
             self.fail("The expected ``SomeException`` was not raised.")
 
@@ -362,19 +364,17 @@ class TemporaryMountTests(TestCase):
         filename = random_name(self)
         filecontent = random_name(self)
         fs1 = temporary_mount(self.device.device)
-        self.addCleanup(fs1.unmount, idempotent=True)
-        fs1.mountpoint.child(filename).setContent(filecontent)
+        fs1.mountpoint.path.child(filename).setContent(filecontent)
         fs2 = temporary_mount(self.device.device)
-        self.addCleanup(fs2.unmount, idempotent=True)
         self.assertEqual(
             filecontent,
-            fs2.mountpoint.child(filename).getContent()
+            fs2.mountpoint.path.child(filename).getContent()
         )
         fs1.unmount()
         fs2.unmount()
         self.assertEqual(
             (False, False),
-            (fs1.mountpoint.exists(), fs2.mountpoint.exists())
+            (fs1.mountpoint.path.exists(), fs2.mountpoint.path.exists())
         )
 
     def test_context_manager(self):
@@ -385,59 +385,16 @@ class TemporaryMountTests(TestCase):
         filename = random_name(self)
         filecontent = random_name(self)
         mounts = []
-        with temporary_mount(self.device.device) as fs:
-            mounts.append(fs)
-            fs.mountpoint.child(filename).setContent(filecontent)
-        self.assertFalse(mounts[0].mountpoint.exists())
-
-        with temporary_mount(self.device.device) as fs:
-            mounts.append(fs)
-            self.assertEqual(
-                filecontent,
-                fs.mountpoint.child(filename).getContent()
-            )
-        self.assertFalse(mounts[1].mountpoint.exists())
-        self.assertNotEqual(*mounts)
-
-
-class LabelMounterTests(TestCase):
-    """
-    Tests for ``LabelMounter``.
-    """
-    @if_root
-    def setUp(self):
-        super(LabelMounterTests, self).setUp()
-        self.label = filesystem_label_for_test(self)
-        self.device = formatted_loopback_device_for_test(
-            self, label=self.label
-        )
-
-    def test_success(self):
-        """
-        ``LabelMounter`` can mount a filesystem based on its LABEL.
-        """
-        filename = random_name(self)
-        filecontent = random_name(self)
-        mountpoint1 = self.make_temporary_directory()
-        with LabelMounter(label=self.label).mount(mountpoint1):
+        with temporary_mount(self.device.device) as mountpoint1:
+            mounts.append(mountpoint1)
             mountpoint1.child(filename).setContent(filecontent)
-        mountpoint2 = self.make_temporary_directory()
-        with LabelMounter(label=self.label).mount(mountpoint2):
+        self.assertFalse(mounts[0].exists())
+
+        with temporary_mount(self.device.device) as mountpoint2:
+            mounts.append(mountpoint2)
             self.assertEqual(
                 filecontent,
                 mountpoint2.child(filename).getContent()
             )
-
-    def test_label_not_found(self):
-        """
-        ``MountError`` is raised if the supplied filesystem label is not found.
-        """
-        non_existent_label = filesystem_label_for_test(self)
-        mountpoint1 = self.make_temporary_path()
-        mounter = LabelMounter(label=non_existent_label)
-        e = self.assertRaises(
-            MountError,
-            mounter.mount,
-            mountpoint1,
-        )
-        self.assertIn(non_existent_label, unicode(e))
+        self.assertFalse(mounts[1].exists())
+        self.assertNotEqual(*mounts)

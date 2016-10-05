@@ -13,7 +13,7 @@ from ....common.process import run_process
 from ....testtools import random_name
 
 from ..blockdevice import IBlockDeviceAPI, IProfiledBlockDeviceAPI
-from ..blockdevice_manager import BlockDeviceManager
+from ..blockdevice_manager import BlockDeviceManager, _unmount
 from ..loopback import (
     LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
     LoopbackBlockDeviceAPI,
@@ -92,8 +92,8 @@ def formatted_loopback_device_for_test(test_case, label=None):
     Create a loopback device, with a backing file located in the temporary
     directory for this test case.
     Format it with ext4 and optionally add a filesystem label.
-    Registers a test cleanup callback to detach the loopback device when the
-    test is complete.
+    Registers test cleanup callbacks to unmount and detach the loopback device
+    when the test is complete.
 
     :returns: A ``LoopDevice``.
     """
@@ -102,7 +102,6 @@ def formatted_loopback_device_for_test(test_case, label=None):
     with backing_file.open('wb') as f:
         f.truncate(LOOPBACK_MINIMUM_ALLOCATABLE_SIZE)
     device = losetup.add(backing_file=backing_file)
-    test_case.addCleanup(device.remove)
     bdm = BlockDeviceManager()
     bdm.make_filesystem(
         blockdevice=device.device,
@@ -111,4 +110,22 @@ def formatted_loopback_device_for_test(test_case, label=None):
     if label:
         # Assign a 16 byte label to the FS.
         run_process(['tune2fs', '-L', label, device.device.path])
+
+    def cleanup():
+        """
+        Try to unmount the device 10 times or until it detaches.
+        """
+        device.remove()
+        for i in xrange(10):
+            if device in losetup.list():
+                _unmount(
+                    path=device.device,
+                    # Don't fail if the device is not mounted.
+                    idempotent=True,
+                )
+            else:
+                break
+
+    # Always attempt to unmount the device when the test completes.
+    test_case.addCleanup(cleanup)
     return device
