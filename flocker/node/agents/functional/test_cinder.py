@@ -5,7 +5,6 @@ Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
 cluster.
 """
 
-import errno
 import json
 from unittest import skipIf
 from urlparse import urlsplit
@@ -58,7 +57,7 @@ from ..blockdevice_manager import temporary_mount
 from ..cinder import (
     get_keystone_session, wait_for_volume_state, UnexpectedStateException,
     UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
-    lazy_loading_proxy_for_interface, config_drive, metadata_from_config_drive,
+    lazy_loading_proxy_for_interface, metadata_from_config_drive,
     METADATA_RELATIVE_PATH, UnknownInstanceID, metadata_from_service,
 )
 from ...script import get_api
@@ -912,52 +911,6 @@ class CinderFromConfigurationTests(AsyncTestCase):
         return d
 
 
-class ConfigDriveTests(TestCase):
-    """
-    Tests for ``config_drive``.
-    """
-    @if_root
-    def setUp(self):
-        super(ConfigDriveTests, self).setUp()
-        self.label = filesystem_label_for_test(self)
-        self.device = formatted_loopback_device_for_test(
-            self,
-            label=self.label,
-        )
-
-    def test_not_found(self):
-        """
-        ``config_drive`` yields ``None`` if the config drive cannot be mounted.
-        """
-        non_existent_label = filesystem_label_for_test(self)
-        with config_drive(label=non_existent_label) as mountpoint:
-            self.assertIs(None, mountpoint)
-
-    def test_readonly(self):
-        """
-        ``config_drive`` is mounted readonly.
-        """
-        filename1 = random_name(self)
-        filename2 = random_name(self)
-        filecontent = random_name(self)
-        with temporary_mount(self.device.device) as fs:
-            fs.mountpoint.child(filename1).setContent(filecontent)
-
-        with config_drive(label=self.label) as mountpoint:
-            # Read a file
-            self.assertEqual(
-                filecontent,
-                mountpoint.child(filename1).getContent()
-            )
-            # Fail to write a file.
-            e = self.assertRaises(
-                OSError,
-                mountpoint.child(filename2).setContent,
-                filecontent
-            )
-            self.assertEqual(errno.EROFS, e.errno)
-
-
 class MetadataFromConfigDriveTests(TestCase):
     """
     Tests for ``metadata_from_config_drive``.
@@ -994,8 +947,8 @@ class MetadataFromConfigDriveTests(TestCase):
         """
         If the metadata file is not JSON encoded return ``None``.
         """
-        with temporary_mount(self.device.device) as fs:
-            metadata_file = fs.mountpoint.descendant(
+        with temporary_mount(self.device.device) as mountpoint:
+            metadata_file = mountpoint.descendant(
                 METADATA_RELATIVE_PATH
             )
             metadata_file.parent().makedirs()
@@ -1011,8 +964,8 @@ class MetadataFromConfigDriveTests(TestCase):
         The metadata is returned as a dictionary.
         """
         expected_value = random_name(self)
-        with temporary_mount(self.device.device) as fs:
-            metadata_file = fs.mountpoint.descendant(
+        with temporary_mount(self.device.device) as mountpoint:
+            metadata_file = mountpoint.descendant(
                 METADATA_RELATIVE_PATH
             )
             metadata_file.parent().makedirs()

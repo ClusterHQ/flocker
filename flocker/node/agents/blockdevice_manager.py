@@ -10,6 +10,9 @@ import psutil
 from subprocess import CalledProcessError
 
 from zope.interface import Attribute, Interface, implementer
+from zope.interface.interface import (
+    adapter_hooks as zope_interface_adapter_hooks
+)
 
 from pyrsistent import PClass, field
 
@@ -20,7 +23,7 @@ from characteristic import attributes
 
 from ...common.process import run_process
 from ...common import temporary_directory
-from ...common._filepath import _TemporaryPath
+from ...common._filepath import IFilePathExtended
 
 
 class Permissions(Values):
@@ -312,15 +315,13 @@ class BlockDeviceManager(PClass):
                                       source_message=e.output)
 
 
-def _unmount(mountpoint, idempotent=False):
+def _unmount(path, idempotent=False):
     """
-    Unmount the mountpoint.
+    Unmount the path (directory or device path).
     """
     try:
         # Do lazy umount.
-        run_process(
-            ['umount', '-l', mountpoint.path],
-        )
+        run_process(['umount', '-l', path.path])
     except CalledProcessError as e:
         # If idempotent, swallow the case where the mountpoint is no longer
         # mounted.
@@ -329,92 +330,38 @@ def _unmount(mountpoint, idempotent=False):
         if idempotent and e.returncode in (1, 32):
             pass
         else:
-            raise
-
-
-class IMounter(Interface):
-    """
-    An interface for different device descriptions that can be passed to the
-    ``mount`` command.
-    """
-    def mount(mountpoint, options=None):
-        """
-        Mount a filesystem at ``mountpoint`` with ``options``
-        :param FilePath mountpoint: The directory to use as mountpoint.
-        :param options: An optional list of mount --options arguments.
-        :returns: ``MountedFileSystem``
-        :raises: ``MountError`` if the device / filesystem could not be found.
-        """
-
-
-def _mount(device, mountpoint, mount_options):
-    """
-    Invoke the ``mount`` command.
-    """
-    command = ["mount"]
-    if mount_options:
-        command.extend(["--options", ",".join(mount_options)])
-    command.extend([device, mountpoint])
-    run_process(command)
-
-
-@implementer(IMounter)
-class FileMounter(PClass):
-    """
-    Mount a device by device file path.
-    """
-    device = field(type=FilePath)
-
-    def mount(self, mountpoint, options=None):
-        try:
-            _mount(self.device.path, mountpoint.path, options)
-        except CalledProcessError as e:
-            raise MountError(
-                blockdevice=self.device,
-                mountpoint=mountpoint,
+            raise UnmountError(
+                blockdevice=path.path,
                 source_message=e.output,
             )
 
-        return MountedFileSystem(
-            mountpoint=mountpoint
-        )
 
-
-@implementer(IMounter)
-class LabelMounter(PClass):
+class IMountableFilesystem(Interface):
     """
-    Mount a device by LABEL.
+    An filesystem identifier that can be supplied to ``mount``.
     """
-    label = field(type=unicode)
+    def identifier():
+        """
+        :returns: ``unicode`` An identifier which can be understood by the
+        ``mount`` command.
+        """
 
-    def mount(self, mountpoint, options=None):
-        try:
-            _mount(
-                'LABEL=%s' % (self.label.encode('ascii'),),
-                mountpoint.path,
-                options,
-            )
-        except CalledProcessError as e:
-            raise MountError(
-                blockdevice=FilePath("/dev/disk/by-label").child(self.label),
-                mountpoint=mountpoint,
-                source_message=e.output,
-            )
-        return MountedFileSystem(
-            mountpoint=mountpoint
-        )
+    def device_path():
+        """
+        :returns: ``FilePath`` A device on the filesystem.
+        """
 
 
 class IMountedFilesystem(Interface):
     """
-    Represents a mounted filesystem which can be unmounted.
-    If used as a context manager, the filesystem will be unmounted on __exit__.
+    Represents a mounted filesystem which can be unmounted.  If used as a
+    context manager, the mountpoint path will be made available on __enter__
+    and the filesystem will be unmounted on __exit__.
     """
-    mountpoint = Attribute("A ``FilePath`` of the filesystem mountpoint.")
+    mountpoint = Attribute("An ``IMountpoint`` object.")
 
-    def unmount(idempotent=False):
+    def unmount():
         """
-        Unmount this filesystem.
         """
 
     def __enter__():
@@ -428,64 +375,182 @@ class IMountedFilesystem(Interface):
         """
 
 
+def interface_field(interfaces, **field_kwargs):
+    """
+    A ``PClass`` field which checks that the assigned value provides all the
+    ``interfaces``.
+
+    :param tuple interfaces: The ``Interface`` that a value must provide.
+    """
+    if not isinstance(interfaces, tuple):
+        raise TypeError(
+            "The ``interfaces`` argument must be a tuple. "
+            "Got: {!r}".format(interfaces)
+        )
+
+    original_invariant = field_kwargs.pop("invariant", None)
+
+    def invariant(value):
+        error_messages = []
+        if original_invariant is not None:
+            (original_invariant_result,
+             original_invariant_message) = original_invariant(value)
+            if original_invariant_result:
+                error_messages.append(original_invariant_result)
+
+        missing_interfaces = []
+        for interface in interfaces:
+            if not interface.providedBy(value):
+                missing_interfaces.append(interface.getName())
+        if missing_interfaces:
+            error_messages.append(
+                "The value {!r} "
+                "did not provide these required interfaces: {}".format(
+                    value,
+                    ", ".join(missing_interfaces)
+                )
+            )
+        if error_messages:
+            return (False, "\n".join(error_messages))
+        else:
+            return (True, "")
+    field_kwargs["invariant"] = invariant
+    return field(**field_kwargs)
+
+
+@implementer(IMountableFilesystem)
+class DevicePathFilesystem(PClass):
+    """
+    A filesystem to be mounted by device path.
+    """
+    path = field(type=FilePath)
+
+    def identifier(self):
+        return self.path.path
+
+    def device_path(self):
+        return self.path
+
+
+@implementer(IMountableFilesystem)
+class LabelledFilesystem(PClass):
+    """
+    A filesystem to be mounted by LABEL.
+    """
+    label = field(type=unicode)
+
+    def identifier(self):
+        return 'LABEL=%s' % (self.label.encode('ascii'),)
+
+    def device_path(self):
+        return FilePath("/dev/disk/by-label").child(self.label)
+
+
+IMOUNTABLE_FILESYSTEM_ADAPTERS = {
+    # Detect FilePath like objects
+    IFilePathExtended.providedBy: lambda obj: DevicePathFilesystem(path=obj),
+}
+
+
+def _adapt(iface, obj):
+    """
+    Adapt the ``filesystem`` argument of ``mount`` to ``IMountableFilesystem``.
+    """
+    for wrapper_test, wrapper in IMOUNTABLE_FILESYSTEM_ADAPTERS.items():
+        if wrapper_test(obj):
+            return wrapper(obj)
+
+zope_interface_adapter_hooks.append(_adapt)
+
+
 @implementer(IMountedFilesystem)
 class MountedFileSystem(PClass):
-    mountpoint = field(type=(FilePath, _TemporaryPath))
+    """
+    A directory where a filesystem is mounted.
+    """
+    mountpoint = interface_field((IFilePathExtended,), mandatory=True)
 
-    def unmount(self, idempotent=False):
-        _unmount(self.mountpoint, idempotent=idempotent)
+    def unmount(self):
+        _unmount(self.mountpoint)
 
     def __enter__(self):
-        return self
+        return self.mountpoint
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.unmount()
 
 
-def mount(device, mountpoint):
+def mount(filesystem, mountpoint, options=None):
     """
-    Mount the device at mountpoint.
+    Mount ``filesystem`` at ``mountpoint`` with ``options``.
 
-    :returns: a ``MountedFileSystem``
+    :param IMountableFilesystem filesystem: An object by which to identify the
+        filesystem.
+    :param IFilePathExtended mountpoint: A directory at which to mount.
+    :param list options: A list of --option parameters for the mount command.
+    :returns: ``IMountedFilesystem``.
     """
-    FileMounter(device=device).mount(mountpoint)
+    # Adapt the supplied type. Allows a FilePath to be supplied instead.
+    filesystem = IMountableFilesystem(filesystem)
+    command = ["mount"]
+    if options:
+        command.extend(["--options", ",".join(options)])
+    command.extend([filesystem.identifier(), mountpoint.path])
+    try:
+        run_process(command)
+    except CalledProcessError as e:
+        raise MountError(
+            blockdevice=filesystem.device_path(),
+            mountpoint=mountpoint,
+            source_message=e.output,
+        )
     return MountedFileSystem(
-        mountpoint=mountpoint,
+        mountpoint=mountpoint
     )
 
 
 @implementer(IMountedFilesystem)
-class TemporaryMountedFileSystem(PClass):
+class TemporaryMountedFilesystem(PClass):
     """
-    A wrapper around a ``MountedFileSystem`` which will remove the mountpoint
-    after the filesystem has been unmounted.
+    A wrapper which will remove the mountpoint directory when it has been
+    unmounted.
     """
-    fs = field(type=MountedFileSystem)
+    fs = interface_field((IMountedFilesystem,), mandatory=True)
 
     @property
     def mountpoint(self):
         return self.fs.mountpoint
 
-    def unmount(self, idempotent=False):
-        if idempotent and not self.fs.mountpoint.exists():
-            # Don't attempt to unmount if the mountpoint has already been
-            # deleted, perhaps by an earlier call to unmount.
-            return
-        _unmount(self.fs.mountpoint)
+    def unmount(self):
+        self.fs.unmount()
         self.fs.mountpoint.remove()
 
     def __enter__(self):
-        return self
+        return self.fs.__enter__()
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.unmount()
 
 
-def temporary_mount(device):
+def temporary_mount(filesystem, options=None):
     """
-    Mount the device at a temporary mountpoint.
-    The temporary mountpoint will be removed when the filesystem is unmounted.
+    Mount ``filesystem`` at a temporary mountpoint with ``options``.
+    A temporary mountpoint directory will be created.
+    It will be removed if the mount fails and when the mounted filesystem is
+    unmounted.
+
+    :param IMountableFilesystem filesystem: An object by which to identify the
+        filesystem.
+    :param list options: A list of --option parameters for the mount command.
+    :returns: ``IMountedFilesystem``.
     """
     mountpoint = temporary_directory()
-    fs = mount(device, mountpoint)
-    return TemporaryMountedFileSystem(fs=fs)
+    try:
+        mounted_fs = mount(filesystem, mountpoint, options=options)
+    except:
+        mountpoint.remove()
+        raise
+
+    return TemporaryMountedFilesystem(
+        fs=mounted_fs
+    )

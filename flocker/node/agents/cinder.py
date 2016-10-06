@@ -4,7 +4,6 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
-from contextlib import contextmanager
 from itertools import repeat
 import json
 import time
@@ -38,13 +37,14 @@ from zope.interface import implementer, Interface
 from ...common import (
     interface_decorator, get_all_ips, ipaddress_from_string,
     poll_until,
-    temporary_directory,
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, UnknownInstanceID, get_blockdevice_volume, ICloudAPI,
 )
-from .blockdevice_manager import LabelMounter, MountError
+from .blockdevice_manager import (
+    LabelledFilesystem, MountError, temporary_mount
+)
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
     OPENSTACK_ACTION, CINDER_CREATE
@@ -69,13 +69,15 @@ METADATA_RELATIVE_PATH = ['openstack', 'latest', 'meta_data.json']
 METADATA_SERVICE_ENDPOINT = (b"169.254.169.254", 80)
 
 
-@contextmanager
-def config_drive(label=CONFIG_DRIVE_LABEL):
-    mountpoint = temporary_directory()
-    mounter = LabelMounter(label=label)
-    fs = None
+def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
+    """
+    Attempt to retrieve metadata from config drive.
+    """
     try:
-        fs = mounter.mount(mountpoint, options=["ro"])
+        mounted_fs = temporary_mount(
+            LabelledFilesystem(label=config_drive_label),
+            options=["ro"]
+        )
     except MountError as e:
         Message.new(
             message_type=(
@@ -83,43 +85,30 @@ def config_drive(label=CONFIG_DRIVE_LABEL):
                 u"compute_instance_id:configdrive_not_available"),
             error_message=unicode(e),
         ).write()
-        yield
-    else:
-        yield mountpoint
-    finally:
-        if fs:
-            fs.unmount()
-        mountpoint.remove()
+        return None
 
-
-def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
-    """
-    Attempt to retrieve metadata from config drive.
-    """
-    # Try config drive
-    with config_drive(label=config_drive_label) as mountpoint:
-        if mountpoint:
-            metadata_file = mountpoint.descendant(METADATA_RELATIVE_PATH)
-            try:
-                content = metadata_file.getContent()
-            except IOError as e:
-                Message.new(
-                    message_type=(
-                        u"flocker:node:agents:blockdevice:openstack:"
-                        u"compute_instance_id:metadata_file_not_found"),
-                    error_message=unicode(e),
-                ).write()
-                return
-            try:
-                return json.loads(content)
-            except ValueError as e:
-                Message.new(
-                    message_type=(
-                        u"flocker:node:agents:blockdevice:openstack:"
-                        u"compute_instance_id:metadata_file_not_json"),
-                    error_message=unicode(e),
-                ).write()
-                return
+    with mounted_fs as mountpoint:
+        metadata_file = mountpoint.descendant(METADATA_RELATIVE_PATH)
+        try:
+            content = metadata_file.getContent()
+        except IOError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_found"),
+                error_message=unicode(e),
+            ).write()
+            return
+        try:
+            return json.loads(content)
+        except ValueError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_json"),
+                error_message=unicode(e),
+            ).write()
+            return
 
 
 def metadata_from_service(metadata_service_endpoint=METADATA_SERVICE_ENDPOINT,
@@ -586,6 +575,10 @@ class CinderBlockDeviceAPI(object):
         return int(GiB(1).to_Byte().value)
 
     def _compute_instance_id_by_ipaddress_match(self):
+        """
+        Attempt to retrieve node UUID by finding the ``ACTIVE`` Nova API server
+        with an intersection of the IPv4 and IPv6 addresses on this node.
+        """
         local_ips = get_all_ips()
         api_ip_map = {}
         id_to_node_ips = {}
