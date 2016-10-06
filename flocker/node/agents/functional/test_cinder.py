@@ -1046,8 +1046,8 @@ class ComputeInstanceIDTests(AsyncTestCase):
             self,
             label=configdrive_label,
         )
-        with temporary_mount(device.device) as fs:
-            metadata_file = fs.mountpoint.descendant(
+        with temporary_mount(device.device) as mountpoint:
+            metadata_file = mountpoint.descendant(
                 METADATA_RELATIVE_PATH
             )
             metadata_file.parent().makedirs()
