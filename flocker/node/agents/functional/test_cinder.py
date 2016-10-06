@@ -5,6 +5,7 @@ Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
 cluster.
 """
 
+import json
 from unittest import skipIf
 from urlparse import urlsplit
 from uuid import uuid4
@@ -35,14 +36,24 @@ from ..testtools import (
     make_icloudapi_tests,
     mimic_for_test,
     require_backend,
+    formatted_loopback_device_for_test,
+    filesystem_label_for_test,
 )
-from ....testtools import AsyncTestCase, TestCase, flaky, run_process
+from ....testtools import (
+    AsyncTestCase,
+    if_root,
+    flaky,
+    random_name,
+    run_process,
+    TestCase,
+)
 from ....testtools.cluster_utils import make_cluster_id, TestTypes
-
+from ..blockdevice_manager import temporary_mount
 from ..cinder import (
     get_keystone_session, wait_for_volume_state, UnexpectedStateException,
     UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
-    lazy_loading_proxy_for_interface,
+    lazy_loading_proxy_for_interface, metadata_from_config_drive,
+    METADATA_RELATIVE_PATH,
 )
 from ...script import get_api
 from ...backends import backend_and_api_args_from_configuration
@@ -893,3 +904,73 @@ class CinderFromConfigurationTests(AsyncTestCase):
             )
         )
         return d
+
+
+class MetadataFromConfigDriveTests(TestCase):
+    """
+    Tests for ``metadata_from_config_drive``.
+    """
+    @if_root
+    def setUp(self):
+        super(MetadataFromConfigDriveTests, self).setUp()
+        self.label = filesystem_label_for_test(self)
+        self.device = formatted_loopback_device_for_test(
+            self,
+            label=self.label,
+        )
+
+    def test_no_drive(self):
+        """
+        If the config drive can not be mounted return ``None``.
+        """
+        non_existent_label = filesystem_label_for_test(self)
+        result = metadata_from_config_drive(
+            config_drive_label=non_existent_label
+        )
+        self.assertIs(None, result)
+
+    def test_no_file(self):
+        """
+        If the metadata file is not found return ``None``.
+        """
+        result = metadata_from_config_drive(
+            config_drive_label=self.label
+        )
+        self.assertIs(None, result)
+
+    def test_not_json(self):
+        """
+        If the metadata file is not JSON encoded return ``None``.
+        """
+        with temporary_mount(self.device.device) as mountpoint:
+            metadata_file = mountpoint.descendant(
+                METADATA_RELATIVE_PATH
+            )
+            metadata_file.parent().makedirs()
+            metadata_file.setContent(random_name(self))
+
+        result = metadata_from_config_drive(
+            config_drive_label=self.label
+        )
+        self.assertIs(None, result)
+
+    def test_success(self):
+        """
+        The metadata is returned as a dictionary.
+        """
+        expected_value = random_name(self)
+        with temporary_mount(self.device.device) as mountpoint:
+            metadata_file = mountpoint.descendant(
+                METADATA_RELATIVE_PATH
+            )
+            metadata_file.parent().makedirs()
+            metadata_file.setContent(
+                json.dumps({
+                    "test_key": expected_value
+                })
+            )
+
+        result = metadata_from_config_drive(
+            config_drive_label=self.label
+        )
+        self.assertEqual(expected_value, result["test_key"])
