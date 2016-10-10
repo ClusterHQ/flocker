@@ -270,49 +270,21 @@ class ClusterContainerDeployment(object):
             node=unicode(node.uuid),
             count=count
         ):
-            d = DeferredContext(
-                self.client.create_dataset(
-                    primary=node.uuid,
-                    maximum_size=self.max_size,
-                )
+            c = docker.create_container(
+                image=self.image.full_name,
+                name=unicode(uuid4()),
+                host_config=docker.create_host_config(
+                    binds={
+                        "container_{}".format(count): {
+                            "bind": self.mountpoint
+                        }
+                    }
+                ),
+                volume_driver="flocker",
             )
-
-            def start_container(dataset):
-                volume = MountedDataset(
-                    dataset_id=dataset.dataset_id,
-                    mountpoint=self.mountpoint
-                )
-                d = create_container(
-                    self.reactor,
-                    control_service=self.client,
-                    node_uuid=node.uuid,
-                    name=unicode(uuid4()),
-                    image=self.image,
-                    volumes=[volume],
-                    timeout=self.timeout)
-
-                # If container creation fails, delete dataset as well
-                def delete_dataset(failure):
-                    d = self.client.delete_dataset(dataset.dataset_id)
-                    d.addErrback(write_failure)
-                    d.addBoth(lambda _ignore: failure)
-                    return d
-                d.addErrback(delete_dataset)
-
-                return d
-            d.addCallback(start_container)
-
-            def update_container_count(container):
-                self.container_count += 1
-
-            def update_error_count(failure):
-                self.error_count += 1
-                failure.printTraceback(sys.stderr)
-                write_failure(failure)
-
-            d.addCallbacks(update_container_count, update_error_count)
-
-            return d.addActionFinish()
+            docker.start(c)
+            self.container_count += 1
+            return succeed(None)
 
     def deploy(self, per_node):
         """
