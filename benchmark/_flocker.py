@@ -100,7 +100,6 @@ def create_container(
         created.
     :return Deferred[ContainerState]: The state of the created container.
     """
-
     d = control_service.create_container(node_uuid, name, image, volumes)
 
     def wait_until_running(container):

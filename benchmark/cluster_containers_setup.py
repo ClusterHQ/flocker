@@ -1,6 +1,8 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 from datetime import timedelta
 import sys
+import yaml
+
 from ipaddr import IPAddress
 from uuid import uuid4
 from bitmath import GiB
@@ -19,7 +21,7 @@ from flocker.common.script import eliot_to_stdout
 from flocker.control.httpapi import REST_API_PORT
 from flocker.control import DockerImage
 from flocker.apiclient import FlockerClient, MountedDataset
-
+from flocker.acceptance.testtools import get_docker_client
 from benchmark._flocker import create_container
 
 
@@ -255,6 +257,14 @@ class ClusterContainerDeployment(object):
         Configure a stateful container to mount a new dataset, and wait for
         it to be running.
         """
+        class Cluster(object):
+            certificates_path = self.cluster_cert.parent()
+
+        docker = get_docker_client(
+            cluster=Cluster(),
+            address=node.public_address,
+        )
+
         with start_action(
             action_type=u'flocker:benchmark:create_stateful_container',
             node=unicode(node.uuid),
@@ -312,10 +322,17 @@ class ClusterContainerDeployment(object):
         :return Deferred: once all the requests to create the datasets and
             containers are made.
         """
+        address_map = dict(
+            map(IPAddress, address_pair)
+            for address_pair in
+            yaml.safe_load(
+                self.cluster_cert.parent().child('managed.yaml').open()
+            )['managed']['addresses']
+        )
+
         d = self.client.list_nodes()
 
         def start_containers(nodes):
-
             Message.log(
                 message_type='flocker.benchmark.container_setup:start',
                 containers_per_node=per_node,
@@ -335,6 +352,9 @@ class ClusterContainerDeployment(object):
 
             deferred_list = []
             for node in nodes:
+                node = node.set(
+                    'public_address', address_map[node.public_address]
+                )
                 d = succeed(None)
                 for i in range(per_node):
                     d.addCallback(
