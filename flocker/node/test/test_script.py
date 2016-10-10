@@ -33,7 +33,7 @@ from ...common import get_all_ips
 from ...common._era import get_era
 
 from ..script import (
-    AgentScript, ContainerAgentOptions,
+    AgentScript,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
     _context_factory_and_credential, DatasetServiceFactory,
     AgentService, get_configuration,
@@ -1028,14 +1028,6 @@ class DatasetAgentOptionsTests(
 ):
     """
     Tests for ``DatasetAgentOptions``.
-    """
-
-
-class ContainerAgentOptionsTests(
-        make_amp_agent_options_tests(ContainerAgentOptions)
-):
-    """
-    Tests for ``ContainerAgentOptions``.
     """
 
 
