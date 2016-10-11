@@ -258,6 +258,7 @@ common_cli:
     ${venv}/bin/pip --version
     ${venv}/bin/python \
         -c 'import setuptools; print "SETUPTOOLS_VERSION:", setuptools.__version__'
+    ${venv}/bin/tox --version
 
   setup_flocker_modules: &setup_flocker_modules |
     # installs all the required python modules as well as the flocker code.
