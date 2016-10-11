@@ -186,7 +186,7 @@ class BenchmarkTest(AsyncTestCase):
             self.assertEqual(
                 outputs,
                 (
-                    [{'success': False, 'reason': None} for x in [5, 6, 7]],
+                    [{'success': False, 'reason': None} for _ in [5, 6, 7]],
                     None)
                 )
         samples_ready.addCallback(check)
@@ -215,7 +215,7 @@ class BenchmarkTest(AsyncTestCase):
             5)
 
         def check(outputs):
-            samples, scenario_metrics = outputs
+            samples, _ = outputs
             self.assertEqual(len(samples), 5)
         samples_ready.addCallback(check)
         return samples_ready

@@ -309,7 +309,7 @@ def get_jenkins_info(jenkins_session, status):
     """
     Get the Jenkins job info for a GitHub status, if any.
 
-    :param requests.Session session: the requests Session to
+    :param requests.Session jenkins_session: the requests Session to
         use to make requests.
     :param dict status: the GitHub status.
     :return (JenkinsResults, dict): The first element will
@@ -439,7 +439,7 @@ def loop_until_passed(
         be None.
     """
     retry_counts = Counter()
-    for i in infinite_sleeps(sleep_between):
+    for _ in infinite_sleeps(sleep_between):
         resp = session.get(pr_url)
         if resp.status_code != 200:
             print("PR not found: {}".format(resp.content))
