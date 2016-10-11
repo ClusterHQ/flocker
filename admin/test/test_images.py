@@ -195,7 +195,7 @@ class PackerConfigureTests(TestCase):
         build_region = builder['region']
         build_source_ami = builder['source_ami']
         publish_regions = builder['ami_regions']
-        [provisioner] = packer_configuration["provisioners"]
+        [_] = packer_configuration["provisioners"]
         self.assertEqual(
             (expected_build_region.value,
              set(c.value for c in expected_publish_regions),
@@ -375,7 +375,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         ``publish-installer-images`` has a ``--help`` option and includes the
         name of the script in its usage message.
         """
-        returncode, stdout, stderr = self.publish_installer_images(
+        _, stdout, _ = self.publish_installer_images(
             args=["--help"]
         )
         self.expectThat(
