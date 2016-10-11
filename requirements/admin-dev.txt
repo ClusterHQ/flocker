@@ -1,6 +1,6 @@
-hypothesis==3.5.2
+hypothesis==3.5.3
 ## The following requirements were added by pip freeze:
 enum34==1.1.6
 spark-parser==1.4.0
-uncompyle6==2.8.3
-xdis==2.3.1
+uncompyle6==2.9.1
+xdis==3.0.2
