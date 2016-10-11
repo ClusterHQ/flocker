@@ -6,7 +6,6 @@ pycrypto==2.6.1
 # Sphinx docs dependencies
 # enchant.tokenize is not detected by snakefood
 pyenchant==1.6.8
-pylint==1.6.4
 # Required by flocker.acceptance.integration.test_mongodb
 pymongo==3.3.0
 sphinx-prompt==1.0.0
