@@ -252,7 +252,7 @@ common_cli:
     virtualenv -p python2.7 --clear ${venv}
     . ${venv}/bin/activate
     # Upgrade Python packaging tools.
-    ${venv}/bin/pip install pip==8.1.2 setuptools==23.0.0
+    ${venv}/bin/pip install pip==8.1.2 setuptools==23.0.0 tox=2.3.1
     # Report the versions to aid debugging.
     ${venv}/bin/python --version
     ${venv}/bin/pip --version
@@ -1185,7 +1185,7 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
-                   *cleanup,
+                   *cleanup, *setup_venv,
                    *run_lint, *exit_with_return_code_from_test ]
           }
       timeout: 10
