@@ -129,8 +129,8 @@ def main(reactor, argv, environ):
     # output
     eliot_to_stdout(MESSAGE_FORMATS, ACTION_START_FORMATS)
 
+    options = ContainerOptions()
     try:
-        options = ContainerOptions()
         options.parseOptions(argv[1:])
     except usage.UsageError as e:
         sys.stderr.write(e.args[0])
