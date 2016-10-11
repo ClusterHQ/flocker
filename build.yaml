@@ -704,7 +704,7 @@ common_cli:
       s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
 
   run_lint: &run_lint |
-    tox -e lint > lint.txt
+    tox -e lint | tee lint.txt
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
