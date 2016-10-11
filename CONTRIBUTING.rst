@@ -106,6 +106,16 @@ In addition, ``tox`` needs to be run as root:
 Since these tests involve global state on your machine (filesystems, ``iptables``, Docker containers, etc.) we recommend running them in a virtual machine.
 
 
+Running Lint Tests
+==================
+
+You can run ``flake8`` and ``pylint`` tests by doing:
+
+.. prompt:: bash $
+
+   tox -e lint
+
+
 Documentation
 =============
 
