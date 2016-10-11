@@ -1185,12 +1185,11 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *cleanup,
                    *run_lint, *exit_with_return_code_from_test ]
           }
       timeout: 10
-      publish_lint: true
-      archive_artifacts: ["*.lint.txt"]
+      archive_artifacts: ["lint.txt"]
       directories_to_delete: []
 
   cronly_jobs:
