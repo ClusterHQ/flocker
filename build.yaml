@@ -703,14 +703,7 @@ common_cli:
       s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
 
   run_lint: &run_lint |
-    # Disable exiting on error, so we can run multiple lints
-    set +e
-    # run flake8 lint tests on Flocker source code
-    flake8 --format=pylint --output flake8.lint.txt admin benchmark flocker
-    JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    pylint admin benchmark flocker > pylint.lint.txt
-    JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    set -e
+    tox -e lint > lint.txt
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
