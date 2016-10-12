@@ -257,6 +257,7 @@ class ClusterContainerDeployment(object):
         Configure a stateful container to mount a new dataset, and wait for
         it to be running.
         """
+        container_name = u"flocker_benchmark_{}".format(uuid4())
         class Cluster(object):
             certificates_path = self.cluster_cert.parent()
 
@@ -272,10 +273,10 @@ class ClusterContainerDeployment(object):
         ):
             c = docker.create_container(
                 image=self.image.full_name,
-                name=unicode(uuid4()),
+                name=container_name,
                 host_config=docker.create_host_config(
                     binds={
-                        "container_{}".format(count): {
+                        "{}_volume0".format(container_name): {
                             "bind": self.mountpoint
                         }
                     }
