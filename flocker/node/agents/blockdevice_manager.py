@@ -393,7 +393,8 @@ def interface_field(interfaces, **field_kwargs):
     def invariant(value):
         error_messages = []
         if original_invariant is not None:
-            (original_invariant_result, _) = original_invariant(value)
+            (original_invariant_result,
+             _original_invariant_message) = original_invariant(value)
             if original_invariant_result:
                 error_messages.append(original_invariant_result)
 

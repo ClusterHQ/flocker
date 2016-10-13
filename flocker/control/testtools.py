@@ -69,7 +69,7 @@ def make_istatepersister_tests(fixture):
             """
             The object implements ``IStatePersister``.
             """
-            state_persister, _ = fixture(self)
+            state_persister, _get_state = fixture(self)
             verifyObject(IStatePersister, state_persister)
 
         @given(

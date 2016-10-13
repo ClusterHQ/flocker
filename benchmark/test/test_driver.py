@@ -215,7 +215,7 @@ class BenchmarkTest(AsyncTestCase):
             5)
 
         def check(outputs):
-            samples, _ = outputs
+            samples, _scenario_metrics = outputs
             self.assertEqual(len(samples), 5)
         samples_ready.addCallback(check)
         return samples_ready
