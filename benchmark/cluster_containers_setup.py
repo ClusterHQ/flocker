@@ -13,7 +13,8 @@ from twisted.internet.task import LoopingCall
 from twisted.python.filepath import FilePath
 from twisted.python import usage
 
-from eliot import start_action, Message
+from eliot import Message, start_action, write_failure
+from eliot.twisted import DeferredContext
 
 from flocker.common import gather_deferreds
 from flocker.common.script import eliot_to_stdout
@@ -21,8 +22,8 @@ from flocker.common.script import eliot_to_stdout
 from flocker.control.httpapi import REST_API_PORT
 from flocker.control import DockerImage
 from flocker.apiclient import FlockerClient, MountedDataset
-from flocker.acceptance.testtools import get_docker_client
 
+from ._flocker import create_container
 
 DEFAULT_TIMEOUT = 3600
 
@@ -262,36 +263,33 @@ class ClusterContainerDeployment(object):
         class Cluster(object):
             certificates_path = self.cluster_cert.parent()
 
-        docker = get_docker_client(
-            cluster=Cluster(),
-            address=node.public_address,
-        )
         with start_action(
             action_type=u'flocker:benchmark:create_stateful_container',
             node=unicode(node.uuid),
             count=count
         ):
-            v = docker.create_volume(
-                name=volume_name,
-                driver="flocker",
-                driver_opts=dict(
-                    size="1GiB"
+            d = DeferredContext(
+                deferToThread(
+                    create_container,
+                    cluster=Cluster(),
+                    node=node,
+                    name=container_name,
+                    image=self.image,
+                    volumes=[(volume_name, self.mountpoint)],
                 )
             )
-            c = docker.create_container(
-                image=self.image.full_name,
-                name=container_name,
-                host_config=docker.create_host_config(
-                    binds={
-                        volume_name: {
-                            "bind": self.mountpoint
-                        }
-                    }
-                ),
-                volume_driver="flocker",
-            )
-            docker.start(c)
-            self.container_count += 1
+
+            def update_container_count(container):
+                self.container_count += 1
+
+            def update_error_count(failure):
+                self.error_count += 1
+                failure.printTraceback(sys.stderr)
+                write_failure(failure)
+
+            d.addCallbacks(update_container_count, update_error_count)
+
+            return d.addActionFinish()
 
     def deploy(self, per_node):
         """
@@ -337,9 +335,8 @@ class ClusterContainerDeployment(object):
                 d = succeed(None)
                 for i in range(per_node):
                     d.addCallback(
-                        lambda _ignore, node=node, i=i: deferToThread(
-                            self.create_stateful_container, node, i
-                        )
+                        lambda _ignore, node=node, i=i:
+                            self.create_stateful_container(node, i)
                     )
                 deferred_list.append(d)
 

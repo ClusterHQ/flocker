@@ -6,6 +6,7 @@ Utilities to perform Flocker operations.
 from functools import partial
 from datetime import timedelta
 
+from flocker.acceptance.testtools import get_docker_client
 from flocker.common import loop_until, timeout as _timeout
 
 DEFAULT_TIMEOUT = timedelta(minutes=10)
@@ -82,50 +83,35 @@ def create_dataset(
 
 
 def create_container(
-    reactor, control_service, node_uuid, name, image, volumes=None,
-    timeout=DEFAULT_TIMEOUT
+    cluster, node, name, image, volumes=None,
 ):
     """
     Create a container, then wait for it to be running.
-
-    :param IReactorTime reactor: Twisted Reactor.
-    :param IFlockerAPIV1Client control_service: Benchmark control
-        service.
-    :param UUID node_uuid: Node on which to start the container.
-    :param unicode name: Name of the container.
-    :param DockerImage image: Docker image for the container.
-    :param Optional[Sequence[MountedDataset]] volumes: Volumes to attach
-        to the container.
-    :param timedelta timeout: Maximum time to wait for container to be
-        created.
-    :return Deferred[ContainerState]: The state of the created container.
     """
-    d = control_service.create_container(node_uuid, name, image, volumes)
-
-    def wait_until_running(container):
-        def container_matches(container, state):
-            return (
-                container.name == state.name and
-                container.node_uuid == state.node_uuid and
-                state.running
+    if volumes is None:
+        volumes = []
+    docker = get_docker_client(
+        cluster=cluster,
+        address=node.public_address,
+    )
+    binds = {}
+    for volume_name, mountpoint in volumes:
+        docker.create_volume(
+            name=volume_name,
+            driver="flocker",
+            driver_opts=dict(
+                size="1GiB"
             )
-
-        d = loop_until_state_found(
-            reactor, control_service.list_containers_state,
-            partial(container_matches, container), timeout
         )
+        binds[volume_name] = mountpoint
 
-        # If an error occurs, delete container, but return original failure
-        def delete_container(failure):
-            d = control_service.delete_container(container.name)
-            d.addCallback(lambda _ignore: failure)
-            return d
-        d.addErrback(delete_container)
-
-        return d
-    d.addCallback(wait_until_running)
-
-    return d
+    c = docker.create_container(
+        image=image.full_name,
+        name=name,
+        host_config=docker.create_host_config(binds=binds),
+        volume_driver="flocker",
+    )
+    docker.start(c)
 
 
 def delete_container(reactor, control_service, container):
