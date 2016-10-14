@@ -401,6 +401,25 @@ class DockerPluginTests(AsyncTestCase):
         return self._test_create_container(cluster)
 
     @require_cluster(1)
+    def test_volume_rm(self, cluster):
+        """
+        ``docker volume create --driver=flocker --name=random_name``
+        ``docker volume ls``
+        ``docker volume rm random_name``
+        ``docker volume ls`` empty
+        """
+        docker_client = get_docker_client(cluster, cluster.nodes[0].public_address)
+        v = docker_client.create_volume(
+            name='foobar',
+            driver='flocker',
+            driver_opts={'size': '1GiB'},
+        )
+        print v
+        self.assertEqual(len(docker_client.volumes()['Volumes']), 1)
+        docker_client.remove_volume('foobar')
+        self.assertEqual(len(docker_client.volumes()['Volumes']), 0)
+
+    @require_cluster(1)
     def test_run_container_with_preexisting_volume(self, cluster):
         """
         Docker can run a container with a volume provisioned by Flocker before
