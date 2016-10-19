@@ -142,27 +142,35 @@ def create_realistic_servicepair(test):
     :param TestCase test: A unit test.
     :return: ServicePair a new ``ServicePair``.
     """
-    from_pool = StoragePool(reactor, create_zfs_pool(test),
-                            FilePath(test.mktemp()))
+    from_pool = StoragePool(
+        reactor,
+        create_zfs_pool(test),
+        FilePath(test.mktemp())
+    )
     from_config = FilePath(test.mktemp())
     from_service = VolumeService(from_config, from_pool, reactor=Clock())
     from_service.startService()
     test.addCleanup(from_service.stopService)
 
-    to_pool = StoragePool(reactor, create_zfs_pool(test),
-                          FilePath(test.mktemp()))
+    to_pool = StoragePool(
+        reactor,
+        create_zfs_pool(test),
+        FilePath(test.mktemp())
+    )
     to_config = FilePath(test.mktemp())
     to_service = VolumeService(to_config, to_pool, reactor=Clock())
     to_service.startService()
     test.addCleanup(to_service.stopService)
 
     remote = RemoteVolumeManager(MutatingProcessNode(to_service), to_config)
-
     origin_remote = LocalVolumeManager(from_service)
 
-    return ServicePair(from_service=from_service, to_service=to_service,
-                       remote=remote,
-                       origin_remote=origin_remote)
+    return ServicePair(
+        from_service=from_service,
+        to_service=to_service,
+        remote=remote,
+        origin_remote=origin_remote
+    )
 
 
 def make_volume_options_tests(make_options, extra_arguments=None):
