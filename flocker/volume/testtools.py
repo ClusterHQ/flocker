@@ -18,6 +18,7 @@ from twisted.internet import reactor
 from ..common import ProcessNode
 from ..testtools import TestCase, run_process
 from ._ipc import RemoteVolumeManager
+from ._ipc import LocalVolumeManager
 
 from .filesystems.zfs import StoragePool
 from .service import VolumeService
@@ -122,7 +123,7 @@ class MutatingProcessNode(ProcessNode):
         return ProcessNode.get_output(self, self._mutate(remote_command))
 
 
-@attributes(["from_service", "to_service", "remote"])
+@attributes(["from_service", "to_service", "remote", "origin_remote"])
 class ServicePair(object):
     """
     A configuration for testing ``IRemoteVolumeManager``.
@@ -130,6 +131,7 @@ class ServicePair(object):
     :param VolumeService from_service: The origin service.
     :param VolumeService to_service: The destination service.
     :param IRemoteVolumeManager remote: Talks to ``to_service``.
+    :param IRemoteVolumeManager origin_remote: Talks to ``from_service``.
     """
 
 
@@ -137,15 +139,13 @@ def create_realistic_servicepair(test):
     """
     Create a ``ServicePair`` that uses ZFS for testing
     ``RemoteVolumeManager``.
-
     :param TestCase test: A unit test.
-
-    :return: A new ``ServicePair``.
+    :return: ServicePair a new ``ServicePair``.
     """
     from_pool = StoragePool(reactor, create_zfs_pool(test),
                             FilePath(test.mktemp()))
-    from_service = VolumeService(FilePath(test.mktemp()),
-                                 from_pool, reactor=Clock())
+    from_config = FilePath(test.mktemp())
+    from_service = VolumeService(from_config, from_pool, reactor=Clock())
     from_service.startService()
     test.addCleanup(from_service.stopService)
 
@@ -156,10 +156,13 @@ def create_realistic_servicepair(test):
     to_service.startService()
     test.addCleanup(to_service.stopService)
 
-    remote = RemoteVolumeManager(MutatingProcessNode(to_service),
-                                 to_config)
+    remote = RemoteVolumeManager(MutatingProcessNode(to_service), to_config)
+
+    origin_remote = LocalVolumeManager(from_service)
+
     return ServicePair(from_service=from_service, to_service=to_service,
-                       remote=remote)
+                       remote=remote,
+                       origin_remote=origin_remote)
 
 
 def make_volume_options_tests(make_options, extra_arguments=None):

@@ -336,10 +336,10 @@ class ClusterContainerDeployment(object):
             deferred_list = []
             for node in nodes:
                 d = succeed(None)
-                for i in range(per_node):
+                for count in range(per_node):
                     d.addCallback(
-                        lambda _ignore, node=node, i=i:
-                            self.create_stateful_container(node, i)
+                        lambda _ignore, n=node, i=count:
+                            self.create_stateful_container(n, i)
                     )
                 deferred_list.append(d)
 
