@@ -116,7 +116,7 @@ def formatted_loopback_device_for_test(test_case, label=None):
         Try to unmount the device 10 times or until it detaches.
         """
         device.remove()
-        for i in xrange(10):
+        for _ in xrange(10):
             if device in losetup.list():
                 _unmount(
                     path=device.device,
