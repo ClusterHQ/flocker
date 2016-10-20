@@ -275,8 +275,8 @@ def create_local_servicepair(test):
         return service
 
     to_service = create_service()
-    from_service=create_service()
-    remote=LocalVolumeManager(to_service)
+    from_service = create_service()
+    remote = LocalVolumeManager(to_service)
     return ServicePair(
         from_service=from_service,
         to_service=to_service,
