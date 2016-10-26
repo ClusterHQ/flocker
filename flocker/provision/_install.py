@@ -1441,7 +1441,8 @@ def task_configure_kubernetes_master(distribution, token):
     return sequence([
         run(
             command=b"kubeadm init --token {}".format(token)
-        )
+        ),
+        run(command=b"kubectl taint nodes --all dedicated-"),
     ])
 
 
@@ -1646,7 +1647,8 @@ def install_kubernetes(nodes, package_source, token):
                 task_configure_kubernetes_master(
                     distribution=node.distribution,
                     token=token,
-                )
+                ),
+
             ]),
         ),
         _run_on_all_nodes(
@@ -1657,6 +1659,12 @@ def install_kubernetes(nodes, package_source, token):
                     token=token,
                     master_ip=master.address
                 )
+            ]),
+        ),
+        _run_on_all_nodes(
+            [master],
+            task=lambda node: sequence([
+                run(command=b"kubectl apply -f https://git.io/weave-kube")
             ]),
         ),
     ])
