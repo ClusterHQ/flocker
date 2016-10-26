@@ -9,9 +9,10 @@ import yaml
 import json
 from itertools import repeat
 from base64 import b32encode
+from hashlib import sha256
 from pipes import quote as shell_quote
+from random import getrandbits
 from tempfile import mkdtemp
-from uuid import uuid4
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
@@ -50,6 +51,7 @@ from flocker.provision._ssh import (
 from flocker.provision._install import (
     ManagedNode,
     install_kubernetes,
+    uninstall_kubernetes,
     task_pull_docker_images,
     uninstall_flocker,
     install_flocker,
@@ -427,13 +429,20 @@ class KubernetesRunner(object):
         Don't start any nodes.  Give back the addresses of the configured,
         already-started nodes.
         """
-        token = unicode(uuid4())
+        # See https://github.com/kubernetes/kubernetes/blob/master/cmd/kubeadm/app/util/tokens.go
+        random_bytes = sha256(bytes(getrandbits(64))).hexdigest().encode('ascii')
+        token = random_bytes[:6] + b"." + random_bytes[-16:]
         dispatcher = make_dispatcher(reactor)
-        installing = perform(
+        uninstalling = perform(
             dispatcher,
-            install_kubernetes(self._nodes, self.package_source, token),
+            uninstall_kubernetes(self._nodes, self.package_source, token),
         )
-
+        installing = uninstalling.addCallback(
+            lambda _ignored: perform(
+                dispatcher,
+                install_kubernetes(self._nodes, self.package_source, token),
+            )
+        )
         def configure(ignored):
             return configured_cluster_for_nodes(
                 reactor,

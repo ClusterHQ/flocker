@@ -1630,6 +1630,7 @@ def install_flocker(nodes, package_source):
 def install_kubernetes(nodes, package_source, token):
     master = nodes[0]
     workers = nodes[1:]
+
     return sequence([
         _run_on_all_nodes(
             nodes,
@@ -1641,7 +1642,7 @@ def install_kubernetes(nodes, package_source, token):
         ),
         _run_on_all_nodes(
             [master],
-            command=lambda node: sequence([
+            task=lambda node: sequence([
                 task_configure_kubernetes_master(
                     distribution=node.distribution,
                     token=token,
@@ -1650,12 +1651,49 @@ def install_kubernetes(nodes, package_source, token):
         ),
         _run_on_all_nodes(
             workers,
-            command=lambda node: sequence([
+            task=lambda node: sequence([
                 task_configure_kubernetes_node(
                     distribution=node.distribution,
                     token=token,
-                    master.public_ip
+                    master_ip=master.address
                 )
+            ]),
+        ),
+    ])
+
+
+def uninstall_kubernetes(nodes, package_source, token):
+    master = nodes[0]
+    workers = nodes[1:]
+
+    return sequence([
+        _run_on_all_nodes(
+            nodes,
+            task=lambda node: sequence([
+                run(
+                    command=(
+                        b"apt-get -y remove "
+                        b"kubelet kubeadm kubectl kubernetes-cni"
+                    )
+                ),
+                run(
+                    command=(
+                        b"docker ps --all --quiet | "
+                        b"xargs --no-run-if-empty docker rm --force"
+                    )
+                ),
+                run(
+                    command=(
+                        b"find /var/lib/kubelet "
+                        b"| xargs -n 1 findmnt -n -t tmpfs -o TARGET -T "
+                        b"| uniq | xargs -r umount -v"
+                    )
+                ),
+                run(
+                    command=(
+                        b"rm -rf /etc/kubernetes /var/lib/kubelet /var/lib/etcd"
+                    )
+                ),
             ]),
         ),
     ])
