@@ -11,6 +11,7 @@ from itertools import repeat
 from base64 import b32encode
 from pipes import quote as shell_quote
 from tempfile import mkdtemp
+from uuid import uuid4
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
@@ -426,10 +427,11 @@ class KubernetesRunner(object):
         Don't start any nodes.  Give back the addresses of the configured,
         already-started nodes.
         """
+        token = unicode(uuid4())
         dispatcher = make_dispatcher(reactor)
         installing = perform(
             dispatcher,
-            install_kubernetes(self._nodes, self.package_source),
+            install_kubernetes(self._nodes, self.package_source, token),
         )
 
         def configure(ignored):

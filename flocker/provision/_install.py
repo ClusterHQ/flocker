@@ -1434,6 +1434,31 @@ def task_install_kubernetes(distribution):
     ])
 
 
+def task_configure_kubernetes_master(distribution, token):
+    """
+    Return an ``Effect`` for installing Kubernetes
+    """
+    return sequence([
+        run(
+            command=b"kubeadm init --token {}".format(token)
+        )
+    ])
+
+
+def task_configure_kubernetes_node(distribution, token, master_ip):
+    """
+    Return an ``Effect`` for installing Kubernetes
+    """
+    return sequence([
+        run(
+            command=b"kubeadm join --token {} {}".format(
+                token,
+                master_ip,
+            )
+        )
+    ])
+
+
 def task_install_flocker(
     distribution=None,
     package_source=PackageSource(),
@@ -1602,15 +1627,38 @@ def install_flocker(nodes, package_source):
     )
 
 
-def install_kubernetes(nodes, package_source):
-    return _run_on_all_nodes(
-        nodes,
-        task=lambda node: sequence([
-            task_install_kubernetes(
-                distribution=node.distribution,
-            ),
-        ]),
-    )
+def install_kubernetes(nodes, package_source, token):
+    master = nodes[0]
+    workers = nodes[1:]
+    return sequence([
+        _run_on_all_nodes(
+            nodes,
+            task=lambda node: sequence([
+                task_install_kubernetes(
+                    distribution=node.distribution,
+                ),
+            ]),
+        ),
+        _run_on_all_nodes(
+            [master],
+            command=lambda node: sequence([
+                task_configure_kubernetes_master(
+                    distribution=node.distribution,
+                    token=token,
+                )
+            ]),
+        ),
+        _run_on_all_nodes(
+            workers,
+            command=lambda node: sequence([
+                task_configure_kubernetes_node(
+                    distribution=node.distribution,
+                    token=token,
+                    master.public_ip
+                )
+            ]),
+        ),
+    ])
 
 
 def configure_cluster(
