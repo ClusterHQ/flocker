@@ -14,7 +14,6 @@ from effect.retry import retry
 from time import time
 import yaml
 from hashlib import sha256
-from random import getrandbits
 
 from zope.interface import implementer
 
@@ -1639,7 +1638,16 @@ def install_flocker(nodes, package_source):
     )
 
 
-def deconfigure_kubernetes(nodes, package_source):
+def deconfigure_kubernetes(nodes):
+    """
+    See: http://kubernetes.io/docs/getting-started-guides/kubeadm/#cleanup
+
+    :param nodes: An iterable of ``Node`` instances on which to de-configure
+        Kubernetes.
+
+    :return: An ``Effect`` which removes all Kubernetes pods / containers and
+        configuration.
+    """
     return sequence([
         _run_on_all_nodes(
             nodes,
@@ -1656,13 +1664,15 @@ def deconfigure_kubernetes(nodes, package_source):
                         b"find /var/lib/kubelet "
                         b"| xargs --no-run-if-empty "
                         b"        --max-args 1 "
-                        b"        findmnt -n -t tmpfs -o TARGET -T "
-                        b"| uniq | xargs -r umount -v"
+                        b"  findmnt --noheadings --types tmpfs "
+                        b"          --output TARGET --target "
+                        b"| uniq | xargs --no-run-if-empty umount"
                     )
                 ),
                 run(
                     command=(
-                        b"rm -rf /etc/kubernetes /var/lib/kubelet /var/lib/etcd"
+                        b"rm -rf "
+                        b"/etc/kubernetes /var/lib/kubelet /var/lib/etcd"
                     )
                 ),
                 run(command=b"systemctl start kubelet"),

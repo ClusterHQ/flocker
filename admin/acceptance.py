@@ -306,7 +306,7 @@ class ManagedRunner(object):
         self.cert_path = cert_path
         self.logging_config = logging_config
 
-    def _upgrade_flocker(self, reactor, nodes, package_source):
+    def _upgrade_flocker(self, dispatcher, nodes, package_source):
         """
         Put the version of Flocker indicated by ``package_source`` onto all of
         the given nodes.
@@ -325,7 +325,7 @@ class ManagedRunner(object):
 
         :return: A ``Deferred`` that fires when the software has been upgraded.
         """
-        dispatcher = make_dispatcher(reactor)
+
 
         uninstalling = perform(dispatcher, uninstall_flocker(nodes))
         uninstalling.addErrback(write_failure, logger=None)
@@ -351,13 +351,21 @@ class ManagedRunner(object):
         Don't start any nodes.  Give back the addresses of the configured,
         already-started nodes.
         """
+        dispatcher = make_dispatcher(reactor)
         if self.package_source is not None:
             upgrading = self._upgrade_flocker(
-                reactor, self._nodes, self.package_source
+                dispatcher, self._nodes, self.package_source
             )
         else:
             upgrading = succeed(None)
-        return upgrading
+
+        deconfiguring_kubernetes = upgrading.addCallback(
+            lambda _ignored: perform(
+                dispatcher,
+                deconfigure_kubernetes(self._nodes),
+            )
+        )
+
         def configure(ignored):
             return configured_cluster_for_nodes(
                 reactor,
@@ -377,81 +385,7 @@ class ManagedRunner(object):
                 provider="managed",
                 logging_config=self.logging_config,
             )
-        configuring = upgrading.addCallback(configure)
-        return configuring
-
-    def stop_cluster(self, reactor):
-        """
-        Don't stop any nodes.
-        """
-        return succeed(None)
-
-    def extend_cluster(self, reactor, cluster, count, tag, starting_index):
-        raise UsageError("Extending a cluster with managed nodes "
-                         "is not implemented yet.")
-
-
-@implementer(IClusterRunner)
-class KubernetesRunner(object):
-    """
-    """
-    def __init__(self, node_addresses, package_source, distribution,
-                 dataset_backend, dataset_backend_configuration, identity,
-                 cert_path, logging_config):
-        """
-        :param list: A ``list`` of public IP addresses or
-            ``[private_address, public_address]`` lists.
-
-        See ``ManagedRunner`` and ``ManagedNode`` for other parameter
-        documentation.
-        """
-        self._nodes = pvector(
-            make_managed_nodes(node_addresses, distribution)
-        )
-        self.package_source = package_source
-        self.dataset_backend = dataset_backend
-        self.dataset_backend_configuration = dataset_backend_configuration
-        self.identity = identity
-        self.cert_path = cert_path
-        self.logging_config = logging_config
-
-    def ensure_keys(self, reactor):
-        """
-        Assume we have keys, since there's no way of asking the nodes what keys
-        they'll accept.
-        """
-        return succeed(None)
-
-    def start_cluster(self, reactor):
-        """
-        Don't start any nodes.  Give back the addresses of the configured,
-        already-started nodes.
-        """
-        dispatcher = make_dispatcher(reactor)
-        deconfiguring = perform(
-            dispatcher,
-            deconfigure_kubernetes(self._nodes, self.package_source),
-        )
-        def configure(ignored):
-            return configured_cluster_for_nodes(
-                reactor,
-                generate_certificates(
-                    self.identity.name,
-                    self.identity.id,
-                    self._nodes,
-                    self.cert_path,
-                ),
-                self._nodes,
-                self.dataset_backend,
-                self.dataset_backend_configuration,
-                save_backend_configuration(
-                    self.dataset_backend,
-                    self.dataset_backend_configuration
-                ),
-                provider="managed",
-                logging_config=self.logging_config,
-            )
-        configuring = deconfiguring.addCallback(configure)
+        configuring = deconfiguring_kubernetes.addCallback(configure)
         return configuring
 
     def stop_cluster(self, reactor):
@@ -1162,22 +1096,6 @@ class CommonOptions(Options):
             package_source=package_source,
             # TODO LATER Might be nice if this were part of
             # provider_config. See FLOC-2078.
-            distribution=self['distribution'],
-            dataset_backend=dataset_backend,
-            dataset_backend_configuration=self.dataset_backend_configuration(),
-            identity=self._make_cluster_identity(dataset_backend),
-            cert_path=self['cert-directory'],
-            logging_config=self['config'].get('logging'),
-        )
-
-    def _runner_KUBERNETES(self, package_source, dataset_backend,
-                           provider_config):
-        if provider_config is None:
-            self._provider_config_missing("kubernetes")
-
-        return KubernetesRunner(
-            node_addresses=provider_config['addresses'],
-            package_source=None,
             distribution=self['distribution'],
             dataset_backend=dataset_backend,
             dataset_backend_configuration=self.dataset_backend_configuration(),
