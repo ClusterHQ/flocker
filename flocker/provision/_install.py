@@ -13,6 +13,8 @@ from effect import Func, Effect, Constant, parallel
 from effect.retry import retry
 from time import time
 import yaml
+from hashlib import sha256
+from random import getrandbits
 
 from zope.interface import implementer
 
@@ -1407,6 +1409,15 @@ ecay6Qy/s3Hk7K0QLd+gl0hZ1w1VzIeXLo2BRlqnjOYFX4A=
 """
 
 
+def kubeadm_token_from_cluster(cluster):
+    # See https://github.com/kubernetes/kubernetes/blob/master/cmd/kubeadm/app/util/tokens.go # noqa
+    hash_bytes = sha256(
+        cluster.certificates.cluster.certificate.getContent()
+    ).hexdigest().encode('ascii')
+    token = hash_bytes[:6] + b"." + hash_bytes[-16:]
+    return token
+
+
 def task_install_kubernetes(distribution):
     """
     Return an ``Effect`` for installing Kubernetes
@@ -1628,62 +1639,12 @@ def install_flocker(nodes, package_source):
     )
 
 
-def install_kubernetes(nodes, package_source, token):
-    master = nodes[0]
-    workers = nodes[1:]
-
+def deconfigure_kubernetes(nodes, package_source):
     return sequence([
         _run_on_all_nodes(
             nodes,
             task=lambda node: sequence([
-                task_install_kubernetes(
-                    distribution=node.distribution,
-                ),
-            ]),
-        ),
-        _run_on_all_nodes(
-            [master],
-            task=lambda node: sequence([
-                task_configure_kubernetes_master(
-                    distribution=node.distribution,
-                    token=token,
-                ),
-
-            ]),
-        ),
-        _run_on_all_nodes(
-            workers,
-            task=lambda node: sequence([
-                task_configure_kubernetes_node(
-                    distribution=node.distribution,
-                    token=token,
-                    master_ip=master.address
-                )
-            ]),
-        ),
-        _run_on_all_nodes(
-            [master],
-            task=lambda node: sequence([
-                run(command=b"kubectl apply -f https://git.io/weave-kube")
-            ]),
-        ),
-    ])
-
-
-def uninstall_kubernetes(nodes, package_source, token):
-    master = nodes[0]
-    workers = nodes[1:]
-
-    return sequence([
-        _run_on_all_nodes(
-            nodes,
-            task=lambda node: sequence([
-                run(
-                    command=(
-                        b"apt-get -y remove "
-                        b"kubelet kubeadm kubectl kubernetes-cni"
-                    )
-                ),
+                run(command=b"systemctl stop kubelet"),
                 run(
                     command=(
                         b"docker ps --all --quiet | "
@@ -1693,7 +1654,9 @@ def uninstall_kubernetes(nodes, package_source, token):
                 run(
                     command=(
                         b"find /var/lib/kubelet "
-                        b"| xargs -n 1 findmnt -n -t tmpfs -o TARGET -T "
+                        b"| xargs --no-run-if-empty "
+                        b"        --max-args 1 "
+                        b"        findmnt -n -t tmpfs -o TARGET -T "
                         b"| uniq | xargs -r umount -v"
                     )
                 ),
@@ -1702,6 +1665,7 @@ def uninstall_kubernetes(nodes, package_source, token):
                         b"rm -rf /etc/kubernetes /var/lib/kubelet /var/lib/etcd"
                     )
                 ),
+                run(command=b"systemctl start kubelet"),
             ]),
         ),
     ])
@@ -1886,6 +1850,10 @@ def configure_control_node(
                     cluster.control_node.distribution
                 )
             ),
+            task_configure_kubernetes_master(
+                distribution=cluster.control_node.distribution,
+                token=kubeadm_token_from_cluster(cluster),
+            )
         ]),
     )
 
@@ -1913,36 +1881,49 @@ def configure_node(
     if provider == "managed":
         setup_action = 'restart'
 
+    if node is cluster.control_node:
+        commands = []
+    else:
+        commands = [
+            task_configure_kubernetes_node(
+                distribution=node.distribution,
+                token=kubeadm_token_from_cluster(cluster),
+                master_ip=cluster.control_node.address,
+            ),
+        ]
+
+    commands.extend([
+        task_install_node_certificates(
+            cluster.certificates.cluster.certificate,
+            certnkey.certificate,
+            certnkey.key),
+        task_install_api_certificates(
+            cluster.certificates.user.certificate,
+            cluster.certificates.user.key),
+        task_enable_docker(node.distribution),
+        if_firewall_available(
+            node.distribution,
+            open_firewall_for_docker_api(node.distribution),
+        ),
+        task_configure_flocker_agent(
+            control_node=cluster.control_node.address,
+            dataset_backend=cluster.dataset_backend,
+            dataset_backend_configuration=(
+                dataset_backend_configuration
+            ),
+            logging_config=logging_config,
+        ),
+        task_enable_docker_plugin(node.distribution),
+        task_enable_flocker_agent(
+            distribution=node.distribution,
+            action=setup_action,
+        ),
+    ])
+
     return run_remotely(
         username='root',
         address=node.address,
-        commands=sequence([
-            task_install_node_certificates(
-                cluster.certificates.cluster.certificate,
-                certnkey.certificate,
-                certnkey.key),
-            task_install_api_certificates(
-                cluster.certificates.user.certificate,
-                cluster.certificates.user.key),
-            task_enable_docker(node.distribution),
-            if_firewall_available(
-                node.distribution,
-                open_firewall_for_docker_api(node.distribution),
-            ),
-            task_configure_flocker_agent(
-                control_node=cluster.control_node.address,
-                dataset_backend=cluster.dataset_backend,
-                dataset_backend_configuration=(
-                    dataset_backend_configuration
-                ),
-                logging_config=logging_config,
-            ),
-            task_enable_docker_plugin(node.distribution),
-            task_enable_flocker_agent(
-                distribution=node.distribution,
-                action=setup_action,
-            ),
-        ]),
+        commands=sequence(commands),
     )
 
 
