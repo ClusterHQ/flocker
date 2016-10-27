@@ -1385,6 +1385,8 @@ def task_install_docker(distribution):
         timeout=5.0 * 60.0,
     )
 
+# Hard coded Kubernetes repository key.
+# In PGP ASCII armor.
 GOOGLE_CLOUD_PACKAGES_KEY = """
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v1
@@ -1409,7 +1411,17 @@ ecay6Qy/s3Hk7K0QLd+gl0hZ1w1VzIeXLo2BRlqnjOYFX4A=
 
 
 def kubeadm_token_from_cluster(cluster):
-    # See https://github.com/kubernetes/kubernetes/blob/master/cmd/kubeadm/app/util/tokens.go # noqa
+    """
+    Generate a stable ``kubeadmin --token`` parameter for the supplied
+    ``cluster``.
+
+    See: https://github.com/kubernetes/kubernetes/blob/master/cmd/kubeadm/app/util/tokens.go # noqa
+
+    :param Cluster cluster: The cluster supplied by the acceptance test runner.
+    :returns: A "6<byte>.16<byte>" byte string in the format expected by
+        kubeadm --token.
+    """
+    #
     hash_bytes = sha256(
         cluster.certificates.cluster.certificate.getContent()
     ).hexdigest().encode('ascii')
@@ -1419,22 +1431,32 @@ def kubeadm_token_from_cluster(cluster):
 
 def task_install_kubernetes(distribution):
     """
-    Return an ``Effect`` for installing Kubernetes
-    """
-    key_path = b"/etc/gc-team@google.com.gpg.pub"
-    source_path = b"/etc/apt/sources.list.d/kubernetes.list"
+    Install Kubernetes packages.
 
+    :param unicode distribution: The name of the target OS distribution.
+    :returns: an ``Effect`` for installing Kubernetes packages from the
+        Kubernetes repository.
+    """
+    if distribution not in ("ubuntu-16.04",):
+        return sequence([])
+
+    key_path = b"/etc/apt/trusted.gpg.d/gc-team@google.com.gpg"
+    source_path = b"/etc/apt/sources.list.d/kubernetes.list"
     return sequence([
         # Upload the public key rather than downloading from the kubernetes
         # servers every time.
-        put(GOOGLE_CLOUD_PACKAGES_KEY, key_path),
+        put(GOOGLE_CLOUD_PACKAGES_KEY, key_path + b".asc"),
         # Upload the apt repo URL
         put(
             b"deb http://apt.kubernetes.io/ kubernetes-xenial main\n",
             source_path
         ),
-        # Install the key
-        run(command=b"apt-key add {}".format(key_path)),
+        # Install the key Kubernetes key
+        run(
+            command=b"apt-key --keyring {} add {}.asc".format(
+                key_path, key_path
+            )
+        ),
         # Install Kubernetes packages
         run(command=b"apt-get update"),
         run(command=(
@@ -1446,20 +1468,36 @@ def task_install_kubernetes(distribution):
 
 def task_configure_kubernetes_master(distribution, token):
     """
-    Return an ``Effect`` for installing Kubernetes
+    Configure a Kubernetes master and allow that node to also run pods.
+
+    :param unicode distribution: The name of the target OS distribution.
+    :param bytes token: A ``kubeadm`` token.
+    :returns: an ``Effect`` for configuring the Kubernetes master node.
     """
+    if distribution not in ("ubuntu-16.04",):
+        return sequence([])
+
     return sequence([
         run(
             command=b"kubeadm init --token {}".format(token)
         ),
+        # Allow pods to be scheduled to the master node too.
         run(command=b"kubectl taint nodes --all dedicated-"),
     ])
 
 
 def task_configure_kubernetes_node(distribution, token, master_ip):
     """
-    Return an ``Effect`` for installing Kubernetes
+    Configure a Kubernetes worker node and join it to the master configured in
+    ``task_configure_kubernetes_master``.
+
+    :param unicode distribution: The name of the target OS distribution.
+    :param bytes token: A ``kubeadm`` token.
+    :returns: an ``Effect`` for running ``kubeadm --join``.
     """
+    if distribution not in ("ubuntu-16.04",):
+        return sequence([])
+
     return sequence([
         run(
             command=b"kubeadm join --token {} {}".format(

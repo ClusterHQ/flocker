@@ -325,8 +325,6 @@ class ManagedRunner(object):
 
         :return: A ``Deferred`` that fires when the software has been upgraded.
         """
-
-
         uninstalling = perform(dispatcher, uninstall_flocker(nodes))
         uninstalling.addErrback(write_failure, logger=None)
 
