@@ -1465,6 +1465,13 @@ def task_install_kubernetes(distribution):
         ))
     ])
 
+# XXX Maybe copy the entire configuration here to avoid failures due to flaky
+# downloads.
+KUBERNETES_ADDON_WEAVE = (
+    b"https://raw.githubusercontent.com"
+    b"/weaveworks/weave-kube/v1.7.2/weave-daemonset.yaml"
+)
+
 
 def task_configure_kubernetes_master(distribution, token):
     """
@@ -1483,6 +1490,11 @@ def task_configure_kubernetes_master(distribution, token):
         ),
         # Allow pods to be scheduled to the master node too.
         run(command=b"kubectl taint nodes --all dedicated-"),
+        # Install a network addon. The weave daemonset will be started on the
+        # nodes as they join the cluster in ``task_configure_kubernetes_node``.
+        run(
+            command=b"kubectl apply --filename " + KUBERNETES_ADDON_WEAVE
+        ),
     ])
 
 
