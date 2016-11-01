@@ -133,6 +133,17 @@ def is_systemd_distribution(distribution):
         distribution == "ubuntu-16.04"
     )
 
+_distribution_to_package_format = {
+    "centos-7": "rpm",
+    "rhel-7.2": "rpm",
+    "ubuntu-16.04": "deb",
+    "ubuntu-14.04": "deb",
+}
+
+
+def package_format_for_distribution(distribution):
+    return _distribution_to_package_format[distribution]
+
 
 def _from_args(sudo):
     """
@@ -1385,9 +1396,10 @@ def task_install_docker(distribution):
         timeout=5.0 * 60.0,
     )
 
-# Hard coded Kubernetes repository key.
-# In PGP ASCII armor.
-GOOGLE_CLOUD_PACKAGES_KEY = """
+# Used for signing yum and apt repo metadata
+# pub   2048R/A7317B0F 2015-04-03 [expires: 2018-04-02]
+# uid   Google Cloud Packages Automatic Signing Key <gc-team@google.com>
+GOOGLE_CLOUD_PACKAGES_KEY_AUTOMATIC = """
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v1
 
@@ -1409,6 +1421,50 @@ ecay6Qy/s3Hk7K0QLd+gl0hZ1w1VzIeXLo2BRlqnjOYFX4A=
 -----END PGP PUBLIC KEY BLOCK-----
 """
 
+# Used for signing RPM packages.
+# pub   2048R/3E1BA8D5 2015-06-24
+# uid   Google Cloud Packages RPM Signing Key <gc-team@google.com>
+GOOGLE_CLOUD_PACKAGES_KEY_RPM = """
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v1
+
+mQENBFWKtqgBCADmKQWYQF9YoPxLEQZ5XA6DFVg9ZHG4HIuehsSJETMPQ+W9K5c5
+Us5assCZBjG/k5i62SmWb09eHtWsbbEgexURBWJ7IxA8kM3kpTo7bx+LqySDsSC3
+/8JRkiyibVV0dDNv/EzRQsGDxmk5Xl8SbQJ/C2ECSUT2ok225f079m2VJsUGHG+5
+RpyHHgoMaRNedYP8ksYBPSD6sA3Xqpsh/0cF4sm8QtmsxkBmCCIjBa0B0LybDtdX
+XIq5kPJsIrC2zvERIPm1ez/9FyGmZKEFnBGeFC45z5U//pHdB1z03dYKGrKdDpID
+17kNbC5wl24k/IeYyTY9IutMXvuNbVSXaVtRABEBAAG0Okdvb2dsZSBDbG91ZCBQ
+YWNrYWdlcyBSUE0gU2lnbmluZyBLZXkgPGdjLXRlYW1AZ29vZ2xlLmNvbT6JATgE
+EwECACIFAlWKtqgCGy8GCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEPCcOUw+
+G6jV+QwH/0wRH+XovIwLGfkg6kYLEvNPvOIYNQWnrT6zZ+XcV47WkJ+i5SR+QpUI
+udMSWVf4nkv+XVHruxydafRIeocaXY0E8EuIHGBSB2KR3HxG6JbgUiWlCVRNt4Qd
+6udC6Ep7maKEIpO40M8UHRuKrp4iLGIhPm3ELGO6uc8rks8qOBMH4ozU+3PB9a0b
+GnPBEsZdOBI1phyftLyyuEvG8PeUYD+uzSx8jp9xbMg66gQRMP9XGzcCkD+b8w1o
+7v3J3juKKpgvx5Lqwvwv2ywqn/Wr5d5OBCHEw8KtU/tfxycz/oo6XUIshgEbS/+P
+6yKDuYhRp6qxrYXjmAszIT25cftb4d4=
+=/PbX
+-----END PGP PUBLIC KEY BLOCK-----
+"""
+
+KUBERNETES_REPO_APT = """
+deb http://apt.kubernetes.io/ kubernetes-xenial main
+"""
+
+KUBERNETES_REPO_PATH_APT = "/etc/apt/sources.list.d/kubernetes.list"
+
+KUBERNETES_REPO_YUM = """
+[kubernetes]
+name=Kubernetes
+baseurl=http://yum.kubernetes.io/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+       https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+"""
+
+KUBERNETES_REPO_PATH_YUM = "/etc/yum.repos.d/kubernetes.repo"
+
 
 def kubeadm_token_from_cluster(cluster):
     """
@@ -1429,33 +1485,22 @@ def kubeadm_token_from_cluster(cluster):
     return token
 
 
-def task_install_kubernetes(distribution):
-    """
-    Install Kubernetes packages.
-
-    :param unicode distribution: The name of the target OS distribution.
-    :returns: an ``Effect`` for installing Kubernetes packages from the
-        Kubernetes repository.
-    """
-    if distribution not in ("ubuntu-16.04",):
-        return sequence([])
-
-    key_path = b"/etc/apt/trusted.gpg.d/gc-team@google.com.gpg"
-    source_path = b"/etc/apt/sources.list.d/kubernetes.list"
+def task_install_kubernetes_apt():
+    key_path = b"/etc/apt/trusted.gpg.d/google_cloud_packages_automatic"
     return sequence([
         # Upload the public key rather than downloading from the kubernetes
         # servers every time.
-        put(GOOGLE_CLOUD_PACKAGES_KEY, key_path + b".asc"),
-        # Upload the apt repo URL
-        put(
-            b"deb http://apt.kubernetes.io/ kubernetes-xenial main\n",
-            source_path
-        ),
+        put(GOOGLE_CLOUD_PACKAGES_KEY_AUTOMATIC, key_path + b".asc"),
         # Install the key Kubernetes key
         run(
             command=b"apt-key --keyring {} add {}.asc".format(
                 key_path, key_path
             )
+        ),
+        # Upload the repo file
+        put(
+            KUBERNETES_REPO_APT,
+            KUBERNETES_REPO_PATH_APT
         ),
         # Install Kubernetes packages
         run(command=b"apt-get update"),
@@ -1464,6 +1509,54 @@ def task_install_kubernetes(distribution):
             b"kubelet kubeadm kubectl kubernetes-cni"
         ))
     ])
+
+
+def task_install_kubernetes_yum():
+    key_paths = [
+        (GOOGLE_CLOUD_PACKAGES_KEY_AUTOMATIC,
+         b"/etc/pki/rpm-gpg/google_cloud_packages_automatic"),
+        (GOOGLE_CLOUD_PACKAGES_KEY_RPM,
+         b"/etc/pki/rpm-gpg/google_cloud_packages_rpm"),
+    ]
+    key_operations = []
+    for key_content, key_path in key_paths:
+        key_operations += [
+            put(key_content, key_path),
+            run(b"rpmkeys --import " + key_path)
+        ]
+    return sequence(
+        # Upload and import YUM and RPM signing keys
+        key_operations + [
+            # Upload the repo file
+            put(
+                KUBERNETES_REPO_YUM,
+                KUBERNETES_REPO_PATH_YUM
+            ),
+            # Install Kubernetes packages
+            run(command=(
+                b"yum install -y "
+                b"kubelet kubeadm kubectl kubernetes-cni"
+            )),
+        ]
+    )
+
+_task_install_kubernetes_variants = {
+    'deb': task_install_kubernetes_apt,
+    'rpm': task_install_kubernetes_yum,
+}
+
+
+def task_install_kubernetes(distribution):
+    """
+    Install Kubernetes packages.
+
+    :param unicode distribution: The name of the target OS distribution.
+    :returns: an ``Effect`` for installing Kubernetes packages from the
+        Kubernetes repository.
+    """
+    package_format = package_format_for_distribution(distribution)
+    return _task_install_kubernetes_variants[package_format]()
+
 
 # XXX Maybe copy the entire configuration here to avoid failures due to flaky
 # downloads.
@@ -1481,9 +1574,6 @@ def task_configure_kubernetes_master(distribution, token):
     :param bytes token: A ``kubeadm`` token.
     :returns: an ``Effect`` for configuring the Kubernetes master node.
     """
-    if distribution not in ("ubuntu-16.04",):
-        return sequence([])
-
     return sequence([
         run(
             command=b"kubeadm init --token {}".format(token)
@@ -1507,16 +1597,13 @@ def task_configure_kubernetes_node(distribution, token, master_ip):
     :param bytes token: A ``kubeadm`` token.
     :returns: an ``Effect`` for running ``kubeadm --join``.
     """
-    if distribution not in ("ubuntu-16.04",):
-        return sequence([])
-
     return sequence([
         run(
             command=b"kubeadm join --token {} {}".format(
                 token,
                 master_ip,
             )
-        )
+        ),
     ])
 
 
@@ -1913,7 +2000,7 @@ def configure_control_node(
             task_configure_kubernetes_master(
                 distribution=cluster.control_node.distribution,
                 token=kubeadm_token_from_cluster(cluster),
-            )
+            ),
         ]),
     )
 
