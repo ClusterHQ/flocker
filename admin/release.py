@@ -134,8 +134,8 @@ class DocumentationConfiguration(object):
 DOCUMENTATION_CONFIGURATIONS = {
     Environments.PRODUCTION:
         DocumentationConfiguration(
-            documentation_bucket="clusterhq-docs",
-            cloudfront_cname="docs.clusterhq.com",
+            documentation_bucket="clusterhq-flocker-docs",
+            cloudfront_cname="flocker-docs.clusterhq.com",
             dev_bucket="clusterhq-staging-docs"),
     Environments.STAGING:
         DocumentationConfiguration(
