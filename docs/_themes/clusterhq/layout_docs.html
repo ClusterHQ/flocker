@@ -46,26 +46,6 @@
     <script>/*<![CDATA[*/window.zEmbed||function(e,t){var n,o,d,i,s,a=[],r=document.createElement("iframe");window.zEmbed=function(){a.push(arguments)},window.zE=window.zE||window.zEmbed,r.src="javascript:false",r.title="",r.role="presentation",(r.frameElement||r).style.cssText="display: none",d=document.getElementsByTagName("script"),d=d[d.length-1],d.parentNode.insertBefore(r,d),i=r.contentWindow,s=i.document;try{o=s}catch(c){n=document.domain,r.src='javascript:var d=document.open();d.domain="'+n+'";void(0);',o=s}o.open()._l=function(){var o=this.createElement("script");n&&(this.domain=n),o.id="js-iframe-async",o.src=e,this.t=+new Date,this.zendeskHost=t,this.zEQueue=a,this.body.appendChild(o)},o.write('<body onload="document._l();">'),o.close()}("//assets.zendesk.com/embeddable_framework/main.js","clusterhq.zendesk.com");/*]]>*/</script>
     <!-- End of clusterhq Zendesk Widget script -->
 
-    {% if theme_analytics_code %}
-        <script type="text/javascript">
-            var _gaq = _gaq || [];
-            _gaq.push(['_setAccount', '{{ theme_analytics_code }}']);
-            {% if theme_analytics_domain %}
-                _gaq.push(['_setDomainName', '{{ theme_analytics_domain }}']);
-            {% endif %}
-            _gaq.push(['_trackPageview']);
-
-            (function () {
-                var ga = document.createElement('script');
-                ga.type = 'text/javascript';
-                ga.async = true;
-                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-                var s = document.getElementsByTagName('script')[0];
-                s.parentNode.insertBefore(ga, s);
-            })();
-        </script>
-    {% endif %}
-
     <link rel="shortcut icon" href="https://clusterhq.com/assets/favicon.ico"/>
     <!-- Algolia doc search -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css" />
@@ -172,7 +152,7 @@
 
                 <!-- Feedback form -->
                 <hr/>
-				<div class="row">
+        <div class="row">
                     <div class="col-sm-8 feedback-form">
                         <h3>How could we improve this page?</h3>
                         <form method="post" action="https://www.formstack.com/forms/index.php" id="feedback">
@@ -288,12 +268,23 @@
     <script type="text/javascript" src="{{ pathto('_static/js/feedback.js', 1) }}"></script>
 
     <!-- Algolia doc search -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script> 
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script>
     <script type="text/javascript"> docsearch({
     apiKey: 'b86b6835a1d01a8df4634f4b78bdfe2b',
     indexName: 'clusterhq',
     inputSelector: 'input#search'
-    }); 
+    });
     </script>
+
+    <!-- Snippet from Segment.com for segment integration -->
+    <script type="text/javascript">
+    !function(){var analytics=window.analytics=window.analytics||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","once","off","on"];analytics.factory=function(t){return function(){var e=Array.prototype.slice.call(arguments);e.unshift(t);analytics.push(e);return analytics}};for(var t=0;t<analytics.methods.length;t++){var e=analytics.methods[t];analytics[e]=analytics.factory(e)}analytics.load=function(t){var e=document.createElement("script");e.type="text/javascript";e.async=!0;e.src=("https:"===document.location.protocol?"https://":"http://")+"cdn.segment.com/analytics.js/v1/"+t+"/analytics.min.js";var n=document.getElementsByTagName("script")[0];n.parentNode.insertBefore(e,n)};analytics.SNIPPET_VERSION="4.0.0";
+    analytics.load("NUDoi8pmPxBEAWW5rWcX2Lmn0ZA6wlk0");
+    analytics.page();
+    }}();
+    </script>
+    <!-- Include Segment events -->
+    <script type="text/javascript" src="{{ pathto('_static/js/segment.js', 1) }}"></script>
+    <!-- End of Segment integration include -->
   </body>
 </html>
