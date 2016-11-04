@@ -255,14 +255,14 @@ class PublishDocsTests(TestCase):
         """
         Calling :func:`publish_docs` in production copies documentation from
         ``s3://clusterhq-staging-docs/release/flocker-<flocker_version>/`` to
-        ``s3://clusterhq-docs/en/<doc_version>/`` and
-        ``s3://clusterhq-docs/en/latest/``.
+        ``s3://clusterhq-flocker-docs/en/<doc_version>/`` and
+        ``s3://clusterhq-flocker-docs/en/latest/``.
         """
         aws = FakeAWS(
             routing_rules={
             },
             s3_buckets={
-                'clusterhq-docs': {
+                'clusterhq-flocker-docs': {
                     'index.html': '',
                     'en/index.html': '',
                     'en/latest/index.html': '',
@@ -285,7 +285,7 @@ class PublishDocsTests(TestCase):
         self.publish_docs(aws, '0.3.1', '0.3.1',
                           environment=Environments.PRODUCTION)
         self.assertEqual(
-            aws.s3_buckets['clusterhq-docs'], {
+            aws.s3_buckets['clusterhq-flocker-docs'], {
                 'index.html': '',
                 'en/index.html': '',
                 'en/latest/index.html': 'index-content',
@@ -369,12 +369,12 @@ class PublishDocsTests(TestCase):
     def test_updated_routing_rules_production(self):
         """
         Calling :func:`publish_docs` updates the routing rules for the
-        "clusterhq-docs" bucket.
+        "clusterhq-flocker-docs" bucket.
         """
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
-                'clusterhq-docs': {
+                'clusterhq-flocker-docs': {
                 },
                 'clusterhq-staging-docs': {
                 },
@@ -385,11 +385,11 @@ class PublishDocsTests(TestCase):
                               "prefix/": {"key/": {"replace_key": "replace"}},
                           })
         self.assertThat(
-            aws.routing_rules['clusterhq-docs'],
+            aws.routing_rules['clusterhq-flocker-docs'],
             MatchesRoutingRules([
                 RoutingRule.when(key_prefix="prefix/key/").then_redirect(
                     replace_key="prefix/replace",
-                    hostname="docs.clusterhq.com",
+                    hostname="flocker-docs.clusterhq.com",
                     protocol="https",
                     http_redirect_code="302",
                 ),
@@ -675,13 +675,13 @@ class PublishDocsTests(TestCase):
     def test_creates_cloudfront_invalidation_production(self):
         """
         Calling :func:`publish_docs` in production creates an invalidation for
-        ``docs.clusterhq.com``.
+        ``flocker-docs.clusterhq.com``.
         """
         aws = FakeAWS(
             routing_rules={
             },
             s3_buckets={
-                'clusterhq-docs': {
+                'clusterhq-flocker-docs': {
                     'index.html': '',
                     'en/index.html': '',
                     'en/latest/index.html': '',
@@ -695,7 +695,7 @@ class PublishDocsTests(TestCase):
         self.assertEqual(
             aws.cloudfront_invalidations, [
                 CreateCloudFrontInvalidation(
-                    cname='docs.clusterhq.com',
+                    cname='flocker-docs.clusterhq.com',
                     paths={
                         'en/latest/',
                         'en/latest/index.html',
@@ -729,7 +729,7 @@ class PublishDocsTests(TestCase):
             routing_rules={
             },
             s3_buckets={
-                'clusterhq-docs': {},
+                'clusterhq-flocker-docs': {},
                 'clusterhq-staging-docs': {},
             })
         # Does not raise:
@@ -744,7 +744,7 @@ class PublishDocsTests(TestCase):
             routing_rules={
             },
             s3_buckets={
-                'clusterhq-docs': {},
+                'clusterhq-flocker-docs': {},
                 'clusterhq-staging-docs': {},
             })
         # Does not raise:
