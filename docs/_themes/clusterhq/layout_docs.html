@@ -228,7 +228,7 @@
         var canonicalLocation = window.location.pathname.split('/').slice(3).join('/')
         var canonicalLink = document.createElement('link');
         canonicalLink.rel = "canonical";
-        canonicalLink.href = 'https://docs.clusterhq.com/en/' + DOCUMENTATION_OPTIONS.VERSION + '/' + canonicalLocation
+        canonicalLink.href = 'https://flocker-docs.clusterhq.com/en/' + DOCUMENTATION_OPTIONS.VERSION + '/' + canonicalLocation
 
         request.done(function( msg ) {
             // Trim HTML from returned contents
@@ -240,11 +240,11 @@
                     <p class="last"> \
                         You are currently viewing a different version of the documentation to the latest release of Flocker. \
                         The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '. \
-                        <a href="https://docs.clusterhq.com/en/latest/">View the latest documentation.</a></p> \
+                        <a href="https://flocker-docs.clusterhq.com/en/latest/">View the latest documentation.</a></p> \
                     </div>');
             }
             else {
-                canonicalLink.href = "https://docs.clusterhq.com/en/latest/" + canonicalLocation;
+                canonicalLink.href = "https://flocker-docs.clusterhq.com/en/latest/" + canonicalLocation;
             }
             document.head.appendChild(canonicalLink);
         });
