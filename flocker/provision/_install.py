@@ -829,7 +829,7 @@ def task_install_api_certificates(api_cert, api_key):
         ])
 
 
-def task_enable_docker(distribution):
+def task_configure_docker(distribution):
     """
     Configure docker.
 
@@ -883,6 +883,37 @@ def task_enable_docker(distribution):
             ])
     else:
         raise DistributionNotSupported(distribution=distribution)
+
+
+def task_start_docker(distribution):
+    """
+    foo
+    """
+    if is_systemd_distribution(distribution):
+        commands = [
+            run_from_args(['systemctl', START, 'docker']),
+        ]
+    elif is_ubuntu(distribution):
+        commands = [
+            run_from_args(['service', 'docker', 'restart']),
+        ]
+    return sequence(commands)
+
+
+def task_start_kubelet(distribution):
+    """
+    foo
+    """
+    if is_systemd_distribution(distribution):
+        commands = [
+            run_from_args(['systemctl', 'enable' 'kubelet']),
+            run_from_args(['systemctl', START, 'kubelet']),
+        ]
+    elif is_ubuntu(distribution):
+        commands = [
+            run_from_args(['service', 'kubelet', 'restart']),
+        ]
+    return sequence(commands)
 
 
 def open_firewalld(service):
@@ -974,12 +1005,10 @@ def task_enable_docker_plugin(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
             run_from_args(['systemctl', START, 'flocker-docker-plugin']),
-            run_from_args(['systemctl', START, 'docker']),
         ])
     elif is_ubuntu(distribution):
         return sequence([
             run_from_args(['service', 'flocker-docker-plugin', 'restart']),
-            run_from_args(['service', 'docker', 'restart']),
         ])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1717,7 +1746,9 @@ def provision(distribution, package_source, variants):
     commands.append(
         task_install_docker_plugin(
             package_source=package_source, distribution=distribution))
-    commands.append(task_enable_docker(distribution))
+    commands.append(task_configure_docker(distribution))
+    commands.append(task_start_docker(distribution))
+    commands.append(task_start_kubelet(distribution))
     return sequence(commands)
 
 
@@ -2040,7 +2071,7 @@ def configure_node(
         task_install_api_certificates(
             cluster.certificates.user.certificate,
             cluster.certificates.user.key),
-        task_enable_docker(node.distribution),
+        task_configure_docker(node.distribution),
         if_firewall_available(
             node.distribution,
             open_firewall_for_docker_api(node.distribution),
