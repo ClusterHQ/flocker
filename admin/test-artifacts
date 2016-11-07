@@ -55,12 +55,6 @@ class TestClientPackages(unittest.TestCase):
         """
         self.install('ubuntu-14.04', get_steps_pkg)
 
-    def test_ubuntu_15_10_deb(self):
-        """
-        Ubuntu 15.10 client packaging works.
-        """
-        self.install('ubuntu-15.10', get_steps_pkg)
-
     def test_pip_install_apt(self):
         """
         Pip client instructions work on an APT-based distribution.
