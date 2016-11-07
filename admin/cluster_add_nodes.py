@@ -170,7 +170,7 @@ def main(reactor, args, base_path, top_level):
     if options['distribution'] in ('centos-7',):
         remote_logs_file = open("remote_logs.log", "a")
         capture_journal(reactor, control_node, remote_logs_file)
-    elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.10'):
+    elif options['distribution'] in ('ubuntu-14.04',):
         remote_logs_file = open("remote_logs.log", "a")
         capture_upstart(reactor, control_node, remote_logs_file)
 

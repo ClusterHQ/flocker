@@ -11,7 +11,7 @@ from gzip import GzipFile
 from StringIO import StringIO
 import tempfile
 from textwrap import dedent
-from unittest import skipUnless, skipIf
+from unittest import skipUnless
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import Repo
@@ -1292,9 +1292,6 @@ class UploadPackagesTests(TestCase):
         )
         self.build_server = 'http://test-build-server.example'
 
-    # XXX: FLOC-3540 remove skip once the support for Ubuntu 15.10 is released
-    @skipIf(True, "Skipping until the changes to support Ubuntu 15.10 "
-            "are released - FLOC-3540")
     def test_repositories_created(self):
         """
         Calling :func:`upload_packages` creates repositories for supported
@@ -1309,10 +1306,10 @@ class UploadPackagesTests(TestCase):
             'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
             'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-flocker-docker-plugin_0.3.3-0.dev.1_all.deb': '',  # noqa
             'results/omnibus/0.3.3.dev1/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
-            'results/omnibus/0.3.3.dev1/ubuntu-15.10/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.3.dev1/ubuntu-15.10/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.3.dev1/ubuntu-15.10/clusterhq-flocker-docker-plugin_0.3.3-0.dev.1_all.deb': '',  # noqa
-            'results/omnibus/0.3.3.dev1/ubuntu-15.10/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-16.04/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-16.04/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-16.04/clusterhq-flocker-docker-plugin_0.3.3-0.dev.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3.dev1/ubuntu-16.04/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb': '',  # noqa
         }
 
         self.upload_packages(
@@ -1338,21 +1335,17 @@ class UploadPackagesTests(TestCase):
             'ubuntu-testing/14.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb',  # noqa
             'ubuntu-testing/14.04/amd64/Packages.gz',
             'ubuntu-testing/14.04/amd64/Release',
-            'ubuntu-testing/15.10/amd64/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb',  # noqa
-            'ubuntu-testing/15.10/amd64/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb',  # noqa
-            'ubuntu-testing/15.10/amd64/clusterhq-flocker-docker-plugin_0.3.3-0.dev.1_all.deb',  # noqa
-            'ubuntu-testing/15.10/amd64/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb',  # noqa
-            'ubuntu-testing/15.10/amd64/Packages.gz',
-            'ubuntu-testing/15.10/amd64/Release',
-            'ubuntu-testing/15.10/amd64/Release',
+            'ubuntu-testing/16.04/amd64/clusterhq-flocker-cli_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/16.04/amd64/clusterhq-flocker-node_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/16.04/amd64/clusterhq-flocker-docker-plugin_0.3.3-0.dev.1_all.deb',  # noqa
+            'ubuntu-testing/16.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.1_amd64.deb',  # noqa
+            'ubuntu-testing/16.04/amd64/Packages.gz',
+            'ubuntu-testing/16.04/amd64/Release',
         }
 
         files_on_s3 = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(expected_files, set(files_on_s3))
 
-    # XXX: FLOC-3540 remove skip once the support for Ubuntu 15.10 is released
-    @skipIf(True, "Skipping until the changes to support Ubuntu 15.10"
-            " are released - FLOC-3540")
     def test_key_suffixes(self):
         """
         The OS part of the keys for created repositories have suffixes (or not)
@@ -1368,10 +1361,10 @@ class UploadPackagesTests(TestCase):
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-docker-plugin_0.3.3-1_all.deb': '',  # noqa
             'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
-            'results/omnibus/0.3.3/ubuntu-15.10/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
-            'results/omnibus/0.3.3/ubuntu-15.10/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
-            'results/omnibus/0.3.3/ubuntu-15.10/clusterhq-flocker-docker-plugin_0.3.3-1_all.deb': '',  # noqa
-            'results/omnibus/0.3.3/ubuntu-15.10/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-16.04/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-16.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-16.04/clusterhq-flocker-docker-plugin_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-16.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
         }
 
         self.upload_packages(
