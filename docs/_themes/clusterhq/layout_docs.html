@@ -46,26 +46,6 @@
     <script>/*<![CDATA[*/window.zEmbed||function(e,t){var n,o,d,i,s,a=[],r=document.createElement("iframe");window.zEmbed=function(){a.push(arguments)},window.zE=window.zE||window.zEmbed,r.src="javascript:false",r.title="",r.role="presentation",(r.frameElement||r).style.cssText="display: none",d=document.getElementsByTagName("script"),d=d[d.length-1],d.parentNode.insertBefore(r,d),i=r.contentWindow,s=i.document;try{o=s}catch(c){n=document.domain,r.src='javascript:var d=document.open();d.domain="'+n+'";void(0);',o=s}o.open()._l=function(){var o=this.createElement("script");n&&(this.domain=n),o.id="js-iframe-async",o.src=e,this.t=+new Date,this.zendeskHost=t,this.zEQueue=a,this.body.appendChild(o)},o.write('<body onload="document._l();">'),o.close()}("//assets.zendesk.com/embeddable_framework/main.js","clusterhq.zendesk.com");/*]]>*/</script>
     <!-- End of clusterhq Zendesk Widget script -->
 
-    {% if theme_analytics_code %}
-        <script type="text/javascript">
-            var _gaq = _gaq || [];
-            _gaq.push(['_setAccount', '{{ theme_analytics_code }}']);
-            {% if theme_analytics_domain %}
-                _gaq.push(['_setDomainName', '{{ theme_analytics_domain }}']);
-            {% endif %}
-            _gaq.push(['_trackPageview']);
-
-            (function () {
-                var ga = document.createElement('script');
-                ga.type = 'text/javascript';
-                ga.async = true;
-                ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-                var s = document.getElementsByTagName('script')[0];
-                s.parentNode.insertBefore(ga, s);
-            })();
-        </script>
-    {% endif %}
-
     <link rel="shortcut icon" href="https://clusterhq.com/assets/favicon.ico"/>
     <!-- Algolia doc search -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css" />
@@ -77,7 +57,7 @@
             <div class="row">
                 <div class="col-xs-9 col-md-3 logo">
                     <a title="ClusterHQ" href="https://clusterhq.com/">
-                        <img src="{{ pathto('_static/images/logo@2x.png', 1) }}" width="200" height="50">
+                        <img src="{{ pathto('_static/images/logo-woodmark@2x.png', 1) }}" width="144" height="37">
                     </a>
                 </div>
                 <div class="visible-xs-block col-xs-3 mob-nav">
@@ -87,15 +67,14 @@
                 </div>
                 <nav class="col-xs-12 col-md-9">
                     <ul class="menu hidden-xs">
+                        <li><a href="https://clusterhq.com/flockerhub/introduction/">FlockerHub</a></li>
+                        <li><a href="https://clusterhq.com/fli/introduction/">Fli</a></li>
                         <li><a href="https://clusterhq.com/flocker/introduction/">Flocker</a></li>
-                        <li><a href="https://clusterhq.com/volumehub/">Volume Hub</a></li>
-                        <li><a href="https://clusterhq.com/dvol/">dvol</a></li>
-                        <li class="active"><a href="https://docs.clusterhq.com/en/latest/">Install &amp; Docs</a></li>
-                        <li><a href="https://clusterhq.com/flocker/support">Support</a></li>
-                        <li><a href="https://clusterhq.com/blog">Blog</a></li>
-                        <li><a href="https://clusterhq.com/partners">Partners</a></li>
-                        <li><a href="https://clusterhq.com/careers">Careers</a></li>
-                        <li><a href="https://clusterhq.com/flocker/try-flocker/">Try Flocker</a></li>
+                        <li><a href="https://clusterhq.com/blog/">Blog</a></li>
+                        <li><a href="https://clusterhq.com/partners/">Partners</a></li>
+                        <li><a href="https://clusterhq.com/about/">About</a></li>
+                        <li><a href="https://clusterhq.com/careers/">Careers</a></li>
+                        <li><a href="https://clusterhq.com/register/flockerhub-beta/">Sign up for FlockerHub</a></li>
                     </ul>
                 </nav>
             </div>
@@ -172,7 +151,7 @@
 
                 <!-- Feedback form -->
                 <hr/>
-				<div class="row">
+        <div class="row">
                     <div class="col-sm-8 feedback-form">
                         <h3>How could we improve this page?</h3>
                         <form method="post" action="https://www.formstack.com/forms/index.php" id="feedback">
@@ -200,10 +179,7 @@
     <!-- Footer area -->
     <div class="footer">
         <div class="container">
-            <div class="col-xs-3">
-                <img src="{{ pathto('_static/images/small-logo@2x.png', 1) }}" width="47" height="52">
-            </div>
-            <div class="col-xs-9 text-right">
+            <div class="col-xs-12 text-right">
                 &copy; Copyright 2016, ClusterHQ. Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> {{ sphinx_version }}.
             </div>
         </div>
@@ -252,7 +228,7 @@
         var canonicalLocation = window.location.pathname.split('/').slice(3).join('/')
         var canonicalLink = document.createElement('link');
         canonicalLink.rel = "canonical";
-        canonicalLink.href = 'https://docs.clusterhq.com/en/' + DOCUMENTATION_OPTIONS.VERSION + '/' + canonicalLocation
+        canonicalLink.href = 'https://flocker-docs.clusterhq.com/en/' + DOCUMENTATION_OPTIONS.VERSION + '/' + canonicalLocation
 
         request.done(function( msg ) {
             // Trim HTML from returned contents
@@ -264,11 +240,11 @@
                     <p class="last"> \
                         You are currently viewing a different version of the documentation to the latest release of Flocker. \
                         The latest version is ' + currentversion + ', you are viewing ' + DOCUMENTATION_OPTIONS.VERSION + '. \
-                        <a href="https://docs.clusterhq.com/en/latest/">View the latest documentation.</a></p> \
+                        <a href="https://flocker-docs.clusterhq.com/en/latest/">View the latest documentation.</a></p> \
                     </div>');
             }
             else {
-                canonicalLink.href = "https://docs.clusterhq.com/en/latest/" + canonicalLocation;
+                canonicalLink.href = "https://flocker-docs.clusterhq.com/en/latest/" + canonicalLocation;
             }
             document.head.appendChild(canonicalLink);
         });
@@ -288,12 +264,23 @@
     <script type="text/javascript" src="{{ pathto('_static/js/feedback.js', 1) }}"></script>
 
     <!-- Algolia doc search -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script> 
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script>
     <script type="text/javascript"> docsearch({
     apiKey: 'b86b6835a1d01a8df4634f4b78bdfe2b',
     indexName: 'clusterhq',
     inputSelector: 'input#search'
-    }); 
+    });
     </script>
+
+    <!-- Snippet from Segment.com for segment integration -->
+    <script type="text/javascript">
+    !function(){var analytics=window.analytics=window.analytics||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","once","off","on"];analytics.factory=function(t){return function(){var e=Array.prototype.slice.call(arguments);e.unshift(t);analytics.push(e);return analytics}};for(var t=0;t<analytics.methods.length;t++){var e=analytics.methods[t];analytics[e]=analytics.factory(e)}analytics.load=function(t){var e=document.createElement("script");e.type="text/javascript";e.async=!0;e.src=("https:"===document.location.protocol?"https://":"http://")+"cdn.segment.com/analytics.js/v1/"+t+"/analytics.min.js";var n=document.getElementsByTagName("script")[0];n.parentNode.insertBefore(e,n)};analytics.SNIPPET_VERSION="4.0.0";
+    analytics.load("NUDoi8pmPxBEAWW5rWcX2Lmn0ZA6wlk0");
+    analytics.page();
+    }}();
+    </script>
+    <!-- Include Segment events -->
+    <script type="text/javascript" src="{{ pathto('_static/js/segment.js', 1) }}"></script>
+    <!-- End of Segment integration include -->
   </body>
 </html>

@@ -46,8 +46,8 @@ Have questions or need help?
 * You can open an account there to file issues, but we're also happy to accept a `GitHub issue`_ with feature requests or bug reports. `Security issues`_  should be reported directly to our security team.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
-.. _debugging documentation: https://docs.clusterhq.com/en/latest/administering/debugging.html
-.. _Security issues: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#reporting-security-issues
+.. _debugging documentation: https://flocker-docs.clusterhq.com/en/latest/administering/debugging.html
+.. _Security issues: https://flocker-docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#reporting-security-issues
 .. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
 
 
@@ -231,4 +231,4 @@ Once you have submitted an issue via email, you should receive an acknowledgment
 
 .. _JIRA: https://clusterhq.atlassian.net/secure/Dashboard.jspa
 .. _GitHub issue: https://github.com/ClusterHQ/flocker/issues
-.. _reported publicly: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
+.. _reported publicly: https://flocker-docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
