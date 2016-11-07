@@ -60,9 +60,6 @@ class RequestLoadScenario(object):
         the rate.
     :ivar timeout: Maximum time in seconds to wait for the requested
         rate to be reached.
-    :ivar maintained: A ``Deferred`` that fires with an errback if the desired
-        scenario fails to hold between being established and being
-        stopped.  This Deferred never fires with a callback.
     :ivar rate_measurer: ``RateMeasurer`` instace to monitor the scenario.
     :ivar loop: main loop that will be doing requests every second.
     :ivar monitor_loop: loop that will monitor the status of the scenario once
@@ -133,10 +130,10 @@ class RequestLoadScenario(object):
         if count != 1:
             Message.log(function='_request_and_measure', count=count)
 
-        for i in range(count):
+        for _ in range(count):
             self.rate_measurer.update_rate()
 
-            for i in range(self.request_rate):
+            for _ in range(self.request_rate):
                 t0 = self.reactor.seconds()
 
                 d = self.request.make_request()

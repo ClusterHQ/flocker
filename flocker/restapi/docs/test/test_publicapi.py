@@ -130,7 +130,7 @@ class MakeRstTests(TestCase):
             """,
             header=u'g stuff',
             section=u'section')
-        def g():
+        def dummy_g():
             pass
 
         rest = list(makeRst(b"/prefix", 'section', app, None, {}))
@@ -176,10 +176,11 @@ class MakeRstTests(TestCase):
         @user_documentation(
             u"""
             Demonstrates examples.
-            """, examples=[u"example-example"],
+            """,
+            examples=[u"example-example"],
             header=u"Header",
             section=u'section')
-        def hasExamples():
+        def dummy_g():
             pass
 
         examples = {
