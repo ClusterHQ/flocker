@@ -5,6 +5,7 @@
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 from itertools import repeat
+import json
 import time
 from uuid import UUID
 
@@ -41,6 +42,9 @@ from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, UnknownInstanceID, get_blockdevice_volume, ICloudAPI,
 )
+from .blockdevice_manager import (
+    LabelledFilesystem, MountError, temporary_mount
+)
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
     OPENSTACK_ACTION, CINDER_CREATE
@@ -59,6 +63,51 @@ CINDER_TIMEOUT = 600
 
 # The longest time we're willing to wait for a Cinder volume to be destroyed
 CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
+
+CONFIG_DRIVE_LABEL = u"config-2"
+METADATA_RELATIVE_PATH = ['openstack', 'latest', 'meta_data.json']
+
+
+def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
+    """
+    Attempt to retrieve metadata from config drive.
+    """
+    try:
+        mounted_fs = temporary_mount(
+            LabelledFilesystem(label=config_drive_label),
+            options=["ro"]
+        )
+    except MountError as e:
+        Message.new(
+            message_type=(
+                u"flocker:node:agents:blockdevice:openstack:"
+                u"compute_instance_id:configdrive_not_available"),
+            error_message=unicode(e),
+        ).write()
+        return None
+
+    with mounted_fs as mountpoint:
+        metadata_file = mountpoint.descendant(METADATA_RELATIVE_PATH)
+        try:
+            content = metadata_file.getContent()
+        except IOError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_found"),
+                error_message=unicode(e),
+            ).write()
+            return
+        try:
+            return json.loads(content)
+        except ValueError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_json"),
+                error_message=unicode(e),
+            ).write()
+            return
 
 
 def _openstack_logged_method(method_name, original_name):
@@ -484,9 +533,14 @@ class CinderBlockDeviceAPI(object):
 
     def compute_instance_id(self):
         """
-        Find the ``ACTIVE`` Nova API server with a subset of the IPv4 and IPv6
-        addresses on this node.
+        Attempt to retrieve node UUID from the metadata in a config drive.
+        Fall back to finding the ``ACTIVE`` Nova API server with an
+        intersection of the IPv4 and IPv6 addresses on this node.
         """
+        metadata = metadata_from_config_drive()
+        if metadata:
+            return metadata["uuid"]
+
         local_ips = get_all_ips()
         api_ip_map = {}
         id_to_node_ips = {}

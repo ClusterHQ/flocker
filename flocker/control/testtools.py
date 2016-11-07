@@ -69,7 +69,7 @@ def make_istatepersister_tests(fixture):
             """
             The object implements ``IStatePersister``.
             """
-            state_persister, get_state = fixture(self)
+            state_persister, _get_state = fixture(self)
             verifyObject(IStatePersister, state_persister)
 
         @given(
@@ -209,7 +209,7 @@ def docker_image_strategy(
     :param repository_strategy: A strategy to use to create the repository for
         the ``DockerImage``
 
-    :param tag: A strategy to use to create the repository for the
+    :param tag_strategy: A strategy to use to create the repository for the
         ``DockerImage``
     """
     return DockerImage(

@@ -273,9 +273,16 @@ def create_local_servicepair(test):
         service.startService()
         test.addCleanup(service.stopService)
         return service
+
     to_service = create_service()
-    return ServicePair(from_service=create_service(), to_service=to_service,
-                       remote=LocalVolumeManager(to_service))
+    from_service = create_service()
+    remote = LocalVolumeManager(to_service)
+    return ServicePair(
+        from_service=from_service,
+        to_service=to_service,
+        remote=remote,
+        origin_remote=remote
+    )
 
 
 class LocalVolumeManagerInterfaceTests(

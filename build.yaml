@@ -252,12 +252,13 @@ common_cli:
     virtualenv -p python2.7 --clear ${venv}
     . ${venv}/bin/activate
     # Upgrade Python packaging tools.
-    ${venv}/bin/pip install pip==8.1.2 setuptools==23.0.0
+    ${venv}/bin/pip install pip==8.1.2 setuptools==23.0.0 tox==2.3.1
     # Report the versions to aid debugging.
     ${venv}/bin/python --version
     ${venv}/bin/pip --version
     ${venv}/bin/python \
         -c 'import setuptools; print "SETUPTOOLS_VERSION:", setuptools.__version__'
+    ${venv}/bin/tox --version
 
   setup_flocker_modules: &setup_flocker_modules |
     # installs all the required python modules as well as the flocker code.
@@ -703,14 +704,7 @@ common_cli:
       s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
 
   run_lint: &run_lint |
-    # Disable exiting on error, so we can run multiple lints
-    set +e
-    # run flake8 lint tests on Flocker source code
-    flake8 --format=pylint --output flake8.lint.txt admin benchmark flocker
-    JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    pylint admin benchmark flocker > pylint.lint.txt
-    JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    set -e
+    tox -e lint | tee lint.txt
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -1192,12 +1186,11 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *cleanup, *setup_venv,
                    *run_lint, *exit_with_return_code_from_test ]
           }
       timeout: 10
-      publish_lint: true
-      archive_artifacts: ["*.lint.txt"]
+      archive_artifacts: ["lint.txt"]
       directories_to_delete: []
 
   cronly_jobs:
