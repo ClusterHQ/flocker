@@ -717,6 +717,7 @@ class DockerClient(object):
                 binds=binds,
                 port_bindings=port_bindings,
                 restart_policy=restart_policy_dict,
+                mem_limit=mem_limit,
                 mem_swappiness=swappiness,
             )
             # We're likely to get e.g. pvector, so make sure we're passing
@@ -731,7 +732,6 @@ class DockerClient(object):
                 command=command_line_values,
                 environment=environment,
                 ports=[p.internal_port for p in ports],
-                mem_limit=mem_limit,
                 cpu_shares=cpu_shares,
                 host_config=host_config,
             )
