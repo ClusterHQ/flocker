@@ -369,6 +369,21 @@ class DeployerTests(AsyncTestCase):
         return d
 
     @if_docker_configured
+    def test_swappiness_introspection(self):
+        """
+        The swappiness value discovered by the ApplicationDeployer is the same
+        as was passed in.
+        """
+        swappiness = 98
+        d = self._start_container_for_introspection(swappiness=swappiness)
+        d.addCallback(
+            lambda results: self.assertEqual(
+                [swappiness],
+                [app.swappiness for app in
+                 results.node_state.applications.values()]))
+        return d
+
+    @if_docker_configured
     def test_memory_limit(self):
         """
         The memory limit number specified in an ``Application`` is passed to
