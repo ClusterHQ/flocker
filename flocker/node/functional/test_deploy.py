@@ -371,8 +371,8 @@ class DeployerTests(AsyncTestCase):
     @if_docker_configured
     def test_swappiness_introspection(self):
         """
-        The swappiness value discovered by the ApplicationDeployer is the same
-        as was passed in.
+        The swappiness value discovered by the ``ApplicationDeployer`` is the
+        same as was passed in.
         """
         swappiness = 98
         d = self._start_container_for_introspection(swappiness=swappiness)
