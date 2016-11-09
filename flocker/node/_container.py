@@ -316,6 +316,7 @@ class ApplicationNodeDeployer(object):
                 restart_policy=container.restart_policy,
                 running=(container.activation_state == u"active"),
                 command_line=container.command_line,
+                swappiness=container.swappiness,
             ))
         return applications
 

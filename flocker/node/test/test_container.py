@@ -705,6 +705,17 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP.set("memory_limit", memory_limit)]
         self._verify_discover_state_applications(units, applications)
 
+    def test_discover_application_with_swappiness(self):
+        """
+        An ``Application`` with a swappiness value is discovered from a
+        ``Unit`` with a swappiness value.
+        """
+        swappiness = 99
+        unit1 = UNIT_FOR_APP.set("swappiness", swappiness)
+        units = {unit1.name: unit1}
+        applications = [APP.set("swappiness", swappiness)]
+        self._verify_discover_state_applications(units, applications)
+
     def test_discover_application_with_environment(self):
         """
         An ``Application`` with ``Environment`` objects is discovered from a
