@@ -460,6 +460,34 @@ class StartApplicationTests(TestCase):
             pvector(command_line),
         )
 
+    def test_swappiness(self):
+        """
+        ``StartApplication.run()`` passes ``swappiness`` to
+        ``DockerClient.add`` which is used when creating a Unit.
+        """
+        expected_swappiness = 99
+        fake_docker = FakeDockerClient()
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            swappiness=expected_swappiness,
+        )
+
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE,
+        ).run(deployer, state_persister=InMemoryStatePersister())
+
+        [unit] = self.successResultOf(fake_docker.list())
+        self.assertEqual(
+            expected_swappiness,
+            unit.swappiness,
+        )
+
 
 class LinkEnviromentTests(TestCase):
     """

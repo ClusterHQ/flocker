@@ -111,6 +111,7 @@ class StartApplication(PClass):
             # The only supported policy is "never".  See FLOC-2449.
             restart_policy=RestartNever(),
             command_line=application.command_line,
+            swappiness=application.swappiness,
         )
 
 
