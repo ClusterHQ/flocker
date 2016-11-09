@@ -495,7 +495,7 @@ class DockerClient(object):
             long_timeout=600):
         self.namespace = namespace
         self._client = dockerpy_client(
-            version="1.15", base_url=base_url,
+            version="1.20", base_url=base_url,
             long_timeout=timedelta(seconds=long_timeout),
         )
         self._image_cache = LRUCache(100)
@@ -717,6 +717,7 @@ class DockerClient(object):
                 binds=binds,
                 port_bindings=port_bindings,
                 restart_policy=restart_policy_dict,
+                mem_swappiness=swappiness,
             )
             # We're likely to get e.g. pvector, so make sure we're passing
             # in something JSON serializable:
@@ -971,9 +972,9 @@ class DockerClient(object):
                 # mem_limit in containers without specified limits, however
                 # Docker returns the values in these cases as zero, so we
                 # manually convert.
-                cpu_shares = data[u"Config"][u"CpuShares"]
+                cpu_shares = data[u"HostConfig"][u"CpuShares"]
                 cpu_shares = None if cpu_shares == 0 else cpu_shares
-                mem_limit = data[u"Config"][u"Memory"]
+                mem_limit = data[u"HostConfig"][u"Memory"]
                 mem_limit = None if mem_limit == 0 else mem_limit
                 restart_policy = self._parse_restart_policy(
                     data[U"HostConfig"][u"RestartPolicy"])
@@ -988,7 +989,8 @@ class DockerClient(object):
                     mem_limit=mem_limit,
                     cpu_shares=cpu_shares,
                     restart_policy=restart_policy,
-                    command_line=command)
+                    command_line=command,
+                    swappiness=data[u"HostConfig"][u"MemorySwappiness"])
                 )
             return result
         return deferToThread(_list)
