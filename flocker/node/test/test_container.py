@@ -1520,6 +1520,49 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
 
         self.assertEqual(expected, result)
 
+    def test_app_with_changed_swappiness_restarted(self):
+        """
+        An ``Application`` running on a given node that has different
+        swappiness specified in the desired state to the swappiness specified
+        by the application's current state is added to the list of applications
+        to restart.
+        """
+        api = ApplicationNodeDeployer(
+            u'node1.example.com',
+            docker_client=FakeDockerClient(),
+        )
+        old_wordpress_app = Application(
+            name=u'wordpress-example',
+            image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
+            volume=None,
+            swappiness=97,
+        )
+        postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest')
+        )
+        new_wordpress_app = old_wordpress_app.set("swappiness", 98)
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=u'node1.example.com',
+                 applications=frozenset({new_wordpress_app, postgres_app})),
+        }))
+        node_state = NodeState(hostname=api.hostname,
+                               applications={postgres_app, old_wordpress_app})
+        result = api.calculate_changes(
+            desired_configuration=desired,
+            current_cluster_state=DeploymentState(nodes={node_state}),
+            local_state=NodeLocalState(node_state=node_state),
+        )
+        expected = sequentially(changes=[in_parallel(changes=[
+            sequentially(changes=[
+                StopApplication(application=old_wordpress_app),
+                StartApplication(application=new_wordpress_app,
+                                 node_state=node_state)
+                ]),
+        ])])
+        self.assertEqual(expected, result)
+
     def test_stopped_app_with_change_restarted(self):
         """
         An ``Application`` that is stopped, and then reconfigured such that it
