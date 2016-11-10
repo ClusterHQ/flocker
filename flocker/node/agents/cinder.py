@@ -11,7 +11,7 @@ from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from eliot import Message
+from eliot import Message, writeTraceback
 
 from pyrsistent import PClass, field
 
@@ -28,7 +28,7 @@ from cinderclient.exceptions import NotFound as CinderClientNotFound
 from novaclient.client import Client as NovaClient
 from novaclient.exceptions import NotFound as NovaNotFound
 from novaclient.exceptions import ClientException as NovaClientException
-
+import requests
 from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
 
@@ -66,6 +66,7 @@ CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
 
 CONFIG_DRIVE_LABEL = u"config-2"
 METADATA_RELATIVE_PATH = ['openstack', 'latest', 'meta_data.json']
+METADATA_SERVICE_ENDPOINT = (b"169.254.169.254", 80)
 
 
 def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
@@ -108,6 +109,46 @@ def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
                 error_message=unicode(e),
             ).write()
             return
+
+
+def metadata_from_service(metadata_service_endpoint=METADATA_SERVICE_ENDPOINT,
+                          connect_timeout=5.0):
+    """
+    Attempt to retrieve metadata from the Openstack metadata service.
+    """
+    endpoint_url = "http://{}:{}/{}".format(
+        metadata_service_endpoint[0],
+        metadata_service_endpoint[1],
+        "/".join(METADATA_RELATIVE_PATH),
+    )
+    try:
+        response = requests.get(endpoint_url, timeout=connect_timeout)
+    except requests.exceptions.ConnectTimeout as e:
+        Message.new(
+            message_type=(
+                u"flocker:node:agents:blockdevice:openstack:"
+                u"compute_instance_id:metadataservice_connect_timeout"),
+            error_message=unicode(e),
+        ).write()
+        return None
+    except requests.exceptions.ConnectionError as e:
+        Message.new(
+            message_type=(
+                u"flocker:node:agents:blockdevice:openstack:"
+                u"compute_instance_id:metadataservice_connection_error"),
+            error_message=unicode(e),
+        ).write()
+        return None
+    if response.ok:
+        try:
+            return response.json()
+        except ValueError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_json"),
+                error_message=unicode(e),
+            ).write()
 
 
 def _openstack_logged_method(method_name, original_name):
@@ -517,6 +558,8 @@ class CinderBlockDeviceAPI(object):
         if time_module is None:
             time_module = time
         self._time = time_module
+        self._config_drive_label = CONFIG_DRIVE_LABEL
+        self._metadata_service_endpoint = METADATA_SERVICE_ENDPOINT
 
     def allocation_unit(self):
         """
@@ -531,16 +574,11 @@ class CinderBlockDeviceAPI(object):
         """
         return int(GiB(1).to_Byte().value)
 
-    def compute_instance_id(self):
+    def _compute_instance_id_by_ipaddress_match(self):
         """
-        Attempt to retrieve node UUID from the metadata in a config drive.
-        Fall back to finding the ``ACTIVE`` Nova API server with an
-        intersection of the IPv4 and IPv6 addresses on this node.
+        Attempt to retrieve node UUID by finding the ``ACTIVE`` Nova API server
+        with an intersection of the IPv4 and IPv6 addresses on this node.
         """
-        metadata = metadata_from_config_drive()
-        if metadata:
-            return metadata["uuid"]
-
         local_ips = get_all_ips()
         api_ip_map = {}
         id_to_node_ips = {}
@@ -561,7 +599,33 @@ class CinderBlockDeviceAPI(object):
             COMPUTE_INSTANCE_ID_NOT_FOUND(
                 local_ips=local_ips, api_ips=api_ip_map
             ).write()
-            raise UnknownInstanceID(self)
+
+    def compute_instance_id(self):
+        """
+        Attempt to retrieve node UUID from the metadata in a config drive or
+        from the metadata service.
+        Fall back to finging the ``ACTIVE`` Nova API server with an
+        intersection of the IPv4 and IPv6 addresses on this node.
+        """
+        metadata_checkers = [
+            lambda: metadata_from_config_drive(
+                config_drive_label=self._config_drive_label
+            ),
+            lambda: metadata_from_service(
+                metadata_service_endpoint=self._metadata_service_endpoint
+            ),
+        ]
+        for checker in metadata_checkers:
+            metadata = checker()
+            if metadata:
+                return metadata["uuid"]
+        try:
+            result = self._compute_instance_id_by_ipaddress_match()
+        except:
+            writeTraceback()
+        else:
+            return result
+        raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):
         """
