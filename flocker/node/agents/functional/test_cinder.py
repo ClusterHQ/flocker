@@ -11,16 +11,20 @@ from urlparse import urlsplit
 from uuid import uuid4
 
 from bitmath import Byte
+from eliot.testing import assertContainsFields, capture_logging
 import netifaces
 import psutil
 
 from keystoneauth1.exceptions.http import BadRequest
 from keystoneauth1.exceptions.connection import ConnectFailure
-
+from klein import Klein
+from twisted.internet import reactor
+from twisted.internet.endpoints import serverFromString
 from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.python.monkey import MonkeyPatcher
+from twisted.web.server import Site
 
 from zope.interface import Interface, implementer
 
@@ -42,6 +46,7 @@ from ..testtools import (
 from ....testtools import (
     AsyncTestCase,
     if_root,
+    find_free_port,
     flaky,
     random_name,
     run_process,
@@ -53,7 +58,7 @@ from ..cinder import (
     get_keystone_session, wait_for_volume_state, UnexpectedStateException,
     UnattachedVolume, TimeoutException, UnknownVolume, _nova_detach,
     lazy_loading_proxy_for_interface, metadata_from_config_drive,
-    METADATA_RELATIVE_PATH,
+    METADATA_RELATIVE_PATH, UnknownInstanceID, metadata_from_service,
 )
 from ...script import get_api
 from ...backends import backend_and_api_args_from_configuration
@@ -974,3 +979,315 @@ class MetadataFromConfigDriveTests(TestCase):
             config_drive_label=self.label
         )
         self.assertEqual(expected_value, result["test_key"])
+
+
+class ComputeInstanceIDTests(AsyncTestCase):
+    """
+    Tests for Openstack specific behaviour of
+    ``CinderBlockDeviceAPI.compute_instance_id``.
+    """
+    @if_root
+    def setUp(self):
+        super(ComputeInstanceIDTests, self).setUp()
+
+        backend, api_args = backend_and_api_args_from_configuration({
+            "backend": "openstack",
+            "auth_plugin": "rackspace",
+            "region": "ORD",
+            "username": "unknown_user",
+            "api_key": "unknown_api_key",
+            "auth_url": "http://{}:{}/identity/v2.0".format(*find_free_port()),
+        })
+        self.api = get_api(
+            backend=backend,
+            api_args=api_args,
+            reactor=object(),
+            cluster_id=make_cluster_id(TestTypes.FUNCTIONAL),
+        )
+
+    def test_unknown_instance_id(self):
+        """
+        ``UnknownInstanceID`` is raised if all node UUID lookup mechanisms
+        fail.
+        """
+        patch = MonkeyPatcher()
+        # Use non-existent config drive label.
+        # Mount will fail.
+        patch.addPatch(
+            self.api,
+            '_config_drive_label',
+            filesystem_label_for_test(self)
+        )
+        # Use an unreachable metadata service endpoint address.
+        # TCP connections will fail.
+        patch.addPatch(
+            self.api,
+            '_metadata_service_endpoint',
+            find_free_port()
+        )
+        self.addCleanup(patch.restore)
+        patch.patch()
+        self.assertRaises(UnknownInstanceID, self.api.compute_instance_id)
+
+    def test_config_drive(self):
+        """
+        The instance ID is retrieved from the config drive in preference to the
+        metadata server.
+        """
+        patch = MonkeyPatcher()
+        # A compute_instance_id found on config drive
+        drive_compute_instance_id = unicode(uuid4())
+        # A compute_instance_id found from the metadata service
+        server_compute_instance_id = unicode(uuid4())
+
+        # Set up a fake config drive and point the API to its label
+        configdrive_label = filesystem_label_for_test(self)
+        device = formatted_loopback_device_for_test(
+            self,
+            label=configdrive_label,
+        )
+        with temporary_mount(device.device) as mountpoint:
+            metadata_file = mountpoint.descendant(
+                METADATA_RELATIVE_PATH
+            )
+            metadata_file.parent().makedirs()
+            metadata_file.setContent(
+                json.dumps({
+                    "uuid": drive_compute_instance_id
+                })
+            )
+        patch.addPatch(
+            self.api,
+            '_config_drive_label',
+            configdrive_label,
+        )
+        # Set up a fake metadata service and point the API to its endpoint
+        listening = webserver_for_test(
+            self,
+            url_path="/" + "/".join(METADATA_RELATIVE_PATH),
+            response_content=json.dumps(
+                {"uuid": server_compute_instance_id}
+            ),
+        )
+
+        def set_metadata_service_endpoint(port):
+            address = port.getHost()
+            endpoint = (address.host, address.port)
+            patch.addPatch(
+                self.api,
+                '_metadata_service_endpoint',
+                endpoint,
+            )
+            return port
+
+        listening.addCallback(set_metadata_service_endpoint)
+
+        # Run compute_instance_id in a separate thread.
+        # With the API patched to check the fake metadata sources.
+        def start_compute_instance_id(port):
+            patch.patch()
+            return deferToThread(
+                self.api.compute_instance_id
+            )
+        connecting = listening.addCallback(start_compute_instance_id)
+
+        def check(result):
+            self.assertEqual(drive_compute_instance_id, result)
+        checking = connecting.addCallback(check)
+        return checking
+
+    def test_metadata_service(self):
+        """
+        The instance ID is retrieved from the metadata service if it can't be
+        found on the config drive.
+        """
+        patch = MonkeyPatcher()
+        # A compute_instance_id found from the metadata service
+        server_compute_instance_id = unicode(uuid4())
+
+        # Point the API to a config drive label that won't be found.
+        configdrive_label = filesystem_label_for_test(self)
+        patch.addPatch(
+            self.api,
+            '_config_drive_label',
+            configdrive_label,
+        )
+        # Set up a fake metadata service and point the API to its endpoint
+        listening = webserver_for_test(
+            self,
+            url_path="/" + "/".join(METADATA_RELATIVE_PATH),
+            response_content=json.dumps(
+                {"uuid": server_compute_instance_id}
+            ),
+        )
+
+        def set_metadata_service_endpoint(port):
+            address = port.getHost()
+            endpoint = (address.host, address.port)
+            patch.addPatch(
+                self.api,
+                '_metadata_service_endpoint',
+                endpoint,
+            )
+            return port
+
+        listening.addCallback(set_metadata_service_endpoint)
+
+        # Run compute_instance_id in a separate thread.
+        # With the API patched to check the fake metadata sources.
+        def start_compute_instance_id(port):
+            patch.patch()
+            return deferToThread(
+                self.api.compute_instance_id
+            )
+        connecting = listening.addCallback(start_compute_instance_id)
+
+        def check(result):
+            self.assertEqual(server_compute_instance_id, result)
+        checking = connecting.addCallback(check)
+        return checking
+
+
+def webserver_for_test(test, url_path, response_content):
+    """
+    Create a webserver that serves ``response_content`` from ``url_path``.
+    """
+    app = Klein()
+
+    @app.route(url_path)
+    def respond(request):
+        return response_content
+    factory = Site(app.resource())
+    endpoint = serverFromString(reactor, b"tcp:0")
+    listening = endpoint.listen(factory)
+
+    def stop_port(port):
+        test.addCleanup(port.stopListening)
+        return port
+    listening.addCallback(stop_port)
+    return listening
+
+
+class MetadataFromServiceTests(AsyncTestCase):
+    """
+    Tests for ``metadata_from_service``.
+    """
+    def test_success(self):
+        """
+        The metadata is downloaded, decoded and returned.
+        """
+        expected_value = random_name(self)
+        listening = webserver_for_test(
+            self,
+            url_path="/" + "/".join(METADATA_RELATIVE_PATH),
+            response_content=json.dumps({"test_key": expected_value})
+        )
+        connecting = listening.addCallback(
+            lambda port: deferToThread(
+                metadata_from_service,
+                metadata_service_endpoint=next(
+                    (a.host, a.port)
+                    for a in [port.getHost()]
+                ),
+            )
+        )
+
+        def check(result):
+            self.assertEqual(expected_value, result["test_key"])
+
+        checking = connecting.addCallback(check)
+        return checking
+
+    @capture_logging(None)
+    def test_timeout_error(self, logger):
+        """
+        Returns ``None`` if there is a timeout while connecting to the metadata
+        server.
+        """
+        # Simulate a connect timeout by attempting to connect to an unroutable
+        # IP address.
+        result = metadata_from_service(
+            metadata_service_endpoint=("10.0.0.0", 80),
+            connect_timeout=1.0
+        )
+        self.assertIs(None, result)
+        [message] = logger.messages
+        assertContainsFields(
+            self,
+            message,
+            {"message_type": (
+                "flocker:node:agents:blockdevice:openstack:"
+                "compute_instance_id:metadataservice_connect_timeout"
+            )}
+        )
+
+    @capture_logging(None)
+    def test_connection_error(self, logger):
+        """
+        Returns ``None`` if it can't connect to the metadata server.
+        """
+        result = metadata_from_service(
+            metadata_service_endpoint=find_free_port()
+        )
+        self.assertIs(None, result)
+        [message] = logger.messages
+        assertContainsFields(
+            self,
+            message,
+            {"message_type": (
+                "flocker:node:agents:blockdevice:openstack:"
+                "compute_instance_id:metadataservice_connection_error"
+            )}
+        )
+
+    def test_not_found(self):
+        """
+        Returns ``None`` if the metadata URL is not found.
+        """
+        listening = webserver_for_test(
+            self,
+            # Force the webserver to return 404
+            url_path="/some/other/path",
+            response_content=json.dumps({})
+        )
+        connecting = listening.addCallback(
+            lambda port: deferToThread(
+                metadata_from_service,
+                metadata_service_endpoint=next(
+                    (a.host, a.port)
+                    for a in [port.getHost()]
+                ),
+            )
+        )
+
+        def check(result):
+            self.assertIs(None, result)
+
+        checking = connecting.addCallback(check)
+        return checking
+
+    def test_not_json(self):
+        """
+        Returns ``None`` if the metadata URL doesn't return JSON content.
+        """
+        listening = webserver_for_test(
+            self,
+            url_path="/" + "/".join(METADATA_RELATIVE_PATH),
+            # Return non-json string.
+            response_content=random_name(self)
+        )
+        connecting = listening.addCallback(
+            lambda port: deferToThread(
+                metadata_from_service,
+                metadata_service_endpoint=next(
+                    (a.host, a.port)
+                    for a in [port.getHost()]
+                ),
+            )
+        )
+
+        def check(result):
+            self.assertIs(None, result)
+
+        checking = connecting.addCallback(check)
+        return checking
