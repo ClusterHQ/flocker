@@ -872,7 +872,6 @@ def task_configure_docker(distribution):
                     ExecStart=
                     ExecStart=/usr/bin/dockerd {} {}
                     """.format(unixsock_opt, docker_tls_options))),
-            run_from_args(["systemctl", "enable", "docker.service"]),
         ])
     elif is_ubuntu(distribution):
         return sequence([
@@ -891,6 +890,7 @@ def task_start_docker(distribution):
     """
     if is_systemd_distribution(distribution):
         commands = [
+            run_from_args(["systemctl", "enable", "docker.service"]),
             run_from_args(['systemctl', START, 'docker']),
         ]
     elif is_ubuntu(distribution):
@@ -906,7 +906,7 @@ def task_start_kubelet(distribution):
     """
     if is_systemd_distribution(distribution):
         commands = [
-            run_from_args(['systemctl', 'enable' 'kubelet']),
+            run_from_args(['systemctl', 'enable', 'kubelet']),
             run_from_args(['systemctl', START, 'kubelet']),
         ]
     elif is_ubuntu(distribution):
@@ -1615,15 +1615,19 @@ def task_configure_kubernetes_node(distribution, token, master_ip):
     Configure a Kubernetes worker node and join it to the master configured in
     ``task_configure_kubernetes_master``.
 
+    XXX Skip preflight checks until
+    https://github.com/kubernetes/kubernetes/issues/36301 is resolved.
+
     :param unicode distribution: The name of the target OS distribution.
     :param bytes token: A ``kubeadm`` token.
     :returns: an ``Effect`` for running ``kubeadm --join``.
     """
     return sequence([
         run(
-            command=b"kubeadm join --token {} {}".format(
-                token,
-                master_ip,
+            command=(
+                b"kubeadm join --skip-preflight-checks --token "
+                + token + b" "
+                + master_ip
             )
         ),
     ])
@@ -1746,7 +1750,6 @@ def provision(distribution, package_source, variants):
     commands.append(
         task_install_docker_plugin(
             package_source=package_source, distribution=distribution))
-    commands.append(task_configure_docker(distribution))
     commands.append(task_start_docker(distribution))
     commands.append(task_start_kubelet(distribution))
     return sequence(commands)
@@ -2089,6 +2092,10 @@ def configure_node(
             distribution=node.distribution,
             action=setup_action,
         ),
+        # Restart docker after pushing the Flocker certificates and the Docker
+        # configuration modifications which make it use Flocker certificates
+        # for listening on a TLS / TCP port.
+        task_start_docker(node.distribution)
     ])
 
     return run_remotely(
