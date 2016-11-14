@@ -1468,12 +1468,6 @@ GnPBEsZdOBI1phyftLyyuEvG8PeUYD+uzSx8jp9xbMg66gQRMP9XGzcCkD+b8w1o
 -----END PGP PUBLIC KEY BLOCK-----
 """
 
-KUBERNETES_REPO_APT = """
-deb http://apt.kubernetes.io/ kubernetes-xenial main
-"""
-
-KUBERNETES_REPO_PATH_APT = "/etc/apt/sources.list.d/kubernetes.list"
-
 KUBERNETES_REPO_YUM = """
 [kubernetes]
 name=Kubernetes
@@ -1519,13 +1513,19 @@ def task_install_kubernetes_apt():
                 key_path, key_path
             )
         ),
-        # Upload the repo file
-        put(
-            KUBERNETES_REPO_APT,
-            KUBERNETES_REPO_PATH_APT
-        ),
-        # Install Kubernetes packages
+        # Install Kubernetes repository
         run(command=b"apt-get update"),
+        run(command=(
+            b"apt-get install -y "
+            b"apt-transport-https software-properties-common"
+        )),
+        run(command=(
+            b"add-apt-repository -y "
+            b"deb http://apt.kubernetes.io/ "
+            b"kubernetes-$(lsb_release --codename --short) main"
+        )),
+        run(command=b"apt-get update"),
+        # Install Kubernetes packages
         run(command=(
             b"apt-get install -y "
             b"kubelet kubeadm kubectl kubernetes-cni"
