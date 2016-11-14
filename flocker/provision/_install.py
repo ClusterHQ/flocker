@@ -886,7 +886,7 @@ def task_configure_docker(distribution):
 
 def task_start_docker(distribution):
     """
-    foo
+    Enable and (re)start the Docker daemon.
     """
     if is_systemd_distribution(distribution):
         commands = [
@@ -902,7 +902,7 @@ def task_start_docker(distribution):
 
 def task_start_kubelet(distribution):
     """
-    foo
+    Enable and (re)start the Kubernetes Kubelet.
     """
     if is_systemd_distribution(distribution):
         commands = [
