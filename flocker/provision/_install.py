@@ -1522,7 +1522,7 @@ def task_install_kubernetes_apt():
         run(command=(
             b"add-apt-repository -y "
             b'"deb http://apt.kubernetes.io/ '
-            b'kubernetes-$(lsb_release --codename --short)"'
+            b'kubernetes-$(lsb_release --codename --short) main"'
         )),
         run(command=b"apt-get update"),
         # Install Kubernetes packages
