@@ -1556,9 +1556,11 @@ def task_install_kubernetes_yum():
                 KUBERNETES_REPO_PATH_YUM
             ),
             # Install Kubernetes packages
+            # XXX The ebtables dependency isn't declared by the kubelet
+            # package. See https://github.com/kubernetes/release/pull/197
             run(command=(
                 b"yum install -y "
-                b"kubelet kubeadm kubectl kubernetes-cni"
+                b"ebtables kubelet kubeadm kubectl kubernetes-cni"
             )),
         ]
     )
