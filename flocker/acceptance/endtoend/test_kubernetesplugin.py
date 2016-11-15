@@ -20,6 +20,113 @@ from twisted.web.http import (
 )
 from twisted.python.filepath import FilePath
 FLOCKER_ROOT = FilePath(__file__).parent().parent().parent().parent()
+
+# Cached output of:
+# curl ...  https://kubernetes:6443/apis/extensions/v1beta1
+KUBERNETES_TYPES = json.loads("""
+[{
+  "kind": "APIResourceList",
+  "groupVersion": "extensions/v1beta1",
+  "resources": [
+    {
+      "name": "daemonsets",
+      "namespaced": true,
+      "kind": "DaemonSet"
+    },
+    {
+      "name": "daemonsets/status",
+      "namespaced": true,
+      "kind": "DaemonSet"
+    },
+    {
+      "name": "deployments",
+      "namespaced": true,
+      "kind": "Deployment"
+    },
+    {
+      "name": "deployments/rollback",
+      "namespaced": true,
+      "kind": "DeploymentRollback"
+    },
+    {
+      "name": "deployments/scale",
+      "namespaced": true,
+      "kind": "Scale"
+    },
+    {
+      "name": "deployments/status",
+      "namespaced": true,
+      "kind": "Deployment"
+    },
+    {
+      "name": "horizontalpodautoscalers",
+      "namespaced": true,
+      "kind": "HorizontalPodAutoscaler"
+    },
+    {
+      "name": "horizontalpodautoscalers/status",
+      "namespaced": true,
+      "kind": "HorizontalPodAutoscaler"
+    },
+    {
+      "name": "ingresses",
+      "namespaced": true,
+      "kind": "Ingress"
+    },
+    {
+      "name": "ingresses/status",
+      "namespaced": true,
+      "kind": "Ingress"
+    },
+    {
+      "name": "jobs",
+      "namespaced": true,
+      "kind": "Job"
+    },
+    {
+      "name": "jobs/status",
+      "namespaced": true,
+      "kind": "Job"
+    },
+    {
+      "name": "networkpolicies",
+      "namespaced": true,
+      "kind": "NetworkPolicy"
+    },
+    {
+      "name": "replicasets",
+      "namespaced": true,
+      "kind": "ReplicaSet"
+    },
+    {
+      "name": "replicasets/scale",
+      "namespaced": true,
+      "kind": "Scale"
+    },
+    {
+      "name": "replicasets/status",
+      "namespaced": true,
+      "kind": "ReplicaSet"
+    },
+    {
+      "name": "replicationcontrollers",
+      "namespaced": true,
+      "kind": "ReplicationControllerDummy"
+    },
+    {
+      "name": "replicationcontrollers/scale",
+      "namespaced": true,
+      "kind": "Scale"
+    },
+    {
+      "name": "thirdpartyresources",
+      "namespaced": false,
+      "kind": "ThirdPartyResource"
+    }
+  ]
+}]
+""")
+
 KUBERNETES_DEPLOYMENT = {
     "apiVersion": "extensions/v1beta1",
     "metadata": {
@@ -87,6 +194,48 @@ class KubernetesClient(PClass):
         d.addCallback(check_and_decode_json, HTTP_OK)
         return d
 
+    def create_resource(self, namespace, resource):
+        resource_group_version = resource["apiVersion"]
+        resource_kind = resource["kind"]
+        # Lookup resource list
+        for resource_list in KUBERNETES_TYPES:
+            if resource_list["groupVersion"] == resource_group_version:
+                break
+        else:
+            raise Exception(
+                "resource_group_version not recognized",
+                resource_group_version
+            )
+        # Lookup the "kind"
+        for resource in resource_list["resources"]:
+            if resource["kind"] == resource_kind:
+                break
+        else:
+            raise Exception(
+                "resource_kind not recognized",
+                resource_kind
+            )
+
+        url = "/".join([
+            self.baseurl,
+            "apis",
+            resource_group_version,
+            "namespaces",
+            namespace,
+            resource["name"]
+        ])
+        print "RICHARDW URL:", url
+        d = self.client.post(
+            url,
+            json.dumps(resource),
+            headers={
+                b"content-type": b"application/json",
+                b"Authorization": b"Bearer {}".format(self.token),
+            },
+        )
+        d.addCallback(check_and_decode_json, HTTP_CREATED)
+        return d
+
 
 def kubernetes_client(reactor, api_address, api_port, token):
     return KubernetesClient(
@@ -140,4 +289,7 @@ class KubernetesPluginTests(AsyncTestCase):
 
         d = kubernetes_namespace_for_test(self, client)
 
+        def create_deployment(namespace):
+            return client.create_resource(namespace, KUBERNETES_DEPLOYMENT)
+        d.addCallback(create_deployment)
         return d

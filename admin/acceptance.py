@@ -1463,6 +1463,7 @@ def main(reactor, args, base_path, top_level):
     reached_finally = False
 
     def cluster_cleanup():
+        return
         if not reached_finally:
             print "interrupted..."
         print "stopping cluster"
