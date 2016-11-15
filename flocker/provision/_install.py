@@ -1502,7 +1502,8 @@ def kubeadm_token_from_cluster(cluster):
 
 
 def task_install_kubernetes_apt():
-    key_path = b"/etc/apt/trusted.gpg.d/google_cloud_packages_automatic"
+    # The de-armored key must have a .gpg file extension
+    key_path = b"/etc/apt/trusted.gpg.d/google_cloud_packages_automatic.gpg"
     return sequence([
         # Upload the public key rather than downloading from the kubernetes
         # servers every time.
