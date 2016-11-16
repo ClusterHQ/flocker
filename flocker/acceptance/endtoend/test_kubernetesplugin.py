@@ -5,6 +5,7 @@ Tests for the Flocker Kubernetes plugin.
 """
 import os
 import json
+import yaml
 from pyrsistent import PClass, field
 from twisted.internet import reactor
 from eliot import start_action, Message
@@ -25,7 +26,193 @@ FLOCKER_ROOT = FilePath(__file__).parent().parent().parent().parent()
 # Cached output of:
 # curl ...  https://kubernetes:6443/apis/extensions/v1beta1
 KUBERNETES_API_GROUPS = json.loads("""
-[{
+{"api": {
+  "kind": "APIResourceList",
+  "groupVersion": "v1",
+  "resources": [
+    {
+      "name": "bindings",
+      "namespaced": true,
+      "kind": "Binding"
+    },
+    {
+      "name": "componentstatuses",
+      "namespaced": false,
+      "kind": "ComponentStatus"
+    },
+    {
+      "name": "configmaps",
+      "namespaced": true,
+      "kind": "ConfigMap"
+    },
+    {
+      "name": "endpoints",
+      "namespaced": true,
+      "kind": "Endpoints"
+    },
+    {
+      "name": "events",
+      "namespaced": true,
+      "kind": "Event"
+    },
+    {
+      "name": "limitranges",
+      "namespaced": true,
+      "kind": "LimitRange"
+    },
+    {
+      "name": "namespaces",
+      "namespaced": false,
+      "kind": "Namespace"
+    },
+    {
+      "name": "namespaces/finalize",
+      "namespaced": false,
+      "kind": "Namespace"
+    },
+    {
+      "name": "namespaces/status",
+      "namespaced": false,
+      "kind": "Namespace"
+    },
+    {
+      "name": "nodes",
+      "namespaced": false,
+      "kind": "Node"
+    },
+    {
+      "name": "nodes/proxy",
+      "namespaced": false,
+      "kind": "Node"
+    },
+    {
+      "name": "nodes/status",
+      "namespaced": false,
+      "kind": "Node"
+    },
+    {
+      "name": "persistentvolumeclaims",
+      "namespaced": true,
+      "kind": "PersistentVolumeClaim"
+    },
+    {
+      "name": "persistentvolumeclaims/status",
+      "namespaced": true,
+      "kind": "PersistentVolumeClaim"
+    },
+    {
+      "name": "persistentvolumes",
+      "namespaced": false,
+      "kind": "PersistentVolume"
+    },
+    {
+      "name": "persistentvolumes/status",
+      "namespaced": false,
+      "kind": "PersistentVolume"
+    },
+    {
+      "name": "pods",
+      "namespaced": true,
+      "kind": "Pod"
+    },
+    {
+      "name": "pods/attach",
+      "namespaced": true,
+      "kind": "Pod"
+    },
+    {
+      "name": "pods/binding",
+      "namespaced": true,
+      "kind": "Binding"
+    },
+    {
+      "name": "pods/eviction",
+      "namespaced": true,
+      "kind": "Eviction"
+    },
+    {
+      "name": "pods/exec",
+      "namespaced": true,
+      "kind": "Pod"
+    },
+    {
+      "name": "pods/log",
+      "namespaced": true,
+      "kind": "Pod"
+    },
+    {
+      "name": "pods/portforward",
+      "namespaced": true,
+      "kind": "Pod"
+    },
+    {
+      "name": "pods/proxy",
+      "namespaced": true,
+      "kind": "Pod"
+    },
+    {
+      "name": "pods/status",
+      "namespaced": true,
+      "kind": "Pod"
+    },
+    {
+      "name": "podtemplates",
+      "namespaced": true,
+      "kind": "PodTemplate"
+    },
+    {
+      "name": "replicationcontrollers",
+      "namespaced": true,
+      "kind": "ReplicationController"
+    },
+    {
+      "name": "replicationcontrollers/scale",
+      "namespaced": true,
+      "kind": "Scale"
+    },
+    {
+      "name": "replicationcontrollers/status",
+      "namespaced": true,
+      "kind": "ReplicationController"
+    },
+    {
+      "name": "resourcequotas",
+      "namespaced": true,
+      "kind": "ResourceQuota"
+    },
+    {
+      "name": "resourcequotas/status",
+      "namespaced": true,
+      "kind": "ResourceQuota"
+    },
+    {
+      "name": "secrets",
+      "namespaced": true,
+      "kind": "Secret"
+    },
+    {
+      "name": "serviceaccounts",
+      "namespaced": true,
+      "kind": "ServiceAccount"
+    },
+    {
+      "name": "services",
+      "namespaced": true,
+      "kind": "Service"
+    },
+    {
+      "name": "services/proxy",
+      "namespaced": true,
+      "kind": "Service"
+    },
+    {
+      "name": "services/status",
+      "namespaced": true,
+      "kind": "Service"
+    }
+  ]
+},
+"apis": {
   "kind": "APIResourceList",
   "groupVersion": "extensions/v1beta1",
   "resources": [
@@ -125,7 +312,7 @@ KUBERNETES_API_GROUPS = json.loads("""
       "kind": "ThirdPartyResource"
     }
   ]
-}]
+}}
 """)
 
 KUBERNETES_DEPLOYMENT = {
@@ -155,9 +342,31 @@ KUBERNETES_DEPLOYMENT = {
                 }
             }
         },
-        "replicas": 3
+        "replicas": 1
     },
 }
+
+FLOCKER_POD = yaml.safe_load("""\
+apiVersion: v1
+kind: Pod
+metadata:
+  name: flocker-web
+spec:
+  containers:
+    - name: web
+      image: nginx
+      ports:
+        - name: web
+          containerPort: 80
+      volumeMounts:
+          # name must match the volume name below
+          - name: www-root
+            mountPath: "/usr/share/nginx/html"
+  volumes:
+    - name: www-root
+      flocker:
+          datasetName: my-flocker-vol
+""")
 
 
 class KubernetesClient(PClass):
@@ -200,7 +409,7 @@ class KubernetesClient(PClass):
         resource_kind = resource["kind"]
 
         # Lookup resource list
-        for group_info in KUBERNETES_API_GROUPS:
+        for first_url_segment, group_info in KUBERNETES_API_GROUPS.items():
             if group_info["groupVersion"] == resource_group_version:
                 break
         else:
@@ -220,7 +429,7 @@ class KubernetesClient(PClass):
 
         return "/".join([
             self.baseurl,
-            "apis",
+            first_url_segment,
             resource_group_version,
             "namespaces",
             namespace,
@@ -264,6 +473,14 @@ def kubernetes_client(reactor, api_address, api_port, token):
 
 
 def kubernetes_namespace_for_test(test, client):
+    """
+    Create a unique Kubernetes namespace in which to create Kubernetes test
+    resources. The namespace will be deleted when the test completes. And
+    Kubernetes *should* then garbage collect all the resources in that
+    namespace.
+    XXX: Although it doesn't always seem to work:
+    https://github.com/kubernetes/kubernetes/issues/36891
+    """
     # Namespace must be a DNS label and at most 63 characters
     namespace_name = random_name(test)
     namespace_name = namespace_name[-63:]
@@ -276,6 +493,7 @@ def kubernetes_namespace_for_test(test, client):
         return client.namespace_delete(namespace_name)
 
     def setup_cleanup(ignored_result):
+        return
         test.addCleanup(delete_namespace)
 
     d.addCallback(setup_cleanup)
@@ -304,6 +522,6 @@ class KubernetesPluginTests(AsyncTestCase):
         d = kubernetes_namespace_for_test(self, client)
 
         def create_deployment(namespace):
-            return client.create_resource(namespace, KUBERNETES_DEPLOYMENT)
+            return client.create_resource(namespace, FLOCKER_POD)
         d.addCallback(create_deployment)
         return d
