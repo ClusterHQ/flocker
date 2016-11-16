@@ -7,7 +7,8 @@ import os
 import json
 from pyrsistent import PClass, field
 from twisted.internet import reactor
-
+from eliot import start_action, Message
+from eliot.twisted import DeferredContext
 from ...testtools import AsyncTestCase, async_runner, random_name
 from ..testtools import (
     require_cluster, ACCEPTANCE_TEST_TIMEOUT, check_and_decode_json
@@ -23,7 +24,7 @@ FLOCKER_ROOT = FilePath(__file__).parent().parent().parent().parent()
 
 # Cached output of:
 # curl ...  https://kubernetes:6443/apis/extensions/v1beta1
-KUBERNETES_TYPES = json.loads("""
+KUBERNETES_API_GROUPS = json.loads("""
 [{
   "kind": "APIResourceList",
   "groupVersion": "extensions/v1beta1",
@@ -194,12 +195,13 @@ class KubernetesClient(PClass):
         d.addCallback(check_and_decode_json, HTTP_OK)
         return d
 
-    def create_resource(self, namespace, resource):
+    def _endpoint_url_for_resource(self, namespace, resource):
         resource_group_version = resource["apiVersion"]
         resource_kind = resource["kind"]
+
         # Lookup resource list
-        for resource_list in KUBERNETES_TYPES:
-            if resource_list["groupVersion"] == resource_group_version:
+        for group_info in KUBERNETES_API_GROUPS:
+            if group_info["groupVersion"] == resource_group_version:
                 break
         else:
             raise Exception(
@@ -207,8 +209,8 @@ class KubernetesClient(PClass):
                 resource_group_version
             )
         # Lookup the "kind"
-        for resource in resource_list["resources"]:
-            if resource["kind"] == resource_kind:
+        for resource_meta in group_info["resources"]:
+            if resource_meta["kind"] == resource_kind:
                 break
         else:
             raise Exception(
@@ -216,25 +218,37 @@ class KubernetesClient(PClass):
                 resource_kind
             )
 
-        url = "/".join([
+        return "/".join([
             self.baseurl,
             "apis",
             resource_group_version,
             "namespaces",
             namespace,
-            resource["name"]
+            resource_meta["name"]
         ])
-        print "RICHARDW URL:", url
-        d = self.client.post(
-            url,
-            json.dumps(resource),
-            headers={
-                b"content-type": b"application/json",
-                b"Authorization": b"Bearer {}".format(self.token),
-            },
+
+    def create_resource(self, namespace, resource):
+        url = self._endpoint_url_for_resource(namespace, resource)
+        action = start_action(
+            action_type=u"create_resource",
+            namespace=namespace,
+            resource=resource,
+            url=url,
         )
-        d.addCallback(check_and_decode_json, HTTP_CREATED)
-        return d
+
+        with action.context():
+            d = self.client.post(
+                url,
+                json.dumps(resource),
+                headers={
+                    b"content-type": b"application/json",
+                    b"Authorization": b"Bearer {}".format(self.token),
+                },
+            )
+            d = DeferredContext(d)
+            d.addCallback(check_and_decode_json, HTTP_CREATED)
+            d.addActionFinish()
+            return d.result
 
 
 def kubernetes_client(reactor, api_address, api_port, token):
