@@ -8,11 +8,12 @@ import json
 import yaml
 from pyrsistent import PClass, field
 from twisted.internet import reactor
-from eliot import start_action, Message
+from eliot import start_action
 from eliot.twisted import DeferredContext
 from ...testtools import AsyncTestCase, async_runner, random_name
 from ..testtools import (
-    require_cluster, ACCEPTANCE_TEST_TIMEOUT, check_and_decode_json
+    require_cluster, ACCEPTANCE_TEST_TIMEOUT, check_and_decode_json,
+    create_dataset,
 )
 
 from ...ca._validation import treq_with_ca
@@ -315,38 +316,8 @@ KUBERNETES_API_GROUPS = json.loads("""
 }}
 """)
 
-KUBERNETES_DEPLOYMENT = {
-    "apiVersion": "extensions/v1beta1",
-    "metadata": {
-        "name": "nginx-deployment"
-    },
-    "kind": "Deployment",
-    "spec": {
-        "template": {
-            "spec": {
-                "containers": [
-                    {
-                        "image": "nginx:1.7.9",
-                        "name": "nginx",
-                        "ports": [
-                            {
-                                "containerPort": 80
-                            }
-                        ]
-                    }
-                ]
-            },
-            "metadata": {
-                "labels": {
-                    "app": "nginx"
-                }
-            }
-        },
-        "replicas": 1
-    },
-}
 
-FLOCKER_POD = yaml.safe_load("""\
+FLOCKER_POD_TEMPLATE = """\
 apiVersion: v1
 kind: Pod
 metadata:
@@ -365,8 +336,8 @@ spec:
   volumes:
     - name: www-root
       flocker:
-          datasetName: my-flocker-vol
-""")
+          datasetName: {flocker_volume_name}
+"""
 
 
 class KubernetesClient(PClass):
@@ -512,6 +483,7 @@ class KubernetesPluginTests(AsyncTestCase):
         """
         A pod with a Flocker volume can be created.
         """
+        flocker_volume_name = random_name(self)
         client = kubernetes_client(
             reactor,
             api_address=cluster.control_node.public_address,
@@ -521,7 +493,26 @@ class KubernetesPluginTests(AsyncTestCase):
 
         d = kubernetes_namespace_for_test(self, client)
 
+        def create_flocker_volume(namespace):
+            d = create_dataset(
+                test_case=self,
+                cluster=cluster,
+                metadata=dict(
+                    name=flocker_volume_name
+                )
+            )
+            d.addCallback(lambda _ignored: namespace)
+            return d
+        d.addCallback(create_flocker_volume)
+
         def create_deployment(namespace):
-            return client.create_resource(namespace, FLOCKER_POD)
+            return client.create_resource(
+                namespace,
+                yaml.safe_load(
+                    FLOCKER_POD_TEMPLATE.format(
+                        flocker_volume_name=flocker_volume_name
+                    )
+                )
+            )
         d.addCallback(create_deployment)
         return d
