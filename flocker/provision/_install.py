@@ -1013,6 +1013,49 @@ def task_enable_docker_plugin(distribution):
     else:
         raise DistributionNotSupported(distribution=distribution)
 
+# A systemd configuration snippet that compliments the systemd service
+# configuration installed by kubeadm
+KUBELET_FLOCKER_PLUGIN_SYSTEMD_CONFIG = """
+[Service]
+EnvironmentFile=/etc/flocker/env
+"""
+
+# A file containing the location of Flocker control service and certificates to
+# allow the Kubernetes plugin to authenticate with the Flocker REST API.
+ETC_FLOCKER_ENV_TEMPLATE = """
+FLOCKER_CONTROL_SERVICE_HOST={control_service_host}
+FLOCKER_CONTROL_SERVICE_PORT=4523
+FLOCKER_CONTROL_SERVICE_CA_FILE=/etc/flocker/cluster.crt
+FLOCKER_CONTROL_SERVICE_CLIENT_KEY_FILE=/etc/flocker/plugin.key
+FLOCKER_CONTROL_SERVICE_CLIENT_CERT_FILE=/etc/flocker/plugin.crt
+"""
+
+
+def task_enable_kubernetes_plugin(flocker_control_service_host):
+    """
+    Enable the Flocker Kubernetes plugin.
+    By adding a systemd configuration snippet that makes FLOCKER configuration
+    environment variables available to the kubelet.
+
+    :param bytes flocker_control_service_host: The address or hostname of the
+        Flocker control service.
+    """
+    return sequence([
+        put(
+            content=ETC_FLOCKER_ENV_TEMPLATE.format(
+                control_service_host=flocker_control_service_host
+            ),
+            path=b"/etc/flocker/env",
+        ),
+        put(
+            content=KUBELET_FLOCKER_PLUGIN_SYSTEMD_CONFIG,
+            path=(
+                b"/etc/systemd/system/kubelet.service.d/20-flocker-plugin.conf"
+            )
+        ),
+        run_from_args(['systemctl', 'restart', 'kubelet']),
+    ])
+
 
 def task_open_control_firewall(distribution):
     """
@@ -2058,18 +2101,7 @@ def configure_node(
     if provider == "managed":
         setup_action = 'restart'
 
-    if node is cluster.control_node:
-        commands = []
-    else:
-        commands = [
-            task_configure_kubernetes_node(
-                distribution=node.distribution,
-                token=kubeadm_token_from_cluster(cluster),
-                master_ip=cluster.control_node.address,
-            ),
-        ]
-
-    commands.extend([
+    commands = [
         task_install_node_certificates(
             cluster.certificates.cluster.certificate,
             certnkey.certificate,
@@ -2095,6 +2127,19 @@ def configure_node(
             distribution=node.distribution,
             action=setup_action,
         ),
+        task_enable_kubernetes_plugin(cluster.control_node.public_address),
+    ]
+
+    if node is not cluster.control_node:
+        commands = [
+            task_configure_kubernetes_node(
+                distribution=node.distribution,
+                token=kubeadm_token_from_cluster(cluster),
+                master_ip=cluster.control_node.address,
+            ),
+        ]
+
+    commands.extend([
         # Restart docker after pushing the Flocker certificates and the Docker
         # configuration modifications which make it use Flocker certificates
         # for listening on a TLS / TCP port.
