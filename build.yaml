@@ -1195,7 +1195,7 @@ job_type:
       timeout: 30
       directories_to_delete: *run_acceptance_directories_to_delete
 
-run_docker_build:
+  run_docker_build:
     run_docker_build_on_Ubuntu_Xenial:
       on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
