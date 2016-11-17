@@ -1206,7 +1206,7 @@ run_docker_build:
                    *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
-                   "export DOCKER_IMAGE=clusterhqci/flocker-dataset-agent:${FLOCKER_VERSION}",
+                   'export DOCKER_IMAGE=clusterhqci/flocker-dataset-agent:${FLOCKER_VERSION}',
                    *build_docker_image_flocker,
                    *push_image_to_dockerhub,
                    *clean_packages,
