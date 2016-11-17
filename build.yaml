@@ -547,10 +547,12 @@ common_cli:
 
   build_docker_image_flocker: &build_docker_image_flocker |
     # Build Flocker Docker image
+    BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
     docker build \
         --rm \
         --tag "${DOCKER_IMAGE}" \
-        --build-arg "FLOCKER_REPOSITORY=http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)" \
+        --build-arg "FLOCKER_REPOSITORY=http://${BUILD_SERVER_IP}/${REPOSITORY_PATH}" \
         dockerfiles/dataset
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
