@@ -2,24 +2,21 @@ FROM ubuntu:16.04
 
 MAINTAINER ClusterHQ <contact@clusterhq.com>
 
-ENV FLOCKER_VERSION 1.14.0-1
-
 RUN \
-	apt-get update \
-	&& apt-get install -y \
-		apt-transport-https \
-		software-properties-common \ 
-	&& add-apt-repository -y \
-		"deb https://clusterhq-archive.s3.amazonaws.com/ubuntu/$(lsb_release --release --short)/\$(ARCH) /" \
-	&& apt-get update \
-	&& apt-get install -y --allow-unauthenticated \
-		clusterhq-python-flocker=${FLOCKER_VERSION} \
-      		clusterhq-flocker-node=${FLOCKER_VERSION} \
-	&& apt-get clean
+    apt-get --yes update \
+    && apt-get --yes install --no-install-recommends \
+        apt-transport-https \
+        ca-certificates \
+    && apt-get --yes clean
 
-RUN find / -name flocker-dataset-agent
-
-RUN ls -l /opt/flocker/bin/flocker-dataset-agent
-RUN ls -l /usr/sbin/flocker-dataset-agent
+ARG FLOCKER_VERSION
+RUN : ${FLOCKER_VERSION:?"Please supply FLOCKER_VERSION as --build-arg FLOCKER_VERSION=x.y.z"}
+ARG FLOCKER_REPOSITORY="https://clusterhq-archive.s3.amazonaws.com/ubuntu/16.04/amd64"
+RUN echo "deb ${FLOCKER_REPOSITORY} /" > /etc/apt/sources.list.d/clusterhq.list
+RUN \
+    apt-get --yes update \
+    && apt-get --yes install --no-install-recommends --allow-unauthenticated \
+        clusterhq-python-flocker=${FLOCKER_VERSION} \
+        clusterhq-flocker-node=${FLOCKER_VERSION}
 
 ENTRYPOINT ["/usr/sbin/flocker-dataset-agent"]
