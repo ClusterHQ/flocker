@@ -115,3 +115,34 @@ Old versions of Flocker for Fedora 20 (until 0.3.2) are hosted on Google Cloud S
 The legacy ClusterHQ release package creation files and other packages which were formerly necessary are in https://github.com/ClusterHQ/fedora-packages.
 
 Old versions of Flocker source and binary distributions are hosted on Google Cloud Storage.
+
+
+Building Docker Images
+======================
+
+To build the docker image for ``flocker-dataset-agent``, run:
+
+.. prompt:: bash $
+
+   export FLOCKER_VERSION=1.15.0
+   docker build \
+       --rm \
+       --tag "clusterhq/flocker-dataset-agent:${FLOCKER_VERSION}" \
+       --build-arg "FLOCKER_VERSION=${FLOCKER_VERSION}-1" \
+       .
+
+You can also build the latest version of Flocker from a custom repository:
+
+.. prompt:: bash $
+
+   docker build \
+       --rm \
+       --tag "clusterhq/flocker-dataset-agent:master" \
+       --build-arg "FLOCKER_REPOSITORY=http://build.clusterhq.com/results/omnibus/master/ubuntu-16.04/" \
+       .
+
+To check the image, run the container with the argument ```--version```:
+
+.. prompt:: bash $
+
+   docker run --rm clusterhq/flocker-dataset-agent:master --version
