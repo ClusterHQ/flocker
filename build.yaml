@@ -1208,7 +1208,7 @@ job_type:
                    *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
-                   'export DOCKER_IMAGE=clusterhqci/flocker-dataset-agent',
+                   'export DOCKER_IMAGE=clusterhqci/flocker-dataset-agent:${FLOCKER_VERSION}',
                    *build_docker_image_flocker,
                    *push_image_to_dockerhub,
                    *clean_packages,
