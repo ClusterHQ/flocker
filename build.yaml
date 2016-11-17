@@ -553,6 +553,10 @@ common_cli:
     docker build \
         --rm \
         --tag "${DOCKER_IMAGE}" \
+        --label "FLOCKER_VERSION=${FLOCKER_VERSION}" \
+        --label "GIT_COMMIT=${GIT_COMMIT}" \
+        --label "TRIGGERED_BRANCH=${TRIGGERED_BRANCH}" \
+        --label "BUILD_SERVER_IP=${BUILD_SERVER_IP}" \
         --build-arg "FLOCKER_REPOSITORY=http://${BUILD_SERVER_IP}/${REPOSITORY_PATH}" \
         dockerfiles/dataset
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
@@ -1172,7 +1176,7 @@ job_type:
                    *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
-                   'export DOCKER_IMAGE=clusterhqci/flocker-dataset-agent:${FLOCKER_VERSION}',
+                   'export DOCKER_IMAGE=clusterhqci/flocker-dataset-agent:${GIT_COMMIT}',
                    *build_docker_image_flocker,
                    *push_image_to_dockerhub,
                    *clean_packages,
