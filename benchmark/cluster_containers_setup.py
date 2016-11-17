@@ -129,8 +129,8 @@ def main(reactor, argv, environ):
     # output
     eliot_to_stdout(MESSAGE_FORMATS, ACTION_START_FORMATS)
 
+    options = ContainerOptions()
     try:
-        options = ContainerOptions()
         options.parseOptions(argv[1:])
     except usage.UsageError as e:
         sys.stderr.write(e.args[0])
@@ -336,10 +336,10 @@ class ClusterContainerDeployment(object):
             deferred_list = []
             for node in nodes:
                 d = succeed(None)
-                for i in range(per_node):
+                for count in range(per_node):
                     d.addCallback(
-                        lambda _ignore, node=node, i=i:
-                            self.create_stateful_container(node, i)
+                        lambda _ignore, n=node, i=count:
+                            self.create_stateful_container(n, i)
                     )
                 deferred_list.append(d)
 

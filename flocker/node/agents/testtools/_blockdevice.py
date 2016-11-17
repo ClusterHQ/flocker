@@ -31,7 +31,7 @@ from twisted.python.filepath import FilePath
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
-from ....testtools import TestCase, AsyncTestCase
+from ....testtools import TestCase, AsyncTestCase, random_name
 from ....testtools.cluster_utils import make_cluster_id, TestTypes
 
 from ..blockdevice import (
@@ -1070,3 +1070,10 @@ def require_backend(required_backend):
             return result
         return wrapper
     return decorator
+
+
+def filesystem_label_for_test(test_case):
+    """
+    :returns: A 16 byte filesystem label based on the test case name.
+    """
+    return random_name(test_case)[-16:]

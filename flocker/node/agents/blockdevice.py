@@ -1047,7 +1047,7 @@ class IBlockDeviceAPI(Interface):
 
     * The factory function that creates this instance will be called with
       a unique cluster ID (see
-      https://docs.clusterhq.com/en/latest/gettinginvolved/plugins/building-driver.html).
+      https://flocker-docs.clusterhq.com/en/latest/gettinginvolved/plugins/building-driver.html).
       If possible it's worth creating volumes with that cluster ID stored
       as metadata, so you can filter results from the backend and only
       include relevant volumes. This allows sharing the same storage

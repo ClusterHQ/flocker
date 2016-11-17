@@ -18,13 +18,12 @@ By the end of the release process we will have:
 - CentOS 7 RPMs for software on the node and client,
 - Ubuntu 16.04 DEBs for software on the node and client,
 - Ubuntu 14.04 DEBs for software on the node and client,
-- Ubuntu 15.10 DEBs for software on the node and client,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_, and
+- documentation on `flocker-docs.clusterhq.com <https://flocker-docs.clusterhq.com/>`_, and
 
 For a maintenance or documentation release, we will have:
 
 - a tag in version control,
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com/>`_.
+- documentation on `flocker-docs.clusterhq.com <https://flocker-docs.clusterhq.com/>`_.
 
 
 Prerequisites

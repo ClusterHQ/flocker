@@ -10,12 +10,14 @@ import stat
 from hypothesis import given
 from hypothesis.strategies import binary
 from testtools.matchers import Equals
+from twisted.python.filepath import IFilePath
+from zope.interface.verify import verifyObject
 
 from ...testtools import TestCase
 from ...testtools.matchers import dir_exists, file_contents, with_permissions
 from ...testtools.strategies import permissions
 
-from .. import make_directory, make_file
+from .. import make_directory, make_file, temporary_directory
 
 
 user_rw = stat.S_IRUSR | stat.S_IWUSR
@@ -82,3 +84,69 @@ class MakeDirectoryTests(TestCase):
         path = self.make_temporary_file()
         error = self.assertRaises(OSError, make_directory, path)
         self.assertThat(error.errno, Equals(errno.EEXIST))
+
+
+class TemporaryDirectoryTests(TestCase):
+    """
+    Tests for ``temporary_directory``.
+    """
+    def test_interface(self):
+        """
+        ``temporary_directory`` returns an ``IFilePath`` implementation.
+        """
+        path = temporary_directory()
+        self.addCleanup(path.remove)
+        self.assertTrue(verifyObject(IFilePath, path))
+
+    def test_parent(self):
+        """
+        ``temporary_directory`` accepts an optional ``parent_path`` argument
+        which sets the dirname of the temporary directory.
+        """
+        parent = self.make_temporary_directory()
+        path = temporary_directory(
+            parent_path=parent
+        )
+        self.assertIn(path, parent.children())
+        self.assertThat(path, dir_exists())
+
+    def test_descendant(self):
+        """
+        ``temporary_directory`` has a descendant method.
+        """
+        parent = self.make_temporary_directory()
+        path = temporary_directory(
+            parent_path=parent
+        )
+        path.child("foo").child("bar").makedirs()
+        path.descendant(["foo", "bar", "baz"]).setContent("")
+
+    def test_context_manager(self):
+        """
+        ``temporary_directory`` can be used as a context manager.
+        It removes the directory upon context.__exit__.
+        """
+        paths = []
+        with temporary_directory() as path:
+            paths.append(path)
+
+        [path] = paths
+        self.assertFalse(path.exists())
+
+    def test_context_manager_error(self):
+        """
+        The temporary directory is removed even if exceptions are raised inside
+        the context manager.
+        """
+        class SomeException(Exception):
+            pass
+        paths = []
+        try:
+            with temporary_directory() as path:
+                paths.append(path)
+                raise SomeException()
+        except SomeException:
+            [path] = paths
+            self.assertFalse(path.exists())
+        else:
+            self.fail("Expected exception ``SomeException`` was not raised.")

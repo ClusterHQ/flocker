@@ -1,4 +1,4 @@
-#!/opt/python/cp27-cp27m/bin/python
+#!/usr/bin/env python
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
@@ -8,17 +8,18 @@ requirements file to the path ``/requirements.txt`` inside the container.
 """
 
 import argparse
-import os
 import sys
 from subprocess import check_call
 
-PIP = "/opt/python/cp27-cp27m/bin/pip"
+PIP = "/usr/bin/pip"
 
 parser = argparse.ArgumentParser()
 args = parser.parse_args()
 
 check_call(
     [PIP, "install",
+     "--no-index",
+     "--find-links", "/wheelhouse",
      "--requirement", "/requirements.txt",
      "--constraint", "/requirements/constraints.txt"],
     stdout=sys.stderr

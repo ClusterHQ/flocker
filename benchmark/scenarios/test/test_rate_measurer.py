@@ -21,7 +21,7 @@ class RateMeasurerTest(TestCase):
         :param num_samples: The number of samples to collect.
         """
         call_duration = 4.567
-        for i in range(num_samples*num_requests):
+        for _ in range(num_samples*num_requests):
             rate_measurer.response_received(call_duration)
 
     def send_requests(self, rate_measurer, num_requests, num_samples):
@@ -32,8 +32,8 @@ class RateMeasurerTest(TestCase):
         :param num_requests: The number of request we want to receive.
         :param num_samples: The number of samples to collect.
         """
-        for i in range(num_samples):
-            for i in range(num_requests):
+        for _ in range(num_samples):
+            for _ in range(num_requests):
                 rate_measurer.request_sent()
             rate_measurer.update_rate()
 
@@ -47,7 +47,7 @@ class RateMeasurerTest(TestCase):
         :param num_samples: The number of samples to collect.
         """
         result = Failure(RuntimeError('fail'))
-        for i in range(num_samples*num_failures):
+        for _ in range(num_samples*num_failures):
             rate_measurer.request_failed(result)
 
     def increase_rate(self, rate_measurer, num_requests, num_samples):

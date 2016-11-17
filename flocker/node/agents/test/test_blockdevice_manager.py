@@ -4,6 +4,7 @@
 Tests for ``flocker.node.agents.blockdevice_manager``.
 """
 
+import errno
 from uuid import uuid4
 
 from testtools import ExpectedException
@@ -11,22 +12,27 @@ from testtools.matchers import Not, FileExists
 
 from zope.interface.verify import verifyObject
 
-from ....testtools import TestCase
+from ....testtools import TestCase, random_name, if_root
 
+from ..loopback import LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
 from ..blockdevice_manager import (
     BindMountError,
     BlockDeviceManager,
     IBlockDeviceManager,
+    LabelledFilesystem,
     MakeFilesystemError,
     MakeTmpfsMountError,
     MountError,
     MountInfo,
     Permissions,
     RemountError,
+    temporary_mount,
+    mount,
     UnmountError,
 )
-from ..loopback import LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
 from ..testtools import (
+    filesystem_label_for_test,
+    formatted_loopback_device_for_test,
     loopbackblockdeviceapi_for_test,
     mountroot_for_test,
 )
@@ -257,3 +263,244 @@ class BlockDeviceManagerTests(TestCase):
         non_existent = self._get_directory_for_mount().child('non_existent')
         with ExpectedException(MakeTmpfsMountError, '.*non_existent.*'):
             self.manager_under_test.make_tmpfs_mount(non_existent)
+
+
+class MountTests(TestCase):
+    """
+    Tests for ``mount``.
+    """
+    @if_root
+    def setUp(self):
+        super(MountTests, self).setUp()
+        self.device = formatted_loopback_device_for_test(self)
+
+    def test_filesystem_adapter_error(self):
+        """
+        ``mount`` raises ``TypeError`` unless the supplied ``filesystem`` can
+        be adapted to ``IMountableFilesystem``.
+        """
+        self.assertRaises(
+            TypeError,
+            mount,
+            filesystem=object(),
+            mountpoint=self.make_temporary_directory(),
+        )
+
+    def test_mount_error(self):
+        """
+        ``mount`` raises ``MountError`` if the mount command fails.
+        """
+        self.assertRaises(
+            MountError,
+            mount,
+            filesystem=self.make_temporary_file(),
+            mountpoint=self.make_temporary_directory()
+        )
+
+    def test_success(self):
+        """
+        ``mount`` mounts the supplied device and returns a
+        ``MountedFileSystem`` that can be unmounted.
+        The files added to mountpoint are stored on the filesystem rather than
+        in the mountpoint directory.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mount_directory1 = self.make_temporary_directory()
+
+        fs1 = mount(self.device.device, mount_directory1)
+
+        mount_directory1.child(filename).setContent(filecontent)
+        fs1.unmount()
+        # ``unmount`` will fail unless the mountpoint is mounted.
+        self.assertRaises(UnmountError, fs1.unmount)
+
+        self.assertEqual([], mount_directory1.children())
+        mount_directory2 = self.make_temporary_directory()
+        fs2 = mount(self.device.device, mount_directory2)
+        self.assertEqual(
+            filecontent,
+            mount_directory2.child(filename).getContent()
+        )
+        fs2.unmount()
+
+    def test_context_manager(self):
+        """
+        When used as a context manager, the filesystem is unmounted on exiting
+        the context.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mount_directory = self.make_temporary_directory()
+        with mount(self.device.device, mount_directory) as mountpoint:
+            mountpoint.child(filename).setContent(filecontent)
+            self.assertEqual(
+                filecontent,
+                mount_directory.child(filename).getContent()
+            )
+        self.assertEqual([], mount_directory.children())
+
+        with mount(
+                self.device.device,
+                self.make_temporary_directory()
+        ) as mountpoint:
+            self.assertEqual(
+                filecontent,
+                mountpoint.child(filename).getContent()
+            )
+
+    def test_context_manager_error(self):
+        """
+        When used as a context manager, the filesystem is unmounted even if
+        exceptions are raised.
+        """
+        class SomeException(Exception):
+            pass
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mount_directory = self.make_temporary_directory()
+        try:
+            with mount(self.device.device, mount_directory) as mountpoint:
+                with mountpoint.child(filename).open('w') as f:
+                    f.write(filecontent)
+                self.assertEqual(
+                    filecontent,
+                    mount_directory.child(filename).getContent()
+                )
+                raise SomeException()
+        except SomeException:
+            self.assertEqual([], mount_directory.children())
+        else:
+            self.fail("The expected ``SomeException`` was not raised.")
+
+    def test_mount_options(self):
+        """
+        ``mount`` accepts mount options such as ``ro``.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mount_directory = self.make_temporary_directory()
+        with mount(
+                self.device.device,
+                mount_directory,
+                options=["ro"]
+        ) as mountpoint:
+            e = self.assertRaises(
+                OSError,
+                mountpoint.child(filename).setContent,
+                filecontent
+            )
+            self.assertEqual(errno.EROFS, e.errno)
+
+
+class LabelledFilesystemTests(TestCase):
+    """
+    Tests for ``LabelledFilesystem``.
+    """
+    @if_root
+    def setUp(self):
+        super(LabelledFilesystemTests, self).setUp()
+        self.label = filesystem_label_for_test(self)
+        self.device = formatted_loopback_device_for_test(
+            self, label=self.label
+        )
+
+    def test_success(self):
+        """
+        ``LabelledFilesystem`` can be mounted.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        with temporary_mount(
+                LabelledFilesystem(label=self.label)
+        ) as mountpoint:
+            mountpoint.child(filename).setContent(filecontent)
+
+        with temporary_mount(
+                LabelledFilesystem(label=self.label)
+        ) as mountpoint:
+            self.assertEqual(
+                filecontent,
+                mountpoint.child(filename).getContent()
+            )
+
+    def test_error(self):
+        """
+        If the label doesn't exist, the error includes the label.
+        """
+        non_existent_label = filesystem_label_for_test(self)
+        e = self.assertRaises(
+            MountError,
+            temporary_mount,
+            LabelledFilesystem(label=non_existent_label)
+        )
+        self.assertIn(
+            non_existent_label,
+            unicode(e)
+        )
+
+
+class TemporaryMountTests(TestCase):
+    """
+    Tests for ``temporary_mount``.
+    """
+    @if_root
+    def setUp(self):
+        super(TemporaryMountTests, self).setUp()
+        self.device = formatted_loopback_device_for_test(self)
+
+    def test_success(self):
+        """
+        ``temporary_mount`` mounts the supplied device at a temporary
+        directory.
+        The temporary directory is removed when it is unmounted.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        fs1 = temporary_mount(self.device.device)
+        fs1.mountpoint.child(filename).setContent(filecontent)
+        fs2 = temporary_mount(self.device.device)
+        self.assertEqual(
+            filecontent,
+            fs2.mountpoint.child(filename).getContent()
+        )
+        fs1.unmount()
+        fs2.unmount()
+        self.assertEqual(
+            (False, False),
+            (fs1.mountpoint.exists(), fs2.mountpoint.exists())
+        )
+
+    def test_mount_error(self):
+        """
+        If the mount fails, the temporary mountpoint is removed and the
+        MountError is raised.
+        """
+        e = self.assertRaises(
+            MountError,
+            temporary_mount,
+            self.make_temporary_file()
+        )
+        self.assertFalse(e.mountpoint.exists())
+
+    def test_context_manager(self):
+        """
+        ``temporary_mount`` when used as a context manager will unmount and
+        remove the temporary mountpoint on context exit.
+        """
+        filename = random_name(self)
+        filecontent = random_name(self)
+        mounts = []
+        with temporary_mount(self.device.device) as mountpoint1:
+            mounts.append(mountpoint1)
+            mountpoint1.child(filename).setContent(filecontent)
+        self.assertFalse(mounts[0].exists())
+
+        with temporary_mount(self.device.device) as mountpoint2:
+            mounts.append(mountpoint2)
+            self.assertEqual(
+                filecontent,
+                mountpoint2.child(filename).getContent()
+            )
+        self.assertFalse(mounts[1].exists())
+        self.assertNotEqual(*mounts)

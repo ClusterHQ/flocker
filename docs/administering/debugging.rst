@@ -48,7 +48,6 @@ It is possible to see the available unit names, and then view the logs with ``jo
 
    [root@node]# ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
    flocker-dataset-agent
-   flocker-container-agent
    flocker-control
    [root@node]# journalctl -u flocker-dataset-agent
 

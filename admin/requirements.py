@@ -14,7 +14,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 
-MANYLINUX_IMAGE = "quay.io/pypa/manylinux1_x86_64:latest"
+ALPINE_IMAGE = "alpine:latest"
 REQUIREMENTS_IMAGE = "clusterhq/flocker_update_requirements"
 
 
@@ -59,7 +59,7 @@ class UpdateRequirementsOptions(Options):
 
 def build_requirements_image(image_tag, dockerfile, requirements_directory):
     check_call(
-        ["docker", "pull", MANYLINUX_IMAGE]
+        ["docker", "pull", ALPINE_IMAGE]
     )
 
     with temporary_directory(

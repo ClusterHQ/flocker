@@ -50,13 +50,20 @@ class RealisticTests(AsyncTestCase):
 
         def created(volume):
             return service_pair.from_service.handoff(
-                volume, service_pair.remote)
+                volume,
+                service_pair.remote
+            )
+
         d.addCallback(created)
 
         def handed_off(_):
             return service_pair.to_service.handoff(
                 service_pair.to_service.get(
-                    VolumeName(namespace=u"myns", dataset_id=u"myvolume")),
-                service_pair.origin_remote)
+                    VolumeName(namespace=u"myns", dataset_id=u"myvolume")
+                ),
+                service_pair.origin_remote
+            )
+        d.addCallback(handed_off)
+
         # If the Deferred errbacks the test will fail:
         return d

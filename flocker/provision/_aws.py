@@ -35,7 +35,6 @@ from ._ssh import run_remotely, run_from_args
 _usernames = {
     'centos-7': 'centos',
     'ubuntu-14.04': 'ubuntu',
-    'ubuntu-15.10': 'ubuntu',
     'ubuntu-16.04': 'ubuntu',
     'rhel-7.2': 'ec2-user',
 }
@@ -49,7 +48,6 @@ IMAGE_NAMES = {
     'centos-7': 'CentOS Linux 7 x86_64 HVM EBS 1602-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-d7e1d2bd.3',  # noqa
     # https://cloud-images.ubuntu.com/locator/ec2/
     'ubuntu-14.04': 'ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-20160222',  # noqa
-    'ubuntu-15.10': 'ubuntu/images/hvm-ssd/ubuntu-wily-15.10-amd64-server-20160226',  # noqa
     'ubuntu-16.04': 'ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-20160627',  # noqa
     # RHEL 7.2 HVM GA image
     'rhel-7.2': 'RHEL-7.2_HVM_GA-20151112-x86_64-1-Hourly2-GP2',  # noqa

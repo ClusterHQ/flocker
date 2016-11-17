@@ -35,7 +35,6 @@ DOCKER_IMAGES = {
     'debian-8': DockerImage(image='debian:8', package_manager='apt'),
     'fedora-22': DockerImage(image='fedora:22', package_manager='dnf'),
     'ubuntu-14.04': DockerImage(image='ubuntu:14.04', package_manager='apt'),
-    'ubuntu-15.10': DockerImage(image='ubuntu:15.10', package_manager='apt'),
     'ubuntu-16.04': DockerImage(image='ubuntu:16.04', package_manager='apt'),
 }
 
@@ -49,7 +48,6 @@ PIP_DISTRIBUTIONS = DOCKER_IMAGES.keys()
 PACKAGED_CLIENT_DISTRIBUTIONS = (
     'centos-7',
     'ubuntu-14.04',
-    'ubuntu-15.10',
     'ubuntu-16.04',
 )
 

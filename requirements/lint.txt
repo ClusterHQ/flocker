@@ -1,0 +1,14 @@
+flake8==3.0.4
+pylint==1.6.4
+## The following requirements were added by pip freeze:
+astroid==1.4.8
+backports.functools-lru-cache==1.3
+configparser==3.5.0
+enum34==1.1.6
+isort==4.2.5
+lazy-object-proxy==1.2.2
+mccabe==0.5.2
+pycodestyle==2.0.0
+pyflakes==1.2.3
+six==1.10.0
+wrapt==1.10.8

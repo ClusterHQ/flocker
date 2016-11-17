@@ -11,6 +11,7 @@ driver:
 - Python API: https://google-api-client-libraries.appspot.com/documentation/compute/v1/python/latest/ # noqa
 - Python Oauth: https://developers.google.com/identity/protocols/OAuth2ServiceAccount#authorizingrequests # noqa
 """
+from io import BytesIO
 import time
 from uuid import UUID
 from threading import Lock
@@ -20,9 +21,8 @@ from bitmath import GiB, Byte
 from eliot import Message, start_action, write_traceback
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
-from oauth2client.client import (
-    GoogleCredentials, SignedJwtAssertionCredentials
-)
+from oauth2client.client import GoogleCredentials
+from oauth2client.service_account import ServiceAccountCredentials
 from pyrsistent import PClass, field
 from twisted.python.filepath import FilePath
 from twisted.python.constants import (
@@ -394,10 +394,10 @@ def gce_credentials_from_config(gce_credentials_config=None):
     :returns: A GCE credentials object for use with the GCE API.
     """
     if gce_credentials_config is not None:
-        credentials = SignedJwtAssertionCredentials(
-            gce_credentials_config['client_email'],
-            gce_credentials_config['private_key'],
-            scope=[
+        credentials = ServiceAccountCredentials.from_p12_keyfile_buffer(
+            service_account_email=gce_credentials_config['client_email'],
+            file_buffer=BytesIO(gce_credentials_config['private_key']),
+            scopes=[
                 u"https://www.googleapis.com/auth/compute",
             ]
         )

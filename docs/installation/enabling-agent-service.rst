@@ -6,17 +6,11 @@ Enabling the Flocker Agent Service
 
 .. begin-body-enable-agent-intro
 
-The Flocker agents, the ``flocker-dataset-agent`` and the ``flocker-container-agent``, are the workhorses of Flocker; you have them on each node in your cluster, and enabling them is an essential step in setting up your cluster.
+The ``flocker-dataset-agent`` is the workhorse of Flocker; you should enable and run it on each node in your cluster.
 
 .. end-body-enable-agent-intro
 
 .. begin-body-enable-agent-main
-
-.. note::
-   Flocker's container management features depend on Docker.
-   You will need to make sure `Docker (at least 1.8) is installed`_ and running before you enable ``flocker-container-agent``.
-
-.. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
 
 CentOS 7, RHEL 7.2
 ==================
@@ -65,12 +59,6 @@ Ubuntu 14.04
 .. end-body-enable-agent-main
 
 .. begin-body-enable-agent-other
-
-.. note::
-   Flocker's container management features depend on Docker.
-   You will need to make sure `Docker (at least 1.8) is installed`_ and running before you enable ``flocker-container-agent``.
-
-.. _Docker (at least 1.8) is installed: https://docs.docker.com/installation/
 
 CentOS 7, RHEL 7.2
 ==================

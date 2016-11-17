@@ -1547,7 +1547,7 @@ class PingTestsMixin(object):
         peer = AMP(locator=locator)
         protocol = self.build_protocol(reactor)
         pump = connectedServerAndClient(lambda: protocol, lambda: peer)[2]
-        for i in range(expected_pings):
+        for _ in range(expected_pings):
             reactor.advance(PING_INTERVAL.total_seconds())
             peer.callRemote(NoOp)  # Keep the other side alive past its timeout
             pump.flush()
